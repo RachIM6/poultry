@@ -33,8 +33,8 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T2: Database and integration-test harness
 **Description:** Docker Compose Postgres, Prisma init, first models (`Organization`, `User`, `Membership`, `AuditEvent`), seed script stub, and a test helper that runs integration tests against a separate database that is reset per file.
 **AC:**
-- [ ] `docker compose up -d db && pnpm db:migrate && pnpm db:seed` works on a clean machine.
-- [ ] One `*.int.test.ts` creates and reads an organisation against the test database.
+- [x] `docker compose up -d db && pnpm db:migrate && pnpm db:seed` works on a clean machine. (Prisma 7.10.1 + pg adapter, Postgres 18 for `uuidv7()`.)
+- [x] One `*.int.test.ts` creates and reads an organisation against the test database. (`src/lib/db.int.test.ts`; also asserts the per-file reset.)
 - [ ] CI runs the integration tests with a Postgres service.
 
 **Verify:** `pnpm test`. CI is green.

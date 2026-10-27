@@ -1,0 +1,72 @@
+// Conventions (SPEC §6, ADR-006): UUIDv7 ids generated on the client (the DB default is only a fallback
+// for server-created rows), timestamptz everywhere, and every farm-data table carries organizationId.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Owner: farm-registry
+model Organization {
+  id          String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name        String
+  createdAt   DateTime     @default(now()) @db.Timestamptz
+  memberships Membership[]
+}
+
+// Owner: identity
+model User {
+  id          String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  phone       String       @unique // E.164, +212…
+  name        String?
+  locale      Locale       @default(ar)
+  createdAt   DateTime     @default(now()) @db.Timestamptz
+  memberships Membership[]
+}
+
+enum Locale {
+  ar
+  fr
+}
+
+// Owner: identity
+model Membership {
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @db.Uuid
+  userId         String       @db.Uuid
+  role           MemberRole
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+enum MemberRole {
+  owner
+  manager
+  worker
+}
+
+// Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
+// No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
+model AuditEvent {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId   String    @db.Uuid
+  userId           String?   @db.Uuid
+  entity           String
+  entityId         String    @db.Uuid
+  action           String
+  before           Json?
+  after            Json?
+  mutationId       String?   @db.Uuid
+  deviceCreatedAt  DateTime? @db.Timestamptz
+  serverReceivedAt DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, entity, entityId])
+}

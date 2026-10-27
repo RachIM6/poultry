@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:18-alpine # 18+ for the built-in uuidv7()
+    environment:
+      POSTGRES_USER: poultry
+      POSTGRES_PASSWORD: poultry
+      POSTGRES_DB: poultry
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poultry"]
+      interval: 2s
+      retries: 15
+
+volumes:
+  db-data:

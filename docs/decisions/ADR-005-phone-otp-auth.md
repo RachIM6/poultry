@@ -25,6 +25,14 @@ Proposed. The library choice and the SMS / WhatsApp provider are still open (SPE
 - **Offline:** the client caches the user, the memberships and the permissions. A session that expired while offline keeps local entries queued until the user logs in again.
 - **Library:** build on a maintained auth library with phone-OTP support (Better Auth is the candidate) rather than writing session handling from scratch. This is confirmed in task T5, where the alternative is evaluated as well.
 
+- **Abuse protection** follows `.claude/skills/poultry-auth/` (added on 2026-10-27, adapted from the EMSI `cdoc-auth` skill). On top of the per-number limits, it adds:
+  - multi-dimensional rate limits (IP, subnet, phone, number prefix, global);
+  - protection against **SMS pumping**: Moroccan mobile numbers only, plus a global hourly cost cap with an alert;
+  - a self-hosted captcha (ALTCHA candidate) on code requests;
+  - uniform responses;
+  - a 90-day absolute session cap;
+  - CSRF checks on route handlers.
+
 ## Alternatives Considered
 - **Email + password:** rejected. It doesn't match the users, and passwords on shared phones are a risk.
 - **Password-less login by email link:** rejected for the same reason.

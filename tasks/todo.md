@@ -10,6 +10,10 @@ _Source: [plan.md](plan.md) · [SPEC.md](../SPEC.md). Requirement ids (I1, F2, B
 
 Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 
+**File paths:**
+- For **strict** modules (`flock`, `health`, `inventory`, `sales`), file names below map to `domain/` (pure rules such as `kpi.ts`, `withdrawal.ts`), `application/` (use cases) and `infrastructure/` (Prisma). See ADR-008 and the `poultry-ddd` skill.
+- Auth tasks follow `poultry-auth`.
+
 ---
 
 ## Phase 1: Foundation
@@ -17,8 +21,8 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T1: Scaffold app and tooling
 **Description:** Create the Next.js (App Router, TypeScript strict) app with pnpm, Tailwind, ESLint, Vitest, Playwright and a GitHub Actions workflow running lint, typecheck and tests. Add the module folders and the ESLint `no-restricted-imports` boundary rule for the M1 modules.
 **AC:**
-- [ ] `pnpm dev` serves a placeholder page. `pnpm build` succeeds.
-- [ ] Importing `src/modules/sales/service.ts` from `src/modules/flock/` fails lint. Importing `src/modules/inventory/index.ts` from `flock` passes.
+- [x] `pnpm dev` serves a placeholder page. `pnpm build` succeeds. (Build + `pnpm start` verified by the Playwright smoke test.)
+- [x] Importing `src/modules/sales/service.ts` from `src/modules/flock/` fails lint. Importing `src/modules/inventory/index.ts` from `flock` passes. (`eslint.boundaries.test.ts`)
 - [ ] CI runs lint + typecheck + unit tests on every push.
 
 **Verify:** `pnpm lint && pnpm typecheck && pnpm test && pnpm build`. CI is green on a branch.

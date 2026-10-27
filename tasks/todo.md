@@ -23,7 +23,7 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 **AC:**
 - [x] `pnpm dev` serves a placeholder page. `pnpm build` succeeds. (Build + `pnpm start` verified by the Playwright smoke test.)
 - [x] Importing `src/modules/sales/service.ts` from `src/modules/flock/` fails lint. Importing `src/modules/inventory/index.ts` from `flock` passes. (`eslint.boundaries.test.ts`)
-- [ ] CI runs lint + typecheck + unit tests on every push.
+- [x] CI runs lint + typecheck + unit tests on every push. (PR #2 `checks` job green.)
 
 **Verify:** `pnpm lint && pnpm typecheck && pnpm test && pnpm build`. CI is green on a branch.
 **Dependencies:** none

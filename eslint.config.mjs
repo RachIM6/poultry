@@ -96,7 +96,7 @@ const eslintConfig = defineConfig([
   },
   ...moduleBoundaries,
   noSystemClock,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "playwright-report/**", "test-results/**"]),
+  globalIgnores(["src/generated/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "playwright-report/**", "test-results/**"]),
 ]);
 
 export default eslintConfig;

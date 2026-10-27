@@ -7,5 +7,27 @@
     "label": "Langue",
     "ar": "العربية",
     "fr": "Français"
+  },
+  "Offline": {
+    "title": "Pas de connexion",
+    "body": "Cette page n'est pas encore enregistrée sur ce téléphone. Les pages déjà ouvertes restent disponibles.",
+    "home": "Accueil"
+  },
+  "Install": {
+    "title": "Installer l'application",
+    "back": "Retour",
+    "installed": "L'application est déjà installée sur ce téléphone.",
+    "android": {
+      "title": "Android (Chrome)",
+      "step1": "Ouvrez le menu ⋮ en haut de Chrome.",
+      "step2": "Touchez « Installer l'application » (ou « Ajouter à l'écran d'accueil »).",
+      "step3": "Confirmez avec « Installer »."
+    },
+    "ios": {
+      "title": "iPhone (Safari)",
+      "step1": "Ouvrez cette page dans Safari.",
+      "step2": "Touchez le bouton Partager (carré avec une flèche).",
+      "step3": "Touchez « Sur l'écran d'accueil », puis « Ajouter »."
+    }
   }
 }

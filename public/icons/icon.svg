@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Source of icon-192.png, icon-512.png and apple-touch-icon.png. Full-bleed so it also works as a maskable icon:
+       the egg stays inside the central safe circle (radius 40 %). -->
+  <rect width="512" height="512" fill="#15803d"/>
+  <path d="M256 112c-62 0-112 98-112 170 0 66 50 118 112 118s112-52 112-118c0-72-50-170-112-170z" fill="#fef3c7"/>
+</svg>

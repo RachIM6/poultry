@@ -45,9 +45,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T3: i18n Arabic/French with RTL shell
 **Description:** next-intl with `/[locale]` routing, `ar` as default, `<html lang dir>`, a language switcher, and formatting helpers (money from centimes, grams → kg, farm day in `Africa/Casablanca`, Western digits). Add a CI check for missing keys.
 **AC:**
-- [ ] `/ar` renders RTL and `/fr` renders LTR. The switcher keeps the current page.
-- [ ] `formatMoney(123450n)` → `1 234,50 DH` in both locales, with Western digits. `farmDay()` returns the right date around the Ramadan time change. Both are covered by unit tests.
-- [ ] CI fails when a key is missing in one locale.
+- [x] `/ar` renders RTL and `/fr` renders LTR. The switcher keeps the current page. (`e2e/smoke.spec.ts`, plus a manual check at 375 px.)
+- [x] `formatMoney(123450n)` → `1 234,50 DH` in both locales, with Western digits. `farmDay()` returns the right date around the Ramadan time change. Both are covered by unit tests. (`src/lib/format.test.ts`; `farmDayOf` lives in `src/lib/kernel/farm-day.ts`.)
+- [x] CI fails when a key is missing in one locale. (A unit test, `src/i18n/messages.test.ts`, instead of a separate script, so the existing `pnpm test` step enforces it.)
 
 **Verify:** `pnpm test -- src/lib/format`. Manual check of both locales on a mobile viewport.
 **Dependencies:** T1

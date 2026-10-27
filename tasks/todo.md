@@ -35,7 +35,7 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 **AC:**
 - [x] `docker compose up -d db && pnpm db:migrate && pnpm db:seed` works on a clean machine. (Prisma 7.10.1 + pg adapter, Postgres 18 for `uuidv7()`.)
 - [x] One `*.int.test.ts` creates and reads an organisation against the test database. (`src/lib/db.int.test.ts`; also asserts the per-file reset.)
-- [ ] CI runs the integration tests with a Postgres service.
+- [x] CI runs the integration tests with a Postgres service. (PR #3: `poultry_test` created from scratch, `db.int.test.ts` passed.)
 
 **Verify:** `pnpm test`. CI is green.
 **Dependencies:** T1

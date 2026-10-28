@@ -20,8 +20,12 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
-    // Signed-in pages are never stored: on a shared phone they would show the last user's data offline.
-    { matcher: ({ url }) => /^\/(ar|fr)\/account/.test(url.pathname), handler: new NetworkOnly() },
+    // Signed-in pages and API responses are never stored: on a shared phone they would show the last user's
+    // data offline (poultry-pwa rule 2). Offline data lives in IndexedDB instead.
+    {
+      matcher: ({ url }) => url.pathname.startsWith("/api/") || /^\/(ar|fr)\/account/.test(url.pathname),
+      handler: new NetworkOnly(),
+    },
     ...defaultCache,
   ],
   fallbacks: {

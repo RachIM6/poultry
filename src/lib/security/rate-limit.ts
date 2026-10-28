@@ -13,20 +13,13 @@ export async function consume(policy: PolicyName, dims: Partial<Record<Dimension
   const keys = rules.map((rule) => `${policy}:${rule.dim}:${rule.windowSec}:${keyValue(rule.dim, dims[rule.dim]!)}`);
   const windows = rules.map((rule) => rule.windowSec);
 
-  // Two statements, one transaction. The lock comes first, so the second statement's snapshot (READ COMMITTED)
-  // already sees every concurrent request of this policy: two requests can't both slip under a limit.
+  // One statement: the rate_limit_consume() function (migration *_rate_limit_function) locks, prunes, counts and
+  // inserts on the server. No client-held transaction, so a stalled Node process can't make it expire.
   // ponytail: one lock per policy serializes that endpoint's limiter (a few ms each); per-key locks if it ever queues.
-  const [, counts] = await db.$transaction([
-    db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${policy}))`,
-    db.$queryRaw<{ key: string; n: number }[]>`
-      WITH k AS (SELECT * FROM unnest(${keys}::text[], ${windows}::int[]) AS t(key, win)),
-      pruned AS (DELETE FROM "RateLimitHit" h USING k WHERE h.key = k.key AND h.at <= now() - make_interval(secs => k.win)),
-      added AS (INSERT INTO "RateLimitHit" (key) SELECT key FROM k)
-      SELECT k.key, (SELECT count(*) FROM "RateLimitHit" h WHERE h.key = k.key AND h.at > now() - make_interval(secs => k.win))::int AS n
-      FROM k`,
-  ]);
+  const counts = await db.$queryRaw<{ hit_key: string; hits: number }[]>`
+    SELECT * FROM rate_limit_consume(${policy}, ${keys}::text[], ${windows}::int[])`;
 
-  const countOf = new Map(counts.map((c) => [c.key, c.n])); // n = earlier hits in the window, this one excluded
+  const countOf = new Map(counts.map((c) => [c.hit_key, c.hits])); // earlier hits in the window, this one excluded
   const blocked = new Set<Dimension>();
   rules.forEach((rule, i) => {
     const n = countOf.get(keys[i]) ?? 0;

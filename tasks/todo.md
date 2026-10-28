@@ -57,8 +57,8 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T4: PWA shell
 **Description:** Web manifest (AR/FR name, icons), Serwist service worker precaching the app shell, offline fallback page, in-app "install the app" guide (Android and iOS steps), and a `navigator.storage.persist()` request.
 **AC:**
-- [ ] Lighthouse reports the app as installable. After the first visit, the shell loads with the network off.
-- [ ] The install guide shows the right steps for Android Chrome and for iOS Safari.
+- [x] Lighthouse reports the app as installable. After the first visit, the shell loads with the network off. (`e2e/pwa.spec.ts`: offline reload is served by the service worker with every request aborted; Chrome parses the manifest cleanly and it meets the install criteria. Lighthouse 12 no longer has a PWA/installable audit, so real installation is checked on a phone at Checkpoint A.)
+- [x] The install guide shows the right steps for Android Chrome and for iOS Safari. (e2e with Android and iPhone user agents; one-tap install button when Chrome offers it.)
 
 **Verify:** `pnpm build && pnpm start`. Lighthouse PWA audit. Playwright test: offline reload shows the shell.
 **Dependencies:** T1, T3

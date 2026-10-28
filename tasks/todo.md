@@ -76,9 +76,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T5: Phone OTP login and sessions (I1, I2)
 **Description:** Evaluate the auth library (Better Auth phone-OTP vs. a minimal in-house version on the same `Session` table) and record the outcome in ADR-005. Then implement login with a Moroccan number, a hashed 6-digit code, the limits from SPEC I1, 30-day database sessions in secure cookies, logout, and a dev OTP sink that prints to the console.
 **AC:**
-- [ ] Login works end to end in dev. A wrong code 5 times locks the code. The 4th request within 15 min is refused.
-- [ ] The session cookie is `httpOnly; Secure; SameSite=Lax`. Logout invalidates the session on the server.
-- [ ] ADR-005 is updated to Accepted, with the library decision.
+- [x] Login works end to end in dev. A wrong code 5 times locks the code. The 4th request within 15 min is refused. (`src/modules/identity/login.int.test.ts`, `e2e/login.spec.ts`; both limits mutation-checked.)
+- [x] The session cookie is `httpOnly; Secure; SameSite=Lax`. Logout invalidates the session on the server. (Cookie is `__Secure-sid`, see ADR-005.)
+- [x] ADR-005 is updated to Accepted, with the library decision. (Better Auth 1.7.14; differences from `poultry-auth` listed there.)
 
 **Verify:** integration tests for every OTP rule. Playwright e2e login on a mobile viewport.
 **Dependencies:** T2, T3
@@ -385,6 +385,7 @@ A test-only entity can be used until T10.
 ### T26: Pilot deployment
 **Description:** Deploy staging and pilot environments with the hosting chosen in OQ1 (ADR-007 superseded). Plug in the production OTP provider (OQ2), set up backups, add a demo-farm seed, and write a one-page quick guide in AR and FR.
 **AC:**
+- [ ] Captcha (ALTCHA candidate) before every code request, verified server-side and single use (poultry-auth §0.8). Deferred from T5 on 2026-10-28; required before real SMS are sent.
 - [ ] The pilot farm owner and a worker log in on their own phones and complete the first daily entry.
 - [ ] A daily backup runs and has been restored once as a test.
 

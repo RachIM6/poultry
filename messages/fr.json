@@ -29,5 +29,26 @@
       "step2": "Touchez le bouton Partager (carré avec une flèche).",
       "step3": "Touchez « Sur l'écran d'accueil », puis « Ajouter »."
     }
+  },
+  "Login": {
+    "title": "Connexion",
+    "phoneLabel": "Numéro de téléphone",
+    "phoneHint": "Mobile marocain : 06… ou 07…",
+    "sendCode": "Recevoir un code",
+    "codeSent": "Si ce numéro peut se connecter, un code à 6 chiffres vient de lui être envoyé.",
+    "codeLabel": "Code reçu",
+    "verify": "Se connecter",
+    "changeNumber": "Changer de numéro"
+  },
+  "Account": {
+    "title": "Mon compte",
+    "signedInAs": "Connecté avec le numéro",
+    "logout": "Se déconnecter"
+  },
+  "errors": {
+    "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
+    "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
+    "FORBIDDEN": "Action refusée.",
+    "NETWORK": "Pas de connexion. Réessayez."
   }
 }

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isIPv4, isIPv6 } from "node:net";
 import { db } from "@/lib/db";
 import { POLICIES, type Dimension, type PolicyName } from "./policies";
 
@@ -48,11 +49,22 @@ const keyValue = (dim: Dimension, value: string) =>
 export function clientNet(headers: Headers): { ip?: string; subnet?: string } {
   const hops = Number(process.env.TRUSTED_PROXY_HOPS ?? 0);
   const chain = headers.get("x-forwarded-for")?.split(",").map((s) => s.trim()) ?? [];
-  let ip = hops > 0 ? chain[chain.length - hops] : undefined;
-  if (!ip) return {};
-  ip = ip.replace(/^::ffff:(?=\d+\.)/, ""); // IPv4-mapped IPv6 → IPv4
-  const subnet = ip.includes(":")
-    ? `${ip.split(":").slice(0, 4).join(":")}::/64` // ponytail: assumes the first 4 groups are written out (no "::" in them)
-    : `${ip.split(".").slice(0, 3).join(".")}.0/24`;
-  return { ip, subnet };
+  const raw = hops > 0 ? chain[chain.length - hops] : undefined;
+  if (!raw) return {};
+  const ip = raw.replace(/^::ffff:(?=\d+\.)/i, ""); // IPv4-mapped IPv6 → IPv4
+  if (isIPv4(ip)) return { ip, subnet: `${ip.split(".").slice(0, 3).join(".")}.0/24` };
+  if (!isIPv6(ip)) return {};
+  // One IPv6 client usually owns a whole /64, so both dimensions use it. Keys come from the expanded form:
+  // "2001:db8::1" and "2001:0db8:0:0::1" must count as the same client.
+  const prefix = `${expandIPv6(ip).slice(0, 4).join(":")}::/64`;
+  return { ip: prefix, subnet: prefix };
+}
+
+// "2001:db8::1%eth0" → ["2001", "db8", "0", "0", "0", "0", "0", "1"] (lowercase, no leading zeros).
+function expandIPv6(ip: string): string[] {
+  const [head, tail] = ip.split("%")[0].toLowerCase().split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail !== undefined && tail !== "" ? tail.split(":") : [];
+  const groups = tail === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  return groups.map((g) => parseInt(g, 16).toString(16));
 }

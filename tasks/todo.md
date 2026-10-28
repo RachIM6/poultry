@@ -385,7 +385,8 @@ A test-only entity can be used until T10.
 ### T26: Pilot deployment
 **Description:** Deploy staging and pilot environments with the hosting chosen in OQ1 (ADR-007 superseded). Plug in the production OTP provider (OQ2), set up backups, add a demo-farm seed, and write a one-page quick guide in AR and FR.
 **AC:**
-- [ ] Captcha (ALTCHA candidate) before every code request, verified server-side and single use (poultry-auth §0.8). Deferred from T5 on 2026-10-28; required before real SMS are sent.
+- [ ] Captcha (ALTCHA candidate) before every code request, verified server-side and single use (poultry-auth §0.8), and `TRUSTED_PROXY_HOPS` set for the chosen host so the IP and subnet limits apply. Deferred from T5 on 2026-10-28; required before real SMS are sent. Until both exist, anyone who knows a farmer's number can use up that number's verify budget (10 / h) and block their login, or spend the global SMS cap (security review of PR #6).
+- [ ] An alert (not just a log line) when the global SMS cap reaches 50 %.
 - [ ] The pilot farm owner and a worker log in on their own phones and complete the first daily entry.
 - [ ] A daily backup runs and has been restored once as a test.
 

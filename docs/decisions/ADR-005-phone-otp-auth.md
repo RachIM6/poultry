@@ -50,7 +50,7 @@ Accepted differences from `poultry-auth` (consequences of using the library as i
 - **Sliding refresh extends the database row, but not the cookie, when the session is read from a page.** Route handlers that forward Better Auth's headers refresh both (the sync endpoints in T8 will).
 
 Not done in T5:
-- the captcha on code requests (ALTCHA candidate): before the pilot, with T26;
+- the captcha on code requests (ALTCHA candidate): before the pilot, with T26. **Until it exists, and until `TRUSTED_PROXY_HOPS` makes the IP limits apply, the per-number limits can be used against a farmer:** anyone who knows the number can use up its verify budget (10 / h) and block that farmer's login. The global and prefix caps can also be spent cheaply. This is acceptable in development only; T26 lists both as blockers;
 - auth audit events: `AuditEvent` requires an `organizationId`, so they come with the tenant context (T6);
 - logout refusing while unsynced changes exist: with the outbox (T9).
 

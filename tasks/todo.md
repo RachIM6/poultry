@@ -138,9 +138,11 @@ A test-only entity can be used until T10.
 ### T9: Sync client: Dexie, outbox, status (X1)
 **Description:** Dexie database, generic local write → outbox, sync loop (start, `online` event, after a write, every 60 s, Background Sync on Android), pull merge, a sync status badge (pending count, last sync) and a "needs attention" list for rejected mutations.
 **AC:**
-- [ ] Offline writes survive a reload and appear in the pending count.
-- [ ] Back online, the outbox empties and the pending count goes back to 0.
-- [ ] A rejected mutation appears in "needs attention" with a translated message.
+- [x] Offline writes survive a reload and appear in the pending count. (`e2e/sync.spec.ts`: the static `/fr/sync` shell reloads offline from the precache; unit tests in `src/offline/sync.test.ts`.)
+- [x] Back online, the outbox empties and the pending count goes back to 0. (The `online` event triggers the sync; also on start, after a write, on return to the foreground and every 60 s. Background Sync on Android is wired but not testable in Playwright: check on a real phone at Checkpoint C.)
+- [x] A rejected mutation appears in "needs attention" with a translated message. (No screen writes until T10, so the e2e queues a raw mutation of an unknown type.)
+
+Also done in T9: one local database per user and organisation with a scope header the server checks (ADR-003 notes); the service worker no longer caches signed-in pages, RSC payloads or `/api` responses (Serwist's `defaultCache` did, since T4; e2e checks Cache Storage); updates wait for the user (update banner, poultry-pwa §0.6); logout warns about unsent changes.
 
 **Verify:** unit tests for the outbox and merge logic (fake IndexedDB). Playwright offline → reload → online scenario.
 **Dependencies:** T4, T8

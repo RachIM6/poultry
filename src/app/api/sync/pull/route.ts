@@ -1,6 +1,6 @@
 import { consume } from "@/lib/security/rate-limit";
 import { PullQuery } from "@/lib/sync/protocol";
-import { pull } from "@/lib/sync/server";
+import { pull, scopeMatches } from "@/lib/sync/server";
 import { getTenantContext } from "@/modules/identity";
 import { registry } from "../registry";
 
@@ -8,6 +8,7 @@ import { registry } from "../registry";
 export async function GET(req: Request) {
   const ctx = await getTenantContext(req.headers);
   if (!ctx.ok) return Response.json({ ok: false, messageKey: "errors.UNAUTHENTICATED" }, { status: 401 });
+  if (!scopeMatches(req, ctx.value)) return Response.json({ ok: false, messageKey: "errors.SYNC_SCOPE" }, { status: 409 });
   if ((await consume("syncPull", { user: ctx.value.userId })).length > 0) {
     return Response.json({ ok: false, messageKey: "errors.TOO_MANY_REQUESTS" }, { status: 429, headers: { "Retry-After": "60" } });
   }

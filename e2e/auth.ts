@@ -38,6 +38,23 @@ export async function login(page: Page, locale: "ar" | "fr", phone = randomMobil
   return e164;
 }
 
+/** Waits until the signed-in page has stored who is signed in on this phone (src/offline/db.ts, "poultry-device"). */
+export async function scopeRemembered(page: Page) {
+  await page.waitForFunction(
+    () =>
+      new Promise((resolve) => {
+        const req = indexedDB.open("poultry-device");
+        req.onsuccess = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains("session")) return (db.close(), resolve(false));
+          const get = db.transaction("session").objectStore("session").get("current");
+          get.onsuccess = () => (db.close(), resolve(Boolean(get.result)));
+        };
+        req.onerror = () => resolve(false);
+      }),
+  );
+}
+
 /** A new owner with an organisation, signed in on the French dashboard. */
 export async function ownerWithFarm(page: Page, farmName: string) {
   const e164 = await login(page, "fr");

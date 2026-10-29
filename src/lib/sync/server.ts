@@ -3,7 +3,7 @@ import { db, type Tx } from "@/lib/db";
 import type { Result } from "@/lib/kernel/result";
 import { can, type Action } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { PULL_PAGE, type MutationResult, type PullResponse, type PushedMutation, type PushResponse } from "./protocol";
+import { PULL_PAGE, SCOPE_HEADER, type MutationResult, type PullResponse, type PushedMutation, type PushResponse } from "./protocol";
 
 /**
  * One offline write, declared by its module (poultry-ddd §5). `apply` validates and decides before it writes: a
@@ -21,6 +21,8 @@ export type SyncRegistry = {
   /** Per synced entity: what a caller may see of a record (money stripped for workers). Unlisted entities never leave. */
   entities: Record<string, (ctx: TenantContext, data: never) => unknown>;
 };
+
+export const scopeMatches = (req: Request, ctx: TenantContext) => req.headers.get(SCOPE_HEADER) === `${ctx.userId}:${ctx.organizationId}`;
 
 /** Keeps the payload type between schema and apply, then erases it for the registry. */
 export const defineMutation = <P>(handler: MutationHandler<P>) => handler as unknown as MutationHandler<never>;

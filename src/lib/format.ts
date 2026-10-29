@@ -16,6 +16,16 @@ export function formatMoney(centimes: bigint): string {
 
 export const formatKg = (grams: number) => `${kg.format(grams / 1000)} kg`;
 
+/** A moment (e.g. the last sync) in farm time: Africa/Casablanca, which follows Morocco's Ramadan offset change. */
+export function formatDateTime(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", {
+    numberingSystem: "latn",
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Africa/Casablanca",
+  }).format(new Date(iso));
+}
+
 export function formatDay(day: FarmDay, locale: string): string {
   return new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", {
     numberingSystem: "latn",

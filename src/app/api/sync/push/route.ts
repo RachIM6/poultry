@@ -1,7 +1,7 @@
 import { isSameOriginRequest } from "@/lib/security/csrf";
 import { consume } from "@/lib/security/rate-limit";
 import { PushBody } from "@/lib/sync/protocol";
-import { push } from "@/lib/sync/server";
+import { push, scopeMatches } from "@/lib/sync/server";
 import { getTenantContext } from "@/modules/identity";
 import { registry } from "../registry";
 
@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   // 401 sends the client to login; its outbox stays on the device (poultry-auth §0.5).
   const ctx = await getTenantContext(req.headers);
   if (!ctx.ok) return Response.json({ ok: false, messageKey: "errors.UNAUTHENTICATED" }, { status: 401 });
+  if (!scopeMatches(req, ctx.value)) return Response.json({ ok: false, messageKey: "errors.SYNC_SCOPE" }, { status: 409 });
   if ((await consume("syncPush", { user: ctx.value.userId })).length > 0) {
     return Response.json({ ok: false, messageKey: "errors.TOO_MANY_REQUESTS" }, { status: 429, headers: { "Retry-After": "60" } });
   }

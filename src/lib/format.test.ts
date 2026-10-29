@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { formatDay, formatKg, formatMoney } from "@/lib/format";
+import { formatDateTime, formatDay, formatKg, formatMoney } from "@/lib/format";
 
 const NNBSP = " "; // narrow no-break space: French thousands separator
 const NBSP = " "; // keeps the unit on the same line as the number
@@ -32,6 +32,14 @@ describe("formatDay", () => {
     expect(formatDay(day, "fr")).toBe("27 octobre 2026");
     expect(formatDay(day, "ar")).toMatch(/^27 \S+ 2026$/);
     expect(formatDay(day, "ar")).not.toMatch(/[٠-٩]/); // no Arabic-Indic digits
+  });
+});
+
+describe("formatDateTime", () => {
+  it("shows farm time in Casablanca with Western digits, across the Ramadan offset change", () => {
+    expect(formatDateTime("2026-04-01T23:30:00Z", "fr")).toMatch(/02\/04\/2026.*00:30/); // UTC+1
+    expect(formatDateTime("2026-03-01T23:30:00Z", "fr")).toMatch(/01\/03\/2026.*23:30/); // UTC+0 during Ramadan
+    expect(formatDateTime("2026-04-01T23:30:00Z", "ar")).not.toMatch(/[٠-٩]/);
   });
 });
 

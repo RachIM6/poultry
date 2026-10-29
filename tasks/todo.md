@@ -88,9 +88,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T6: Onboarding, legal entity and tenant context (I3, F1)
 **Description:** First login → create the organisation and its legal entity (form → accounting profile), and save the language on the user. Build `getTenantContext()` and `can(ctx, action, resource)`, plus a reusable isolation test pattern.
 **AC:**
-- [ ] A new user completes onboarding in AR or FR and lands on an empty dashboard.
-- [ ] Every repository function requires a `ctx`. A test shows that user A gets 404 on organisation B's legal entity.
-- [ ] The accounting profile is derived correctly for all 6 legal forms (unit test).
+- [x] A new user completes onboarding in AR or FR and lands on an empty dashboard. (`e2e/onboarding.spec.ts`, both locales; manual check at 375 px.)
+- [x] Every repository function requires a `ctx`. A test shows that user A gets 404 on organisation B's legal entity. (`getLegalEntity(ctx, id)` → null; `src/modules/farm-registry/service.int.test.ts` with the reusable `twoTenants()` from `src/test/tenant.ts`. `getTenantContext()` lives in `identity`, since `src/lib` may not import modules; `src/lib/tenant.ts` holds the type.)
+- [x] The accounting profile is derived correctly for all 6 legal forms (unit test). (`src/modules/farm-registry/schema.test.ts`; mapping from NEEDS-ANALYSIS §3, ⚠️ accountant to validate before M2.)
 
 **Verify:** `pnpm test -- src/modules/farm-registry src/lib/tenant`. e2e onboarding.
 **Dependencies:** T5

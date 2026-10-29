@@ -24,6 +24,8 @@ export const POLICIES = {
     { dim: "phone", limit: 10, windowSec: DAY }, // the invited number
     { dim: "user", limit: 50, windowSec: DAY }, // the inviting owner
   ],
+  syncPush: [{ dim: "user", limit: 120, windowSec: MIN }],
+  syncPull: [{ dim: "user", limit: 120, windowSec: MIN }],
 } satisfies Record<string, Rule[]>;
 
 export type PolicyName = keyof typeof POLICIES;

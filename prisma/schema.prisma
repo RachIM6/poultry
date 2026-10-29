@@ -155,6 +155,37 @@ enum MemberRole {
   worker
 }
 
+// Owner: src/lib/sync/server.ts (ADR-003). One row per pushed mutation id: a replay returns the stored result.
+// No FK to Organization, like AuditEvent: organisation deletion purges it explicitly (ADR-007).
+model Mutation {
+  id             String   @id @db.Uuid // generated on the device
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  type           String
+  result         Json // { status: "applied" } | { status: "rejected", messageKey }
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: src/lib/sync/server.ts. The per-organisation version counter; its row lock orders changes by commit.
+model SyncVersion {
+  organizationId String @id @db.Uuid
+  version        BigInt @default(0)
+}
+
+// Owner: src/lib/sync/server.ts. What pull returns: every change to a synced record, in version order.
+// data = the record as its module serializes it; null = deleted (tombstone).
+model Change {
+  organizationId String @db.Uuid
+  version        BigInt
+  entity         String
+  entityId       String @db.Uuid
+  data           Json?
+
+  @@id([organizationId, version])
+}
+
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
 // No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
 model AuditEvent {

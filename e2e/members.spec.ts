@@ -3,6 +3,7 @@ import { login, ownerWithFarm, randomMobile } from "./auth";
 
 // Two browsers: the owner's phone and the worker's phone (T7 manual check, automated).
 test("the owner invites a worker, who joins without owner screens, then removes them", async ({ page, browser }) => {
+  test.setTimeout(60_000); // two code logins and an onboarding: close to the 30 s default when 4 workers share the CPU
   await ownerWithFarm(page, "Ferme des Oliviers");
   await page.getByRole("link", { name: "Membres" }).click();
   await expect(page.getByRole("heading", { name: "Membres" })).toBeVisible();

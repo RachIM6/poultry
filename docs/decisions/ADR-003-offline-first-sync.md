@@ -32,6 +32,13 @@ Proposed. To be confirmed by the sync spike (tasks T8–T9).
    - The UI always shows the number of pending changes and the last sync time.
 7. **Rejected mutations** (validation or permission errors) stay visible in a "needs attention" list. They are never dropped silently.
 
+## Implementation notes (T8, to confirm at checkpoint C)
+- **Storage of point 4:** the version is stored on a per-organisation **change log** (`Change`: version, entity, id, data), not as a column on each farm table. A deletion is a change with `data: null`, so tombstones need no soft-delete column. Modules call `recordChange()` in their transaction, and each synced entity declares a serializer that strips money for workers on pull. Entities without one never leave the server.
+- **Ordering:** the per-organisation counter (`SyncVersion`) is incremented with a row lock held until commit, so versions become visible in order and a pull never skips one. This serializes one organisation's writes, which is fine at farm scale.
+- **Idempotency:** each mutation runs in its own transaction, which first claims its id in `Mutation`. A concurrent duplicate waits on that row and then returns the stored result. Rejections are stored and replayed too. An unexpected error stops the batch with nothing recorded for that mutation, so the client retries it and everything after it.
+- **Wire format:** `src/lib/sync/protocol.ts`.
+- **Later:** compact the change log (drop superseded versions) once it grows; until then a first pull reads every change.
+
 ## Alternatives Considered
 
 ### PowerSync / ElectricSQL (managed sync engines)

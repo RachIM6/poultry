@@ -50,7 +50,14 @@ describe("sync endpoints", () => {
       id: `0190a000-0000-7000-8000-${String(i).padStart(12, "0")}`, type: "x.y", payload: {}, createdAt: "2026-10-29T08:00:00Z",
     }));
     expect((await POST(pushReq(JSON.stringify({ mutations: many }), { cookie }))).status).toBe(400);
-    for (let i = 0; i < 119; i++) await POST(pushReq(JSON.stringify({ mutations: [] }), { cookie }));
+    const huge = JSON.stringify({ mutations: [], pad: "x".repeat(2_000_001) });
+    expect((await POST(pushReq(huge, { cookie, "content-length": String(huge.length) }))).status).toBe(413); // declared length
+    const streamed = new ReadableStream({ start: (c) => (c.enqueue(new TextEncoder().encode(huge)), c.close()) });
+    const noLength = new Request(`${origin}/api/sync/push`, {
+      method: "POST", body: streamed, duplex: "half", headers: { origin, "x-requested-with": "poultry", cookie },
+    } as RequestInit);
+    expect((await POST(noLength)).status).toBe(413); // counted while reading
+    for (let i = 0; i < 117; i++) await POST(pushReq(JSON.stringify({ mutations: [] }), { cookie }));
     expect((await POST(pushReq(JSON.stringify({ mutations: [] }), { cookie }))).status).toBe(429);
   });
 });

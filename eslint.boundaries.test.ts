@@ -55,6 +55,10 @@ describe("module boundaries", () => {
   it("rejects deep module imports from app code and any module import from lib", async () => {
     expect(await boundaryErrors("src/app/page.tsx", 'export * from "@/modules/flock/kpi";')).not.toEqual([]);
     expect(await boundaryErrors("src/app/page.tsx", 'export * from "@/modules/flock";')).toEqual([]);
+    // ADR-008: schema.ts is the second public entry, for the offline client.
+    expect(await boundaryErrors("src/components/form.tsx", 'export * from "@/modules/flock/schema";')).toEqual([]);
+    expect(await boundaryErrors("src/modules/health/x.ts", 'export * from "@/modules/flock/schema";')).toEqual([]);
+    expect(await boundaryErrors("src/modules/health/x.ts", 'export * from "@/modules/sales/schema";')).not.toEqual([]); // not a dependency
     expect(await boundaryErrors("src/lib/db.ts", 'export * from "@/modules/flock";')).not.toEqual([]);
   });
 });

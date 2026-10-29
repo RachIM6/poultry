@@ -18,6 +18,49 @@ model Organization {
   memberships   Membership[]
   legalEntities LegalEntity[]
   invitations   Invitation[]
+  farms         Farm[]
+}
+
+// Owner: farm-registry. SPEC F2. Created offline, so the id comes from the device (ADR-003).
+model Farm {
+  id             String       @id @db.Uuid
+  organizationId String       @db.Uuid
+  name           String
+  region         String
+  province       String
+  commune        String
+  latitude       Float?
+  longitude      Float?
+  onssaNumber    String? // ONSSA authorization
+  onssaExpiresOn DateTime?    @db.Date
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  houses         House[]
+
+  @@index([organizationId])
+}
+
+// Owner: farm-registry. SPEC F3.
+model House {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  farmId         String    @db.Uuid
+  name           String
+  areaM2         Int
+  capacity       Int // birds
+  type           HouseType
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @db.Timestamptz
+  farm           Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([farmId])
+}
+
+enum HouseType {
+  open
+  closed
 }
 
 // Owner: farm-registry. SPEC F1: the form sets the accounting profile (derived in code, not stored).

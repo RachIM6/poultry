@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { Client } from "pg";
 
 // The app's own database (the production build under test reads DATABASE_URL too).
@@ -39,20 +39,23 @@ export async function login(page: Page, locale: "ar" | "fr", phone = randomMobil
 }
 
 /** Waits until the signed-in page has stored who is signed in on this phone (src/offline/db.ts, "poultry-device"). */
+// expect.poll + evaluate awaits the page's promise; waitForFunction would take the Promise object itself as truthy.
 export async function scopeRemembered(page: Page) {
-  await page.waitForFunction(
-    () =>
-      new Promise((resolve) => {
-        const req = indexedDB.open("poultry-device");
-        req.onsuccess = () => {
-          const db = req.result;
-          if (!db.objectStoreNames.contains("session")) return (db.close(), resolve(false));
-          const get = db.transaction("session").objectStore("session").get("current");
-          get.onsuccess = () => (db.close(), resolve(Boolean(get.result)));
-        };
-        req.onerror = () => resolve(false);
-      }),
-  );
+  const stored = () =>
+    page.evaluate(
+      () =>
+        new Promise<boolean>((resolve) => {
+          const req = indexedDB.open("poultry-device");
+          req.onsuccess = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains("session")) return (db.close(), resolve(false));
+            const get = db.transaction("session").objectStore("session").get("current");
+            get.onsuccess = () => (db.close(), resolve(Boolean(get.result)));
+          };
+          req.onerror = () => resolve(false);
+        }),
+    );
+  await expect.poll(stored).toBe(true);
 }
 
 /** A new owner with an organisation, signed in on the French dashboard. */

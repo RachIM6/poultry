@@ -1,5 +1,8 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient, type Prisma } from "@/generated/prisma/client";
+
+/** The client inside db.$transaction(): cross-module writes take it so they commit or roll back together. */
+export type Tx = Prisma.TransactionClient;
 
 // One client per process, kept on globalThis so dev hot reloads don't open a new pool each time.
 const globalForDb = globalThis as unknown as { db?: PrismaClient };

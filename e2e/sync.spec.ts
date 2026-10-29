@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm } from "./auth";
+import { ownerWithFarm, scopeRemembered } from "./auth";
 
 // T9 acceptance: offline write → reload offline → back online → sent; a refused one waits in "needs attention".
 test("an offline write survives a reload, then syncs; a refused one waits in 'needs attention'", async ({ page, context }) => {
   test.setTimeout(60_000);
   await ownerWithFarm(page, "Ferme Hors-Ligne"); // the dashboard remembers who is signed in and starts syncing
   await expect(page.getByRole("link", { name: "Tout est envoyé." })).toBeVisible();
+  await scopeRemembered(page); // the badge renders before its effect has stored the scope
   await page.goto("/fr/sync");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined)); // shells precached
   await expect(page.getByText("Tout est envoyé.")).toBeVisible();
@@ -57,8 +58,9 @@ test("signed-in pages and API responses are never kept by the service worker", a
   await ownerWithFarm(page, "Ferme Cache");
   await page.goto("/fr/sync");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  const pulled = page.waitForResponse((res) => res.url().includes("/api/sync/pull") && res.status() === 200);
   await page.goto("/fr/dashboard");
-  await expect(page.getByRole("link", { name: "Tout est envoyé." })).toBeVisible(); // a sync (push + pull) ran
+  await pulled; // sync data went through the service worker
 
   const cached = await page.evaluate(async () => {
     const urls: string[] = [];

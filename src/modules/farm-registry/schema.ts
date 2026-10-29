@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 
 // SPEC F1. Same values as the LegalForm enum in prisma/schema.prisma.
@@ -22,16 +23,14 @@ export const accountingProfileOf = (form: LegalForm): AccountingProfile => ({
   coOwnerShares: form === "indivision",
 });
 
-export type OnboardingInput = { name: string; form: LegalForm; locale: "ar" | "fr" };
+export const Onboarding = z.object({
+  name: z.string().trim().min(1).max(120),
+  form: z.enum(LEGAL_FORMS),
+  locale: z.enum(["ar", "fr"]),
+});
+export type OnboardingInput = z.infer<typeof Onboarding>;
 
-const NAME_MAX = 120;
-
-// ponytail: hand-written checks for 3 fields; move to Zod with the sync schemas (T8; a new dependency is "ask first").
 export function parseOnboarding(body: unknown): Result<OnboardingInput, "INVALID_INPUT"> {
-  const { name, form, locale } = (body ?? {}) as Record<string, unknown>;
-  const trimmed = typeof name === "string" ? name.trim() : "";
-  if (!trimmed || trimmed.length > NAME_MAX) return fail("INVALID_INPUT");
-  if (!LEGAL_FORMS.includes(form as LegalForm)) return fail("INVALID_INPUT");
-  if (locale !== "ar" && locale !== "fr") return fail("INVALID_INPUT");
-  return ok({ name: trimmed, form: form as LegalForm, locale });
+  const parsed = Onboarding.safeParse(body);
+  return parsed.success ? ok(parsed.data) : fail("INVALID_INPUT");
 }

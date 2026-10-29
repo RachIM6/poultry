@@ -1,5 +1,5 @@
 // Rate-limit policies (poultry-auth references/rate-limiting.md §3). Handlers name a policy; numbers live here only.
-export type Dimension = "ip" | "subnet" | "phone" | "prefix" | "global";
+export type Dimension = "ip" | "subnet" | "phone" | "prefix" | "global" | "user";
 export type Rule = { dim: Dimension; limit: number; windowSec: number };
 
 const MIN = 60;
@@ -19,6 +19,10 @@ export const POLICIES = {
     { dim: "ip", limit: 60, windowSec: HOUR },
     { dim: "subnet", limit: 200, windowSec: HOUR },
     { dim: "phone", limit: 10, windowSec: HOUR },
+  ],
+  inviteMember: [
+    { dim: "phone", limit: 10, windowSec: DAY }, // the invited number
+    { dim: "user", limit: 50, windowSec: DAY }, // the inviting owner
   ],
 } satisfies Record<string, Rule[]>;
 

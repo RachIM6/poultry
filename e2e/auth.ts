@@ -37,3 +37,13 @@ export async function login(page: Page, locale: "ar" | "fr", phone = randomMobil
   await page.getByRole("button", { name: l.verify }).click();
   return e164;
 }
+
+/** A new owner with an organisation, signed in on the French dashboard. */
+export async function ownerWithFarm(page: Page, farmName: string) {
+  const e164 = await login(page, "fr");
+  await page.getByLabel("Nom de l’exploitation ou raison sociale").fill(farmName);
+  await page.getByLabel("Exploitant individuel").check();
+  await page.getByRole("button", { name: "Créer" }).click();
+  await page.waitForURL(/\/fr\/dashboard$/);
+  return e164;
+}

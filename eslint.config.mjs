@@ -25,9 +25,11 @@ const moduleDeps = {
   reporting: ["flock", "health", "biosecurity", "documents", "sales", "finance"],
 };
 
+// ADR-008: a module exposes index.ts (server API) and schema.ts (Zod schemas and mutation types, isomorphic: the
+// offline client imports it without pulling in Prisma). Nothing else.
 const deepImport = (self) => ({
-  regex: `^@/modules/(?!${self}/)[^/]+/(?!index$).+`,
-  message: "Import other modules only through their index (@/modules/<id>).",
+  regex: `^@/modules/(?!${self}/)[^/]+/(?!(index|schema)$).+`,
+  message: "Import other modules only through their index or schema (@/modules/<id>, @/modules/<id>/schema).",
 });
 
 const boundaryPatterns = (id, deps) => [

@@ -53,7 +53,7 @@ If a light module starts accumulating interdependent rules or status changes, pr
 
 ```
 src/modules/<id>/
-  index.ts          public API: the ONLY file other modules and app code import
+  index.ts          server API: other modules and app code import this, or schema.ts (ADR-008)
   schema.ts         Zod schemas + mutation types, shared by client (offline) and server (sync push)
   domain/           strict only. Pure TS: aggregates, value objects, policies, KPI/withdrawal functions
   application/      strict only. Use cases: load → domain method → save + audit, in one transaction
@@ -66,7 +66,7 @@ Callers:
 - `src/lib/sync/server.ts`: applies sync mutations;
 - `src/offline/**`: client sync and local reads.
 
-All three call the module **only through `index.ts`**.
+All three call the module **only through `index.ts`**, or `schema.ts` for the isomorphic schemas (the offline client must not pull in Prisma).
 
 ## 3. Non-negotiable rules (all modules)
 
@@ -74,7 +74,7 @@ All three call the module **only through `index.ts`**.
    - Domain functions (KPIs, withdrawal end date, vaccine plan generation, stock valuation) run in **both** the server and the offline client. Write them once.
    - Enforced by ESLint (`eslint.config.mjs`) and tested in `eslint.boundaries.test.ts`.
 2. **Module boundaries follow CAPABILITY-MAP.md.**
-   - Import another module only through its `index.ts`, and only if it is a declared dependency.
+   - Import another module only through its `index.ts` (or `schema.ts`), and only if it is a declared dependency.
    - Never query another module's tables. Ask its `index.ts` for what you need.
    - Enforced by ESLint.
 3. **Each table has one owning module.** Only the owner writes to it.

@@ -8,7 +8,7 @@ const { generateStaticParams, GET } = createSerwistRoute({
   swSrc: "src/sw.ts",
   useNativeEsbuild: true,
   // Public, static shells only (poultry-pwa §0.3). /sync reads the signed-in user's data from IndexedDB, not the HTML.
-  additionalPrecacheEntries: ["/ar", "/fr", "/ar/offline", "/fr/offline", "/ar/sync", "/fr/sync"].map((url) => ({ url, revision })),
+  additionalPrecacheEntries: ["", "/offline", "/sync", "/farms"].flatMap((path) => ["ar", "fr"].map((l) => ({ url: `/${l}${path}`, revision }))),
 });
 
 // The helper also returns `dynamic`, `dynamicParams` and `revalidate` segment configs, which cacheComponents

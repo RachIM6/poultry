@@ -14,6 +14,10 @@ export function formatMoney(centimes: bigint): string {
   return `${money.format(decimal as Intl.StringNumericLiteral)} DH`;
 }
 
+const count = new Intl.NumberFormat("fr", { numberingSystem: "latn" });
+/** Birds, m², heads: 12 000 in both locales. */
+export const formatCount = (n: number) => count.format(n);
+
 export const formatKg = (grams: number) => `${kg.format(grams / 1000)} kg`;
 
 /** A moment (e.g. the last sync) in farm time: Africa/Casablanca, which follows Morocco's Ramadan offset change. */

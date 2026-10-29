@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { Dexie } from "dexie";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { MutationResult, PullResponse } from "@/lib/sync/protocol";
-import { localDb, metaValue, type Scope } from "./db";
+import { currentScope, localDb, metaValue, rememberScope, signOutLocally, type Scope } from "./db";
 import { writeLocal } from "./outbox";
 import { syncOnce } from "./sync";
 
@@ -129,6 +129,26 @@ describe("pull merge (ADR-003)", () => {
     await syncOnce(db, s, savingDuringPull);
     expect(await db.records.get("farm:f1")).toMatchObject({ data: { name: "just typed" } });
     expect(await db.outbox.count()).toBe(1); // goes up on the next round
+  });
+
+  it("at logout keeps only unsent and refused writes, and deletes the database when there are none", async () => {
+    const [busy, idle] = [scope(), scope()];
+    const db = localDb(busy);
+    await writeLocal(db, { type: "unsent", payload: {} }, { entity: "farm", id: "f1", data: { name: "local" } });
+    await db.records.put({ key: "farm:f2", entity: "farm", id: "f2", data: { name: "pulled" } });
+    await db.meta.put({ key: "cursor", value: 9 });
+    await rememberScope(busy);
+
+    await signOutLocally(busy);
+    expect(await currentScope()).toBeUndefined();
+    expect(await db.records.count()).toBe(0);
+    expect(await metaValue(db, "cursor")).toBeUndefined(); // next login pulls from 0
+    expect(await db.outbox.count()).toBe(1);
+
+    await localDb(idle).records.put({ key: "farm:f3", entity: "farm", id: "f3", data: {} });
+    const name = localDb(idle).name;
+    await signOutLocally(idle);
+    expect(await Dexie.exists(name)).toBe(false);
   });
 
   it("keeps each user's data and outbox apart on a shared phone", async () => {

@@ -53,5 +53,21 @@ function deviceDb(): Device {
 
 export const currentScope = async () => (await deviceDb().session.get("current"))?.scope;
 export const rememberScope = (scope: Scope) => deviceDb().session.put({ key: "current", scope });
-/** At logout. The user's database (and its outbox) stays for their next login (poultry-auth §0.5). */
-export const forgetScope = () => deviceDb().session.delete("current");
+
+/**
+ * At logout, on a phone others may use: the cached farm data goes; only the user's unfinished work stays (unsent
+ * writes and refused ones to check, poultry-auth §0.5). With nothing left, the database goes too. The next login
+ * pulls everything again from version 0.
+ */
+export async function signOutLocally(scope: Scope) {
+  await deviceDb().session.delete("current");
+  const db = localDb(scope);
+  const unfinished = await db.transaction("rw", db.outbox, db.needsAttention, db.records, db.meta, async () => {
+    await Promise.all([db.records.clear(), db.meta.clear()]);
+    return (await db.outbox.count()) + (await db.needsAttention.count());
+  });
+  if (unfinished === 0) {
+    open.delete(db.name);
+    await db.delete();
+  }
+}

@@ -10,6 +10,7 @@ const DAY = 24 * 60 * 60;
 export const AUTH_CONFIG = {
   otp: { length: 6, expiresInSec: 5 * 60, allowedAttempts: 5 },
   session: { expiresInSec: 30 * DAY, updateAgeSec: DAY, absoluteMaxSec: 90 * DAY },
+  invitation: { expiresInSec: 7 * DAY }, // not Better Auth's: ours (application/members.ts)
 };
 
 // Better Auth is the engine only: nothing mounts its HTTP handler. Our route handlers (src/app/api/auth/*) run rate

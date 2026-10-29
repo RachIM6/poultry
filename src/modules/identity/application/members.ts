@@ -26,7 +26,9 @@ export async function inviteMember(
   if (!input.success) return fail("INVALID_INPUT");
   const phone = PhoneNumber.create(input.data.phone);
   if (!phone.ok) return phone;
-  if ((await consume("inviteMember", { phone: phone.value.e164, user: ctx.userId })).length > 0) return fail("TOO_MANY_REQUESTS");
+  // Per number *and organisation*: a shared per-number counter would let one owner block every other farm's invitations.
+  const limits = { phone: `${ctx.organizationId}:${phone.value.e164}`, user: ctx.userId };
+  if ((await consume("inviteMember", limits)).length > 0) return fail("TOO_MANY_REQUESTS");
 
   const { organizationId } = ctx;
   const phoneNumber = phone.value.e164;
@@ -112,9 +114,14 @@ export async function cancelInvitation(ctx: TenantContext, raw: unknown): Promis
   });
 }
 
-/** At login: every pending, unexpired invitation for this number becomes a membership (poultry-auth §1). */
+/**
+ * At first login (poultry-auth §1): pending, unexpired invitations for this number become memberships. Someone who
+ * already belongs to an organisation is never added to another one without asking: their invitations stay pending.
+ */
+// ponytail: those pending invitations wait for an accept/decline screen with the organisation switcher (M5).
 export async function acceptInvitations(userId: string, phoneNumber: string, clock: Clock = systemClock) {
   await db.$transaction(async (tx) => {
+    if ((await tx.membership.count({ where: { userId } })) > 0) return;
     const pending = await tx.invitation.findMany({ where: { phoneNumber, expiresAt: { gt: clock.now() } } });
     for (const inv of pending) {
       const membership = await tx.membership.upsert({
@@ -143,8 +150,12 @@ async function lockMember(tx: Tx, ctx: TenantContext, membershipId: string) {
   return ok({ ...member, isLastOwner });
 }
 
-// poultry-auth §0.3: revocation takes effect on the next online request. Better Auth's sessions are per user.
+// poultry-auth §0.3: revocation takes effect on the next online request. Better Auth's sessions are per user, not per
+// organisation, so they are only deleted when this was the user's only organisation: one owner must not log a person
+// out of another farm. Access to this organisation still ends at once, since getTenantContext re-reads the membership.
 const revokeSessions = async (tx: Tx, ctx: TenantContext, userId: string) => {
+  const elsewhere = await tx.membership.count({ where: { userId, organizationId: { not: ctx.organizationId } } });
+  if (elsewhere > 0) return;
   const { count } = await tx.session.deleteMany({ where: { userId } });
   if (count > 0) await audit(tx, ctx, "Session", userId, "revoke", null, { count });
 };

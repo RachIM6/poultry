@@ -124,8 +124,29 @@ describe("members (SPEC I4, poultry-auth test matrix: access)", () => {
     expect(await db.membership.count({ where: { organizationId: solo.organizationId, role: "owner" } })).toBe(1);
   });
 
-  it("caps invitations per invited number (10 / day)", async () => {
+  it("caps invitations per invited number (10 / day) within one organisation only", async () => {
     for (let i = 0; i < 10; i++) expect((await inviteMember(a, { phone: "0610000099", role: "worker" })).ok).toBe(true);
     expect(await inviteMember(a, { phone: "0610000099", role: "worker" })).toEqual({ ok: false, error: "TOO_MANY_REQUESTS" });
+    expect(await inviteMember(b, { phone: "0610000099", role: "worker" })).toEqual({ ok: true, value: undefined }); // a can't block b
+  });
+
+  it("never adds someone who already has an organisation to another one without asking", async () => {
+    await inviteMember(a, { phone: "0600000002", role: "worker" }); // b's owner
+    const ctx = await contextOf(await login("0600000002"));
+
+    expect(ctx).toMatchObject({ organizationId: b.organizationId, role: "owner" });
+    expect(await db.membership.count({ where: { organizationId: a.organizationId, user: { phoneNumber: "+212600000002" } } })).toBe(0);
+    expect(await db.invitation.count({ where: { organizationId: a.organizationId, phoneNumber: "+212600000002" } })).toBe(1);
+  });
+
+  it("removing someone from one organisation doesn't log them out of their other one", async () => {
+    await inviteMember(a, { phone: "0610000020", role: "worker" });
+    await inviteMember(b, { phone: "0610000020", role: "worker" });
+    const cookie = await login("0610000020"); // first login: both invitations accepted
+
+    expect(await removeMember(b, { membershipId: await membershipOf(b, "+212610000020") })).toEqual({ ok: true, value: undefined });
+    expect(await contextOf(cookie)).toMatchObject({ organizationId: a.organizationId, role: "worker" });
+    expect(await changeRole(a, { membershipId: await membershipOf(a, "+212610000020"), role: "manager" })).toEqual({ ok: true, value: undefined });
+    expect(await getTenantContext(cookie)).toEqual({ ok: false, error: "UNAUTHENTICATED" }); // a was their last organisation
   });
 });

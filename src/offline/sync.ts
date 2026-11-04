@@ -107,7 +107,25 @@ export function startSync(scope: Scope): () => void {
   if (!engine) {
     const db = localDb(scope);
     let running: Promise<void> | undefined;
-    const run = () => (running ??= syncOnce(db, scope).then(() => undefined).finally(() => (running = undefined)));
+    let again = false;
+    // A request during a round (a write, a server-side change) gets one more round after it: the current one may have
+    // pushed or pulled before that change existed.
+    const run = (): Promise<void> => {
+      if (running) {
+        again = true;
+        return running;
+      }
+      running = syncOnce(db, scope)
+        .then(() => undefined)
+        .finally(() => {
+          running = undefined;
+          if (again) {
+            again = false;
+            void run();
+          }
+        });
+      return running;
+    };
     const onVisible = () => document.visibilityState === "visible" && void run();
     window.addEventListener("online", run);
     document.addEventListener("visibilitychange", onVisible); // iPhone has no Background Sync

@@ -17,6 +17,9 @@ export function LogoutButton() {
         if (scope && (await localDb(scope).outbox.count()) > 0 && !confirm(t("unsyncedConfirm"))) return;
         await postJson("/api/auth/logout");
         if (scope) await signOutLocally(scope);
+        // A shared phone must stop receiving this user's pushes; the server drops the endpoint at its next 410.
+        const reg = await navigator.serviceWorker?.getRegistration();
+        await (await reg?.pushManager?.getSubscription())?.unsubscribe().catch(() => {});
         router.replace("/login");
       }}
       className="rounded-lg border border-current/30 px-4 py-3"

@@ -2,6 +2,6 @@
 export { getSession, logout, requestCode, verifyCode } from "./application/login";
 export { cancelInvitation, changeRole, inviteMember, listMembers, removeMember } from "./application/members";
 export type { MembersDto } from "./application/members";
-export { addOwner, getTenantContext, lockForOnboarding } from "./application/membership";
+export { addOwner, getTenantContext, localesOf, lockForOnboarding } from "./application/membership";
 export { PhoneNumber } from "./domain/phone-number";
 export { ROLES } from "./schema";

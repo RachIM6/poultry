@@ -168,6 +168,35 @@
     "noReference": "Les données de référence ne sont pas encore sur ce téléphone. Ouvrez l’application une fois avec du réseau.",
     "cancel": "Annuler"
   },
+  "Notifications": {
+    "templates": {
+      "test": {
+        "title": "Notification de test",
+        "body": "Les notifications arrivent bien sur ce téléphone."
+      }
+    }
+  },
+  "Inbox": {
+    "title": "Notifications",
+    "open": "Notifications",
+    "empty": "Aucune notification.",
+    "unread": "Non lue",
+    "push": "Notifications sur ce téléphone",
+    "enablePush": "Activer les notifications",
+    "pushOn": "Activées sur ce téléphone.",
+    "pushDenied": "Bloquées dans les réglages du navigateur.",
+    "pushUnsupported": "Ce navigateur ne reçoit pas de notifications. Sur iPhone, installez d’abord l’application sur l’écran d’accueil.",
+    "pushOff": "Les notifications ne sont pas encore configurées sur le serveur.",
+    "sendTest": "M’envoyer une notification de test",
+    "testSent": "Envoyée : elle arrive dans la liste à la prochaine synchronisation.",
+    "quietHours": "Heures calmes",
+    "quietHint": "Hors urgence, rien ne sonne entre ces heures : les notifications arrivent à la fin.",
+    "from": "De",
+    "to": "À",
+    "save": "Enregistrer",
+    "saved": "Enregistré.",
+    "needsNetwork": "Disponible avec du réseau."
+  },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",

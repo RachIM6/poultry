@@ -1,5 +1,6 @@
 import { MAX_MUTATIONS_PER_PUSH, SCOPE_HEADER, type PullResponse, type PushResponse } from "@/lib/sync/protocol";
-import { localDb, metaValue, scopeKey, type LocalDb, type Scope, type SyncOutcome } from "./db";
+import type { ReferenceData } from "@/modules/reference-data/schema";
+import { cachedReference, localDb, metaValue, scopeKey, storeReference, type LocalDb, type Scope, type SyncOutcome } from "./db";
 
 type Fetch = typeof fetch;
 const BACKGROUND_SYNC_TAG = "poultry-outbox";
@@ -18,8 +19,19 @@ export async function syncOnce(db: LocalDb, scope: Scope, fetchFn: Fetch = fetch
     outcome = "offline"; // fetch failed: no network
   }
   await db.meta.put({ key: "lastOutcome", value: outcome });
-  if (outcome === "ok") await db.meta.put({ key: "lastSyncAt", value: new Date().toISOString() });
+  if (outcome === "ok") {
+    await db.meta.put({ key: "lastSyncAt", value: new Date().toISOString() });
+    await refreshReference(fetchFn).catch(() => {}); // the cached copy stays usable
+  }
   return outcome;
+}
+
+/** R4: reference data, downloaded again only when the server's copy changed (ETag). */
+export async function refreshReference(fetchFn: Fetch = fetch) {
+  const cached = await cachedReference();
+  const res = await fetchFn("/api/reference", { headers: cached ? { "if-none-match": cached.etag } : {} });
+  if (res.status !== 200) return; // 304: unchanged
+  await storeReference(res.headers.get("etag") ?? "", (await res.json()) as ReferenceData);
 }
 
 // The scope header lets the server refuse a push or pull made with another user's session (409).

@@ -1,5 +1,6 @@
 import { Dexie, type EntityTable } from "dexie";
 import type { Role } from "@/lib/tenant";
+import type { ReferenceData } from "@/modules/reference-data/schema";
 
 // ADR-003 local store. Runs in pages and in the service worker (Background Sync), so no React or Next imports here.
 
@@ -41,18 +42,25 @@ export const metaValue = async <K extends Meta["key"]>(db: LocalDb, key: K) =>
   (await db.meta.get(key))?.value as Extract<Meta, { key: K }>["value"] | undefined;
 
 // The device remembers who signed in last, so static offline pages and the service worker open the right database.
-type Device = Dexie & { session: EntityTable<{ key: "current"; scope: Scope }, "key"> };
+// Reference data (R4) lives here too: it is the same for every user and organisation, and holds no farm data.
+type Device = Dexie & {
+  session: EntityTable<{ key: "current"; scope: Scope }, "key">;
+  reference: EntityTable<{ key: "current"; etag: string; data: ReferenceData }, "key">;
+};
 let device: Device | undefined;
 function deviceDb(): Device {
   if (!device) {
     device = new Dexie("poultry-device") as Device;
-    device.version(1).stores({ session: "key" });
+    device.version(2).stores({ session: "key", reference: "key" });
   }
   return device;
 }
 
 export const currentScope = async () => (await deviceDb().session.get("current"))?.scope;
 export const rememberScope = (scope: Scope) => deviceDb().session.put({ key: "current", scope });
+
+export const cachedReference = () => deviceDb().reference.get("current");
+export const storeReference = (etag: string, data: ReferenceData) => deviceDb().reference.put({ key: "current", etag, data });
 
 /**
  * At logout, on a phone others may use: the cached farm data goes; only the user's unfinished work stays (unsent

@@ -9,7 +9,8 @@ async function boundaryErrors(file: string, code: string) {
   return result.messages.filter((m) => m.ruleId === "no-restricted-imports");
 }
 
-describe("module boundaries", () => {
+// The first lint loads the whole config (~20 s on this machine), close to the 30 s default under load.
+describe("module boundaries", { timeout: 120_000 }, () => {
   it("allows a declared dependency through its index", async () => {
     expect(await boundaryErrors("src/modules/flock/x.ts", 'export * from "@/modules/inventory";')).toEqual([]);
     expect(await boundaryErrors("src/modules/flock/x.ts", 'export * from "@/modules/inventory/index";')).toEqual([]);

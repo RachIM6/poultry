@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import type { ProtocolItem, ReferenceData } from "@/modules/reference-data/schema";
 
 /** R4: the same for every organisation (not farm data, so no tenant context), read-only, cached by the phone. */
@@ -31,3 +31,6 @@ export async function getReferenceData(): Promise<ReferenceData> {
     })),
   };
 }
+
+/** For other modules: is this id a product of the catalogue? Read inside their transaction. */
+export const isCatalogueProduct = async (tx: Tx, id: string) => (await tx.product.count({ where: { id } })) === 1;

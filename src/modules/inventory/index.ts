@@ -1,2 +1,4 @@
-// Public API of the `inventory` module (see CAPABILITY-MAP.md). Other modules import only from here.
-export {};
+// Public API of the `inventory` module (see CAPABILITY-MAP.md). Other modules import only from here,
+// or from ./schema for what the offline client needs (ADR-008).
+export { inventorySync } from "./sync";
+export { stockOnHand, supplierBalances } from "./domain/stock";

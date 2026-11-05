@@ -115,3 +115,6 @@ export const farmRegistrySync: SyncRegistry = {
   // No money in farms or houses: every member sees them as they are.
   entities: { farm: (_ctx, data: FarmDto) => data, house: (_ctx, data: HouseDto) => data },
 };
+
+/** For other modules writing farm data: is this farm the caller's organisation's? Inside their transaction. */
+export const farmBelongsTo = async (tx: Tx, ctx: TenantContext, farmId: string) => (await ownFarm(tx, ctx, farmId)) !== null;

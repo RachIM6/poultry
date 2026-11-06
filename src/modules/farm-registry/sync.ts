@@ -118,3 +118,9 @@ export const farmRegistrySync: SyncRegistry = {
 
 /** For other modules writing farm data: is this farm the caller's organisation's? Inside their transaction. */
 export const farmBelongsTo = async (tx: Tx, ctx: TenantContext, farmId: string) => (await ownFarm(tx, ctx, farmId)) !== null;
+
+/** For other modules: the caller's organisation's house and its farm, or null. Inside their transaction. */
+export const houseOf = async (tx: Tx, ctx: TenantContext, houseId: string) => {
+  const house = await ownHouse(tx, ctx, houseId);
+  return house && { id: house.id, farmId: house.farmId };
+};

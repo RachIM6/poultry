@@ -268,8 +268,10 @@ Notes: one page, `/[locale]/batches#<id>` opens the day (the path stays the prec
 ### T17: Weighings and uniformity (B3)
 **Description:** Record a sample, as individual weights or as total ÷ count. Compute average and CV% (CV only with individual weights). Compare with the strain standard for that age.
 **AC:**
-- [ ] Average and CV% match a hand-computed sample (unit test).
-- [ ] The screen shows "x % vs standard" for that age, from the reference curve.
+- [x] Average and CV% match a hand-computed sample (unit test).
+- [x] The screen shows "x % vs standard" for that age, from the reference curve. Tested with a made-up e2e curve (`e2e/weighing.spec.ts`); real strains show "no standard" until the breeder tables are added (OQ5).
+
+Built as the `flock.recordWeighing` mutation (offline, `flock.record`), `src/modules/flock/domain/weighing.ts`, and a weighing section in the batch's day view (`src/components/weighing.tsx`), not a separate route.
 
 **Verify:** `pnpm test -- src/modules/flock/weighing`
 **Dependencies:** T15, T11

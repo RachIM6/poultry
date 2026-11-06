@@ -92,7 +92,7 @@ export async function pushAs(page: Page, mutations: { type: string; payload: unk
 }
 
 /** A farm with a house, a feed item with 1 000 kg bought, and a batch of 1 000 chicks placed today. */
-export async function farmWithBatch(page: Page) {
+export async function farmWithBatch(page: Page, strainId = "ross-308") {
   const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), supplier: crypto.randomUUID(), feed: crypto.randomUUID(), batch: crypto.randomUUID() };
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablanca" }).format(new Date());
   await pushAs(page, [
@@ -101,7 +101,7 @@ export async function farmWithBatch(page: Page) {
     { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Alf", phone: null } },
     { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
     { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day: today, quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
-    { type: "flock.placeBatch", payload: { id: ids.batch, houseId: ids.house, strainId: "ross-308", placedOn: today, chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null } },
+    { type: "flock.placeBatch", payload: { id: ids.batch, houseId: ids.house, strainId, placedOn: today, chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null } },
   ]);
   return ids;
 }

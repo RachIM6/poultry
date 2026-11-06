@@ -220,8 +220,10 @@ Notes: units are integers of a base unit (grams for kg). Purchase amount = quant
 ### T14: Stock valuation and low-stock alerts (S5, S6)
 **Description:** Weighted-average cost per item and farm, applied to consumption movements. Low-stock threshold per item triggers a notification.
 **AC:**
-- [ ] The valuation matches a hand-computed example of 3 purchases at different prices and 2 consumptions (unit test).
-- [ ] Crossing the threshold sends one notification, not one per movement.
+- [x] The valuation matches a hand-computed example of 3 purchases at different prices and 2 consumptions (unit test). (`src/modules/inventory/domain/valuation.test.ts`: 2 520,00 and 3 080,00 DH charged, 500 kg left worth 2 200,00 DH; rounding never loses a centime.)
+- [x] Crossing the threshold sends one notification, not one per movement. (`src/modules/inventory/alerts.int.test.ts`: once per crossing to owners and managers, re-armed by a restock, one alert when two corrections cross at once; mutation-checked.)
+
+Notes: valuation is computed from the ledger on demand (`valuate`), on the server and on the phone; nothing is stored. Each outgoing movement gets its cost, for batches to use (T16, T24). Today only stock corrections can lower stock; consumptions (T16) and vaccine use (T19) must call `alertIfLow` too. Setting a threshold above the current stock shows "Stock bas" on the phone but sends no notification (only a movement crosses). `notify` now also takes `roles`.
 
 **Verify:** `pnpm test -- src/modules/inventory`
 **Dependencies:** T12, T13

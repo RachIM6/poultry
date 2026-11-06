@@ -18,7 +18,9 @@ const count = new Intl.NumberFormat("fr", { numberingSystem: "latn" });
 /** Birds, m², heads: 12 000 in both locales. */
 export const formatCount = (n: number) => count.format(n);
 
-export const formatKg = (grams: number) => `${kg.format(grams / 1000)} kg`;
+/** The number alone ("1 250,5"), for messages that place the unit themselves. */
+export const formatKgValue = (grams: number) => kg.format(grams / 1000);
+export const formatKg = (grams: number) => `${formatKgValue(grams)} kg`;
 
 /** A moment (e.g. the last sync) in farm time: Africa/Casablanca, which follows Morocco's Ramadan offset change. */
 export function formatDateTime(iso: string, locale: string): string {

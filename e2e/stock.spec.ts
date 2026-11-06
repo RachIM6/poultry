@@ -36,6 +36,12 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText(/En stock : 2.000.kg/)).toBeVisible();
   await expect(page.getByText(/Reste dû : 6.000,00.DH/)).toBeVisible();
+  await expect(page.getByText(/Valeur : 9.000,00.DH/)).toBeVisible(); // T14: weighted average cost
+
+  await page.getByRole("button", { name: "Seuil d’alerte" }).click();
+  await page.getByLabel("Seuil d’alerte (kg)").fill("2500");
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click(); // not "Enregistrer un achat"
+  await expect(page.getByText("Stock bas")).toBeVisible(); // 2 000 kg < 2 500 kg
 
   const reload = await page.reload();
   expect(reload?.fromServiceWorker()).toBe(true);
@@ -53,4 +59,10 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
       )
     )[0] ?? null;
   await expect.poll(purchase).toEqual({ amount: "900000", paid: "300000", quantity: 2_000_000 });
+  const [item] = await query<{ threshold: number }>(
+    `SELECT s."lowStockThreshold" AS threshold FROM "StockItem" s JOIN "Membership" m ON m."organizationId" = s."organizationId"
+     JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
+    [e164],
+  );
+  expect(item.threshold).toBe(2_500_000);
 });

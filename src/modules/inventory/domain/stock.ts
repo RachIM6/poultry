@@ -67,3 +67,10 @@ export function supplierBalances(purchases: readonly { supplierId: string; amoun
   for (const p of purchases) balances.set(p.supplierId, (balances.get(p.supplierId) ?? 0n) + p.amountCentimes - p.paidCentimes);
   return balances;
 }
+
+/**
+ * S6: alert once, when a movement takes stock from at or above the item's threshold to below it. Further movements
+ * while it stays below don't alert again; a restock above the threshold re-arms it.
+ */
+export const crossedBelow = (before: number, after: number, threshold: number | null) =>
+  threshold !== null && before >= threshold && after < threshold;

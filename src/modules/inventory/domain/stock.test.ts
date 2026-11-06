@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCentimes } from "@/lib/kernel/money";
-import { checkAdjustment, checkItem, checkPurchase, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "./stock";
+import { checkAdjustment, checkItem, checkPurchase, crossedBelow, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "./stock";
 
 describe("stock on hand (SPEC S3)", () => {
   it("is the sum of each item's movements: in, out and corrections", () => {
@@ -77,5 +77,20 @@ describe("items and adjustments (SPEC S1, S3)", () => {
     expect(checkAdjustment({ quantity: -1_000, reason: "Sac déchiré" }).ok).toBe(true);
     expect(checkAdjustment({ quantity: -1_000, reason: "  " })).toEqual({ ok: false, error: "REASON_REQUIRED" });
     expect(checkAdjustment({ quantity: 0, reason: "x" })).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+  });
+});
+
+describe("low-stock threshold (SPEC S6)", () => {
+  it("alerts only on the movement that crosses below, and again after a restock", () => {
+    const threshold = 500_000; // 500 kg
+    const ledger = [600_000, 450_000, 300_000, 900_000, 400_000]; // stock after each movement, from 1 000 kg
+    let before = 1_000_000;
+    const alerts = ledger.map((after) => {
+      const crossed = crossedBelow(before, after, threshold);
+      before = after;
+      return crossed;
+    });
+    expect(alerts).toEqual([false, true, false, false, true]);
+    expect(crossedBelow(1_000, 0, null)).toBe(false); // no threshold set
   });
 });

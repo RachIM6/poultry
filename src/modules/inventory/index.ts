@@ -2,3 +2,4 @@
 // or from ./schema for what the offline client needs (ADR-008).
 export { inventorySync } from "./sync";
 export { stockOnHand, supplierBalances } from "./domain/stock";
+export { valuate } from "./domain/valuation";

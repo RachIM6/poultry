@@ -3,7 +3,7 @@ import { z } from "zod";
 // SPEC N1–N3. Isomorphic: the inbox screen reads these on the phone.
 
 /** Message keys under Notifications.templates in ar.json / fr.json. Modules add theirs here (low stock, vaccines…). */
-export const TEMPLATE_KEYS = ["test"] as const;
+export const TEMPLATE_KEYS = ["test", "lowStock"] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
 export type NotificationDto = {

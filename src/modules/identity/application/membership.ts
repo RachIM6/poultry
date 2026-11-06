@@ -1,6 +1,6 @@
 import { db, type Tx } from "@/lib/db";
 import { fail, ok, type Result } from "@/lib/kernel/result";
-import type { TenantContext } from "@/lib/tenant";
+import type { Role, TenantContext } from "@/lib/tenant";
 import { getSession } from "@/modules/identity/application/login";
 
 /** ADR-006 choke point: session cookie → membership → tenant context. A signed-in user with no membership onboards. */
@@ -36,4 +36,10 @@ export async function addOwner(tx: Tx, input: { organizationId: string; userId: 
   await tx.auditEvent.create({
     data: { organizationId, userId, entity: "Membership", entityId: membership.id, action: "create", after: { userId, role: "owner" } },
   });
+}
+
+/** The members of an organisation who hold one of these roles, e.g. to notify owners and managers (SPEC N3). */
+export async function membersWithRoles(tx: Tx, organizationId: string, roles: Role[]): Promise<string[]> {
+  const rows = await tx.membership.findMany({ where: { organizationId, role: { in: roles } }, select: { userId: true } });
+  return rows.map((r) => r.userId);
 }

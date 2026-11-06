@@ -67,3 +67,60 @@ export async function ownerWithFarm(page: Page, farmName: string) {
   await page.waitForURL(/\/fr\/dashboard$/);
   return e164;
 }
+
+/**
+ * Test setup through the app's own sync push, from inside the signed-in page (its cookie, its scope): faster than
+ * clicking through farms, stock and batches when a journey is about something else. Payloads are the mutations'.
+ */
+export async function pushAs(page: Page, mutations: { type: string; payload: unknown }[]) {
+  const results = await page.evaluate(async (ms) => {
+    const scope = await new Promise<{ userId: string; organizationId: string }>((resolve) => {
+      const req = indexedDB.open("poultry-device");
+      req.onsuccess = () => {
+        const get = req.result.transaction("session").objectStore("session").get("current");
+        get.onsuccess = () => resolve(get.result.scope);
+      };
+    });
+    const res = await fetch("/api/sync/push", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-requested-with": "poultry", "x-sync-scope": `${scope.userId}:${scope.organizationId}` },
+      body: JSON.stringify({ mutations: ms.map((m) => ({ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...m })) }),
+    });
+    return ((await res.json()) as { results: { status: string }[] }).results.map((r) => r.status);
+  }, mutations);
+  expect(results).toEqual(mutations.map(() => "applied"));
+}
+
+/** A farm with a house, a feed item with 1 000 kg bought, and a batch of 1 000 chicks placed today. */
+export async function farmWithBatch(page: Page) {
+  const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), supplier: crypto.randomUUID(), feed: crypto.randomUUID(), batch: crypto.randomUUID() };
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablanca" }).format(new Date());
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Atlas", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1200, capacity: 12000, type: "closed" } },
+    { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Alf", phone: null } },
+    { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day: today, quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+    { type: "flock.placeBatch", payload: { id: ids.batch, houseId: ids.house, strainId: "ross-308", placedOn: today, chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null } },
+  ]);
+  return ids;
+}
+
+/** Waits until the phone holds the reference data (strains, catalogue), downloaded after its first sync. */
+export async function referenceCached(page: Page) {
+  const stored = () =>
+    page.evaluate(
+      () =>
+        new Promise<boolean>((resolve) => {
+          const req = indexedDB.open("poultry-device");
+          req.onsuccess = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains("reference")) return (db.close(), resolve(false));
+            const get = db.transaction("reference").objectStore("reference").get("current");
+            get.onsuccess = () => (db.close(), resolve(Boolean(get.result)));
+          };
+          req.onerror = () => resolve(false);
+        }),
+    );
+  await expect.poll(stored).toBe(true);
+}

@@ -1,5 +1,6 @@
 import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
+import { birdsOut, type DayFields } from "@/modules/flock/domain/daily-entry";
 
 // SPEC B1 (placement); daily entries, weighings and closing join this aggregate in T16–T24. Pure and isomorphic: the
 // phone and the server run the same rules (poultry-ddd §3.1).
@@ -63,4 +64,21 @@ export class Batch {
   canBecome(next: BatchStatus) {
     return TRANSITIONS[this._status].includes(next);
   }
+
+  /**
+   * B2: may this be the day's entry? `outOnOtherDays` = dead + culled on the batch's other days, so the check also
+   * holds when an edit raises an earlier day. Editing is allowed until the batch is closed.
+   */
+  checkDay(day: FarmDay, entry: DayFields, outOnOtherDays: number, today: FarmDay): Result<void, DayError> {
+    if (this._status !== "open") return fail("BATCH_CLOSED");
+    if (ageOn(this.placement.placedOn, day) < 0) return fail("DAY_BEFORE_PLACEMENT");
+    if (daysBetween(day, today) < 0) return fail("DAY_IN_FUTURE");
+    const counts = [entry.dead, entry.culled, entry.waterMl ?? 0];
+    if (counts.some((n) => !Number.isSafeInteger(n) || n < 0)) return fail("INVALID_QUANTITY");
+    if (entry.feed && (!Number.isSafeInteger(entry.feed.grams) || entry.feed.grams <= 0)) return fail("INVALID_QUANTITY");
+    if (outOnOtherDays + birdsOut(entry) > this.birdsStarted) return fail("MORE_DEAD_THAN_ON_HAND");
+    return ok(undefined);
+  }
 }
+
+export type DayError = "BATCH_CLOSED" | "DAY_BEFORE_PLACEMENT" | "DAY_IN_FUTURE" | "INVALID_QUANTITY" | "MORE_DEAD_THAN_ON_HAND";

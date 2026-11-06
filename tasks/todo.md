@@ -254,9 +254,11 @@ Notes: owners and managers place batches (`flock.manage`); workers see them with
 ### T16: Daily entry with automatic feed consumption (B2, S4)
 **Description:** One entry per batch per farm day: mortality + cause, culls, feed (item + kg), water, note. It creates the feed consumption movement automatically. Edits are allowed until closing and are audited. Same-day entries from two devices are merged.
 **AC:**
-- [ ] A trained user completes an entry in **under 60 s** on a phone. Timed manually with 3 testers.
-- [ ] Saving feed creates exactly one consumption movement. Editing the kg updates that movement, never a duplicate.
-- [ ] Two offline entries for the same day merge into one after sync (integration test).
+- [ ] A trained user completes an entry in **under 60 s** on a phone. Timed manually with 3 testers. **Not done: needs people.** The screen is one form with zeros as defaults and the farm's first feed preselected; the e2e fills it in a few seconds.
+- [x] Saving feed creates exactly one consumption movement. Editing the kg updates that movement, never a duplicate. (The movement takes the entry's id; `src/modules/flock/daily-entries.int.test.ts` and `e2e/daily-entry.spec.ts`: 85 then 90 kg leave 910 kg of 1 000. Clearing the feed removes the movement.)
+- [x] Two offline entries for the same day merge into one after sync (integration test). (The entry id is a UUIDv5 of batch + day, the same on every phone; only changed fields are sent; the overwritten value is audited. Also when both arrive at the same moment, under a per-batch lock: mutation-checked.)
+
+Notes: one page, `/[locale]/batches#<id>` opens the day (the path stays the precached shell), not `batches/[id]/today`. Workers can enter the day (`flock.record`). Mortality + culls can never exceed the birds started. A consumption movement is the one movement that changes in place, because the entry it mirrors was edited (audited there). Water is entered in litres and stored in ml.
 
 **Verify:** unit tests for the merge. Integration tests. e2e daily-entry flow in AR and FR.
 **Dependencies:** T15, T14

@@ -7,6 +7,7 @@ import { ProtocolItem, VACCINATION_METHODS } from "@/modules/reference-data/sche
 // SPEC H1, H2, written offline: the phone and the sync push validate with the same schemas and build the same plan.
 export { checkDone, remindedDueOn, statusOn } from "@/modules/health/domain/vaccination";
 export type { DoneError, Reminder, VaccinationStatus } from "@/modules/health/domain/vaccination";
+export { checkBatchDay, checkTreatment, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
 
 export type VaccinationMethod = (typeof VACCINATION_METHODS)[number];
 
@@ -44,7 +45,36 @@ export const RecordVaccination = z.object({
   method: z.enum(VACCINATION_METHODS),
 });
 
+const text = (max: number) => z.string().trim().min(1).max(max);
+
+/** H3, H6: as recorded, with its withdrawal end computed by the domain rule. */
+export type TreatmentDto = z.infer<typeof RecordTreatment> & { withdrawalEndsOn: string; byUserId: string };
+export const RecordTreatment = z.object({
+  id: z.uuid(),
+  batchId: z.uuid(),
+  stockItemId: z.uuid(), // the medicine lot, deducted from stock
+  quantity: z.int().positive(), // the item's base unit
+  dose: text(120), // as prescribed, e.g. "1 ml par litre d'eau"
+  startOn: z.iso.date(), // farm days
+  endOn: z.iso.date(),
+  reason: text(200),
+  prescriber: text(120),
+  withdrawalDays: z.int().min(0).max(365), // from the label or the prescription: never a default (OQ4)
+});
+
+/** H5, H6. */
+export type VetVisitDto = z.infer<typeof RecordVetVisit> & { byUserId: string };
+export const RecordVetVisit = z.object({
+  id: z.uuid(),
+  batchId: z.uuid(),
+  on: z.iso.date(), // farm day
+  vetName: text(120),
+  notes: z.string().trim().max(2000),
+});
+
 export const HEALTH_MUTATIONS = {
   planVaccinations: "health.planVaccinations",
   recordVaccination: "health.recordVaccination",
+  recordTreatment: "health.recordTreatment",
+  recordVetVisit: "health.recordVetVisit",
 } as const;

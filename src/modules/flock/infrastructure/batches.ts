@@ -1,5 +1,6 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
+import { houseOf } from "@/modules/farm-registry";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, type BatchStatus } from "@/modules/flock/domain/batch";
 import type { BatchDto } from "@/modules/flock/schema";
@@ -58,4 +59,12 @@ export async function loadBatch(tx: Tx, ctx: TenantContext, id: string): Promise
     },
     r.status as BatchStatus,
   );
+}
+
+/** For other modules (health): what they need to know of a batch of the caller's organisation, or null. */
+export async function batchFacts(tx: Tx, ctx: TenantContext, id: string) {
+  const r = await tx.batch.findFirst({ where: { id, organizationId: ctx.organizationId } });
+  if (!r) return null;
+  const house = await houseOf(tx, ctx, r.houseId);
+  return { farmId: r.farmId, houseName: house?.name ?? "", placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay, status: r.status as BatchStatus };
 }

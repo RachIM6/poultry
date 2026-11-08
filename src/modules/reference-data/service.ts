@@ -1,4 +1,5 @@
 import { db, type Tx } from "@/lib/db";
+import type { TenantContext } from "@/lib/tenant";
 import type { ProtocolItem, ReferenceData } from "@/modules/reference-data/schema";
 
 /** R4: the same for every organisation (not farm data, so no tenant context), read-only, cached by the phone. */
@@ -37,3 +38,16 @@ export const isCatalogueProduct = async (tx: Tx, id: string) => (await tx.produc
 
 /** For other modules: is this a strain of the catalogue (R1)? */
 export const isStrain = async (tx: Tx, id: string) => (await tx.strain.count({ where: { id } })) === 1;
+
+/** For other modules: are these all vaccines of the catalogue (R3)? */
+export async function areVaccines(tx: Tx, ids: string[]) {
+  const unique = [...new Set(ids)];
+  return (await tx.product.count({ where: { id: { in: unique }, kind: "vaccine" } })) === unique.length;
+}
+
+/** For other modules: is this protocol the caller's organisation's own (R2)? */
+export const ownProtocol = async (tx: Tx, ctx: TenantContext, id: string) =>
+  (await tx.vaccinationProtocol.count({ where: { id, organizationId: ctx.organizationId } })) === 1;
+
+/** For other modules: a catalogue product's names, for messages in either language. */
+export const productNames = (tx: Tx, id: string) => tx.product.findUnique({ where: { id }, select: { nameFr: true, nameAr: true } });

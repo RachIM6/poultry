@@ -25,3 +25,6 @@ export function farmInstant(day: FarmDay, minutes: number): Date {
 
 /** Whole calendar days from `from` to `to` (negative if `to` is earlier). Calendar arithmetic only, no time zone. */
 export const daysBetween = (from: FarmDay, to: FarmDay) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+
+/** The farm day `n` calendar days after `day` (before it if `n` is negative). */
+export const addFarmDays = (day: FarmDay, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10) as FarmDay;

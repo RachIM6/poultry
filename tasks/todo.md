@@ -302,9 +302,11 @@ Built in `src/modules/flock/domain/kpi.ts` and `src/components/batch-dashboard.t
 ### T19: Vaccination plan, reminders, mark as done (H1, H2)
 **Description:** Generate the plan from the farm protocol when a batch is created. Send reminders the day before and on the due day. "Mark done" records the date, the lot (picked from stock, which deducts it), the method and who did it.
 **AC:**
-- [ ] A new batch gets the expected items with their due dates (unit test against the protocol fixture).
-- [ ] Marking a vaccine done deducts the vaccine lot from stock.
-- [ ] Reminders arrive at the right times and respect quiet hours.
+- [x] A new batch gets the expected items with their due dates (unit test against the protocol fixture). (`src/modules/health/domain/vaccination.test.ts`, with a made-up fixture that is not a schedule; placement day = day 0, across month, year end and leap day. `e2e/vaccination.spec.ts` places offline with the farm's protocol and sees the plan.)
+- [x] Marking a vaccine done deducts the vaccine lot from stock. (One consumption movement with the plan line's id, in the same transaction; only from a lot of that vaccine in the batch's farm: `src/modules/health/vaccinations.int.test.ts`; offline, 990 of 2 000 doses in the e2e.)
+- [ ] Reminders arrive at the right times and respect quiet hours. **Server part done:** the day before and on the due day, once each, held until the end of each person's quiet hours, none for a vaccination done (integration test with a fixed clock). **Push on a real phone not verified**, as for T12.
+
+Decisions (2026-11-08, taken without asking): the placement form offers the organisation's protocols (the first one preselected, or "Aucun"); the phone sends `health.planVaccinations` right after `flock.placeBatch`, with the protocol's lines as it saw them, so the plan never changes when the protocol is edited later (flock can't depend on health). Reminders are created from the start of the farm day (the day before, then the due day) by the scheduler that already calls `POST /api/push/dispatch` every minute, and go to owners, managers and workers; quiet hours set the hour they arrive (06:00 by default). Doses default to the birds on hand; expired lots aren't offered. "Who did it" is whoever recorded it. One page again (`/batches#<id>`), not `batches/[id]/health`. A batch placed without a protocol has no plan; adding one later is not in M1 yet.
 
 **Verify:** `pnpm test -- src/modules/health`. Manual check of reminder delivery.
 **Dependencies:** T18, T12

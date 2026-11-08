@@ -454,6 +454,30 @@ model Weighing {
   @@index([organizationId])
 }
 
+// Owner: health (SPEC H1, H2). One per line of the batch's plan, copied from the farm's protocol at placement so later
+// edits of the protocol never change it. The id is a UUIDv5 of batch + line, the same on the phone and the server.
+model Vaccination {
+  id               String    @id @db.Uuid
+  organizationId   String    @db.Uuid
+  batchId          String    @db.Uuid
+  protocolId       String    @db.Uuid // the farm's protocol it came from
+  dayOfAge         Int
+  dueOn            DateTime  @db.Date // farm day
+  productId        String // a vaccine of the catalogue
+  method           String // planned method
+  doneOn           DateTime? @db.Date // farm day it was given
+  stockItemId      String?   @db.Uuid // the lot it was taken from (one consumption movement, same id)
+  doses            Int?
+  doneMethod       String?
+  doneBy           String?   @db.Uuid
+  remindedBeforeAt DateTime? @db.Timestamptz // claimed by the reminder job, so each reminder goes out once
+  remindedDueAt    DateTime? @db.Timestamptz
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+  @@index([dueOn])
+}
+
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
 // No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
 model AuditEvent {

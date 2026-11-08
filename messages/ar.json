@@ -177,6 +177,14 @@
       "lowStock": {
         "title": "مخزون منخفض: {item}",
         "body": "تبقى {quantity} {unit, select, kg {كلغ} dose {جرعات} ml {مل} other {وحدات}} (الحد الأدنى: {threshold})."
+      },
+      "vaccineTomorrow": {
+        "title": "تلقيح غدًا: {vaccineAr}",
+        "body": "{house}، اليوم {age}: {vaccineAr} ({method, select, drinkingWater {ماء الشرب} spray {الرش} eyeDrop {قطرة في العين} injection {الحقن} other {}}) مبرمج غدًا."
+      },
+      "vaccineToday": {
+        "title": "تلقيح اليوم: {vaccineAr}",
+        "body": "{house}، اليوم {age}: {vaccineAr} ({method, select, drinkingWater {ماء الشرب} spray {الرش} eyeDrop {قطرة في العين} injection {الحقن} other {}}) مبرمج اليوم."
       }
     }
   },
@@ -283,7 +291,9 @@
     "status": {
       "open": "جارية",
       "closed": "مغلقة"
-    }
+    },
+    "protocol": "برنامج التلقيح",
+    "noProtocol": "بدون"
   },
   "Day": {
     "title": "تسجيل اليوم",
@@ -337,7 +347,9 @@
     "DAY_BEFORE_PLACEMENT": "هذا اليوم قبل وضع الدفعة.",
     "DAY_IN_FUTURE": "هذا اليوم لم يأت بعد.",
     "MORE_DEAD_THAN_ON_HAND": "عدد النافق والمستبعد أكبر من عدد الطيور في الدفعة.",
-    "INVALID_SAMPLE": "وزن غير صالح: تحقق من الأوزان (بين 1 غ و20 كغ للطائر، 1000 طائر على الأكثر)."
+    "INVALID_SAMPLE": "وزن غير صالح: تحقق من الأوزان (بين 1 غ و20 كغ للطائر، 1000 طائر على الأكثر).",
+    "ALREADY_DONE": "هذا اللقاح مسجل بالفعل كمنجز.",
+    "WRONG_STOCK_ITEM": "هذه الدفعة لا تخص هذا اللقاح."
   },
   "Weighing": {
     "title": "الوزن",
@@ -372,5 +384,24 @@
     "standard": "معيار السلالة",
     "day": "ي{age}",
     "chartLabel": "متوسط الوزن حسب العمر: {points}"
+  },
+  "Vaccination": {
+    "title": "التلقيحات",
+    "none": "لا يوجد برنامج تلقيح لهذه الدفعة.",
+    "line": "اليوم {age} · {vaccine} · {method}",
+    "status": {
+      "today": "اليوم",
+      "late": "متأخر، كان مبرمجًا في {date}",
+      "upcoming": "مبرمج في {date}"
+    },
+    "done": "أُنجز في {date} · الحصة {lot} · {doses} جرعة",
+    "markDone": "تسجيل كمنجز",
+    "on": "تاريخ التلقيح",
+    "lot": "حصة اللقاح",
+    "lotOption": "{lot} (تنتهي صلاحيتها في {date})",
+    "noLot": "لا توجد حصة صالحة من هذا اللقاح في المخزون: أضفها في المخزون.",
+    "doses": "الجرعات",
+    "save": "تسجيل التلقيح",
+    "cancel": "إلغاء"
   }
 }

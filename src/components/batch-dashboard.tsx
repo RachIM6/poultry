@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { formatDecimal, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { ageOn, batchKpis, versusStandard, type BatchDto, type DailyEntryDto, type WeighingDto } from "@/modules/flock/schema";
+import { ageOn, batchKpis, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/schema";
 import { standardAt, type CurvePoint } from "@/modules/reference-data/schema";
 
 // SPEC B4 on the phone: the batch's KPIs from its local records, so they work offline and change as soon as a day or
@@ -11,10 +11,22 @@ import { standardAt, type CurvePoint } from "@/modules/reference-data/schema";
 
 const today = () => farmDayOf(new Date());
 
-export function BatchDashboard({ batch, entries, weighings, curve }: { batch: BatchDto; entries: DailyEntryDto[]; weighings: WeighingDto[]; curve: readonly CurvePoint[] | null }) {
+export function BatchDashboard({
+  batch,
+  entries,
+  weighings,
+  sold,
+  curve,
+}: {
+  batch: BatchDto;
+  entries: DailyEntryDto[];
+  weighings: WeighingDto[];
+  sold: SoldBirdsDto[];
+  curve: readonly CurvePoint[] | null;
+}) {
   const t = useTranslations();
   const placedOn = batch.placedOn as FarmDay;
-  const k = batchKpis({ placedOn, birdsStarted: batch.chicksPlaced - batch.deadOnArrival, dayOldWeightGrams: batch.dayOldWeightGrams }, entries, weighings, today());
+  const k = batchKpis({ placedOn, birdsStarted: batch.chicksPlaced - batch.deadOnArrival, dayOldWeightGrams: batch.dayOldWeightGrams }, entries, weighings, today(), sold);
   const w = k.weighed;
   const standard = w && curve ? standardAt(curve, w.ageDays) : null;
   const none = "—";

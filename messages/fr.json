@@ -350,7 +350,10 @@
     "INVALID_SAMPLE": "Pesée invalide : vérifiez les poids (entre 1 g et 20 kg par oiseau, 1 000 oiseaux au plus).",
     "ALREADY_DONE": "Ce vaccin est déjà marqué comme fait.",
     "WRONG_STOCK_ITEM": "Ce lot ne correspond pas à ce produit.",
-    "END_BEFORE_START": "La fin du traitement est avant son début."
+    "END_BEFORE_START": "La fin du traitement est avant son début.",
+    "WITHDRAWAL_IN_PROGRESS": "Vente refusée : un délai d’attente (traitement) est en cours sur cette bande ce jour-là. Vendez après sa fin.",
+    "MORE_BIRDS_THAN_ON_HAND": "Plus d’oiseaux que ceux présents dans la bande.",
+    "INSTRUMENT_REQUIRED": "Un chèque ou une traite a besoin d’un numéro et d’une échéance."
   },
   "Weighing": {
     "title": "Pesée",
@@ -437,5 +440,43 @@
     "save": "Enregistrer la visite",
     "cancel": "Annuler",
     "line": "{date} · {vet}"
+  },
+  "Sale": {
+    "title": "Ventes",
+    "none": "Aucune vente.",
+    "add": "Nouvelle vente",
+    "buyer": "Acheteur",
+    "newBuyer": "Nouvel acheteur",
+    "buyerName": "Nom de l’acheteur",
+    "buyerPhone": "Téléphone (facultatif)",
+    "buyerType": "Type d’acheteur",
+    "types": {
+      "trader": "Négociant",
+      "abattoir": "Abattoir",
+      "market": "Marché de volailles vivantes",
+      "other": "Autre"
+    },
+    "day": "Date de la vente",
+    "birds": "Nombre d’oiseaux",
+    "farmKg": "Poids à la ferme (kg)",
+    "buyerKg": "Poids de l’acheteur (kg, facultatif)",
+    "price": "Prix au kg (DH)",
+    "amount": "Montant : {amount}",
+    "gap": "Écart de pesée : {kg} ({percent} %)",
+    "method": "Mode de paiement",
+    "methods": {
+      "cash": "Espèces",
+      "cheque": "Chèque",
+      "bill": "Traite",
+      "transfer": "Virement",
+      "credit": "Crédit"
+    },
+    "paid": "Montant reçu maintenant (DH)",
+    "instrumentNumber": "N° du chèque ou de la traite",
+    "instrumentDueOn": "Échéance",
+    "save": "Enregistrer la vente",
+    "cancel": "Annuler",
+    "line": "{date} · {buyer} · {birds} oiseaux · {kg}",
+    "detail": "{amount} · {method} · reçu {paid}"
   }
 }

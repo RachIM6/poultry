@@ -12,6 +12,7 @@ const ALLOWED = {
   "flock.record": ["owner", "manager", "worker"], // daily entries (B2), weighings (B3): the worker's job
   "health.manage": ["owner", "manager"], // a batch's vaccination plan (H1), with its placement
   "health.record": ["owner", "manager", "worker"], // vaccinations given (H2), treatments (H3), vet visits (H5), I5
+  "sales.manage": ["owner", "manager"], // buyers and sales (V1–V3): prices and amounts, so never workers (I5)
   "money.read": ["owner", "manager"], // prices, costs, sale amounts, supplier credit
 } satisfies Record<string, Role[]>;
 

@@ -25,7 +25,7 @@ const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text
 const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
 const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const today = () => farmDayOf(new Date());
-const asDays = (t: TreatmentDto) => ({ endOn: t.endOn as FarmDay, withdrawalDays: t.withdrawalDays });
+const asDays = (t: TreatmentDto) => ({ startOn: t.startOn as FarmDay, endOn: t.endOn as FarmDay, withdrawalDays: t.withdrawalDays });
 
 /** H4: shown while a withdrawal runs, gone the day after it ends. */
 export function WithdrawalBanner({ treatments }: { treatments: TreatmentDto[] }) {

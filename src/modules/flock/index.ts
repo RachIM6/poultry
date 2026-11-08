@@ -2,3 +2,4 @@
 // or from ./schema for what the offline client needs (ADR-008).
 export { flockSync } from "./sync";
 export { batchFacts } from "./infrastructure/batches";
+export { recordBirdsSold } from "./application/sold-birds";

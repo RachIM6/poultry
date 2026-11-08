@@ -512,6 +512,53 @@ model VetVisit {
   @@index([organizationId, batchId])
 }
 
+// Owner: flock (SPEC B5). Birds that left a batch alive, told by sales with the sale's id: flock owns birds on hand.
+model SoldBirds {
+  id              String   @id @db.Uuid // the sale's
+  organizationId  String   @db.Uuid
+  batchId         String   @db.Uuid
+  day             DateTime @db.Date // farm day
+  birds           Int
+  liveWeightGrams Int // at the farm's weighing, for the FCR
+  createdAt       DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: sales (SPEC V1).
+model Buyer {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  phone          String?
+  type           String // trader | abattoir | market | other
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: sales (SPEC V2, V3). Money in centimes; the amount is computed by the server from the farm weight.
+model Sale {
+  id                 String    @id @db.Uuid
+  organizationId     String    @db.Uuid
+  batchId            String    @db.Uuid
+  buyerId            String    @db.Uuid
+  day                DateTime  @db.Date // farm day
+  birds              Int
+  farmWeightGrams    Int
+  buyerWeightGrams   Int?
+  pricePerKgCentimes BigInt
+  amountCentimes     BigInt
+  paymentMethod      String // cash | cheque | bill | transfer | credit
+  paidCentimes       BigInt
+  instrumentNumber   String? // cheque or bill of exchange
+  instrumentDueOn    DateTime? @db.Date
+  recordedBy         String    @db.Uuid
+  createdAt          DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
 // No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
 model AuditEvent {

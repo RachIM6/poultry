@@ -341,9 +341,11 @@ Decisions (2026-11-08, taken without asking): the catalogue has no medicines yet
 - a **hard block while a withdrawal period is running**, checked on the client and on the server.
 
 **AC:**
-- [ ] A sale during withdrawal is refused with a translated explanation. This includes a sale created offline and pushed later.
-- [ ] Amount = weight × price/kg, in integer centimes. The weighing gap is shown in kg and %.
-- [ ] Partial sales reduce birds on hand and keep the batch open.
+- [x] A sale during withdrawal is refused with a translated explanation. This includes a sale created offline and pushed later. (Server: `WITHDRAWAL_IN_PROGRESS` for a sale dated on any day of the withdrawal, its last day included, whenever it arrives, with nothing written: `src/modules/sales/sales.int.test.ts`. Phone: the same rule from `health/schema`, `e2e/sales.spec.ts`.)
+- [x] Amount = weight × price/kg, in integer centimes. The weighing gap is shown in kg and %. (`src/modules/sales/domain/sale.test.ts`: half up, bigint, no float; gap = farm − buyer, as a % of the farm weight. Shown live in the form and on each sale.)
+- [x] Partial sales reduce birds on hand and keep the batch open. (Flock's `SoldBirds` ledger, written by sales with the sale's id; daily entries and later sales can't exceed what is left; KPIs count sold birds out of birds on hand, not as dead, and their weight in the FCR.)
+
+Decisions (2026-11-08, taken without asking): flock owns birds on hand, and sales can't be one of its dependencies, so a sale tells flock through `recordBirdsSold` (like health → inventory for stock); the phone keeps the same `soldBirds` records. The withdrawal is checked on the **sale's day**, and a treatment counts from its start day (a sale made before the treatment began is allowed, also when it syncs after the treatment; this also fixes T20's rule, which ignored the start). The amount uses the farm weight; the buyer weight only gives the gap. Payment: cash, cheque, bill of exchange, transfer, credit; cheque and bill need a number and a due date; "amount received now" is typed, never assumed. Only owners and managers record or see sales (prices); workers see birds on hand go down. The sale form is on the batch screen (`/batches#<id>`), with a new buyer created inline as for suppliers; no separate `/sales` page until receivables (T22). Sales are not editable yet.
 
 **Verify:** unit tests on amounts and the gap. Integration test for the server-side block. e2e sale flow.
 **Dependencies:** T20, T18

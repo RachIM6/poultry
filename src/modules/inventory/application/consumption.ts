@@ -16,7 +16,7 @@ import type { MovementDto } from "@/modules/inventory/schema";
 export async function recordConsumption(
   tx: Tx,
   ctx: TenantContext,
-  c: { id: string; farmId: string; stockItemId: string; quantity: number; day: string; of?: { kind: string; productId?: string } },
+  c: { id: string; batchId: string; farmId: string; stockItemId: string; quantity: number; day: string; of?: { kind: string; productId?: string } },
 ): Promise<Result<void, "NOT_FOUND" | "WRONG_STOCK_ITEM">> {
   const item = await findItem(tx, ctx, c.stockItemId);
   if (!item || item.farmId !== c.farmId) return fail("NOT_FOUND"); // the item must be in the batch's farm
@@ -37,7 +37,7 @@ export async function recordConsumption(
     purchaseId: null,
   };
   if (same) await updateMovementQuantity(tx, c.id, movement.quantity, c.day);
-  else await insertMovement(tx, ctx, movement);
+  else await insertMovement(tx, ctx, movement, c.batchId); // the batch is charged its cost (S5, B6)
   await recordChange(tx, ctx, "movement", movement.id, movement);
   await alertIfLow(tx, ctx, item, movement.quantity - (same?.quantity ?? 0)); // S6 on the change only
   return ok(undefined);

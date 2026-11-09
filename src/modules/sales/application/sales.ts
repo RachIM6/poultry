@@ -39,7 +39,7 @@ export async function recordSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof
   );
   if (!checked.ok) return checked;
 
-  const sold = await recordBirdsSold(tx, ctx, { id: cmd.id, batchId: cmd.batchId, day: cmd.day, birds: cmd.birds, liveWeightGrams: cmd.farmWeightGrams }, clock);
+  const sold = await recordBirdsSold(tx, ctx, { id: cmd.id, batchId: cmd.batchId, day: cmd.day, birds: cmd.birds, liveWeightGrams: cmd.farmWeightGrams }, meta, clock);
   if (!sold.ok) return sold; // nothing written yet: flock checks before it writes
 
   const sale: Required<SaleDto> = { ...cmd, amountCentimes: String(checked.value.amountCentimes) };

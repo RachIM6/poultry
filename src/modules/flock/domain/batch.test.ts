@@ -66,3 +66,18 @@ describe("Birds sold (SPEC B5)", () => {
     expect(batch.checkDay(today, entry, 11_955, today)).toEqual({ ok: false, error: "MORE_DEAD_THAN_ON_HAND" });
   });
 });
+
+describe("Closing (SPEC B6)", () => {
+  const today = day("2026-11-21");
+
+  it("closes an open batch once, on a day between placement and today", () => {
+    const batch = Batch.rehydrate(placement, "open");
+    expect(batch.close(day("2026-11-22"), today)).toEqual({ ok: false, error: "DAY_IN_FUTURE" });
+    expect(batch.close(day("2026-10-13"), today)).toEqual({ ok: false, error: "DAY_BEFORE_PLACEMENT" });
+    expect(batch.close(today, today).ok).toBe(true);
+    expect(batch.status).toBe("closed");
+    expect(batch.close(today, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
+    expect(batch.checkBirdsSold(today, 1, 0, today)).toEqual({ ok: false, error: "BATCH_CLOSED" }); // read-only now
+  });
+});
+

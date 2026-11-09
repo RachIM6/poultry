@@ -82,13 +82,16 @@ describe("live-bird sales (SPEC V1–V3, B5)", () => {
     expect(await db.auditEvent.count({ where: { entity: "Sale", entityId: id } })).toBe(1);
   });
 
-  it("B5: a partial sale lowers birds on hand and keeps the batch open; nothing sells or dies beyond them", async () => {
+  it("B5, B6: partial sales lower birds on hand and keep the batch open; the sale of the last ones closes it", async () => {
     expect((await pulled<SoldBirdsDto>(a, "soldBirds")).map((s) => [s.day, s.birds, s.liveWeightGrams])).toEqual([["2026-10-29", 1, 600_000], ["2026-11-08", 300, 600_000]]);
+    const status = async () => (await db.batch.findUniqueOrThrow({ where: { id: batch } })).status;
+    expect(await status()).toBe("open");
     // 1 000 − 301 sold = 699 on hand
     expect(await statuses(a, [m(F.recordDay, { batchId: batch, day: "2026-11-08", changes: { dead: 700, deathCause: "heat" } })])).toEqual(["MORE_DEAD_THAN_ON_HAND"]);
     expect(await statuses(a, [sale({ birds: 700 })])).toEqual(["MORE_BIRDS_THAN_ON_HAND"]);
     expect(await statuses(a, [sale({ birds: 699, paymentMethod: "bill", paidCentimes: "0", instrument: { number: "T-0042", dueOn: "2026-12-15" } })])).toEqual(["applied"]);
-    expect((await db.batch.findUniqueOrThrow({ where: { id: batch } })).status).toBe("open"); // closing is T24
+    expect(await status()).toBe("closed");
+    expect(await statuses(a, [sale({ birds: 1 })])).toEqual(["BATCH_CLOSED"]);
     expect(await db.sale.findFirst({ where: { instrumentNumber: "T-0042" }, select: { instrumentDueOn: true } })).toEqual({ instrumentDueOn: new Date("2026-12-15T00:00:00Z") });
   });
 });

@@ -45,8 +45,8 @@ export async function insertItem(tx: Tx, ctx: TenantContext, i: StockItemDto): P
   );
 }
 
-export async function insertMovement(tx: Tx, ctx: TenantContext, m: MovementDto): Promise<MovementDto> {
-  const row = await tx.stockMovement.create({ data: { ...m, organizationId: ctx.organizationId, day: date(m.day) } });
+export async function insertMovement(tx: Tx, ctx: TenantContext, m: MovementDto, batchId?: string): Promise<MovementDto> {
+  const row = await tx.stockMovement.create({ data: { ...m, organizationId: ctx.organizationId, day: date(m.day), batchId } });
   return { ...m, day: dayOf(row.day) };
 }
 

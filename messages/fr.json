@@ -185,6 +185,10 @@
       "vaccineToday": {
         "title": "Vaccination aujourd’hui : {vaccineFr}",
         "body": "{house}, jour {age} : {vaccineFr} ({method, select, drinkingWater {eau de boisson} spray {nébulisation} eyeDrop {goutte oculaire} injection {injection} other {}}) est prévu aujourd’hui."
+      },
+      "instrumentDue": {
+        "title": "Échéance aujourd’hui : {method, select, cheque {chèque} other {traite}} n° {number}",
+        "body": "{buyer} : {amount} à encaisser aujourd’hui."
       }
     }
   },
@@ -353,7 +357,8 @@
     "END_BEFORE_START": "La fin du traitement est avant son début.",
     "WITHDRAWAL_IN_PROGRESS": "Vente refusée : un délai d’attente (traitement) est en cours sur cette bande ce jour-là. Vendez après sa fin.",
     "MORE_BIRDS_THAN_ON_HAND": "Plus d’oiseaux que ceux présents dans la bande.",
-    "INSTRUMENT_REQUIRED": "Un chèque ou une traite a besoin d’un numéro et d’une échéance."
+    "INSTRUMENT_REQUIRED": "Un chèque ou une traite a besoin d’un numéro et d’une échéance.",
+    "PAID_MORE_THAN_BALANCE": "Ce paiement dépasse ce que l’acheteur doit."
   },
   "Weighing": {
     "title": "Pesée",
@@ -478,5 +483,19 @@
     "cancel": "Annuler",
     "line": "{date} · {buyer} · {birds} oiseaux · {kg}",
     "detail": "{amount} · {method} · reçu {paid}"
+  },
+  "Receivables": {
+    "title": "Créances",
+    "open": "Créances des acheteurs",
+    "none": "Aucun acheteur ne doit d’argent.",
+    "owes": "{buyer} doit {amount}",
+    "due": "{method, select, cheque {Chèque} other {Traite}} n° {number} : {amount}, échéance le {date}",
+    "pay": "Enregistrer un paiement",
+    "day": "Date du paiement",
+    "amount": "Montant reçu (DH)",
+    "method": "Mode de paiement",
+    "save": "Enregistrer le paiement",
+    "cancel": "Annuler",
+    "forbidden": "Les créances sont réservées au propriétaire et au gérant."
   }
 }

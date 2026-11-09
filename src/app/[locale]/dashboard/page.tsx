@@ -42,6 +42,7 @@ async function Content() {
       <Link href="/batches" className="underline underline-offset-4">{t("Batches.open")}</Link>
       <Link href="/protocol" className="underline underline-offset-4">{t("Protocol.open")}</Link>
       <Link href="/stock" className="underline underline-offset-4">{t("Stock.open")}</Link>
+      {can(ctx.value, "sales.manage") && <Link href="/receivables" className="underline underline-offset-4">{t("Receivables.open")}</Link>}
       <Link href="/inbox" className="underline underline-offset-4">{t("Inbox.open")}</Link>
       {can(ctx.value, "members.manage") && (
         <Link href="/settings/members" className="underline underline-offset-4">{t("Members.title")}</Link>

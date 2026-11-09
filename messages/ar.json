@@ -185,6 +185,10 @@
       "vaccineToday": {
         "title": "تلقيح اليوم: {vaccineAr}",
         "body": "{house}، اليوم {age}: {vaccineAr} ({method, select, drinkingWater {ماء الشرب} spray {الرش} eyeDrop {قطرة في العين} injection {الحقن} other {}}) مبرمج اليوم."
+      },
+      "instrumentDue": {
+        "title": "استحقاق اليوم: {method, select, cheque {شيك} other {كمبيالة}} رقم {number}",
+        "body": "{buyer}: {amount} للاستخلاص اليوم."
       }
     }
   },
@@ -353,7 +357,8 @@
     "END_BEFORE_START": "نهاية العلاج قبل بدايته.",
     "WITHDRAWAL_IN_PROGRESS": "البيع مرفوض: مدة الانتظار (علاج) جارية على هذه الدفعة في ذلك اليوم. بِع بعد انتهائها.",
     "MORE_BIRDS_THAN_ON_HAND": "عدد أكبر من الطيور الموجودة في الدفعة.",
-    "INSTRUMENT_REQUIRED": "الشيك أو الكمبيالة يحتاج إلى رقم وتاريخ استحقاق."
+    "INSTRUMENT_REQUIRED": "الشيك أو الكمبيالة يحتاج إلى رقم وتاريخ استحقاق.",
+    "PAID_MORE_THAN_BALANCE": "هذا الأداء يفوق ما على المشتري."
   },
   "Weighing": {
     "title": "الوزن",
@@ -478,5 +483,19 @@
     "cancel": "إلغاء",
     "line": "{date} · {buyer} · {birds} طائر · {kg}",
     "detail": "{amount} · {method} · المقبوض {paid}"
+  },
+  "Receivables": {
+    "title": "الديون",
+    "open": "ديون المشترين",
+    "none": "لا يوجد مشترٍ عليه دين.",
+    "owes": "على {buyer} مبلغ {amount}",
+    "due": "{method, select, cheque {شيك} other {كمبيالة}} رقم {number}: {amount}، يستحق في {date}",
+    "pay": "تسجيل أداء",
+    "day": "تاريخ الأداء",
+    "amount": "المبلغ المقبوض (درهم)",
+    "method": "طريقة الأداء",
+    "save": "تسجيل الأداء",
+    "cancel": "إلغاء",
+    "forbidden": "الديون مخصصة للمالك والمسير."
   }
 }

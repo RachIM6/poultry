@@ -4,6 +4,7 @@ import { BUYER_TYPES, PAYMENT_METHODS } from "@/modules/sales/domain/sale";
 // SPEC V1–V3, written offline: the phone and the sync push validate with the same schemas and run the same checks.
 export { BUYER_TYPES, PAYMENT_METHODS, checkSale, saleAmount, weighingGap } from "@/modules/sales/domain/sale";
 export type { PaymentMethod, SaleError } from "@/modules/sales/domain/sale";
+export { buyerBalances, checkPayment } from "@/modules/sales/domain/receivables";
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const centimes = z.string().regex(/^\d{1,15}$/); // integer centimes; JSON has no bigint
@@ -40,4 +41,14 @@ export type SaleDto = Omit<z.infer<typeof RecordSale>, "pricePerKgCentimes" | "p
 };
 export const SALE_MONEY = ["pricePerKgCentimes", "amountCentimes", "paymentMethod", "paidCentimes", "instrument"] as const;
 
-export const SALES_MUTATIONS = { createBuyer: "sales.createBuyer", recordSale: "sales.recordSale" } as const;
+/** V4: a later payment from a buyer, against what they owe. */
+export const RecordPayment = z.object({
+  id: z.uuid(),
+  buyerId: z.uuid(),
+  day: z.iso.date(), // farm day
+  amountCentimes: centimes,
+  method: z.enum(["cash", "cheque", "bill", "transfer"]),
+});
+export type PaymentDto = z.infer<typeof RecordPayment>; // all money: owners and managers only (I5)
+
+export const SALES_MUTATIONS = { createBuyer: "sales.createBuyer", recordSale: "sales.recordSale", recordPayment: "sales.recordPayment" } as const;

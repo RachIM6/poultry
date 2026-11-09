@@ -482,7 +482,8 @@
     "save": "تسجيل البيع",
     "cancel": "إلغاء",
     "line": "{date} · {buyer} · {birds} طائر · {kg}",
-    "detail": "{amount} · {method} · المقبوض {paid}"
+    "detail": "{amount} · {method} · المقبوض {paid}",
+    "origin": "وثيقة المصدر ({language})"
   },
   "Receivables": {
     "title": "الديون",
@@ -497,5 +498,35 @@
     "save": "تسجيل الأداء",
     "cancel": "إلغاء",
     "forbidden": "الديون مخصصة للمالك والمسير."
+  },
+  "Origin": {
+    "title": "وثيقة مصدر الدواجن",
+    "law": "القانون رقم 49-99، المادة 10",
+    "number": "رقم {number}",
+    "notFound": "هذا البيع غير موجود على هذا الهاتف.",
+    "farm": "الضيعة المصدر",
+    "farmName": "الضيعة",
+    "address": "العنوان",
+    "onssa": "اعتماد المكتب الوطني للسلامة الصحية (أونسا)",
+    "onssaValue": "<code>{number}</code>، صالح إلى غاية {date}",
+    "onssaNone": "غير مُدخل",
+    "batch": "الدفعة",
+    "house": "المبنى",
+    "strain": "السلالة",
+    "placedOn": "تاريخ الوضع",
+    "age": "العمر عند البيع",
+    "days": "{age} يوم",
+    "sale": "البيع",
+    "day": "التاريخ",
+    "birds": "عدد الطيور",
+    "weight": "الوزن الإجمالي في الضيعة",
+    "average": "متوسط وزن الطائر",
+    "buyer": "المشتري",
+    "buyerName": "الاسم",
+    "buyerType": "النوع",
+    "buyerPhone": "الهاتف",
+    "signFarm": "توقيع وختم المربي",
+    "signBuyer": "توقيع المشتري",
+    "print": "طباعة"
   }
 }

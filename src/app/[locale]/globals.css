@@ -22,3 +22,16 @@ body {
   color: var(--foreground);
   font-family: system-ui, sans-serif;
 }
+
+/* T23: documents print black on white on A4, whatever the phone's theme. */
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+@media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+  }
+}

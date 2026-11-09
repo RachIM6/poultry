@@ -9,7 +9,6 @@ import type { TenantContext } from "@/lib/tenant";
 import type { Batch } from "@/modules/flock/domain/batch";
 import { batchCost } from "@/modules/flock/domain/closing";
 import { batchCostIdTaken, closingTotals, loadBatch, saveBatchCost, saveClosing } from "@/modules/flock/infrastructure/batches";
-import { lockBatch } from "@/modules/flock/infrastructure/daily-entries";
 import type { BatchCostDto, CloseBatch, RecordBatchCost } from "@/modules/flock/schema";
 import { batchConsumptionCost } from "@/modules/inventory";
 
@@ -44,7 +43,6 @@ export async function closeBatchOn(tx: Tx, ctx: TenantContext, batch: Batch, day
 export async function closeBatch(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof CloseBatch>, meta: Meta, clock: Clock = systemClock) {
   const batch = await loadBatch(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");
-  await lockBatch(tx, cmd.batchId);
   return closeBatchOn(tx, ctx, batch, cmd.day as FarmDay, cmd.reason, meta, clock);
 }
 
@@ -53,7 +51,6 @@ export async function recordBatchCost(tx: Tx, ctx: TenantContext, cmd: z.infer<t
   const batch = await loadBatch(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");
   if (await batchCostIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
-  await lockBatch(tx, cmd.batchId); // never added while it closes
   const checked = batch.checkCost(cmd.day as FarmDay, BigInt(cmd.amountCentimes), todayOf(clock));
   if (!checked.ok) return checked;
   const cost: Required<BatchCostDto> = cmd;

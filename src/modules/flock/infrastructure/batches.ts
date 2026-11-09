@@ -39,8 +39,13 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Pr
   };
 }
 
-/** The Batch aggregate, or null outside the caller's organisation. */
+/**
+ * The Batch aggregate, or null outside the caller's organisation. Taken under the batch's lock until the transaction
+ * ends, before it is read: every change to a batch (entries, weighings, sales, costs, closing) waits for the one before,
+ * then sees its result, so nothing is added to a batch that has just closed and birds on hand can't race.
+ */
 export async function loadBatch(tx: Tx, ctx: TenantContext, id: string): Promise<Batch | null> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${id}, 1))`;
   const r = await tx.batch.findFirst({ where: { id, organizationId: ctx.organizationId } });
   if (!r) return null;
   return Batch.rehydrate(

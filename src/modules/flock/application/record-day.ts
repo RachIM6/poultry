@@ -8,7 +8,7 @@ import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { mergeDay } from "@/modules/flock/domain/daily-entry";
 import { loadBatch } from "@/modules/flock/infrastructure/batches";
-import { findEntry, lockBatch, outOnOtherDays, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
+import { findEntry, outOnOtherDays, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
 import { dailyEntryId, type DailyEntryDto, type RecordDay } from "@/modules/flock/schema";
 import { recordConsumption, removeConsumption } from "@/modules/inventory";
 
@@ -26,7 +26,6 @@ export async function recordDay(
 ) {
   const batch = await loadBatch(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");
-  await lockBatch(tx, cmd.batchId);
 
   const id = dailyEntryId(cmd.batchId, cmd.day);
   const previous = await findEntry(tx, ctx, id);

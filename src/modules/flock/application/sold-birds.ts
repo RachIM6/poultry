@@ -6,7 +6,7 @@ import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { closeBatchOn } from "@/modules/flock/application/close-batch";
 import { loadBatch } from "@/modules/flock/infrastructure/batches";
-import { lockBatch, outOnOtherDays, saveSoldBirds } from "@/modules/flock/infrastructure/daily-entries";
+import { outOnOtherDays, saveSoldBirds } from "@/modules/flock/infrastructure/daily-entries";
 import type { SoldBirdsDto } from "@/modules/flock/schema";
 
 /**
@@ -17,7 +17,6 @@ import type { SoldBirdsDto } from "@/modules/flock/schema";
 export async function recordBirdsSold(tx: Tx, ctx: TenantContext, s: SoldBirdsDto, meta: { mutationId: string; deviceCreatedAt: Date }, clock: Clock = systemClock) {
   const batch = await loadBatch(tx, ctx, s.batchId);
   if (!batch) return fail("NOT_FOUND");
-  await lockBatch(tx, s.batchId);
   const today = nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
   const out = await outOnOtherDays(tx, s.batchId);
   const checked = batch.checkBirdsSold(s.day as FarmDay, s.birds, out, today);

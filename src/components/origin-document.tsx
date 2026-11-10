@@ -7,8 +7,8 @@ import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ageOn, type BatchDto } from "@/modules/flock/schema";
-import type { BuyerDto, SaleDto } from "@/modules/sales/schema";
+import { ageOn, type BatchDto } from "@/modules/flock/shared";
+import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
 

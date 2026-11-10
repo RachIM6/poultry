@@ -3,8 +3,9 @@
 import { useTranslations } from "next-intl";
 import { formatDecimal, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { ageOn, batchKpis, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/schema";
-import { standardAt, type CurvePoint } from "@/modules/reference-data/schema";
+import { ageOn, batchKpis, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import type { CurvePoint } from "@/modules/reference-data/schema";
+import { standardAt } from "@/modules/reference-data/shared";
 
 // SPEC B4 on the phone: the batch's KPIs from its local records, so they work offline and change as soon as a day or
 // a weighing is saved. Weight-based KPIs wait for a weighing; the standard is shown only when the strain has a curve.

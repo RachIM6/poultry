@@ -4,10 +4,11 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { formatCount, formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import type { BatchDto } from "@/modules/flock/schema";
-import { HEALTH_MUTATIONS as H, checkDone, statusOn, type VaccinationDto, type VaccinationMethod } from "@/modules/health/schema";
-import type { MovementDto, StockItemDto } from "@/modules/inventory/schema";
-import { VACCINATION_METHODS, type Product } from "@/modules/reference-data/schema";
+import type { BatchDto } from "@/modules/flock/shared";
+import { HEALTH_MUTATIONS as H, checkDone, statusOn, type VaccinationDto, type VaccinationMethod } from "@/modules/health/shared";
+import type { MovementDto, StockItemDto } from "@/modules/inventory/shared";
+import type { Product } from "@/modules/reference-data/schema";
+import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 import type { Write } from "@/components/daily-entry";
 
 // SPEC H2 on the batch screen, offline: the batch's plan, and "mark done" with the lot it came from. The phone runs the

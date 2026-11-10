@@ -86,9 +86,35 @@ What makes up `/fr/batches` (gzip):
 
 Zod validates nothing on this screen. It comes in only because client code imports constants and domain functions from `src/modules/*/schema.ts` and `src/lib/sync/protocol.ts`, which build their Zod schemas when they load.
 
-Ways under the budget:
-1. **Keep Zod off the screens that don't validate.** The zod-free exports (mutation names, `Batch`, `ageOn`, `planFor`, …) would move out of the files that build schemas. That touches 16 client files and the `schema.ts` convention of ADR-008, so it needs a superseding ADR. The estimated saving is 20–25 KB gzip; this hasn't been measured.
-2. **Serve brotli** at the host (T26, OQ1). Precompressed, `/fr/batches` measured 201.7 KB. Brotli alone just misses; with option 1 it should pass comfortably.
-3. Optional: load the day screen's secondary sections lazily (about 11 KB), which also lowers cold blocking time.
+What was considered to get under the budget:
+1. **Keep Zod off the screens that don't validate.** The zod-free exports (mutation names, `Batch`, `ageOn`, `planFor`, …) move out of the files that build schemas.
+2. **Serve brotli** at the host (T26, OQ1). Precompressed, the original `/fr/batches` measured 201.7 KB.
+3. Load the day screen's secondary sections lazily.
 
-**Result: the JS budget is not met on the daily-entry shell.** This needs your decision: option 1 plus 2, or a written exception that rests on brotli and the real-phone measurement.
+### After the fix (2026-11-10): options 1 and 3 done
+
+What changed:
+- **[ADR-009](decisions/ADR-009-zod-free-shared-files.md), chosen by the product owner:**
+  - each module the screens use has a zod-free `shared.ts`, re-exported by `schema.ts`;
+  - the screens import values from it and only types from `schema.ts`;
+  - the sync request schemas moved into their two routes;
+  - ESLint enforces it, and `eslint.boundaries.test.ts` covers it.
+- **The batch screen's sections load lazily** with `next/dynamic`: the dashboard, weighings, vaccinations, treatments and visits, sales, and closing. The day's entry form loads with the page. Every chunk is precached by the service worker, so the sections still load offline (the e2e suite checks the offline flows).
+
+Same method, same emulated phone. Sizes are the compressed JS files alone (gzip level 6, as `next start` serves them); in brackets, the transfer measured in the browser including HTTP headers.
+
+| Budget | Before | After | Result |
+|---|---|---|---|
+| App shell JS ≤ 200 KB: `/fr/login` | 154.1 KB (157.7) | 155.5 KB (159.0) | Pass |
+| App shell JS ≤ 200 KB: `/fr/batches` (daily entry) | 232.8 KB (237.6) | **197.5 KB** (202.1) | **Pass, by 2.5 KB** |
+| Daily entry interactive < 3 s, cold | 1.96 s | 1.78 s (median of 3) | Pass |
+| Daily entry interactive < 3 s, warm | 0.90 s | 1.05 s (median of 3) | Pass |
+
+Other measurements:
+- Cold LCP: 1.95 s (was 2.15 s).
+- Total blocking time until the form is usable: 358 ms cold (was about 716 ms) and 90 ms warm.
+- The lazy sections arrive right after: 25.8 KB in 7 chunks.
+
+The margin is thin: 2.5 KB. Brotli at the host (T26) adds about 15 % more. A size check in CI would stop the next feature from quietly undoing it; that is a follow-up, not done here.
+
+**Result: both budgets are met on the emulated mid-range phone.** A real mid-range Android phone and a Lighthouse report are still owed: they need the device (pilot preparation, T26).

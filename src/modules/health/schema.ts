@@ -50,7 +50,7 @@ const text = (max: number) => z.string().trim().min(1).max(max);
 /** H3, H6: as recorded, with its withdrawal end computed by the domain rule. */
 export type TreatmentDto = z.infer<typeof RecordTreatment> & { withdrawalEndsOn: string; byUserId: string };
 export const RecordTreatment = z.object({
-  id: z.uuid(),
+  id: z.uuidv7(), // a phone's id; never a daily entry's UUIDv5, whose consumption movement the entry may replace (T25)
   batchId: z.uuid(),
   stockItemId: z.uuid(), // the medicine lot, deducted from stock
   quantity: z.int().positive(), // the item's base unit

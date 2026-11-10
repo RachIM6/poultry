@@ -5,7 +5,7 @@ import type { PushedMutation } from "@/lib/sync/protocol";
 import { pull, push, type SyncRegistry } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { flockSync } from "@/modules/flock";
-import { FLOCK_MUTATIONS as F } from "@/modules/flock/schema";
+import { FLOCK_MUTATIONS as F, dailyEntryId } from "@/modules/flock/schema";
 import { healthSync } from "@/modules/health";
 import { HEALTH_MUTATIONS as H, type TreatmentDto, type VetVisitDto } from "@/modules/health/schema";
 import { inventorySync, stockOnHand } from "@/modules/inventory";
@@ -65,6 +65,8 @@ describe("treatments, withdrawal and vet visits (SPEC H3–H6, S4)", () => {
     const before = await purchase();
     expect(await statuses({ ...a, role: "worker" }, [treatment({ id: purchaseMovement })])).toEqual(["ALREADY_EXISTS"]);
     expect(await purchase()).toEqual(before); // still the purchase of 2 000 ml
+    // Nor a daily entry's id (UUIDv5, computed), which the entry would later replace: phones' ids are UUIDv7.
+    expect(await statuses(a, [treatment({ id: dailyEntryId(batch, "2026-11-01") })])).toEqual(["INVALID_INPUT"]);
     expect(await db.treatment.count()).toBe(0);
   });
 

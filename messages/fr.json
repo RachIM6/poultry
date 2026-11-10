@@ -142,6 +142,32 @@
     "farmSummary": "{commune}, {province} · bâtiments : {count}",
     "onssaUntil": "Autorisation ONSSA {number}, valable jusqu’au {date}"
   },
+  "Protocol": {
+    "title": "Programme de vaccination",
+    "open": "Programme de vaccination",
+    "template": "Modèle de référence",
+    "notReviewed": "Pas encore vérifié par un vétérinaire : à faire valider avant utilisation.",
+    "emptyTemplate": "Ce modèle ne contient encore aucun vaccin.",
+    "copy": "Copier pour mon exploitation",
+    "yours": "Vos programmes",
+    "none": "Aucun programme pour l’instant.",
+    "noItems": "Aucun vaccin prévu.",
+    "item": "Jour {day} · {vaccine} · {method}",
+    "addItem": "Ajouter un vaccin",
+    "day": "Âge (jours)",
+    "vaccine": "Vaccin",
+    "method": "Mode d’administration",
+    "methods": {
+      "drinkingWater": "Eau de boisson",
+      "spray": "Nébulisation",
+      "eyeDrop": "Goutte oculaire",
+      "injection": "Injection"
+    },
+    "remove": "Retirer",
+    "add": "Ajouter",
+    "noReference": "Les données de référence ne sont pas encore sur ce téléphone. Ouvrez l’application une fois avec du réseau.",
+    "cancel": "Annuler"
+  },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",

@@ -39,6 +39,7 @@ async function Content() {
       </div>
       <SyncBadge userId={ctx.value.userId} organizationId={ctx.value.organizationId} role={ctx.value.role} />
       <FarmsLink userId={ctx.value.userId} organizationId={ctx.value.organizationId} />
+      <Link href="/protocol" className="underline underline-offset-4">{t("Protocol.open")}</Link>
       {can(ctx.value, "members.manage") && (
         <Link href="/settings/members" className="underline underline-offset-4">{t("Members.title")}</Link>
       )}

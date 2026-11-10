@@ -6,6 +6,7 @@ const ALLOWED = {
   "organization.manage": ["owner"], // a manager does everything except organisation settings and members
   "members.manage": ["owner"],
   "farms.manage": ["owner", "manager"], // create and edit farms and houses; workers see them
+  "protocols.manage": ["owner", "manager"], // copy and edit vaccination protocols; workers see them
   "money.read": ["owner", "manager"], // prices, costs, sale amounts, supplier credit
 } satisfies Record<string, Role[]>;
 

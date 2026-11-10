@@ -23,7 +23,7 @@ const pulled = async <T,>(ctx: TenantContext, entity: string) => (await pull(ctx
 
 describe("treatments, withdrawal and vet visits (SPEC H3–H6, S4)", () => {
   let a: TenantContext, b: TenantContext;
-  const [farm, house, batch, supplier, medicine, vaccine] = Array.from({ length: 6 }, () => uuidv7());
+  const [farm, house, batch, supplier, medicine, vaccine, purchaseMovement] = Array.from({ length: 7 }, () => uuidv7());
   // Made-up withdrawal days, to test the mechanics only: the real ones come from each medicine's label (OQ4).
   const treatment = (payload: object = {}) =>
     m(H.recordTreatment, {
@@ -54,10 +54,18 @@ describe("treatments, withdrawal and vet visits (SPEC H3–H6, S4)", () => {
         m(I.createSupplier, { id: supplier, name: "Véto", phone: null }),
         item(medicine, "medicine", null),
         item(vaccine, "vaccine", "vaccine-newcastle"),
-        m(I.recordPurchase, { id: uuidv7(), movementId: uuidv7(), supplierId: supplier, stockItemId: medicine, day: "2026-10-25", quantity: 2000, unitPriceCentimes: "10", paidCentimes: "0", dueOn: null }),
+        m(I.recordPurchase, { id: uuidv7(), movementId: purchaseMovement, supplierId: supplier, stockItemId: medicine, day: "2026-10-25", quantity: 2000, unitPriceCentimes: "10", paidCentimes: "0", dueOn: null }),
         m(F.placeBatch, { id: batch, houseId: house, strainId: "ross-308", placedOn: "2026-10-25", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null }),
       ]),
     ).toEqual(Array(5).fill("applied"));
+  });
+
+  it("S3: a treatment can't take the id of a movement already in the ledger (T25 security review)", async () => {
+    const purchase = () => db.stockMovement.findUniqueOrThrow({ where: { id: purchaseMovement }, select: { kind: true, quantity: true, stockItemId: true } });
+    const before = await purchase();
+    expect(await statuses({ ...a, role: "worker" }, [treatment({ id: purchaseMovement })])).toEqual(["ALREADY_EXISTS"]);
+    expect(await purchase()).toEqual(before); // still the purchase of 2 000 ml
+    expect(await db.treatment.count()).toBe(0);
   });
 
   it("H3: a treatment is kept with its withdrawal end, and its medicine leaves the lot", async () => {

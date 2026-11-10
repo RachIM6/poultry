@@ -406,8 +406,8 @@ Decisions (2026-11-09, taken without asking): only the sale of the last birds cl
 - Measure the JS budget (≤ 200 KB compressed for the shell) and the daily-entry interactivity (< 3 s with Fast 4G) on a real mid-range Android phone.
 
 **AC:**
-- [ ] No open high-severity security findings.
-- [ ] Both performance budgets are met, or a written exception has been approved.
+- [x] No open high-severity security findings. (`docs/t25-security-and-performance.md`: the one high finding, a phone-chosen treatment id overwriting another stock movement, is fixed with a regression test. Two medium and three low findings remain open, for T26.)
+- [ ] Both performance budgets are met, or a written exception has been approved. **Interactivity passes** (emulated Pixel 7, Fast 4G, 4× CPU: 2.0 s cold, 0.9 s warm). **JS fails on `/fr/batches`: 237.6 KB gzip against 200 KB**, mostly zod pulled in by `schema.ts` imports. Awaiting a decision: restructure (needs an ADR) plus brotli, or a written exception. A real-phone measurement and a Lighthouse report are still owed.
 
 **Verify:** review report in `docs/`. `pnpm build` output. Lighthouse report.
 **Dependencies:** Checkpoint G

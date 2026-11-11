@@ -19,6 +19,7 @@ import {
   purchaseAmount,
   stockOnHand,
   supplierBalances,
+  valuate,
   type ItemKind,
   type Unit,
   type MovementDto,
@@ -81,7 +82,16 @@ function Stock(scope: Scope) {
   }
   const farm = farms.find((f) => f.id === farmId) ?? farms[0];
   const items = of<StockItemDto>("stockItem").filter((i) => i.farmId === farm.id).sort((x, y) => x.name.localeCompare(y.name));
-  const onHand = stockOnHand(of<MovementDto>("movement"));
+  const movements = of<MovementDto>("movement");
+  const onHand = stockOnHand(movements);
+  // S5: what the stock is worth at weighted average cost. Purchases carry amounts only for those who manage stock.
+  const paid = new Map(of<PurchaseDto>("purchase").map((p) => [p.id, BigInt(p.amountCentimes ?? 0)]));
+  const valueOf = (itemId: string) =>
+    valuate(
+      movements
+        .filter((m) => m.stockItemId === itemId)
+        .map((m) => ({ id: m.id, day: m.day, quantity: m.quantity, purchaseAmountCentimes: m.purchaseId ? (paid.get(m.purchaseId) ?? 0n) : undefined })),
+    ).valueCentimes;
   const suppliers = of<SupplierDto>("supplier").sort((x, y) => x.name.localeCompare(y.name));
   const manage = can(scope, "stock.manage");
 
@@ -109,7 +119,15 @@ function Stock(scope: Scope) {
         <h2 className="text-lg font-semibold">{t("Stock.items")}</h2>
         {items.length === 0 ? <p>{t("Stock.noItems")}</p> : (
           <ul className="flex flex-col gap-3">
-            {items.map((item) => <ItemRow key={item.id} item={item} quantity={onHand.get(item.id) ?? 0} />)}
+            {items.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                quantity={onHand.get(item.id) ?? 0}
+                value={manage ? valueOf(item.id) : undefined}
+                write={manage ? write : undefined}
+              />
+            ))}
           </ul>
         )}
       </section>
@@ -140,17 +158,55 @@ function useQuantityText() {
   return (quantity: number, unit: Unit) => (unit === "kg" ? formatKg(quantity) : `${formatCount(quantity)} ${t(`units.${unit}`)}`);
 }
 
-function ItemRow({ item, quantity }: { item: StockItemDto; quantity: number }) {
+/** `value` and `write` only for those who manage stock: workers get no money (I5). */
+function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantity: number; value?: bigint; write?: Write }) {
   const t = useTranslations("Stock");
   const locale = useLocale();
   const show = useQuantityText();
+  const [editing, setEditing] = useState(false);
+  const low = item.lowStockThreshold !== null && quantity < item.lowStockThreshold; // S6, on the phone too
+
+  const saveThreshold = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const text = read(e.currentTarget)("threshold");
+    const lowStockThreshold = text ? parseQuantity(text, item.unit) : null;
+    if (text && lowStockThreshold === null) return;
+    await write!(
+      { type: M.setThreshold, payload: { stockItemId: item.id, lowStockThreshold } },
+      [{ entity: "stockItem", id: item.id, data: { ...item, lowStockThreshold } }],
+    );
+    setEditing(false);
+  };
+
   return (
     <li className={card}>
-      <span className="font-semibold">{item.name}</span>
+      <span className="font-semibold">
+        {item.name} {low && <span className="ms-2 rounded bg-red-700 px-2 py-0.5 text-sm text-white">{t("low")}</span>}
+      </span>
       <span>{t("onHand", { quantity: show(quantity, item.unit) })}</span>
+      {value !== undefined && <span className="text-sm">{t("value", { amount: formatMoney(value) })}</span>}
+      {item.lowStockThreshold !== null && <span className="text-sm opacity-75">{t("alertBelow", { quantity: show(item.lowStockThreshold, item.unit) })}</span>}
       {item.lot && item.expiresOn && (
         <span className="text-sm opacity-75">{t("lotUntil", { lot: item.lot, date: formatDay(item.expiresOn as FarmDay, locale) })}</span>
       )}
+      {write &&
+        (editing ? (
+          <form onSubmit={saveThreshold} className="mt-2 flex flex-col gap-2">
+            <Field
+              name="threshold"
+              label={`${t("editThreshold")} (${t(`units.${item.unit}`)})`}
+              defaultValue={item.lowStockThreshold === null ? "" : item.unit === "kg" ? String(item.lowStockThreshold / 1000) : String(item.lowStockThreshold)}
+              inputMode="decimal"
+              dir="ltr"
+            />
+            <p className="text-sm opacity-75">{t("thresholdHint")}</p>
+            <Buttons onCancel={() => setEditing(false)} />
+          </form>
+        ) : (
+          <button type="button" onClick={() => setEditing(true)} className="mt-1 self-start rounded-lg border border-current/30 px-3 py-2 text-sm">
+            {t("editThreshold")}
+          </button>
+        ))}
     </li>
   );
 }
@@ -235,6 +291,7 @@ function ItemForm({ farmId, products, write, onCancel }: { farmId: string; produ
       unit: get("unit"),
       lot: tracked ? get("lot") : null,
       expiresOn: tracked ? get("expiresOn") || null : null,
+      lowStockThreshold: get("threshold") ? parseQuantity(get("threshold"), get("unit") as Unit) : null,
     });
     setInvalid(!item.success);
     if (item.success) await write({ type: M.createStockItem, payload: item.data }, [{ entity: "stockItem", id: item.data.id, data: item.data }]);
@@ -255,6 +312,7 @@ function ItemForm({ farmId, products, write, onCancel }: { farmId: string; produ
       <Select key={kind} label={t("unit")} name="unit" defaultValue={DEFAULT_UNIT[kind]}>
         {UNITS.map((u) => <option key={u} value={u}>{t(`units.${u}`)}</option>)}
       </Select>
+      <Field name="threshold" label={t("threshold", { unit: t(`units.${DEFAULT_UNIT[kind]}`) })} inputMode="decimal" dir="ltr" />
       {tracked && (
         <>
           <Field name="lot" label={t("lot")} required maxLength={60} dir="ltr" />

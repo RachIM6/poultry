@@ -346,16 +346,17 @@ model Supplier {
 
 // S1: one per farm and product (and lot, for vaccines and medicines).
 model StockItem {
-  id             String    @id @db.Uuid
-  organizationId String    @db.Uuid
-  farmId         String    @db.Uuid
-  productId      String? // reference-data catalogue, when the item is one of its products
-  kind           String // feed | vaccine | medicine | litter | gas | other
-  name           String
-  unit           String // kg (stored in grams) | dose | ml | unit
-  lot            String?
-  expiresOn      DateTime? @db.Date
-  createdAt      DateTime  @default(now()) @db.Timestamptz
+  id                String    @id @db.Uuid
+  organizationId    String    @db.Uuid
+  farmId            String    @db.Uuid
+  productId         String? // reference-data catalogue, when the item is one of its products
+  kind              String // feed | vaccine | medicine | litter | gas | other
+  name              String
+  unit              String // kg (stored in grams) | dose | ml | unit
+  lot               String?
+  expiresOn         DateTime? @db.Date
+  lowStockThreshold Int? // S6: base units; an alert when stock goes below it
+  createdAt         DateTime  @default(now()) @db.Timestamptz
 
   @@index([organizationId, farmId])
 }

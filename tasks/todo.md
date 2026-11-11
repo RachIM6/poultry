@@ -368,8 +368,10 @@ Decisions (2026-11-09, taken without asking): payments are per buyer, not per sa
 ### T23: Printable origin document (V5)
 **Description:** A printable page per sale, in AR or FR: farm identity and ONSSA authorization, batch, birds, weight, date, buyer, signature box. It uses print CSS, with no PDF library in M1.
 **AC:**
-- [ ] It prints on A4 in both locales with no layout break, RTL included.
-- [ ] It contains every field listed in this task's description.
+- [x] It prints on A4 in both locales with no layout break, RTL included. (`e2e/origin.spec.ts`: print media at A4 width, nothing wider than the page, one A4 page per document in FR and AR; the PDFs it saves in `test-results/` were checked by eye: the Arabic one is right to left, with codes kept in their order.)
+- [x] It contains every field listed in this task's description. (Same test, in both locales, offline: farm name, address, ONSSA authorization and expiry, batch house, strain, placement and age, sale date, birds, total and average weight, buyer name, type and phone, two signature boxes, the document number and the law reference.)
+
+Decisions (2026-11-09, taken without asking): built from the phone's own records, so it prints offline (`/origin#<sale id>`, precached), not a server page under `sales/[id]`. Each sale on the batch screen links to its document in French and in Arabic, whatever the screen's language (the language switcher drops the `#`). The producer is identified by the farm (name, address, ONSSA): the legal entity's name isn't on the phone yet. No prices on the document: an abattoir needs origin, not the deal. Print CSS is two rules in `globals.css` (A4 page, black on white in dark mode), no separate stylesheet.
 
 **Verify:** manual print preview in AR and FR. Snapshot test of the content.
 **Dependencies:** T21

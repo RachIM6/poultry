@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { farmWithBatch, ownerWithFarm, query, queuedWrites, scopeRemembered } from "./auth";
 
 // T16 acceptance (browser part): the daily entry offline, its feed as one consumption movement, edited not duplicated.
 // The two-phones merge is tested on the server (src/modules/flock/daily-entries.int.test.ts). "Under 60 s" is timed
@@ -28,7 +28,10 @@ test("the day's entry works offline; its feed lowers stock once, and editing the
   await expect(page.getByText(/Oiseaux présents : 997/)).toBeVisible();
 
   await page.getByLabel("Aliment consommé (kg)").fill("90"); // the same day, corrected
+  const queued = await queuedWrites(page);
   await page.getByRole("button", { name: "Enregistrer la journée" }).click();
+  // The status already shows the first save: wait for the second one to be queued before leaving the page.
+  await expect.poll(() => queuedWrites(page)).toBe(queued + 1);
   await page.goto("/fr/stock");
   await expect(page.getByText(/En stock : 910.kg/)).toBeVisible(); // 1 000 − 90, not − 85 − 90
 

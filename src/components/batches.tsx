@@ -10,21 +10,29 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/schema";
-import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/schema";
-import type { StockItemDto } from "@/modules/inventory/schema";
+import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
+import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
-import type { BuyerDto, SaleDto } from "@/modules/sales/schema";
-import { BatchDashboard } from "@/components/batch-dashboard";
-import { BatchCosts, CloseBatchForm, ClosedSummary } from "@/components/closing";
+import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
+import dynamic from "next/dynamic";
 import { DayForm, type Write } from "@/components/daily-entry";
-import { Sales } from "@/components/sales";
-import { Treatments, VetVisits, WithdrawalBanner } from "@/components/treatments";
-import { Vaccinations } from "@/components/vaccinations";
-import { Weighings } from "@/components/weighing";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
+
+// SPEC §9.3 budget (ADR-009, T25): the day's entry loads with the page; the rest of the batch screen comes in its own
+// chunks right after. The service worker precaches every chunk, so they load offline too.
+const BatchDashboard = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchDashboard));
+const BatchCosts = dynamic(() => import("@/components/closing").then((m) => m.BatchCosts));
+const CloseBatchForm = dynamic(() => import("@/components/closing").then((m) => m.CloseBatchForm));
+const ClosedSummary = dynamic(() => import("@/components/closing").then((m) => m.ClosedSummary));
+const Sales = dynamic(() => import("@/components/sales").then((m) => m.Sales));
+const Treatments = dynamic(() => import("@/components/treatments").then((m) => m.Treatments));
+const VetVisits = dynamic(() => import("@/components/treatments").then((m) => m.VetVisits));
+const WithdrawalBanner = dynamic(() => import("@/components/treatments").then((m) => m.WithdrawalBanner));
+const Vaccinations = dynamic(() => import("@/components/vaccinations").then((m) => m.Vaccinations));
+const Weighings = dynamic(() => import("@/components/weighing").then((m) => m.Weighings));
 
 // SPEC B1 on the static /batches shell: from and to the phone's database (ADR-003). The one-open-batch rule is checked
 // here for a quick answer and enforced by the server, which rejects the second of two phones placing offline.

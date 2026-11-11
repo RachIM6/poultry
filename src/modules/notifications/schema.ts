@@ -1,23 +1,9 @@
 import { z } from "zod";
 
-// SPEC N1–N3. Isomorphic: the inbox screen reads these on the phone.
-
-/** Message keys under Notifications.templates in ar.json / fr.json. Modules add theirs here (low stock, vaccines…). */
-export const TEMPLATE_KEYS = ["test", "lowStock", "vaccineTomorrow", "vaccineToday", "instrumentDue"] as const;
-export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
-
-export type NotificationDto = {
-  id: string;
-  userId: string;
-  templateKey: TemplateKey;
-  params: Record<string, string>; // already formatted (Western digits, DH…): the template only inserts them
-  urgent: boolean;
-  createdAt: string;
-  readAt: string | null;
-};
+// SPEC N1–N3, the server's validation. The inbox screen imports ./shared.ts (no Zod, ADR-009), re-exported here.
+export * from "@/modules/notifications/shared";
 
 export const MarkRead = z.object({ id: z.uuid() });
-export const NOTIFICATION_MUTATIONS = { markRead: "notifications.markRead" } as const;
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 export const QuietHoursInput = z.object({ start: hhmm, end: hhmm });

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T21 acceptance (browser part): offline, a sale on a day under withdrawal is refused with the explanation; the same
@@ -15,7 +16,7 @@ test("an offline sale is refused during a withdrawal, then recorded for a day be
     {
       // from 3 days ago to yesterday, + 3 days: runs until the day after tomorrow
       type: "health.recordTreatment",
-      payload: { id: crypto.randomUUID(), batchId: ids.batch, stockItemId: medicine, quantity: 100, dose: "1 ml/L", startOn: farmDaysAgo(3), endOn: farmDaysAgo(1), reason: "Toux", prescriber: "Dr Alaoui", withdrawalDays: 3 },
+      payload: { id: uuidv7(), batchId: ids.batch, stockItemId: medicine, quantity: 100, dose: "1 ml/L", startOn: farmDaysAgo(3), endOn: farmDaysAgo(1), reason: "Toux", prescriber: "Dr Alaoui", withdrawalDays: 3 },
     },
   ]);
 

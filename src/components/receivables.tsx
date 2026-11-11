@@ -9,7 +9,7 @@ import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
-import { RecordPayment, SALES_MUTATIONS as S, buyerBalances, checkPayment, type BuyerDto, type PaymentDto, type SaleDto } from "@/modules/sales/schema";
+import { LATER_PAYMENT_METHODS as METHODS, SALES_MUTATIONS as S, buyerBalances, checkPayment, type BuyerDto, type PaymentDto, type SaleDto } from "@/modules/sales/shared";
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
@@ -21,7 +21,6 @@ const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text
 const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
 const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const today = () => farmDayOf(new Date());
-const METHODS = RecordPayment.shape.method.options;
 
 export function ReceivablesScreen() {
   const t = useTranslations("Sync");

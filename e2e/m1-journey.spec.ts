@@ -77,6 +77,8 @@ for (const locale of ["fr", "ar"] as const) {
     await vaccine.getByRole("button", { name: t("Vaccination", "markDone"), exact: true }).click();
     await expect(label(page, "Vaccination", "doses")).toHaveValue("996"); // the birds on hand
     await page.getByRole("button", { name: t("Vaccination", "save"), exact: true }).click();
+    // The open form's lot list also says NDV-26: wait for it to close (saved) before reloading.
+    await expect(label(page, "Vaccination", "doses")).toHaveCount(0);
     await expect(vaccine).toContainText("NDV-26");
 
     const reload = await page.reload(); // still offline: the shell and the data come from the phone

@@ -11,9 +11,12 @@ import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto, type DailyEntryDto, type WeighingDto } from "@/modules/flock/schema";
+import { HEALTH_MUTATIONS as H, planFor, type VaccinationDto } from "@/modules/health/schema";
 import type { StockItemDto } from "@/modules/inventory/schema";
+import type { ProtocolDto } from "@/modules/reference-data/schema";
 import { BatchDashboard } from "@/components/batch-dashboard";
 import { DayForm, type Write } from "@/components/daily-entry";
+import { Vaccinations } from "@/components/vaccinations";
 import { Weighings } from "@/components/weighing";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
@@ -53,7 +56,7 @@ function Batches(scope: Scope) {
   const t = useTranslations();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -106,13 +109,29 @@ function Batches(scope: Scope) {
           curve={curve}
           write={write}
         />
+        <Vaccinations
+          batch={open}
+          vaccinations={of<VaccinationDto>("vaccination").filter((v) => v.batchId === open.id)}
+          products={reference?.data.products ?? []}
+          lots={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "vaccine")}
+          birdsOnHand={onHand(open)}
+          userId={userId}
+          write={write}
+        />
       </>
     );
   }
 
-  const save = async (batch: BatchDto, payload: unknown) => {
+  const protocols = of<ProtocolDto>("protocol").sort((x, y) => x.name.localeCompare(y.name));
+  const save = async (batch: BatchDto, payload: unknown, protocol: ProtocolDto | undefined) => {
     try {
       await writeLocal(db, { type: M.placeBatch, payload }, [{ entity: "batch", id: batch.id, data: batch }]);
+      if (protocol && protocol.items.length > 0) {
+        // H1: the plan from the farm's protocol, queued right after the placement it belongs to
+        const plan = planFor(batch.id, batch.placedOn as FarmDay, protocol.items);
+        const items = protocol.items;
+        await writeLocal(db, { type: H.planVaccinations, payload: { batchId: batch.id, protocolId: protocol.id, items } }, plan.map((v) => ({ entity: "vaccination", id: v.id, data: v })));
+      }
       setMessage("Farms.saved");
       setPlacing(false);
     } catch {
@@ -155,6 +174,7 @@ function Batches(scope: Scope) {
           <PlacementForm
             houses={houses.map((h) => ({ ...h, label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`, busy: busy.has(h.id) }))}
             strains={strains}
+            protocols={protocols}
             onSave={save}
             onCancel={() => setPlacing(false)}
           />
@@ -188,12 +208,14 @@ function Select({ label, name, children }: { label: string; name: string; childr
 function PlacementForm({
   houses,
   strains,
+  protocols,
   onSave,
   onCancel,
 }: {
   houses: (HouseDto & { label: string; busy: boolean })[];
   strains: { id: string; name: string }[];
-  onSave: (batch: BatchDto, payload: unknown) => Promise<void>;
+  protocols: ProtocolDto[];
+  onSave: (batch: BatchDto, payload: unknown, protocol: ProtocolDto | undefined) => Promise<void>;
   onCancel: () => void;
 }) {
   const t = useTranslations();
@@ -227,7 +249,7 @@ function PlacementForm({
     setError(undefined);
 
     const sent = { ...placement, chickUnitPriceCentimes: String(price) }; // farmId is dropped by the schema: the server derives it
-    await onSave({ ...sent, species: "broiler", status: "open" }, sent);
+    await onSave({ ...sent, species: "broiler", status: "open" }, sent, protocols.find((p) => p.id === get("protocolId")));
   };
 
   return (
@@ -240,6 +262,12 @@ function PlacementForm({
       <Select label={t("Batches.strain")} name="strainId">
         {strains.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
       </Select>
+      {protocols.length > 0 && (
+        <Select label={t("Batches.protocol")} name="protocolId">
+          {protocols.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <option value="">{t("Batches.noProtocol")}</option>
+        </Select>
+      )}
       <Field name="placedOn" label={t("Batches.placedOn")} type="date" defaultValue={today()} required />
       <Field name="chicksPlaced" label={t("Batches.chicksPlaced")} inputMode="numeric" pattern="\d+" required dir="ltr" />
       <Field name="deadOnArrival" label={t("Batches.deadOnArrival")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />

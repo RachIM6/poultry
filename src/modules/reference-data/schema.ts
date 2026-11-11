@@ -2,8 +2,8 @@ import { z } from "zod";
 
 // SPEC R1–R4. Isomorphic, and also imported by prisma/seed.ts under plain Node: no "@/" imports here. The phone's
 // screens import ./shared.ts (no Zod, ADR-009), re-exported here.
-import { PRODUCT_KINDS, VACCINATION_METHODS } from "./shared";
-export * from "./shared";
+import { PRODUCT_KINDS, VACCINATION_METHODS } from "./shared.ts";
+export * from "./shared.ts";
 
 const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).max(60);
 const text = (max: number) => z.string().trim().min(1).max(max);

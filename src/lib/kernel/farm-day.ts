@@ -22,3 +22,6 @@ export function farmInstant(day: FarmDay, minutes: number): Date {
   const offsetAt = (t: number) => Date.parse(`${farmDayOf(new Date(t))}T00:00:00Z`) + farmMinutesOf(new Date(t)) * 60_000 - t;
   return new Date(wall - offsetAt(wall - offsetAt(wall)));
 }
+
+/** Whole calendar days from `from` to `to` (negative if `to` is earlier). Calendar arithmetic only, no time zone. */
+export const daysBetween = (from: FarmDay, to: FarmDay) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);

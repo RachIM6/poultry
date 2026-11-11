@@ -395,6 +395,29 @@ model Purchase {
   @@index([organizationId, supplierId])
 }
 
+// Owner: flock (SPEC B1). Created offline: the id comes from the device. One open batch per house is enforced by the
+// partial unique index "Batch_one_open_per_house" (raw SQL in the migration: Prisma can't declare it).
+model Batch {
+  id                     String   @id @db.Uuid
+  organizationId         String   @db.Uuid
+  farmId                 String   @db.Uuid
+  houseId                String   @db.Uuid
+  species                String   @default("broiler")
+  strainId               String
+  placedOn               DateTime @db.Date // farm day
+  chicksPlaced           Int
+  deadOnArrival          Int
+  hatchery               String
+  deliveryNote           String
+  chickUnitPriceCentimes BigInt
+  dayOldWeightGrams      Int?
+  status                 String   @default("open") // open | closed
+  createdAt              DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([houseId])
+}
+
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
 // No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
 model AuditEvent {

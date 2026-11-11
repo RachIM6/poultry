@@ -7,8 +7,6 @@ import type { DailyEntryDto, SoldBirdsDto } from "@/modules/flock/schema";
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
 
-/** B2: serializes a batch's entries until the transaction ends (merges and the birds-on-hand check can't race). */
-export const lockBatch = (tx: Tx, batchId: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${batchId}, 1))`;
 
 type Row = {
   dead: number;

@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { closedLocally } from "@/components/closing";
 import type { Write } from "@/components/daily-entry";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney, formatPercent } from "@/lib/format";
@@ -96,7 +97,7 @@ export function Sales({
           })}
         </ul>
       )}
-      {adding ? (
+      {batch.status !== "open" ? null : adding ? (
         <SaleForm batch={batch} buyers={buyers} treatments={treatments} birdsOnHand={birdsOnHand} write={write} onDone={() => setAdding(false)} />
       ) : (
         <button type="button" onClick={() => setAdding(true)} className={secondary}>{t("Sale.add")}</button>
@@ -175,6 +176,7 @@ function SaleForm({
     const saved = await write({ type: S.recordSale, payload }, [
       { entity: "sale", id: payload.id, data: sale },
       { entity: "soldBirds", id: payload.id, data: sold }, // B5: birds on hand go down on the phone at once
+      ...(birds === birdsOnHand ? [{ entity: "batch", id: batch.id, data: closedLocally(batch, day, null) }] : []), // B6: the last ones close it
     ]);
     if (saved) onDone();
   };

@@ -528,5 +528,30 @@
     "signFarm": "Signature et cachet de l’éleveur",
     "signBuyer": "Signature de l’acheteur",
     "print": "Imprimer"
+  },
+  "Closing": {
+    "open": "Voir le bilan",
+    "summary": "Bilan de la bande",
+    "closedOn": "Bande clôturée le {date}",
+    "reasonLine": "Motif : {reason}",
+    "soldOut": "Tous les oiseaux ont été vendus.",
+    "pending": "Les chiffres définitifs arrivent à la prochaine synchronisation.",
+    "sold": "Vendu : {kg}",
+    "cost": "Coût total : {amount}",
+    "costPerKg": "Coût par kg vendu : {amount}",
+    "noCostPerKg": "Coût par kg : rien n’a été vendu.",
+    "costs": "Autres charges",
+    "noCost": "Aucune autre charge.",
+    "costLine": "{date} · {label} · {amount}",
+    "addCost": "Ajouter une charge",
+    "label": "Charge (électricité, main-d’œuvre…)",
+    "amount": "Montant (DH)",
+    "day": "Date",
+    "saveCost": "Enregistrer la charge",
+    "close": "Clôturer la bande",
+    "warning": "Une bande clôturée ne peut plus être modifiée. Les ventes la clôturent d’elles-mêmes quand tous les oiseaux sont vendus.",
+    "reason": "Motif de la clôture",
+    "confirm": "Clôturer",
+    "cancel": "Annuler"
   }
 }

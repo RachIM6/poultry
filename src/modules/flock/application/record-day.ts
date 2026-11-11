@@ -8,7 +8,7 @@ import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { mergeDay } from "@/modules/flock/domain/daily-entry";
 import { loadBatch } from "@/modules/flock/infrastructure/batches";
-import { findEntry, lockBatch, outOnOtherDays, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
+import { findEntry, outOnOtherDays, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
 import { dailyEntryId, type DailyEntryDto, type RecordDay } from "@/modules/flock/schema";
 import { recordConsumption, removeConsumption } from "@/modules/inventory";
 
@@ -26,7 +26,6 @@ export async function recordDay(
 ) {
   const batch = await loadBatch(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");
-  await lockBatch(tx, cmd.batchId);
 
   const id = dailyEntryId(cmd.batchId, cmd.day);
   const previous = await findEntry(tx, ctx, id);
@@ -37,7 +36,7 @@ export async function recordDay(
 
   if ("feed" in cmd.changes) {
     if (merged.feed) {
-      const consumed = await recordConsumption(tx, ctx, { id, farmId: batch.placement.farmId, stockItemId: merged.feed.stockItemId, quantity: merged.feed.grams, day: cmd.day });
+      const consumed = await recordConsumption(tx, ctx, { id, batchId: cmd.batchId, farmId: batch.placement.farmId, stockItemId: merged.feed.stockItemId, quantity: merged.feed.grams, day: cmd.day });
       if (!consumed.ok) return consumed; // nothing written yet
     } else if (previous?.feed) {
       await removeConsumption(tx, ctx, id);

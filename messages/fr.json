@@ -336,6 +336,23 @@
     "BATCH_CLOSED": "Cette bande est clôturée : ses saisies ne peuvent plus changer.",
     "DAY_BEFORE_PLACEMENT": "Ce jour est avant la mise en place de la bande.",
     "DAY_IN_FUTURE": "Ce jour n’est pas encore arrivé.",
-    "MORE_DEAD_THAN_ON_HAND": "Plus de morts et de réformés que d’oiseaux dans la bande."
+    "MORE_DEAD_THAN_ON_HAND": "Plus de morts et de réformés que d’oiseaux dans la bande.",
+    "INVALID_SAMPLE": "Pesée invalide : vérifiez les poids (entre 1 g et 20 kg par oiseau, 1 000 oiseaux au plus)."
+  },
+  "Weighing": {
+    "title": "Pesée",
+    "day": "Jour de la pesée",
+    "mode": "Type de pesée",
+    "individual": "Oiseau par oiseau",
+    "group": "En groupe",
+    "weights": "Poids des oiseaux (kg), séparés par des espaces",
+    "totalKg": "Poids total (kg)",
+    "count": "Nombre d’oiseaux",
+    "average": "Moyenne {average} ({count} oiseaux)",
+    "cv": "CV {cv} %",
+    "versusStandard": "{gap} % par rapport au standard ({standard})",
+    "noStandard": "Pas de standard publié pour cette souche à cet âge",
+    "save": "Enregistrer la pesée",
+    "past": "Pesées précédentes"
   }
 }

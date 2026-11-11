@@ -40,7 +40,7 @@ export type BatchDto = {
 };
 export const BATCH_MONEY = ["chickUnitPriceCentimes"] as const;
 
-export const FLOCK_MUTATIONS = { placeBatch: "flock.placeBatch", recordDay: "flock.recordDay" } as const;
+export const FLOCK_MUTATIONS = { placeBatch: "flock.placeBatch", recordDay: "flock.recordDay", recordWeighing: "flock.recordWeighing" } as const;
 
 // SPEC B2: the daily entry.
 export { DEATH_CAUSES, EMPTY_DAY, changedFields, mergeDay } from "@/modules/flock/domain/daily-entry";
@@ -67,3 +67,20 @@ export const RecordDay = z.object({
 });
 
 export type DailyEntryDto = { id: string; batchId: string; day: string } & DayFields;
+
+// SPEC B3: weighings. The phone shows the same average, CV% and gap to the standard as the server computes.
+export { MAX_SAMPLE, checkSample, sampleStats, versusStandard } from "@/modules/flock/domain/weighing";
+export type { Sample } from "@/modules/flock/domain/weighing";
+
+export const RecordWeighing = z.object({
+  id: z.uuid(),
+  batchId: z.uuid(),
+  day: z.iso.date(),
+  sample: z.union([
+    z.object({ weightsGrams: z.array(z.int()).min(1).max(1000) }),
+    z.object({ totalGrams: z.int(), count: z.int() }),
+  ]),
+});
+
+/** `weightsGrams` is empty for a group weighing. */
+export type WeighingDto = { id: string; batchId: string; day: string; count: number; totalGrams: number; weightsGrams: number[] };

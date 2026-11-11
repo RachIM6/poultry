@@ -52,3 +52,13 @@ describe("Batch.checkDay (SPEC B2)", () => {
     expect(batch.checkDay(today, { ...entry, feed: { ...feed, grams: 0 } }, 0, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
   });
 });
+
+describe("Batch.checkWeighing (SPEC B3)", () => {
+  const today = day("2026-11-06");
+  it("takes a sample on an open batch's day, and refuses a bad sample", () => {
+    expect(batch.checkWeighing(today, { weightsGrams: [2000, 2100] }, today).ok).toBe(true);
+    expect(batch.checkWeighing(day("2026-10-13"), { weightsGrams: [2000] }, today)).toEqual({ ok: false, error: "DAY_BEFORE_PLACEMENT" });
+    expect(Batch.rehydrate(placement, "closed").checkWeighing(today, { weightsGrams: [2000] }, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
+    expect(batch.checkWeighing(today, { totalGrams: 0, count: 3 }, today)).toEqual({ ok: false, error: "INVALID_SAMPLE" });
+  });
+});

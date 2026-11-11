@@ -10,9 +10,10 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto, type DailyEntryDto } from "@/modules/flock/schema";
+import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto, type DailyEntryDto, type WeighingDto } from "@/modules/flock/schema";
 import type { StockItemDto } from "@/modules/inventory/schema";
 import { DayForm, type Write } from "@/components/daily-entry";
+import { Weighings } from "@/components/weighing";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
@@ -51,7 +52,7 @@ function Batches(scope: Scope) {
   const t = useTranslations();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "stockItem").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -93,6 +94,12 @@ function Batches(scope: Scope) {
           batch={open}
           entries={entriesOf(open.id)}
           feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
+          write={write}
+        />
+        <Weighings
+          batch={open}
+          weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === open.id)}
+          curve={strains.find((s) => s.id === open.strainId)?.curves.at(-1)?.points ?? null} // latest version (OQ5)
           write={write}
         />
       </>

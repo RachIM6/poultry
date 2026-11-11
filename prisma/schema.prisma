@@ -439,6 +439,21 @@ model DailyEntry {
   @@index([organizationId])
 }
 
+// SPEC B3. One row per sample, append-only. `weightsGrams` is empty when the birds were weighed as a group.
+model Weighing {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  batchId        String   @db.Uuid
+  day            DateTime @db.Date
+  count          Int
+  totalGrams     Int
+  weightsGrams   Int[]
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([batchId, day])
+  @@index([organizationId])
+}
+
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
 // No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
 model AuditEvent {

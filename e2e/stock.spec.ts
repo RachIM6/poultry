@@ -15,6 +15,8 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
   await page.getByLabel("Province").fill("Settat");
   await page.getByLabel("Commune").fill("Ben Ahmed");
   await page.getByRole("button", { name: "Enregistrer" }).click();
+  // Leaving the page before the local write commits would abort it (flaky in CI).
+  await expect(page.getByRole("status").filter({ hasText: "Enregistré sur ce téléphone." })).toBeVisible();
   await page.goto("/fr/stock");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await expect(page.getByText("Aucun article dans cette ferme.")).toBeVisible();

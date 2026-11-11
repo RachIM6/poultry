@@ -333,6 +333,67 @@ model NotificationPreference {
   quietEnd   String @default("06:00")
 }
 
+// Owner: inventory (SPEC S1–S3). All written offline: ids come from the device (ADR-003).
+model Supplier {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  phone          String?
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// S1: one per farm and product (and lot, for vaccines and medicines).
+model StockItem {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  farmId         String    @db.Uuid
+  productId      String? // reference-data catalogue, when the item is one of its products
+  kind           String // feed | vaccine | medicine | litter | gas | other
+  name           String
+  unit           String // kg (stored in grams) | dose | ml | unit
+  lot            String?
+  expiresOn      DateTime? @db.Date
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId])
+}
+
+// S3: the ledger. Stock on hand = sum of quantity; rows are never edited.
+model StockMovement {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  stockItemId    String   @db.Uuid
+  kind           String // purchase | consumption | adjustment
+  quantity       Int // base units (grams for kg), signed: + in, − out
+  day            DateTime @db.Date // farm day
+  reason         String? // required for an adjustment
+  purchaseId     String?  @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, stockItemId])
+}
+
+// S2: what was bought and paid; amount − paid is supplier credit.
+model Purchase {
+  id                String    @id @db.Uuid
+  organizationId    String    @db.Uuid
+  farmId            String    @db.Uuid
+  supplierId        String    @db.Uuid
+  stockItemId       String    @db.Uuid
+  day               DateTime  @db.Date
+  quantity          Int
+  unitPriceCentimes BigInt // per displayed unit (per kg for feed)
+  amountCentimes    BigInt
+  paidCentimes      BigInt
+  dueOn             DateTime? @db.Date
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, supplierId])
+}
+
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
 // No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
 model AuditEvent {

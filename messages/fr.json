@@ -197,6 +197,57 @@
     "saved": "Enregistré.",
     "needsNetwork": "Disponible avec du réseau."
   },
+  "Stock": {
+    "title": "Stock",
+    "open": "Stock et achats",
+    "farm": "Ferme",
+    "noFarm": "Ajoutez d’abord une ferme.",
+    "items": "Articles",
+    "noItems": "Aucun article dans cette ferme.",
+    "onHand": "En stock : {quantity}",
+    "lotUntil": "Lot {lot}, périme le {date}",
+    "addItem": "Ajouter un article",
+    "kind": "Type",
+    "kinds": {
+      "feed": "Aliment",
+      "vaccine": "Vaccin",
+      "medicine": "Médicament",
+      "litter": "Litière",
+      "gas": "Gaz",
+      "other": "Autre"
+    },
+    "product": "Produit du catalogue (facultatif)",
+    "none": "—",
+    "name": "Nom",
+    "unit": "Unité",
+    "units": {
+      "kg": "kg",
+      "dose": "doses",
+      "ml": "ml",
+      "unit": "unités"
+    },
+    "lot": "N° de lot",
+    "expiresOn": "Date de péremption",
+    "purchase": "Enregistrer un achat",
+    "supplier": "Fournisseur",
+    "newSupplier": "Nouveau fournisseur",
+    "newSupplierName": "Nom du nouveau fournisseur",
+    "item": "Article",
+    "day": "Date",
+    "quantity": "Quantité ({unit})",
+    "unitPrice": "Prix par {unit} (DH)",
+    "paid": "Payé maintenant (DH)",
+    "dueOn": "Échéance du reste (facultatif)",
+    "amount": "Montant : {amount}",
+    "adjust": "Corriger le stock",
+    "adjustQuantity": "Écart ({unit}), négatif pour une perte",
+    "reason": "Motif",
+    "suppliers": "Fournisseurs",
+    "owed": "Reste dû : {amount}",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "invalid": "Vérifiez les champs."
+  },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
@@ -211,6 +262,11 @@
     "NOT_FOUND": "Introuvable.",
     "UNKNOWN_MUTATION": "Cette action n’est pas reconnue. Mettez l’application à jour.",
     "SYNC_SCOPE": "Ce téléphone a changé de compte. Reconnectez-vous.",
-    "ALREADY_EXISTS": "Cet élément existe déjà."
+    "ALREADY_EXISTS": "Cet élément existe déjà.",
+    "LOT_REQUIRED": "Un vaccin ou un médicament a besoin d’un n° de lot et d’une date de péremption.",
+    "PAID_MORE_THAN_AMOUNT": "Le montant payé dépasse le montant de l’achat.",
+    "DUE_DATE_WITHOUT_CREDIT": "Une échéance ne sert que s’il reste un montant à payer.",
+    "INVALID_QUANTITY": "Quantité invalide.",
+    "REASON_REQUIRED": "Indiquez le motif de la correction."
   }
 }

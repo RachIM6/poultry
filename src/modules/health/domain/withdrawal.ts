@@ -7,12 +7,15 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 /** H3: the last farm day of a treatment's withdrawal: its end day + the product's withdrawal days. */
 export const withdrawalEnd = (t: { endOn: FarmDay; withdrawalDays: number }) => addFarmDays(t.endOn, t.withdrawalDays);
 
-/** H4: the day the batch's withdrawal runs until, seen on `today`, or null when none is running. Overlaps: the latest end. */
-export function withdrawalUntil(treatments: readonly { endOn: FarmDay; withdrawalDays: number }[], today: FarmDay): FarmDay | null {
+/**
+ * H4, V3: the day the batch's withdrawal runs until, seen on `day`, or null when none is running. A treatment counts from
+ * its start day: birds sold before it began never had the medicine. Overlaps: the latest end.
+ */
+export function withdrawalUntil(treatments: readonly { startOn: FarmDay; endOn: FarmDay; withdrawalDays: number }[], day: FarmDay): FarmDay | null {
   let until: FarmDay | null = null;
   for (const t of treatments) {
     const end = withdrawalEnd(t);
-    if (daysBetween(today, end) >= 0 && (!until || end > until)) until = end;
+    if (daysBetween(t.startOn, day) >= 0 && daysBetween(day, end) >= 0 && (!until || end > until)) until = end;
   }
   return until;
 }

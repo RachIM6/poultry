@@ -79,6 +79,23 @@ describe("batch KPIs on the reference batch (SPEC B4)", () => {
   });
 });
 
+describe("batch KPIs after a partial sale (SPEC B5)", () => {
+  it("counts the birds sold out of those on hand, not as dead, and their weight in the FCR", () => {
+    // Day 35, with 2 000 birds sold on day 30 at 4 000 kg (farm weight). On hand 9 720 − 2 000 = 7 720; mortality stays
+    // 2.8 %. Feed per bird 33 250 kg / 7 720 = 4 306.99 g. Live weight 7 720 × 2 300 g + 4 000 kg = 21 756 kg →
+    // FCR 33 250 / 21 756 = 1.5283. EPEF = 97.2 × 2.3 / (35 × 1.5283) × 100 = 417.94.
+    const sold = [{ day: dayAt(30), birds: 2000, liveWeightGrams: 4_000_000 }];
+    const k = batchKpis(batch, entries, [weighing(21, 1000), weighing(35, 2300)], dayAt(35), sold);
+    expect(k.birdsOnHand).toBe(7720);
+    expect(k.mortalityPercent).toBeCloseTo(2.8, 6);
+    expect(k.feedPerBirdGrams).toBeCloseTo(4306.99, 2);
+    expect(k.weighed?.fcr).toBeCloseTo(1.5283, 4);
+    expect(k.weighed?.epef).toBeCloseTo(417.94, 2);
+    // A weighing before the sale ignores it: day 21 is as without the sale.
+    expect(batchKpis(batch, entries.filter((e) => e.day <= dayAt(21)), [weighing(21, 1000)], dayAt(30), sold).weighed?.fcr).toBeCloseTo(1.2513, 4);
+  });
+});
+
 describe("batch KPIs without enough data", () => {
   it("has no weight KPIs before the first weighing", () => {
     expect(batchKpis(batch, [], [], placedOn)).toEqual({ ageDays: 0, birdsOnHand: 10_000, mortalityPercent: 0, feedPerBirdGrams: 0, weighed: null });

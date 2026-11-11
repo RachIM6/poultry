@@ -52,8 +52,8 @@ export type FarmFields = z.infer<typeof FarmFields>;
 export const HOUSE_TYPES = ["open", "closed"] as const;
 export const HouseFields = z.object({
   name: text(80),
-  areaM2: z.int().min(1).max(1_000_000),
-  capacity: z.int().min(1).max(10_000_000), // birds
+  areaM2: z.int32().min(1).max(1_000_000),
+  capacity: z.int32().min(1).max(10_000_000), // birds
   type: z.enum(HOUSE_TYPES),
 });
 export type HouseFields = z.infer<typeof HouseFields>;

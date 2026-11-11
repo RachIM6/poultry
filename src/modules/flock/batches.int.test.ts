@@ -76,4 +76,10 @@ describe("batch placement (SPEC B1)", () => {
     expect(JSON.stringify(seen)).not.toMatch(/chickUnitPrice/);
     expect((await pull(b, 0, registry)).changes).toEqual([]); // nothing of a's
   });
+
+  it("refuses a number too big for its column instead of failing the push (T25 S4)", async () => {
+    // 2^31 used to pass z.int() and throw on the int4 column: the phone retried it forever, blocking its outbox.
+    const results = await statuses(b, [m(M.placeBatch, placement(houses.b1, { chicksPlaced: 2 ** 31 })), m(M.placeBatch, placement(houses.b1))]);
+    expect(results).toEqual(["errors.INVALID_INPUT", "applied"]); // the next write still goes through
+  });
 });

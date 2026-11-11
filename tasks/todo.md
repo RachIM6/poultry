@@ -355,8 +355,10 @@ Decisions (2026-11-08, taken without asking): flock owns birds on hand, and sale
 ### T22: Receivables and due-date reminders (V4)
 **Description:** List unpaid amounts per buyer with due dates. Record later payments. Remind on cheque and bill due dates.
 **AC:**
-- [ ] The balance per buyer equals sales − payments (unit test).
-- [ ] A reminder is sent on the due date of each cheque or bill.
+- [x] The balance per buyer equals sales − payments (unit test). (`src/modules/sales/domain/receivables.test.ts`; the server refuses a payment above the balance under a per-buyer lock, `src/modules/sales/receivables.int.test.ts`; offline payments in `e2e/receivables.spec.ts`.)
+- [ ] A reminder is sent on the due date of each cheque or bill. **Server part done:** one notification per cheque or bill, from the start of its due day, to owners and managers, held by quiet hours (integration test with a fixed clock). **Push on a real phone not verified**, as for T12 and T19.
+
+Decisions (2026-11-09, taken without asking): payments are per buyer, not per sale (balance = what sales left unpaid − later payments), with no allocation to sales yet; the list shows each owing buyer with all their cheques and bills and due dates. A payment can't exceed the balance or be in the future. The reminder goes out on the due day whether or not a payment was recorded (the cheque still has to be cashed). `sales` now depends on `notifications` (CAPABILITY-MAP and lint rule), like every other module that reminds. One page, `/receivables` (precached, offline), linked from the dashboard for owners and managers.
 
 **Verify:** `pnpm test -- src/modules/sales/receivables`
 **Dependencies:** T21, T12

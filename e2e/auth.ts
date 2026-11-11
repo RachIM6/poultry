@@ -117,16 +117,18 @@ export async function pushAs(page: Page, mutations: { type: string; payload: unk
 }
 
 /** A farm with a house, a feed item with 1 000 kg bought, and a batch of 1 000 chicks placed today. */
-export async function farmWithBatch(page: Page, strainId = "ross-308") {
+/** The farm day (Africa/Casablanca) `n` days ago, as YYYY-MM-DD. */
+export const farmDaysAgo = (n: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablanca" }).format(new Date(Date.now() - n * 86_400_000));
+
+export async function farmWithBatch(page: Page, strainId = "ross-308", placedOn = farmDaysAgo(0)) {
   const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), supplier: crypto.randomUUID(), feed: crypto.randomUUID(), batch: crypto.randomUUID() };
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablanca" }).format(new Date());
   await pushAs(page, [
     { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Atlas", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
     { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1200, capacity: 12000, type: "closed" } },
     { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Alf", phone: null } },
     { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day: today, quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
-    { type: "flock.placeBatch", payload: { id: ids.batch, houseId: ids.house, strainId, placedOn: today, chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day: placedOn, quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+    { type: "flock.placeBatch", payload: { id: ids.batch, houseId: ids.house, strainId, placedOn, chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null } },
   ]);
   return ids;
 }
@@ -148,4 +150,17 @@ export async function referenceCached(page: Page) {
         }),
     );
   await expect.poll(stored).toBe(true);
+}
+
+/** A strain with a made-up curve (40 g on day 0, 200 g on day 7): no breeder table is committed yet (OQ5). Not a real
+ * standard. Delete it with `DELETE FROM "Strain"` when the test ends. */
+export async function syntheticStrain() {
+  const strain = `e2e-${crypto.randomUUID().slice(0, 8)}`;
+  await query(
+    `WITH s AS (INSERT INTO "Strain" (id, name) VALUES ($1, 'Souche de test') RETURNING id),
+          c AS (INSERT INTO "StandardCurve" ("strainId", source, version) SELECT id, 'E2E synthetic', '1' FROM s RETURNING id)
+     INSERT INTO "StandardPoint" ("curveId", day, "bodyWeightGrams", "cumulativeFeedGrams") SELECT id, d, g, f FROM c, (VALUES (0, 40, 0), (7, 200, 150)) v(d, g, f)`,
+    [strain],
+  );
+  return strain;
 }

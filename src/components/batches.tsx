@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, useState, useSyncExternalStore, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatCount } from "@/lib/format";
@@ -10,7 +10,9 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto } from "@/modules/flock/schema";
+import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto, type DailyEntryDto } from "@/modules/flock/schema";
+import type { StockItemDto } from "@/modules/inventory/schema";
+import { DayForm, type Write } from "@/components/daily-entry";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
@@ -22,6 +24,13 @@ const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text
 const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
 const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const today = () => farmDayOf(new Date());
+
+// A batch's day opens as /batches#<id>: the path stays the precached shell, offline included.
+const onHashChange = (cb: () => void) => {
+  window.addEventListener("hashchange", cb);
+  return () => window.removeEventListener("hashchange", cb);
+};
+const useHash = () => useSyncExternalStore(onHashChange, () => decodeURIComponent(window.location.hash.slice(1)), () => "");
 
 export function BatchesScreen() {
   const t = useTranslations("Sync");
@@ -42,10 +51,11 @@ function Batches(scope: Scope) {
   const t = useTranslations();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "stockItem").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
+  const openId = useHash();
   if (!records || reference === undefined) return null;
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
@@ -56,6 +66,38 @@ function Batches(scope: Scope) {
   const strains = reference?.data.strains ?? [];
   const houseName = (id: string) => houses.find((h) => h.id === id)?.name ?? "";
   const busy = new Set(batches.filter((b) => b.status === "open").map((b) => b.houseId));
+  const entries = of<DailyEntryDto>("dailyEntry");
+  const entriesOf = (batchId: string) => entries.filter((e) => e.batchId === batchId);
+  const onHand = (b: BatchDto) => b.chicksPlaced - b.deadOnArrival - entriesOf(b.id).reduce((n, e) => n + e.dead + e.culled, 0);
+
+  const write: Write = async (mutation, recs) => {
+    try {
+      await writeLocal(db, mutation, recs);
+      setMessage("Farms.saved");
+      return true;
+    } catch {
+      setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
+      return false;
+    }
+  };
+
+  const open = batches.find((b) => b.id === openId && b.status === "open");
+  if (open) {
+    return (
+      <>
+        <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
+        <h2 className="text-xl font-semibold">{t("Batches.summary", { farm: farms.get(open.farmId)?.name ?? "", house: houseName(open.houseId), strain: strains.find((s) => s.id === open.strainId)?.name ?? open.strainId })}</h2>
+        <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
+        {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+        <DayForm
+          batch={open}
+          entries={entriesOf(open.id)}
+          feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
+          write={write}
+        />
+      </>
+    );
+  }
 
   const save = async (batch: BatchDto, payload: unknown) => {
     try {
@@ -83,6 +125,10 @@ function Batches(scope: Scope) {
                 {t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strains.find((s) => s.id === b.strainId)?.name ?? b.strainId })}
               </span>
               <span className="text-sm opacity-75">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
+              <span>{t("Day.onHand", { birds: formatCount(onHand(b)) })}</span>
+              {b.status === "open" && (
+                <a href={`#${b.id}`} className={`${primary} mt-2 text-center`}>{t("Day.open")}</a>
+              )}
             </li>
           ))}
         </ul>
@@ -92,6 +138,8 @@ function Batches(scope: Scope) {
           <p>
             {t("Batches.noHouse")} <Link href="/farms" className="underline underline-offset-4">{t("Farms.title")}</Link>
           </p>
+        ) : strains.length === 0 ? (
+          <p>{t("Protocol.noReference")}</p> // strains come with the reference data, after one sync online
         ) : placing ? (
           <PlacementForm
             houses={houses.map((h) => ({ ...h, label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`, busy: busy.has(h.id) }))}

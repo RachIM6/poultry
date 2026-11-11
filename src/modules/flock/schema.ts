@@ -1,4 +1,6 @@
+import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
+import { DEATH_CAUSES, type DayFields } from "@/modules/flock/domain/daily-entry";
 
 // SPEC B1, written offline: the phone and the sync push validate with the same schema (ADR-003). The phone also runs
 // the same placement rules and age as the server.
@@ -38,4 +40,30 @@ export type BatchDto = {
 };
 export const BATCH_MONEY = ["chickUnitPriceCentimes"] as const;
 
-export const FLOCK_MUTATIONS = { placeBatch: "flock.placeBatch" } as const;
+export const FLOCK_MUTATIONS = { placeBatch: "flock.placeBatch", recordDay: "flock.recordDay" } as const;
+
+// SPEC B2: the daily entry.
+export { DEATH_CAUSES, EMPTY_DAY, changedFields, mergeDay } from "@/modules/flock/domain/daily-entry";
+export type { DayFields, DeathCause } from "@/modules/flock/domain/daily-entry";
+
+/** The entry of a batch on a farm day has one id everywhere: two phones entering that day write the same record. */
+const DAILY_ENTRY_NAMESPACE = "3b6f1c1e-2a4d-4f5e-9c3b-7a1d2e4f6b80";
+export const dailyEntryId = (batchId: string, day: string) => uuidv5(`${batchId}:${day}`, DAILY_ENTRY_NAMESPACE);
+
+export const RecordDay = z.object({
+  batchId: z.uuid(),
+  day: z.iso.date(),
+  changes: z
+    .object({
+      dead: z.int().min(0),
+      deathCause: z.enum(DEATH_CAUSES).nullable(),
+      culled: z.int().min(0),
+      feed: z.object({ stockItemId: z.uuid(), grams: z.int().positive() }).nullable(),
+      waterMl: z.int().min(0).nullable(),
+      note: z.string().trim().max(500).transform((s) => s || null).nullable(),
+    })
+    .partial()
+    .refine((c) => Object.keys(c).length > 0, "no change"),
+});
+
+export type DailyEntryDto = { id: string; batchId: string; day: string } & DayFields;

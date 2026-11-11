@@ -418,6 +418,27 @@ model Batch {
   @@index([houseId])
 }
 
+// Owner: flock (SPEC B2). One per batch per farm day; its id is a UUIDv5 of batch + day, the same on every phone, so two
+// phones entering the same day write the same record. The feed becomes one consumption movement with the same id (S4).
+model DailyEntry {
+  id              String   @id @db.Uuid
+  organizationId  String   @db.Uuid
+  batchId         String   @db.Uuid
+  day             DateTime @db.Date
+  dead            Int      @default(0)
+  deathCause      String?
+  culled          Int      @default(0)
+  feedStockItemId String?  @db.Uuid
+  feedGrams       Int?
+  waterMl         Int?
+  note            String?
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+
+  @@unique([batchId, day])
+  @@index([organizationId])
+}
+
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
 // No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
 model AuditEvent {

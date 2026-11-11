@@ -58,6 +58,31 @@ export async function scopeRemembered(page: Page) {
   await expect.poll(stored).toBe(true);
 }
 
+/** How many writes wait in the signed-in scope's outbox: lets a test know a local save committed before it navigates. */
+export async function queuedWrites(page: Page) {
+  return await page.evaluate(async () => {
+    const open = (name: string) =>
+      new Promise<IDBDatabase>((resolve, reject) => {
+        const req = indexedDB.open(name);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    const read = <T,>(db: IDBDatabase, store: string, op: (s: IDBObjectStore) => IDBRequest<T>) =>
+      new Promise<T>((resolve, reject) => {
+        const req = op(db.transaction(store).objectStore(store));
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    const device = await open("poultry-device");
+    const current = await read<{ scope: { userId: string; organizationId: string } }>(device, "session", (s) => s.get("current"));
+    device.close();
+    const db = await open(`poultry-${current.scope.userId}:${current.scope.organizationId}`);
+    const count = await read(db, "outbox", (s) => s.count());
+    db.close();
+    return count;
+  });
+}
+
 /** A new owner with an organisation, signed in on the French dashboard. */
 export async function ownerWithFarm(page: Page, farmName: string) {
   const e164 = await login(page, "fr");

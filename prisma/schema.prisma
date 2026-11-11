@@ -478,6 +478,40 @@ model Vaccination {
   @@index([dueOn])
 }
 
+// Owner: health (SPEC H3, H6). Kept as recorded, never edited: the ONSSA health register (M2) is rebuilt from these rows.
+model Treatment {
+  id               String   @id @db.Uuid
+  organizationId   String   @db.Uuid
+  batchId          String   @db.Uuid
+  stockItemId      String   @db.Uuid // the medicine lot (one consumption movement, same id)
+  quantity         Int // taken from stock, in the item's base unit
+  dose             String // as prescribed
+  startOn          DateTime @db.Date // farm day
+  endOn            DateTime @db.Date
+  reason           String
+  prescriber       String
+  withdrawalDays   Int // from the label or the prescription, as entered
+  withdrawalEndsOn DateTime @db.Date // endOn + withdrawalDays (H3): what the sale block reads (T21)
+  recordedBy       String   @db.Uuid
+  createdAt        DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: health (SPEC H5, H6).
+model VetVisit {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  batchId        String   @db.Uuid
+  on             DateTime @db.Date // farm day
+  vetName        String
+  notes          String
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
 // No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
 model AuditEvent {

@@ -11,11 +11,12 @@ import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto, type DailyEntryDto, type WeighingDto } from "@/modules/flock/schema";
-import { HEALTH_MUTATIONS as H, planFor, type VaccinationDto } from "@/modules/health/schema";
+import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/schema";
 import type { StockItemDto } from "@/modules/inventory/schema";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
 import { BatchDashboard } from "@/components/batch-dashboard";
 import { DayForm, type Write } from "@/components/daily-entry";
+import { Treatments, VetVisits, WithdrawalBanner } from "@/components/treatments";
 import { Vaccinations } from "@/components/vaccinations";
 import { Weighings } from "@/components/weighing";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
@@ -56,7 +57,7 @@ function Batches(scope: Scope) {
   const t = useTranslations();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -90,11 +91,13 @@ function Batches(scope: Scope) {
   if (open) {
     const weighings = of<WeighingDto>("weighing").filter((w) => w.batchId === open.id);
     const curve = strains.find((s) => s.id === open.strainId)?.curves.at(-1)?.points ?? null; // latest version (OQ5)
+    const treatments = of<TreatmentDto>("treatment").filter((x) => x.batchId === open.id);
     return (
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
         <h2 className="text-xl font-semibold">{t("Batches.summary", { farm: farms.get(open.farmId)?.name ?? "", house: houseName(open.houseId), strain: strains.find((s) => s.id === open.strainId)?.name ?? open.strainId })}</h2>
         <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
+        <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
         <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} curve={curve} />
         <DayForm
@@ -118,6 +121,14 @@ function Batches(scope: Scope) {
           userId={userId}
           write={write}
         />
+        <Treatments
+          batch={open}
+          treatments={treatments}
+          medicines={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "medicine")}
+          userId={userId}
+          write={write}
+        />
+        <VetVisits batch={open} visits={of<VetVisitDto>("vetVisit").filter((v) => v.batchId === open.id)} userId={userId} write={write} />
       </>
     );
   }

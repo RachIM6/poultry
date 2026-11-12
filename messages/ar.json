@@ -1,7 +1,9 @@
 {
   "App": {
-    "name": "Poultry",
-    "description": "تسيير ضيعات الدواجن"
+    "name": "DigiAtlas-VOLAILLE",
+    "shortName": "DigiAtlas",
+    "description": "تسيير ضيعات الدواجن",
+    "tagline": "تربية الدواجن، يومًا بعد يوم."
   },
   "LocaleSwitcher": {
     "label": "اللغة",
@@ -529,7 +531,8 @@
     "buyerPhone": "الهاتف",
     "signFarm": "توقيع وختم المربي",
     "signBuyer": "توقيع المشتري",
-    "print": "طباعة"
+    "print": "طباعة",
+    "editedWith": "أُنجزت بواسطة {app}"
   },
   "Closing": {
     "open": "عرض الحصيلة",

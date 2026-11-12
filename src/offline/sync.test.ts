@@ -198,3 +198,23 @@ describe("a write that touched several records", () => {
     expect(await db.records.count()).toBe(0); // no stray movement left to inflate the stock shown
   });
 });
+
+describe("a role change on this phone (T25 S5)", () => {
+  it("drops the cached records and pulls again from the start, keeping unsent writes", async () => {
+    const manager = { ...scope(), role: "manager" as const };
+    await rememberScope(manager);
+    const db = localDb(manager);
+    await db.records.put({ key: "sale:1", entity: "sale", id: "1", data: { amountCentimes: "900000" } });
+    await db.meta.put({ key: "cursor", value: 42 });
+    await writeLocal(db, { type: "flock.recordDay", payload: {} });
+
+    await rememberScope({ ...manager, role: "manager" }); // same role: nothing to do
+    expect(await db.records.count()).toBe(1);
+
+    await rememberScope({ ...manager, role: "worker" });
+    expect(await db.records.count()).toBe(0);
+    expect(await metaValue(db, "cursor")).toBeUndefined(); // the next pull starts from 0, money stripped
+    expect(await db.outbox.count()).toBe(1);
+    expect((await currentScope())?.role).toBe("worker");
+  });
+});

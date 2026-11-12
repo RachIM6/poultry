@@ -1,8 +1,10 @@
 import { isSameOriginRequest } from "@/lib/security/csrf";
-import { logout } from "@/modules/identity";
+import { logout, logoutEverywhere } from "@/modules/identity";
 
-// TODO(T9): refuse while the outbox has unsynced changes unless the user confirms (poultry-auth §3).
+// Unsynced changes: the button asks before calling this, and the outbox stays on the phone (poultry-auth §3).
+// `?everywhere`: every device of this user is logged out, this one too (a lost phone).
 export async function POST(req: Request) {
   if (!isSameOriginRequest(req)) return Response.json({ ok: false, messageKey: "errors.FORBIDDEN" }, { status: 403 });
-  return Response.json({ ok: true }, { headers: await logout(req.headers) });
+  const everywhere = new URL(req.url).searchParams.has("everywhere");
+  return Response.json({ ok: true }, { headers: await (everywhere ? logoutEverywhere : logout)(req.headers) });
 }

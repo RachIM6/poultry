@@ -17,8 +17,16 @@ export function SyncBadge({ userId, organizationId, role }: { userId: string; or
   const t = useTranslations("Sync");
   useEffect(() => {
     const scope = { userId, organizationId, role };
-    void rememberScope(scope);
-    return startSync(scope);
+    // After rememberScope: a role change clears local records first, so no pull lands before the clear (T25 S5).
+    let stop: (() => void) | undefined;
+    let ended = false;
+    void rememberScope(scope).then(() => {
+      if (!ended) stop = startSync(scope);
+    });
+    return () => {
+      ended = true;
+      stop?.();
+    };
   }, [userId, organizationId, role]);
   const pending = useLiveQuery(() => localDb({ userId, organizationId }).outbox.count(), [userId, organizationId], 0);
   return (

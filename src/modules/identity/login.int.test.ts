@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { fixedClock } from "@/lib/kernel/clock";
-import { getSession, logout, requestCode, verifyCode } from "@/modules/identity";
+import { getSession, logout, logoutEverywhere, requestCode, verifyCode } from "@/modules/identity";
 
 // Codes come from the Verification row (Better Auth stores "<code>:<attempts>").
 const latestCode = async (e164: string) =>
@@ -67,6 +67,25 @@ describe("phone + code login (SPEC I1–I2)", () => {
     const cookie = cookieHeader(await login("0655555555", "+212655555555"));
     await logout(cookie);
     expect(await getSession(cookie)).toBeNull();
+  });
+
+  it("logs out every device of the user, audited, and no one else's (T25 S2)", async () => {
+    const phone = await login("0677777777", "+212677777777");
+    const lost = cookieHeader(await login("0677777777", "+212677777777")); // a second phone, then lost
+    const other = cookieHeader(await login("0688888888", "+212688888888"));
+    const user = await db.user.findUniqueOrThrow({ where: { phoneNumber: "+212677777777" } });
+    const org = await db.organization.create({ data: { name: "Élevage S2" } });
+    await db.membership.create({ data: { organizationId: org.id, userId: user.id, role: "owner" } });
+
+    const out = await logoutEverywhere(cookieHeader(phone));
+    expect(out.getSetCookie().some((c) => c.startsWith("__Secure-sid=;") || /__Secure-sid=[^;]*;.*Max-Age=0/i.test(c))).toBe(true);
+    expect(await getSession(cookieHeader(phone))).toBeNull();
+    expect(await getSession(lost)).toBeNull();
+    expect(await getSession(other)).not.toBeNull();
+    expect(await db.auditEvent.findFirst({ where: { organizationId: org.id, entity: "Session", action: "revoke" } })).toMatchObject({
+      userId: user.id,
+      after: { everywhere: true, otherDevices: 1 },
+    });
   });
 
   it("ends a session 90 days after login even if it kept sliding", async () => {

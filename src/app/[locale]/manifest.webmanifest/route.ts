@@ -13,7 +13,7 @@ export async function GET(_: Request, { params }: RouteContext<"/[locale]/manife
   const manifest: MetadataRoute.Manifest = {
     id: "/",
     name: t("name"),
-    short_name: t("name"),
+    short_name: t("shortName"), // the label under the phone icon
     description: t("description"),
     lang: locale,
     dir: dirOf(locale),

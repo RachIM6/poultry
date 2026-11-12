@@ -17,7 +17,7 @@ export const RecordVaccination = z.object({
   id: z.uuid(), // the plan line
   on: z.iso.date(), // farm day
   stockItemId: z.uuid(), // the vaccine lot, deducted from stock
-  doses: z.int().positive(),
+  doses: z.int32().positive(),
   method: z.enum(VACCINATION_METHODS),
 });
 
@@ -27,13 +27,13 @@ export const RecordTreatment = z.object({
   id: z.uuidv7(), // a phone's id; never a daily entry's UUIDv5, whose consumption movement the entry may replace (T25)
   batchId: z.uuid(),
   stockItemId: z.uuid(), // the medicine lot, deducted from stock
-  quantity: z.int().positive(), // the item's base unit
+  quantity: z.int32().positive(), // the item's base unit
   dose: text(120), // as prescribed, e.g. "1 ml par litre d'eau"
   startOn: z.iso.date(), // farm days
   endOn: z.iso.date(),
   reason: text(200),
   prescriber: text(120),
-  withdrawalDays: z.int().min(0).max(365), // from the label or the prescription: never a default (OQ4)
+  withdrawalDays: z.int32().min(0).max(365), // from the label or the prescription: never a default (OQ4)
 });
 
 export const RecordVetVisit = z.object({

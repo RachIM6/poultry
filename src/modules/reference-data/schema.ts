@@ -9,9 +9,9 @@ const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).max(60);
 const text = (max: number) => z.string().trim().min(1).max(max);
 
 export const CurvePoint = z.object({
-  day: z.int().min(0).max(120), // age in days, as-hatched
-  bodyWeightGrams: z.int().min(1),
-  cumulativeFeedGrams: z.int().min(0),
+  day: z.int32().min(0).max(120), // age in days, as-hatched
+  bodyWeightGrams: z.int32().min(1),
+  cumulativeFeedGrams: z.int32().min(0),
 });
 export type CurvePoint = z.infer<typeof CurvePoint>;
 
@@ -35,12 +35,12 @@ export const Product = z.object({
   kind: z.enum(PRODUCT_KINDS),
   nameFr: text(120),
   nameAr: text(120),
-  withdrawalDays: z.int().min(0).max(365).nullable(), // meat withdrawal (R3); null = not known yet
+  withdrawalDays: z.int32().min(0).max(365).nullable(), // meat withdrawal (R3); null = not known yet
 });
 export type Product = z.infer<typeof Product>;
 
 export const ProtocolItem = z.object({
-  dayOfAge: z.int().min(0).max(120),
+  dayOfAge: z.int32().min(0).max(120),
   productId: slug, // a vaccine of the catalogue
   method: z.enum(VACCINATION_METHODS),
 });

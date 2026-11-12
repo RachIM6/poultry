@@ -48,6 +48,7 @@ async function Content() {
         <Link href="/settings/members" className="underline underline-offset-4">{t("Members.title")}</Link>
       )}
       <LogoutButton />
+      <LogoutButton everywhere />
     </>
   );
 }

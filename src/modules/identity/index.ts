@@ -1,5 +1,5 @@
 // Public API of the `identity` module (see CAPABILITY-MAP.md). Other modules import only from here.
-export { getSession, logout, requestCode, verifyCode } from "./application/login";
+export { getSession, logout, logoutEverywhere, requestCode, verifyCode } from "./application/login";
 export { cancelInvitation, changeRole, inviteMember, listMembers, removeMember } from "./application/members";
 export type { MembersDto } from "./application/members";
 export { addOwner, getTenantContext, localesOf, lockForOnboarding, membersWithRoles } from "./application/membership";

@@ -70,3 +70,19 @@ export async function logout(headers: Headers): Promise<Headers> {
     return new Headers(); // no session to end: logging out is already done
   }
 }
+
+/** poultry-auth §3, T25 S2: "log out all my devices" for a lost phone. Every session of this user ends, this one too. */
+export async function logoutEverywhere(headers: Headers): Promise<Headers> {
+  const session = await getSession(headers);
+  const out = await logout(headers);
+  if (!session) return out;
+  await db.$transaction(async (tx) => {
+    const { count } = await tx.session.deleteMany({ where: { userId: session.userId } });
+    const memberships = await tx.membership.findMany({ where: { userId: session.userId }, select: { organizationId: true } });
+    for (const { organizationId } of memberships)
+      await tx.auditEvent.create({
+        data: { organizationId, userId: session.userId, entity: "Session", entityId: session.userId, action: "revoke", after: { everywhere: true, otherDevices: count } },
+      });
+  });
+  return out;
+}

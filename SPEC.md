@@ -181,7 +181,7 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 ### `farm-registry`
 - F1. First login → create the organisation and its **legal entity**:
   - form: individual / indivision / company / cooperative / association / GIE;
-  - the accounting profile is derived from the form and used in M2.
+  - the accounting profile is derived from the form and used in M2 (its shape changes in M2: [ADR-010](docs/decisions/ADR-010-accounting-model.md), [SPEC-finance.md](SPEC-finance.md) FN1).
 - F2. A farm has a name, region and province, commune, optional GPS, and optional **ONSSA authorization number + expiry date**.
 - F3. A poultry house has a name, floor area (m²), capacity (birds) and type (open / closed).
 - F4. Farms and houses can be created and edited **offline**.

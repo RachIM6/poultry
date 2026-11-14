@@ -254,7 +254,7 @@ The app must handle these variants. Each one changes the cycle, the KPIs and the
 |---|---|
 | **MVP** | Areas 2 (light) · 5 · 6 · 7 (bought feed) · 9 (vaccines, treatments, ONSSA register) · 10 (sales + receivables) · 13 (closing) · 14 (basic stock) · 15 (cash book + margin per batch) · 24 (offline, AR/FR, roles). **Broiler first.** |
 | **V2** | 3 Planning · 4 Biosecurity · 8 Climate (manual + alerts) · 16 People · 17 Documents · 19 Prices · 20 Vet + accountant access · layers (11) |
-| **V3** | Hatchery (12) · own feed mixing · cooperative and integrator modules · IoT / controllers · marketplace · AI assistant · benchmark across farms · full accounting |
+| **V3** | Hatchery (12) · own feed mixing · cooperative and integrator modules · IoT / controllers · marketplace · AI assistant · benchmark across farms · ~~full accounting~~ (moved to M2 + M6 by [ADR-010](docs/decisions/ADR-010-accounting-model.md)) |
 
 ## 6. Open questions for the interviews
 

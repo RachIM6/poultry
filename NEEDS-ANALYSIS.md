@@ -56,7 +56,7 @@ This is the part you asked about. The product must **not** hard-code one chart o
 
 **Takeaways**
 - Most target farms (S1–S4) are individuals or indivisions **below 5M DH and exempt from tax**. For them, "finance" means **real cost per kg, margin per batch, debts and credit**, not tax accounting. Formal accounting matters for S3, S5 and S7 (companies) and for S6 (cooperatives, required by law).
-- **MVP:** "cash book + management accounting per batch" for everyone, plus a **CSV/Excel export mapped to PCGE and to the cooperative chart of accounts** for the accountant. Full double-entry accounting comes later.
+- **MVP:** "cash book + management accounting per batch" for everyone, plus a **CSV/Excel export mapped to PCGE and to the cooperative chart of accounts** for the accountant. Full double-entry accounting comes later. _Superseded on 3 Nov 2026 by [ADR-010](docs/decisions/ADR-010-accounting-model.md): one double-entry ledger from M2, with a cash-book view for individuals._
 
 ---
 

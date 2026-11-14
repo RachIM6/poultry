@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // ADR-010 §2. Also imported by prisma/seed.ts under plain Node: no "@/" imports here.
-export const CHARTS = ["cgnc", "pca"] as const; // "coop" once FQ2 gives the cooperative chart's account list
+export const CHARTS = ["cgnc", "pca", "coop"] as const; // no "coop" account is seeded until FQ2 gives its list: nothing posts
 export type Chart = (typeof CHARTS)[number];
 
 export const AccountRow = z.object({
@@ -16,4 +16,6 @@ export const AccountRow = z.object({
 export type AccountRow = z.infer<typeof AccountRow>;
 
 /** prisma/seed/finance/accounts.json: every account cites its source document (ADR-010: no number is invented). */
-export const AccountsFile = z.object({ sources: z.record(z.enum(CHARTS), z.string().min(1)), accounts: z.array(AccountRow).min(1) });
+export const AccountsFile = z
+  .object({ sources: z.partialRecord(z.enum(CHARTS), z.string().min(1)), accounts: z.array(AccountRow).min(1) })
+  .refine((f) => f.accounts.every((a) => f.sources[a.chart]), "every chart used needs its source");

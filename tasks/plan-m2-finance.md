@@ -45,11 +45,13 @@ Done 2026-11-14 (branch `feat/t28-charts`):
 ### T29: Ledger core (FN4, FN5)
 **Description:** `JournalEntry`, `JournalLine`, `FiscalPeriod`. Domain checks, deferred constraint trigger re-checking the balance at commit, reversal, period locking by the owner, audit, à-nouveaux entry at fiscal-year opening.
 **AC:**
-- [ ] Unbalanced, one-line, two-sided and unknown-account entries are rejected by the domain; an unbalanced entry inserted directly in SQL fails at commit (integration test).
-- [ ] Opening a fiscal year posts an à-nouveaux entry carrying forward classes 1–5 of the previous year.
-- [ ] A posted entry cannot be updated or deleted; reversal links to the original.
-- [ ] A locked period refuses entries; a correction lands in the first open period.
-- [ ] (From T27) Changing the accounting profile (books, PCA overlay, fiscal-year start) once the fiscal year has an entry is refused with a typed error.
+- [x] Unbalanced, one-line, two-sided and unknown-account entries are rejected by the domain; an unbalanced entry inserted directly in SQL fails at commit (integration test). (`finance/domain/entry.test.ts`, `finance/ledger.int.test.ts`: a deferred constraint trigger on both tables.)
+- [x] Opening a fiscal year posts an à-nouveaux entry carrying forward classes 1–5 of the previous year. (`openFiscalYear`: OD on the year's first day, once per year by its source key. ⚠️ For the accountant: the previous year's net result (classes 6–7) is carried on 1191 / 1199 so the entry balances, until it is allocated.)
+- [x] A posted entry cannot be updated or deleted; reversal links to the original. (A trigger refuses UPDATE and DELETE; `reverseEntry` once per entry, `reversesId` unique.)
+- [x] A locked period refuses entries; a correction lands in the first open period. (`LockedPeriod` per month; `setPeriodLocked`, owner only, audited.)
+- [x] (From T27) Changing the accounting profile (books, PCA overlay, fiscal-year start) once the fiscal year has an entry is refused with a typed error. (`changeAccountingChoices` → `FISCAL_YEAR_HAS_ENTRIES`; the legal entity's row is locked so a first entry can't slip in meanwhile.)
+Done 2026-11-14 (branch `feat/t29-ledger-core`): permissions `finance.record` (owner, manager) and `finance.manage` (owner); entries are posted by the server only, for now through `postEntry` in a caller's transaction (T30's pipeline). No screen yet: the books views are T36. The first year in Dawra is opened by hand with an OD entry from the accountant's balance sheet (FQ11 for cash_book entities).
+
 **Size:** L
 
 ### T30: Posting pipeline, purchases and payments (FN6–FN8)

@@ -32,8 +32,14 @@ T31 ── T37 5 M DH tracker
 ### T28: Charts of accounts (FN2)
 **Description:** `Account` and `ChartOverlay` tables, seed of the CGNC accounts used by FN6 and the PCA overlay of FN2, each with its source. Entity sub-accounts (bank, cash box).
 **AC:**
-- [ ] Every account referenced by a default posting rule exists in every chart the rule targets (unit test over the seed).
-- [ ] Roll-up of 612122 gives 61212 → 6121 → 612 → 61 → 6 through `parentNumber`.
+- [x] Every account referenced by a default posting rule exists in every chart the rule targets (unit test over the seed). (`src/modules/finance/domain/chart.test.ts`, over FN6's accounts until T30 makes them rule rows: with PCA, each account itself; without, FN2's CGNC account.)
+- [x] Roll-up of 612122 gives 61212 → 6121 → 612 → 61 → 6 through `parentNumber`. (Same test.)
+
+Done 2026-11-14 (branch `feat/t28-charts`):
+- `LedgerAccount` (chart, number, label, parent, fallback). It is reference data, the same for every organisation; `Account` was taken by Better Auth. The 54 accounts in `prisma/seed/finance/accounts.json` are the FN6 rules' accounts and their parents, with labels **as printed** in the official PCA (finances.gov.ma, "Plan Comptable Agricole -vf-dec2015.pdf", which reproduces the CGNC nomenclature). The CGNC text itself (> 10 MB) wasn't read: the labels of the base accounts are the PCA's reproduction of it.
+- No `ChartOverlay` table: an overlay is the `chart` tag. Bank and cash sub-accounts per organisation come with T32.
+- **Found for the accountant:** the PCA nests 612123 (vet products) under 61212 → 6121, but FN2 posts it to 6122 when the PCA is off. Each PCA account therefore has an explicit `fallback` (FN2's column); roll-ups follow the official tree. Even the final PCA file is headed « Projet » (FQ1).
+- **Lead for FQ2:** the Ministry publishes the cooperatives' chart of accounts (2001) at finances.gov.ma/Publication/depp/2008/4717_pcdescooperatives.pdf. To be read by the finance session or the accountant.
 **Size:** M
 
 ### T29: Ledger core (FN4, FN5)

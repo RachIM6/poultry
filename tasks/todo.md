@@ -422,7 +422,15 @@ Decisions (2026-11-09, taken without asking): only the sale of the last birds cl
 - [ ] The pilot farm owner and a worker log in on their own phones and complete the first daily entry.
 - [ ] A daily backup runs and has been restored once as a test.
 
-Done ahead of the host choice (2026-11-11, branch `feat/t26-pilot-hardening`): the T25 findings S2 ("log out all my devices"), S4 (int4 bounds), S5 (a role change clears money from the phone) and S7 (`@serwist/turbopack` is a runtime dependency). Still open from T25 and tied to the host: the Content-Security-Policy (S3), brotli, and a JS size check in CI.
+Done ahead of the host choice (2026-11-11, branch `feat/t26-pilot-hardening`): the T25 findings S2 ("log out all my devices"), S4 (int4 bounds), S5 (a role change clears money from the phone) and S7 (`@serwist/turbopack` is a runtime dependency). Still open from T25 and tied to the host: brotli.
+
+Also done without the host (2026-11-14; OQ1 hosting and OQ2 SMS set aside by the product owner, branch `feat/t26-pilot-prep`):
+- [x] Content-Security-Policy (T25 S3), without nonces so the offline shells stay static: inline scripts are allowed, everything else is this origin only (`next.config.ts`, `e2e/login.spec.ts`).
+- [x] JS size check in CI: `e2e/budget.spec.ts` fails if `/fr/login` or `/fr/batches` loads more than 200 KB of compressed JS (now 154.3 and 196.4 KB).
+- [x] Demo farm: `pnpm db:seed:demo` (after `pnpm db:seed`) creates a demo owner (`DEMO_PHONE`, default +212600000099), a farm, two houses, stock and a 21-day batch with daily entries and two weighings, through the app's own mutations. Made-up figures, demo only.
+- [x] Quick guides: `docs/quick-guide-fr.md`, `docs/quick-guide-ar.md` (the Arabic one needs a native review).
+
+Waiting on OQ1/OQ2: the deployment, the real SMS sender, backups, brotli, `TRUSTED_PROXY_HOPS`, the SMS-cap alert, and the pilot farm's first day. Captcha needs a new dependency (ALTCHA), which poultry-auth says to ask about first.
 
 **Verify:** smoke test on production. Backup restore drill.
 **Dependencies:** T25, **OQ1, OQ2 resolved**

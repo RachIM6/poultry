@@ -12,6 +12,7 @@
     "test:e2e": "playwright test",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:seed:demo": "esbuild prisma/demo.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/demo-seed.mjs && node --env-file-if-exists=.env node_modules/.cache/demo-seed.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

@@ -21,6 +21,8 @@ M1 delivers one thing: **a pilot farm can run a full broiler batch on a phone, o
 | [005](../docs/decisions/ADR-005-phone-otp-auth.md) | Phone + OTP, database sessions | Proposed → library confirmed in T5 |
 | [006](../docs/decisions/ADR-006-multi-tenancy-and-audit.md) | `organizationId` scoping via tenant context + append-only audit | Proposed |
 | [007](../docs/decisions/ADR-007-data-protection-and-hosting.md) | Law 09-08: synthetic data until hosting + CNDP are settled | Proposed, blocks T26 |
+| [009](../docs/decisions/ADR-009-zod-free-shared-files.md) | Zod-free `shared.ts` per module for the phone's screens (T25) | Accepted |
+| [010](../docs/decisions/ADR-010-accounting-model.md) | One double-entry ledger, charts as data (CGNC + PCA overlay), staged finance. Not M1: see [plan-m2-finance.md](plan-m2-finance.md) | Proposed, accountant review |
 
 ## Dependency graph (M1)
 

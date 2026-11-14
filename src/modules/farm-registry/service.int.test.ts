@@ -15,8 +15,16 @@ describe("onboarding (SPEC F1, I3)", () => {
 
     expect(ctx.value).toMatchObject({ userId: user.id, role: "owner" });
     expect(await listLegalEntities(ctx.value)).toEqual([
-      expect.objectContaining({ name: "Ferme El Kheir", form: "indivision", accountingProfile: { chart: "cash_book", coOwnerShares: true } }),
+      expect.objectContaining({
+        name: "Ferme El Kheir",
+        form: "indivision",
+        accountingProfile: { books: "cash_book", base: "cgnc", overlays: ["pca"], coOwnerShares: true },
+        fiscalYearStartMonth: 1,
+      }),
     ]);
+    // The owner's stored choices win over the form's default (ADR-010; changed through finance from T29).
+    await db.legalEntity.updateMany({ where: { organizationId: ctx.value.organizationId }, data: { books: "ledger", pcaOverlay: false } });
+    expect((await listLegalEntities(ctx.value))[0].accountingProfile).toMatchObject({ books: "ledger", overlays: [] });
     expect((await db.user.findUniqueOrThrow({ where: { id: user.id } })).locale).toBe("fr");
     const audited = await db.auditEvent.findMany({ where: { organizationId: ctx.value.organizationId }, select: { entity: true, action: true, userId: true } });
     expect(audited.map((a) => a.entity).sort()).toEqual(["LegalEntity", "Membership", "Organization"]);

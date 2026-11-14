@@ -5,23 +5,35 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 export const LEGAL_FORMS = ["individual", "indivision", "company", "cooperative", "association", "gie"] as const;
 export type LegalForm = (typeof LEGAL_FORMS)[number];
 
-/** What M2 finance needs to know: which chart of accounts, and whether results are split between co-owners. */
-export type AccountingProfile = { chart: "cash_book" | "pcge" | "cooperative" | "association"; coOwnerShares: boolean };
+export const BOOKS = ["cash_book", "ledger"] as const;
+export type Books = (typeof BOOKS)[number];
 
-// NEEDS-ANALYSIS.md §3, ⚠️ to be validated by a Moroccan accountant before M2 uses it.
-const CHART: Record<LegalForm, AccountingProfile["chart"]> = {
-  individual: "cash_book", // no CGNC obligation under the flat-rate regime
-  indivision: "cash_book", // treated like individuals
-  company: "pcge", // CGNC, law 9-88
-  gie: "pcge", // CGNC, law 13-97
-  cooperative: "cooperative", // cooperative chart of accounts, law 112-12 + arrêté 441-01
-  association: "association", // association chart of accounts, CNC opinion n° 23 (2023)
+/**
+ * ADR-010 §2: which books Dawra shows and exports, and the chart = one base + overlays. The engine is the same
+ * double-entry ledger for every form. `coOwnerShares`: results are split between the co-owners of an indivision.
+ */
+export type AccountingProfile = { books: Books; base: "cgnc" | "coop"; overlays: "pca"[]; coOwnerShares: boolean };
+
+/** The owner's choices, stored on the legal entity; null keeps the default of the form. */
+export type AccountingChoices = { books: Books | null; pcaOverlay: boolean | null };
+
+// ⚠️ ADR-010 is "proposed": to be reviewed by a Moroccan expert-comptable (FQ1 PCA mandatory?, FQ2 cooperative chart).
+const DEFAULTS: Record<LegalForm, Omit<AccountingProfile, "coOwnerShares">> = {
+  individual: { books: "cash_book", base: "cgnc", overlays: ["pca"] }, // below 5 M DH: a receipts-and-expenses book
+  indivision: { books: "cash_book", base: "cgnc", overlays: ["pca"] },
+  company: { books: "ledger", base: "cgnc", overlays: ["pca"] }, // CGNC, law 9-88; PCA, CNC opinion n° 7 (2015)
+  gie: { books: "ledger", base: "cgnc", overlays: ["pca"] },
+  // Law 112-12 requires the cooperative chart (arrêté 441-01), whose account list we don't have (FQ2): until then the
+  // cooperative's accountant keeps its legal books, Dawra feeds them through the export, and the screens say so.
+  cooperative: { books: "cash_book", base: "cgnc", overlays: ["pca"] },
+  association: { books: "cash_book", base: "cgnc", overlays: [] }, // no associations chart decided yet
 };
 
-export const accountingProfileOf = (form: LegalForm): AccountingProfile => ({
-  chart: CHART[form],
-  coOwnerShares: form === "indivision",
-});
+export const accountingProfileOf = (form: LegalForm, choices: AccountingChoices = { books: null, pcaOverlay: null }): AccountingProfile => {
+  const d = DEFAULTS[form];
+  const pca = choices.pcaOverlay ?? d.overlays.includes("pca");
+  return { books: choices.books ?? d.books, base: d.base, overlays: pca ? ["pca"] : [], coOwnerShares: form === "indivision" };
+};
 
 export const Onboarding = z.object({
   name: z.string().trim().min(1).max(120),

@@ -369,7 +369,9 @@
     "UNKNOWN_ACCOUNT": "Ce compte n’existe pas dans le plan comptable de l’entité.",
     "PERIOD_LOCKED": "Cette période est clôturée : aucune écriture ne peut y être ajoutée.",
     "ALREADY_REVERSED": "Cette écriture a déjà été annulée.",
-    "FISCAL_YEAR_HAS_ENTRIES": "L’exercice a déjà des écritures : ce réglage ne peut changer qu’au début du prochain exercice."
+    "FISCAL_YEAR_HAS_ENTRIES": "L’exercice a déjà des écritures : ce réglage ne peut changer qu’au début du prochain exercice.",
+    "BUYER_CREDIT_BLOCKED": "Un chèque ou une traite de cet acheteur est revenu impayé : il paie comptant jusqu’à ce que le propriétaire lève le blocage.",
+    "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état."
   },
   "Weighing": {
     "title": "Pesée",
@@ -508,7 +510,21 @@
     "method": "Mode de paiement",
     "save": "Enregistrer le paiement",
     "cancel": "Annuler",
-    "forbidden": "Les créances sont réservées au propriétaire et au gérant."
+    "forbidden": "Les créances sont réservées au propriétaire et au gérant.",
+    "portfolio": "Chèques et traites reçus",
+    "portfolioNone": "Aucun chèque ni traite en attente.",
+    "instrument": "{kind, select, cheque {Chèque} other {Traite}}{number, select, none {} other { n° {number}}} de {buyer} : {amount}, au {date}",
+    "states": {
+      "in_portfolio": "En portefeuille",
+      "remitted": "Remis à la banque",
+      "cashed": "Encaissé",
+      "unpaid": "Impayé"
+    },
+    "remit": "Remis à la banque",
+    "cash": "Encaissé",
+    "unpaid": "Impayé",
+    "blocked": "{buyer} : crédit bloqué après un impayé",
+    "unblock": "Lever le blocage"
   },
   "Origin": {
     "title": "Document d’origine des volailles",

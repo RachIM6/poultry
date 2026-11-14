@@ -563,6 +563,9 @@ model Buyer {
   name           String
   phone          String?
   type           String // trader | abattoir | market | other
+  // SPEC-finance FN11/FN12: set when one of their cheques or bills comes back unpaid; no sale on credit until the
+  // owner lifts it.
+  creditBlocked  Boolean  @default(false)
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId])
@@ -703,4 +706,20 @@ model PostingCursor {
   version        BigInt @default(0)
 
   @@id([organizationId, source])
+}
+
+// Owner: sales. SPEC-finance FN11: what happened to a cheque or bill received (a sale paid at once with one, or a
+// later payment), append-only; its current state is the latest row. `instrumentId` is that sale's or payment's id.
+// Created offline: the id comes from the device (UUIDv7, so ids sort by time).
+model InstrumentStatus {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  instrumentId   String   @db.Uuid
+  state          String // remitted | cashed | unpaid
+  day            DateTime @db.Date // farm day
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@unique([instrumentId, state]) // each step happens at most once
+  @@index([organizationId])
 }

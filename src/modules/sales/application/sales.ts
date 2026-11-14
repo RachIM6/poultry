@@ -10,8 +10,24 @@ import { recordBirdsSold } from "@/modules/flock";
 import { withdrawalOn } from "@/modules/health";
 import { buyerBalances, checkPayment } from "@/modules/sales/domain/receivables";
 import { checkSale } from "@/modules/sales/domain/sale";
-import { buyerIdTaken, buyerLedger, lockBuyer, ownBuyer, paymentIdTaken, saleIdTaken, saveBuyer, savePayment, saveSale } from "@/modules/sales/infrastructure/sales";
-import type { BuyerDto, CreateBuyer, PaymentDto, RecordPayment, RecordSale, SaleDto } from "@/modules/sales/schema";
+import { checkTransition } from "@/modules/sales/domain/instruments";
+import {
+  buyerIdTaken,
+  buyerLedger,
+  creditBlocked,
+  instrumentsWhere,
+  lockBuyer,
+  ownBuyer,
+  paymentIdTaken,
+  saleIdTaken,
+  saveBuyer,
+  savePayment,
+  saveSale,
+  saveStatus,
+  setCreditBlocked,
+  statusIdTaken,
+} from "@/modules/sales/infrastructure/sales";
+import type { BuyerDto, CreateBuyer, InstrumentStatusDto, PaymentDto, RecordPayment, RecordSale, SaleDto, SetInstrumentState, UnblockBuyer } from "@/modules/sales/schema";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
 
@@ -38,6 +54,8 @@ export async function recordSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof
     await withdrawalOn(tx, ctx, cmd.batchId, cmd.day as FarmDay),
   );
   if (!checked.ok) return checked;
+  // FN12: a buyer whose cheque or bill came back unpaid pays everything at once until the owner lifts the block.
+  if (checked.value.amountCentimes > BigInt(cmd.paidCentimes) && (await creditBlocked(tx, ctx, cmd.buyerId))) return fail("BUYER_CREDIT_BLOCKED");
 
   const sold = await recordBirdsSold(tx, ctx, { id: cmd.id, batchId: cmd.batchId, day: cmd.day, birds: cmd.birds, liveWeightGrams: cmd.farmWeightGrams }, meta, clock);
   if (!sold.ok) return sold; // nothing written yet: flock checks before it writes
@@ -55,13 +73,48 @@ export async function recordPayment(tx: Tx, ctx: TenantContext, cmd: z.infer<typ
   if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
   if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE"); // a phone may run a little ahead
   await lockBuyer(tx, cmd.buyerId);
-  const { sales, payments } = await buyerLedger(tx, ctx, cmd.buyerId);
-  const checked = checkPayment(BigInt(cmd.amountCentimes), buyerBalances(sales, payments).get(cmd.buyerId) ?? 0n);
+  const { sales, payments, unpaid } = await buyerLedger(tx, ctx, cmd.buyerId);
+  const checked = checkPayment(BigInt(cmd.amountCentimes), buyerBalances(sales, payments, unpaid).get(cmd.buyerId) ?? 0n);
   if (!checked.ok) return checked;
 
   const payment: PaymentDto = cmd;
   await savePayment(tx, ctx, payment);
   await recordChange(tx, ctx, "buyerPayment", payment.id, payment);
   await audit(tx, ctx, { entity: "BuyerPayment", entityId: payment.id, action: "create", after: payment, ...meta });
+  return ok(undefined);
+}
+
+/**
+ * SPEC-finance FN11, applied by the sync push: a received cheque or bill is remitted, cashed or comes back unpaid,
+ * forward only, under the buyer's lock. Unpaid puts the amount back on what the buyer owes and blocks their credit
+ * (FN12). Finance posts each step (T30's pipeline).
+ */
+export async function setInstrumentState(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof SetInstrumentState>, meta: Meta, clock: Clock = systemClock) {
+  if (await statusIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
+  const [instrument] = await instrumentsWhere(tx, ctx, { id: cmd.instrumentId });
+  if (!instrument) return fail("NOT_FOUND");
+  if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
+  await lockBuyer(tx, instrument.buyerId);
+  const [current] = await instrumentsWhere(tx, ctx, { id: cmd.instrumentId }); // read again under the lock
+  const checked = checkTransition(current.state, cmd.state);
+  if (!checked.ok) return checked;
+
+  const status: InstrumentStatusDto = cmd;
+  await saveStatus(tx, ctx, status);
+  await recordChange(tx, ctx, "instrumentStatus", status.id, status);
+  await audit(tx, ctx, { entity: "InstrumentStatus", entityId: status.id, action: "create", after: status, ...meta });
+  if (cmd.state === "unpaid") {
+    const buyer = await setCreditBlocked(tx, ctx, instrument.buyerId, true);
+    await recordChange(tx, ctx, "buyer", buyer.id, buyer);
+  }
+  return ok(undefined);
+}
+
+/** FN12: the owner lets the buyer buy on credit again. */
+export async function unblockBuyer(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof UnblockBuyer>, meta: Meta) {
+  if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
+  const buyer = await setCreditBlocked(tx, ctx, cmd.buyerId, false);
+  await recordChange(tx, ctx, "buyer", buyer.id, buyer);
+  await audit(tx, ctx, { entity: "Buyer", entityId: buyer.id, action: "unblock", after: buyer, ...meta });
   return ok(undefined);
 }

@@ -46,6 +46,25 @@ describe("default posting rules (SPEC-finance FN6)", () => {
     expect(inChart(feed, everything, everything)?.lines.map((l) => l.account)).toEqual(["612122", "4411"]);
   });
 
+  it("posts a live-bird sale to the buyer, with what was received at once (FN6)", () => {
+    const sale = (method: string, paid: bigint) => postingOf({ type: "sale", id: "s", day, amount: 1_000_000n, paid, method });
+    expect(sale("credit", 0n)).toEqual({ journal: "VT", label: "Vente", lines: [{ account: "3421", debit: 1_000_000n, credit: 0n }, { account: "712121", debit: 0n, credit: 1_000_000n }] });
+    expect(sale("cheque", 600_000n)?.lines.slice(2)).toEqual([{ account: "5111", debit: 600_000n, credit: 0n }, { account: "3421", debit: 0n, credit: 600_000n }]);
+    expect(sale("bill", 600_000n)?.lines[2].account).toBe("3425");
+    expect(sale("cash", 1_000_000n)?.lines[2].account).toBe("5161");
+    expect(postingOf({ type: "receipt", id: "p", day, amount: 5n, method: "transfer" })).toMatchObject({ journal: "BQ", lines: [{ account: "5141", debit: 5n }, { account: "3421", credit: 5n }] });
+  });
+
+  it("follows a received cheque or bill (FN11): cashed D 5141 / C 5111, unpaid D 3424, remitted bill D 5113 / C 3425", () => {
+    const step = (kind: "cheque" | "bill", from: string, to: string) => postingOf({ type: "instrument", id: "i", day, amount: 600_000n, kind, from, to })?.lines.map((l) => [l.account, l.debit, l.credit]);
+    expect(step("cheque", "in_portfolio", "cashed")).toEqual([["5141", 600_000n, 0n], ["5111", 0n, 600_000n]]);
+    expect(step("cheque", "in_portfolio", "unpaid")).toEqual([["3424", 600_000n, 0n], ["5111", 0n, 600_000n]]);
+    expect(step("cheque", "in_portfolio", "remitted")).toBeUndefined(); // still on 5111: nothing to post
+    expect(step("bill", "in_portfolio", "remitted")).toEqual([["5113", 600_000n, 0n], ["3425", 0n, 600_000n]]);
+    expect(step("bill", "remitted", "cashed")).toEqual([["5141", 600_000n, 0n], ["5113", 0n, 600_000n]]);
+    expect(step("bill", "remitted", "unpaid")).toEqual([["3424", 600_000n, 0n], ["5113", 0n, 600_000n]]);
+  });
+
   it("tells a change that leaves the books alone from one that doesn't", () => {
     const lines = [{ account: "612121", debit: 5n, credit: 0n }, { account: "4411", debit: 0n, credit: 5n }];
     expect(samePosting({ day, lines }, { day, lines: [...lines].reverse() })).toBe(true);

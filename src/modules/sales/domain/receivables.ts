@@ -2,15 +2,20 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 
 // SPEC V4. Pure: the phone shows what each buyer owes and checks a payment with the same code as the server.
 
-/** V4: what each buyer owes = what their sales left unpaid − what they paid later. */
+/**
+ * V4: what each buyer owes = what their sales left unpaid − what they paid later + the cheques and bills that came
+ * back unpaid (SPEC-finance FN11: the claim is theirs again).
+ */
 export function buyerBalances(
   sales: readonly { buyerId: string; amountCentimes: bigint; paidCentimes: bigint }[],
   payments: readonly { buyerId: string; amountCentimes: bigint }[],
+  unpaid: readonly { buyerId: string; amountCentimes: bigint }[] = [],
 ): Map<string, bigint> {
   const balances = new Map<string, bigint>();
   const add = (buyerId: string, n: bigint) => balances.set(buyerId, (balances.get(buyerId) ?? 0n) + n);
   for (const s of sales) add(s.buyerId, s.amountCentimes - s.paidCentimes);
   for (const p of payments) add(p.buyerId, -p.amountCentimes);
+  for (const u of unpaid) add(u.buyerId, u.amountCentimes);
   return balances;
 }
 

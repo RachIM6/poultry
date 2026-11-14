@@ -9,7 +9,19 @@ import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
-import { LATER_PAYMENT_METHODS as METHODS, SALES_MUTATIONS as S, buyerBalances, checkPayment, type BuyerDto, type PaymentDto, type SaleDto } from "@/modules/sales/shared";
+import {
+  LATER_PAYMENT_METHODS as METHODS,
+  SALES_MUTATIONS as S,
+  buyerBalances,
+  checkPayment,
+  checkTransition,
+  instrumentsOf,
+  type BuyerDto,
+  type Instrument,
+  type InstrumentStatusDto,
+  type PaymentDto,
+  type SaleDto,
+} from "@/modules/sales/shared";
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
@@ -42,7 +54,7 @@ function Receivables(scope: Scope) {
   const locale = useLocale();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("buyer", "sale", "buyerPayment").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("buyer", "sale", "buyerPayment", "instrumentStatus").toArray(), [userId, organizationId]);
   const [paying, setPaying] = useState<string>();
   const [message, setMessage] = useState<string>();
   if (!can(scope, "sales.manage")) return <p>{t("Receivables.forbidden")}</p>;
@@ -50,13 +62,40 @@ function Receivables(scope: Scope) {
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const sales = of<SaleDto>("sale");
+  const payments = of<PaymentDto>("buyerPayment");
+  const buyers = of<BuyerDto>("buyer");
+  // FN11: every cheque and bill received, with its state, as the server computes it.
+  const instruments = instrumentsOf(
+    sales.map((s) => ({ id: s.id, buyerId: s.buyerId, paymentMethod: s.paymentMethod ?? "", paidCentimes: BigInt(s.paidCentimes ?? 0), instrument: s.instrument ?? null, day: s.day })),
+    payments.map((p) => ({ ...p, amountCentimes: BigInt(p.amountCentimes) })),
+    of<InstrumentStatusDto>("instrumentStatus"),
+  );
   const balances = buyerBalances(
     sales.map((s) => ({ buyerId: s.buyerId, amountCentimes: BigInt(s.amountCentimes ?? 0), paidCentimes: BigInt(s.paidCentimes ?? 0) })),
-    of<PaymentDto>("buyerPayment").map((p) => ({ buyerId: p.buyerId, amountCentimes: BigInt(p.amountCentimes) })),
+    payments.map((p) => ({ buyerId: p.buyerId, amountCentimes: BigInt(p.amountCentimes) })),
+    instruments.filter((i) => i.state === "unpaid"),
   );
-  const owing = of<BuyerDto>("buyer")
+  const nameOf = (id: string) => buyers.find((b) => b.id === id)?.name ?? "—";
+  const owing = buyers
     .filter((b) => (balances.get(b.id) ?? 0n) > 0n)
     .sort((x, y) => x.name.localeCompare(y.name));
+
+  const write = async (mutation: { type: string; payload: unknown }, recs: { entity: string; id: string; data: unknown }[]) => {
+    try {
+      await writeLocal(db, mutation, recs);
+      setMessage("Farms.saved");
+    } catch {
+      setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
+    }
+  };
+  const move = (i: Instrument, state: InstrumentStatusDto["state"]) => {
+    const status: InstrumentStatusDto = { id: uuidv7(), instrumentId: i.id, state, day: today() };
+    const buyer = buyers.find((b) => b.id === i.buyerId);
+    const blocked = state === "unpaid" && buyer ? [{ entity: "buyer", id: buyer.id, data: { ...buyer, creditBlocked: true } }] : []; // FN12, as the server
+    return write({ type: S.setInstrumentState, payload: status }, [{ entity: "instrumentStatus", id: status.id, data: status }, ...blocked]);
+  };
+  const unblock = (b: BuyerDto) => write({ type: S.unblockBuyer, payload: { buyerId: b.id } }, [{ entity: "buyer", id: b.id, data: { ...b, creditBlocked: false } }]);
+  const pending = instruments.filter((i) => i.state === "in_portfolio" || i.state === "remitted").sort((x, y) => x.dueOn.localeCompare(y.dueOn));
 
   const save = async (payment: PaymentDto) => {
     try {
@@ -71,6 +110,35 @@ function Receivables(scope: Scope) {
   return (
     <>
       {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+      <h2 className="text-lg font-semibold">{t("Receivables.portfolio")}</h2>
+      {pending.length === 0 ? (
+        <p>{t("Receivables.portfolioNone")}</p>
+      ) : (
+        <ul className="flex flex-col gap-3" aria-label={t("Receivables.portfolio")}>
+          {pending.map((i) => (
+            <li key={i.id} className="flex flex-col gap-2 rounded-lg border border-current/30 p-3">
+              <span>
+                {t("Receivables.instrument", { kind: i.kind, number: i.number ?? "none", buyer: nameOf(i.buyerId), amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
+              </span>
+              <span className="opacity-75">{t(`Receivables.states.${i.state}`)}</span>
+              <div className="flex flex-wrap gap-2">
+                {(["remitted", "cashed", "unpaid"] as const).filter((to) => checkTransition(i.state, to).ok).map((to) => (
+                  <button key={to} type="button" onClick={() => move(i, to)} className={secondary}>
+                    {t(to === "remitted" ? "Receivables.remit" : to === "cashed" ? "Receivables.cash" : "Receivables.unpaid")}
+                  </button>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {buyers.filter((b) => b.creditBlocked).map((b) => (
+        <p key={b.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-red-700/50 p-3">
+          {t("Receivables.blocked", { buyer: b.name })}
+          {can(scope, "finance.manage") && <button type="button" onClick={() => unblock(b)} className={secondary}>{t("Receivables.unblock")}</button>}
+        </p>
+      ))}
+      <h2 className="text-lg font-semibold">{t("Receivables.title")}</h2>
       {owing.length === 0 ? (
         <p>{t("Receivables.none")}</p>
       ) : (

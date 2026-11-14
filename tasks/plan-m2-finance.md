@@ -77,8 +77,19 @@ Not yet:
 ### T31: Sales, cheques and bills (FN6, FN11)
 **Description:** `sales.listChangedSince`, rules for sales and receipts, portfolio of cheques and bills with states and reminders.
 **AC:**
-- [ ] A cheque received posts D 5111 / C 3421; cashed posts D 5141 / C 5111; unpaid moves the claim to 3424 and blocks the buyer for credit.
-- [ ] Reminder notification on the agreed date.
+- [x] A cheque received posts D 5111 / C 3421; cashed posts D 5141 / C 5111; unpaid moves the claim to 3424 and blocks the buyer for credit. (`finance/domain/posting.test.ts`, `finance/instruments.int.test.ts` through the sync push; `e2e/receivables.spec.ts` offline.)
+- [x] Reminder notification on the agreed date. (Already sent since T22 for a sale's cheque or bill; a later payment's cheque has no agreed date in M1.)
+Done 2026-11-14 (branch `feat/t31-instruments`):
+- **Portfolio:** `InstrumentStatus`, an append-only log owned by `sales`. Its id is a UUIDv7 from the phone, and each step happens once per instrument. A sale paid at once by cheque or bill, or a later payment by cheque or bill, *is* the instrument: no copy is kept.
+- **Moves:** forward only (portfolio → remitted → cashed | unpaid), through `sales.setInstrumentState` (owner, manager).
+- **Unpaid:** puts the amount back on the buyer's balance, and sets `Buyer.creditBlocked`. A sale paid less than in full is then refused (`BUYER_CREDIT_BLOCKED`) until the owner sends `sales.unblockBuyer`.
+- **Postings:** sales (VT), later payments (CA/BQ/EF) and each instrument step (EF/BQ) go through T30's pipeline. A remitted cheque stays on 5111, so it posts nothing. A reversal now uses the journal of the entry it cancels.
+- **Screen:** the receivables screen lists the pending cheques and bills, with buttons for the allowed moves, and the blocked buyers, with "Lever le blocage" for the owner.
+
+Not yet:
+- A later payment's cheque number and due date (M1 doesn't ask for them).
+- Issued cheques and bills (supplier side, with T32's payments).
+
 **Size:** M
 
 ### T32: Treasury and quick expense (FN3, FN10, FX4)

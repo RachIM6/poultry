@@ -1,6 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import type { BuyerDto, PaymentDto, SaleDto } from "@/modules/sales/schema";
+import { instrumentsOf, type Instrument } from "@/modules/sales/domain/instruments";
+import type { BuyerDto, InstrumentStatusDto, PaymentDto, SaleDto } from "@/modules/sales/schema";
 
 // Buyer and sale repository (Prisma). Scoped to the caller's organisation.
 
@@ -19,15 +20,53 @@ export const paymentIdTaken = async (tx: Tx, id: string) => (await tx.buyerPayme
 /** V4: serializes a buyer's payments until the transaction ends, so two can't both pass the balance check. */
 export const lockBuyer = (tx: Tx, buyerId: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${buyerId}, 2))`;
 
-/** V4: one buyer's unpaid sales and later payments, in the shape of the domain's balance. */
+/** V4, FN11: one buyer's sales, later payments and the cheques and bills that came back unpaid, for the balance. */
 export async function buyerLedger(tx: Tx, ctx: TenantContext, buyerId: string) {
+  const instruments = await instrumentsWhere(tx, ctx, { buyerId });
   const where = { organizationId: ctx.organizationId, buyerId };
   const [sales, payments] = await Promise.all([
     tx.sale.findMany({ where, select: { buyerId: true, amountCentimes: true, paidCentimes: true } }),
     tx.buyerPayment.findMany({ where, select: { buyerId: true, amountCentimes: true } }),
   ]);
-  return { sales, payments };
+  return { sales, payments, unpaid: instruments.filter((i) => i.state === "unpaid") };
 }
+
+const dayOf = (d: Date) => d.toISOString().slice(0, 10);
+
+/** FN11: the received cheques and bills of this organisation matching `where` (a buyer, or one instrument's id). */
+export async function instrumentsWhere(tx: Tx, ctx: TenantContext, where: { buyerId?: string; id?: string }): Promise<Instrument[]> {
+  const scope = { organizationId: ctx.organizationId, ...where };
+  const [sales, payments] = await Promise.all([
+    tx.sale.findMany({ where: { ...scope, paymentMethod: { in: ["cheque", "bill"] } } }),
+    tx.buyerPayment.findMany({ where: { ...scope, method: { in: ["cheque", "bill"] } } }),
+  ]);
+  const ids = [...sales, ...payments].map((x) => x.id);
+  const statuses = await tx.instrumentStatus.findMany({ where: { organizationId: ctx.organizationId, instrumentId: { in: ids } } });
+  return instrumentsOf(
+    sales.map((s) => ({
+      ...s,
+      day: dayOf(s.day),
+      instrument: s.instrumentNumber && s.instrumentDueOn ? { number: s.instrumentNumber, dueOn: dayOf(s.instrumentDueOn) } : null,
+    })),
+    payments.map((p) => ({ ...p, day: dayOf(p.day) })),
+    statuses.map((s) => ({ ...s, state: s.state as InstrumentStatusDto["state"] })),
+  );
+}
+
+export const statusIdTaken = async (tx: Tx, id: string) => (await tx.instrumentStatus.count({ where: { id } })) > 0;
+
+export async function saveStatus(tx: Tx, ctx: TenantContext, s: InstrumentStatusDto) {
+  await tx.instrumentStatus.create({ data: { ...s, organizationId: ctx.organizationId, day: date(s.day), recordedBy: ctx.userId } });
+}
+
+/** FN12: sets the buyer's credit block; returns the buyer as the phone stores it. */
+export async function setCreditBlocked(tx: Tx, ctx: TenantContext, buyerId: string, blocked: boolean): Promise<BuyerDto> {
+  const b = await tx.buyer.update({ where: { id: buyerId, organizationId: ctx.organizationId }, data: { creditBlocked: blocked } });
+  return { id: b.id, name: b.name, phone: b.phone, type: b.type as BuyerDto["type"], creditBlocked: b.creditBlocked };
+}
+
+export const creditBlocked = async (tx: Tx, ctx: TenantContext, buyerId: string) =>
+  (await tx.buyer.findFirst({ where: { id: buyerId, organizationId: ctx.organizationId }, select: { creditBlocked: true } }))?.creditBlocked ?? false;
 
 export async function savePayment(tx: Tx, ctx: TenantContext, p: PaymentDto) {
   await tx.buyerPayment.create({ data: { ...p, organizationId: ctx.organizationId, day: date(p.day), amountCentimes: BigInt(p.amountCentimes), recordedBy: ctx.userId } });

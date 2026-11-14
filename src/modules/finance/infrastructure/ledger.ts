@@ -106,7 +106,7 @@ export async function standingEntryFor(tx: Tx, ctx: TenantContext, module: strin
     include: { lines: true },
   });
   if (!e || (await tx.journalEntry.count({ where: { reversesId: e.id } })) > 0) return null;
-  return { id: e.id, day: dayOf(e.day), lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes })) };
+  return { id: e.id, journal: e.journal, day: dayOf(e.day), lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes })) };
 }
 
 export async function sourceAlreadyPosted(tx: Tx, source: { module: string; id: string; version: number }) {

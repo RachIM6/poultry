@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { INSTRUMENT_STATES } from "@/modules/sales/domain/instruments";
 import { BUYER_TYPES, PAYMENT_METHODS } from "@/modules/sales/domain/sale";
 import { LATER_PAYMENT_METHODS } from "@/modules/sales/shared";
 
@@ -38,3 +39,9 @@ export const RecordPayment = z.object({
   amountCentimes: centimes,
   method: z.enum(LATER_PAYMENT_METHODS),
 });
+
+/** SPEC-finance FN11: a received cheque or bill remitted, cashed or unpaid. The id is a UUIDv7: statuses sort by it. */
+export const SetInstrumentState = z.object({ id: z.uuidv7(), instrumentId: z.uuid(), state: z.enum(INSTRUMENT_STATES), day: z.iso.date() });
+
+/** FN12: the owner lets a buyer whose cheque or bill came back unpaid buy on credit again. */
+export const UnblockBuyer = z.object({ buyerId: z.uuid() });

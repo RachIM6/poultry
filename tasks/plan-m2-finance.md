@@ -24,8 +24,8 @@ T31 ── T37 5 M DH tracker
 ### T27: Accounting profile v2 (FN1)
 **Description:** Replace `AccountingProfile` in `farm-registry` with `{ books, base, overlays, coOwnerShares }` per the ADR-010 table. Owner can change overlay, books and fiscal-year dates while the year has no entry.
 **AC:**
-- [ ] `accountingProfileOf` returns the ADR-010 table for all 6 legal forms, cooperative and association included (unit test replaces the current one).
-- [ ] Changing the profile after the first entry of the year is refused with a typed error.
+- [x] `accountingProfileOf` returns the ADR-010 table for all 6 legal forms, cooperative and association included (unit test replaces the current one). (`src/modules/farm-registry/schema.test.ts`; the owner's stored choices, `LegalEntity.books`, `pcaOverlay` and `fiscalYearStartMonth`, override the defaults: `service.int.test.ts`.)
+- [ ] Changing the profile after the first entry of the year is refused with a typed error. **Moved to T29** (2026-11-14): only `finance` knows whether the year has an entry, and `farm-registry` can't depend on `finance`. T29 adds the change use case in `finance`, which checks its own entries and then saves through a `farm-registry` index function.
 **Files:** `src/modules/farm-registry/schema.ts`, `service.ts`, Prisma `LegalEntity` (fiscal-year start)
 **Size:** S
 
@@ -43,6 +43,7 @@ T31 ── T37 5 M DH tracker
 - [ ] Opening a fiscal year posts an à-nouveaux entry carrying forward classes 1–5 of the previous year.
 - [ ] A posted entry cannot be updated or deleted; reversal links to the original.
 - [ ] A locked period refuses entries; a correction lands in the first open period.
+- [ ] (From T27) Changing the accounting profile (books, PCA overlay, fiscal-year start) once the fiscal year has an entry is refused with a typed error.
 **Size:** L
 
 ### T30: Posting pipeline, purchases and payments (FN6–FN8)

@@ -1,16 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { accountingProfileOf, LEGAL_FORMS, parseOnboarding } from "./schema";
 
-describe("accountingProfileOf (SPEC F1)", () => {
+describe("accountingProfileOf (SPEC F1, SPEC-finance FN1, ADR-010 §2)", () => {
   it.each([
-    ["individual", "cash_book", false],
-    ["indivision", "cash_book", true],
-    ["company", "pcge", false],
-    ["gie", "pcge", false],
-    ["cooperative", "cooperative", false],
-    ["association", "association", false],
-  ] as const)("%s → %s", (form, chart, coOwnerShares) => {
-    expect(accountingProfileOf(form)).toEqual({ chart, coOwnerShares });
+    ["individual", "cash_book", "cgnc", ["pca"], false],
+    ["indivision", "cash_book", "cgnc", ["pca"], true],
+    ["company", "ledger", "cgnc", ["pca"], false],
+    ["gie", "ledger", "cgnc", ["pca"], false],
+    ["cooperative", "cash_book", "cgnc", ["pca"], false], // until FQ2 gives the cooperative chart: ledger + coop then
+    ["association", "cash_book", "cgnc", [], false],
+  ] as const)("%s → %s, %s + %j", (form, books, base, overlays, coOwnerShares) => {
+    expect(accountingProfileOf(form)).toEqual({ books, base, overlays, coOwnerShares });
+  });
+
+  it("applies the owner's choices: books, and the PCA overlay on or off", () => {
+    expect(accountingProfileOf("individual", { books: "ledger", pcaOverlay: null })).toMatchObject({ books: "ledger", overlays: ["pca"] }); // FQ6
+    expect(accountingProfileOf("company", { books: null, pcaOverlay: false })).toMatchObject({ books: "ledger", overlays: [] });
+    expect(accountingProfileOf("association", { books: null, pcaOverlay: true })).toMatchObject({ overlays: ["pca"] });
   });
 
   it("covers the 6 forms of the spec", () => {

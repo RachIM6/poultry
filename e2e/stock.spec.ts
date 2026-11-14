@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, scopeRemembered } from "./auth";
+import { ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T13 acceptance: a purchase made offline increases stock and, after sync, the unpaid part is supplier credit.
 test("an offline feed purchase shows in stock and in the supplier's balance, then syncs exactly", async ({ page, context }) => {
@@ -20,6 +20,7 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
   await page.goto("/fr/stock");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await expect(page.getByText("Aucun article dans cette ferme.")).toBeVisible();
+  await referenceCached(page); // the catalogue list below needs it, and it can't come once offline
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));

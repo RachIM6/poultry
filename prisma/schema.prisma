@@ -694,3 +694,13 @@ enum Journal {
   EF
   OD
 }
+
+// Owner: finance. SPEC-finance FN7: how far the posting pipeline has read each source's change log (the
+// organisation's sync version). Row-locked while posting, so two pushes never post the same change twice.
+model PostingCursor {
+  organizationId String @db.Uuid
+  source         String // inventory.purchase | flock.placement
+  version        BigInt @default(0)
+
+  @@id([organizationId, source])
+}

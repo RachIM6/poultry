@@ -362,7 +362,14 @@
     "WITHDRAWAL_IN_PROGRESS": "Vente refusée : un délai d’attente (traitement) est en cours sur cette bande ce jour-là. Vendez après sa fin.",
     "MORE_BIRDS_THAN_ON_HAND": "Plus d’oiseaux que ceux présents dans la bande.",
     "INSTRUMENT_REQUIRED": "Un chèque ou une traite a besoin d’un numéro et d’une échéance.",
-    "PAID_MORE_THAN_BALANCE": "Ce paiement dépasse ce que l’acheteur doit."
+    "PAID_MORE_THAN_BALANCE": "Ce paiement dépasse ce que l’acheteur doit.",
+    "UNBALANCED": "L’écriture n’est pas équilibrée : le total des débits doit égaler celui des crédits.",
+    "TOO_FEW_LINES": "Une écriture a au moins deux lignes.",
+    "ONE_SIDE_PER_LINE": "Chaque ligne a soit un débit, soit un crédit, positif.",
+    "UNKNOWN_ACCOUNT": "Ce compte n’existe pas dans le plan comptable de l’entité.",
+    "PERIOD_LOCKED": "Cette période est clôturée : aucune écriture ne peut y être ajoutée.",
+    "ALREADY_REVERSED": "Cette écriture a déjà été annulée.",
+    "FISCAL_YEAR_HAS_ENTRIES": "L’exercice a déjà des écritures : ce réglage ne peut changer qu’au début du prochain exercice."
   },
   "Weighing": {
     "title": "Pesée",

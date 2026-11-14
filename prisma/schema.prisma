@@ -636,3 +636,61 @@ model LedgerAccount {
 
   @@id([chart, number])
 }
+
+// Owner: finance. ADR-010 §1, SPEC-finance FN4–FN5: one double-entry ledger per legal entity. Posted entries are
+// immutable (a trigger refuses UPDATE and DELETE); a correction is a reversal, linked by `reversesId`. A deferred
+// constraint trigger re-checks at commit that each entry has ≥ 2 lines and balances. `source*` makes posting from
+// farm events idempotent (T30).
+model JournalEntry {
+  id             String        @id @db.Uuid
+  organizationId String        @db.Uuid
+  legalEntityId  String        @db.Uuid
+  journal        Journal
+  day            DateTime      @db.Date
+  label          String
+  sourceModule   String?
+  sourceId       String?
+  sourceVersion  Int?
+  reversesId     String?       @unique @db.Uuid
+  createdBy      String        @db.Uuid
+  createdAt      DateTime      @default(now()) @db.Timestamptz
+  lines          JournalLine[]
+
+  @@unique([sourceModule, sourceId, sourceVersion])
+  @@index([organizationId, legalEntityId, day])
+}
+
+model JournalLine {
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @db.Uuid
+  entryId        String       @db.Uuid
+  account        String // number in the entity's chart (base + overlays): finance/domain/chart.ts
+  debitCentimes  BigInt       @default(0)
+  creditCentimes BigInt       @default(0)
+  entry          JournalEntry @relation(fields: [entryId], references: [id])
+
+  @@index([entryId])
+  @@index([organizationId, account])
+}
+
+// A month of a legal entity's books that refuses new entries (FN5). Locking and unlocking: owner only, audited.
+model LockedPeriod {
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  month          String // YYYY-MM
+  lockedBy       String   @db.Uuid
+  lockedAt       DateTime @default(now()) @db.Timestamptz
+
+  @@id([legalEntityId, month])
+  @@index([organizationId])
+}
+
+// SPEC-finance FN6: AC purchases, VT sales, CA cash, BQ bank, EF bills and cheques received, OD miscellaneous.
+enum Journal {
+  AC
+  VT
+  CA
+  BQ
+  EF
+  OD
+}

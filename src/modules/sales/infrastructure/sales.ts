@@ -12,7 +12,7 @@ export const saleIdTaken = async (tx: Tx, id: string) => (await tx.sale.count({ 
 export const ownBuyer = async (tx: Tx, ctx: TenantContext, id: string) => (await tx.buyer.count({ where: { id, organizationId: ctx.organizationId } })) === 1;
 
 export async function saveBuyer(tx: Tx, ctx: TenantContext, b: BuyerDto) {
-  await tx.buyer.create({ data: { ...b, organizationId: ctx.organizationId } });
+  await tx.buyer.create({ data: { id: b.id, name: b.name, phone: b.phone, type: b.type, organizationId: ctx.organizationId } }); // no block, no limit yet
 }
 
 export const paymentIdTaken = async (tx: Tx, id: string) => (await tx.buyerPayment.count({ where: { id } })) > 0;
@@ -62,7 +62,47 @@ export async function saveStatus(tx: Tx, ctx: TenantContext, s: InstrumentStatus
 /** FN12: sets the buyer's credit block; returns the buyer as the phone stores it. */
 export async function setCreditBlocked(tx: Tx, ctx: TenantContext, buyerId: string, blocked: boolean): Promise<BuyerDto> {
   const b = await tx.buyer.update({ where: { id: buyerId, organizationId: ctx.organizationId }, data: { creditBlocked: blocked } });
-  return { id: b.id, name: b.name, phone: b.phone, type: b.type as BuyerDto["type"], creditBlocked: b.creditBlocked };
+  return buyerDto(b);
+}
+
+export const buyerDto = (b: { id: string; name: string; phone: string | null; type: string; creditBlocked: boolean; creditLimitCentimes: bigint | null }): BuyerDto => ({
+  id: b.id,
+  name: b.name,
+  phone: b.phone,
+  type: b.type as BuyerDto["type"],
+  creditBlocked: b.creditBlocked,
+  creditLimitCentimes: b.creditLimitCentimes === null ? null : String(b.creditLimitCentimes),
+});
+
+/** FN12: the buyer's credit limit (null: none) and block. */
+export const creditTerms = async (tx: Tx, ctx: TenantContext, buyerId: string) =>
+  tx.buyer.findFirst({ where: { id: buyerId, organizationId: ctx.organizationId }, select: { creditBlocked: true, creditLimitCentimes: true } });
+
+export async function setCreditLimit(tx: Tx, ctx: TenantContext, buyerId: string, limit: bigint | null): Promise<BuyerDto> {
+  return buyerDto(await tx.buyer.update({ where: { id: buyerId, organizationId: ctx.organizationId }, data: { creditLimitCentimes: limit } }));
+}
+
+/** FN12: marks a sale approved; returns it as the phone stores it, or null if it isn't this organisation's or isn't pending. */
+export async function approveSaleCredit(tx: Tx, ctx: TenantContext, saleId: string): Promise<Required<SaleDto> | null> {
+  const { count } = await tx.sale.updateMany({ where: { id: saleId, organizationId: ctx.organizationId, creditApproval: "pending" }, data: { creditApproval: "approved" } });
+  if (count === 0) return null;
+  const s = await tx.sale.findUniqueOrThrow({ where: { id: saleId } });
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  return {
+    id: s.id,
+    batchId: s.batchId,
+    buyerId: s.buyerId,
+    day: day(s.day),
+    birds: s.birds,
+    farmWeightGrams: s.farmWeightGrams,
+    buyerWeightGrams: s.buyerWeightGrams,
+    pricePerKgCentimes: String(s.pricePerKgCentimes),
+    amountCentimes: String(s.amountCentimes),
+    paymentMethod: s.paymentMethod as SaleDto["paymentMethod"] & string,
+    paidCentimes: String(s.paidCentimes),
+    instrument: s.instrumentNumber && s.instrumentDueOn ? { number: s.instrumentNumber, dueOn: day(s.instrumentDueOn) } : null,
+    creditApproval: "approved",
+  };
 }
 
 export const creditBlocked = async (tx: Tx, ctx: TenantContext, buyerId: string) =>

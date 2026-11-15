@@ -6,12 +6,14 @@ import { useEffect, useId, useState, type FormEvent, type ReactNode } from "reac
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
-import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import {
   LATER_PAYMENT_METHODS as METHODS,
+  AGEING_BUCKETS,
   SALES_MUTATIONS as S,
+  ageing,
   buyerBalances,
   checkPayment,
   checkTransition,
@@ -96,6 +98,26 @@ function Receivables(scope: Scope) {
   };
   const unblock = (b: BuyerDto) => write({ type: S.unblockBuyer, payload: { buyerId: b.id } }, [{ entity: "buyer", id: b.id, data: { ...b, creditBlocked: false } }]);
   const pending = instruments.filter((i) => i.state === "in_portfolio" || i.state === "remitted").sort((x, y) => x.dueOn.localeCompare(y.dueOn));
+  // FN12: each buyer's debts by age, as the server would compute them.
+  const ageOf = (buyerId: string) =>
+    ageing(
+      [
+        ...sales.filter((s) => s.buyerId === buyerId).map((s) => ({ dueOn: s.day, amountCentimes: BigInt(s.amountCentimes ?? 0) - BigInt(s.paidCentimes ?? 0) })),
+        ...instruments.filter((i) => i.buyerId === buyerId && i.state === "unpaid").map((i) => ({ dueOn: i.dueOn, amountCentimes: i.amountCentimes })),
+      ].filter((d) => d.amountCentimes > 0n),
+      payments.filter((p) => p.buyerId === buyerId).reduce((sum, p) => sum + BigInt(p.amountCentimes), 0n),
+      (dueOn) => daysBetween(dueOn as FarmDay, today()),
+    );
+  const awaiting = sales.filter((s) => s.creditApproval === "pending");
+  const owner = can(scope, "finance.manage");
+  const approve = (saleId: string) => {
+    const sale = sales.find((s) => s.id === saleId)!;
+    return write({ type: S.approveCredit, payload: { saleId } }, [{ entity: "sale", id: saleId, data: { ...sale, creditApproval: "approved" } }]);
+  };
+  const setLimit = (b: BuyerDto, limit: bigint | null) =>
+    write({ type: S.setCreditLimit, payload: { buyerId: b.id, limitCentimes: limit === null ? null : String(limit) } }, [
+      { entity: "buyer", id: b.id, data: { ...b, creditLimitCentimes: limit === null ? null : String(limit) } },
+    ]);
 
   const save = async (payment: PaymentDto) => {
     try {
@@ -138,6 +160,16 @@ function Receivables(scope: Scope) {
           {can(scope, "finance.manage") && <button type="button" onClick={() => unblock(b)} className={secondary}>{t("Receivables.unblock")}</button>}
         </p>
       ))}
+      {awaiting.length > 0 && (
+        <ul className="flex flex-col gap-2" aria-label={t("Receivables.awaiting")}>
+          {awaiting.map((s) => (
+            <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-600/60 p-3">
+              {t("Receivables.awaitingLine", { buyer: nameOf(s.buyerId), amount: formatMoney(BigInt(s.amountCentimes ?? 0) - BigInt(s.paidCentimes ?? 0)), date: formatDay(s.day as FarmDay, locale) })}
+              {owner && <button type="button" onClick={() => approve(s.id)} className={secondary}>{t("Receivables.approve")}</button>}
+            </li>
+          ))}
+        </ul>
+      )}
       <h2 className="text-lg font-semibold">{t("Receivables.title")}</h2>
       {owing.length === 0 ? (
         <p>{t("Receivables.none")}</p>
@@ -149,6 +181,13 @@ function Receivables(scope: Scope) {
             return (
               <li key={b.id} className="flex flex-col gap-2 rounded-lg border border-current/30 p-3">
                 <span className="font-semibold">{t("Receivables.owes", { buyer: b.name, amount: formatMoney(balance) })}</span>
+                <span className="text-sm opacity-75">
+                  {AGEING_BUCKETS.flatMap((bucket) => {
+                    const amount = ageOf(b.id)[bucket];
+                    return amount > 0n ? [t(`Receivables.ageing.${bucket}`, { amount: formatMoney(amount) })] : [];
+                  }).join(" · ")}
+                </span>
+                {b.creditLimitCentimes && <span className="text-sm">{t("Receivables.limit", { amount: formatMoney(BigInt(b.creditLimitCentimes)) })}</span>}
                 {instruments.map((s) => (
                   <span key={s.id}>
                     {t("Receivables.due", {
@@ -169,7 +208,50 @@ function Receivables(scope: Scope) {
           })}
         </ul>
       )}
+      {owner && buyers.length > 0 && (
+        <>
+          <h2 className="text-lg font-semibold">{t("Receivables.limits")}</h2>
+          <ul className="flex flex-col gap-2">
+            {[...buyers].sort((x, y) => x.name.localeCompare(y.name)).map((b) => <LimitRow key={b.id} buyer={b} onSave={(limit) => setLimit(b, limit)} />)}
+          </ul>
+        </>
+      )}
     </>
+  );
+}
+
+/** FN12: the owner sets or removes a buyer's credit limit. */
+function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint | null) => Promise<void> }) {
+  const t = useTranslations();
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState<string>();
+  const limit = buyer.creditLimitCentimes ? BigInt(buyer.creditLimitCentimes) : null;
+  // The current limit in the input as the farmer types it ("10000,50"), centimes kept.
+  const shown = limit === null ? "" : `${limit / 100n},${String(limit % 100n).padStart(2, "0")}`;
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const text = String(new FormData(e.currentTarget).get("limit") ?? "").trim();
+    const value = text === "" ? null : parseCentimes(text);
+    if (text !== "" && value === null) return setError("errors.INVALID_INPUT");
+    await onSave(value);
+    setEditing(false);
+  };
+  return (
+    <li className="flex flex-col gap-2 rounded-lg border border-current/30 p-3">
+      <span>{buyer.name} · {limit === null ? t("Receivables.noLimit") : t("Receivables.limit", { amount: formatMoney(limit) })}</span>
+      {editing ? (
+        <form onSubmit={submit} className="flex flex-col gap-2">
+          <Field label={t("Receivables.limitLabel")}>{(id) => <input id={id} name="limit" inputMode="decimal" dir="ltr" defaultValue={shown} className={field} />}</Field>
+          {error && <p role="alert">{t(error)}</p>}
+          <div className="flex gap-3">
+            <button type="submit" className={primary}>{t("Receivables.saveLimit")}</button>
+            <button type="button" onClick={() => setEditing(false)} className={secondary}>{t("Receivables.cancel")}</button>
+          </div>
+        </form>
+      ) : (
+        <button type="button" onClick={() => setEditing(true)} className={secondary}>{t("Receivables.editLimit")}</button>
+      )}
+    </li>
   );
 }
 

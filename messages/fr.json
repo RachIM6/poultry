@@ -193,6 +193,10 @@
       "instrumentDue": {
         "title": "Échéance aujourd’hui : {method, select, cheque {chèque} other {traite}} n° {number}",
         "body": "{buyer} : {amount} à encaisser aujourd’hui."
+      },
+      "creditApproval": {
+        "title": "Crédit à approuver : {buyer}",
+        "body": "Une vente à crédit de {amount} dépasse le plafond de {limit}."
       }
     }
   },
@@ -524,7 +528,23 @@
     "cash": "Encaissé",
     "unpaid": "Impayé",
     "blocked": "{buyer} : crédit bloqué après un impayé",
-    "unblock": "Lever le blocage"
+    "unblock": "Lever le blocage",
+    "ageing": {
+      "notDue": "Non échu : {amount}",
+      "1-30": "1–30 j : {amount}",
+      "31-60": "31–60 j : {amount}",
+      "61-90": "61–90 j : {amount}",
+      "90+": "Plus de 90 j : {amount}"
+    },
+    "limit": "Plafond de crédit : {amount}",
+    "noLimit": "Sans plafond",
+    "limits": "Plafonds de crédit",
+    "limitLabel": "Plafond (DH, vide = sans plafond)",
+    "editLimit": "Modifier le plafond",
+    "awaiting": "Crédits à approuver",
+    "awaitingLine": "Vente à crédit de {amount} à {buyer} le {date} : dépasse le plafond, attend l’accord du propriétaire",
+    "approve": "Approuver",
+    "saveLimit": "Enregistrer le plafond"
   },
   "Origin": {
     "title": "Document d’origine des volailles",

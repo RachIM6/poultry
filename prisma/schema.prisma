@@ -670,6 +670,7 @@ model JournalLine {
   account        String // number in the entity's chart (base + overlays): finance/domain/chart.ts
   debitCentimes  BigInt       @default(0)
   creditCentimes BigInt       @default(0)
+  treasuryId     String?      @db.Uuid // FN3: the bank account or cash box of a 5141 / 5161 line
   entry          JournalEntry @relation(fields: [entryId], references: [id])
 
   @@index([entryId])
@@ -721,5 +722,47 @@ model InstrumentStatus {
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@unique([instrumentId, state]) // each step happens at most once
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FN3: an organisation's bank accounts and cash boxes. Their ledger lines carry the id as a
+// tag on 5141 / 5161 rather than a sub-account number per organisation. Created offline: the id comes from the device.
+model TreasuryAccount {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  kind           String // bank | cash
+  name           String
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FN6, FX4: a quick expense recorded on the phone, offline; posted when it syncs.
+model Expense {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  category       String // electricity | water | vet_fees | insurance | catching
+  amountCentimes BigInt
+  paidFrom       String // cash | bank | credit
+  treasuryId     String?  @db.Uuid
+  note           String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, day])
+}
+
+// Owner: finance. SPEC-finance FN6: money moved between two treasury accounts, through 5115.
+model TreasuryTransfer {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  amountCentimes BigInt
+  fromId         String   @db.Uuid
+  toId           String   @db.Uuid
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
   @@index([organizationId])
 }

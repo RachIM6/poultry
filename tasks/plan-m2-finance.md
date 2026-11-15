@@ -95,8 +95,24 @@ Not yet:
 ### T32: Treasury and quick expense (FN3, FN10, FX4)
 **Description:** Bank accounts and cash boxes (opening balances through the à-nouveaux entry of T29; `cash_book` entities enter bank and cash balances only), transfers via 5115, treasury screen, offline quick-expense form on the phone (manager and owner), optional receipt photo.
 **AC:**
-- [ ] A quick expense recorded offline is posted once after sync.
-- [ ] A worker cannot open the quick-expense screen or any finance endpoint (integration test).
+- [x] A quick expense recorded offline is posted once after sync. (`finance/treasury.int.test.ts`: the same mutation twice, or the same expense in another mutation; `e2e/expenses.spec.ts`: recorded offline, reloaded from the service worker, one expense and one entry on the server after sync.)
+- [x] A worker cannot open the quick-expense screen or any finance endpoint (integration test). (Every finance mutation is `finance.record`; workers pull no treasury account, expense or transfer; `treasuryOverview` is refused; the screens say so.)
+
+Done 2026-11-15 (branch `feat/t32-treasury-expenses`):
+- **Treasury accounts:** `TreasuryAccount` holds the bank accounts and cash boxes. Their ledger lines carry the account's id as a tag (`JournalLine.treasuryId`) on 5141 / 5161, rather than a sub-account number per organisation. A reversal keeps the tag.
+- **Expenses and transfers:** `Expense` and `TreasuryTransfer` are finance's own records, synced from the phone. They are posted in the same transaction as they arrive (source key `finance:<id>`), into the first open month when theirs is locked.
+- **Expense accounts:** electricity 612512, water 612511, vet fees 6136, insurance 6134, catching crew or transport 612612. Paid from cash 5161 (CA), bank 5141 (BQ), or on credit 4411 (AC).
+- **Transfers:** two entries through 5115 (FN6).
+- **Screens:**
+  - `/expenses` is a static shell, precached and offline: the expense form, the last 20 expenses, and adding a cash box or bank account.
+  - `/treasury` is online, owner and manager: the balances and this month's movements.
+
+Not yet:
+- The receipt photo.
+- Opening balances by hand: an OD entry through `postEntry` works, but there is no screen; FQ11 for cash_book entities.
+- Supplier payments.
+- The payment method on purchases: the part paid at once still goes to 5161.
+
 **Size:** M
 
 ### T33: Ageing and credit limits (FN12)

@@ -162,7 +162,16 @@ Not yet:
 
 ### T35: Budget and break-even (FN15)
 **AC:**
-- [ ] Break-even and planned margin recompute on feed-price and sale-price input.
+- [x] Break-even and planned margin recompute on feed-price and sale-price input. (`finance/domain/budget.test.ts`, with the §7 fixture 270 800,00 ÷ 23 700 kg → 11,43; `e2e/budget-plan.spec.ts`: the feed price moves the break-even, the sale price moves only the margin.)
+
+Done 2026-11-15 (branch `feat/t35-budget`):
+- `budgetOf` is pure and Zod-free: `/budget` recomputes it on every keystroke, the same code as the server.
+- **Copied from a closed batch** (`budgetBases`): its chicks and their price, the feed it ate (kg and average price, from `inventory.batchConsumption`), the rest of its cost, its kg sold and average sale price.
+- **Saved budgets** (`Budget`: the inputs only, the figures are recomputed) through a server action, owner and manager, audited.
+- `/budget` is online.
+
+Not yet: the weekly cash need. M1 records no supplier credit terms (only a purchase's due date); it comes with supplier payments.
+
 **Size:** M
 
 ### T36: Books and trial balance (FN16)

@@ -796,3 +796,23 @@ model TreasuryTransfer {
 
   @@index([organizationId])
 }
+
+// Owner: finance. SPEC-finance FN15: a planned batch's budget, its what-if inputs saved (the figures are recomputed from
+// them). `basedOn`: the closed batch it was copied from.
+model Budget {
+  id                     String   @id @db.Uuid
+  organizationId         String   @db.Uuid
+  name                   String
+  basedOn                String?  @db.Uuid
+  chicks                 Int
+  chickPriceCentimes     BigInt
+  feedGrams              BigInt
+  feedPricePerKgCentimes BigInt
+  otherCostCentimes      BigInt
+  plannedGrams           BigInt
+  salePricePerKgCentimes BigInt
+  createdBy              String   @db.Uuid
+  createdAt              DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}

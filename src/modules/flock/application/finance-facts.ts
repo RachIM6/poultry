@@ -12,6 +12,8 @@ export type BatchMoneyFacts = {
   closedOn: string | null;
   status: string;
   started: number; // chicks placed − dead on arrival
+  chicksPlaced: number;
+  chickUnitPriceCentimes: bigint;
   chicksCentimes: bigint; // every chick placed, dead on arrival included (as the B6 cost)
   otherCentimes: bigint; // M1 T24's "other costs" (B6)
   soldGrams: number; // farm weight of every bird sold
@@ -38,6 +40,8 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext): Promise<Bat
     closedOn: b.closedOn ? day(b.closedOn) : null,
     status: b.status,
     started: b.chicksPlaced - b.deadOnArrival,
+    chicksPlaced: b.chicksPlaced,
+    chickUnitPriceCentimes: b.chickUnitPriceCentimes,
     chicksCentimes: BigInt(b.chicksPlaced) * b.chickUnitPriceCentimes,
     otherCentimes: other.get(b.id) ?? 0n,
     soldGrams: sold.filter((s) => s.batchId === b.id).reduce((s, x) => s + x.liveWeightGrams, 0),

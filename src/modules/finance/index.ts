@@ -10,3 +10,4 @@ export { treasuryOverview, type TreasuryOverview } from "./application/treasury"
 export { batchResults, freezeClosedBatches, type BatchResultRow } from "./application/batch-results";
 export { budgetBases, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";
+export { readBooks, type Books } from "./application/books";

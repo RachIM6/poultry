@@ -631,7 +631,12 @@
     "kind": "النوع",
     "accountName": "الاسم",
     "addAccount": "إضافة صندوق أو حساب",
-    "saveAccount": "حفظ"
+    "saveAccount": "حفظ",
+    "allocation": "التحميل",
+    "shared": "مشتركة بين الدفعات الموجودة في ذلك الشهر",
+    "general": "مصاريف عامة (بدون دفعة)",
+    "month": "الشهر المعني (إذا كانت مشتركة)",
+    "batch": "دفعة {house} بتاريخ {date}"
   },
   "Treasury": {
     "title": "الخزينة",
@@ -648,5 +653,20 @@
     "out": "مصروف",
     "untagged": "غير محدد",
     "unknown": "آخر"
+  },
+  "Results": {
+    "title": "نتائج الدفعات",
+    "open": "نتائج الدفعات",
+    "none": "لا توجد دفعات بعد.",
+    "batch": "الدفعة",
+    "sales": "المبيعات",
+    "cost": "التكلفة",
+    "margin": "الهامش",
+    "marginPerKg": "الهامش / كلغ",
+    "costPerKg": "التكلفة / كلغ",
+    "share": "% من المبيعات",
+    "costs": "الكتاكيت {chicks} · الاستهلاكات {consumption} · أخرى {other} · مباشرة {direct} · موزعة {allocated}",
+    "open_": "جارية",
+    "closed": "مغلقة بتاريخ {date}"
   }
 }

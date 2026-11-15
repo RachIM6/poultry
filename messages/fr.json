@@ -631,7 +631,12 @@
     "kind": "Type",
     "accountName": "Nom",
     "addAccount": "Ajouter une caisse ou un compte",
-    "saveAccount": "Enregistrer"
+    "saveAccount": "Enregistrer",
+    "allocation": "Imputation",
+    "shared": "Partagée entre les bandes présentes ce mois-là",
+    "general": "Frais généraux (aucune bande)",
+    "month": "Mois concerné (si partagée)",
+    "batch": "Bande {house} du {date}"
   },
   "Treasury": {
     "title": "Trésorerie",
@@ -648,5 +653,20 @@
     "out": "Sortie",
     "untagged": "Non précisé",
     "unknown": "Autre"
+  },
+  "Results": {
+    "title": "Résultats des bandes",
+    "open": "Résultats des bandes",
+    "none": "Aucune bande pour l’instant.",
+    "batch": "Bande",
+    "sales": "Ventes",
+    "cost": "Coût",
+    "margin": "Marge",
+    "marginPerKg": "Marge / kg",
+    "costPerKg": "Coût / kg",
+    "share": "% des ventes",
+    "costs": "Poussins {chicks} · consommations {consumption} · autres {other} · direct {direct} · réparti {allocated}",
+    "open_": "en cours",
+    "closed": "clôturée le {date}"
   }
 }

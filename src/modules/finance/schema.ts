@@ -39,6 +39,8 @@ export const RecordExpense = z.object({
   paidFrom: z.enum(PAID_FROM),
   treasuryId: z.uuid().nullable(),
   note,
+  batchId: z.uuid().nullable().default(null),
+  serviceMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().default(null),
 });
 
 /** FN6: money moved from one treasury account to another (cash deposited, cash withdrawn). */

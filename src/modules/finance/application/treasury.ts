@@ -9,7 +9,9 @@ import { can } from "@/lib/permissions";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
+import { batchFacts } from "@/modules/flock";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
+import { monthPeriod } from "@/modules/finance/domain/batch";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
 import type { Posting } from "@/modules/finance/domain/posting";
 import { expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
@@ -58,8 +60,31 @@ export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<ty
     if (!t) return fail("NOT_FOUND");
     if (t.kind !== cmd.paidFrom) return fail("INVALID_INPUT"); // a cash box for cash, a bank account for the bank
   }
-  const expense: ExpenseDto = { ...cmd, category: cmd.category as ExpenseDto["category"], treasuryId: cmd.paidFrom === "credit" ? null : cmd.treasuryId };
-  await tx.expense.create({ data: { ...expense, organizationId: ctx.organizationId, day: date(expense.day), amountCentimes: BigInt(expense.amountCentimes), recordedBy: ctx.userId } });
+  if (cmd.batchId && !(await batchFacts(tx, ctx, cmd.batchId))) return fail("NOT_FOUND"); // another organisation's batch
+  const expense: ExpenseDto = {
+    ...cmd,
+    category: cmd.category as ExpenseDto["category"],
+    treasuryId: cmd.paidFrom === "credit" ? null : cmd.treasuryId,
+    serviceMonth: cmd.batchId ? null : cmd.serviceMonth, // a direct charge has no service period to share over
+  };
+  const period = expense.serviceMonth ? monthPeriod(expense.serviceMonth) : null;
+  await tx.expense.create({
+    data: {
+      id: expense.id,
+      organizationId: ctx.organizationId,
+      day: date(expense.day),
+      category: expense.category,
+      amountCentimes: BigInt(expense.amountCentimes),
+      paidFrom: expense.paidFrom,
+      treasuryId: expense.treasuryId,
+      note: expense.note,
+      batchId: expense.batchId ?? null,
+      shared: period !== null,
+      serviceFrom: period && date(period.from),
+      serviceTo: period && date(period.to),
+      recordedBy: ctx.userId,
+    },
+  });
   const posted = await postNow(tx, ctx, expense.id, expense.day, [
     expensePosting({ category: expense.category as ExpenseCategory, amount: BigInt(expense.amountCentimes), paidFrom: expense.paidFrom, treasuryId: expense.treasuryId }),
   ]);

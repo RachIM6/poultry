@@ -741,5 +741,32 @@
     "beldi": "دجاج بلدي",
     "duck": "بط",
     "quail": "سمان"
+  },
+  "Nav": {
+    "label": "القائمة الرئيسية",
+    "today": "اليوم",
+    "batches": "الدفعات",
+    "stock": "المخزون",
+    "more": "المزيد"
+  },
+  "More": {
+    "farm": "التربية",
+    "money": "المال",
+    "account": "الحساب",
+    "sync": "المزامنة"
+  },
+  "Today": {
+    "birds": "{count} طائر",
+    "dayOf": "اليوم {day} من {total}",
+    "stripLabel": "اليوم {day} من الدفعة، {missing} يوم غير مسجل",
+    "missingOn": "يوم ناقص: {date}",
+    "allEntered": "كل الأيام مسجلة",
+    "tasks": "مهام اليوم",
+    "none": "لا توجد دفعة جارية.",
+    "entry": "الإدخال اليومي · {house}",
+    "entryHint": "النفوق، العلف، الماء: أقل من دقيقة",
+    "entryDone": "تم الإدخال اليومي · {house}",
+    "missing": "{count, plural, one {إدخال ناقص · {date}} other {{n} إدخالات ناقصة، منذ {date}}}",
+    "missingHint": "{house} · اليوم {day}: أكمله الآن"
   }
 }

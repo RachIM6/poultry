@@ -7,7 +7,7 @@ import type { Write } from "@/components/daily-entry";
 import { formatDay, formatKg, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
-import { Batch, FLOCK_MUTATIONS as M, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
+import { Batch, FLOCK_MUTATIONS as M, TRANSFER_REASON, ageOfBatch, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
 import { field, primary, secondary } from "@/components/ui";
 
 // SPEC B6 on the batch screen: other costs while it runs, closing by hand with a reason, and the locked figures once
@@ -36,7 +36,7 @@ export function ClosedSummary({ batch }: { batch: BatchDto }) {
   return (
     <section className="flex flex-col gap-1 rounded-lg border border-current/30 p-3" aria-label={t("summary")}>
       <span className="font-semibold">{t("closedOn", { date: formatDay((batch.closedOn ?? batch.placedOn) as FarmDay, locale) })}</span>
-      <span>{batch.closeReason ? t("reasonLine", { reason: batch.closeReason }) : t("soldOut")}</span>
+      <span>{batch.closeReason === TRANSFER_REASON ? t("transferred") : batch.closeReason ? t("reasonLine", { reason: batch.closeReason }) : t("soldOut")}</span>
       {batch.soldGrams === undefined ? (
         <span className="opacity-75">{t("pending")}</span>
       ) : (
@@ -132,6 +132,79 @@ export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write
         <button type="submit" className={primary}>{t("Closing.confirm")}</button>
         <button type="button" onClick={() => setClosing(false)} className={secondary}>{t("Closing.cancel")}</button>
       </div>
+    </form>
+  );
+}
+
+/** SPEC-m3 B13: a pullet batch moves to a laying house. The server culls the birds left behind and closes it. */
+export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto; onHand: number; houses: { id: string; label: string; free: boolean }[]; write: Write }) {
+  const t = useTranslations();
+  const [open, setOpen] = useState(false);
+  const [hens, setHens] = useState(String(onHand));
+  const [error, setError] = useState<string>();
+  const free = houses.filter((h) => h.free);
+  if (!open) return <button type="button" onClick={() => setOpen(true)} className={secondary}>{t("Transfer.title")}</button>;
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const get = (k: string) => String(data.get(k) ?? "").trim();
+    const day = (get("day") || today()) as FarmDay;
+    const count = /^\d+$/.test(hens) ? Number(hens) : NaN;
+    const checked = aggregate(batch).checkTransfer(day, count, onHand, today()); // as the server
+    if (!checked.ok) return setError(`errors.${checked.error}`);
+    const house = free.find((h) => h.id === get("houseId"));
+    if (!house) return setError("Transfer.noHouse");
+    setError(undefined);
+    const payload = { batchId: batch.id, day, newBatchId: uuidv7(), houseId: house.id, hens: count };
+    const layers: BatchDto = {
+      ...batch,
+      id: payload.newBatchId,
+      houseId: house.id,
+      species: "layer",
+      sex: "mixed",
+      placedOn: day,
+      chicksPlaced: count,
+      deadOnArrival: 0,
+      freeChicks: 0,
+      dayOldWeightGrams: null,
+      ageAtPlacementDays: ageOfBatch(batch, day),
+      fromBatchId: batch.id,
+      status: "open",
+      chickUnitPriceCentimes: batch.chickUnitPriceCentimes === undefined ? undefined : "0",
+    };
+    await write({ type: M.transferToLaying, payload }, [
+      { entity: "batch", id: batch.id, data: closedLocally(batch, day, TRANSFER_REASON) },
+      { entity: "batch", id: layers.id, data: layers },
+    ]);
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3" aria-labelledby="transfer-title">
+      <h3 id="transfer-title" className="text-lg font-semibold">{t("Transfer.title")}</h3>
+      {free.length === 0 ? (
+        <p>{t("Transfer.noHouse")}</p>
+      ) : (
+        <>
+          <Field label={t("Transfer.house")}>
+            {(id) => (
+              <select id={id} name="houseId" className={field}>
+                {free.map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
+              </select>
+            )}
+          </Field>
+          <Field label={t("Transfer.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required className={field} />}</Field>
+          <Field label={t("Transfer.hens")}>
+            {(id) => <input id={id} value={hens} onChange={(e) => setHens(e.target.value)} inputMode="numeric" pattern="\d+" required dir="ltr" className={field} />}
+          </Field>
+          {/^\d+$/.test(hens) && Number(hens) < onHand && <p>{t("Transfer.left", { birds: String(onHand - Number(hens)) })}</p>}
+          {error && <p role="alert">{t(error)}</p>}
+          <div className="flex gap-3">
+            <button type="submit" className={primary}>{t("Transfer.save")}</button>
+            <button type="button" onClick={() => setOpen(false)} className={secondary}>{t("Closing.cancel")}</button>
+          </div>
+        </>
+      )}
     </form>
   );
 }

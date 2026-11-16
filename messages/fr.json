@@ -626,7 +626,8 @@
     "warning": "Une bande clôturée ne peut plus être modifiée. Les ventes la clôturent d’elles-mêmes quand tous les oiseaux sont vendus.",
     "reason": "Motif de la clôture",
     "confirm": "Clôturer",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "transferred": "Passée en ponte"
   },
   "Expenses": {
     "title": "Dépense rapide",
@@ -792,5 +793,14 @@
     "entryDone": "Saisie du jour faite · {house}",
     "missing": "{count, plural, one {Saisie manquante · {date}} other {{n} saisies manquantes, dès le {date}}}",
     "missingHint": "{house} · jour {day} : complétez-la"
+  },
+  "Transfer": {
+    "title": "Passage en ponte",
+    "day": "Date du transfert",
+    "house": "Bâtiment de ponte",
+    "hens": "Poules transférées",
+    "left": "{birds} non transférées seront réformées ce jour-là.",
+    "save": "Transférer",
+    "noHouse": "Aucun bâtiment libre pour la ponte."
   }
 }

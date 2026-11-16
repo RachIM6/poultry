@@ -29,6 +29,7 @@ export type BatchDto = {
   parentFlock?: string | null;
   weakChicks?: number | null;
   litterTempTenths?: number | null;
+  fromBatchId?: string | null; // SPEC-m3 B13: the pullet batch of a transferred layer batch
   status: "open" | "closed";
   chickUnitPriceCentimes?: string; // money (SPEC I5): absent for workers
   // B6, once closed: the locked figures (the cost ones are money).
@@ -38,6 +39,8 @@ export type BatchDto = {
   costCentimes?: string;
   costPerKgCentimes?: string | null;
 };
+/** SPEC-m3 B13: the close reason of a pullet batch moved to laying (a code, shown translated). */
+export const TRANSFER_REASON = "transferToLaying";
 export const BATCH_MONEY = ["chickUnitPriceCentimes", "costCentimes", "costPerKgCentimes"] as const;
 
 /** B6: another cost of the batch. Money: the amount is absent for workers. */
@@ -52,6 +55,7 @@ export const FLOCK_MUTATIONS = {
   recordWeighing: "flock.recordWeighing",
   closeBatch: "flock.closeBatch",
   recordBatchCost: "flock.recordBatchCost",
+  transferToLaying: "flock.transferToLaying",
 } as const;
 
 // SPEC B2: the daily entry.

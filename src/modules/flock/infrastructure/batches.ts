@@ -45,6 +45,7 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Pr
     parentFlock: p.parentFlock ?? null,
     weakChicks: p.weakChicks ?? null,
     litterTempTenths: p.litterTempTenths ?? null,
+    fromBatchId: p.fromBatchId ?? null,
     status: batch.status,
     chickUnitPriceCentimes: String(p.chickUnitPriceCentimes),
   };
@@ -79,6 +80,7 @@ export async function loadBatch(tx: Tx, ctx: TenantContext, id: string): Promise
       parentFlock: r.parentFlock,
       weakChicks: r.weakChicks,
       litterTempTenths: r.litterTempTenths,
+      fromBatchId: r.fromBatchId,
     },
     r.status as BatchStatus,
   );
@@ -133,6 +135,7 @@ export async function saveClosing(
     parentFlock: r.parentFlock,
     weakChicks: r.weakChicks,
     litterTempTenths: r.litterTempTenths,
+    fromBatchId: r.fromBatchId,
     status: batch.status,
     chickUnitPriceCentimes: String(r.chickUnitPriceCentimes),
     closedOn: c.closedOn,

@@ -180,3 +180,47 @@ test("a pullet weighing shows the uniformity", async ({ page, context }) => {
   await page.getByLabel("Poids des oiseaux (kg), séparés par des espaces").fill("0,950 1,000 1,050 1,100 0,880 1,020");
   await expect(page.getByText(/Homogénéité 83,3 %/)).toBeVisible();
 });
+
+// T58 acceptance (SPEC-m3 B13): pullets move to the laying house offline; the layer batch keeps their age, the pullet
+// batch closes and the birds left behind are culled once synced.
+test("pullets move to the laying house and become a layer batch", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const e164 = await ownerWithFarm(page, "Élevage Passage en Ponte");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), rearing: crypto.randomUUID(), laying: crypto.randomUUID(), batch: crypto.randomUUID() };
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Sidi Hajjaj", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.rearing, farmId: ids.farm, name: "Bâtiment P2", areaM2: 800, capacity: 5000, type: "closed" } },
+    { type: "farm-registry.createHouse", payload: { id: ids.laying, farmId: ids.farm, name: "Bâtiment P1", areaM2: 1000, capacity: 6000, type: "closed" } },
+    {
+      type: "flock.placeBatch",
+      payload: { id: ids.batch, houseId: ids.rearing, species: "pullet", strainId: "lohmann-brown", placedOn: farmDaysAgo(0), chicksPlaced: 4800, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "700", dayOldWeightGrams: null, ageAtPlacementDays: 119 },
+    },
+  ]);
+  await page.goto("/fr/batches");
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await referenceCached(page);
+  await expect(page.getByText("17 sem.", { exact: true })).toBeVisible();
+  await context.setOffline(true);
+  await context.route("**", (route) => route.abort("internetdisconnected"));
+  await page.getByRole("link", { name: "Saisir le jour" }).click();
+  await page.getByRole("button", { name: "Passage en ponte" }).click();
+  await page.getByLabel("Bâtiment de ponte").selectOption({ label: "Ferme Sidi Hajjaj · Bâtiment P1" });
+  await page.getByLabel("Poules transférées").fill("4700");
+  await expect(page.getByText("100 non transférées seront réformées ce jour-là.")).toBeVisible();
+  await page.getByRole("button", { name: "Transférer" }).click();
+  await page.getByRole("link", { name: "Toutes les bandes" }).click();
+  await expect(page.getByText("Pondeuse · Ferme Sidi Hajjaj · Bâtiment P1 · Lohmann Brown")).toBeVisible();
+  await expect(page.getByText("17 sem.", { exact: true })).toBeVisible();
+
+  await context.unroute("**");
+  await context.setOffline(false);
+  const batches = async () =>
+    await query<{ species: string; status: string; age: number; culled: number | null }>(
+      `SELECT b.species, b.status, b."ageAtPlacementDays" AS age, (SELECT sum(culled)::int FROM "DailyEntry" d WHERE d."batchId" = b.id) AS culled
+       FROM "Batch" b JOIN "Membership" m ON m."organizationId" = b."organizationId" JOIN "User" u ON u.id = m."userId"
+       WHERE u."phoneNumber" = $1 ORDER BY b.species`,
+      [e164],
+    );
+  await expect.poll(batches).toEqual([{ species: "layer", status: "open", age: 119, culled: null }, { species: "pullet", status: "closed", age: 119, culled: 100 }]);
+});

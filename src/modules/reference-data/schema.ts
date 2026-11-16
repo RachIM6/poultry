@@ -2,14 +2,14 @@ import { z } from "zod";
 
 // SPEC R1–R4. Isomorphic, and also imported by prisma/seed.ts under plain Node: no "@/" imports here. The phone's
 // screens import ./shared.ts (no Zod, ADR-009), re-exported here.
-import { PRODUCT_KINDS, PRODUCTION_TYPES, VACCINATION_METHODS } from "./shared.ts";
+import { BIRD_SEXES, PRODUCT_KINDS, PRODUCTION_TYPES, VACCINATION_METHODS } from "./shared.ts";
 export * from "./shared.ts";
 
 const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).max(60);
 const text = (max: number) => z.string().trim().min(1).max(max);
 
 export const CurvePoint = z.object({
-  day: z.int32().min(0).max(120), // age in days, as-hatched
+  day: z.int32().min(0).max(600), // age in days, as-hatched; a weekly guide is imported as day = week x 7 (R6)
   bodyWeightGrams: z.int32().min(1),
   cumulativeFeedGrams: z.int32().min(0),
 });
@@ -20,12 +20,36 @@ export const CurveFile = z.object({
   strainId: slug,
   source: text(200), // document title and publisher
   version: text(40),
+  sex: z.enum(BIRD_SEXES).default("mixed"), // R6: turkeys are published per sex
   points: z
     .array(CurvePoint)
     .min(2)
     .refine((ps) => ps.every((p, i) => i === 0 || p.day > ps[i - 1].day), "days must increase"),
 });
 export type CurveFile = z.infer<typeof CurveFile>;
+
+const positiveOrNull = z.int32().min(1).nullable();
+export const LayingPoint = z.object({
+  week: z.int32().min(0).max(120),
+  layingRatePermille: z.int32().min(0).max(1000).nullable(), // hen-day
+  eggsPerHenHousedTenths: z.int32().min(0).nullable(), // cumulative
+  eggWeightDg: positiveOrNull,
+  feedGramsPerHenDay: positiveOrNull,
+  bodyWeightGrams: positiveOrNull,
+});
+export type LayingPoint = z.infer<typeof LayingPoint>;
+
+/** prisma/seed/reference/laying/<strain>-<version>.json: one breeder laying table, exactly as published (R7, MQ1). */
+export const LayingFile = z.object({
+  strainId: slug,
+  source: text(200),
+  version: text(40),
+  points: z
+    .array(LayingPoint)
+    .min(2)
+    .refine((ps) => ps.every((p, i) => i === 0 || p.week > ps[i - 1].week), "weeks must increase"),
+});
+export type LayingFile = z.infer<typeof LayingFile>;
 
 /** R5: a strain serves one or more production types (Lohmann Brown: pullet and layer). */
 export const Strain = z.object({ id: slug, name: text(80), productionTypes: z.array(z.enum(PRODUCTION_TYPES)).min(1) });
@@ -59,7 +83,7 @@ export type ProtocolTemplate = z.infer<typeof ProtocolTemplate>;
 
 /** GET /api/reference: everything the phone keeps offline (R4). */
 export type ReferenceData = {
-  strains: (Strain & { curves: Omit<CurveFile, "strainId">[] })[];
+  strains: (Strain & { curves: Omit<CurveFile, "strainId">[]; layingCurves: Omit<LayingFile, "strainId">[] })[];
   products: Product[];
   protocolTemplates: ProtocolTemplate[];
 };

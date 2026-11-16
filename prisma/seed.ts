@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { Client } from "pg";
 import { z } from "zod";
 import { AccountsFile } from "../src/modules/finance/schema.ts";
-import { CurveFile, Product, ProtocolTemplate, Strain } from "../src/modules/reference-data/schema.ts";
+import { CurveFile, LayingFile, Product, ProtocolTemplate, Strain } from "../src/modules/reference-data/schema.ts";
 
 // `pnpm db:seed`, under plain Node (hence pg, not the generated Prisma client): reference data from
 // prisma/seed/reference, validated by the module's own schemas. Idempotent: run it after any change to those files.
@@ -22,10 +22,14 @@ const curvesDir = new URL("curves/", dir);
 const curves = readdirSync(curvesDir)
   .filter((f) => f.endsWith(".json"))
   .map((f) => read(CurveFile, new URL(f, curvesDir)));
+const layingDir = new URL("laying/", dir); // SPEC-m3 R7
+const layingCurves = readdirSync(layingDir)
+  .filter((f) => f.endsWith(".json"))
+  .map((f) => read(LayingFile, new URL(f, layingDir)));
 
 // Cross-file references, checked before anything is written.
 const vaccines = new Set(products.filter((p) => p.kind === "vaccine").map((p) => p.id));
-for (const c of curves) if (!strains.some((s) => s.id === c.strainId)) throw new Error(`curve ${c.strainId}-${c.version}: unknown strain`);
+for (const c of [...curves, ...layingCurves]) if (!strains.some((s) => s.id === c.strainId)) throw new Error(`curve ${c.strainId}-${c.version}: unknown strain`);
 for (const t of templates) for (const i of t.items) if (!vaccines.has(i.productId)) throw new Error(`${t.id}: ${i.productId} is not a vaccine`);
 
 // Charts of accounts (T28): every parent and fallback must exist, checked before anything is written.
@@ -60,15 +64,29 @@ try {
   }
   for (const c of curves) {
     const { rows } = await db.query<{ id: string }>(
-      `INSERT INTO "StandardCurve" ("strainId", source, version) VALUES ($1, $2, $3)
-       ON CONFLICT ("strainId", version) DO UPDATE SET source = EXCLUDED.source RETURNING id`,
-      [c.strainId, c.source, c.version],
+      `INSERT INTO "StandardCurve" ("strainId", source, version, sex) VALUES ($1, $2, $3, $4)
+       ON CONFLICT ("strainId", version, sex) DO UPDATE SET source = EXCLUDED.source RETURNING id`,
+      [c.strainId, c.source, c.version, c.sex],
     );
     await db.query(`DELETE FROM "StandardPoint" WHERE "curveId" = $1`, [rows[0].id]);
     await db.query(
       `INSERT INTO "StandardPoint" ("curveId", day, "bodyWeightGrams", "cumulativeFeedGrams")
        SELECT $1, * FROM unnest($2::int[], $3::int[], $4::int[])`,
       [rows[0].id, c.points.map((p) => p.day), c.points.map((p) => p.bodyWeightGrams), c.points.map((p) => p.cumulativeFeedGrams)],
+    );
+  }
+  for (const c of layingCurves) {
+    const { rows } = await db.query<{ id: string }>(
+      `INSERT INTO "LayingCurve" ("strainId", source, version) VALUES ($1, $2, $3)
+       ON CONFLICT ("strainId", version) DO UPDATE SET source = EXCLUDED.source RETURNING id`,
+      [c.strainId, c.source, c.version],
+    );
+    await db.query(`DELETE FROM "LayingPoint" WHERE "curveId" = $1`, [rows[0].id]);
+    const col = (k: keyof (typeof c.points)[number]) => c.points.map((p) => p[k]);
+    await db.query(
+      `INSERT INTO "LayingPoint" ("curveId", week, "layingRatePermille", "eggsPerHenHousedTenths", "eggWeightDg", "feedGramsPerHenDay", "bodyWeightGrams")
+       SELECT $1, * FROM unnest($2::int[], $3::int[], $4::int[], $5::int[], $6::int[], $7::int[])`,
+      [rows[0].id, col("week"), col("layingRatePermille"), col("eggsPerHenHousedTenths"), col("eggWeightDg"), col("feedGramsPerHenDay"), col("bodyWeightGrams")],
     );
   }
   for (const a of accounts) {
@@ -87,5 +105,5 @@ try {
 }
 
 console.log(
-  `Reference data: ${strains.length} strains, ${curves.length} curves, ${products.length} products, ${templates.length} protocol templates, ${accounts.length} ledger accounts.`,
+  `Reference data: ${strains.length} strains, ${curves.length} growth curves, ${layingCurves.length} laying curves, ${products.length} products, ${templates.length} protocol templates, ${accounts.length} ledger accounts.`,
 );

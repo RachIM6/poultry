@@ -246,6 +246,7 @@ model Strain {
   name            String
   productionTypes String[]        @default(["broiler"]) // SPEC-m3 R5
   curves          StandardCurve[]
+  layingCurves    LayingCurve[]
 }
 
 // One published performance-objectives table (R1). Each value keeps its source and version (OQ5).
@@ -254,10 +255,11 @@ model StandardCurve {
   strainId String
   source   String // document title + publisher
   version  String // e.g. "2022"
+  sex      String          @default("mixed") // SPEC-m3 R6: mixed | female | male
   points   StandardPoint[]
   strain   Strain          @relation(fields: [strainId], references: [id], onDelete: Cascade)
 
-  @@unique([strainId, version])
+  @@unique([strainId, version, sex])
 }
 
 model StandardPoint {
@@ -268,6 +270,31 @@ model StandardPoint {
   curve               StandardCurve @relation(fields: [curveId], references: [id], onDelete: Cascade)
 
   @@id([curveId, day])
+}
+
+// SPEC-m3 R7: one published laying table, by week of age, exactly as published. A column the guide doesn't give is null.
+model LayingCurve {
+  id       String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  strainId String
+  source   String
+  version  String
+  points   LayingPoint[]
+  strain   Strain        @relation(fields: [strainId], references: [id], onDelete: Cascade)
+
+  @@unique([strainId, version])
+}
+
+model LayingPoint {
+  curveId                String      @db.Uuid
+  week                   Int // week of age
+  layingRatePermille     Int? // hen-day, per mille
+  eggsPerHenHousedTenths Int? // cumulative, tenths of an egg
+  eggWeightDg            Int? // average egg weight, decigrams
+  feedGramsPerHenDay     Int?
+  bodyWeightGrams        Int?
+  curve                  LayingCurve @relation(fields: [curveId], references: [id], onDelete: Cascade)
+
+  @@id([curveId, week])
 }
 
 enum ProductKind {

@@ -28,9 +28,14 @@ T42 + T43 + T44 + T47 ── T49 inspection pack
 ### T40: Visitor log (BS1–BS3, BS9)
 **Description:** Create the `biosecurity` module (light): `Visit` table, `biosecurity.record` permission, `biosecurity.recordVisit` offline mutation, `visit` entity in pull, pure `visitZone` rule, static shell `/visitors` (form + today's visits).
 **AC:**
-- [ ] `visitZone`: a visitor from another farm within `VISITOR_RECENT_FARM_HOURS` gets the dirty zone only; the clean zone is refused on the phone and on the server (`VISIT_DIRTY_ZONE_ONLY`).
-- [ ] A visit recorded offline reaches the server once after sync; another organisation can't read or write it (integration test).
-- [ ] e2e: a worker records a visit offline, reloads, syncs; it's listed under today's visits.
+- [x] `visitZone`: a visitor from another farm within `VISITOR_RECENT_FARM_HOURS` gets the dirty zone only; the clean zone is refused on the phone and on the server (`VISIT_DIRTY_ZONE_ONLY`). (`biosecurity/domain/visit.test.ts`, `visits.int.test.ts`.)
+- [x] A visit recorded offline reaches the server once after sync; another organisation can't read or write it (integration test). (`biosecurity/visits.int.test.ts`: twice the same mutation, then the same id again → `ALREADY_EXISTS`; workers allowed.)
+- [x] e2e: a visit recorded offline, reloaded from the service worker, synced once (`e2e/visitors.spec.ts`).
+
+Done 2026-11-16 (branch `feat/t40-visitors`):
+- `biosecurity` is light: `service.ts` holds the sync handlers, `domain/visit.ts` the zone rule the phone and the server share.
+- The visit's time is the phone's clock at saving (`enteredAt`); "today" is the farm day of that instant.
+- `/visitors` is a precached static shell, linked from the dashboard for every role.
 **Files:** `prisma/schema.prisma` + migration, `src/modules/biosecurity/{shared,schema,service,index}.ts`, `src/lib/permissions.ts`, `src/app/api/sync/registry.ts`, `src/app/[locale]/visitors/page.tsx`, `src/components/visitors.tsx`, `messages/*.json`, `e2e/visitors.spec.ts`
 **Size:** M
 

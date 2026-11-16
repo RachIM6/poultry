@@ -42,8 +42,10 @@ Done 2026-11-16 (branch `feat/t51-curves-v2`): `StandardCurve.sex` (unique per s
 ### T52: Egg grades, protocol templates per type, egg withdrawal on products (R8–R10)
 **Description:** `EggGrade` (id, labels, min/max grams nullable), seeded S/M/L/XL with null limits; one empty, unreviewed protocol template per production type; protocol line `dayOfAge` up to 600; `Product.eggWithdrawalDays` nullable.
 **AC:**
-- [ ] Seed check: no grade limit, protocol line or withdrawal value is committed (unit test over the seed files).
-- [ ] A farm copies the layer template and adds a line at day 450 (integration test).
+- [x] Seed check: no grade limit, protocol line or withdrawal value is committed (unit test over the seed files). (`reference-data/seed.test.ts`, also no curve file.)
+- [x] A farm copies the layer template and adds a line at day 450 (integration test). (`reference-data/protocols.int.test.ts`; day 601 is refused.)
+
+Done 2026-11-16 (branch `feat/t52-grades-templates`): `EggGrade` (S, M, L, XL as on P-EggStock, limits null), `ProtocolTemplate.productionType`, `Product.eggWithdrawalDays`; all in `GET /api/reference` (`eggGrades`). The protocol screen lists the 7 templates; `e2e/protocol.spec.ts` copies the broiler one.
 **Size:** S
 
 ### T53: Placement for every type (B7, B8)

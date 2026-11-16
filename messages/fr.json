@@ -144,7 +144,8 @@
     },
     "houseSummary": "{area} m² · {capacity} oiseaux · {type}",
     "farmSummary": "{commune}, {province} · bâtiments : {count}",
-    "onssaUntil": "Autorisation ONSSA {number}, valable jusqu’au {date}"
+    "onssaUntil": "Autorisation ONSSA {number}, valable jusqu’au {date}",
+    "doaClaim": "Seuil de réclamation au couvoir (% de morts à l’arrivée, facultatif)"
   },
   "Protocol": {
     "title": "Programme de vaccination",
@@ -321,7 +322,14 @@
       "female": "femelles",
       "male": "mâles"
     },
-    "otherSex": "Même lot, {sex} : {birds} sujets"
+    "otherSex": "Même lot, {sex} : {birds} sujets",
+    "freeChicks": "Supplément gratuit (facultatif)",
+    "arrival": "Qualité à l’arrivée (facultatif)",
+    "parentFlock": "Lot reproducteur",
+    "weakChicks": "Poussins faibles",
+    "litterTemp": "Température litière (°C)",
+    "density": "Densité : {density} sujets/m²",
+    "claim": "Morts à l’arrivée au-dessus du seuil du contrat : réclamation au couvoir"
   },
   "Day": {
     "title": "Saisie du jour",

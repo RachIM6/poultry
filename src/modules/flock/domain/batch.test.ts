@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { Batch, ageOfBatch, canJoinHouse, type Placement } from "./batch";
+import { Batch, ageOfBatch, birdsStarted, canJoinHouse, doaClaim, type Placement } from "./batch";
 
 const day = (d: string) => d as FarmDay;
 const placement: Placement = {
@@ -109,5 +109,27 @@ describe("every production type (SPEC-m3 B7, B8)", () => {
     expect(canJoinHouse("turkey", [{ species: "turkey", sex: "female" }]).ok).toBe(false);
     expect(Batch.place({ ...placement, sex: "male" }, day("2026-10-14"))).toEqual({ ok: false, error: "INVALID_INPUT" }); // broilers aren't sexed
     expect(Batch.place({ ...placement, species: "turkey", sex: "male" }, day("2026-10-14")).ok).toBe(true);
+  });
+});
+
+describe("chick arrival (SPEC-m3 B10)", () => {
+  // P-ChickArrival's example: 10 000 billed + 200 free, 14 dead on arrival.
+  const delivery = { ...placement, chicksPlaced: 10_000, freeChicks: 200, deadOnArrival: 14 };
+
+  it("starts with the billed chicks plus the free supplement, less the dead on arrival", () => {
+    expect(birdsStarted(delivery)).toBe(10_186);
+    expect(Batch.rehydrate(delivery, "open").birdsStarted).toBe(10_186);
+    expect(birdsStarted({ chicksPlaced: 1000, deadOnArrival: 10 })).toBe(990); // a batch pulled before M3
+    expect(Batch.place({ ...delivery, deadOnArrival: 10_199 }, day("2026-10-14")).ok).toBe(true);
+    expect(Batch.place({ ...delivery, deadOnArrival: 10_200 }, day("2026-10-14"))).toEqual({ ok: false, error: "DEAD_ON_ARRIVAL_TOO_HIGH" });
+    expect(Batch.place({ ...delivery, freeChicks: -1 }, day("2026-10-14"))).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+  });
+
+  it("flags a claim only above a threshold the farm set", () => {
+    expect(doaClaim(delivery, null)).toBe(false); // no threshold assumed (MQ6)
+    expect(doaClaim(delivery, 5)).toBe(false); // 14 of 10 200 = 1.37 ‰
+    expect(doaClaim(delivery, 1)).toBe(true);
+    expect(doaClaim({ ...delivery, deadOnArrival: 51 }, 5)).toBe(false); // 51 of 10 200 = 5.0 ‰: at the threshold, not above
+    expect(doaClaim({ ...delivery, deadOnArrival: 52 }, 5)).toBe(true);
   });
 });

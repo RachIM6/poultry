@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { formatDecimal, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { ageOfBatch, batchKpis, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { ageOfBatch, batchKpis, birdsStarted, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { CurvePoint } from "@/modules/reference-data/schema";
 import { standardAt } from "@/modules/reference-data/shared";
 
@@ -27,7 +27,7 @@ export function BatchDashboard({
 }) {
   const t = useTranslations();
   const placedOn = batch.placedOn as FarmDay;
-  const k = batchKpis({ placedOn, birdsStarted: batch.chicksPlaced - batch.deadOnArrival, dayOldWeightGrams: batch.dayOldWeightGrams, ageAtPlacementDays: batch.ageAtPlacementDays }, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
+  const k = batchKpis({ placedOn, birdsStarted: birdsStarted(batch), dayOldWeightGrams: batch.dayOldWeightGrams, ageAtPlacementDays: batch.ageAtPlacementDays }, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
   const w = k.weighed;
   const standard = w && curve ? standardAt(curve, w.ageDays) : null;
   const none = "—";

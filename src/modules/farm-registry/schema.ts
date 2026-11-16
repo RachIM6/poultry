@@ -58,6 +58,8 @@ export const FarmFields = z.object({
   commune: text(80),
   gps: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).nullable(),
   onssa: z.object({ number: text(40), expiresOn: z.iso.date() }).nullable(), // ONSSA authorization
+  // SPEC-m3 B10: the hatchery contract's dead-on-arrival threshold, per mille. Optional, never defaulted (MQ6).
+  doaClaimThresholdPermille: z.int32().min(1).max(1000).nullable().optional(),
 });
 export type FarmFields = z.infer<typeof FarmFields>;
 

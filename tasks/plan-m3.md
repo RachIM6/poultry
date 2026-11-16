@@ -69,8 +69,10 @@ Done 2026-11-16 (branch `feat/t54-turkey-sexes`): `Batch.sex` (mixed for every M
 ### T55: Chick arrival quality (B10)
 **Description:** Optional placement fields: parent flock, supplement, weak chicks, litter temperature; density; DOA claim threshold per farm (empty by default).
 **AC:**
-- [ ] Birds started = billed + supplement − DOA (unit test); density shown (e2e).
-- [ ] No claim message without a threshold; above a set threshold the placement shows it (unit test).
+- [x] Birds started = billed + supplement − DOA (unit test); density shown (e2e). (`flock/domain/batch.test.ts` with P-ChickArrival's 10 000 + 200 − 14 = 10 186; `e2e/production-types.spec.ts` shows 10,2 sujets/m².)
+- [x] No claim message without a threshold; above a set threshold the placement shows it (unit test). (`doaClaim`: strictly above, per mille of the chicks delivered.)
+
+Done 2026-11-16 (branch `feat/t55-chick-arrival`): `Batch.freeChicks`, `parentFlock`, `weakChicks`, `litterTempTenths` (all optional; the supplement and weak chicks are not asked for a sexed placement); `Farm.doaClaimThresholdPermille`, entered in % on the farm form, empty by default (MQ6). `birdsStarted` is the one rule for birds started everywhere (screens, KPIs, sales, finance's bird-days). The free supplement is not billed: the chick cost stays billed × price.
 **Size:** S
 
 ### T56: Beldi run (B11)

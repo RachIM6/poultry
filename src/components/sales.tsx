@@ -9,7 +9,7 @@ import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
-import { Batch, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import { Batch, birdsStarted, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { withdrawalUntil, type TreatmentDto } from "@/modules/health/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
 import { field, primary, secondary } from "@/components/ui";
@@ -151,7 +151,7 @@ function SaleForm({
     );
     if (!checked.ok) return setError(`errors.${checked.error}`);
     const aggregate = Batch.rehydrate({ ...batch, placedOn: batch.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, batch.status);
-    const birdsOk = aggregate.checkBirdsSold(day, birds, batch.chicksPlaced - batch.deadOnArrival - birdsOnHand, today());
+    const birdsOk = aggregate.checkBirdsSold(day, birds, birdsStarted(batch) - birdsOnHand, today());
     if (!birdsOk.ok) return setError(`errors.${birdsOk.error}`);
     setError(undefined);
 

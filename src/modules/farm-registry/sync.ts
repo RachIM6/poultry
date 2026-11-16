@@ -26,6 +26,7 @@ type FarmRow = {
   longitude: number | null;
   onssaNumber: string | null;
   onssaExpiresOn: Date | null;
+  doaClaimThresholdPermille: number | null;
 };
 
 const farmDto = (r: FarmRow): FarmDto => ({
@@ -36,6 +37,7 @@ const farmDto = (r: FarmRow): FarmDto => ({
   commune: r.commune,
   gps: r.latitude === null || r.longitude === null ? null : { lat: r.latitude, lng: r.longitude },
   onssa: r.onssaNumber && r.onssaExpiresOn ? { number: r.onssaNumber, expiresOn: r.onssaExpiresOn.toISOString().slice(0, 10) } : null,
+  doaClaimThresholdPermille: r.doaClaimThresholdPermille,
 });
 
 // gps and onssa are one field each on the wire, two columns each in the table.

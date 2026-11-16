@@ -144,7 +144,8 @@
     },
     "houseSummary": "{area} م² · {capacity} طير · {type}",
     "farmSummary": "{commune}، {province} · المباني: {count}",
-    "onssaUntil": "ترخيص ONSSA {number}، صالح إلى غاية {date}"
+    "onssaUntil": "ترخيص ONSSA {number}، صالح إلى غاية {date}",
+    "doaClaim": "عتبة الشكاية إلى المفقس (% النفوق عند الوصول، اختياري)"
   },
   "Protocol": {
     "title": "برنامج التلقيح",
@@ -321,7 +322,14 @@
       "female": "إناث",
       "male": "ذكور"
     },
-    "otherSex": "نفس الدفعة، {sex}: {birds} طائر"
+    "otherSex": "نفس الدفعة، {sex}: {birds} طائر",
+    "freeChicks": "الزيادة المجانية (اختياري)",
+    "arrival": "الجودة عند الوصول (اختياري)",
+    "parentFlock": "قطيع الأمهات",
+    "weakChicks": "الكتاكيت الضعيفة",
+    "litterTemp": "حرارة الفرشة (°م)",
+    "density": "الكثافة: {density} طائر/م²",
+    "claim": "النفوق عند الوصول فوق عتبة العقد: شكاية إلى المفقس"
   },
   "Day": {
     "title": "تسجيل اليوم",

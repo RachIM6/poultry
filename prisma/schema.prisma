@@ -33,6 +33,7 @@ model Farm {
   longitude      Float?
   onssaNumber    String? // ONSSA authorization
   onssaExpiresOn DateTime?    @db.Date
+  doaClaimThresholdPermille Int? // SPEC-m3 B10: dead on arrival above it = a claim to the hatchery; null = no alert (MQ6)
   createdAt      DateTime     @default(now()) @db.Timestamptz
   updatedAt      DateTime     @updatedAt @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -465,6 +466,11 @@ model Batch {
   dayOldWeightGrams      Int?
   ageAtPlacementDays     Int       @default(0) // SPEC-m3 B7: started pullets or point-of-lay hens arrive older
   sex                    String    @default("mixed") // SPEC-m3 B9: mixed | female | male (turkeys raised apart)
+  // SPEC-m3 B10, chick arrival quality, all optional: free extra chicks are placed but not billed.
+  freeChicks             Int       @default(0)
+  parentFlock            String?
+  weakChicks             Int?
+  litterTempTenths       Int? // °C × 10
   status                 String    @default("open") // open | closed
   // B6, set when it closes and never changed afterwards: the locked figures.
   closedOn               DateTime? @db.Date // farm day

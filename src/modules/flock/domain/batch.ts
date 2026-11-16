@@ -25,7 +25,21 @@ export type Placement = {
   dayOldWeightGrams: number | null; // average, optional
   ageAtPlacementDays?: number; // SPEC-m3 B7: absent or 0 for day-old chicks
   sex?: BirdSex; // SPEC-m3 B9: absent or mixed, except turkeys raised by sex
+  freeChicks?: number; // SPEC-m3 B10: the hatchery's free supplement, placed but not billed
+  parentFlock?: string | null;
+  weakChicks?: number | null;
+  litterTempTenths?: number | null;
 };
+
+/** SPEC-m3 B10: birds that started the batch: billed + free supplement − dead on arrival. */
+export const birdsStarted = (b: { chicksPlaced: number; freeChicks?: number; deadOnArrival: number }) => b.chicksPlaced + (b.freeChicks ?? 0) - b.deadOnArrival;
+
+/**
+ * SPEC-m3 B10: is dead on arrival above the farm's claim threshold (per mille of the chicks delivered)? Never without a
+ * threshold: none is assumed (MQ6).
+ */
+export const doaClaim = (b: { chicksPlaced: number; freeChicks?: number; deadOnArrival: number }, thresholdPermille: number | null | undefined) =>
+  !!thresholdPermille && b.deadOnArrival * 1000 > thresholdPermille * (b.chicksPlaced + (b.freeChicks ?? 0));
 
 export type PlacementError = "INVALID_QUANTITY" | "DEAD_ON_ARRIVAL_TOO_HIGH" | "PLACEMENT_IN_FUTURE" | "INVALID_INPUT";
 
@@ -65,7 +79,9 @@ export class Batch {
   static place(p: Placement, today: FarmDay): Result<Batch, PlacementError> {
     if (!Number.isSafeInteger(p.chicksPlaced) || p.chicksPlaced <= 0) return fail("INVALID_QUANTITY");
     if (!Number.isSafeInteger(p.deadOnArrival) || p.deadOnArrival < 0) return fail("INVALID_QUANTITY");
-    if (p.deadOnArrival >= p.chicksPlaced) return fail("DEAD_ON_ARRIVAL_TOO_HIGH");
+    const extra = [p.freeChicks ?? 0, p.weakChicks ?? 0];
+    if (extra.some((n) => !Number.isSafeInteger(n) || n < 0)) return fail("INVALID_QUANTITY");
+    if (p.deadOnArrival >= p.chicksPlaced + extra[0]) return fail("DEAD_ON_ARRIVAL_TOO_HIGH");
     if (p.chickUnitPriceCentimes < 0n || (p.dayOldWeightGrams !== null && p.dayOldWeightGrams <= 0)) return fail("INVALID_QUANTITY");
     if ((p.sex ?? "mixed") !== "mixed" && !SEXED_TYPES.includes(p.species)) return fail("INVALID_INPUT");
     const age = p.ageAtPlacementDays ?? 0;
@@ -89,7 +105,7 @@ export class Batch {
 
   /** Birds actually started: placed minus dead on arrival. Mortality and sales lower what is on hand. */
   get birdsStarted() {
-    return this.placement.chicksPlaced - this.placement.deadOnArrival;
+    return birdsStarted(this.placement);
   }
 
   canBecome(next: BatchStatus) {

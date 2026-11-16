@@ -39,7 +39,7 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext): Promise<Bat
     placedOn: day(b.placedOn),
     closedOn: b.closedOn ? day(b.closedOn) : null,
     status: b.status,
-    started: b.chicksPlaced - b.deadOnArrival,
+    started: b.chicksPlaced + b.freeChicks - b.deadOnArrival, // SPEC-m3 B10
     chicksPlaced: b.chicksPlaced,
     chickUnitPriceCentimes: b.chickUnitPriceCentimes,
     chicksCentimes: BigInt(b.chicksPlaced) * b.chickUnitPriceCentimes,

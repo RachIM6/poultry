@@ -9,7 +9,7 @@ import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ageOn, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import { ageOn, birdsStarted, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
 import { cachedReference, localDb } from "@/offline/db";
 
@@ -69,7 +69,7 @@ export function Today({ title, userId, organizationId, sync, alert }: { title: s
       vaccineDays: due.map((v) => v.dueOn),
       withdrawal: until && from ? { from: from as FarmDay, to: until } : null,
     });
-    const birds = b.chicksPlaced - b.deadOnArrival - sold.filter((s) => s.batchId === b.id).reduce((n, s) => n + s.birds, 0) - own.reduce((n, e) => n + e.dead + e.culled, 0);
+    const birds = birdsStarted(b) - sold.filter((s) => s.batchId === b.id).reduce((n, s) => n + s.birds, 0) - own.reduce((n, e) => n + e.dead + e.culled, 0);
     const house = houses.find((h) => h.id === b.houseId)?.name ?? "";
     const strain = strains.find((s) => s.id === b.strainId)?.name ?? b.strainId;
     return { b, age, days, birds, house, strain, until, due, enteredToday: own.some((e) => e.day === today), missing: days.filter((d) => d.state === "missing") };

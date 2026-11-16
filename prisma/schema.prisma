@@ -836,3 +836,37 @@ model Visit {
 
   @@index([organizationId, farmId, enteredAt])
 }
+
+// Owner: biosecurity. SPEC-m2-compliance BS6: dead birds disposed of (law 49-99 art. 12).
+model Disposal {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  batchId        String?  @db.Uuid
+  birds          Int
+  weightGrams    Int?
+  method         String // incineration | authorizedSite | other (CQ4)
+  methodNote     String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS7: manure taken out (art. 13). Kilograms, no money.
+model ManureRemoval {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  day            DateTime @db.Date
+  houseId        String?  @db.Uuid
+  batchId        String?  @db.Uuid
+  quantityKg     Int
+  destination    String // stored | spread | sold | given
+  recipient      String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}

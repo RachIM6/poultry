@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // SPEC R1–R4. Isomorphic, and also imported by prisma/seed.ts under plain Node: no "@/" imports here. The phone's
 // screens import ./shared.ts (no Zod, ADR-009), re-exported here.
-import { PRODUCT_KINDS, VACCINATION_METHODS } from "./shared.ts";
+import { PRODUCT_KINDS, PRODUCTION_TYPES, VACCINATION_METHODS } from "./shared.ts";
 export * from "./shared.ts";
 
 const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).max(60);
@@ -27,7 +27,8 @@ export const CurveFile = z.object({
 });
 export type CurveFile = z.infer<typeof CurveFile>;
 
-export const Strain = z.object({ id: slug, name: text(80) });
+/** R5: a strain serves one or more production types (Lohmann Brown: pullet and layer). */
+export const Strain = z.object({ id: slug, name: text(80), productionTypes: z.array(z.enum(PRODUCTION_TYPES)).min(1) });
 export type Strain = z.infer<typeof Strain>;
 
 export const Product = z.object({

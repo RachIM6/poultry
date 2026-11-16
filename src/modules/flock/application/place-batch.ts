@@ -10,7 +10,7 @@ import { houseOf } from "@/modules/farm-registry";
 import { Batch } from "@/modules/flock/domain/batch";
 import { batchIdTaken, findOpenInHouse, lockHouse, saveNewBatch } from "@/modules/flock/infrastructure/batches";
 import type { PlaceBatch } from "@/modules/flock/schema";
-import { isStrain } from "@/modules/reference-data";
+import { strainServes } from "@/modules/reference-data";
 
 /**
  * SPEC B1, applied by the sync push: load → Batch.place → one-open-batch check → save + change log + audit.
@@ -25,7 +25,7 @@ export async function placeBatch(
 ) {
   const house = await houseOf(tx, ctx, cmd.houseId);
   if (!house) return fail("NOT_FOUND");
-  if (!(await isStrain(tx, cmd.strainId))) return fail("INVALID_INPUT");
+  if (!(await strainServes(tx, cmd.strainId, cmd.species))) return fail("INVALID_INPUT"); // R5
 
   // A phone's clock may run a little ahead of the server's: accept up to tomorrow's farm day.
   const today = nextFarmDay(farmDayOf(clock.now()));

@@ -1,4 +1,12 @@
 [
-  { "id": "ross-308", "name": "Ross 308" },
-  { "id": "cobb-500", "name": "Cobb 500" }
+  { "id": "ross-308", "name": "Ross 308", "productionTypes": ["broiler"] },
+  { "id": "cobb-500", "name": "Cobb 500", "productionTypes": ["broiler"] },
+  { "id": "but-6", "name": "BUT 6", "productionTypes": ["turkey"] },
+  { "id": "lohmann-brown", "name": "Lohmann Brown", "productionTypes": ["pullet", "layer"] },
+  { "id": "unspecified-broiler", "name": "Souche non précisée", "productionTypes": ["broiler"] },
+  { "id": "unspecified-turkey", "name": "Souche non précisée", "productionTypes": ["turkey"] },
+  { "id": "unspecified-layer", "name": "Souche non précisée", "productionTypes": ["pullet", "layer"] },
+  { "id": "unspecified-beldi", "name": "Beldi (locale)", "productionTypes": ["beldi"] },
+  { "id": "unspecified-duck", "name": "Souche non précisée", "productionTypes": ["duck"] },
+  { "id": "unspecified-quail", "name": "Souche non précisée", "productionTypes": ["quail"] }
 ]

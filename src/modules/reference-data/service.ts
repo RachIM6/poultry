@@ -1,6 +1,6 @@
 import { db, type Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import type { ProtocolItem, ReferenceData } from "@/modules/reference-data/schema";
+import type { ProductionType, ProtocolItem, ReferenceData, Strain } from "@/modules/reference-data/schema";
 
 /** R4: the same for every organisation (not farm data, so no tenant context), read-only, cached by the phone. */
 export async function getReferenceData(): Promise<ReferenceData> {
@@ -16,6 +16,7 @@ export async function getReferenceData(): Promise<ReferenceData> {
     strains: strains.map((s) => ({
       id: s.id,
       name: s.name,
+      productionTypes: s.productionTypes as Strain["productionTypes"],
       curves: s.curves.map((c) => ({
         source: c.source,
         version: c.version,
@@ -36,8 +37,9 @@ export async function getReferenceData(): Promise<ReferenceData> {
 /** For other modules: is this id a product of the catalogue? Read inside their transaction. */
 export const isCatalogueProduct = async (tx: Tx, id: string) => (await tx.product.count({ where: { id } })) === 1;
 
-/** For other modules: is this a strain of the catalogue (R1)? */
-export const isStrain = async (tx: Tx, id: string) => (await tx.strain.count({ where: { id } })) === 1;
+/** For other modules: is this a strain of the catalogue that serves this production type (R1, R5)? */
+export const strainServes = async (tx: Tx, id: string, type: ProductionType) =>
+  (await tx.strain.count({ where: { id, productionTypes: { has: type } } })) === 1;
 
 /** For other modules: are these all vaccines of the catalogue (R3)? */
 export async function areVaccines(tx: Tx, ids: string[]) {

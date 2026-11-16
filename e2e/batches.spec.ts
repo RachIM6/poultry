@@ -41,7 +41,13 @@ test("a batch placed offline starts at day 0, and a second one in the same house
   };
   await place();
   await expect(page.getByText("Jour 0")).toBeVisible();
-  await expect(page.getByText("Ferme Atlas · Bâtiment 1 · Ross 308")).toBeVisible();
+  await expect(page.getByText("Poulet de chair · Ferme Atlas · Bâtiment 1 · Ross 308")).toBeVisible();
+
+  // SPEC-m3 R5: the production type first, then only its strains.
+  await page.getByRole("button", { name: "Mettre en place une bande" }).click();
+  await page.getByLabel("Production").selectOption({ label: "Pondeuse" });
+  await expect(page.getByLabel("Souche").locator("option")).toHaveText(["Lohmann Brown", "Souche non précisée"]);
+  await page.getByRole("button", { name: "Annuler" }).click();
 
   await place();
   await expect(page.getByRole("alert").filter({ hasText: "Ce bâtiment a déjà une bande en cours" })).toBeVisible();

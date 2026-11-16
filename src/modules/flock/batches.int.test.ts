@@ -35,7 +35,8 @@ describe("batch placement (SPEC B1)", () => {
 
   beforeAll(async () => {
     [a, b] = await twoTenants();
-    await db.strain.create({ data: { id: "ross-308", name: "Ross 308" } });
+    await db.strain.create({ data: { id: "ross-308", name: "Ross 308" } }); // an M1 row: broiler by default
+    await db.strain.create({ data: { id: "lohmann-brown", name: "Lohmann Brown", productionTypes: ["pullet", "layer"] } });
     const farm = (id: string) => m(FARM_MUTATIONS.createFarm, { id, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null });
     const house = (id: string, farmId: string) => m(FARM_MUTATIONS.createHouse, { id, farmId, name: "B", areaM2: 1200, capacity: 12000, type: "closed" });
     await push(a, [farm(farmA), house(houses.a1, farmA), house(houses.a2, farmA), house(houses.a3, farmA)], farmRegistrySync);
@@ -75,6 +76,18 @@ describe("batch placement (SPEC B1)", () => {
     expect(seen.length).toBeGreaterThan(0);
     expect(JSON.stringify(seen)).not.toMatch(/chickUnitPrice/);
     expect((await pull(b, 0, registry)).changes).toEqual([]); // nothing of a's
+  });
+
+  it("places every production type with one of its strains, and an M1 placement as a broiler (SPEC-m3 R5)", async () => {
+    const [layer, legacy] = [placement(houses.b1, { species: "layer", strainId: "lohmann-brown" }), placement(houses.a2)];
+    expect(await statuses(b, [m(M.placeBatch, placement(houses.b1, { species: "turkey" })), m(M.placeBatch, layer)])).toEqual(["errors.INVALID_INPUT", "applied"]);
+    expect(await statuses(b, [m(M.placeBatch, placement(houses.b1, { species: "goose", strainId: "lohmann-brown" }))])).toEqual(["errors.INVALID_INPUT"]);
+    await db.batch.updateMany({ where: { houseId: houses.a2 }, data: { status: "closed" } });
+    expect(await statuses(a, [m(M.placeBatch, legacy)])).toEqual(["applied"]); // queued by an M1 phone: no species
+    const pulled = (await pull(b, 0, registry)).changes.map((c) => c.data as BatchDto);
+    expect(pulled.find((d) => d.id === layer.id)?.species).toBe("layer");
+    expect((await db.batch.findUnique({ where: { id: legacy.id } }))?.species).toBe("broiler");
+    await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
   });
 
   it("refuses a number too big for its column instead of failing the push (T25 S4)", async () => {

@@ -14,6 +14,7 @@ import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchCostDto, type BatchDto, t
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
+import { PRODUCTION_TYPES, type ProductionType } from "@/modules/reference-data/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import dynamic from "next/dynamic";
 import { DayForm, type Write } from "@/components/daily-entry";
@@ -101,7 +102,8 @@ function Batches(scope: Scope) {
   };
 
   const shown = batches.find((b) => b.id === openId);
-  const title = (b: BatchDto) => t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strains.find((s) => s.id === b.strainId)?.name ?? b.strainId });
+  const strainName = (id: string) => (id.startsWith("unspecified-") ? t("Batches.unspecifiedStrain") : (strains.find((s) => s.id === id)?.name ?? id));
+  const title = (b: BatchDto) => `${t(`Types.${b.species}`)} · ${t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strainName(b.strainId) })}`;
   const costsOf = (batchId: string) => of<BatchCostDto>("batchCost").filter((c) => c.batchId === batchId);
   const salesOf = (batchId: string) => of<SaleDto>("sale").filter((s) => s.batchId === batchId);
   if (shown?.status === "closed") {
@@ -208,9 +210,7 @@ function Batches(scope: Scope) {
               <span className="font-semibold">
                 {b.status === "open" ? t("Batches.age", { age: String(ageOn(b.placedOn as FarmDay, today())) }) : t("Batches.status.closed")}
               </span>
-              <span>
-                {t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strains.find((s) => s.id === b.strainId)?.name ?? b.strainId })}
-              </span>
+              <span>{title(b)}</span>
               <span className="text-sm opacity-75">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
               <span>{t("Day.onHand", { birds: formatCount(onHand(b)) })}</span>
               {b.status === "open" ? (
@@ -232,7 +232,7 @@ function Batches(scope: Scope) {
         ) : placing ? (
           <PlacementForm
             houses={houses.map((h) => ({ ...h, label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`, busy: busy.has(h.id) }))}
-            strains={strains}
+            strains={strains.map((s) => ({ id: s.id, name: strainName(s.id), productionTypes: s.productionTypes ?? ["broiler"] }))}
             protocols={protocols}
             onSave={save}
             onCancel={() => setPlacing(false)}
@@ -272,13 +272,15 @@ function PlacementForm({
   onCancel,
 }: {
   houses: (HouseDto & { label: string; busy: boolean })[];
-  strains: { id: string; name: string }[];
+  strains: { id: string; name: string; productionTypes: readonly ProductionType[] }[];
   protocols: ProtocolDto[];
   onSave: (batch: BatchDto, payload: unknown, protocol: ProtocolDto | undefined) => Promise<void>;
   onCancel: () => void;
 }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
+  const [type, setType] = useState<ProductionType>("broiler"); // R5: the type first, then only its strains
+  const typeStrains = strains.filter((s) => s.productionTypes.includes(type));
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -294,6 +296,7 @@ function PlacementForm({
       id: uuidv7(),
       farmId: house.farmId,
       houseId: house.id,
+      species: type,
       strainId: get("strainId"),
       placedOn: (get("placedOn") || today()) as FarmDay,
       chicksPlaced: int("chicksPlaced"),
@@ -308,7 +311,7 @@ function PlacementForm({
     setError(undefined);
 
     const sent = { ...placement, chickUnitPriceCentimes: String(price) }; // farmId is dropped by the schema: the server derives it
-    await onSave({ ...sent, species: "broiler", status: "open" }, sent, protocols.find((p) => p.id === get("protocolId")));
+    await onSave({ ...sent, status: "open" }, sent, protocols.find((p) => p.id === get("protocolId")));
   };
 
   return (
@@ -318,8 +321,14 @@ function PlacementForm({
           <option key={h.id} value={h.id}>{h.busy ? t("Batches.houseBusy", { house: h.label }) : h.label}</option>
         ))}
       </Select>
-      <Select label={t("Batches.strain")} name="strainId">
-        {strains.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      <div className="flex flex-col gap-1">
+        <label htmlFor="placement-type">{t("Batches.type")}</label>
+        <select id="placement-type" value={type} onChange={(e) => setType(e.target.value as ProductionType)} className={field}>
+          {PRODUCTION_TYPES.map((p) => <option key={p} value={p}>{t(`Types.${p}`)}</option>)}
+        </select>
+      </div>
+      <Select key={type} label={t("Batches.strain")} name="strainId">
+        {typeStrains.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
       </Select>
       {protocols.length > 0 && (
         <Select label={t("Batches.protocol")} name="protocolId">

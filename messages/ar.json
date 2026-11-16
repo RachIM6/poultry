@@ -197,6 +197,14 @@
       "creditApproval": {
         "title": "بيع بالأجل ينتظر موافقتك: {buyer}",
         "body": "بيع بالأجل بمبلغ {amount} يتجاوز السقف المحدد في {limit}."
+      },
+      "documentExpiring": {
+        "title": "للتجديد: {title}",
+        "body": "الأجل في {date}. فكّر في التجديد."
+      },
+      "documentExpired": {
+        "title": "حلّ الأجل: {title}",
+        "body": "انتهى الأجل في {date}. يجب التجديد."
       }
     }
   },

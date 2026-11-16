@@ -191,7 +191,18 @@ Not yet: the batch column in the cash book (FN16 "with category and batch"). Led
 
 ### T37: 5 M DH tracker (FN17)
 **AC:**
-- [ ] Fixture 4 260 450 + 690 000 → 99 %; alert from 90 %.
+- [x] Fixture 4 260 450 + 690 000 → 99 %; alert from 90 %. (`finance/domain/threshold.test.ts`; `finance/threshold.int.test.ts` with a booked sale and a saved budget; `e2e/threshold.spec.ts`: the dashboard warns at 91 %.)
+
+Done 2026-11-15 (branch `feat/t37-threshold`), decisions taken without asking:
+- **The threshold is configuration with a validity date** (`finance/domain/threshold.ts`, `THRESHOLDS`). A change of law adds an entry, never edits one. The first entry holds 5 000 000,00 DH from 2026-01-01, and its rule text in FR and AR cites CGI art. 47-I and art. 6-I-A-29° (NEEDS-ANALYSIS §3) and says to confirm the conditions with the accountant (FQ5).
+- **Booked:** the 712x lines of the fiscal year (credit − debit).
+- **Planned:** the planned sales of the budgets saved during the fiscal year. An open batch has no planned sales of its own unless a budget gives them.
+- **Percent:** rounded down. The alert is from 90 %.
+- **History:** the last 3 fiscal years, each marked when over the threshold (for the "3 years in a row" rule).
+- **Screens:** `/threshold` (online, owner and manager), and a warning at the top of the dashboard from 90 %.
+
+Not yet: a push notification when the year crosses 90 %; the dashboard warning only shows on an online visit.
+
 **Size:** S
 
 ### T38: Export to the accountant (FN18)

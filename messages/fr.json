@@ -716,5 +716,18 @@
     "since": "Depuis le début de l’exercice, le {from}",
     "balanced": "Balance équilibrée",
     "unbalanced": "Balance déséquilibrée"
+  },
+  "Threshold": {
+    "open": "Seuil des 5 M DH",
+    "title": "Seuil d’exonération : {amount}",
+    "none": "Aucun seuil configuré pour cette date.",
+    "alert": "Vos ventes agricoles atteignent {percent} % du seuil d’exonération.",
+    "over": "Vos ventes agricoles dépassent le seuil d’exonération ({percent} %).",
+    "year": "Exercice du {from} au {to}",
+    "booked": "Ventes comptabilisées",
+    "planned": "Ventes prévues (budgets)",
+    "total": "Total",
+    "history": "Les 3 derniers exercices",
+    "overShort": "au-dessus du seuil"
   }
 }

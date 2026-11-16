@@ -8,7 +8,7 @@ import { formatCount, formatDay, formatKg } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { ageOn, type BatchDto } from "@/modules/flock/shared";
-import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
+import { originNumber, type BuyerDto, type SaleDto } from "@/modules/sales/shared";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
 import { primary } from "@/components/ui";
@@ -77,7 +77,7 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
       <header className="flex flex-col gap-1 text-center">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="opacity-75">{t("law")}</p>
-        <p>{t("number", { number: sale.id.slice(0, 8).toUpperCase() })}</p>
+        <p>{t("number", { number: originNumber(sale.id) })}</p>
       </header>
       <Part title={t("farm")}>
         <Row label={t("farmName")}>{farm.name}</Row>

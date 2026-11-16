@@ -180,10 +180,11 @@ export const biosecuritySync: SyncRegistry = {
 export async function attachRodentProof(ctx: TenantContext, checkId: string, fileId: string): Promise<Result<void>> {
   if (!can(ctx, "biosecurity.record")) return fail("FORBIDDEN");
   return db.$transaction(async (tx) => {
+    // Conditional update: of two uploads at once, only the first attaches (the row is locked by the first update).
+    const { count } = await tx.rodentCheck.updateMany({ where: { id: checkId, organizationId: ctx.organizationId, proofFileId: null }, data: { proofFileId: fileId } });
     const row = await tx.rodentCheck.findFirst({ where: { id: checkId, organizationId: ctx.organizationId } });
     if (!row) return fail("NOT_FOUND");
-    if (row.proofFileId) return fail("PROOF_ALREADY_ATTACHED");
-    await tx.rodentCheck.update({ where: { id: checkId }, data: { proofFileId: fileId } });
+    if (count === 0) return fail("PROOF_ALREADY_ATTACHED");
     const dto: RodentCheckDto = { id: row.id, farmId: row.farmId, houseId: row.houseId, day: dayOf(row.day), action: row.action as RodentCheckDto["action"], product: row.product, proofFileId: fileId };
     await recordChange(tx, ctx, "rodentCheck", checkId, dto);
     await audit(tx, ctx, { entity: "RodentCheck", entityId: checkId, action: "update", before: { proofFileId: null }, after: { proofFileId: fileId } });

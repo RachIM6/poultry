@@ -385,7 +385,8 @@
     "CLEANOUT_ALREADY_STARTED": "Le nettoyage après cette bande est déjà commencé.",
     "FILE_TOO_LARGE": "Fichier trop lourd : 5 Mo au maximum.",
     "FILE_TYPE_NOT_ALLOWED": "Type de fichier refusé : PDF, JPEG, PNG ou WebP seulement.",
-    "PROOF_ALREADY_ATTACHED": "Cette vérification a déjà sa photo."
+    "PROOF_ALREADY_ATTACHED": "Cette vérification a déjà sa photo.",
+    "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier."
   },
   "Weighing": {
     "title": "Pesée",
@@ -863,9 +864,7 @@
     "rodentLine": "{date} : {action}",
     "proof": "Voir la photo",
     "proofMissing": "Preuve à ajouter (après envoi, avec du réseau)",
-    "proofAdd": "Ajouter la photo",
-    "proofSending": "Envoi de la photo…",
-    "proofFailed": "La photo n’a pas pu être envoyée. Réessayez avec du réseau."
+    "proofAdd": "Ajouter la photo"
   },
   "Cleanout": {
     "title": "Nettoyage et vide sanitaire",
@@ -897,5 +896,47 @@
     "save": "Enregistrer l’étape",
     "minDays": "Vide sanitaire minimal de la ferme (jours, facultatif)",
     "saveMin": "Enregistrer"
+  },
+  "Files": {
+    "sending": "Envoi du fichier…",
+    "failed": "Le fichier n’a pas pu être envoyé. Réessayez avec du réseau."
+  },
+  "Documents": {
+    "titlePage": "Documents",
+    "open": "Documents et échéances",
+    "forbidden": "Les documents sont réservés au propriétaire et au gérant.",
+    "add": "Ajouter un document",
+    "none": "Aucun document pour l’instant.",
+    "list": "Coffre-fort, par date d’échéance",
+    "title": "Intitulé",
+    "category": "Catégorie",
+    "categories": {
+      "authorization": "Autorisation sanitaire",
+      "vetContract": "Contrat du vétérinaire",
+      "labReport": "Analyse de laboratoire",
+      "insurance": "Assurance",
+      "land": "Foncier, bail",
+      "company": "Documents de la société",
+      "tax": "Fiscal et social",
+      "equipment": "Équipement, contrôle",
+      "other": "Autre"
+    },
+    "farm": "Ferme",
+    "wholeOrganization": "Toute l’exploitation",
+    "issuedOn": "Date de délivrance (facultatif)",
+    "expiresOnField": "Date d’échéance (facultatif)",
+    "expiresOn": "Échéance : {date}",
+    "notes": "Note (facultatif)",
+    "save": "Enregistrer le document",
+    "cancel": "Annuler",
+    "states": {
+      "expired": "expiré",
+      "soon": "à renouveler bientôt",
+      "valid": "valide",
+      "none": "sans échéance"
+    },
+    "file": "Voir le fichier",
+    "fileAdd": "Ajouter le fichier (PDF ou photo)",
+    "fileLater": "Fichier à ajouter (après envoi, avec du réseau)"
   }
 }

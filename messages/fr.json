@@ -375,7 +375,8 @@
     "ALREADY_REVERSED": "Cette écriture a déjà été annulée.",
     "FISCAL_YEAR_HAS_ENTRIES": "L’exercice a déjà des écritures : ce réglage ne peut changer qu’au début du prochain exercice.",
     "BUYER_CREDIT_BLOCKED": "Un chèque ou une traite de cet acheteur est revenu impayé : il paie comptant jusqu’à ce que le propriétaire lève le blocage.",
-    "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état."
+    "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état.",
+    "VISIT_DIRTY_ZONE_ONLY": "Ce visiteur est passé par un autre élevage : zone sale uniquement."
   },
   "Weighing": {
     "title": "Pesée",
@@ -730,5 +731,42 @@
     "total": "Total",
     "history": "Les 3 derniers exercices",
     "overShort": "au-dessus du seuil"
+  },
+  "Biosecurity": {
+    "forbidden": "Ce registre n’est pas disponible pour votre rôle.",
+    "farm": "Ferme"
+  },
+  "Visitors": {
+    "title": "Entrée d’un visiteur",
+    "open": "Registre des visiteurs",
+    "noFarm": "Créez d’abord une ferme.",
+    "visitor": "Nom et société",
+    "vehicle": "Véhicule (immatriculation, facultatif)",
+    "purpose": "Motif",
+    "purposes": {
+      "feedDelivery": "Livraison d’aliment",
+      "gas": "Livraison de gaz",
+      "chickDelivery": "Livraison de poussins",
+      "vet": "Vétérinaire",
+      "buyer": "Acheteur ou équipe d’enlèvement",
+      "technician": "Technicien ou réparation",
+      "other": "Autre"
+    },
+    "recentTitle": "Dans les {hours} dernières heures",
+    "recentFarm": "A visité un autre élevage avicole",
+    "dirtyOnly": "Accès limité à la zone sale, sans entrer dans les bâtiments.",
+    "checks": "À l’entrée",
+    "wheels": "Roues du véhicule désinfectées",
+    "footbath": "Pédiluve et surbottes",
+    "clothing": "Tenue de la ferme fournie",
+    "zone": "Zone",
+    "zones": {
+      "clean": "Zone propre",
+      "dirty": "Zone sale"
+    },
+    "save": "Enregistrer l’entrée",
+    "today": "Déjà venus aujourd’hui",
+    "none": "Aucun visiteur aujourd’hui.",
+    "line": "{visitor} · {time} · {zone}"
   }
 }

@@ -95,7 +95,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
 
   return (
     <>
-      <header className="flex flex-col gap-[18px] rounded-b-3xl bg-ink px-5 pb-[22px] pt-5 text-shell print:hidden">
+      <header className="flex flex-col gap-[18px] rounded-b-3xl bg-ink px-5 pb-[22px] pt-5 text-shell print:hidden lg:mx-5 lg:mt-5 lg:rounded-3xl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm text-sand">{new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span>
@@ -119,7 +119,8 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
         ))}
       </header>
 
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-3.5 p-5">
+      <main className="mx-auto grid w-full max-w-xl flex-1 content-start gap-6 p-5 lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <div className="flex flex-col gap-3.5">
         {alert}
         <h2 className="text-[17px] font-semibold text-ink-2">{t("Today.tasks")}</h2>
         {batches.length === 0 && (
@@ -177,6 +178,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
             )}
           </section>
         ))}
+        </div>
         {money}
       </main>
     </>

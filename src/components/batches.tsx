@@ -28,6 +28,7 @@ import { field, primary, secondary, warn } from "@/components/ui";
 // SPEC §9.3 budget (ADR-009, T25): the day's entry loads with the page; the rest of the batch screen comes in its own
 // chunks right after. The service worker precaches every chunk, so they load offline too.
 const BatchDashboard = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchDashboard));
+const LayerDashboard = dynamic(() => import("@/components/layer-dashboard").then((m) => m.LayerDashboard));
 const BatchCosts = dynamic(() => import("@/components/closing").then((m) => m.BatchCosts));
 const CloseBatchForm = dynamic(() => import("@/components/closing").then((m) => m.CloseBatchForm));
 const TransferForm = dynamic(() => import("@/components/closing").then((m) => m.TransferForm));
@@ -112,6 +113,8 @@ function Batches(scope: Scope) {
   const strainName = (id: string) => (id.startsWith("unspecified-") ? t("Batches.unspecifiedStrain") : (strains.find((s) => s.id === id)?.name ?? id));
   const sexOf = (b: BatchDto) => (b.sex && b.sex !== "mixed" ? ` · ${t(`Batches.sexes.${b.sex}`)}` : ""); // SPEC-m3 B9
   const title = (b: BatchDto) => `${t(`Types.${b.species}`)}${sexOf(b)} · ${t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strainName(b.strainId) })}`;
+  const collectionsOf = (batchId: string) => of<EggCollectionDto>("eggCollection").filter((c) => c.batchId === batchId);
+  const layingCurve = (b: BatchDto) => strains.find((s) => s.id === b.strainId)?.layingCurves?.at(-1)?.points ?? null; // latest version (R7)
   const costsOf = (batchId: string) => of<BatchCostDto>("batchCost").filter((c) => c.batchId === batchId);
   const salesOf = (batchId: string) => of<SaleDto>("sale").filter((s) => s.batchId === batchId);
   if (shown?.status === "closed") {
@@ -123,7 +126,11 @@ function Batches(scope: Scope) {
         <h2 className="text-xl font-semibold">{title(shown)}</h2>
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <ClosedSummary batch={shown} />
-        <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curve={curve} />
+        {shown.species === "layer" ? (
+          <LayerDashboard batch={shown} entries={entriesOf(shown.id)} sold={soldOf(shown.id)} collections={collectionsOf(shown.id)} curve={layingCurve(shown)} />
+        ) : (
+          <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curve={curve} />
+        )}
         <BatchCosts batch={shown} costs={costsOf(shown.id)} manage={can(scope, "flock.manage")} write={write} />
         {can(scope, "sales.manage") && <Sales batch={shown} sales={salesOf(shown.id)} buyers={of<BuyerDto>("buyer")} treatments={[]} birdsOnHand={0} write={write} />}
       </>
@@ -160,7 +167,11 @@ function Batches(scope: Scope) {
         })()}
         <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
-        <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curve={curve} />
+        {open.species === "layer" ? (
+          <LayerDashboard batch={open} entries={entriesOf(open.id)} sold={soldOf(open.id)} collections={collectionsOf(open.id)} curve={layingCurve(open)} />
+        ) : (
+          <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curve={curve} />
+        )}
         <DayForm
           batch={open}
           entries={entriesOf(open.id)}
@@ -169,7 +180,7 @@ function Batches(scope: Scope) {
           write={write}
         />
         {open.species === "layer" && <Link href="/eggs" className="underline underline-offset-4">{t("EggStock.title")}</Link>}
-        {open.species === "layer" && <EggCollections batch={open} collections={of<EggCollectionDto>("eggCollection").filter((c) => c.batchId === open.id)} write={write} />}
+        {open.species === "layer" && <EggCollections batch={open} collections={collectionsOf(open.id)} write={write} />}
         <Weighings
           batch={open}
           weighings={weighings}

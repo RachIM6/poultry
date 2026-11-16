@@ -436,7 +436,9 @@
     "flock": "الدفعة",
     "standard": "معيار السلالة",
     "day": "ي{age}",
-    "chartLabel": "متوسط الوزن حسب العمر: {points}"
+    "chartLabel": "متوسط الوزن حسب العمر: {points}",
+    "waterFeed": "الماء / العلف",
+    "waterFeedOn": "لتر لكل كغ، اليوم {day}"
   },
   "Vaccination": {
     "title": "التلقيحات",
@@ -864,5 +866,26 @@
     "discardEggs": "البيض المستبعد",
     "reason": "السبب",
     "saveDiscard": "استبعاد هذا البيض"
+  },
+  "Layers": {
+    "hens": "الدجاجات الحاضرة",
+    "mortality": "النفوق {percent} % منذ الإيواء",
+    "rate": "نسبة الوضع",
+    "standard": "المعيار {value}",
+    "noStandard": "لم يُحمَّل أي معيار",
+    "perHenHoused": "البيض لكل دجاجة مُأواة",
+    "eggWeight": "متوسط وزن البيضة",
+    "feedPerEgg": "العلف لكل بيضة",
+    "downgraded": "البيض المستبعد",
+    "weeks": "الأسابيع الأخيرة",
+    "cols": {
+      "week": "الأسبوع",
+      "hens": "الدجاجات",
+      "rate": "الوضع",
+      "eggWeight": "وزن البيضة",
+      "feedPerHen": "العلف غ/دجاجة/يوم",
+      "waterFeed": "الماء / العلف",
+      "downgradedShort": "المستبعد"
+    }
   }
 }

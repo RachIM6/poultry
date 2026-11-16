@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { formatDecimal, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { ageOfBatch, batchKpis, birdsStarted, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { ageOfBatch, batchKpis, birdsStarted, waterPerFeed, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { CurvePoint } from "@/modules/reference-data/schema";
 import { standardAt } from "@/modules/reference-data/shared";
 
@@ -31,9 +31,11 @@ export function BatchDashboard({
   const w = k.weighed;
   const standard = w && curve ? standardAt(curve, w.ageDays) : null;
   const none = "—";
+  const water = waterPerFeed(entries);
   const tiles: [string, string, string?][] = [
     [t("Kpi.mortality"), `${formatPercent(k.mortalityPercent)} %`],
     [t("Kpi.feedPerBird"), k.feedPerBirdGrams === null ? none : formatKg(Math.round(k.feedPerBirdGrams))],
+    [t("Kpi.waterFeed"), water ? formatDecimal(water.ratio, 1) : none, water ? t("Kpi.waterFeedOn", { day: String(ageOfBatch(batch, water.day as FarmDay)) }) : undefined], // SPEC-m3 B14
     [
       w ? t("Kpi.weight", { age: String(w.ageDays) }) : t("Kpi.weightNone"),
       w ? formatKg(w.averageGrams) : none,

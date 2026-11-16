@@ -436,7 +436,9 @@
     "flock": "Bande",
     "standard": "Standard de la souche",
     "day": "J{age}",
-    "chartLabel": "Poids moyen par âge : {points}"
+    "chartLabel": "Poids moyen par âge : {points}",
+    "waterFeed": "Eau / aliment",
+    "waterFeedOn": "L par kg, jour {day}"
   },
   "Vaccination": {
     "title": "Vaccinations",
@@ -864,5 +866,26 @@
     "discardEggs": "Œufs écartés",
     "reason": "Raison",
     "saveDiscard": "Écarter ces œufs"
+  },
+  "Layers": {
+    "hens": "Poules présentes",
+    "mortality": "mortalité {percent} % depuis le logement",
+    "rate": "Taux de ponte",
+    "standard": "standard {value}",
+    "noStandard": "pas de standard chargé",
+    "perHenHoused": "Œufs par poule logée",
+    "eggWeight": "Poids moyen de l’œuf",
+    "feedPerEgg": "Aliment par œuf",
+    "downgraded": "Œufs déclassés",
+    "weeks": "Dernières semaines",
+    "cols": {
+      "week": "Semaine",
+      "hens": "Poules",
+      "rate": "Ponte",
+      "eggWeight": "Poids œuf",
+      "feedPerHen": "Aliment g/poule/j",
+      "waterFeed": "Eau / aliment",
+      "downgradedShort": "Déclassés"
+    }
   }
 }

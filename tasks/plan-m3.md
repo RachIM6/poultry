@@ -121,7 +121,9 @@ Done 2026-11-16 (branch `feat/t60-egg-stock`). Decision: **no movement table**. 
 ### T61: Layer KPIs, water/feed ratio (E5, B14)
 **Description:** Pure `layerKpis` (hens on hand, hen-day rate, eggs per hen housed, egg weight, feed per egg, downgraded %, weekly rows, vs standard) and the water/feed ratio; the layer batch screen.
 **AC:**
-- [ ] Hand-computed fixture for a week of collections (unit test).
+- [x] Hand-computed fixture for a week of collections (unit test). (`eggs/domain/kpi.test.ts`: 100 hens, 2 days, 3 collections; `flock/domain/kpi.test.ts` for the water/feed ratio.)
+
+Done 2026-11-16 (branch `feat/t61-layer-kpis`): `layerKpis` (pure): hens on hand, hen-day rate of the latest collected day (eggs ÷ hens that morning), eggs per hen housed, egg weight from samples, feed per egg, downgraded %, weekly rows by the birds' age (rate over hen-days, feed g/hen/day, water/feed). Layer batches show `LayerDashboard` (P-Layers tiles + the last 5 weeks) instead of the broiler KPIs; the standard shows once a laying curve is loaded (MQ1). Every other batch gets an "Eau / aliment" tile (`waterPerFeed`, B14). The P-Layers alert "baisse de ponte" needs a threshold: left for T69 if wanted.
 **Size:** M
 
 ### T62: Egg withdrawal on treatments (H7)

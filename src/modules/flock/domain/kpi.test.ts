@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
-import { batchKpis, epef, feedConversionRatio } from "./kpi";
+import { batchKpis, epef, feedConversionRatio, waterPerFeed } from "./kpi";
 
 // Reference batch, computed by hand. 10 050 chicks placed on 1 Oct 2026, 50 dead on arrival → 10 000 started; day-old
 // weight 42 g. Days 1–7: 20 dead/day, 150 kg feed/day. Days 8–21: 5 dead/day, 800 kg/day. Days 22–35: 3 dead + 2 culled
@@ -119,5 +119,13 @@ describe("batch KPIs without enough data", () => {
     expect(feedConversionRatio(t)).toBe(1.5);
     expect(epef(t)).toBeCloseTo(((95 * 2.105) / (35 * 1.5)) * 100, 10);
     expect(epef({ ...t, placed: 0 })).toBeNull();
+  });
+});
+
+describe("water / feed (SPEC-m3 B14)", () => {
+  it("uses the latest day with both", () => {
+    const e = (day: string, grams: number | null, waterMl: number | null) => ({ day, feed: grams ? { grams } : null, waterMl });
+    expect(waterPerFeed([e("2026-11-01", 10_000, 19_000), e("2026-11-03", 10_000, null), e("2026-11-02", 10_000, 16_000)])).toEqual({ day: "2026-11-02", ratio: 1.6 });
+    expect(waterPerFeed([e("2026-11-01", null, 5_000)])).toBeNull();
   });
 });

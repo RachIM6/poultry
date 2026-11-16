@@ -9,6 +9,9 @@ export { AGE_BUCKETS, checkDiscard, checkGrading, eggLots, stockByAge, stockByIt
 export type { EggItem, Lot } from "@/modules/eggs/domain/stock";
 import type { EggItem } from "@/modules/eggs/domain/stock";
 
+export { layerKpis } from "@/modules/eggs/domain/kpi";
+export type { LayerKpis, LayerWeek } from "@/modules/eggs/domain/kpi";
+
 export const EGG_MUTATIONS = {
   recordCollection: "eggs.recordCollection",
   correctCollection: "eggs.correctCollection",

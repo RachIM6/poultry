@@ -112,3 +112,41 @@ test("egg stock: grade a day's eggs, discard some, offline", async ({ page, cont
     );
   await expect.poll(written).toEqual([{ graded: 1, discarded: 10 }]);
 });
+
+// T61 acceptance (SPEC-m3 E5, B14): a layer batch's KPIs from its records, offline, in French and Arabic.
+test("layer KPIs: hens, laying rate, eggs per hen housed, downgraded, weekly table", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await ownerWithFarm(page, "Élevage Indicateurs Ponte");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), batch: crypto.randomUUID() };
+  const counts = { normal: 90, cracked: 2, dirty: 0, doubleYolk: 0, floor: 0, broken: 0 };
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Sidi Hajjaj", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment P1", areaM2: 1000, capacity: 6000, type: "closed" } },
+    {
+      type: "flock.placeBatch",
+      payload: { id: ids.batch, houseId: ids.house, species: "layer", strainId: "lohmann-brown", placedOn: farmDaysAgo(1), chicksPlaced: 100, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: 140 },
+    },
+    { type: "flock.recordDay", payload: { batchId: ids.batch, day: farmDaysAgo(1), changes: { dead: 1, waterMl: 20_000 } } },
+    { type: "eggs.recordCollection", payload: { id: uuidv7(), batchId: ids.batch, day: farmDaysAgo(0), counts, sample: { count: 10, grams: 618 } } },
+  ]);
+  await page.goto(`/fr/batches`);
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await referenceCached(page);
+  await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
+  await context.setOffline(true);
+  await context.route("**", (route) => route.abort("internetdisconnected"));
+  await page.getByRole("link", { name: "Saisir le jour" }).click();
+
+  const tile = (label: string) => page.locator("dl > div").filter({ hasText: label });
+  await expect(tile("Poules présentes")).toContainText("99");
+  await expect(tile("Taux de ponte")).toContainText("92,9 %"); // 92 eggs ÷ 99 hens this morning
+  await expect(tile("Taux de ponte")).toContainText("pas de standard chargé"); // MQ1
+  await expect(tile("Œufs par poule logée")).toContainText("0,9");
+  await expect(tile("Poids moyen de l’œuf")).toContainText("61,8 g");
+  await expect(tile("Œufs déclassés")).toContainText("2,2 %");
+  await expect(page.getByRole("table", { name: "Dernières semaines" })).toContainText("20");
+
+  await page.goto(`/ar/batches#${ids.batch}`);
+  await expect(page.locator("dl > div").filter({ hasText: "نسبة الوضع" })).toContainText("92,9 %");
+});

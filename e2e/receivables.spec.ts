@@ -21,6 +21,7 @@ test("a buyer's balance and cheque show offline, and later payments bring it to 
     sale({ paymentMethod: "credit", paidCentimes: "50000", instrument: null }),
   ]);
 
+  await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Créances des acheteurs" }).click();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   const owes = page.getByText(/^Abattoir Atlas doit/);
@@ -74,6 +75,7 @@ test("a cheque marked unpaid offline is owed again and blocks the buyer, until t
     },
   ]);
 
+  await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Créances des acheteurs" }).click();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   const cheque = page.getByRole("list", { name: "Chèques et traites reçus" }).getByRole("listitem");
@@ -128,6 +130,7 @@ test("the owner sees what a buyer owes by age, approves a credit past the limit 
   );
   await query(`UPDATE "SyncVersion" v SET version = version + 1 FROM "Sale" s WHERE s.id = $1 AND v."organizationId" = s."organizationId"`, [sale]);
 
+  await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Créances des acheteurs" }).click();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await expect(page.getByText(/^1–30 j : 3.000,00\sDH$/)).toBeVisible(); // pulled: 20 days past due

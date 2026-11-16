@@ -8,14 +8,12 @@ import { formatDay, formatKg, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { Batch, FLOCK_MUTATIONS as M, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
+import { field, primary, secondary } from "@/components/ui";
 
 // SPEC B6 on the batch screen: other costs while it runs, closing by hand with a reason, and the locked figures once
 // closed. The last sale closes the batch by itself (sales). The cost per kg comes from the server, which values the
 // consumptions; until the next sync after closing, the phone shows the batch closed without it.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
-const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const today = () => farmDayOf(new Date());
 const aggregate = (b: BatchDto) => Batch.rehydrate({ ...b, placedOn: b.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, b.status);
 

@@ -6,9 +6,10 @@ import { db } from "@/lib/db";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { changeAccountingChoices, postPending, readBooks } from "@/modules/finance";
+import { changeAccountingChoices, exportBooks, postPending, readBooks } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
+import { unzip } from "@/test/unzip";
 
 const m = <P,>(type: string, payload: P) => ({ id: uuidv7(), type, payload, createdAt: "2026-03-10T08:00:00+01:00" });
 
@@ -79,6 +80,22 @@ describe("books (SPEC-finance FN16, T36)", () => {
       ["2026-03-22", "5141", 100_000n, 0n], // …and arrived
     ]);
     expect(books.value.cashBook).toMatchObject({ receipts: 400_000n, expenses: 520_000n });
+  });
+
+  it("exports a month for the accountant: CSV and Excel in one zip (FN18, T38)", async () => {
+    const exported = await exportBooks(ledger, "2026-03");
+    if (!exported.ok) throw new Error(exported.error);
+    expect(exported.value.file).toBe("comptabilite-2026-03.zip");
+    const files = unzip(exported.value.zip);
+    expect([...files.keys()]).toEqual(["ecritures-2026-03.csv", "balance-2026-03.csv", "recettes-depenses-2026-03.csv", "livres-2026-03.xlsx"]);
+    // The electricity expense, both lines, with the chart's labels.
+    expect(files.get("ecritures-2026-03.csv")).toMatch(/\r\n21\/03\/2026;CA;[0-9a-f-]{36};5161;Caisses;[^;]+;0,00;1200,00;;;;\r\n/);
+    expect(files.get("balance-2026-03.csv")).toMatch(/\r\nTotal;;(\d+,\d\d);\1;0,00\r\n$/);
+
+    const cash = await exportBooks(cashBook, "2026-03");
+    if (!cash.ok) throw new Error(cash.error);
+    expect([...unzip(cash.value.zip).keys()]).toEqual(["recettes-depenses-2026-03.csv", "livres-2026-03.xlsx"]);
+    expect(await exportBooks({ ...ledger, role: "worker" }, "2026-03")).toEqual({ ok: false, error: "FORBIDDEN" });
   });
 
   it("is for owners and managers only", async () => {

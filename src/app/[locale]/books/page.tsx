@@ -56,6 +56,8 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
         <Link href={href(view, shift(month, -1))} className="underline underline-offset-4">←</Link>
         <span className="font-semibold" dir="ltr">{month}</span>
         <Link href={href(view, shift(month, 1))} className="underline underline-offset-4">→</Link>
+        {/* FN18: a file, not a page, so a plain link to the route handler */}
+        <a href={`/api/finance/export?month=${month}`} download className="ms-auto underline underline-offset-4">{t("Books.export")}</a>
       </nav>
       {views.length > 1 && (
         <nav className="flex flex-wrap gap-3" aria-label={t("Books.views")}>

@@ -111,7 +111,7 @@ function Batches(scope: Scope) {
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
         <h2 className="text-xl font-semibold">{title(shown)}</h2>
-        <RegisterLinks batchId={shown.id} />
+        <RegisterLinks batchId={shown.id} report={can(scope, "money.read")} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <ClosedSummary batch={shown} />
         <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curve={curve} />
@@ -130,7 +130,7 @@ function Batches(scope: Scope) {
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
         <h2 className="text-xl font-semibold">{title(open)}</h2>
-        <RegisterLinks batchId={open.id} />
+        <RegisterLinks batchId={open.id} report={can(scope, "money.read")} />
         <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
         <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}

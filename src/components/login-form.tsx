@@ -4,9 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { postJson } from "@/lib/api";
+import { field, primary as button } from "@/components/ui";
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const button = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white disabled:opacity-60";
 
 export function LoginForm() {
   const t = useTranslations();

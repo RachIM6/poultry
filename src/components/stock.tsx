@@ -30,13 +30,11 @@ import {
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
+import { field, primary, secondary } from "@/components/ui";
 
 // SPEC S1–S3 on the static /stock shell: everything from and to the phone's database (ADR-003). Workers get no money
 // from the server at all (I5), so the money parts only render for those allowed to manage stock.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
-const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const card = "flex flex-col gap-1 rounded-lg border border-current/30 p-3";
 const DEFAULT_UNIT: Record<ItemKind, Unit> = { feed: "kg", vaccine: "dose", medicine: "ml", litter: "kg", gas: "unit", other: "unit" };
 
@@ -114,7 +112,7 @@ function Stock(scope: Scope) {
           {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </Select>
       )}
-      {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+      {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">{t("Stock.items")}</h2>
         {items.length === 0 ? <p>{t("Stock.noItems")}</p> : (
@@ -181,7 +179,7 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
   return (
     <li className={card}>
       <span className="font-semibold">
-        {item.name} {low && <span className="ms-2 rounded bg-red-700 px-2 py-0.5 text-sm text-white">{t("low")}</span>}
+        {item.name} {low && <span className="ms-2 rounded-full bg-brick-soft px-2 py-0.5 text-sm font-medium text-brick-fg">{t("low")}</span>}
       </span>
       <span>{t("onHand", { quantity: show(quantity, item.unit) })}</span>
       {value !== undefined && <span className="text-sm">{t("value", { amount: formatMoney(value) })}</span>}

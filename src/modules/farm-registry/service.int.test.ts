@@ -61,7 +61,7 @@ describe("getTenantContext", () => {
     expect(await getTenantContext(new Headers())).toEqual({ ok: false, error: "UNAUTHENTICATED" });
 
     await requestCode("0633333333", {});
-    const code = (await db.verification.findFirstOrThrow({ where: { identifier: "+212633333333" } })).value.split(":")[0];
+    const code = (await db.verification.findFirstOrThrow({ where: { identifier: "phone-number-otp-+212633333333" } })).value.split(":")[0];
     const login = await verifyCode("0633333333", code, "ar", {});
     if (!login.ok) throw new Error(login.error);
     const cookie = cookieOf(login.value);

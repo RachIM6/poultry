@@ -13,7 +13,7 @@ import { EXPENSE_CATEGORIES, FINANCE_MUTATIONS as F, TREASURY_KINDS, type Expens
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { field, primary, secondary } from "@/components/ui";
+import { card, field, primary, secondary } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
 // crew) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts (FN3).
@@ -148,7 +148,7 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
   };
 
   return (
-    <form key={key} onSubmit={submit} className="flex flex-col gap-3">
+    <form key={key} onSubmit={submit} className={card}>
       <Field label={t("Expenses.category")}>
         {(id) => (
           <select id={id} name="category" className={field}>
@@ -193,7 +193,7 @@ function AccountForm({ onSave, onCancel }: { onSave: (a: TreasuryAccountDto) => 
     await onSave({ id: uuidv7(), kind: String(data.get("kind")) as TreasuryAccountDto["kind"], name: String(data.get("name") ?? "").trim() });
   };
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
+    <form onSubmit={submit} className={card}>
       <Field label={t("Expenses.kind")}>
         {(id) => (
           <select id={id} name="kind" className={field}>

@@ -2,21 +2,21 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { LocaleSwitcher } from "@/components/locale-switcher";
-import { Link, redirect } from "@/i18n/navigation";
+import { redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { batchResults } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
+import { BackLink } from "@/components/app-nav";
+import { table } from "@/components/ui";
 
 // SPEC-finance FN13: each batch's result side by side, newest first, so the owner compares it with the last batches.
 // Online, owner and manager; computed from the server's records, never cached.
 export default function ResultsPage() {
   return (
     <>
-      <header className="flex justify-between gap-4 p-4">
-        <Link href="/dashboard" className="py-2 underline underline-offset-4">←</Link>
-        <LocaleSwitcher />
+      <header className="px-4 pt-4">
+        <BackLink href="/more" />
       </header>
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4">
         <Suspense>
@@ -42,7 +42,7 @@ async function Results() {
         <p>{t("Results.none")}</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className={table}>
             <thead>
               <tr>
                 <th className="p-2 text-start">{t("Results.batch")}</th>

@@ -552,7 +552,8 @@
     "awaiting": "بيوع بالأجل تنتظر الموافقة",
     "awaitingLine": "بيع بالأجل بمبلغ {amount} إلى {buyer} بتاريخ {date}: يتجاوز السقف وينتظر موافقة المالك",
     "approve": "موافقة",
-    "saveLimit": "حفظ السقف"
+    "saveLimit": "حفظ السقف",
+    "totalLabel": "{count, plural, one {للتحصيل · مشترٍ واحد} other {للتحصيل · {n} مشترين}}"
   },
   "Origin": {
     "title": "وثيقة مصدر الدواجن",

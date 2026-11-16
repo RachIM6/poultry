@@ -45,7 +45,7 @@ async function Tracker() {
         </p>
       )}
       <section className="flex flex-col gap-2" aria-label={t("Threshold.year", { from: day(fiscalYear.from), to: day(fiscalYear.to) })}>
-        <h2 className="text-lg font-semibold">{t("Threshold.year", { from: day(fiscalYear.from), to: day(fiscalYear.to) })}</h2>
+        <h2 className="text-[17px] font-semibold text-ink-2">{t("Threshold.year", { from: day(fiscalYear.from), to: day(fiscalYear.to) })}</h2>
         <div className="h-3 w-full rounded-full bg-line" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(usage.percent)}>
           <div className={`h-3 rounded-full ${usage.alert ? "bg-alert" : "bg-olive"}`} style={{ width }} />
         </div>
@@ -59,7 +59,7 @@ async function Tracker() {
         </dl>
       </section>
       <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">{t("Threshold.history")}</h2>
+        <h2 className="text-[17px] font-semibold text-ink-2">{t("Threshold.history")}</h2>
         <ul className="flex flex-col gap-1" aria-label={t("Threshold.history")}>
           {history.map((h) => (
             <li key={h.from} className="flex justify-between gap-4">

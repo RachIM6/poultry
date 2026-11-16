@@ -39,4 +39,8 @@ Done 2026-11-16 (branch `feat/u4-batch-page`). Not yet: the batch page's lower s
 - [x] Stock (`M1-Stock`): total value for managers, item cards with a "Bas" / "Suffisant" tag, the purchase as the main action.
 - [x] Every screen: `opacity-75` and `border-current/*` become the palette's muted text and line colours; outlined boxes become white cards. Full browser suite: 44 passed.
 
-### U6–U8 (next): sales and receivables, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.
+### U6: Sales and receivables
+- [x] Sale form (`M1-Sale`): buyer and weights in one card, price and payment in another, the weighing gap in brick, a dark summary with the amount.
+- [x] Receivables: a dark "À encaisser" total first (`WebOverview`), shared cards. Section headings across the batch page share one style.
+
+### U7–U8 (next):, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

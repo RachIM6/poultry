@@ -102,7 +102,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       {view === "journals" &&
         books.journals?.map((j) => (
           <section key={j.journal} className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold">{t("Books.journal", { journal: j.journal })}</h2>
+            <h2 className="text-[17px] font-semibold text-ink-2">{t("Books.journal", { journal: j.journal })}</h2>
             {j.entries.map((e) => (
               <table key={e.id} className="w-full text-sm">
                 <caption className="text-start font-semibold">{day(e.day)} · {e.label}</caption>

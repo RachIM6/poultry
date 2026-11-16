@@ -12,7 +12,7 @@ import { parseCentimes } from "@/lib/kernel/money";
 import { Batch, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { withdrawalUntil, type TreatmentDto } from "@/modules/health/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import { field, primary, secondary } from "@/components/ui";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 import {
   BUYER_TYPES,
   PAYMENT_METHODS,
@@ -66,7 +66,7 @@ export function Sales({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="sale-title">
-      <h3 id="sale-title" className="text-lg font-semibold">{t("Sale.title")}</h3>
+      <h3 id="sale-title" className="text-[17px] font-semibold text-ink-2">{t("Sale.title")}</h3>
       {list.length === 0 ? (
         <p>{t("Sale.none")}</p>
       ) : (
@@ -74,7 +74,7 @@ export function Sales({
           {list.map((s) => {
             const gap = weighingGap(s.farmWeightGrams, s.buyerWeightGrams);
             return (
-              <li key={s.id} className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-3">
+              <li key={s.id} className={card}>
                 <span className="font-semibold">
                   {t("Sale.line", { date: formatDay(s.day as FarmDay, locale), buyer: buyerName(s.buyerId), birds: formatCount(s.birds), kg: formatKg(s.farmWeightGrams) })}
                 </span>
@@ -180,7 +180,9 @@ function SaleForm({
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
+    <form onSubmit={submit} className="flex flex-col gap-2.5">
+      <div className={`${card} grid grid-cols-2 gap-2.5 [&>*]:min-w-0`}>
+      <div className="col-span-2">
       <Field label={t("Sale.buyer")}>
         {(id) => (
           <select id={id} value={buyerId} onChange={(e) => setBuyerId(e.target.value)} className={field}>
@@ -189,6 +191,7 @@ function SaleForm({
           </select>
         )}
       </Field>
+      </div>
       {buyerId === "new" && (
         <>
           <Input label={t("Sale.buyerName")} name="buyerName" required maxLength={120} />
@@ -206,9 +209,10 @@ function SaleForm({
       <Input label={t("Sale.birds")} name="birds" inputMode="numeric" pattern="\d+" required dir="ltr" />
       <Input label={t("Sale.farmKg")} value={farmKg} onChange={(e) => setFarmKg(e.target.value)} inputMode="decimal" required dir="ltr" />
       <Input label={t("Sale.buyerKg")} value={buyerKg} onChange={(e) => setBuyerKg(e.target.value)} inputMode="decimal" dir="ltr" />
-      {gap && <p>{t("Sale.gap", { kg: formatKg(gap.grams), percent: formatPercent(gap.percent) })}</p>}
+      {gap && <p className="col-span-2 text-sm font-medium text-brick-fg">{t("Sale.gap", { kg: formatKg(gap.grams), percent: formatPercent(gap.percent) })}</p>}
+      </div>
+      <div className={`${card} grid grid-cols-2 gap-2.5 [&>*]:min-w-0`}>
       <Input label={t("Sale.price")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" required dir="ltr" />
-      {amount !== null && <p className="font-semibold">{t("Sale.amount", { amount: formatMoney(amount) })}</p>}
       <Field label={t("Sale.method")}>
         {(id) => (
           <select id={id} value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className={field}>
@@ -223,7 +227,14 @@ function SaleForm({
           <Input label={t("Sale.instrumentDueOn")} name="instrumentDueOn" type="date" required />
         </>
       )}
-      {error && <p role="alert">{t(error)}</p>}
+      </div>
+      {amount !== null && (
+        <p className="flex items-baseline justify-between gap-3 rounded-[18px] bg-ink px-4 py-3.5 text-shell">
+          <span className="text-sm text-sand">{farmKg} kg × {price}</span>
+          <b className="text-[22px] font-semibold">{t("Sale.amount", { amount: formatMoney(amount) })}</b>
+        </p>
+      )}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Sale.save")}</button>
         <button type="button" onClick={onDone} className={secondary}>{t("Sale.cancel")}</button>

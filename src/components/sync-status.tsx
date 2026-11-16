@@ -93,7 +93,7 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
       </button>
       {rejected.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">{t("Sync.attention")}</h2>
+          <h2 className="text-[17px] font-semibold text-ink-2">{t("Sync.attention")}</h2>
           <p className="text-sm text-muted">{t("Sync.attentionHint")}</p>
           <ul className="flex flex-col gap-3">
             {rejected.map((entry) => (

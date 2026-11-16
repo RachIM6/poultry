@@ -38,7 +38,7 @@ async function Budget() {
     <>
       <h1 className="text-2xl font-semibold">{t("Budget.title")}</h1>
       <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs) }))} save={saveBudgetAction} />
-      <h2 className="text-lg font-semibold">{t("Budget.saved")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Budget.saved")}</h2>
       {saved.value.length === 0 ? (
         <p>{t("Budget.none")}</p>
       ) : (

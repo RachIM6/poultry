@@ -51,7 +51,7 @@ async function Treasury() {
           <span dir="ltr" className="tabular-nums">{formatMoney(total)}</span>
         </li>
       </ul>
-      <h2 className="text-lg font-semibold">{t("Treasury.movements")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Treasury.movements")}</h2>
       {movements.length === 0 ? (
         <p>{t("Treasury.none")}</p>
       ) : (

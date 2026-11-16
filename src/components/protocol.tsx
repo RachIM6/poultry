@@ -69,7 +69,7 @@ function Protocols(scope: Scope) {
     <>
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">{t("Protocol.template")}</h2>
+        <h2 className="text-[17px] font-semibold text-ink-2">{t("Protocol.template")}</h2>
         {protocolTemplates.map((template) => (
           <div key={template.id} className={card}>
             <span className="font-semibold">{nameOf(template)}</span>
@@ -97,7 +97,7 @@ function Protocols(scope: Scope) {
         ))}
       </section>
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">{t("Protocol.yours")}</h2>
+        <h2 className="text-[17px] font-semibold text-ink-2">{t("Protocol.yours")}</h2>
         {copies.length === 0 ? (
           <p>{t("Protocol.none")}</p>
         ) : (

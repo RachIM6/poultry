@@ -27,7 +27,7 @@ import {
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { field, primary, secondary } from "@/components/ui";
+import { card, field, primary, secondary } from "@/components/ui";
 
 // SPEC V4 on the static /receivables shell, offline: what each buyer owes, their cheques and bills with due dates, and
 // later payments, checked with the same rule as the server. Owners and managers only: workers get no sale money (I5).
@@ -130,13 +130,19 @@ function Receivables(scope: Scope) {
   return (
     <>
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
-      <h2 className="text-lg font-semibold">{t("Receivables.portfolio")}</h2>
+      {owing.length > 0 && (
+        <p className="flex items-baseline justify-between gap-3 rounded-[18px] bg-ink px-4 py-3.5 text-shell">
+          <span className="text-sm text-sand">{t("Receivables.totalLabel", { count: owing.length, n: String(owing.length) })}</span>
+          <b className="text-[22px] font-semibold">{formatMoney(owing.reduce((sum, b) => sum + balances.get(b.id)!, 0n))}</b>
+        </p>
+      )}
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Receivables.portfolio")}</h2>
       {pending.length === 0 ? (
         <p>{t("Receivables.portfolioNone")}</p>
       ) : (
         <ul className="flex flex-col gap-3" aria-label={t("Receivables.portfolio")}>
           {pending.map((i) => (
-            <li key={i.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
+            <li key={i.id} className={card}>
               <span>
                 {t("Receivables.instrument", { kind: i.kind, number: i.number ?? "none", buyer: nameOf(i.buyerId), amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
               </span>
@@ -168,7 +174,7 @@ function Receivables(scope: Scope) {
           ))}
         </ul>
       )}
-      <h2 className="text-lg font-semibold">{t("Receivables.title")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Receivables.title")}</h2>
       {owing.length === 0 ? (
         <p>{t("Receivables.none")}</p>
       ) : (
@@ -177,7 +183,7 @@ function Receivables(scope: Scope) {
             const balance = balances.get(b.id)!;
             const instruments = sales.filter((s) => s.buyerId === b.id && s.instrument).sort((x, y) => x.instrument!.dueOn.localeCompare(y.instrument!.dueOn));
             return (
-              <li key={b.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
+              <li key={b.id} className={card}>
                 <span className="font-semibold">{t("Receivables.owes", { buyer: b.name, amount: formatMoney(balance) })}</span>
                 <span className="text-sm text-muted">
                   {AGEING_BUCKETS.flatMap((bucket) => {
@@ -208,7 +214,7 @@ function Receivables(scope: Scope) {
       )}
       {owner && buyers.length > 0 && (
         <>
-          <h2 className="text-lg font-semibold">{t("Receivables.limits")}</h2>
+          <h2 className="text-[17px] font-semibold text-ink-2">{t("Receivables.limits")}</h2>
           <ul className="flex flex-col gap-2">
             {[...buyers].sort((x, y) => x.name.localeCompare(y.name)).map((b) => <LimitRow key={b.id} buyer={b} onSave={(limit) => setLimit(b, limit)} />)}
           </ul>
@@ -235,7 +241,7 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
     setEditing(false);
   };
   return (
-    <li className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
+    <li className={card}>
       <span>{buyer.name} · {limit === null ? t("Receivables.noLimit") : t("Receivables.limit", { amount: formatMoney(limit) })}</span>
       {editing ? (
         <form onSubmit={submit} className="flex flex-col gap-2">

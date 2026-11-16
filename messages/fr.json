@@ -552,7 +552,8 @@
     "awaiting": "Crédits à approuver",
     "awaitingLine": "Vente à crédit de {amount} à {buyer} le {date} : dépasse le plafond, attend l’accord du propriétaire",
     "approve": "Approuver",
-    "saveLimit": "Enregistrer le plafond"
+    "saveLimit": "Enregistrer le plafond",
+    "totalLabel": "{count, plural, one {À encaisser · 1 acheteur} other {À encaisser · {n} acheteurs}}"
   },
   "Origin": {
     "title": "Document d’origine des volailles",

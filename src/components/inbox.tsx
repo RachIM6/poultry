@@ -120,7 +120,7 @@ function PushControls() {
   const status: Partial<Record<PushState, string>> = { unsupported: "pushUnsupported", off: "pushOff", denied: "pushDenied", on: "pushOn" };
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">{t("push")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("push")}</h2>
       {status[state] && <p>{t(status[state])}</p>}
       {state === "available" && (
         <button type="button" onClick={enable} disabled={busy} className={primary}>{t("enablePush")}</button>
@@ -158,7 +158,7 @@ function QuietHours() {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">{t("quietHours")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("quietHours")}</h2>
       <p className="text-sm text-muted">{t("quietHint")}</p>
       {hours && (
         <form onSubmit={save} className="flex flex-col gap-3">

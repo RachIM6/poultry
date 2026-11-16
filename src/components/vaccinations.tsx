@@ -46,7 +46,7 @@ export function Vaccinations({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="vaccination-title">
-      <h3 id="vaccination-title" className="text-lg font-semibold">{t("Vaccination.title")}</h3>
+      <h3 id="vaccination-title" className="text-[17px] font-semibold text-ink-2">{t("Vaccination.title")}</h3>
       {plan.length === 0 ? (
         <p>{t("Vaccination.none")}</p>
       ) : (

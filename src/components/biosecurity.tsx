@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { card, done, field, primary, secondary, warn } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDateTime, formatDay, formatKg } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -38,8 +39,6 @@ import { startSync } from "@/offline/sync";
 
 // SPEC-m2-compliance §4 on static shells, offline: the logs a farm keeps on the phone (visitors, BS1–BS3).
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
 const check = "flex min-h-11 items-center gap-3";
 
 type Screen = (props: Scope & { db: LocalDb; records: LocalRecord[]; save: Save }) => ReactNode;
@@ -81,7 +80,7 @@ function Records({ scope, entities, screen: Inner }: { scope: Scope; entities: s
   };
   return (
     <>
-      {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+      {message && <p role="status" className={done}>{t(message)}</p>}
       <Inner {...scope} db={db} records={records} save={save} />
     </>
   );
@@ -143,7 +142,7 @@ function Visitors({ records, save }: Parameters<Screen>[0]) {
       ) : (
         <ul className="flex flex-col gap-2" aria-label={t("today")}>
           {visits.map((v) => (
-            <li key={v.id} className="rounded-lg border border-current/30 p-3">
+            <li key={v.id} className={card}>
               {t("line", { visitor: v.visitor, time: formatDateTime(v.enteredAt, locale), zone: t(`zones.${v.zone}`) })}
             </li>
           ))}
@@ -204,7 +203,7 @@ function VisitForm({ farmId, onSave }: { farmId: string; onSave: (v: VisitDto) =
           <input type="checkbox" checked={recentFarm} onChange={(e) => (setRecentFarm(e.target.checked), e.target.checked && setZone("dirty"))} className="size-6" />
           {t("Visitors.recentFarm")}
         </label>
-        {recentFarm && <p className="rounded-lg bg-amber-500/15 p-3">{t("Visitors.dirtyOnly")}</p>}
+        {recentFarm && <p className={warn}>{t("Visitors.dirtyOnly")}</p>}
       </fieldset>
       <fieldset className="flex flex-col gap-1">
         <legend className="font-semibold">{t("Visitors.checks")}</legend>
@@ -239,9 +238,9 @@ type Tab = (typeof TABS)[number];
 function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const t = useTranslations("Disposal");
   return (
-    <div role="tablist" aria-label={t("tabs")} className="grid grid-cols-2 gap-1 rounded-lg border border-current/30 p-1">
+    <div role="tablist" aria-label={t("tabs")} className="grid grid-cols-2 gap-1 rounded-2xl bg-line/60 p-1">
       {TABS.map((k) => (
-        <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`min-h-11 rounded-md ${tab === k ? "bg-current/10 font-semibold" : ""}`}>
+        <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`min-h-11 rounded-xl ${tab === k ? "bg-card font-semibold" : ""}`}>
           {t(`tab.${k}`)}
         </button>
       ))}
@@ -336,7 +335,7 @@ function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps
           )}
         </Field>
         {method === "other" && <Field label={t("Disposal.methodNote")}>{(id) => <input id={id} name="methodNote" required maxLength={200} className={field} />}</Field>}
-        <p className="rounded-lg bg-amber-500/15 p-3 text-sm">{t("Disposal.toConfirm")}</p>
+        <p className={`${warn} text-sm`}>{t("Disposal.toConfirm")}</p>
         {error && <p role="alert">{t(error)}</p>}
         <button type="submit" className={primary}>{t("Disposal.save")}</button>
       </form>
@@ -356,7 +355,7 @@ function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps
           </thead>
           <tbody>
             {gaps.map((g) => (
-              <tr key={g.day} className={g.gap > 0 ? "font-semibold text-red-700" : ""}>
+              <tr key={g.day} className={g.gap > 0 ? "font-semibold text-alert-fg" : ""}>
                 <td>{day(g.day)}</td>
                 <td className="text-end">{formatCount(g.dead)}</td>
                 <td className="text-end">{formatCount(g.disposed)}</td>
@@ -370,7 +369,7 @@ function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps
       <h2 className="text-lg font-semibold">{t("Disposal.recent")}</h2>
       <ul className="flex flex-col gap-2" aria-label={t("Disposal.recent")}>
         {recent.map((d) => (
-          <li key={d.id} className="rounded-lg border border-current/30 p-3">
+          <li key={d.id} className={card}>
             {t("Disposal.line", { date: day(d.day), birds: formatCount(d.birds), method: d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`) })}
             {d.weightGrams !== null && ` · ${formatKg(d.weightGrams)}`}
             {d.batchId && ` · ${batchLabel(d.batchId) ?? ""}`}
@@ -447,7 +446,7 @@ function Manure({ farmId, records, houses, batches, day, save }: LogProps & { ho
       <h2 className="text-lg font-semibold">{t("Disposal.recentManure")}</h2>
       <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentManure")}>
         {recent.map((r) => (
-          <li key={r.id} className="rounded-lg border border-current/30 p-3">
+          <li key={r.id} className={card}>
             {t("Disposal.manureLine", { date: day(r.day), kg: formatCount(r.quantityKg), destination: t(`Disposal.destinations.${r.destination}`) })}
             {r.recipient && ` · ${r.recipient}`}
           </li>
@@ -484,7 +483,7 @@ function Cleanouts(props: Parameters<Screen>[0]) {
         const cleanout = cleanouts.find((c) => c.afterBatchId === last.id);
         const disinfectedOn = cleanout?.steps.find((s) => s.step === "disinfection")?.day ?? null;
         return (
-          <section key={house.id} aria-label={house.name} className="flex flex-col gap-3 rounded-lg border border-current/30 p-3">
+          <section key={house.id} aria-label={house.name} className={card}>
             <h2 className="text-lg font-semibold">{house.name}</h2>
             {last.status === "open" ? (
               <p>{t("busy", { date: day(last.placedOn) })}</p>
@@ -505,7 +504,7 @@ function Cleanouts(props: Parameters<Screen>[0]) {
               </>
             ) : (
               <>
-                <p className="rounded-lg bg-current/10 p-3 font-semibold" role="status">
+                <p className="rounded-2xl bg-ink p-3 font-semibold text-shell" role="status">
                   {disinfectedOn
                     ? minDays === null
                       ? t("downtime", { day: downtimeDay(disinfectedOn as FarmDay, today) })
@@ -547,15 +546,15 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
       {CLEANOUT_STEPS.map((key, i) => {
         const done = cleanout.steps.find((s) => s.step === key);
         return (
-          <li key={key} className="flex flex-col gap-2 border-t border-current/20 pt-2">
+          <li key={key} className="flex flex-col gap-2 border-t border-line pt-2">
             <div className="flex items-center justify-between gap-2">
               <span>
                 <span aria-hidden="true">{done ? "✓" : i + 1} </span>
                 <span className={done ? "font-semibold" : ""}>{t(`Cleanout.steps.${key}`)}</span>
-                {done && <span className="block text-sm opacity-75">{[day(done.day), done.product, done.dose, done.productLot && t("Cleanout.lot", { lot: done.productLot }), done.note].filter(Boolean).join(" · ")}</span>}
+                {done && <span className="block text-sm text-muted">{[day(done.day), done.product, done.dose, done.productLot && t("Cleanout.lot", { lot: done.productLot }), done.note].filter(Boolean).join(" · ")}</span>}
               </span>
               {!done && open !== key && (
-                <button type="button" onClick={() => (setOpen(key), setError(undefined))} className="min-h-11 rounded-lg border border-current/30 px-3" aria-label={t("Cleanout.markNamed", { step: t(`Cleanout.steps.${key}`) })}>
+                <button type="button" onClick={() => (setOpen(key), setError(undefined))} className={secondary} aria-label={t("Cleanout.markNamed", { step: t(`Cleanout.steps.${key}`) })}>
                   {t("Cleanout.mark")}
                 </button>
               )}
@@ -595,7 +594,7 @@ function MinDowntime({ farmId, minDays, save }: { farmId: string; minDays: numbe
   return (
     <form onSubmit={submit} className="flex items-end gap-2">
       <Field label={t("minDays")}>{(id) => <input id={id} name="minDays" inputMode="numeric" pattern="\d*" defaultValue={minDays ?? ""} dir="ltr" className={field} />}</Field>
-      <button type="submit" className="min-h-11 rounded-lg border border-current/30 px-3 py-3">{t("saveMin")}</button>
+      <button type="submit" className={secondary}>{t("saveMin")}</button>
     </form>
   );
 }

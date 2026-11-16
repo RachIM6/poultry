@@ -8,7 +8,7 @@ test("a visitor is recorded offline, kept to the dirty zone, and synced once", a
   const e164 = await ownerWithFarm(page, "Élevage des Visiteurs");
   await scopeRemembered(page);
   await farmWithBatch(page);
-  await page.goto("/fr/dashboard");
+  await page.goto("/fr/more");
 
   await page.getByRole("link", { name: "Registre des visiteurs" }).click();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));

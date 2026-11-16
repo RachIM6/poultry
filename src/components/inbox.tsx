@@ -10,13 +10,11 @@ import { NOTIFICATION_MUTATIONS as M, type NotificationDto } from "@/modules/not
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { requestSync, startSync } from "@/offline/sync";
+import { field, primary, secondary } from "@/components/ui";
 
 // SPEC N1–N2 on the static /inbox shell: the list comes from the phone's database (synced like the farms);
 // push, the test and quiet hours need the network.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white disabled:opacity-60";
-const secondary = "rounded-lg border border-current/30 px-4 py-3 disabled:opacity-60";
 
 export function InboxScreen() {
   const t = useTranslations("Sync");

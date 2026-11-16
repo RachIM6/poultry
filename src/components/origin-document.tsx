@@ -11,6 +11,7 @@ import { ageOn, type BatchDto } from "@/modules/flock/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
+import { primary } from "@/components/ui";
 
 // SPEC V5 on the static /origin shell: the origin document of one sale (/origin#<sale id>), built from the phone's own
 // records so it prints offline, in the page's language (law 49-99 art. 10). Print CSS only, no PDF library (T23).
@@ -110,7 +111,7 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
         ))}
       </div>
       <p className="text-center text-sm opacity-75">{t("editedWith", { app: tr("App.name") })}</p>
-      <button type="button" onClick={() => window.print()} className="rounded-lg bg-green-700 px-4 py-3 font-semibold text-white print:hidden">
+      <button type="button" onClick={() => window.print()} className={`${primary} print:hidden`}>
         {t("print")}
       </button>
     </article>

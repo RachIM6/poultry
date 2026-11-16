@@ -47,7 +47,10 @@ async function cleanoutDto(tx: Tx, id: string): Promise<CleanoutDto> {
 async function placeOf(tx: Tx, ctx: TenantContext, r: { farmId: string; houseId?: string | null; batchId?: string | null }): Promise<Result<void>> {
   if (!(await farmBelongsTo(tx, ctx, r.farmId))) return fail("NOT_FOUND");
   if (r.houseId && (await houseOf(tx, ctx, r.houseId))?.farmId !== r.farmId) return fail("NOT_FOUND");
-  if (r.batchId && (await batchFacts(tx, ctx, r.batchId))?.farmId !== r.farmId) return fail("NOT_FOUND");
+  if (r.batchId) {
+    const batch = await batchFacts(tx, ctx, r.batchId);
+    if (batch?.farmId !== r.farmId || (r.houseId && batch.houseId !== r.houseId)) return fail("NOT_FOUND");
+  }
   return ok(undefined);
 }
 
@@ -103,7 +106,7 @@ export const biosecuritySync: SyncRegistry = {
       async apply(tx, ctx, { id, houseId, afterBatchId, startedOn }, meta) {
         const house = await houseOf(tx, ctx, houseId);
         const batch = await batchFacts(tx, ctx, afterBatchId);
-        if (!house || !batch || batch.farmId !== house.farmId) return fail("NOT_FOUND");
+        if (!house || !batch || batch.houseId !== houseId) return fail("NOT_FOUND"); // the batch that left this house
         if (batch.status !== "closed") return fail("BATCH_NOT_CLOSED");
         if (await tx.cleanout.findFirst({ where: { OR: [{ id }, { afterBatchId }] }, select: { id: true } })) return fail("CLEANOUT_ALREADY_STARTED");
         await tx.cleanout.create({ data: { id, organizationId: ctx.organizationId, farmId: house.farmId, houseId, afterBatchId, startedOn: day(startedOn), startedBy: ctx.userId } });

@@ -120,7 +120,7 @@ const eslintConfig = defineConfig([
   ...moduleBoundaries,
   zodFreeScreens,
   noSystemClock,
-  globalIgnores(["src/generated/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "playwright-report/**", "test-results/**"]),
+  globalIgnores([".claude/**", "src/generated/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "playwright-report/**", "test-results/**"]),
 ]);
 
 export default eslintConfig;

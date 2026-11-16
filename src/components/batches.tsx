@@ -21,6 +21,7 @@ import { DayForm, type Write } from "@/components/daily-entry";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
+import { field, primary, secondary, warn } from "@/components/ui";
 
 // SPEC §9.3 budget (ADR-009, T25): the day's entry loads with the page; the rest of the batch screen comes in its own
 // chunks right after. The service worker precaches every chunk, so they load offline too.
@@ -38,9 +39,6 @@ const Weighings = dynamic(() => import("@/components/weighing").then((m) => m.We
 // SPEC B1 on the static /batches shell: from and to the phone's database (ADR-003). The one-open-batch rule is checked
 // here for a quick answer and enforced by the server, which rejects the second of two phones placing offline.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
-const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const today = () => farmDayOf(new Date());
 
 // A batch's day opens as /batches#<id>: the path stays the precached shell, offline included.
@@ -112,7 +110,7 @@ function Batches(scope: Scope) {
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
         <h2 className="text-xl font-semibold">{title(shown)}</h2>
-        {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+        {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <ClosedSummary batch={shown} />
         <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curve={curve} />
         <BatchCosts batch={shown} costs={costsOf(shown.id)} manage={can(scope, "flock.manage")} write={write} />
@@ -132,7 +130,7 @@ function Batches(scope: Scope) {
         <h2 className="text-xl font-semibold">{title(open)}</h2>
         <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
         <WithdrawalBanner treatments={treatments} />
-        {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+        {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curve={curve} />
         <DayForm
           batch={open}
@@ -207,7 +205,7 @@ function Batches(scope: Scope) {
 
   return (
     <>
-      {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+      {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
       {batches.length === 0 ? (
         <p>{t("Batches.none")}</p>
       ) : (
@@ -353,7 +351,7 @@ function PlacementForm({
       <Field name="deliveryNote" label={t("Batches.deliveryNote")} required maxLength={60} dir="ltr" />
       <Field name="price" label={t("Batches.chickPrice")} inputMode="decimal" required dir="ltr" />
       <Field name="dayOldWeight" label={t("Batches.dayOldWeight")} inputMode="numeric" pattern="\d+" dir="ltr" />
-      {warning && <p role="status" className="rounded-lg bg-amber-500/15 p-3">{t("Batches.downtimeWarning", { elapsed: warning.elapsedDays, min: warning.minDays })}</p>}
+      {warning && <p role="status" className={warn}>{t("Batches.downtimeWarning", { elapsed: warning.elapsedDays, min: warning.minDays })}</p>}
       {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Batches.save")}</button>

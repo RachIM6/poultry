@@ -9,7 +9,7 @@ test("disposal and manure are recorded offline, synced once, with the day's mort
   await scopeRemembered(page);
   const ids = await farmWithBatch(page, "ross-308", farmDaysAgo(3));
   await pushAs(page, [{ type: "flock.recordDay", payload: { batchId: ids.batch, day: farmDaysAgo(0), changes: { dead: 5, deathCause: "unknown", culled: 1 } } }]);
-  await page.goto("/fr/dashboard");
+  await page.goto("/fr/more");
 
   await page.getByRole("link", { name: "Cadavres et fumier" }).click();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));

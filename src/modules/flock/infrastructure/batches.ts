@@ -71,7 +71,7 @@ export async function batchFacts(tx: Tx, ctx: TenantContext, id: string) {
   const r = await tx.batch.findFirst({ where: { id, organizationId: ctx.organizationId } });
   if (!r) return null;
   const house = await houseOf(tx, ctx, r.houseId);
-  return { farmId: r.farmId, houseName: house?.name ?? "", placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay, status: r.status as BatchStatus };
+  return { farmId: r.farmId, houseId: r.houseId, houseName: house?.name ?? "", placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay, status: r.status as BatchStatus };
 }
 
 /** B6: what the closing needs: other costs and the farm weight of every bird sold. */

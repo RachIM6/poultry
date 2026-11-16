@@ -12,7 +12,7 @@ test("clean-out steps are marked offline, the downtime counts, and an early plac
     { type: "flock.closeBatch", payload: { batchId: ids.batch, day: farmDaysAgo(3), reason: "Fin de lot" } },
     { type: "biosecurity.setMinDowntime", payload: { farmId: ids.farm, minDays: 14 } },
   ]);
-  await page.goto("/fr/dashboard");
+  await page.goto("/fr/more");
   await page.getByRole("link", { name: "Nettoyage et vide sanitaire" }).click();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await referenceCached(page);

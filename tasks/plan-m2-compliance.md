@@ -124,8 +124,13 @@ Done 2026-11-16 (branch `feat/t46-register-builder`), decisions taken without as
 ### T47: Register PDF (RP2)
 **Description:** Static shell `/register#<batch id>`, precached, printing `buildRegister` in A4 with print CSS, in AR or FR, with the provisional ONSSA mention and signature boxes; a "Registre" link from the batch screen.
 **AC:**
-- [ ] e2e in `fr` and `ar`: offline, the register of a demo batch shows its cover, daily rows, vaccinations, treatments, birds out and disposals.
-- [ ] Print CSS: only the document prints (no header or buttons).
+- [x] e2e in `fr` and `ar`: offline, the register of a demo batch shows its cover, daily rows, vaccinations, treatments, birds out and disposals (`e2e/register.spec.ts`; empty sections say "Rien d’enregistré").
+- [x] Print CSS: only the document prints (no header or buttons); nothing wider than A4. The PDFs land in `test-results/`.
+
+Done 2026-11-16 (branch `feat/t47-register-pdf`):
+- `/register#<batch id>` is a precached static shell outside the app shell (like `/origin`), so the tab bar never prints. Links in both languages on the batch screen (`register-links.tsx`, its own file so `/batches` doesn't load the builder).
+- Layout: the canvas's C-Register frame (cover boxes, then one table per section, signature boxes for the farmer and the vet), with « Présentation provisoire, à valider avec l’ONSSA » at the bottom until CQ1.
+- "Registre sanitaire de suivi du lot · loi n° 49-99, article 3" is the only legal reference printed, from NEEDS-ANALYSIS §4.
 **Size:** M
 
 ### T48: Batch report (RP3)

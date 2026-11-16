@@ -18,6 +18,7 @@ import type { ProtocolDto } from "@/modules/reference-data/schema";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import dynamic from "next/dynamic";
 import { DayForm, type Write } from "@/components/daily-entry";
+import { RegisterLinks } from "@/components/register-links";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
@@ -110,6 +111,7 @@ function Batches(scope: Scope) {
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
         <h2 className="text-xl font-semibold">{title(shown)}</h2>
+        <RegisterLinks batchId={shown.id} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <ClosedSummary batch={shown} />
         <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curve={curve} />
@@ -128,6 +130,7 @@ function Batches(scope: Scope) {
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
         <h2 className="text-xl font-semibold">{title(open)}</h2>
+        <RegisterLinks batchId={open.id} />
         <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
         <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}

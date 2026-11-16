@@ -730,5 +730,32 @@
     "total": "Total",
     "history": "Les 3 derniers exercices",
     "overShort": "au-dessus du seuil"
+  },
+  "Nav": {
+    "label": "Navigation principale",
+    "today": "Aujourd’hui",
+    "batches": "Lots",
+    "stock": "Stock",
+    "more": "Plus"
+  },
+  "More": {
+    "farm": "Élevage",
+    "money": "Argent",
+    "account": "Compte",
+    "sync": "Synchronisation"
+  },
+  "Today": {
+    "birds": "{count} sujets",
+    "dayOf": "Jour {day} sur {total}",
+    "stripLabel": "Jour {day} de la bande, {missing} jour(s) non saisi(s)",
+    "missingOn": "Jour manquant : {date}",
+    "allEntered": "Tous les jours sont saisis",
+    "tasks": "Tâches du jour",
+    "none": "Aucune bande en cours.",
+    "entry": "Saisie du jour · {house}",
+    "entryHint": "Morts, aliment, eau : moins d’une minute",
+    "entryDone": "Saisie du jour faite · {house}",
+    "missing": "{count, plural, one {Saisie manquante · {date}} other {{n} saisies manquantes, dès le {date}}}",
+    "missingHint": "{house} · jour {day} : complétez-la"
   }
 }

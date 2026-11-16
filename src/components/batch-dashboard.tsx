@@ -84,7 +84,7 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
       <figcaption className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="font-semibold">{t("chart")}</span>
         <span className="flex items-center gap-1">
-          <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="2" className="stroke-green-700 dark:stroke-green-600" /></svg>
+          <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="2" className="stroke-ink" /></svg>
           {t("flock")}
         </span>
         {std.length > 1 && (
@@ -104,10 +104,10 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
         <text x={x(0)} y={H - 6} fontSize="10" className="fill-current opacity-70">{t("day", { age: "0" })}</text>
         <text x={x(maxAge)} y={H - 6} fontSize="10" textAnchor="end" className="fill-current opacity-70">{t("day", { age: String(maxAge) })}</text>
         {std.length > 1 && <polyline points={line(std)} fill="none" strokeWidth="2" strokeDasharray="4 3" className="stroke-current opacity-60" />}
-        {points.length > 1 && <polyline points={line(points)} fill="none" strokeWidth="2" strokeLinejoin="round" className="stroke-green-700 dark:stroke-green-600" />}
+        {points.length > 1 && <polyline points={line(points)} fill="none" strokeWidth="2" strokeLinejoin="round" className="stroke-ink" />}
         {points.map((p) => (
           <g key={p.age}>
-            <circle cx={x(p.age)} cy={y(p.grams)} r="4" strokeWidth="2" className="fill-green-700 stroke-background dark:fill-green-600" />
+            <circle cx={x(p.age)} cy={y(p.grams)} r="4" strokeWidth="2" className="fill-chick stroke-ink" />
             <circle cx={x(p.age)} cy={y(p.grams)} r="12" fill="transparent">
               <title>{`${t("day", { age: String(p.age) })} : ${formatKg(p.grams)}`}</title>
             </circle>

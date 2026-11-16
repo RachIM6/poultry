@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { postJson } from "@/lib/api";
 import { currentScope, localDb, signOutLocally } from "@/offline/db";
+import { secondary } from "@/components/ui";
 
 /** `everywhere`: also logs out every other phone of this user (a lost phone, T25 S2). */
 export function LogoutButton({ everywhere = false }: { everywhere?: boolean }) {
@@ -24,7 +25,7 @@ export function LogoutButton({ everywhere = false }: { everywhere?: boolean }) {
         await (await reg?.pushManager?.getSubscription())?.unsubscribe().catch(() => {});
         router.replace("/login");
       }}
-      className="rounded-lg border border-current/30 px-4 py-3"
+      className={secondary}
     >
       {t(everywhere ? "logoutEverywhere" : "logout")}
     </button>

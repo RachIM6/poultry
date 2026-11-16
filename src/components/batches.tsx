@@ -141,7 +141,7 @@ function Batches(scope: Scope) {
         {open.sex && open.sex !== "mixed" && (() => {
           const other = batches.find((b) => b.status === "open" && b.houseId === open.houseId && b.species === open.species && b.id !== open.id);
           return other ? (
-            <a href={`#${other.id}`} className="rounded-lg border border-current/30 p-3 underline underline-offset-4">
+            <a href={`#${other.id}`} className="rounded-2xl border border-line bg-card p-3 underline underline-offset-4">
               {t("Batches.otherSex", { sex: t(`Batches.sexes.${other.sex ?? "mixed"}`), birds: formatCount(onHand(other)) })}
             </a>
           ) : null;

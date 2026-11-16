@@ -49,4 +49,8 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
   // T34: shared across this month's batches (the default), it is all this batch's.
   await page.goto("/fr/results");
   await expect(page.getByRole("row").nth(1)).toContainText(/réparti 1.200,00\sDH/);
+
+  // tasks/plan-ui.md U11: the owner's home shows the cash at hand in its "Argent" card.
+  await page.goto("/fr/dashboard");
+  await expect(page.getByRole("region", { name: "Argent" })).toContainText(/Trésorerie disponible\s*-1.200,00\sDH/);
 });

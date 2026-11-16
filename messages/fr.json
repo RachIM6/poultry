@@ -766,6 +766,11 @@
     "entryHint": "Morts, aliment, eau : moins d’une minute",
     "entryDone": "Saisie du jour faite · {house}",
     "missing": "{count, plural, one {Saisie manquante · {date}} other {{n} saisies manquantes, dès le {date}}}",
-    "missingHint": "{house} · jour {day} : complétez-la"
+    "missingHint": "{house} · jour {day} : complétez-la",
+    "money": "Argent",
+    "cash": "Trésorerie disponible",
+    "lastBatch": "Dernière bande clôturée · {house}",
+    "margin": "Marge : {margin}",
+    "costPerKg": "{cost} / kg"
   }
 }

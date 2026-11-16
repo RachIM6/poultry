@@ -4,6 +4,9 @@ export { VISIT_PURPOSES, VISITOR_RECENT_FARM_HOURS, ZONES, visitZone } from "@/m
 export type { VisitPurpose, Zone } from "@/modules/biosecurity/domain/visit";
 export { DISPOSAL_METHODS, MANURE_DESTINATIONS, checkDisposal, disposalGaps } from "@/modules/biosecurity/domain/disposal";
 export type { DisposalGap, DisposalMethod, ManureDestination } from "@/modules/biosecurity/domain/disposal";
+export { CLEANOUT_STEPS, checkStep, downtimeDay, downtimeWarning } from "@/modules/biosecurity/domain/cleanout";
+export type { CleanoutStep as CleanoutStepKey } from "@/modules/biosecurity/domain/cleanout";
+import type { CleanoutStep } from "@/modules/biosecurity/domain/cleanout";
 import type { DisposalMethod, ManureDestination } from "@/modules/biosecurity/domain/disposal";
 import type { VisitPurpose, Zone } from "@/modules/biosecurity/domain/visit";
 
@@ -50,4 +53,24 @@ export const BIOSECURITY_MUTATIONS = {
   recordVisit: "biosecurity.recordVisit",
   recordDisposal: "biosecurity.recordDisposal",
   recordManure: "biosecurity.recordManure",
+  startCleanout: "biosecurity.startCleanout",
+  recordCleanoutStep: "biosecurity.recordCleanoutStep",
+  setMinDowntime: "biosecurity.setMinDowntime",
 } as const;
+
+/** BS4: a step of a clean-out, marked once. Disinfection says with what (product, dose, product lot). */
+export type CleanoutStepDto = {
+  id: string;
+  step: CleanoutStep;
+  day: string; // farm day
+  product: string | null;
+  dose: string | null;
+  productLot: string | null;
+  note: string | null;
+};
+
+/** BS4: the clean-out of a house after its batch `afterBatchId`, with the steps done so far. */
+export type CleanoutDto = { id: string; farmId: string; houseId: string; afterBatchId: string; startedOn: string; steps: CleanoutStepDto[] };
+
+/** BS5: the farm's own minimum downtime in days, or none (CQ3). Keyed by the farm. */
+export type DowntimeSettingDto = { id: string; farmId: string; minDays: number | null };

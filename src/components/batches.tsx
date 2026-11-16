@@ -9,6 +9,7 @@ import { formatCount } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
+import { downtimeWarning, type CleanoutDto, type DowntimeSettingDto } from "@/modules/biosecurity/shared";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
@@ -68,7 +69,7 @@ function Batches(scope: Scope) {
   const t = useTranslations();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale", "batchCost").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale", "batchCost", "cleanout", "downtimeSetting").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -180,6 +181,14 @@ function Batches(scope: Scope) {
   }
 
   const protocols = of<ProtocolDto>("protocol").sort((x, y) => x.name.localeCompare(y.name));
+  // SPEC-m2-compliance BS5: the house's last disinfection and the farm's own minimum, for the placement warning.
+  const downtimeOf = (h: HouseDto) => {
+    const last = batches.find((b) => b.houseId === h.id); // newest first, after the open ones: the house has none open here
+    const cleanout = of<CleanoutDto>("cleanout").find((c) => c.afterBatchId === last?.id);
+    const disinfectedOn = (cleanout?.steps.find((s) => s.step === "disinfection")?.day ?? null) as FarmDay | null;
+    const minDays = of<DowntimeSettingDto>("downtimeSetting").find((x) => x.farmId === h.farmId)?.minDays ?? null;
+    return { disinfectedOn, minDays };
+  };
   const save = async (batch: BatchDto, payload: unknown, protocol: ProtocolDto | undefined) => {
     try {
       await writeLocal(db, { type: M.placeBatch, payload }, [{ entity: "batch", id: batch.id, data: batch }]);
@@ -231,7 +240,7 @@ function Batches(scope: Scope) {
           <p>{t("Protocol.noReference")}</p> // strains come with the reference data, after one sync online
         ) : placing ? (
           <PlacementForm
-            houses={houses.map((h) => ({ ...h, label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`, busy: busy.has(h.id) }))}
+            houses={houses.map((h) => ({ ...h, label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`, busy: busy.has(h.id), ...downtimeOf(h) }))}
             strains={strains}
             protocols={protocols}
             onSave={save}
@@ -271,7 +280,7 @@ function PlacementForm({
   onSave,
   onCancel,
 }: {
-  houses: (HouseDto & { label: string; busy: boolean })[];
+  houses: (HouseDto & { label: string; busy: boolean; disinfectedOn: FarmDay | null; minDays: number | null })[];
   strains: { id: string; name: string }[];
   protocols: ProtocolDto[];
   onSave: (batch: BatchDto, payload: unknown, protocol: ProtocolDto | undefined) => Promise<void>;
@@ -279,6 +288,9 @@ function PlacementForm({
 }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
+  const [draft, setDraft] = useState<{ houseId?: string; placedOn: string }>({ houseId: houses[0]?.id, placedOn: today() });
+  const chosen = houses.find((h) => h.id === draft.houseId);
+  const warning = chosen && downtimeWarning(chosen.minDays, chosen.disinfectedOn, draft.placedOn as FarmDay); // a warning, never a block
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -312,7 +324,14 @@ function PlacementForm({
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-current/30 p-3">
+    <form
+      onSubmit={submit}
+      onChange={(e) => {
+        const data = new FormData(e.currentTarget);
+        setDraft({ houseId: String(data.get("houseId")), placedOn: String(data.get("placedOn") || today()) });
+      }}
+      className="flex flex-col gap-3 rounded-lg border border-current/30 p-3"
+    >
       <Select label={t("Batches.house")} name="houseId">
         {houses.map((h) => (
           <option key={h.id} value={h.id}>{h.busy ? t("Batches.houseBusy", { house: h.label }) : h.label}</option>
@@ -334,6 +353,7 @@ function PlacementForm({
       <Field name="deliveryNote" label={t("Batches.deliveryNote")} required maxLength={60} dir="ltr" />
       <Field name="price" label={t("Batches.chickPrice")} inputMode="decimal" required dir="ltr" />
       <Field name="dayOldWeight" label={t("Batches.dayOldWeight")} inputMode="numeric" pattern="\d+" dir="ltr" />
+      {warning && <p role="status" className="rounded-lg bg-amber-500/15 p-3">{t("Batches.downtimeWarning", { elapsed: warning.elapsedDays, min: warning.minDays })}</p>}
       {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Batches.save")}</button>

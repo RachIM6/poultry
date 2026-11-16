@@ -55,9 +55,16 @@ Done 2026-11-16 (branch `feat/t41-disposal`):
 ### T42: Clean-out and downtime (BS4, BS5)
 **Description:** `Cleanout` (house, batch it follows) and its steps as `CleanoutStep` rows (step key, farm day, fields); mutations `startCleanout`, `recordCleanoutStep`; `Farm.minDowntimeDays` (optional, `farms.manage`); `downtimeDay` and `downtimeWarning`; static shell `/cleanout`; the placement form warns when the house's downtime is below the farm's minimum.
 **AC:**
-- [ ] Each step once per clean-out (`STEP_ALREADY_DONE`); a clean-out only for a house whose last batch is closed.
-- [ ] Fixtures: disinfected 5 Nov, today 6 Nov → day 2; minimum 14, placement 17 Nov → warning, 19 Nov → none.
-- [ ] e2e: steps marked offline; the placement warning shows.
+- [x] Each step once per clean-out (`STEP_ALREADY_DONE`); a clean-out only for a house whose last batch is closed (`BATCH_NOT_CLOSED`), once per batch (`CLEANOUT_ALREADY_STARTED`). (`cleanouts.int.test.ts`.)
+- [x] Fixtures: disinfected 5 Nov, today 6 Nov → day 2; minimum 14, placement 17 Nov → warning, 19 Nov → none. (`domain/cleanout.test.ts`.)
+- [x] e2e: steps marked offline; the placement warning shows (`e2e/cleanout.spec.ts`).
+
+Done 2026-11-16 (branch `feat/t42-cleanout`), decisions taken without asking:
+- **The farm's minimum is biosecurity's own record** (`DowntimeSetting`, keyed by farm), not a `Farm` column: `farm-registry`'s schemas and every createFarm payload stay as they are. Set by owners and managers (`farms.manage`); no default (CQ3).
+- **The clean-out is one record on the phone** with its steps inside; on the server, steps are rows (`CleanoutStep`, unique per step), each audited.
+- **Disinfection needs a product** (SCOPE §4: product, dose, date); dose and product lot are optional.
+- The placement form shows the warning live, from the house's last closed batch's clean-out; the placement still goes through.
+- `/cleanout` is a precached static shell; the rodent-control step's proof photo comes with T43.
 **Size:** M
 
 ### T43: File storage and rodent control with proof (DC2, BS8, ADR-011)

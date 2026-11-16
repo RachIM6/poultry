@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DISPOSAL_METHODS, MANURE_DESTINATIONS, VISIT_PURPOSES, ZONES } from "@/modules/biosecurity/shared";
+import { CLEANOUT_STEPS, DISPOSAL_METHODS, MANURE_DESTINATIONS, VISIT_PURPOSES, ZONES } from "@/modules/biosecurity/shared";
 
 export * from "@/modules/biosecurity/shared";
 
@@ -44,3 +44,20 @@ export const RecordManure = z.object({
   recipient: note(120),
 });
 export type RecordManure = z.infer<typeof RecordManure>;
+
+export const StartCleanout = z.object({ id: z.uuid(), houseId: z.uuid(), afterBatchId: z.uuid(), startedOn: z.iso.date() });
+export type StartCleanout = z.infer<typeof StartCleanout>;
+
+export const RecordCleanoutStep = z.object({
+  id: z.uuid(),
+  cleanoutId: z.uuid(),
+  step: z.enum(CLEANOUT_STEPS),
+  day: z.iso.date(),
+  product: note(120),
+  dose: note(60),
+  productLot: note(60),
+  note: note(200),
+});
+export type RecordCleanoutStep = z.infer<typeof RecordCleanoutStep>;
+
+export const SetMinDowntime = z.object({ farmId: z.uuid(), minDays: z.int32().min(1).max(365).nullable() });

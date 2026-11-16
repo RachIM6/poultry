@@ -870,3 +870,42 @@ model ManureRemoval {
 
   @@index([organizationId, farmId, day])
 }
+
+// Owner: biosecurity. SPEC-m2-compliance BS4: the clean-out of a house after one batch, once per batch.
+model Cleanout {
+  id             String         @id @db.Uuid
+  organizationId String         @db.Uuid
+  farmId         String         @db.Uuid
+  houseId        String         @db.Uuid
+  afterBatchId   String         @unique @db.Uuid
+  startedOn      DateTime       @db.Date
+  startedBy      String         @db.Uuid
+  createdAt      DateTime       @default(now()) @db.Timestamptz
+  steps          CleanoutStep[]
+
+  @@index([organizationId, houseId])
+}
+
+// Owner: biosecurity. BS4: one step of SCOPE §4's checklist, each once per clean-out. Ids are UUIDv7: they sort by time.
+model CleanoutStep {
+  id         String   @id @db.Uuid
+  cleanoutId String   @db.Uuid
+  step       String // manureOut | equipmentWashed | pressureWash | disinfection | rodentControl | waterFlush | litterPreheat
+  day        DateTime @db.Date
+  product    String?
+  dose       String?
+  productLot String?
+  note       String?
+  recordedBy String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  cleanout   Cleanout @relation(fields: [cleanoutId], references: [id], onDelete: Cascade)
+
+  @@unique([cleanoutId, step])
+}
+
+// Owner: biosecurity. BS5: the farm's own minimum downtime between batches, set by the owner or manager (CQ3).
+model DowntimeSetting {
+  farmId         String @id @db.Uuid
+  organizationId String @db.Uuid
+  minDays        Int?
+}

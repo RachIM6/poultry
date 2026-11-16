@@ -10,12 +10,11 @@ import { Batch, FLOCK_MUTATIONS as M, ageOn, sampleStats, versusStandard, type B
 import { parseQuantity } from "@/modules/inventory/shared";
 import type { CurvePoint } from "@/modules/reference-data/schema";
 import { standardAt } from "@/modules/reference-data/shared";
+import { field, primary } from "@/components/ui";
 
 // SPEC B3 on the phone: type the sample, see the average, uniformity (CV%) and the gap to the strain standard at once.
 // Without a published curve for the strain (OQ5) the gap is not shown: a standard is never guessed.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 text-lg font-semibold text-white";
 const today = () => farmDayOf(new Date());
 
 /** The typed sample: weights in kg separated by spaces or new lines ("2,05 1,98"), or a group's total and count. */

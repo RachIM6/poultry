@@ -55,3 +55,48 @@ test("hens placed at 18 weeks show their age in weeks, and beldi bands share a r
   await page.goto("/ar/batches");
   await expect(page.getByText("18 أسبوع", { exact: true })).toBeVisible();
 });
+
+// T54 acceptance (SPEC-m3 B9): turkeys placed "sexes séparés" become one batch per sex in the same house, offline.
+test("turkeys placed by sex become two batches side by side", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const e164 = await ownerWithFarm(page, "Élevage des Dindes");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID() };
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Sidi Hajjaj", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment D1", areaM2: 1500, capacity: 3000, type: "closed" } },
+  ]);
+  await page.goto("/fr/batches");
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await referenceCached(page);
+  await context.setOffline(true);
+  await context.route("**", (route) => route.abort("internetdisconnected"));
+
+  await page.getByRole("button", { name: "Mettre en place une bande" }).click();
+  await page.getByLabel("Production").selectOption({ label: "Dinde" });
+  await page.getByLabel("Souche").selectOption({ label: "BUT 6" });
+  await page.getByLabel("Sexes séparés").check();
+  await page.getByLabel("Femelles placées").fill("1500");
+  await page.getByLabel("Mâles placés").fill("1500");
+  await page.getByLabel("Mâles morts à l’arrivée").fill("4");
+  await page.getByLabel("Couvoir").fill("Couvoir Chaouia");
+  await page.getByLabel("N° de bon de livraison").fill("BL-26-4471");
+  await page.getByLabel("Prix d’un poussin (DH)").fill("12,00");
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByText("Dinde · femelles · Ferme Sidi Hajjaj · Bâtiment D1 · BUT 6")).toBeVisible();
+  await expect(page.getByText("Dinde · mâles · Ferme Sidi Hajjaj · Bâtiment D1 · BUT 6")).toBeVisible();
+
+  await page.getByRole("link", { name: "Saisir le jour" }).first().click();
+  await page.getByRole("link", { name: /Même lot, (mâles : 1 496|femelles : 1 500) sujets/ }).click();
+  await expect(page.getByRole("link", { name: /Même lot, (mâles : 1 496|femelles : 1 500) sujets/ })).toBeVisible();
+
+  await context.unroute("**");
+  await context.setOffline(false);
+  const batches = async () =>
+    await query<{ sex: string; birds: number }>(
+      `SELECT b.sex, b."chicksPlaced" - b."deadOnArrival" AS birds FROM "Batch" b JOIN "Membership" m ON m."organizationId" = b."organizationId"
+       JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1 ORDER BY b.sex`,
+      [e164],
+    );
+  await expect.poll(batches).toEqual([{ sex: "female", birds: 1500 }, { sex: "male", birds: 1496 }]);
+});

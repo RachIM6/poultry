@@ -1,6 +1,6 @@
 import { v5 as uuidv5 } from "uuid";
 import type { DayFields } from "@/modules/flock/domain/daily-entry";
-import type { ProductionType } from "@/modules/reference-data/shared";
+import type { BirdSex, ProductionType } from "@/modules/reference-data/shared";
 
 // What the phone's screens need from flock, without Zod (ADR-009): mutation names, plain DTO types and the domain
 // rules the phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
@@ -24,6 +24,7 @@ export type BatchDto = {
   deliveryNote: string;
   dayOldWeightGrams: number | null;
   ageAtPlacementDays?: number; // SPEC-m3 B7; absent from a record pulled before M3 (= 0)
+  sex?: BirdSex; // SPEC-m3 B9; absent = mixed
   status: "open" | "closed";
   chickUnitPriceCentimes?: string; // money (SPEC I5): absent for workers
   // B6, once closed: the locked figures (the cost ones are money).

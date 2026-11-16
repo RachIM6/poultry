@@ -100,4 +100,14 @@ describe("every production type (SPEC-m3 B7, B8)", () => {
     expect(canJoinHouse("beldi", [{ species: "layer" }]).ok).toBe(false);
     expect(canJoinHouse("layer", [{ species: "beldi" }]).ok).toBe(false);
   });
+
+  it("lets a turkey batch of one sex join the other sex's, nothing more (SPEC-m3 B9)", () => {
+    expect(canJoinHouse("turkey", [{ species: "turkey", sex: "female" }], "male").ok).toBe(true);
+    expect(canJoinHouse("turkey", [{ species: "turkey", sex: "female" }], "female").ok).toBe(false);
+    expect(canJoinHouse("turkey", [{ species: "turkey", sex: "female" }, { species: "turkey", sex: "male" }], "male").ok).toBe(false);
+    expect(canJoinHouse("turkey", [{ species: "turkey" }], "male").ok).toBe(false); // a mixed batch is already there
+    expect(canJoinHouse("turkey", [{ species: "turkey", sex: "female" }]).ok).toBe(false);
+    expect(Batch.place({ ...placement, sex: "male" }, day("2026-10-14"))).toEqual({ ok: false, error: "INVALID_INPUT" }); // broilers aren't sexed
+    expect(Batch.place({ ...placement, species: "turkey", sex: "male" }, day("2026-10-14")).ok).toBe(true);
+  });
 });

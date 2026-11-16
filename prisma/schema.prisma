@@ -464,6 +464,7 @@ model Batch {
   chickUnitPriceCentimes BigInt
   dayOldWeightGrams      Int?
   ageAtPlacementDays     Int       @default(0) // SPEC-m3 B7: started pullets or point-of-lay hens arrive older
+  sex                    String    @default("mixed") // SPEC-m3 B9: mixed | female | male (turkeys raised apart)
   status                 String    @default("open") // open | closed
   // B6, set when it closes and never changed afterwards: the locked figures.
   closedOn               DateTime? @db.Date // farm day

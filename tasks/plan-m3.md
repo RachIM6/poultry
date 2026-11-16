@@ -60,8 +60,10 @@ Done 2026-11-16 (branch `feat/t53-placement-all-types`): `Batch.ageAtPlacementDa
 ### T54: Turkey by sex (B9)
 **Description:** `Batch.sex`; "sexes séparés" places two batches in one write; weighing compares with the curve of the batch's sex; the lot card shows both sexes.
 **AC:**
-- [ ] A female + male placement creates two batches; a third turkey batch in the house is refused (integration test).
-- [ ] The male batch can be sold out and closed while the female one stays open (integration test).
+- [x] A female + male placement creates two batches; a third turkey batch in the house is refused (integration test). (`flock/batches.int.test.ts`; a mixed one too.)
+- [x] The male batch can be sold out and closed while the female one stays open (integration test). (Closed by hand in the test; selling out goes through the same `Batch.close`.)
+
+Done 2026-11-16 (branch `feat/t54-turkey-sexes`): `Batch.sex` (mixed for every M1 row; only turkeys may be sexed). "Sexes séparés" in the form places one batch per sex with its own count and dead on arrival, each with the protocol's plan. The unique index is now on (house, sex). Each batch compares with its sex's curve (`curveFor`); its screen links to the other sex's batch with its birds on hand (`e2e/production-types.spec.ts`). The P-Turkey weekly table per sex waits for curves (MQ1).
 **Size:** M
 
 ### T55: Chick arrival quality (B10)

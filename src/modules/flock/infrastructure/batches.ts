@@ -4,7 +4,7 @@ import { houseOf } from "@/modules/farm-registry";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, type BatchStatus } from "@/modules/flock/domain/batch";
 import type { BatchCostDto, BatchDto } from "@/modules/flock/schema";
-import type { ProductionType } from "@/modules/reference-data/shared";
+import type { BirdSex, ProductionType } from "@/modules/reference-data/shared";
 
 // Batch repository (Prisma). Scoped to the caller's organisation.
 
@@ -15,8 +15,9 @@ export const lockHouse = (tx: Tx, houseId: string) => tx.$executeRaw`SELECT pg_a
 
 /** SPEC-m3 B8: the house's open batches, with what the sharing rule needs. */
 export const openInHouse = async (tx: Tx, ctx: TenantContext, houseId: string) =>
-  (await tx.batch.findMany({ where: { organizationId: ctx.organizationId, houseId, status: "open" }, select: { species: true } })).map((b) => ({
+  (await tx.batch.findMany({ where: { organizationId: ctx.organizationId, houseId, status: "open" }, select: { species: true, sex: true } })).map((b) => ({
     species: b.species as ProductionType,
+    sex: b.sex as BirdSex,
   }));
 
 export const batchIdTaken = async (tx: Tx, id: string) => (await tx.batch.count({ where: { id } })) > 0;
@@ -38,7 +39,8 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Pr
     hatchery: p.hatchery,
     deliveryNote: p.deliveryNote,
     dayOldWeightGrams: p.dayOldWeightGrams,
-    ageAtPlacementDays: p.ageAtPlacementDays,
+    ageAtPlacementDays: p.ageAtPlacementDays ?? 0,
+    sex: p.sex ?? "mixed",
     status: batch.status,
     chickUnitPriceCentimes: String(p.chickUnitPriceCentimes),
   };
@@ -68,6 +70,7 @@ export async function loadBatch(tx: Tx, ctx: TenantContext, id: string): Promise
       chickUnitPriceCentimes: r.chickUnitPriceCentimes,
       dayOldWeightGrams: r.dayOldWeightGrams,
       ageAtPlacementDays: r.ageAtPlacementDays,
+      sex: r.sex as BirdSex,
     },
     r.status as BatchStatus,
   );
@@ -117,6 +120,7 @@ export async function saveClosing(
     deliveryNote: r.deliveryNote,
     dayOldWeightGrams: r.dayOldWeightGrams,
     ageAtPlacementDays: r.ageAtPlacementDays,
+    sex: r.sex as BirdSex,
     status: batch.status,
     chickUnitPriceCentimes: String(r.chickUnitPriceCentimes),
     closedOn: c.closedOn,

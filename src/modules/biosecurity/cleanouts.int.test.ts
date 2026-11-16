@@ -40,6 +40,8 @@ describe("clean-out and downtime through sync (SPEC-m2-compliance BS4, BS5, BS9,
     expect(await statuses(worker, m("biosecurity.startCleanout", { id, houseId, afterBatchId: closed, startedOn: "2026-11-03" }))).toEqual(["applied"]);
     expect(await statuses(worker, m("biosecurity.startCleanout", { id: uuidv7(), houseId, afterBatchId: closed, startedOn: "2026-11-03" }))).toEqual(["errors.CLEANOUT_ALREADY_STARTED"]);
     expect(await statuses(worker, m("biosecurity.startCleanout", { id: uuidv7(), houseId: openHouse, afterBatchId: open, startedOn: "2026-11-03" }))).toEqual(["errors.BATCH_NOT_CLOSED"]);
+    // Another house's batch, even on the same farm, is not this house's clean-out.
+    expect(await statuses(worker, m("biosecurity.startCleanout", { id: uuidv7(), houseId: openHouse, afterBatchId: closed, startedOn: "2026-11-03" }))).toEqual(["errors.NOT_FOUND"]);
 
     const manure = step(id);
     expect(await statuses(worker, m("biosecurity.recordCleanoutStep", manure))).toEqual(["applied"]);

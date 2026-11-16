@@ -49,9 +49,12 @@ describe("dead-bird disposal and manure through sync (SPEC-m2-compliance BS6, BS
     expect(await statuses(a, m("biosecurity.recordDisposal", disposal({ method: "other", methodNote: "fosse fermée, chaux vive" })))).toEqual(["applied"]);
   });
 
-  it("a house or batch must be on the farm given", async () => {
+  it("a house or batch must be on the farm given, and the batch in the house", async () => {
     expect(await statuses(a, m("biosecurity.recordDisposal", disposal({ farmId: otherFarm })))).toEqual(["errors.NOT_FOUND"]);
     expect(await statuses(a, m("biosecurity.recordManure", manure({ farmId: otherFarm, batchId: null })))).toEqual(["errors.NOT_FOUND"]);
+    const otherHouse = uuidv7();
+    await statuses(a, m("farm-registry.createHouse", { id: otherHouse, farmId, name: "Bâtiment 2", areaM2: 1000, capacity: 10000, type: "closed" }));
+    expect(await statuses(a, m("biosecurity.recordManure", manure({ houseId: otherHouse })))).toEqual(["errors.NOT_FOUND"]); // the batch is in Bâtiment 1
   });
 
   it("keeps organisations apart", async () => {

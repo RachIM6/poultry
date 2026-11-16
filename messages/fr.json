@@ -382,7 +382,10 @@
     "STEP_ALREADY_DONE": "Cette étape est déjà notée.",
     "DISINFECTANT_REQUIRED": "Indiquez le produit désinfectant.",
     "BATCH_NOT_CLOSED": "La bande de ce bâtiment n’est pas encore clôturée.",
-    "CLEANOUT_ALREADY_STARTED": "Le nettoyage après cette bande est déjà commencé."
+    "CLEANOUT_ALREADY_STARTED": "Le nettoyage après cette bande est déjà commencé.",
+    "FILE_TOO_LARGE": "Fichier trop lourd : 5 Mo au maximum.",
+    "FILE_TYPE_NOT_ALLOWED": "Type de fichier refusé : PDF, JPEG, PNG ou WebP seulement.",
+    "PROOF_ALREADY_ATTACHED": "Cette vérification a déjà sa photo."
   },
   "Weighing": {
     "title": "Pesée",
@@ -810,7 +813,8 @@
     "tabs": "Registre",
     "tab": {
       "dead": "Cadavres",
-      "manure": "Fumier"
+      "manure": "Fumier",
+      "rodents": "Nuisibles"
     },
     "batch": "Bande {house} du {date}",
     "day": "Date",
@@ -847,7 +851,21 @@
     "recipient": "Destinataire (facultatif)",
     "saveManure": "Enregistrer la sortie de fumier",
     "recentManure": "Dernières sorties de fumier",
-    "manureLine": "{date} : {kg} kg, {destination}"
+    "manureLine": "{date} : {kg} kg, {destination}",
+    "rodentAction": "Action",
+    "rodentActions": {
+      "baitPlaced": "Appâts posés",
+      "baitChecked": "Appâts contrôlés"
+    },
+    "product": "Produit (facultatif)",
+    "saveRodent": "Enregistrer la dératisation",
+    "recentRodents": "Dernières dératisations",
+    "rodentLine": "{date} : {action}",
+    "proof": "Voir la photo",
+    "proofMissing": "Preuve à ajouter (après envoi, avec du réseau)",
+    "proofAdd": "Ajouter la photo",
+    "proofSending": "Envoi de la photo…",
+    "proofFailed": "La photo n’a pas pu être envoyée. Réessayez avec du réseau."
   },
   "Cleanout": {
     "title": "Nettoyage et vide sanitaire",

@@ -56,6 +56,7 @@ export const BIOSECURITY_MUTATIONS = {
   startCleanout: "biosecurity.startCleanout",
   recordCleanoutStep: "biosecurity.recordCleanoutStep",
   setMinDowntime: "biosecurity.setMinDowntime",
+  recordRodentCheck: "biosecurity.recordRodentCheck",
 } as const;
 
 /** BS4: a step of a clean-out, marked once. Disinfection says with what (product, dose, product lot). */
@@ -74,3 +75,17 @@ export type CleanoutDto = { id: string; farmId: string; houseId: string; afterBa
 
 /** BS5: the farm's own minimum downtime in days, or none (CQ3). Keyed by the farm. */
 export type DowntimeSettingDto = { id: string; farmId: string; minDays: number | null };
+
+/** BS8: what a rodent check did. */
+export const RODENT_ACTIONS = ["baitPlaced", "baitChecked"] as const;
+
+/** BS8: rodent control (law 49-99 art. 15). `proofFileId`: the photo, attached online later; null until then. */
+export type RodentCheckDto = {
+  id: string;
+  farmId: string;
+  houseId: string | null;
+  day: string;
+  action: (typeof RODENT_ACTIONS)[number];
+  product: string | null;
+  proofFileId: string | null;
+};

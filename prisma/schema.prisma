@@ -909,3 +909,36 @@ model DowntimeSetting {
   organizationId String @db.Uuid
   minDays        Int?
 }
+
+// Owner: documents. SPEC-m2-compliance DC2, ADR-011: an uploaded file, kept in the database until hosting is chosen
+// (OQ1). `purpose`: "proof" (a biosecurity photo, every member) or "document" (the vault, owners and managers).
+model StoredFile {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  purpose        String // proof | document
+  contentType    String // from the file's own bytes
+  sizeBytes      Int
+  sha256         String
+  bytes          Bytes
+  uploadedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS8: rodent control with physical proof (law 49-99 art. 15). The photo is a
+// StoredFile, attached online after the check was recorded.
+model RodentCheck {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  houseId        String?  @db.Uuid
+  day            DateTime @db.Date
+  action         String // baitPlaced | baitChecked
+  product        String?
+  proofFileId    String?  @db.Uuid
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}

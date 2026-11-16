@@ -48,4 +48,9 @@ Done 2026-11-16 (branch `feat/u4-batch-page`). Not yet: the batch page's lower s
 
 Not yet: tables scroll sideways on a phone only inside the page; the mockup's receipt photo and "paid how" chips on the expense.
 
-### U8 (next):, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.
+### U8: Farms, protocol, members
+- [x] Farms, protocol and members get the round back button to "Plus"; members use the shared cards. Full browser suite: 44 passed.
+
+Still open after U8: /dashboard as an offline shell (it remembers the signed-in scope from the server today, so it needs another way to learn it); onboarding, install and offline pages in the mockup style; the sidebar's longer owner list on wide screens; an Arabic check by a native speaker.
+
+### Later:, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

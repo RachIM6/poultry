@@ -27,13 +27,11 @@ import {
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
+import { field, primary, secondary } from "@/components/ui";
 
 // SPEC V4 on the static /receivables shell, offline: what each buyer owes, their cheques and bills with due dates, and
 // later payments, checked with the same rule as the server. Owners and managers only: workers get no sale money (I5).
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
-const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const today = () => farmDayOf(new Date());
 
 export function ReceivablesScreen() {
@@ -131,7 +129,7 @@ function Receivables(scope: Scope) {
 
   return (
     <>
-      {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+      {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
       <h2 className="text-lg font-semibold">{t("Receivables.portfolio")}</h2>
       {pending.length === 0 ? (
         <p>{t("Receivables.portfolioNone")}</p>
@@ -155,7 +153,7 @@ function Receivables(scope: Scope) {
         </ul>
       )}
       {buyers.filter((b) => b.creditBlocked).map((b) => (
-        <p key={b.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-red-700/50 p-3">
+        <p key={b.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-alert-soft p-3 text-alert-fg">
           {t("Receivables.blocked", { buyer: b.name })}
           {can(scope, "finance.manage") && <button type="button" onClick={() => unblock(b)} className={secondary}>{t("Receivables.unblock")}</button>}
         </p>
@@ -163,7 +161,7 @@ function Receivables(scope: Scope) {
       {awaiting.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label={t("Receivables.awaiting")}>
           {awaiting.map((s) => (
-            <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-600/60 p-3">
+            <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-brick-soft p-3 text-brick-fg">
               {t("Receivables.awaitingLine", { buyer: nameOf(s.buyerId), amount: formatMoney(BigInt(s.amountCentimes ?? 0) - BigInt(s.paidCentimes ?? 0)), date: formatDay(s.day as FarmDay, locale) })}
               {owner && <button type="button" onClick={() => approve(s.id)} className={secondary}>{t("Receivables.approve")}</button>}
             </li>

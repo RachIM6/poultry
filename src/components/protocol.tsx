@@ -16,13 +16,11 @@ import {
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
+import { field, primary, secondary } from "@/components/ui";
 
 // SPEC R2 on the static /protocol shell: the template comes from the cached reference data, the organisation's copies
 // from its own database; both work offline (ADR-003, R4).
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
-const secondary = "rounded-lg border border-current/30 px-3 py-2";
 const card = "flex flex-col gap-2 rounded-lg border border-current/30 p-3";
 
 type Save = (mutation: { type: string; payload: unknown }, record: { entity: string; id: string; data: unknown }) => Promise<void>;
@@ -69,14 +67,14 @@ function Protocols(scope: Scope) {
 
   return (
     <>
-      {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+      {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">{t("Protocol.template")}</h2>
         {protocolTemplates.map((template) => (
           <div key={template.id} className={card}>
             <span className="font-semibold">{nameOf(template)}</span>
             {/* OQ4: shown until a vet signs the template off */}
-            {!template.reviewedByVet && <p className="rounded-lg bg-amber-500/15 p-2 text-sm">{t("Protocol.notReviewed")}</p>}
+            {!template.reviewedByVet && <p className="rounded-xl bg-chick-soft p-2 text-sm text-chick-fg">{t("Protocol.notReviewed")}</p>}
             {template.items.length === 0 ? (
               <p className="text-sm opacity-75">{t("Protocol.emptyTemplate")}</p>
             ) : (

@@ -6,12 +6,11 @@ import { formatKg, formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
 import { budgetOf, type BudgetInputs } from "@/modules/finance/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
+import { field, primary } from "@/components/ui";
 
 // SPEC-finance FN15: a planned batch's budget, copied from a closed batch, with its feed and sale prices as what-if
 // inputs. The figures recompute on every keystroke with the same pure function the server uses.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-2 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
 
 type Base = { batchId: string; label: string; inputs: Record<keyof BudgetInputs, string> }; // centimes and grams as strings
 type Text = Record<keyof BudgetInputs, string>;

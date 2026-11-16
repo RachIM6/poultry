@@ -12,12 +12,10 @@ import { FARM_MUTATIONS as M, FarmFields, HOUSE_TYPES, HouseFields, type FarmDto
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
+import { field, primary, secondary } from "@/components/ui";
 
 // SPEC F2–F4. Runs on the static /farms shell: everything comes from and goes to the phone's database (ADR-003).
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
-const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const card = "flex flex-col gap-1 rounded-lg border border-current/30 p-3";
 
 type Save = (mutation: { type: string; payload: unknown }, record: { entity: string; id: string; data: unknown }) => Promise<boolean>;
@@ -82,7 +80,7 @@ function Farms(scope: Scope) {
   const open = farms.find((f) => f.id === openId);
   return (
     <>
-      {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+      {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
       {openId ? (
         open ? (
           <FarmDetail key={open.id} farm={open} houses={houses.filter((h) => h.farmId === open.id)} manage={manage} save={save} />

@@ -20,8 +20,8 @@ export async function GET(_: Request, { params }: RouteContext<"/[locale]/manife
     start_url: `/${locale}`,
     scope: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#15803d",
+    background_color: "#f5f3ee",
+    theme_color: "#24211c",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },

@@ -10,6 +10,7 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
   await farmWithBatch(page); // one batch, placed today: a shared expense of this month goes to it (FN14)
   await page.goto("/fr/dashboard");
 
+  await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Dépense rapide" }).click();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await page.getByRole("button", { name: "Ajouter une caisse ou un compte" }).click();

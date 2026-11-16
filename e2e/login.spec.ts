@@ -55,6 +55,7 @@ test("log out of all devices ends every session of the user", async ({ page, bro
   await lost.waitForURL(/\/fr\/dashboard$/);
 
   page.once("dialog", (d) => void d.accept());
+  await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("button", { name: "Déconnecter tous mes appareils" }).click();
   await expect(page).toHaveURL(/\/fr\/login$/);
   const [{ n }] = await query<{ n: number }>(

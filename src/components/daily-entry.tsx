@@ -16,12 +16,11 @@ import {
   type DeathCause,
 } from "@/modules/flock/shared";
 import { parseQuantity, type StockItemDto } from "@/modules/inventory/shared";
+import { field, primary } from "@/components/ui";
 
 // SPEC B2 on the phone: one short screen, built to be filled in under a minute. Same checks as the server; only the
 // fields that changed are sent, so two phones entering the same day merge instead of overwriting each other.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 text-lg font-semibold text-white";
 const today = () => farmDayOf(new Date());
 
 export type Write = (mutation: { type: string; payload: unknown }, records: { entity: string; id: string; data: unknown }[]) => Promise<boolean>;

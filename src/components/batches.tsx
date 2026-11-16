@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState, useSyncExternalStore, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useState, useSyncExternalStore, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDecimal } from "@/lib/format";
@@ -10,13 +10,14 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, birdsStarted, canJoinHouse, doaClaim, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { Batch, FLOCK_MUTATIONS as M, birdsStarted, canJoinHouse, doaClaim, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
 import { PRODUCTION_TYPES, curveFor, type BirdSex, type ProductionType } from "@/modules/reference-data/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import dynamic from "next/dynamic";
+import { ageText as batchAge } from "@/components/batch-age";
 import { DayForm, type Write } from "@/components/daily-entry";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
@@ -78,7 +79,11 @@ function Batches(scope: Scope) {
   const farms = new Map(of<FarmDto>("farm").map((f) => [f.id, f]));
   const houses = of<HouseDto>("house");
   const openFirst = (b: BatchDto) => (b.status === "open" ? 0 : 1);
-  const batches = of<BatchDto>("batch").sort((x, y) => openFirst(x) - openFirst(y) || y.placedOn.localeCompare(x.placedOn));
+  // SPEC-m3 B11: a run's open beldi bands stay together, oldest first; then the rest, latest placement first.
+  const band = (b: BatchDto) => (b.status === "open" && b.species === "beldi" ? b.houseId : "");
+  const batches = of<BatchDto>("batch").sort(
+    (x, y) => openFirst(x) - openFirst(y) || band(y).localeCompare(band(x)) || (band(x) ? x.placedOn.localeCompare(y.placedOn) : y.placedOn.localeCompare(x.placedOn)),
+  );
   const strains = reference?.data.strains ?? [];
   const houseName = (id: string) => houses.find((h) => h.id === id)?.name ?? "";
   const busy = new Set(batches.filter((b) => b.status === "open").map((b) => b.houseId));
@@ -100,13 +105,7 @@ function Batches(scope: Scope) {
   };
 
   const shown = batches.find((b) => b.id === openId);
-  // SPEC-m3 B7: days for broilers, weeks (+ days) for the longer cycles.
-  const ageText = (b: BatchDto) => {
-    const age = ageOfBatch(b, today());
-    if (b.species === "broiler") return t("Batches.age", { age: String(age) });
-    const [weeks, days] = [Math.floor(age / 7), age % 7];
-    return days === 0 ? t("Batches.ageWeeks", { weeks: String(weeks) }) : t("Batches.ageWeeksDays", { weeks: String(weeks), days: String(days) });
-  };
+  const ageText = (b: BatchDto) => batchAge(t, b, today());
   const strainName = (id: string) => (id.startsWith("unspecified-") ? t("Batches.unspecifiedStrain") : (strains.find((s) => s.id === id)?.name ?? id));
   const sexOf = (b: BatchDto) => (b.sex && b.sex !== "mixed" ? ` · ${t(`Batches.sexes.${b.sex}`)}` : ""); // SPEC-m3 B9
   const title = (b: BatchDto) => `${t(`Types.${b.species}`)}${sexOf(b)} · ${t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strainName(b.strainId) })}`;
@@ -232,8 +231,17 @@ function Batches(scope: Scope) {
         <p>{t("Batches.none")}</p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {batches.map((b) => (
-            <li key={b.id} className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
+          {batches.map((b, i) => (
+            <Fragment key={b.id}>
+            {band(b) && (i === 0 || band(batches[i - 1]) !== band(b)) ? (
+              <li className="pt-2 font-semibold">
+                {(() => {
+                  const run = batches.filter((x) => band(x) === band(b));
+                  return t("Batches.run", { house: houseName(b.houseId), bands: String(run.length), birds: formatCount(run.reduce((n, x) => n + onHand(x), 0)) });
+                })()}
+              </li>
+            ) : null}
+            <li className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
               <span className="font-semibold">
                 {b.status === "open" ? ageText(b) : t("Batches.status.closed")}
               </span>
@@ -246,6 +254,7 @@ function Batches(scope: Scope) {
                 <a href={`#${b.id}`} className="py-2 underline underline-offset-4">{t("Closing.open")}</a>
               )}
             </li>
+            </Fragment>
           ))}
         </ul>
       )}

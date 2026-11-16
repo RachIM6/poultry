@@ -78,7 +78,9 @@ Done 2026-11-16 (branch `feat/t55-chick-arrival`): `Batch.freeChicks`, `parentFl
 ### T56: Beldi run (B11)
 **Description:** The batches list groups open bands of a run with age in weeks and birds on hand.
 **AC:**
-- [ ] Two bands in one run each take their daily entry offline and sync (e2e).
+- [x] Two bands in one run each take their daily entry offline and sync (e2e). (`e2e/production-types.spec.ts`: one dead each, the run heading drops from 270 to 268 birds, 2 synced.)
+
+Done 2026-11-16 (branch `feat/t56-beldi-run`): the batches list keeps a run's open bands together, oldest first, under "Parcours · 2 bandes · 270 sujets". Asked by the UI session: the "Aujourd'hui" home and the day strip now serve every type instead of forking them: long cycles show a rolling 42-day window (35 days back, 7 ahead), ages in weeks (`components/batch-age.ts`, shared with the batches list), the type for a "non précisée" strain and the sex of a turkey batch.
 **Size:** S
 
 ### T57: Pullet uniformity and weekly standard (B12)

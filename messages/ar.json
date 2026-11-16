@@ -802,5 +802,38 @@
     "left": "{birds} غير منقولة ستُستبعد في ذلك اليوم.",
     "save": "نقل",
     "noHouse": "لا يوجد مبنى فارغ للبيض."
+  },
+  "Eggs": {
+    "title": "جمع البيض",
+    "day": "التاريخ",
+    "ofDay": "جمعات اليوم",
+    "collection": "الجمعة {n}",
+    "line": "الجمعة {n} · {eggs} بيضة · {down} مستبعدة",
+    "categories": {
+      "normal": "عادية",
+      "cracked": "مشروخة",
+      "dirty": "متسخة",
+      "doubleYolk": "بصفارين",
+      "floor": "بيض الأرض",
+      "broken": "مكسورة"
+    },
+    "hints": {
+      "normal": "نظيفة وسليمة",
+      "cracked": "قشرة مشقوقة",
+      "dirty": "فضلات، دم",
+      "doubleYolk": "حجم كبير",
+      "floor": "خارج الأعشاش",
+      "broken": "ضائعة"
+    },
+    "add": "إضافة {step} · {label}",
+    "remove": "إنقاص {step} · {label}",
+    "sample": "بيض موزون للوزن المتوسط (اختياري)",
+    "sampleCount": "عدد البيض",
+    "sampleGrams": "الوزن الإجمالي (غ)",
+    "total": "هذه الجمعة: {eggs} بيضة",
+    "downgraded": "المستبعد {percent} %",
+    "save": "تسجيل الجمعة",
+    "correct": "تصحيح",
+    "saveCorrection": "تسجيل التصحيح"
   }
 }

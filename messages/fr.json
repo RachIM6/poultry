@@ -802,5 +802,38 @@
     "left": "{birds} non transférées seront réformées ce jour-là.",
     "save": "Transférer",
     "noHouse": "Aucun bâtiment libre pour la ponte."
+  },
+  "Eggs": {
+    "title": "Ramassage des œufs",
+    "day": "Date",
+    "ofDay": "Ramassages du jour",
+    "collection": "Ramassage {n}",
+    "line": "Ramassage {n} · {eggs} œufs · {down} déclassés",
+    "categories": {
+      "normal": "Normaux",
+      "cracked": "Fêlés",
+      "dirty": "Sales",
+      "doubleYolk": "Double jaune",
+      "floor": "Œufs de sol",
+      "broken": "Cassés"
+    },
+    "hints": {
+      "normal": "propres, entiers",
+      "cracked": "coquille fendue",
+      "dirty": "fientes, sang",
+      "doubleYolk": "gros calibre",
+      "floor": "hors des nids",
+      "broken": "perdus"
+    },
+    "add": "Ajouter {step} · {label}",
+    "remove": "Retirer {step} · {label}",
+    "sample": "Œufs pesés pour le poids moyen (facultatif)",
+    "sampleCount": "Nombre d’œufs",
+    "sampleGrams": "Poids total (g)",
+    "total": "Ce ramassage : {eggs} œufs",
+    "downgraded": "déclassés {percent} %",
+    "save": "Enregistrer le ramassage",
+    "correct": "Corriger",
+    "saveCorrection": "Enregistrer la correction"
   }
 }

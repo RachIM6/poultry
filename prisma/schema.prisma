@@ -605,6 +605,29 @@ model BatchCost {
   @@index([organizationId, batchId])
 }
 
+// Owner: eggs (SPEC-m3 E1). Several per layer batch and farm day, each with the phone's id; corrected in place while the
+// batch is open (the replaced counts are in the audit log).
+model EggCollection {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  normal         Int
+  cracked        Int
+  dirty          Int
+  doubleYolk     Int
+  floor          Int
+  broken         Int
+  sampleCount    Int? // eggs weighed together, for the average egg weight
+  sampleGrams    Int?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId, batchId, day])
+}
+
 // Owner: sales (SPEC V1).
 model Buyer {
   id                  String   @id @db.Uuid

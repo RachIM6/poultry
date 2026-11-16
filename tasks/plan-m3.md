@@ -112,8 +112,10 @@ Done 2026-11-16 (branch `feat/t59-egg-collection`): new strict module `eggs` (do
 ### T60: Egg stock, grading, discard (E2–E4)
 **Description:** `EggMovement` ledger written by collections, grading and discards; stock by item and age bucket (P-EggStock).
 **AC:**
-- [ ] Grading more than a day's ungraded eggs is refused; a corrected collection corrects its movements without duplicates (integration test).
-- [ ] Age buckets of a hand-made ledger (unit test).
+- [x] Grading more than a day's ungraded eggs is refused; a corrected collection corrects its movements without duplicates (integration test). (`eggs/stock.int.test.ts`; a correction that would take back graded eggs is refused.)
+- [x] Age buckets of a hand-made ledger (unit test). (`eggs/domain/stock.test.ts`.)
+
+Done 2026-11-16 (branch `feat/t60-egg-stock`). Decision: **no movement table**. Stock is computed (`eggLots`) from the records that already sync and are kept as entered: collections, `EggGrading` ({ grade: eggs } per batch and laying day) and `EggDiscard`; sales will add the eggs they draw (T63). The phone and the server run the same function, offline, with no second id to reconcile. Stock changes of a batch are serialized by an advisory lock. Grade ids are checked as slugs only: `eggs` may not depend on `reference-data` (CAPABILITY-MAP); the phone lists the reference grades. Eggs of a closed batch stay in stock. Page `/eggs` (P-EggStock, precached, linked from "Plus" and the layer batch): totals and trays of 30 (display only, MQ8), stock by grade with the "limits to confirm" note (MQ2), by age (0–2, 3–5, 6+ days), lots with "Calibrer" and "Écarter" (`e2e/eggs.spec.ts`).
 **Size:** M
 
 ### T61: Layer KPIs, water/feed ratio (E5, B14)

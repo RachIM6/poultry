@@ -168,6 +168,7 @@ function Batches(scope: Scope) {
           feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
           write={write}
         />
+        {open.species === "layer" && <Link href="/eggs" className="underline underline-offset-4">{t("EggStock.title")}</Link>}
         {open.species === "layer" && <EggCollections batch={open} collections={of<EggCollectionDto>("eggCollection").filter((c) => c.batchId === open.id)} write={write} />}
         <Weighings
           batch={open}

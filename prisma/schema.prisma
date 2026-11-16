@@ -628,6 +628,36 @@ model EggCollection {
   @@index([organizationId, batchId, day])
 }
 
+// Owner: eggs (SPEC-m3 E3). A batch's eggs of one laying day sorted into grade classes: { gradeId: eggs }. Never edited.
+model EggGrading {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  laidOn         DateTime @db.Date
+  grades         Json
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: eggs (SPEC-m3 E3). Eggs thrown away from a lot, with the reason. Never edited.
+model EggDiscard {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  laidOn         DateTime @db.Date
+  item           String // ungraded | downgraded | grade:<id>
+  eggs           Int
+  reason         String
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
 // Owner: sales (SPEC V1).
 model Buyer {
   id                  String   @id @db.Uuid

@@ -7,8 +7,20 @@ import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { checkCollection } from "@/modules/eggs/domain/collection";
-import { collectionIdTaken, findCollection, saveCorrection, saveNewCollection } from "@/modules/eggs/infrastructure/collections";
-import type { CorrectCollection, EggCollectionDto, RecordCollection } from "@/modules/eggs/schema";
+import { checkDiscard, checkGrading, eggLots } from "@/modules/eggs/domain/stock";
+import {
+  collectionIdTaken,
+  discardIdTaken,
+  eggFlowsOf,
+  findCollection,
+  gradingIdTaken,
+  lockEggs,
+  saveCorrection,
+  saveDiscard,
+  saveGrading,
+  saveNewCollection,
+} from "@/modules/eggs/infrastructure/collections";
+import type { CorrectCollection, DiscardEggs, EggCollectionDto, EggDiscardDto, EggGradingDto, GradeEggs, RecordCollection } from "@/modules/eggs/schema";
 import { batchFacts } from "@/modules/flock";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
@@ -38,6 +50,11 @@ export async function correctCollection(tx: Tx, ctx: TenantContext, cmd: z.infer
   if (!checked.ok) return checked;
 
   const dto: EggCollectionDto = { id: previous.id, batchId: previous.batchId, day: previous.day, counts: cmd.counts, sample: cmd.sample };
+  // E2: a correction can't take back eggs already graded, discarded or sold from that day.
+  await lockEggs(tx, dto.batchId);
+  const flows = await eggFlowsOf(tx, ctx, dto.batchId);
+  const after = eggLots({ ...flows, collections: flows.collections.map((c) => (c.id === dto.id ? dto : c)) });
+  if (after.some((l) => l.eggs < 0)) return fail("NOT_ENOUGH_EGGS");
   await saveCorrection(tx, dto);
   await recordChange(tx, ctx, "eggCollection", dto.id, dto);
   await audit(tx, ctx, {
@@ -48,5 +65,41 @@ export async function correctCollection(tx: Tx, ctx: TenantContext, cmd: z.infer
     after: { counts: dto.counts, sample: dto.sample },
     ...meta,
   });
+  return ok(undefined);
+}
+
+/** Grading and discards apply to a layer batch's eggs, open or closed: eggs stay in stock after the hens are sold. */
+async function layerBatch(tx: Tx, ctx: TenantContext, batchId: string) {
+  const batch = await batchFacts(tx, ctx, batchId);
+  return batch && batch.species === "layer" ? batch : null;
+}
+
+/** SPEC-m3 E3, applied by the sync push: a laying day's ungraded eggs sorted into grade classes. */
+export async function gradeEggs(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof GradeEggs>, meta: Meta) {
+  const batch = await layerBatch(tx, ctx, cmd.batchId);
+  if (!batch) return fail("NOT_FOUND");
+  if (await gradingIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
+  await lockEggs(tx, cmd.batchId);
+  const checked = checkGrading(eggLots(await eggFlowsOf(tx, ctx, cmd.batchId)), cmd);
+  if (!checked.ok) return checked;
+  const dto: EggGradingDto = cmd;
+  await saveGrading(tx, ctx, batch.farmId, dto);
+  await recordChange(tx, ctx, "eggGrading", dto.id, dto);
+  await audit(tx, ctx, { entity: "EggGrading", entityId: dto.id, action: "create", after: dto, ...meta });
+  return ok(undefined);
+}
+
+/** SPEC-m3 E3, applied by the sync push: eggs of a lot thrown away, with the reason. */
+export async function discardEggs(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof DiscardEggs>, meta: Meta) {
+  const batch = await layerBatch(tx, ctx, cmd.batchId);
+  if (!batch) return fail("NOT_FOUND");
+  if (await discardIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
+  await lockEggs(tx, cmd.batchId);
+  const checked = checkDiscard(eggLots(await eggFlowsOf(tx, ctx, cmd.batchId)), cmd);
+  if (!checked.ok) return checked;
+  const dto: EggDiscardDto = cmd;
+  await saveDiscard(tx, ctx, batch.farmId, dto);
+  await recordChange(tx, ctx, "eggDiscard", dto.id, dto);
+  await audit(tx, ctx, { entity: "EggDiscard", entityId: dto.id, action: "create", after: dto, ...meta });
   return ok(undefined);
 }

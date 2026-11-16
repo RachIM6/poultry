@@ -20,6 +20,7 @@ export const PlaceBatch = z.object({
   deliveryNote: text(60),
   chickUnitPriceCentimes: z.string().regex(/^\d{1,12}$/), // JSON has no bigint
   dayOldWeightGrams: z.int32().positive().nullable(),
+  ageAtPlacementDays: z.int32().min(0).default(0), // SPEC-m3 B7; the domain caps it
 });
 
 /** B6: by hand, with a reason (the last sale closes it by itself). */

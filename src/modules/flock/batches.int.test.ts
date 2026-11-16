@@ -90,6 +90,19 @@ describe("batch placement (SPEC B1)", () => {
     await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
   });
 
+  it("lets beldi bands share a run, never with another type (SPEC-m3 B8)", async () => {
+    await db.strain.create({ data: { id: "unspecified-beldi", name: "Beldi", productionTypes: ["beldi"] } });
+    const band = () => placement(houses.b1, { species: "beldi", strainId: "unspecified-beldi" });
+    expect(await statuses(b, [m(M.placeBatch, band()), m(M.placeBatch, band()), m(M.placeBatch, placement(houses.b1))])).toEqual([
+      "applied",
+      "applied",
+      "errors.HOUSE_HAS_OPEN_BATCH",
+    ]);
+    // The index still holds for every other type, even if a use case forgot to check.
+    await expect(db.batch.create({ data: { ...placement(houses.a1), organizationId: a.organizationId, farmId: farmA, chickUnitPriceCentimes: 450n, placedOn: new Date("2026-10-14") } })).rejects.toThrow();
+    await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
+  });
+
   it("refuses a number too big for its column instead of failing the push (T25 S4)", async () => {
     // 2^31 used to pass z.int() and throw on the int4 column: the phone retried it forever, blocking its outbox.
     const results = await statuses(b, [m(M.placeBatch, placement(houses.b1, { chicksPlaced: 2 ** 31 })), m(M.placeBatch, placement(houses.b1))]);

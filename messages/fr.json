@@ -307,7 +307,10 @@
     "protocol": "Programme de vaccination",
     "noProtocol": "Aucun",
     "type": "Production",
-    "unspecifiedStrain": "Souche non précisée"
+    "unspecifiedStrain": "Souche non précisée",
+    "ageWeeks": "{weeks} sem.",
+    "ageWeeksDays": "{weeks} sem. {days} j",
+    "ageAtPlacement": "Âge à la mise en place (semaines)"
   },
   "Day": {
     "title": "Saisie du jour",

@@ -6,7 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
 import { formatCount, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, sampleStats, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/shared";
+import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, sampleStats, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
 import type { CurvePoint } from "@/modules/reference-data/schema";
 import { standardAt } from "@/modules/reference-data/shared";
@@ -43,7 +43,7 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
 
   const describe = (s: Sample, onDay: string) => {
     const stats = sampleStats(s);
-    const standard = curve && standardAt(curve, ageOn(batch.placedOn as FarmDay, onDay as FarmDay));
+    const standard = curve && standardAt(curve, ageOfBatch(batch, onDay as FarmDay));
     return [
       t("Weighing.average", { average: formatKg(stats.averageGrams), count: formatCount(stats.count) }),
       stats.cvPercent === null ? null : t("Weighing.cv", { cv: formatPercent(stats.cvPercent) }),
@@ -111,7 +111,7 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
         <ul className="flex flex-col gap-2" aria-label={t("Weighing.past")}>
           {past.map((w) => (
             <li key={w.id} className="rounded-lg border border-current/20 p-3">
-              <span className="font-semibold">{t("Batches.age", { age: String(ageOn(batch.placedOn as FarmDay, w.day as FarmDay)) })}</span> · {describe(asSample(w), w.day)}
+              <span className="font-semibold">{t("Batches.age", { age: String(ageOfBatch(batch, w.day as FarmDay)) })}</span> · {describe(asSample(w), w.day)}
             </li>
           ))}
         </ul>

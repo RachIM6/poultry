@@ -23,12 +23,28 @@ export type Placement = {
   deliveryNote: string;
   chickUnitPriceCentimes: bigint;
   dayOldWeightGrams: number | null; // average, optional
+  ageAtPlacementDays?: number; // SPEC-m3 B7: absent or 0 for day-old chicks
 };
 
 export type PlacementError = "INVALID_QUANTITY" | "DEAD_ON_ARRIVAL_TOO_HIGH" | "PLACEMENT_IN_FUTURE";
 
-/** Age in days on a farm day: the placement day is day 0, as in the breeders' standard tables. */
+/** Days since placement on a farm day: the placement day is day 0, as in the breeders' standard tables. */
 export const ageOn = (placedOn: FarmDay, day: FarmDay) => daysBetween(placedOn, day);
+
+/** SPEC-m3 B7: the birds' age on a farm day, for birds placed older than a day (started pullets, point-of-lay hens). */
+export const ageOfBatch = (b: { placedOn: string; ageAtPlacementDays?: number }, day: FarmDay) => ageOn(b.placedOn as FarmDay, day) + (b.ageAtPlacementDays ?? 0);
+
+/** Longest cycle of SPEC-m3 §2 (layers, 80+ weeks), with room: an age above it is a typing error. */
+const MAX_AGE_DAYS = 600;
+
+/**
+ * SPEC-m3 B8: may a batch of this type join a house whose open batches are these? One open batch per house, except
+ * beldi bands, which share a run.
+ */
+export function canJoinHouse(type: ProductionType, open: readonly { species: ProductionType }[]): Result<void, "HOUSE_HAS_OPEN_BATCH"> {
+  if (open.length === 0 || (type === "beldi" && open.every((b) => b.species === "beldi"))) return ok(undefined);
+  return fail("HOUSE_HAS_OPEN_BATCH");
+}
 
 export class Batch {
   private constructor(
@@ -43,6 +59,8 @@ export class Batch {
     if (!Number.isSafeInteger(p.deadOnArrival) || p.deadOnArrival < 0) return fail("INVALID_QUANTITY");
     if (p.deadOnArrival >= p.chicksPlaced) return fail("DEAD_ON_ARRIVAL_TOO_HIGH");
     if (p.chickUnitPriceCentimes < 0n || (p.dayOldWeightGrams !== null && p.dayOldWeightGrams <= 0)) return fail("INVALID_QUANTITY");
+    const age = p.ageAtPlacementDays ?? 0;
+    if (!Number.isSafeInteger(age) || age < 0 || age > MAX_AGE_DAYS) return fail("INVALID_QUANTITY");
     if (daysBetween(p.placedOn, today) < 0) return fail("PLACEMENT_IN_FUTURE");
     return ok(new Batch(p, "open"));
   }
@@ -55,8 +73,9 @@ export class Batch {
     return this._status;
   }
 
+  /** The birds' age on a farm day (SPEC-m3 B7). */
   ageOn(day: FarmDay): number {
-    return ageOn(this.placement.placedOn, day);
+    return ageOfBatch(this.placement, day);
   }
 
   /** Birds actually started: placed minus dead on arrival. Mortality and sales lower what is on hand. */

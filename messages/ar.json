@@ -307,7 +307,10 @@
     "protocol": "برنامج التلقيح",
     "noProtocol": "بدون",
     "type": "نوع الإنتاج",
-    "unspecifiedStrain": "سلالة غير محددة"
+    "unspecifiedStrain": "سلالة غير محددة",
+    "ageWeeks": "{weeks} أسبوع",
+    "ageWeeksDays": "{weeks} أسبوع و{days} يوم",
+    "ageAtPlacement": "العمر عند الإيواء (بالأسابيع)"
   },
   "Day": {
     "title": "تسجيل اليوم",

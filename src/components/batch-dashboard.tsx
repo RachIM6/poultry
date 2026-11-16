@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { formatDecimal, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { ageOn, batchKpis, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { ageOfBatch, batchKpis, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { CurvePoint } from "@/modules/reference-data/schema";
 import { standardAt } from "@/modules/reference-data/shared";
 
@@ -27,7 +27,7 @@ export function BatchDashboard({
 }) {
   const t = useTranslations();
   const placedOn = batch.placedOn as FarmDay;
-  const k = batchKpis({ placedOn, birdsStarted: batch.chicksPlaced - batch.deadOnArrival, dayOldWeightGrams: batch.dayOldWeightGrams }, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
+  const k = batchKpis({ placedOn, birdsStarted: batch.chicksPlaced - batch.deadOnArrival, dayOldWeightGrams: batch.dayOldWeightGrams, ageAtPlacementDays: batch.ageAtPlacementDays }, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
   const w = k.weighed;
   const standard = w && curve ? standardAt(curve, w.ageDays) : null;
   const none = "—";
@@ -46,7 +46,7 @@ export function BatchDashboard({
 
   // One point per weighing day: the latest of that day, as the KPIs use.
   const byDay = new Map([...weighings].sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id)).map((x) => [x.day, x]));
-  const points = [...byDay.values()].map((x) => ({ age: ageOn(placedOn, x.day as FarmDay), grams: Math.round(x.totalGrams / x.count) }));
+  const points = [...byDay.values()].map((x) => ({ age: ageOfBatch(batch, x.day as FarmDay), grams: Math.round(x.totalGrams / x.count) }));
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="kpi-title">

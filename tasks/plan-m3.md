@@ -51,8 +51,10 @@ Done 2026-11-16 (branch `feat/t52-grades-templates`): `EggGrade` (S, M, L, XL as
 ### T53: Placement for every type (B7, B8)
 **Description:** Production-type first in the form, strains filtered; `ageAtPlacementDays`; ages in weeks for long cycles; the one-open-batch rule generalised (beldi any, turkey one per sex) in the domain, the use case and the partial unique index.
 **AC:**
-- [ ] Two open broiler batches in one house are still refused; two beldi bands are accepted (integration test).
-- [ ] A layer batch placed at 126 days shows "18 sem." on the phone (e2e, ar and fr).
+- [x] Two open broiler batches in one house are still refused; two beldi bands are accepted (integration test). (`flock/batches.int.test.ts`; the partial unique index now skips beldi, `canJoinHouse` in the domain.)
+- [x] A layer batch placed at 126 days shows "18 sem." on the phone (e2e, ar and fr). (`e2e/production-types.spec.ts`, offline, with two beldi bands in one run.)
+
+Done 2026-11-16 (branch `feat/t53-placement-all-types`): `Batch.ageAtPlacementDays` (0 for every M1 row), asked in weeks for every type but broiler. `ageOfBatch` gives the birds' age everywhere (KPIs, weighing standard, origin document). The vaccination plan of birds placed older skips the lines due before they arrived and dates the rest from their age (`health/domain/vaccination.test.ts`). Turkey sexes come in T54.
 **Size:** M
 
 ### T54: Turkey by sex (B9)

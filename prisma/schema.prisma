@@ -447,7 +447,8 @@ model Purchase {
 }
 
 // Owner: flock (SPEC B1). Created offline: the id comes from the device. One open batch per house is enforced by the
-// partial unique index "Batch_one_open_per_house" (raw SQL in the migration: Prisma can't declare it).
+// partial unique index "Batch_one_open_per_house" (raw SQL in the migration: Prisma can't declare it); beldi bands share
+// a run (SPEC-m3 B8).
 model Batch {
   id                     String    @id @db.Uuid
   organizationId         String    @db.Uuid
@@ -462,6 +463,7 @@ model Batch {
   deliveryNote           String
   chickUnitPriceCentimes BigInt
   dayOldWeightGrams      Int?
+  ageAtPlacementDays     Int       @default(0) // SPEC-m3 B7: started pullets or point-of-lay hens arrive older
   status                 String    @default("open") // open | closed
   // B6, set when it closes and never changed afterwards: the locked figures.
   closedOn               DateTime? @db.Date // farm day

@@ -10,7 +10,7 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, canJoinHouse, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
@@ -102,6 +102,13 @@ function Batches(scope: Scope) {
   };
 
   const shown = batches.find((b) => b.id === openId);
+  // SPEC-m3 B7: days for broilers, weeks (+ days) for the longer cycles.
+  const ageText = (b: BatchDto) => {
+    const age = ageOfBatch(b, today());
+    if (b.species === "broiler") return t("Batches.age", { age: String(age) });
+    const [weeks, days] = [Math.floor(age / 7), age % 7];
+    return days === 0 ? t("Batches.ageWeeks", { weeks: String(weeks) }) : t("Batches.ageWeeksDays", { weeks: String(weeks), days: String(days) });
+  };
   const strainName = (id: string) => (id.startsWith("unspecified-") ? t("Batches.unspecifiedStrain") : (strains.find((s) => s.id === id)?.name ?? id));
   const title = (b: BatchDto) => `${t(`Types.${b.species}`)} · ${t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strainName(b.strainId) })}`;
   const costsOf = (batchId: string) => of<BatchCostDto>("batchCost").filter((c) => c.batchId === batchId);
@@ -131,7 +138,7 @@ function Batches(scope: Scope) {
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
         <h2 className="text-xl font-semibold">{title(open)}</h2>
-        <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
+        <p>{ageText(open)} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
         <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
         <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curve={curve} />
@@ -187,7 +194,7 @@ function Batches(scope: Scope) {
       await writeLocal(db, { type: M.placeBatch, payload }, [{ entity: "batch", id: batch.id, data: batch }]);
       if (protocol && protocol.items.length > 0) {
         // H1: the plan from the farm's protocol, queued right after the placement it belongs to
-        const plan = planFor(batch.id, batch.placedOn as FarmDay, protocol.items);
+        const plan = planFor(batch.id, batch.placedOn as FarmDay, protocol.items, batch.ageAtPlacementDays);
         const items = protocol.items;
         await writeLocal(db, { type: H.planVaccinations, payload: { batchId: batch.id, protocolId: protocol.id, items } }, plan.map((v) => ({ entity: "vaccination", id: v.id, data: v })));
       }
@@ -208,7 +215,7 @@ function Batches(scope: Scope) {
           {batches.map((b) => (
             <li key={b.id} className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
               <span className="font-semibold">
-                {b.status === "open" ? t("Batches.age", { age: String(ageOn(b.placedOn as FarmDay, today())) }) : t("Batches.status.closed")}
+                {b.status === "open" ? ageText(b) : t("Batches.status.closed")}
               </span>
               <span>{title(b)}</span>
               <span className="text-sm opacity-75">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
@@ -231,7 +238,12 @@ function Batches(scope: Scope) {
           <p>{t("Protocol.noReference")}</p> // strains come with the reference data, after one sync online
         ) : placing ? (
           <PlacementForm
-            houses={houses.map((h) => ({ ...h, label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`, busy: busy.has(h.id) }))}
+            houses={houses.map((h) => ({
+              ...h,
+              label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
+              busy: busy.has(h.id),
+              open: batches.filter((b) => b.status === "open" && b.houseId === h.id),
+            }))}
             strains={strains.map((s) => ({ id: s.id, name: strainName(s.id), productionTypes: s.productionTypes ?? ["broiler"] }))}
             protocols={protocols}
             onSave={save}
@@ -271,7 +283,7 @@ function PlacementForm({
   onSave,
   onCancel,
 }: {
-  houses: (HouseDto & { label: string; busy: boolean })[];
+  houses: (HouseDto & { label: string; busy: boolean; open: { species: ProductionType }[] })[];
   strains: { id: string; name: string; productionTypes: readonly ProductionType[] }[];
   protocols: ProtocolDto[];
   onSave: (batch: BatchDto, payload: unknown, protocol: ProtocolDto | undefined) => Promise<void>;
@@ -290,7 +302,7 @@ function PlacementForm({
     const price = parseCentimes(get("price") || "0");
     const int = (k: string) => (/^\d+$/.test(get(k)) ? Number(get(k)) : NaN);
     if (!house || price === null || !get("hatchery") || !get("deliveryNote")) return setError("Batches.invalid");
-    if (house.busy) return setError("errors.HOUSE_HAS_OPEN_BATCH"); // the server enforces it too
+    if (!canJoinHouse(type, house.open).ok) return setError("errors.HOUSE_HAS_OPEN_BATCH"); // the server enforces it too (B8)
 
     const placement = {
       id: uuidv7(),
@@ -305,6 +317,7 @@ function PlacementForm({
       deliveryNote: get("deliveryNote"),
       chickUnitPriceCentimes: price,
       dayOldWeightGrams: get("dayOldWeight") ? int("dayOldWeight") : null,
+      ageAtPlacementDays: get("ageWeeks") ? int("ageWeeks") * 7 : 0, // SPEC-m3 B7: asked in weeks
     };
     const batch = Batch.place(placement, today()); // the same rules as the server
     if (!batch.ok) return setError(batch.error === "INVALID_QUANTITY" ? "Batches.invalid" : `errors.${batch.error}`);
@@ -337,6 +350,7 @@ function PlacementForm({
         </Select>
       )}
       <Field name="placedOn" label={t("Batches.placedOn")} type="date" defaultValue={today()} required />
+      {type !== "broiler" && <Field name="ageWeeks" label={t("Batches.ageAtPlacement")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />}
       <Field name="chicksPlaced" label={t("Batches.chicksPlaced")} inputMode="numeric" pattern="\d+" required dir="ltr" />
       <Field name="deadOnArrival" label={t("Batches.deadOnArrival")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />
       <Field name="hatchery" label={t("Batches.hatchery")} required maxLength={120} />

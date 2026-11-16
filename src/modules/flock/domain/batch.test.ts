@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { Batch, type Placement } from "./batch";
+import { Batch, ageOfBatch, canJoinHouse, type Placement } from "./batch";
 
 const day = (d: string) => d as FarmDay;
 const placement: Placement = {
@@ -82,3 +82,22 @@ describe("Closing (SPEC B6)", () => {
   });
 });
 
+
+describe("every production type (SPEC-m3 B7, B8)", () => {
+  it("counts the birds' age from the age they arrived at", () => {
+    const hens = Batch.rehydrate({ ...placement, species: "layer", ageAtPlacementDays: 126 }, "open");
+    expect(hens.ageOn(day("2026-10-21"))).toBe(133); // 18 weeks + 7 days
+    expect(ageOfBatch({ placedOn: "2026-10-14" }, day("2026-10-21"))).toBe(7); // a batch pulled before M3
+    expect(Batch.place({ ...placement, ageAtPlacementDays: -1 }, day("2026-10-14"))).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(Batch.place({ ...placement, ageAtPlacementDays: 601 }, day("2026-10-14"))).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(Batch.place({ ...placement, ageAtPlacementDays: 126 }, day("2026-10-14")).ok).toBe(true);
+  });
+
+  it("keeps one open batch per house, except beldi bands sharing a run", () => {
+    expect(canJoinHouse("broiler", []).ok).toBe(true);
+    expect(canJoinHouse("broiler", [{ species: "broiler" }])).toEqual({ ok: false, error: "HOUSE_HAS_OPEN_BATCH" });
+    expect(canJoinHouse("beldi", [{ species: "beldi" }, { species: "beldi" }]).ok).toBe(true);
+    expect(canJoinHouse("beldi", [{ species: "layer" }]).ok).toBe(false);
+    expect(canJoinHouse("layer", [{ species: "beldi" }]).ok).toBe(false);
+  });
+});

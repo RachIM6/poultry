@@ -65,7 +65,7 @@ export const dailyEntryId = (batchId: string, day: string) => uuidv5(`${batchId}
 export type DailyEntryDto = { id: string; batchId: string; day: string } & DayFields;
 
 // SPEC B3: weighings. The phone shows the same average, CV% and gap to the standard as the server computes.
-export { MAX_SAMPLE, checkSample, sampleStats, versusStandard } from "@/modules/flock/domain/weighing";
+export { MAX_SAMPLE, checkSample, sampleStats, uniformityPercent, versusStandard } from "@/modules/flock/domain/weighing";
 export type { Sample } from "@/modules/flock/domain/weighing";
 
 /** `weightsGrams` is empty for a group weighing. */

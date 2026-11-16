@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T53 acceptance (SPEC-m3 B7, B8): a layer batch placed at 18 weeks counts its age in weeks, and two beldi bands share a
 // run, offline, then synced; the Arabic screen shows the same age.
@@ -153,4 +153,30 @@ test("chick arrival: supplement, density and the hatchery claim above the farm's
   await expect(page.getByText(/Oiseaux présents : 10.186/).first()).toBeVisible();
   await expect(page.getByText("Densité : 10,2 sujets/m²")).toBeVisible();
   await expect(page.getByRole("alert").filter({ hasText: "réclamation au couvoir" })).toBeVisible(); // 14 of 10 200 > 1 ‰
+});
+
+// T57 acceptance (SPEC-m3 B12): a pullet weighing shows its uniformity next to the CV, offline.
+test("a pullet weighing shows the uniformity", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await ownerWithFarm(page, "Élevage des Poulettes");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), batch: crypto.randomUUID() };
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Sidi Hajjaj", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment P2", areaM2: 800, capacity: 5000, type: "closed" } },
+    {
+      type: "flock.placeBatch",
+      payload: { id: ids.batch, houseId: ids.house, species: "pullet", strainId: "lohmann-brown", placedOn: farmDaysAgo(0), chicksPlaced: 4800, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: 77 },
+    },
+  ]);
+  await page.goto("/fr/batches");
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await referenceCached(page);
+  await expect(page.getByText("11 sem.", { exact: true })).toBeVisible();
+  await context.setOffline(true);
+  await context.route("**", (route) => route.abort("internetdisconnected"));
+  await page.getByRole("link", { name: "Saisir le jour" }).click();
+  // Mean 1 000 g; 880 g is outside 900–1 100 g: 5 of 6 → 83,3 %.
+  await page.getByLabel("Poids des oiseaux (kg), séparés par des espaces").fill("0,950 1,000 1,050 1,100 0,880 1,020");
+  await expect(page.getByText(/Homogénéité 83,3 %/)).toBeVisible();
 });

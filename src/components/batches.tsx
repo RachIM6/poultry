@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useState, useSyncExternalStore, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
@@ -11,7 +11,7 @@ import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
-import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
+import { HEALTH_MUTATIONS as H, planFor, withdrawalUntil, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
@@ -20,7 +20,8 @@ import { DayForm, type Write } from "@/components/daily-entry";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { field, primary, secondary } from "@/components/ui";
+import { BatchStrip, stripDays, type StripDay } from "@/components/batch-strip";
+import { card, field, primary, secondary } from "@/components/ui";
 
 // SPEC §9.3 budget (ADR-009, T25): the day's entry loads with the page; the rest of the batch screen comes in its own
 // chunks right after. The service worker precaches every chunk, so they load offline too.
@@ -64,6 +65,7 @@ export function BatchesScreen() {
 function Batches(scope: Scope) {
   const { userId, organizationId, role } = scope;
   const t = useTranslations();
+  const locale = useLocale();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale", "batchCost").toArray(), [userId, organizationId]);
@@ -87,6 +89,24 @@ function Batches(scope: Scope) {
   const soldBirds = (batchId: string) => soldOf(batchId).reduce((n, s) => n + s.birds, 0); // B5
   const onHand = (b: BatchDto) => b.chicksPlaced - b.deadOnArrival - soldBirds(b.id) - entriesOf(b.id).reduce((n, e) => n + e.dead + e.culled, 0);
 
+  // tasks/plan-ui.md U4: the 42-day strip on each card and on the batch page (Batch.dc.html).
+  const vaccinationsOf = (batchId: string) => of<VaccinationDto>("vaccination").filter((v) => v.batchId === batchId);
+  const stripOf = (b: BatchDto) => {
+    const its = of<TreatmentDto>("treatment").filter((x) => x.batchId === b.id);
+    const until = withdrawalUntil(its.map((x) => ({ ...x, startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay })), today());
+    const from = its.filter((x) => x.withdrawalEndsOn >= today()).map((x) => x.startOn).sort()[0];
+    const age = ageOn(b.placedOn as FarmDay, today());
+    const days = stripDays({
+      placedOn: b.placedOn as FarmDay,
+      today: today(),
+      age,
+      entered: new Set(entriesOf(b.id).map((e) => e.day)),
+      vaccineDays: vaccinationsOf(b.id).filter((v) => !v.done).map((v) => v.dueOn),
+      withdrawal: until && from ? { from: from as FarmDay, to: until } : null,
+    });
+    return { age, days, label: t("Today.stripLabel", { day: String(age), missing: String(days.filter((d) => d.state === "missing").length) }) };
+  };
+
   const write: Write = async (mutation, recs) => {
     try {
       await writeLocal(db, mutation, recs);
@@ -99,6 +119,12 @@ function Batches(scope: Scope) {
   };
 
   const shown = batches.find((b) => b.id === openId);
+  const nextVaccine = (batchId: string) => {
+    const v = vaccinationsOf(batchId).filter((x) => !x.done).sort((a, b) => a.dueOn.localeCompare(b.dueOn))[0];
+    if (!v) return null;
+    const p = reference?.data.products.find((x) => x.id === v.productId);
+    return `${p ? (locale === "ar" ? p.nameAr : p.nameFr) : v.productId} · ${t("Batches.age", { age: String(v.dayOfAge) })}`;
+  };
   const title = (b: BatchDto) => t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strains.find((s) => s.id === b.strainId)?.name ?? b.strainId });
   const costsOf = (batchId: string) => of<BatchCostDto>("batchCost").filter((c) => c.batchId === batchId);
   const salesOf = (batchId: string) => of<SaleDto>("sale").filter((s) => s.batchId === batchId);
@@ -107,8 +133,7 @@ function Batches(scope: Scope) {
     const curve = strains.find((s) => s.id === shown.strainId)?.curves.at(-1)?.points ?? null;
     return (
       <>
-        <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
-        <h2 className="text-xl font-semibold">{title(shown)}</h2>
+        <BatchHeader title={title(shown)} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <ClosedSummary batch={shown} />
         <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curve={curve} />
@@ -125,9 +150,8 @@ function Batches(scope: Scope) {
     const treatments = of<TreatmentDto>("treatment").filter((x) => x.batchId === open.id);
     return (
       <>
-        <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
-        <h2 className="text-xl font-semibold">{title(open)}</h2>
-        <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
+        <BatchHeader title={title(open)} />
+        <OpenBatchCard strip={stripOf(open)} birds={t("Day.onHand", { birds: formatCount(onHand(open)) })} next={nextVaccine(open.id)} />
         <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curve={curve} />
@@ -202,17 +226,18 @@ function Batches(scope: Scope) {
       ) : (
         <ul className="flex flex-col gap-3">
           {batches.map((b) => (
-            <li key={b.id} className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
+            <li key={b.id} className={card}>
               <span className="font-semibold">
                 {b.status === "open" ? t("Batches.age", { age: String(ageOn(b.placedOn as FarmDay, today())) }) : t("Batches.status.closed")}
               </span>
+              {b.status === "open" && <BatchStrip {...stripOf(b)} />}
               <span>
                 {t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strains.find((s) => s.id === b.strainId)?.name ?? b.strainId })}
               </span>
-              <span className="text-sm opacity-75">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
+              <span className="text-sm text-muted">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
               <span>{t("Day.onHand", { birds: formatCount(onHand(b)) })}</span>
               {b.status === "open" ? (
-                <a href={`#${b.id}`} className={`${primary} mt-2 text-center`}>{t("Day.open")}</a>
+                <a href={`#${b.id}`} className={`${primary} mt-2`}>{t("Day.open")}</a>
               ) : (
                 <a href={`#${b.id}`} className="py-2 underline underline-offset-4">{t("Closing.open")}</a>
               )}
@@ -338,5 +363,36 @@ function PlacementForm({
         <button type="button" onClick={onCancel} className={secondary}>{t("Batches.cancel")}</button>
       </div>
     </form>
+  );
+}
+
+// Batch.dc.html: a round back button and the batch's name, then a dark card with its day and strip.
+function BatchHeader({ title }: { title: string }) {
+  const t = useTranslations("Day");
+  return (
+    <div className="flex items-center gap-3">
+      <a href="#" aria-label={t("back")} className="grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+      </a>
+      <h2 className="text-[21px] font-semibold leading-tight">{title}</h2>
+    </div>
+  );
+}
+
+function OpenBatchCard({ strip, birds, next }: { strip: { age: number; days: StripDay[]; label: string }; birds: string; next: string | null }) {
+  const t = useTranslations();
+  return (
+    <section aria-label={strip.label} className="flex flex-col gap-2.5 rounded-[20px] bg-ink p-4 text-shell">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-[26px] font-semibold">
+          {t("Batches.age", { age: String(strip.age) })} <span className="text-base font-normal text-sand">/ {strip.days.length}</span>
+        </span>
+        <span className="text-sm text-sand">{birds}</span>
+      </div>
+      <BatchStrip days={strip.days} onDark label={strip.label} />
+      {next && <span className="text-sm text-sand">{t("Batches.nextVaccine", { vaccine: next })}</span>}
+    </section>
   );
 }

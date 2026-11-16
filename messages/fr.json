@@ -306,7 +306,8 @@
       "closed": "Clôturée"
     },
     "protocol": "Programme de vaccination",
-    "noProtocol": "Aucun"
+    "noProtocol": "Aucun",
+    "nextVaccine": "Prochain vaccin : {vaccine}"
   },
   "Day": {
     "title": "Saisie du jour",

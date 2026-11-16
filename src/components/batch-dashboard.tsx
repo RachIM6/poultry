@@ -6,6 +6,7 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { ageOn, batchKpis, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { CurvePoint } from "@/modules/reference-data/schema";
 import { standardAt } from "@/modules/reference-data/shared";
+import { card } from "@/components/ui";
 
 // SPEC B4 on the phone: the batch's KPIs from its local records, so they work offline and change as soon as a day or
 // a weighing is saved. Weight-based KPIs wait for a weighing; the standard is shown only when the strain has a curve.
@@ -50,18 +51,18 @@ export function BatchDashboard({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="kpi-title">
-      <h3 id="kpi-title" className="text-lg font-semibold">{t("Kpi.title")}</h3>
-      <dl className="grid grid-cols-2 gap-3">
+      <h3 id="kpi-title" className="text-[17px] font-semibold text-ink-2">{t("Kpi.title")}</h3>
+      {points.length > 0 && <GrowthChart points={points} curve={curve} />}
+      <dl className="grid grid-cols-2 gap-2">
         {tiles.map(([label, value, note]) => (
-          <div key={label} className="flex flex-col gap-1 rounded-lg border border-current/20 p-3">
-            <dt className="text-sm opacity-75">{label}</dt>
-            <dd className="text-xl font-semibold tabular-nums">{value}</dd>
-            {note && <dd className="text-sm opacity-75">{note}</dd>}
+          <div key={label} className="flex flex-col gap-0.5 rounded-[14px] bg-card px-3 py-2.5">
+            <dt className="text-[13px] text-ink-2">{label}</dt>
+            <dd className="text-xl font-semibold">{value}</dd>
+            {note && <dd className="text-xs font-medium text-muted">{note}</dd>}
           </div>
         ))}
       </dl>
-      <p className="text-sm opacity-75">{w ? t("Kpi.atWeighing", { age: String(w.ageDays) }) : t("Kpi.weighFirst")}</p>
-      {points.length > 0 && <GrowthChart points={points} curve={curve} />}
+      <p className="text-sm text-muted">{w ? t("Kpi.atWeighing", { age: String(w.ageDays) }) : t("Kpi.weighFirst")}</p>
     </section>
   );
 }
@@ -80,16 +81,16 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
   const line = (ps: { age: number; grams: number }[]) => ps.map((p) => `${x(p.age)},${y(p.grams)}`).join(" ");
 
   return (
-    <figure className="flex flex-col gap-2">
-      <figcaption className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        <span className="font-semibold">{t("chart")}</span>
+    <figure className={card}>
+      <figcaption className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-2">
+        <span className="me-auto text-base font-semibold">{t("chart")}</span>
         <span className="flex items-center gap-1">
-          <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="2" className="stroke-ink" /></svg>
+          <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="3" className="stroke-ink" /></svg>
           {t("flock")}
         </span>
         {std.length > 1 && (
           <span className="flex items-center gap-1">
-            <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="2" strokeDasharray="4 3" className="stroke-current opacity-60" /></svg>
+            <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="2" strokeDasharray="5 5" strokeLinecap="round" className="stroke-muted" /></svg>
             {t("standard")}
           </span>
         )}
@@ -97,14 +98,14 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" direction="ltr" role="img" aria-label={t("chartLabel", { points: points.map((p) => `${t("day", { age: String(p.age) })} ${formatKg(p.grams)}`).join(", ") })}>
         {[0, top / 2, top].map((g) => (
           <g key={g}>
-            <line x1={L} x2={W - R} y1={y(g)} y2={y(g)} strokeWidth="1" className="stroke-current opacity-15" />
-            <text x={L - 4} y={y(g) + 3} textAnchor="end" fontSize="10" className="fill-current opacity-70">{formatKg(g)}</text>
+            <line x1={L} x2={W - R} y1={y(g)} y2={y(g)} strokeWidth="1" className="stroke-line" />
+            <text x={L - 4} y={y(g) + 3} textAnchor="end" fontSize="10" className="fill-muted">{formatKg(g)}</text>
           </g>
         ))}
-        <text x={x(0)} y={H - 6} fontSize="10" className="fill-current opacity-70">{t("day", { age: "0" })}</text>
-        <text x={x(maxAge)} y={H - 6} fontSize="10" textAnchor="end" className="fill-current opacity-70">{t("day", { age: String(maxAge) })}</text>
-        {std.length > 1 && <polyline points={line(std)} fill="none" strokeWidth="2" strokeDasharray="4 3" className="stroke-current opacity-60" />}
-        {points.length > 1 && <polyline points={line(points)} fill="none" strokeWidth="2" strokeLinejoin="round" className="stroke-ink" />}
+        <text x={x(0)} y={H - 6} fontSize="10" className="fill-muted">{t("day", { age: "0" })}</text>
+        <text x={x(maxAge)} y={H - 6} fontSize="10" textAnchor="end" className="fill-muted">{t("day", { age: String(maxAge) })}</text>
+        {std.length > 1 && <polyline points={line(std)} fill="none" strokeWidth="2" strokeDasharray="5 5" strokeLinecap="round" className="stroke-muted" />}
+        {points.length > 1 && <polyline points={line(points)} fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="stroke-ink" />}
         {points.map((p) => (
           <g key={p.age}>
             <circle cx={x(p.age)} cy={y(p.grams)} r="4" strokeWidth="2" className="fill-chick stroke-ink" />

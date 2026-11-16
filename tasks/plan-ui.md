@@ -29,4 +29,10 @@ Done 2026-11-16 (branch `feat/u1-design-system`, U1 + U2 + the Aujourd'hui part 
 
 Done 2026-11-16 (branch `feat/u3-login-daily-entry`): login with the big phone field and the button at the bottom; one code field (not 6 boxes: the phone's one-time-code autofill fills a single field). Daily entry: − / + steppers that can still be typed (deaths ±1, culls ±1, feed ±25 kg, water ±100 L), death causes as chips, the feed card says it is deducted from stock. The steppers' buttons are labelled "Moins 25" / "Plus 25", so a field's label still names only its input.
 
-### U4–U8 (next): batches and batch page, stock, sales and receivables, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.
+### U4: Batches and the batch page
+- [x] Batch cards with the 42-day strip; the batch page as `Batch.dc.html`: round back button, a dark card with the day, birds, strip and next vaccine, the growth chart in a card above the KPI tiles.
+- [x] The offline screens (batches, stock, farms, protocol, receivables, expenses) drop their old header: sync and language are under "Plus".
+
+Done 2026-11-16 (branch `feat/u4-batch-page`). Not yet: the batch page's lower sections (weighing, vaccinations, treatments, sales, costs) only got the shared classes; the mockup's cost per kg tile.
+
+### U5–U8 (next): stock, sales and receivables, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

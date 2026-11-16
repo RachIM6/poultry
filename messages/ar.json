@@ -306,7 +306,8 @@
       "closed": "مغلقة"
     },
     "protocol": "برنامج التلقيح",
-    "noProtocol": "بدون"
+    "noProtocol": "بدون",
+    "nextVaccine": "التلقيح القادم: {vaccine}"
   },
   "Day": {
     "title": "تسجيل اليوم",

@@ -16,7 +16,7 @@ import { field, primary, secondary } from "@/components/ui";
 
 // SPEC F2–F4. Runs on the static /farms shell: everything comes from and goes to the phone's database (ADR-003).
 
-const card = "flex flex-col gap-1 rounded-lg border border-current/30 p-3";
+const card = "flex flex-col gap-1 rounded-2xl border border-line bg-card p-3";
 
 type Save = (mutation: { type: string; payload: unknown }, record: { entity: string; id: string; data: unknown }) => Promise<boolean>;
 
@@ -25,7 +25,7 @@ export function FarmsLink({ userId, organizationId }: { userId: string; organiza
   const t = useTranslations("Farms");
   const farms = useLiveQuery(() => localDb({ userId, organizationId }).records.where("entity").equals("farm").count(), [userId, organizationId]);
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-current/30 p-6 text-center">
+    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-line p-6 text-center">
       {farms !== undefined && <p>{farms > 0 ? t("count", { count: formatCount(farms) }) : t("none")}</p>}
       <Link href="/farms" className="underline underline-offset-4">{t("title")}</Link>
     </div>
@@ -110,7 +110,7 @@ function FarmList({ farms, houses, manage, save }: { farms: FarmDto[]; houses: H
             <li key={f.id}>
               <a href={`#${f.id}`} className={card}>
                 <span className="font-semibold">{f.name}</span>
-                <span className="text-sm opacity-75">
+                <span className="text-sm text-muted">
                   {t("farmSummary", { commune: f.commune, province: f.province, count: formatCount(houses.filter((h) => h.farmId === f.id).length) })}
                 </span>
               </a>
@@ -165,7 +165,7 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold">{farm.name}</h2>
           <p>{[farm.commune, farm.province, farm.region].join(", ")}</p>
-          {farm.gps && <p dir="ltr" className="text-sm opacity-75">{`${farm.gps.lat}, ${farm.gps.lng}`}</p>}
+          {farm.gps && <p dir="ltr" className="text-sm text-muted">{`${farm.gps.lat}, ${farm.gps.lng}`}</p>}
           {farm.onssa && (
             <p className="text-sm">{t("onssaUntil", { number: farm.onssa.number, date: formatDay(farm.onssa.expiresOn as FarmDay, locale) })}</p>
           )}
@@ -220,7 +220,7 @@ function HouseRow({ house, manage, save }: { house: HouseDto; manage: boolean; s
   return (
     <li className={card}>
       <span className="font-semibold">{house.name}</span>
-      <span className="text-sm opacity-75">
+      <span className="text-sm text-muted">
         {t("houseSummary", { area: formatCount(house.areaM2), capacity: formatCount(house.capacity), type: t(`types.${house.type}`) })}
       </span>
       {manage && <button type="button" onClick={() => setEditing(true)} className={`${secondary} mt-1 self-start py-2`}>{t("edit")}</button>}
@@ -300,7 +300,7 @@ function HouseForm({ initial, onSubmit, onCancel }: { initial?: HouseFields; onS
     if (parsed.success) onSubmit(parsed.data);
   };
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-current/30 p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
       <Field name="houseName" label={t("houseName")} defaultValue={initial?.name} required maxLength={80} />
       <Field name="areaM2" label={t("areaM2")} defaultValue={initial?.areaM2} required inputMode="numeric" pattern="\d+" dir="ltr" />
       <Field name="capacity" label={t("capacity")} defaultValue={initial?.capacity} required inputMode="numeric" pattern="\d+" dir="ltr" />

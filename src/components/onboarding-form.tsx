@@ -42,7 +42,7 @@ export function OnboardingForm({ forms }: { forms: readonly string[] }) {
             {t(`Onboarding.forms.${form}`)}
           </label>
         ))}
-        <p id="form-hint" className="text-sm opacity-75">{t("Onboarding.formHint")}</p>
+        <p id="form-hint" className="text-sm text-muted">{t("Onboarding.formHint")}</p>
       </fieldset>
       {error && <p role="alert">{t(error)}</p>}
       <button type="submit" disabled={busy} className={button}>{t("Onboarding.submit")}</button>

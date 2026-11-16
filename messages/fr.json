@@ -277,7 +277,9 @@
     "alertBelow": "Alerte sous {quantity}",
     "value": "Valeur : {amount}",
     "editThreshold": "Seuil d’alerte",
-    "thresholdHint": "Vide : pas d’alerte."
+    "thresholdHint": "Vide : pas d’alerte.",
+    "total": "Valeur du stock : {amount} (coût moyen pondéré)",
+    "enough": "Suffisant"
   },
   "Batches": {
     "title": "Bandes",

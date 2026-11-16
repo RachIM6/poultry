@@ -55,9 +55,9 @@ export function Vaccinations({
             const status = statusOn({ dueOn: v.dueOn as FarmDay, done: v.done }, today());
             const lot = v.done && lots.find((l) => l.id === v.done!.stockItemId);
             return (
-              <li key={v.id} className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
+              <li key={v.id} className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-3">
                 <span className="font-semibold">{t("Vaccination.line", { age: String(v.dayOfAge), vaccine: vaccine(v.productId), method: t(`Protocol.methods.${v.method}`) })}</span>
-                <span className={status === "late" ? "font-semibold text-alert" : status === "today" ? "font-semibold" : "opacity-75"}>
+                <span className={status === "late" ? "font-semibold text-alert" : status === "today" ? "font-semibold" : "text-muted"}>
                   {v.done
                     ? t("Vaccination.done", { date: day(v.done.on), lot: (lot && lot.lot) || "—", doses: formatCount(v.done.doses) })
                     : t(`Vaccination.status.${status}`, { date: day(v.dueOn) })}

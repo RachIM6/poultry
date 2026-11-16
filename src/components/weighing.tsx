@@ -73,7 +73,7 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
 
   const past = [...weighings].sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id));
   return (
-    <section className="flex flex-col gap-3 border-t border-current/20 pt-4">
+    <section className="flex flex-col gap-3 border-t border-line pt-4">
       <h3 className="text-lg font-semibold">{t("Weighing.title")}</h3>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
@@ -109,7 +109,7 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
       {past.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label={t("Weighing.past")}>
           {past.map((w) => (
-            <li key={w.id} className="rounded-lg border border-current/20 p-3">
+            <li key={w.id} className="rounded-lg border border-line p-3">
               <span className="font-semibold">{t("Batches.age", { age: String(ageOn(batch.placedOn as FarmDay, w.day as FarmDay)) })}</span> · {describe(asSample(w), w.day)}
             </li>
           ))}

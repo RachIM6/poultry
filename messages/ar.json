@@ -277,7 +277,9 @@
     "alertBelow": "تنبيه تحت {quantity}",
     "value": "القيمة: {amount}",
     "editThreshold": "حد التنبيه",
-    "thresholdHint": "فارغ: بدون تنبيه."
+    "thresholdHint": "فارغ: بدون تنبيه.",
+    "total": "قيمة المخزون: {amount} (متوسط التكلفة المرجح)",
+    "enough": "كافٍ"
   },
   "Batches": {
     "title": "الدفعات",

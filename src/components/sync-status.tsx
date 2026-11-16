@@ -76,9 +76,9 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
   return (
     <>
       <p>{t("Sync.savedHere")}</p>
-      <div role="status" className="flex flex-col gap-1 rounded-lg border border-current/30 p-4">
+      <div role="status" className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-4">
         <p className="text-lg font-semibold">{pending > 0 ? t("Sync.pending", { count: String(pending) }) : t("Sync.upToDate")}</p>
-        <p className="text-sm opacity-75">{lastSyncAt ? t("Sync.lastSync", { time: formatDateTime(lastSyncAt, locale) }) : t("Sync.never")}</p>
+        <p className="text-sm text-muted">{lastSyncAt ? t("Sync.lastSync", { time: formatDateTime(lastSyncAt, locale) }) : t("Sync.never")}</p>
         {outcome === "offline" && <p>{t("Sync.offline")}</p>}
         {outcome === "wrong-scope" && <p>{t("Sync.wrongScope")}</p>}
         {outcome === "unauthenticated" && (
@@ -94,16 +94,16 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
       {rejected.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">{t("Sync.attention")}</h2>
-          <p className="text-sm opacity-75">{t("Sync.attentionHint")}</p>
+          <p className="text-sm text-muted">{t("Sync.attentionHint")}</p>
           <ul className="flex flex-col gap-3">
             {rejected.map((entry) => (
               <li key={entry.id} className="flex flex-col gap-2 rounded-2xl bg-alert-soft p-3 text-alert-fg">
                 <p>{t(entry.messageKey)}</p>
-                <p className="text-sm opacity-75">{formatDateTime(entry.createdAt, locale)}</p>
+                <p className="text-sm text-muted">{formatDateTime(entry.createdAt, locale)}</p>
                 <button
                   type="button"
                   onClick={() => localDb({ userId, organizationId }).needsAttention.delete(entry.id)}
-                  className="self-start rounded-lg border border-current/30 px-3 py-2"
+                  className="self-start rounded-2xl border border-line bg-card px-3 py-2"
                 >
                   {t("Sync.dismiss")}
                 </button>

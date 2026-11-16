@@ -74,7 +74,7 @@ export function Sales({
           {list.map((s) => {
             const gap = weighingGap(s.farmWeightGrams, s.buyerWeightGrams);
             return (
-              <li key={s.id} className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
+              <li key={s.id} className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-3">
                 <span className="font-semibold">
                   {t("Sale.line", { date: formatDay(s.day as FarmDay, locale), buyer: buyerName(s.buyerId), birds: formatCount(s.birds), kg: formatKg(s.farmWeightGrams) })}
                 </span>

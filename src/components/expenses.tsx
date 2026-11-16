@@ -78,7 +78,7 @@ function Expenses(scope: Scope) {
       ) : (
         <ul className="flex flex-col gap-2" aria-label={t("Expenses.recent")}>
           {recent.map((e) => (
-            <li key={e.id} className="rounded-lg border border-current/30 p-3">
+            <li key={e.id} className="rounded-2xl border border-line bg-card p-3">
               {t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) })}
             </li>
           ))}

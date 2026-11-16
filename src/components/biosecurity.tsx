@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { card, done, field, primary, warn } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDateTime } from "@/lib/format";
 import { farmDayOf } from "@/lib/kernel/farm-day";
@@ -16,8 +17,6 @@ import { startSync } from "@/offline/sync";
 
 // SPEC-m2-compliance §4 on static shells, offline: the logs a farm keeps on the phone (visitors, BS1–BS3).
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
 const check = "flex min-h-11 items-center gap-3";
 
 type Screen = (props: Scope & { db: LocalDb; records: LocalRecord[]; save: Save }) => ReactNode;
@@ -59,7 +58,7 @@ function Records({ scope, entities, screen: Inner }: { scope: Scope; entities: s
   };
   return (
     <>
-      {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+      {message && <p role="status" className={done}>{t(message)}</p>}
       <Inner {...scope} db={db} records={records} save={save} />
     </>
   );
@@ -121,7 +120,7 @@ function Visitors({ records, save }: Parameters<Screen>[0]) {
       ) : (
         <ul className="flex flex-col gap-2" aria-label={t("today")}>
           {visits.map((v) => (
-            <li key={v.id} className="rounded-lg border border-current/30 p-3">
+            <li key={v.id} className={card}>
               {t("line", { visitor: v.visitor, time: formatDateTime(v.enteredAt, locale), zone: t(`zones.${v.zone}`) })}
             </li>
           ))}
@@ -182,7 +181,7 @@ function VisitForm({ farmId, onSave }: { farmId: string; onSave: (v: VisitDto) =
           <input type="checkbox" checked={recentFarm} onChange={(e) => (setRecentFarm(e.target.checked), e.target.checked && setZone("dirty"))} className="size-6" />
           {t("Visitors.recentFarm")}
         </label>
-        {recentFarm && <p className="rounded-lg bg-amber-500/15 p-3">{t("Visitors.dirtyOnly")}</p>}
+        {recentFarm && <p className={warn}>{t("Visitors.dirtyOnly")}</p>}
       </fieldset>
       <fieldset className="flex flex-col gap-1">
         <legend className="font-semibold">{t("Visitors.checks")}</legend>

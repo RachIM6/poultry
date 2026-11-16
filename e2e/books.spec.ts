@@ -19,6 +19,7 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   await expect.poll(posted).toBe(1);
 
   await page.goto("/fr/dashboard");
+  await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Comptabilité" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Livre des recettes et dépenses");
   await expect(page.getByRole("link", { name: "Balance" })).toHaveCount(0); // a cash_book entity has no ledger views

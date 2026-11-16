@@ -12,6 +12,7 @@ import { parseCentimes } from "@/lib/kernel/money";
 import { Batch, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { withdrawalUntil, type TreatmentDto } from "@/modules/health/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
+import { field, primary, secondary } from "@/components/ui";
 import {
   BUYER_TYPES,
   PAYMENT_METHODS,
@@ -27,9 +28,6 @@ import {
 // SPEC V1–V3 and B5 on the batch screen, offline, for owners and managers only (prices). The phone shows the amount and
 // the weighing gap as they are typed, and refuses a sale during a withdrawal with the same rule as the server.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
-const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const today = () => farmDayOf(new Date());
 
 function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {

@@ -10,13 +10,11 @@ import type { MovementDto, StockItemDto } from "@/modules/inventory/shared";
 import type { Product } from "@/modules/reference-data/schema";
 import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 import type { Write } from "@/components/daily-entry";
+import { field, primary, secondary } from "@/components/ui";
 
 // SPEC H2 on the batch screen, offline: the batch's plan, and "mark done" with the lot it came from. The phone runs the
 // same check as the server and shows the stock leaving the lot at once (S4).
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
-const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const today = () => farmDayOf(new Date());
 
 export function Vaccinations({
@@ -59,7 +57,7 @@ export function Vaccinations({
             return (
               <li key={v.id} className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
                 <span className="font-semibold">{t("Vaccination.line", { age: String(v.dayOfAge), vaccine: vaccine(v.productId), method: t(`Protocol.methods.${v.method}`) })}</span>
-                <span className={status === "late" ? "font-semibold text-red-700 dark:text-red-400" : status === "today" ? "font-semibold" : "opacity-75"}>
+                <span className={status === "late" ? "font-semibold text-alert" : status === "today" ? "font-semibold" : "opacity-75"}>
                   {v.done
                     ? t("Vaccination.done", { date: day(v.done.on), lot: (lot && lot.lot) || "—", doses: formatCount(v.done.doses) })
                     : t(`Vaccination.status.${status}`, { date: day(v.dueOn) })}

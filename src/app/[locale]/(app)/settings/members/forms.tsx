@@ -3,10 +3,8 @@
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { cancel, invite, remove, updateRole, type ActionState } from "./actions";
+import { field, primary, secondary } from "@/components/ui";
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white disabled:opacity-60";
-const secondary = "rounded-lg border border-current/30 px-3 py-2 disabled:opacity-60";
 
 const ErrorText = ({ state }: { state: ActionState }) => {
   const t = useTranslations();
@@ -48,7 +46,7 @@ export function MemberRow({ membershipId, phone, role, roles }: { membershipId: 
       <ErrorText state={roleState} />
       <form action={removeAction} onSubmit={(e) => !confirm(t("removeConfirm", { phone })) && e.preventDefault()}>
         <input type="hidden" name="membershipId" value={membershipId} />
-        <button type="submit" disabled={removePending} className={`${secondary} text-red-700`}>{t("remove")}</button>
+        <button type="submit" disabled={removePending} className={`${secondary} text-alert`}>{t("remove")}</button>
       </form>
       <ErrorText state={removeState} />
     </li>

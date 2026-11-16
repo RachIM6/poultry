@@ -23,6 +23,7 @@ test("the dashboard warns from 90 % of the 5 M DH threshold, and the tracker sho
 
   await page.goto("/fr/dashboard");
   await expect(page.getByRole("alert").filter({ hasText: "Vos ventes agricoles atteignent 91 % du seuil d’exonération." })).toBeVisible();
+  await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Seuil des 5 M DH" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Seuil d’exonération : 5.000.000,00\sDH$/);
   await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "91");

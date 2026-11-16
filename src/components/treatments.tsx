@@ -17,13 +17,11 @@ import {
   type VetVisitDto,
 } from "@/modules/health/shared";
 import { parseQuantity, type MovementDto, type StockItemDto } from "@/modules/inventory/shared";
+import { field, primary, secondary } from "@/components/ui";
 
 // SPEC H3–H5 on the batch screen, offline: the withdrawal banner, treatments with the lot they came from, vet visits.
 // The phone runs the same checks and the same withdrawal rule as the server.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white";
-const secondary = "rounded-lg border border-current/30 px-4 py-3";
 const today = () => farmDayOf(new Date());
 const asDays = (t: TreatmentDto) => ({ startOn: t.startOn as FarmDay, endOn: t.endOn as FarmDay, withdrawalDays: t.withdrawalDays });
 
@@ -33,7 +31,7 @@ export function WithdrawalBanner({ treatments }: { treatments: TreatmentDto[] })
   const locale = useLocale();
   const until = withdrawalUntil(treatments.map(asDays), today());
   if (!until) return null;
-  return <p className="rounded-lg border-2 border-red-700 bg-red-700/10 p-3 font-semibold text-red-800 dark:text-red-300">{t("withdrawal", { date: formatDay(until, locale) })}</p>;
+  return <p className="rounded-2xl bg-alert-soft p-3 font-semibold text-alert-fg">{t("withdrawal", { date: formatDay(until, locale) })}</p>;
 }
 
 function Labelled({ label, hint, children }: { label: string; hint?: string; children: (id: string) => ReactNode }) {

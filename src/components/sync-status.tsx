@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/format";
 import type { Role } from "@/lib/tenant";
 import { currentScope, localDb, metaValue, rememberScope, scopeKey, type Scope } from "@/offline/db";
 import { requestSync, startSync } from "@/offline/sync";
+import { primary } from "@/components/ui";
 
 /**
  * On signed-in (online) pages: remembers who is signed in on this phone for the offline pages and the service worker,
@@ -31,7 +32,7 @@ export function SyncBadge({ userId, organizationId, role }: { userId: string; or
   const pending = useLiveQuery(() => localDb({ userId, organizationId }).outbox.count(), [userId, organizationId], 0);
   return (
     // aria-live, not a role="status" child: a status region would drop out of the link's accessible name.
-    <Link href="/sync" aria-live="polite" className="rounded-lg border border-current/30 px-3 py-2 text-sm">
+    <Link href="/sync" aria-live="polite" className={`inline-flex min-h-9 items-center whitespace-nowrap rounded-full px-3 text-sm font-medium ${pending > 0 ? "bg-brick-soft text-brick-fg" : "bg-olive-soft text-olive"}`}>
       {pending > 0 ? t("pending", { count: String(pending) }) : t("upToDate")}
     </Link>
   );
@@ -87,7 +88,7 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
           </p>
         )}
       </div>
-      <button type="button" onClick={requestSync} className="rounded-lg bg-green-700 px-4 py-3 font-semibold text-white">
+      <button type="button" onClick={requestSync} className={primary}>
         {t("Sync.syncNow")}
       </button>
       {rejected.length > 0 && (
@@ -96,7 +97,7 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
           <p className="text-sm opacity-75">{t("Sync.attentionHint")}</p>
           <ul className="flex flex-col gap-3">
             {rejected.map((entry) => (
-              <li key={entry.id} className="flex flex-col gap-2 rounded-lg border border-red-700/50 p-3">
+              <li key={entry.id} className="flex flex-col gap-2 rounded-2xl bg-alert-soft p-3 text-alert-fg">
                 <p>{t(entry.messageKey)}</p>
                 <p className="text-sm opacity-75">{formatDateTime(entry.createdAt, locale)}</p>
                 <button

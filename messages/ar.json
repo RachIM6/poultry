@@ -1040,5 +1040,38 @@
     "batch": "دفعة",
     "mortality": "النفوق",
     "print": "طباعة أو حفظ PDF"
+  },
+  "Inspection": {
+    "open": "ملف التفتيش",
+    "forbidden": "ملف التفتيش خاص بالمالك والمسيّر.",
+    "noFarm": "أنشئ ضيعة أولاً.",
+    "title": "ملف التفتيش · {farm}",
+    "period": "المدة: من {from} إلى {to}",
+    "authorization": "الترخيص الصحي رقم {number}، صالح إلى غاية {date}",
+    "batch": "دفعة {house} بتاريخ {date}",
+    "checklist": "للإتمام",
+    "complete": "كل الوثائق المتتبعة موجودة.",
+    "provisional": "لائحة الوثائق مؤقتة، يجب التحقق منها مع أونسا.",
+    "missing": {
+      "authorization": "الترخيص الصحي غير مذكور",
+      "authorizationExpired": "الترخيص الصحي منتهي الصلاحية",
+      "vetContract": "عقد الطبيب البيطري الصحي غائب أو منتهٍ",
+      "documentExpired": "وثيقة منتهية: {title}",
+      "noDisinfection": "التعقيم غير مسجّل بعد {batch}",
+      "rodentProof": "مكافحة القوارض بتاريخ {date} بدون صورة"
+    },
+    "documents": "الوثائق",
+    "state": "الحالة",
+    "file": "الملف",
+    "noFile": "لا ملف",
+    "after": "بعد",
+    "steps": "المراحل المنجزة",
+    "recentFarm": "ضيعة أخرى مؤخراً",
+    "yes": "نعم",
+    "no": "لا",
+    "proof": "الدليل",
+    "noAuthorization": "الترخيص الصحي: غير مذكور",
+    "expires": "الأجل",
+    "rodents": "مكافحة القوارض"
   }
 }

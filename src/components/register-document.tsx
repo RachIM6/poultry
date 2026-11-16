@@ -13,16 +13,17 @@ import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto, DailyEntryDto, SoldBirdsDto } from "@/modules/flock/shared";
 import type { TreatmentDto, VaccinationDto, VetVisitDto } from "@/modules/health/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
+import type { ReferenceData } from "@/modules/reference-data/schema";
 import { buildRegister, type Register } from "@/modules/reporting/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
-import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
+import { cachedReference, currentScope, localDb, scopeKey, type LocalRecord, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
 
 // SPEC-m2-compliance RP2 on the static /register shell: the health monitoring register of one batch
 // (/register#<batch id>), built on the phone so it prints offline, in the page's language. Print CSS only, no PDF
 // library (D1). The layout is provisional until ONSSA's template arrives (CQ1), and says so.
 
-const ENTITIES = ["farm", "house", "batch", "dailyEntry", "vaccination", "treatment", "vetVisit", "soldBirds", "sale", "buyer", "disposal", "document", "stockItem"];
+export const REGISTER_ENTITIES = ["farm", "house", "batch", "dailyEntry", "vaccination", "treatment", "vetVisit", "soldBirds", "sale", "buyer", "disposal", "document", "stockItem"];
 
 const onHashChange = (notify: () => void) => (window.addEventListener("hashchange", notify), () => window.removeEventListener("hashchange", notify));
 const useHash = () => useSyncExternalStore(onHashChange, () => decodeURIComponent(window.location.hash.slice(1)), () => "");
@@ -47,19 +48,25 @@ function RegisterOf({ userId, organizationId, role }: Scope) {
   const batchId = useHash();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf(ENTITIES).toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf(REGISTER_ENTITIES).toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   if (!records || reference === undefined) return null;
 
+  const register = registerOf(batchId, records, reference?.data ?? null, locale);
+  return register ? <RegisterDocument register={register} /> : <p>{t("notFound")}</p>;
+}
+
+/** The register of one batch from the phone's records (REGISTER_ENTITIES), or null when the batch isn't there. */
+export function registerOf(batchId: string, records: LocalRecord[], reference: ReferenceData | null, locale: string): Register | null {
   const all = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const batch = all<BatchDto>("batch").find((b) => b.id === batchId);
   const farm = batch && all<FarmDto>("farm").find((f) => f.id === batch.farmId);
-  if (!batch || !farm) return <p>{t("notFound")}</p>;
+  if (!batch || !farm) return null;
   const house = all<HouseDto>("house").find((h) => h.id === batch.houseId);
-  const register = buildRegister({
+  return buildRegister({
     farm,
     house: house ?? null,
-    strainName: reference?.data.strains.find((s) => s.id === batch.strainId)?.name ?? batch.strainId,
+    strainName: reference?.strains.find((s) => s.id === batch.strainId)?.name ?? batch.strainId,
     batch,
     dailyEntries: all<DailyEntryDto>("dailyEntry"),
     vaccinations: all<VaccinationDto>("vaccination"),
@@ -70,13 +77,12 @@ function RegisterOf({ userId, organizationId, role }: Scope) {
     buyers: all<BuyerDto>("buyer"),
     disposals: all<DisposalDto>("disposal"),
     labReports: all<DocumentDto>("document"),
-    products: (reference?.data.products ?? []).map((p) => ({ id: p.id, name: locale === "ar" ? p.nameAr : p.nameFr })),
+    products: (reference?.products ?? []).map((p) => ({ id: p.id, name: locale === "ar" ? p.nameAr : p.nameFr })),
     stockItems: all<StockItemDto>("stockItem"),
   });
-  return <RegisterDocument register={register} />;
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-1">
       <h2 className="text-base font-semibold">{title}</h2>
@@ -86,7 +92,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** A table that says "none" rather than print an empty grid. */
-function Table({ head, rows, none }: { head: string[]; rows: ReactNode[][]; none: string }) {
+export function Table({ head, rows, none }: { head: string[]; rows: ReactNode[][]; none: string }) {
   if (rows.length === 0) return <p className="text-sm">{none}</p>;
   return (
     <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:px-1.5 [&_td]:py-1 [&_td]:align-top [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:px-1.5 [&_th]:py-1 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black">
@@ -102,7 +108,7 @@ function Table({ head, rows, none }: { head: string[]; rows: ReactNode[][]; none
   );
 }
 
-function RegisterDocument({ register: r }: { register: Register }) {
+export function RegisterDocument({ register: r, printButton = true }: { register: Register; printButton?: boolean }) {
   const t = useTranslations("Register");
   const tr = useTranslations();
   const locale = useLocale();
@@ -218,7 +224,7 @@ function RegisterDocument({ register: r }: { register: Register }) {
         <p className={`col-span-2 text-sm ${warn} print:bg-transparent print:p-0 print:text-black`}>{t("provisional")}</p>
         <p className="col-span-2 text-center text-sm text-ink-2">{t("editedWith", { app: tr("App.name") })}</p>
       </footer>
-      <button type="button" onClick={() => window.print()} className={`${primary} print:hidden`}>{t("print")}</button>
+      {printButton && <button type="button" onClick={() => window.print()} className={`${primary} print:hidden`}>{t("print")}</button>}
     </article>
   );
 }

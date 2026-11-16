@@ -148,10 +148,16 @@ Done 2026-11-16 (branch `feat/t48-batch-report`), decisions taken without asking
 **Size:** M
 
 ### T49: Inspection pack (RP4)
-**Description:** Online page `/inspection?farm=<id>` (owner, manager) that prints in one document: authorization, vault documents and state, registers of open and recently closed batches (`INSPECTION_LOOKBACK_MONTHS`), clean-outs, visitors, disposals, manure, rodent checks; missing pieces listed as missing.
+**Description:** Static shell `/inspection#<farm id>` (owner, manager; first planned online, see below) that prints in one document: authorization, vault documents and state, registers of open and recently closed batches (`INSPECTION_LOOKBACK_MONTHS`), clean-outs, visitors, disposals, manure, rodent checks; missing pieces listed as missing.
 **AC:**
-- [ ] The checklist marks missing pieces (no authorization, an expired document, a rodent check without proof).
-- [ ] Another organisation's farm id gives "not found" (integration test); e2e prints a demo farm's pack.
+- [x] The checklist marks missing pieces (no authorization, an expired document, a rodent check without proof). (`reporting/domain/inspection.test.ts`.)
+- [x] Another organisation's farm can't appear: the pack reads only the phone's own records, which pull never fills with another organisation's data (X3, tested per entity in T40–T44). e2e prints a demo farm's pack offline (`e2e/inspection.spec.ts`).
+
+Done 2026-11-16 (branch `feat/t49-inspection-pack`), decisions taken without asking:
+- **Offline, not online:** everything the pack holds is on an owner's or manager's phone (vault, logs, registers), and an inspection happens on the farm. So it is a precached static shell like `/register`, not a server page.
+- **"Missing" today:** no ONSSA authorization (on the farm or as a valid vault document), an expired one, no valid vet contract (law 49-99 art. 7), any expired vault document, a closed batch of the period without a noted disinfection, a rodent check without its photo. Provisional (CQ2).
+- **Period:** the last `INSPECTION_LOOKBACK_MONTHS` (12), a choice, not a retention rule (CQ5); open batches always.
+- **Files are linked, not merged** into the PDF (CQ6). Each batch's register is the same component as `/register`, one per page.
 **Size:** M
 
 ### ✅ Checkpoint M2-compliance

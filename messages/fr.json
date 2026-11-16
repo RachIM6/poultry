@@ -1040,5 +1040,38 @@
     "batch": "Bande du",
     "mortality": "Mortalité",
     "print": "Imprimer ou enregistrer en PDF"
+  },
+  "Inspection": {
+    "open": "Dossier d’inspection",
+    "forbidden": "Le dossier d’inspection est réservé au propriétaire et au gérant.",
+    "noFarm": "Créez d’abord une ferme.",
+    "title": "Dossier d’inspection · {farm}",
+    "period": "Période : du {from} au {to}",
+    "authorization": "Autorisation sanitaire n° {number}, valable jusqu’au {date}",
+    "batch": "bande {house} du {date}",
+    "checklist": "À compléter",
+    "complete": "Toutes les pièces suivies sont présentes.",
+    "provisional": "Liste des pièces provisoire, à valider avec l’ONSSA.",
+    "missing": {
+      "authorization": "Autorisation sanitaire non renseignée",
+      "authorizationExpired": "Autorisation sanitaire expirée",
+      "vetContract": "Contrat du vétérinaire sanitaire absent ou expiré",
+      "documentExpired": "Document expiré : {title}",
+      "noDisinfection": "Désinfection non notée après la {batch}",
+      "rodentProof": "Dératisation du {date} sans photo"
+    },
+    "documents": "Documents",
+    "state": "État",
+    "file": "Fichier",
+    "noFile": "aucun fichier",
+    "after": "Après",
+    "steps": "Étapes faites",
+    "recentFarm": "Autre élevage récemment",
+    "yes": "oui",
+    "no": "non",
+    "proof": "Preuve",
+    "noAuthorization": "Autorisation sanitaire : non renseignée",
+    "expires": "Échéance",
+    "rodents": "Dératisation"
   }
 }

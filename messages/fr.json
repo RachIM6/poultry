@@ -40,7 +40,8 @@
     "codeSent": "Si ce numéro peut se connecter, un code à 6 chiffres vient de lui être envoyé.",
     "codeLabel": "Code reçu",
     "verify": "Se connecter",
-    "changeNumber": "Changer de numéro"
+    "changeNumber": "Changer de numéro",
+    "noPassword": "Pas de mot de passe. Un compte est créé à la première connexion."
   },
   "Account": {
     "logout": "Se déconnecter",
@@ -330,7 +331,11 @@
     "note": "Note (facultatif)",
     "save": "Enregistrer la journée",
     "nothing": "Rien n’a changé.",
-    "onHand": "Oiseaux présents : {birds}"
+    "onHand": "Oiseaux présents : {birds}",
+    "minus": "Moins {step}",
+    "plus": "Plus {step}",
+    "feedHint": "Déduit du stock à l’enregistrement.",
+    "offline": "Marche sans réseau · envoi automatique"
   },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",

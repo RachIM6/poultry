@@ -15,9 +15,9 @@ Branches `feat/u<N>-<slug>`, stacked on the finance chain (first base: `feat/t38
 - [x] "Plus" lists the rest (finance, protocol, inbox, members, language, log out) by role.
 
 ### U3: Login, Aujourd'hui, daily entry
-- [ ] Login and code screens as `M1-LoginPhone` / `M1-LoginCode`.
+- [x] Login and code screens as `M1-LoginPhone` / `M1-LoginCode`.
 - [x] Aujourd'hui: dark header (date, farm, sync), one 42-day strip per open batch (done / missing / today / upcoming), today's tasks.
-- [ ] Daily entry: steppers for deaths, culls, feed, water (`M1-DailyEntry`).
+- [x] Daily entry: steppers for deaths, culls, feed, water (`M1-DailyEntry`).
 
 Done 2026-11-16 (branch `feat/u1-design-system`, U1 + U2 + the Aujourd'hui part of U3), decisions taken without asking:
 - **Light only**, like every mockup: the old dark-mode colours are gone. Print stays black on white.
@@ -26,5 +26,7 @@ Done 2026-11-16 (branch `feat/u1-design-system`, U1 + U2 + the Aujourd'hui part 
 - **Aujourd'hui** reads the phone's database (like /batches); the page around it stays online for the owner's 5 M DH alert. Making /dashboard itself an offline shell is still open.
 - The sidebar on wide screens has the same four entries for now; the mockup's longer list (Santé, Ventes, Membres…) comes with those screens.
 - `E2E_PORT` (default 3100) lets parallel sessions run Playwright on their own port.
+
+Done 2026-11-16 (branch `feat/u3-login-daily-entry`): login with the big phone field and the button at the bottom; one code field (not 6 boxes: the phone's one-time-code autofill fills a single field). Daily entry: − / + steppers that can still be typed (deaths ±1, culls ±1, feed ±25 kg, water ±100 L), death causes as chips, the feed card says it is deducted from stock. The steppers' buttons are labelled "Moins 25" / "Plus 25", so a field's label still names only its input.
 
 ### U4–U8 (next): batches and batch page, stock, sales and receivables, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

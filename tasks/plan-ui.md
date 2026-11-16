@@ -60,4 +60,8 @@ Still open after U8: the sidebar's longer owner list on wide screens; an Arabic 
 - [x] `/today` is a static, precached twin of the home: it reads who is signed in (remembered by the last online visit) and the farm from the phone, like /batches. The service worker answers `/dashboard` with it when the network fails, so the tab and an installed app open the home offline. Online, `/dashboard` still renders on the server (the owner's 5 M DH alert, remembering who is signed in). (`e2e/today.spec.ts`.)
 - [x] The batch page's header and day card load in the batch screen's second chunk: `/fr/batches` had gone 32 bytes over the 200 KB budget. It is now under it again, but close: the next addition to that page needs room made first.
 
+### U11: The owner's "Argent" card
+- [x] The online home shows, for owners and managers, the cash at hand and the last closed batch's cost per kg and margin (`WebOverview` "Argent"), linking to Trésorerie and Résultats. The offline twin shows no money.
+- [x] PR #45 (next 16.4.6 and the dependency overrides) is merged into the chain: Next.js 16.4.3 had GHSA-mfr8-8qww-v76h (root params), and `next build` refused to start the test server. `pnpm audit`: no known vulnerabilities. Full browser suite: 45 passed.
+
 ### Later:, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

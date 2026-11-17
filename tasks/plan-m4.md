@@ -120,9 +120,16 @@ Done 2026-11-17 (branch `feat/t76-advances`), decisions taken without asking:
 ### T77: Labour rules and monthly pay (WF11, WF12, §2)
 **Description:** `LabourRules` (dated, source, no seed) owned by workforce, owner only; `domain/pay.ts` pure; pay table on `/staff`; `PayMonth` frozen by `workforce.validatePay`.
 **AC:**
-- [ ] Unit: gross = wage × paid days; advances deducted; no rules → no deduction and `rulesMissing`; with rules (test fixture values, not real ones) → contributions with the cap, SMAG warning.
-- [ ] Attendance edit in a validated month is refused (`PAY_MONTH_VALIDATED`).
-- [ ] `/staff` shows the "rates not entered" notice with no rules (Playwright).
+- [x] Unit: gross = wage × paid days; advances deducted; no rules → no deduction and `rulesMissing`; with rules (test fixture values, not real ones) → contributions with the cap, SMAG warning. (`workforce/domain/pay.test.ts`: no rules → contributions `null`, SMAG check `null`.)
+- [x] Attendance edit in a validated month is refused (`PAY_MONTH_VALIDATED`). (`workforce/pay.int.test.ts`: attendance, check-in, advances and a second validation.)
+- [x] `/staff` shows the "rates not entered" notice with no rules (Playwright). (`e2e/pay.spec.ts`, with the owner's validation)
+
+Done 2026-11-17 (branch `feat/t77-pay`), decisions taken without asking:
+- **No labour figure is in the code or the seed.** `LabourRules` holds what the owner types from a named source: SMAG per day, employee and employer rates on the capped part and on all gross pay (basis points), the monthly cap; every value optional, the source required. Dated, never edited; the version in force on the month's last day applies. The structure (a capped part and an uncapped part) is ours, to be confirmed with MQ2.
+- **Pay** (`domain/pay.ts`, the same on the phone and the server): paid days = present + leave ⚠️ MQ2; gross = daily wage × paid days; employee contribution only when all four rates and the cap are entered; net = gross − employee contribution − the month's advances; a warning when the daily wage is below the entered SMAG. Rounded half up per contribution ⚠️ MQ2. No income tax (MQ4).
+- **Validation** (`workforce.validatePay`, owner only): the server recomputes the month from its own records and freezes the lines (`PayMonth`, one per farm and month); from then on that month's attendance, check-ins and advances are refused (`PAY_MONTH_VALIDATED`). Managers see the pay; workers receive neither pay nor rules.
+- **Screen:** `/staff` "Paie": month, table (days, gross, employee contribution, advances, net, total), the rules in force with their source and the employer's share, or the "not entered" notice; "Valider la paie de …" and "Saisir le SMAG et les taux" for the owner.
+- Not posted to finance and no payslip PDF (MQ3, "Later").
 **Size:** M
 
 ### T78: CNSS declaration export (blocked: MQ3)

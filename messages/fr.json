@@ -389,7 +389,8 @@
     "HOUSE_REQUIRED": "Choisissez un bâtiment : la tâche suit l’âge de son lot.",
     "TASK_DAY_PAST": "Une tâche d’un jour passé reste comme elle a été notée.",
     "EMPLOYEE_NOT_ACTIVE": "Cet ouvrier ne travaille pas à la ferme ce jour-là.",
-    "DEDUCT_BEFORE_ADVANCE": "L’avance se retient sur la paie du mois où elle est donnée, ou d’un mois suivant."
+    "DEDUCT_BEFORE_ADVANCE": "L’avance se retient sur la paie du mois où elle est donnée, ou d’un mois suivant.",
+    "PAY_MONTH_VALIDATED": "La paie de ce mois est validée : ses présences et ses avances ne changent plus."
   },
   "Weighing": {
     "title": "Pesée",
@@ -890,5 +891,31 @@
     "day": "Donnée le",
     "deductMonth": "Retenue sur la paie de",
     "save": "Enregistrer l’avance"
+  },
+  "Pay": {
+    "title": "Paie",
+    "table": "Paie du mois",
+    "days": "Jours",
+    "gross": "Brut",
+    "contribution": "CNSS et AMO salarié",
+    "advances": "Avances",
+    "net": "Net",
+    "total": "Total",
+    "belowSmag": "sous le SMAG saisi",
+    "validated": "Paie validée le {date}.",
+    "validate": "Valider la paie de {month}",
+    "rulesInForce": "Taux en vigueur depuis le {date}, source : {source}. Part patronale : {employer}.",
+    "rulesMissing": "Le SMAG, les taux CNSS et AMO et le plafond ne sont pas saisis : aucune cotisation n’est calculée et le SMAG n’est pas contrôlé. Le propriétaire les saisit avec leur source (comptable, circulaire CNSS). L’impôt sur le revenu n’est pas calculé.",
+    "enterRules": "Saisir le SMAG et les taux",
+    "rulesHint": "Saisissez les chiffres donnés par votre source ; laissez vide ce qu’elle ne donne pas. Taux en %, montants en DH.",
+    "source": "Source (document, date, page)",
+    "validFrom": "En vigueur à partir du",
+    "smag": "SMAG par jour (DH)",
+    "employeeCapped": "Taux salarié sur la part plafonnée (%)",
+    "employeeUncapped": "Taux salarié sur tout le brut (%)",
+    "employerCapped": "Taux patronal sur la part plafonnée (%)",
+    "employerUncapped": "Taux patronal sur tout le brut (%)",
+    "cap": "Plafond mensuel (DH)",
+    "saveRules": "Enregistrer les taux"
   }
 }

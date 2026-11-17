@@ -56,3 +56,19 @@ export const SetAttendance = z.object({ ...attendanceDay, status: z.enum(ATTENDA
 export const RecordAdvance = z
   .object({ id: z.uuid(), employeeId: z.uuid(), day: z.iso.date(), amountCentimes: z.string().regex(/^[1-9]\d{0,11}$/), deductMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), note: optional(200) })
   .refine((a) => a.deductMonth >= a.day.slice(0, 7), "deducted in the month it is given or later");
+
+// §2, MQ2: each value is optional (the owner enters what their source gives); the source is not.
+const centimes = z.string().regex(/^\d{1,12}$/);
+const rate = z.int32().min(0).max(10_000).nullable(); // basis points: 1 % = 100
+export const SaveLabourRules = z.object({
+  id: z.uuid(),
+  validFrom: z.iso.date(),
+  source: z.string().trim().min(3).max(300),
+  smagDailyCentimes: centimes.nullable(),
+  employeeCappedBp: rate,
+  employeeUncappedBp: rate,
+  employerCappedBp: rate,
+  employerUncappedBp: rate,
+  monthlyCapCentimes: centimes.nullable(),
+});
+export const ValidatePay = z.object({ farmId: z.uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) });

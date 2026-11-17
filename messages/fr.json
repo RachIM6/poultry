@@ -40,7 +40,8 @@
     "codeSent": "Si ce numéro peut se connecter, un code à 6 chiffres vient de lui être envoyé.",
     "codeLabel": "Code reçu",
     "verify": "Se connecter",
-    "changeNumber": "Changer de numéro"
+    "changeNumber": "Changer de numéro",
+    "noPassword": "Pas de mot de passe. Un compte est créé à la première connexion."
   },
   "Account": {
     "logout": "Se déconnecter",
@@ -277,7 +278,9 @@
     "alertBelow": "Alerte sous {quantity}",
     "value": "Valeur : {amount}",
     "editThreshold": "Seuil d’alerte",
-    "thresholdHint": "Vide : pas d’alerte."
+    "thresholdHint": "Vide : pas d’alerte.",
+    "total": "Valeur du stock : {amount} (coût moyen pondéré)",
+    "enough": "Suffisant"
   },
   "Batches": {
     "title": "Bandes",
@@ -330,7 +333,8 @@
     "litterTemp": "Température litière (°C)",
     "density": "Densité : {density} sujets/m²",
     "claim": "Morts à l’arrivée au-dessus du seuil du contrat : réclamation au couvoir",
-    "run": "{house} · {bands} bandes · {birds} sujets"
+    "run": "{house} · {bands} bandes · {birds} sujets",
+    "nextVaccine": "Prochain vaccin : {vaccine}"
   },
   "Day": {
     "title": "Saisie du jour",
@@ -355,7 +359,11 @@
     "note": "Note (facultatif)",
     "save": "Enregistrer la journée",
     "nothing": "Rien n’a changé.",
-    "onHand": "Oiseaux présents : {birds}"
+    "onHand": "Oiseaux présents : {birds}",
+    "minus": "Moins {step}",
+    "plus": "Plus {step}",
+    "feedHint": "Déduit du stock à l’enregistrement.",
+    "offline": "Marche sans réseau · envoi automatique"
   },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
@@ -573,7 +581,8 @@
     "awaiting": "Crédits à approuver",
     "awaitingLine": "Vente à crédit de {amount} à {buyer} le {date} : dépasse le plafond, attend l’accord du propriétaire",
     "approve": "Approuver",
-    "saveLimit": "Enregistrer le plafond"
+    "saveLimit": "Enregistrer le plafond",
+    "totalLabel": "{count, plural, one {À encaisser · 1 acheteur} other {À encaisser · {n} acheteurs}}"
   },
   "Origin": {
     "title": "Document d’origine des volailles",
@@ -775,7 +784,8 @@
     "today": "Aujourd’hui",
     "batches": "Lots",
     "stock": "Stock",
-    "more": "Plus"
+    "more": "Plus",
+    "back": "Retour"
   },
   "More": {
     "farm": "Élevage",

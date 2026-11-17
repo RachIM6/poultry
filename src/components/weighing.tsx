@@ -8,8 +8,10 @@ import { formatCount, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, sampleStats, uniformityPercent, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import type { CurvePoint } from "@/modules/reference-data/schema";
-import { standardAt } from "@/modules/reference-data/shared";
+import type { ReferenceData } from "@/modules/reference-data/schema";
+import { curveFor, standardAt } from "@/modules/reference-data/shared";
+
+type StrainCurves = ReferenceData["strains"][number]["curves"];
 import { field, primary } from "@/components/ui";
 
 // SPEC B3 on the phone: type the sample, see the average, uniformity (CV%) and the gap to the strain standard at once.
@@ -29,7 +31,8 @@ function readSample(group: boolean, weights: string, total: string, count: strin
 
 const asSample = (w: WeighingDto): Sample => (w.weightsGrams.length ? { weightsGrams: w.weightsGrams } : { totalGrams: w.totalGrams, count: w.count });
 
-export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto; weighings: WeighingDto[]; curve: readonly CurvePoint[] | null; write: Write }) {
+export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto; weighings: WeighingDto[]; curves: StrainCurves; write: Write }) {
+  const curve = curveFor(curves, batch.sex ?? "mixed")?.points ?? null; // R6: its sex's, else mixed
   const t = useTranslations();
   const [day, setDay] = useState<string>(today());
   const [group, setGroup] = useState(false);
@@ -75,8 +78,8 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
 
   const past = [...weighings].sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id));
   return (
-    <section className="flex flex-col gap-3 border-t border-current/20 pt-4">
-      <h3 className="text-lg font-semibold">{t("Weighing.title")}</h3>
+    <section className="flex flex-col gap-3 border-t border-line pt-4">
+      <h3 className="text-[17px] font-semibold text-ink-2">{t("Weighing.title")}</h3>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor={ids.day}>{t("Weighing.day")}</label>
@@ -111,7 +114,7 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
       {past.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label={t("Weighing.past")}>
           {past.map((w) => (
-            <li key={w.id} className="rounded-lg border border-current/20 p-3">
+            <li key={w.id} className="rounded-lg border border-line p-3">
               <span className="font-semibold">{t("Batches.age", { age: String(ageOfBatch(batch, w.day as FarmDay)) })}</span> · {describe(asSample(w), w.day)}
             </li>
           ))}

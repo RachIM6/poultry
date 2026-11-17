@@ -40,6 +40,15 @@ const serwist = new Serwist({
   fallbacks: {
     // A page that isn't a precached shell opens the offline page offline, in the page's language.
     entries: [
+      // Aujourd'hui (tasks/plan-ui.md U10): /dashboard is rendered online; offline, its static twin reads the phone.
+      {
+        url: "/fr/today",
+        matcher: ({ request }) => request.destination === "document" && new URL(request.url).pathname === "/fr/dashboard",
+      },
+      {
+        url: "/ar/today",
+        matcher: ({ request }) => request.destination === "document" && new URL(request.url).pathname === "/ar/dashboard",
+      },
       {
         url: "/fr/offline",
         matcher: ({ request }) => request.destination === "document" && new URL(request.url).pathname.startsWith("/fr"),

@@ -40,7 +40,7 @@ function Labelled({ label, hint, children }: { label: string; hint?: string; chi
     <div className="flex flex-col gap-1">
       <label htmlFor={id}>{label}</label>
       {children(id)}
-      {hint && <span className="text-sm opacity-75">{hint}</span>}
+      {hint && <span className="text-sm text-muted">{hint}</span>}
     </div>
   );
 }
@@ -67,13 +67,13 @@ export function Treatments({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="treatment-title">
-      <h3 id="treatment-title" className="text-lg font-semibold">{t("title")}</h3>
+      <h3 id="treatment-title" className="text-[17px] font-semibold text-ink-2">{t("title")}</h3>
       {list.length === 0 ? (
         <p>{t("none")}</p>
       ) : (
         <ul className="flex flex-col gap-3" aria-labelledby="treatment-title">
           {list.map((x) => (
-            <li key={x.id} className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
+            <li key={x.id} className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-3">
               <span className="font-semibold">{t("line", { medicine: name(x.stockItemId), start: day(x.startOn), end: day(x.endOn) })}</span>
               <span>{t("detail", { dose: x.dose, reason: x.reason, prescriber: x.prescriber })}</span>
               <span>{t("withdrawalLine", { days: String(x.withdrawalDays), date: day(x.withdrawalEndsOn) })}</span>
@@ -203,13 +203,13 @@ export function VetVisits({ batch, visits, userId, write }: { batch: BatchDto; v
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="visit-title">
-      <h3 id="visit-title" className="text-lg font-semibold">{t("VetVisit.title")}</h3>
+      <h3 id="visit-title" className="text-[17px] font-semibold text-ink-2">{t("VetVisit.title")}</h3>
       {list.length === 0 ? (
         <p>{t("VetVisit.none")}</p>
       ) : (
         <ul className="flex flex-col gap-3" aria-labelledby="visit-title">
           {list.map((v) => (
-            <li key={v.id} className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
+            <li key={v.id} className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-3">
               <span className="font-semibold">{t("VetVisit.line", { date: formatDay(v.on as FarmDay, locale), vet: v.vetName })}</span>
               {v.notes && <span className="whitespace-pre-line">{v.notes}</span>}
             </li>

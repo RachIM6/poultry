@@ -35,7 +35,7 @@ import { field, primary, secondary } from "@/components/ui";
 // SPEC S1–S3 on the static /stock shell: everything from and to the phone's database (ADR-003). Workers get no money
 // from the server at all (I5), so the money parts only render for those allowed to manage stock.
 
-const card = "flex flex-col gap-1 rounded-lg border border-current/30 p-3";
+const card = "flex flex-col gap-1 rounded-2xl border border-line bg-card p-3";
 const DEFAULT_UNIT: Record<ItemKind, Unit> = { feed: "kg", vaccine: "dose", medicine: "ml", litter: "kg", gas: "unit", other: "unit" };
 
 export function StockScreen() {
@@ -113,8 +113,11 @@ function Stock(scope: Scope) {
         </Select>
       )}
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
+      {manage && items.length > 0 && (
+        <p className="text-ink-2">{t("Stock.total", { amount: formatMoney(items.reduce((sum, i) => sum + valueOf(i.id), 0n)) })}</p>
+      )}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">{t("Stock.items")}</h2>
+        <h2 className="text-[17px] font-semibold text-ink-2">{t("Stock.items")}</h2>
         {items.length === 0 ? <p>{t("Stock.noItems")}</p> : (
           <ul className="flex flex-col gap-3">
             {items.map((item) => (
@@ -139,9 +142,11 @@ function Stock(scope: Scope) {
             <AdjustForm items={items} write={write} onCancel={() => setOpen(null)} />
           ) : (
             <>
-              <button type="button" onClick={() => setOpen("item")} className={secondary}>{t("Stock.addItem")}</button>
               {items.length > 0 && <button type="button" onClick={() => setOpen("purchase")} className={primary}>{t("Stock.purchase")}</button>}
-              {items.length > 0 && <button type="button" onClick={() => setOpen("adjust")} className={secondary}>{t("Stock.adjust")}</button>}
+              <div className="flex flex-wrap gap-2">
+                {items.length > 0 && <button type="button" onClick={() => setOpen("adjust")} className={secondary}>{t("Stock.adjust")}</button>}
+                <button type="button" onClick={() => setOpen("item")} className={secondary}>{t("Stock.addItem")}</button>
+              </div>
             </>
           )}
           <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} />
@@ -178,14 +183,17 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
 
   return (
     <li className={card}>
-      <span className="font-semibold">
-        {item.name} {low && <span className="ms-2 rounded-full bg-brick-soft px-2 py-0.5 text-sm font-medium text-brick-fg">{t("low")}</span>}
+      <span className="flex items-start justify-between gap-3">
+        <span className="font-semibold">{item.name}</span>
+        {item.lowStockThreshold !== null && (
+          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${low ? "bg-brick-soft text-brick-fg" : "bg-olive-soft text-olive"}`}>{t(low ? "low" : "enough")}</span>
+        )}
       </span>
-      <span>{t("onHand", { quantity: show(quantity, item.unit) })}</span>
-      {value !== undefined && <span className="text-sm">{t("value", { amount: formatMoney(value) })}</span>}
-      {item.lowStockThreshold !== null && <span className="text-sm opacity-75">{t("alertBelow", { quantity: show(item.lowStockThreshold, item.unit) })}</span>}
+      <span className="text-xl font-semibold">{t("onHand", { quantity: show(quantity, item.unit) })}</span>
+      {value !== undefined && <span className="text-sm text-ink-2">{t("value", { amount: formatMoney(value) })}</span>}
+      {item.lowStockThreshold !== null && <span className="text-sm text-muted">{t("alertBelow", { quantity: show(item.lowStockThreshold, item.unit) })}</span>}
       {item.lot && item.expiresOn && (
-        <span className="text-sm opacity-75">{t("lotUntil", { lot: item.lot, date: formatDay(item.expiresOn as FarmDay, locale) })}</span>
+        <span className="text-sm text-muted">{t("lotUntil", { lot: item.lot, date: formatDay(item.expiresOn as FarmDay, locale) })}</span>
       )}
       {write &&
         (editing ? (
@@ -197,11 +205,11 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
               inputMode="decimal"
               dir="ltr"
             />
-            <p className="text-sm opacity-75">{t("thresholdHint")}</p>
+            <p className="text-sm text-muted">{t("thresholdHint")}</p>
             <Buttons onCancel={() => setEditing(false)} />
           </form>
         ) : (
-          <button type="button" onClick={() => setEditing(true)} className="mt-1 self-start rounded-lg border border-current/30 px-3 py-2 text-sm">
+          <button type="button" onClick={() => setEditing(true)} className={`${secondary} mt-1 self-start text-sm`}>
             {t("editThreshold")}
           </button>
         ))}
@@ -217,7 +225,7 @@ function Suppliers({ suppliers, purchases }: { suppliers: SupplierDto[]; purchas
   );
   return (
     <>
-      <h2 className="text-lg font-semibold">{t("suppliers")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("suppliers")}</h2>
       <ul className="flex flex-col gap-2">
         {suppliers.map((s) => (
           <li key={s.id} className={card}>
@@ -296,7 +304,7 @@ function ItemForm({ farmId, products, write, onCancel }: { farmId: string; produ
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-current/30 p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
       <Select label={t("kind")} value={kind} onChange={(v) => setKind(v as ItemKind)}>
         {ITEM_KINDS.map((k) => <option key={k} value={k}>{t(`kinds.${k}`)}</option>)}
       </Select>
@@ -370,7 +378,7 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-current/30 p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
       <Select label={t("Stock.supplier")} value={supplierId} onChange={setSupplierId}>
         {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         <option value="new">{t("Stock.newSupplier")}</option>
@@ -414,7 +422,7 @@ function AdjustForm({ items, write, onCancel }: { items: StockItemDto[]; write: 
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-current/30 p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
       <Select label={t("Stock.item")} value={itemId} onChange={setItemId}>
         {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
       </Select>

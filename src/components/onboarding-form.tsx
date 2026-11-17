@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { postJson } from "@/lib/api";
-import { field, primary as button } from "@/components/ui";
+import { danger, field, primary as button } from "@/components/ui";
 
 
 // The forms come from the page (farm-registry's LEGAL_FORMS): importing the module here would bundle its server code.
@@ -31,20 +31,22 @@ export function OnboardingForm({ forms }: { forms: readonly string[] }) {
   return (
     <form onSubmit={submit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <label htmlFor="name">{t("Onboarding.nameLabel")}</label>
+        <label htmlFor="name" className="font-medium">{t("Onboarding.nameLabel")}</label>
         <input id="name" name="name" required maxLength={120} autoComplete="organization" className={field} />
       </div>
       <fieldset className="flex flex-col gap-2" aria-describedby="form-hint">
-        <legend className="mb-2">{t("Onboarding.formLabel")}</legend>
+        <legend className="mb-2 font-medium">{t("Onboarding.formLabel")}</legend>
+        <div className="grid gap-2.5 sm:grid-cols-2">
         {forms.map((form) => (
-          <label key={form} className="flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 has-checked:border-ink has-checked:bg-chick-soft">
+          <label key={form} className="flex items-center gap-3 rounded-2xl border border-line bg-card p-4 font-semibold has-checked:border-2 has-checked:border-ink has-checked:shadow-[0_6px_18px_rgba(36,33,28,.08)]">
             <input type="radio" name="form" value={form} required className="size-5 accent-ink" />
             {t(`Onboarding.forms.${form}`)}
           </label>
         ))}
-        <p id="form-hint" className="text-sm opacity-75">{t("Onboarding.formHint")}</p>
+        </div>
+        <p id="form-hint" className="text-sm text-muted">{t("Onboarding.formHint")}</p>
       </fieldset>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <button type="submit" disabled={busy} className={button}>{t("Onboarding.submit")}</button>
     </form>
   );

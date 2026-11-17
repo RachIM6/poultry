@@ -1,11 +1,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { formatDecimal, formatKg, formatPercent } from "@/lib/format";
+import { formatCount, formatDecimal, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { ageOfBatch, batchKpis, birdsStarted, waterPerFeed, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
-import type { CurvePoint } from "@/modules/reference-data/schema";
-import { standardAt } from "@/modules/reference-data/shared";
+import { ageOfBatch, batchKpis, birdsStarted, doaClaim, waterPerFeed, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import type { CurvePoint, ReferenceData } from "@/modules/reference-data/schema";
+import { curveFor, standardAt } from "@/modules/reference-data/shared";
+
+type StrainCurves = ReferenceData["strains"][number]["curves"];
+import { card, warn } from "@/components/ui";
+import { BatchStrip, type StripDay } from "@/components/batch-strip";
 
 // SPEC B4 on the phone: the batch's KPIs from its local records, so they work offline and change as soon as a day or
 // a weighing is saved. Weight-based KPIs wait for a weighing; the standard is shown only when the strain has a curve.
@@ -17,14 +21,15 @@ export function BatchDashboard({
   entries,
   weighings,
   sold,
-  curve,
+  curves,
 }: {
   batch: BatchDto;
   entries: DailyEntryDto[];
   weighings: WeighingDto[];
   sold: SoldBirdsDto[];
-  curve: readonly CurvePoint[] | null;
+  curves: StrainCurves; // the strain's; this batch's sex picks one (SPEC-m3 R6)
 }) {
+  const curve = curveFor(curves, batch.sex ?? "mixed")?.points ?? null;
   const t = useTranslations();
   const placedOn = batch.placedOn as FarmDay;
   const k = batchKpis({ placedOn, birdsStarted: birdsStarted(batch), dayOldWeightGrams: batch.dayOldWeightGrams, ageAtPlacementDays: batch.ageAtPlacementDays }, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
@@ -52,18 +57,18 @@ export function BatchDashboard({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="kpi-title">
-      <h3 id="kpi-title" className="text-lg font-semibold">{t("Kpi.title")}</h3>
-      <dl className="grid grid-cols-2 gap-3">
+      <h3 id="kpi-title" className="text-[17px] font-semibold text-ink-2">{t("Kpi.title")}</h3>
+      {points.length > 0 && <GrowthChart points={points} curve={curve} />}
+      <dl className="grid grid-cols-2 gap-2">
         {tiles.map(([label, value, note]) => (
-          <div key={label} className="flex flex-col gap-1 rounded-lg border border-current/20 p-3">
-            <dt className="text-sm opacity-75">{label}</dt>
-            <dd className="text-xl font-semibold tabular-nums">{value}</dd>
-            {note && <dd className="text-sm opacity-75">{note}</dd>}
+          <div key={label} className="flex flex-col gap-0.5 rounded-[14px] bg-card px-3 py-2.5">
+            <dt className="text-[13px] text-ink-2">{label}</dt>
+            <dd className="text-xl font-semibold">{value}</dd>
+            {note && <dd className="text-xs font-medium text-muted">{note}</dd>}
           </div>
         ))}
       </dl>
-      <p className="text-sm opacity-75">{w ? t("Kpi.atWeighing", { age: String(w.ageDays) }) : t("Kpi.weighFirst")}</p>
-      {points.length > 0 && <GrowthChart points={points} curve={curve} />}
+      <p className="text-sm text-muted">{w ? t("Kpi.atWeighing", { age: String(w.ageDays) }) : t("Kpi.weighFirst")}</p>
     </section>
   );
 }
@@ -82,16 +87,16 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
   const line = (ps: { age: number; grams: number }[]) => ps.map((p) => `${x(p.age)},${y(p.grams)}`).join(" ");
 
   return (
-    <figure className="flex flex-col gap-2">
-      <figcaption className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        <span className="font-semibold">{t("chart")}</span>
+    <figure className={card}>
+      <figcaption className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-2">
+        <span className="me-auto text-base font-semibold">{t("chart")}</span>
         <span className="flex items-center gap-1">
-          <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="2" className="stroke-ink" /></svg>
+          <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="3" className="stroke-ink" /></svg>
           {t("flock")}
         </span>
         {std.length > 1 && (
           <span className="flex items-center gap-1">
-            <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="2" strokeDasharray="4 3" className="stroke-current opacity-60" /></svg>
+            <svg width="20" height="8" aria-hidden="true"><line x1="0" y1="4" x2="20" y2="4" strokeWidth="2" strokeDasharray="5 5" strokeLinecap="round" className="stroke-muted" /></svg>
             {t("standard")}
           </span>
         )}
@@ -99,14 +104,14 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" direction="ltr" role="img" aria-label={t("chartLabel", { points: points.map((p) => `${t("day", { age: String(p.age) })} ${formatKg(p.grams)}`).join(", ") })}>
         {[0, top / 2, top].map((g) => (
           <g key={g}>
-            <line x1={L} x2={W - R} y1={y(g)} y2={y(g)} strokeWidth="1" className="stroke-current opacity-15" />
-            <text x={L - 4} y={y(g) + 3} textAnchor="end" fontSize="10" className="fill-current opacity-70">{formatKg(g)}</text>
+            <line x1={L} x2={W - R} y1={y(g)} y2={y(g)} strokeWidth="1" className="stroke-line" />
+            <text x={L - 4} y={y(g) + 3} textAnchor="end" fontSize="10" className="fill-muted">{formatKg(g)}</text>
           </g>
         ))}
-        <text x={x(0)} y={H - 6} fontSize="10" className="fill-current opacity-70">{t("day", { age: "0" })}</text>
-        <text x={x(maxAge)} y={H - 6} fontSize="10" textAnchor="end" className="fill-current opacity-70">{t("day", { age: String(maxAge) })}</text>
-        {std.length > 1 && <polyline points={line(std)} fill="none" strokeWidth="2" strokeDasharray="4 3" className="stroke-current opacity-60" />}
-        {points.length > 1 && <polyline points={line(points)} fill="none" strokeWidth="2" strokeLinejoin="round" className="stroke-ink" />}
+        <text x={x(0)} y={H - 6} fontSize="10" className="fill-muted">{t("day", { age: "0" })}</text>
+        <text x={x(maxAge)} y={H - 6} fontSize="10" textAnchor="end" className="fill-muted">{t("day", { age: String(maxAge) })}</text>
+        {std.length > 1 && <polyline points={line(std)} fill="none" strokeWidth="2" strokeDasharray="5 5" strokeLinecap="round" className="stroke-muted" />}
+        {points.length > 1 && <polyline points={line(points)} fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="stroke-ink" />}
         {points.map((p) => (
           <g key={p.age}>
             <circle cx={x(p.age)} cy={y(p.grams)} r="4" strokeWidth="2" className="fill-chick stroke-ink" />
@@ -117,5 +122,68 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
         ))}
       </svg>
     </figure>
+  );
+}
+
+// Batch.dc.html: a round back button and the batch's name, then a dark card with its day and strip.
+export function BatchHeader({ title }: { title: string }) {
+  const t = useTranslations("Day");
+  return (
+    <div className="flex items-center gap-3">
+      <a href="#" aria-label={t("back")} className="grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+      </a>
+      <h2 className="text-[21px] font-semibold leading-tight">{title}</h2>
+    </div>
+  );
+}
+
+export function OpenBatchCard({ strip, ageLabel, birds, next }: { strip: { age: number; days: StripDay[]; label: string }; ageLabel?: string; birds: string; next: string | null }) {
+  const t = useTranslations();
+  return (
+    <section aria-label={strip.label} className="flex flex-col gap-2.5 rounded-[20px] bg-ink p-4 text-shell">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-[26px] font-semibold">
+          {ageLabel ?? (
+            <>
+              {t("Batches.age", { age: String(strip.age) })} <span className="text-base font-normal text-sand">/ {strip.days.length}</span>
+            </>
+          )}
+        </span>
+        <span className="text-sm text-sand">{birds}</span>
+      </div>
+      <BatchStrip days={strip.days} onDark label={strip.label} />
+      {next && <span className="text-sm text-sand">{t("Batches.nextVaccine", { vaccine: next })}</span>}
+    </section>
+  );
+}
+
+/** SPEC-m3 B9, B10 under the batch's card: the other sex's batch, the density and a hatchery claim. */
+export function BatchNotes({
+  batch,
+  other,
+  onHand,
+  areaM2,
+  claimPermille,
+}: {
+  batch: BatchDto;
+  other: BatchDto | undefined;
+  onHand: (b: BatchDto) => number;
+  areaM2: number | undefined;
+  claimPermille: number | null | undefined;
+}) {
+  const t = useTranslations();
+  return (
+    <>
+      {other && (
+        <a href={`#${other.id}`} className="rounded-2xl border border-line bg-card p-3 underline underline-offset-4">
+          {t("Batches.otherSex", { sex: t(`Batches.sexes.${other.sex ?? "mixed"}`), birds: formatCount(onHand(other)) })}
+        </a>
+      )}
+      {areaM2 && <p>{t("Batches.density", { density: formatDecimal(birdsStarted(batch) / areaM2, 1) })}</p>}
+      {doaClaim(batch, claimPermille) && <p role="alert" className={warn}>{t("Batches.claim")}</p>}
+    </>
   );
 }

@@ -18,7 +18,7 @@ export function AppNav() {
   const pathname = usePathname();
   const isIn = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   // Everything that isn't one of the first three tabs is reached from "Plus".
-  const current = TABS.find((tab) => tab.key !== "more" && isIn(tab.href))?.key ?? (pathname === "/" ? undefined : "more");
+  const current = pathname === "/today" ? "today" : (TABS.find((tab) => tab.key !== "more" && isIn(tab.href))?.key ?? (pathname === "/" ? undefined : "more"));
   return (
     <nav
       aria-label={t("label")}
@@ -46,5 +46,17 @@ export function AppNav() {
         ))}
       </ul>
     </nav>
+  );
+}
+
+/** The round back button of the mockups (Batch.dc.html), for screens reached from "Plus". */
+export function BackLink({ href }: { href: string }) {
+  const t = useTranslations("Nav");
+  return (
+    <Link href={href} aria-label={t("back")} className="grid size-11 place-items-center rounded-[14px] border border-line bg-card print:hidden">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
+        <path d="M15 6l-6 6 6 6" />
+      </svg>
+    </Link>
   );
 }

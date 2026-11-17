@@ -40,7 +40,8 @@
     "codeSent": "إذا كان هذا الرقم صالحًا، فقد أُرسل إليه رمز من 6 أرقام.",
     "codeLabel": "الرمز المستلم",
     "verify": "دخول",
-    "changeNumber": "تغيير الرقم"
+    "changeNumber": "تغيير الرقم",
+    "noPassword": "بدون كلمة مرور. يُنشأ الحساب عند أول دخول."
   },
   "Account": {
     "logout": "تسجيل الخروج",
@@ -277,7 +278,9 @@
     "alertBelow": "تنبيه تحت {quantity}",
     "value": "القيمة: {amount}",
     "editThreshold": "حد التنبيه",
-    "thresholdHint": "فارغ: بدون تنبيه."
+    "thresholdHint": "فارغ: بدون تنبيه.",
+    "total": "قيمة المخزون: {amount} (متوسط التكلفة المرجح)",
+    "enough": "كافٍ"
   },
   "Batches": {
     "title": "الدفعات",
@@ -330,7 +333,8 @@
     "litterTemp": "حرارة الفرشة (°م)",
     "density": "الكثافة: {density} طائر/م²",
     "claim": "النفوق عند الوصول فوق عتبة العقد: شكاية إلى المفقس",
-    "run": "{house} · {bands} أفواج · {birds} طائر"
+    "run": "{house} · {bands} أفواج · {birds} طائر",
+    "nextVaccine": "التلقيح القادم: {vaccine}"
   },
   "Day": {
     "title": "تسجيل اليوم",
@@ -355,7 +359,11 @@
     "note": "ملاحظة (اختيارية)",
     "save": "حفظ اليوم",
     "nothing": "لم يتغير شيء.",
-    "onHand": "الطيور الموجودة: {birds}"
+    "onHand": "الطيور الموجودة: {birds}",
+    "minus": "ناقص {step}",
+    "plus": "زائد {step}",
+    "feedHint": "يُخصم من المخزون عند الحفظ.",
+    "offline": "يعمل بدون شبكة · إرسال تلقائي"
   },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "الرمز غير صحيح أو منتهي الصلاحية.",
@@ -573,7 +581,8 @@
     "awaiting": "بيوع بالأجل تنتظر الموافقة",
     "awaitingLine": "بيع بالأجل بمبلغ {amount} إلى {buyer} بتاريخ {date}: يتجاوز السقف وينتظر موافقة المالك",
     "approve": "موافقة",
-    "saveLimit": "حفظ السقف"
+    "saveLimit": "حفظ السقف",
+    "totalLabel": "{count, plural, one {للتحصيل · مشترٍ واحد} other {للتحصيل · {n} مشترين}}"
   },
   "Origin": {
     "title": "وثيقة مصدر الدواجن",
@@ -775,7 +784,8 @@
     "today": "اليوم",
     "batches": "الدفعات",
     "stock": "المخزون",
-    "more": "المزيد"
+    "more": "المزيد",
+    "back": "رجوع"
   },
   "More": {
     "farm": "التربية",

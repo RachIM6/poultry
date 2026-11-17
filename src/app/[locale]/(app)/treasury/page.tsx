@@ -2,21 +2,21 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { LocaleSwitcher } from "@/components/locale-switcher";
-import { Link, redirect } from "@/i18n/navigation";
+import { redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { treasuryOverview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
+import { BackLink } from "@/components/app-nav";
+import { table } from "@/components/ui";
 
 // SPEC-finance FN10: an online page for the owner and the manager (the web side of SPEC's split): each bank account's
 // and cash box's balance, and this month's movements on 5141 / 5161. Server-rendered from the ledger, never cached.
 export default function TreasuryPage() {
   return (
     <>
-      <header className="flex justify-between gap-4 p-4">
-        <Link href="/dashboard" className="py-2 underline underline-offset-4">←</Link>
-        <LocaleSwitcher />
+      <header className="px-4 pt-4">
+        <BackLink href="/more" />
       </header>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">
         <Suspense>
@@ -41,7 +41,7 @@ async function Treasury() {
       <h1 className="text-2xl font-semibold">{t("Treasury.title")}</h1>
       <ul className="flex flex-col gap-2" aria-label={t("Treasury.balances")}>
         {accounts.map((a) => (
-          <li key={a.id} className="flex justify-between gap-4 rounded-lg border border-current/30 p-3">
+          <li key={a.id} className="flex justify-between gap-4 rounded-2xl border border-line bg-card p-3">
             <span>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</span>
             <span dir="ltr" className="font-semibold tabular-nums">{formatMoney(a.balanceCentimes)}</span>
           </li>
@@ -51,11 +51,11 @@ async function Treasury() {
           <span dir="ltr" className="tabular-nums">{formatMoney(total)}</span>
         </li>
       </ul>
-      <h2 className="text-lg font-semibold">{t("Treasury.movements")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Treasury.movements")}</h2>
       {movements.length === 0 ? (
         <p>{t("Treasury.none")}</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className={table}>
           <thead>
             <tr className="text-start">
               <th className="p-2 text-start">{t("Treasury.day")}</th>
@@ -68,7 +68,7 @@ async function Treasury() {
           </thead>
           <tbody>
             {movements.map((m, i) => (
-              <tr key={i} className="border-t border-current/20">
+              <tr key={i} className="border-t border-line">
                 <td className="p-2">{formatDay(m.day as FarmDay, lang)}</td>
                 <td className="p-2">{m.journal}</td>
                 <td className="p-2">{m.label}</td>

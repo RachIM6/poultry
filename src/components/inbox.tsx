@@ -52,13 +52,13 @@ function Inbox({ userId, organizationId, role }: Scope) {
         <ul className="flex flex-col gap-3">
           {items.map((n) => (
             <li key={n.id}>
-              <button type="button" onClick={() => void markRead(n)} className="flex w-full flex-col gap-1 rounded-lg border border-current/30 p-3 text-start">
+              <button type="button" onClick={() => void markRead(n)} className="flex w-full flex-col gap-1 rounded-2xl border border-line bg-card p-3 text-start">
                 <span className={n.readAt ? "" : "font-semibold"}>
                   {!n.readAt && <span className="sr-only">{t("Inbox.unread")} : </span>}
                   {t(`Notifications.templates.${n.templateKey}.title`, n.params)}
                 </span>
                 <span>{t(`Notifications.templates.${n.templateKey}.body`, n.params)}</span>
-                <span className="text-sm opacity-75">{formatDateTime(n.createdAt, locale)}</span>
+                <span className="text-sm text-muted">{formatDateTime(n.createdAt, locale)}</span>
               </button>
             </li>
           ))}
@@ -120,7 +120,7 @@ function PushControls() {
   const status: Partial<Record<PushState, string>> = { unsupported: "pushUnsupported", off: "pushOff", denied: "pushDenied", on: "pushOn" };
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">{t("push")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("push")}</h2>
       {status[state] && <p>{t(status[state])}</p>}
       {state === "available" && (
         <button type="button" onClick={enable} disabled={busy} className={primary}>{t("enablePush")}</button>
@@ -158,8 +158,8 @@ function QuietHours() {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">{t("quietHours")}</h2>
-      <p className="text-sm opacity-75">{t("quietHint")}</p>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("quietHours")}</h2>
+      <p className="text-sm text-muted">{t("quietHint")}</p>
       {hours && (
         <form onSubmit={save} className="flex flex-col gap-3">
           <div className="flex gap-3">

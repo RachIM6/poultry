@@ -2,12 +2,13 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { LocaleSwitcher } from "@/components/locale-switcher";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { readBooks } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
+import { BackLink } from "@/components/app-nav";
+import { table } from "@/components/ui";
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -16,9 +17,8 @@ const VIEWS = ["cash", "journals", "ledger", "trial"] as const;
 export default function BooksPage({ searchParams }: { searchParams: Search }) {
   return (
     <>
-      <header className="flex justify-between gap-4 p-4">
-        <Link href="/dashboard" className="py-2 underline underline-offset-4">←</Link>
-        <LocaleSwitcher />
+      <header className="px-4 pt-4">
+        <BackLink href="/more" />
       </header>
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4">
         <Suspense>
@@ -70,7 +70,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       )}
 
       {view === "cash" && (
-        <table className="w-full text-sm" aria-label={t("Books.cash")}>
+        <table className={table} aria-label={t("Books.cash")}>
           <thead>
             <tr>
               <th className="p-2 text-start">{t("Books.day")}</th>
@@ -82,15 +82,15 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           </thead>
           <tbody>
             {books.cashBook.rows.map((r, i) => (
-              <tr key={i} className="border-t border-current/20">
+              <tr key={i} className="border-t border-line">
                 <td className="p-2">{day(r.day)}</td>
-                <td className="p-2">{r.label}{r.counterAccounts.length > 0 && <span className="opacity-75"> · {r.counterAccounts.map((a) => books.labels[a] ?? a).join(", ")}</span>}</td>
+                <td className="p-2">{r.label}{r.counterAccounts.length > 0 && <span className="text-muted"> · {r.counterAccounts.map((a) => books.labels[a] ?? a).join(", ")}</span>}</td>
                 <td className="p-2">{account(r.account)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.receipt)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.expense)}</td>
               </tr>
             ))}
-            <tr className="border-t-2 border-current/40 font-semibold">
+            <tr className="border-t-2 border-line font-semibold">
               <td className="p-2" colSpan={3}>{t("Books.total")}</td>
               <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.receipts)}</td>
               <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.expenses)}</td>
@@ -102,13 +102,13 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       {view === "journals" &&
         books.journals?.map((j) => (
           <section key={j.journal} className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold">{t("Books.journal", { journal: j.journal })}</h2>
+            <h2 className="text-[17px] font-semibold text-ink-2">{t("Books.journal", { journal: j.journal })}</h2>
             {j.entries.map((e) => (
-              <table key={e.id} className="w-full text-sm">
+              <table key={e.id} className={table}>
                 <caption className="text-start font-semibold">{day(e.day)} · {e.label}</caption>
                 <tbody>
                   {e.lines.map((l, i) => (
-                    <tr key={i} className="border-t border-current/20">
+                    <tr key={i} className="border-t border-line">
                       <td className="p-2">{account(l.account)}</td>
                       <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
                       <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
@@ -122,11 +122,11 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
 
       {view === "ledger" &&
         books.generalLedger?.map((a) => (
-          <table key={a.account} className="w-full text-sm">
+          <table key={a.account} className={table}>
             <caption className="text-start font-semibold">{account(a.account)}</caption>
             <tbody>
               {a.lines.map((l, i) => (
-                <tr key={i} className="border-t border-current/20">
+                <tr key={i} className="border-t border-line">
                   <td className="p-2">{day(l.day)}</td>
                   <td className="p-2">{l.journal} · {l.label}</td>
                   <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
@@ -139,7 +139,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
         ))}
 
       {view === "trial" && books.trialBalance && (
-        <table className="w-full text-sm" aria-label={t("Books.trial")}>
+        <table className={table} aria-label={t("Books.trial")}>
           <caption className="text-start">{t("Books.since", { from: day(books.fiscalYear.from) })}</caption>
           <thead>
             <tr>
@@ -151,14 +151,14 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           </thead>
           <tbody>
             {books.trialBalance.rows.map((r) => (
-              <tr key={r.account} className="border-t border-current/20">
+              <tr key={r.account} className="border-t border-line">
                 <td className="p-2">{account(r.account)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.debit)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.credit)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.balance)}</td>
               </tr>
             ))}
-            <tr className="border-t-2 border-current/40 font-semibold">
+            <tr className="border-t-2 border-line font-semibold">
               <td className="p-2">{t(books.trialBalance.balanced ? "Books.balanced" : "Books.unbalanced")}</td>
               <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.debit)}</td>
               <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.credit)}</td>

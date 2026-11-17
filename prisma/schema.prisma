@@ -875,3 +875,17 @@ model OneOffTask {
 
   @@index([organizationId, day])
 }
+
+// Owner: workforce. SPEC-m4 WF6: a routine or one-off task ticked done on a farm day. id = UUIDv5 of key + day, the
+// same on every phone; unticking deletes it (same farm day only).
+model TaskDone {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  key            String // routine:<id> | oneoff:<id>
+  day            DateTime @db.Date
+  byUserId       String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}

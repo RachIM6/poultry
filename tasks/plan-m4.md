@@ -66,8 +66,16 @@ Done 2026-11-17 (branch `feat/t72-routines`), decisions taken without asking:
 ### T73: "Mes tâches" (WF6, WF8)
 **Description:** `TaskDone` (task key + farm day, who, when; deleting it is the untick). `/tasks` static shell (`W-Tasks`): greeting, done count and bar, the list; ticking offline.
 **AC:**
-- [ ] Ticking twice the same task and day stores one completion; unticking on another day is refused (`TASK_DAY_PAST`).
-- [ ] Offline: the linked worker ticks a routine, reloads, it is still done; online it syncs (Playwright).
+- [x] Ticking twice the same task and day stores one completion; unticking on another day is refused (`TASK_DAY_PAST`). (`workforce/task-done.int.test.ts`)
+- [x] Offline: the linked worker ticks a routine, reloads, it is still done; online it syncs (Playwright). (`e2e/my-tasks.spec.ts`: a real invited worker, who doesn't see another employee's routine)
+
+Done 2026-11-17 (branch `feat/t73-my-tasks`), decisions taken without asking:
+- **The completion's id is a UUIDv5 of task key + day,** like a daily entry's: two phones ticking the same task converge on one record, and a second tick is "applied" with no change.
+- **Only routines and one-off tasks are ticked** (`tickable`); an entry or vaccine row opens its batch, where recording it is what makes it done.
+- **No ticking ahead or made up:** a future day is refused (`DAY_IN_FUTURE`), a day more than 7 days back too (`TASK_DAY_PAST`: SPEC X1's offline week), and the task must fall on that day (a one-off of that day, not cancelled; a routine whose rule falls then, a batch routine through `flock.batchPlacedInHouseOn`). An untick is allowed the same farm day only, so past days stay the record. The server's farm day decides. (Raised by the automated security review.)
+- **Any member may tick any task of the farm** (`workforce.record`, all roles); the worker's screen only shows them theirs. A worker takes back only their own tick; owners and managers any.
+- **The worker's view:** a member linked to an active employee of the farm sees "Bonjour …", the dark "x faites sur y" card with one bar per task, and only the tasks assigned to them. A worker not (yet) in the staff sees the whole farm's list with a note saying the manager can add them. Owners and managers always see every task with its assignee.
+- The mockup's "Arrivé à 06:30" chip comes with check-in (T75).
 **Size:** M
 
 ### T74: Assignment (WF7)

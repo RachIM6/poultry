@@ -117,3 +117,14 @@ export const batchCostIdTaken = async (tx: Tx, id: string) => (await tx.batchCos
 export async function saveBatchCost(tx: Tx, ctx: TenantContext, c: Required<BatchCostDto>) {
   await tx.batchCost.create({ data: { ...c, organizationId: ctx.organizationId, day: date(c.day), amountCentimes: BigInt(c.amountCentimes) } });
 }
+
+/** For other modules: the placement day of the batch in this house on that farm day (placed, not yet closed), or null. */
+export async function batchPlacedInHouseOn(tx: Tx, ctx: TenantContext, houseId: string, day: string) {
+  const at = new Date(`${day}T00:00:00Z`);
+  const r = await tx.batch.findFirst({
+    where: { houseId, organizationId: ctx.organizationId, placedOn: { lte: at }, OR: [{ closedOn: null }, { closedOn: { gte: at } }] },
+    orderBy: { placedOn: "desc" },
+    select: { placedOn: true },
+  });
+  return r && (r.placedOn.toISOString().slice(0, 10) as FarmDay);
+}

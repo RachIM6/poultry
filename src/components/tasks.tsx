@@ -7,12 +7,12 @@ import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
 import { card, done, field, primary, secondary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
-import { farmDayOf } from "@/lib/kernel/farm-day";
+import { farmDayOf, farmMinutesOf } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto, DailyEntryDto } from "@/modules/flock/shared";
 import type { VaccinationDto } from "@/modules/health/shared";
-import { dayTasks, taskAssignmentId, taskDoneId, tickable, WORKFORCE_MUTATIONS as W, type DayTask, type EmployeeDto, type OneOffTask, type Routine, type TaskAssignmentDto, type TaskDoneDto } from "@/modules/workforce/shared";
+import { attendanceId, dayTasks, taskAssignmentId, taskDoneId, tickable, WORKFORCE_MUTATIONS as W, type AttendanceDto, type DayTask, type EmployeeDto, type OneOffTask, type Routine, type TaskAssignmentDto, type TaskDoneDto } from "@/modules/workforce/shared";
 import { cachedReference, localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -21,7 +21,7 @@ import { writeLocal } from "@/offline/outbox";
 
 export const TasksScreen = () => <Scoped>{(scope) => <Tasks {...scope} />}</Scoped>;
 
-const ENTITIES = ["farm", "house", "batch", "dailyEntry", "vaccination", "employee", "routine", "oneOffTask", "taskDone", "taskAssignment"];
+const ENTITIES = ["farm", "house", "batch", "dailyEntry", "vaccination", "employee", "routine", "oneOffTask", "taskDone", "taskAssignment", "attendance"];
 
 function Tasks(scope: Scope) {
   const t = useTranslations();
@@ -57,6 +57,9 @@ function Tasks(scope: Scope) {
   const shown = manage || !me ? tasks : tasks.filter((x) => x.assignees.includes(me.id));
   const doneCount = shown.filter((x) => x.done).length;
   const staff = employees.filter((e) => e.farmId === farm.id && e.startedOn <= today && (!e.leftOn || today < e.leftOn));
+  // WF9: today's check-in of the signed-in worker, kept on the phone until it syncs.
+  const mine = me && of<AttendanceDto>("attendance").find((x) => x.employeeId === me.id && x.day === today);
+  const arrived = mine?.status === "present" ? (mine.arrivedAt ?? "") : null;
 
   const house = (id: string | null) => (id === null ? t("Staff.wholeFarm") : (houses.find((h) => h.id === id)?.name ?? ""));
   const product = (id: string | null) => reference?.data.products.find((p) => p.id === id);
@@ -84,6 +87,13 @@ function Tasks(scope: Scope) {
       return false;
     }
   };
+  const checkIn = () => {
+    if (!me) return;
+    const m = farmMinutesOf(new Date());
+    const time = `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+    const a: AttendanceDto = { id: attendanceId(me.id, today), farmId: farm.id, employeeId: me.id, day: today, status: "present", arrivedAt: time, userId: scope.userId };
+    return write({ type: W.checkIn, payload: { id: a.id, employeeId: me.id, day: today, time } }, "attendance", a.id, a);
+  };
 
   return (
     <>
@@ -92,7 +102,16 @@ function Tasks(scope: Scope) {
           {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
       )}
-      {me && <p className="text-lg font-semibold">{t("Tasks.hello", { name: me.name })}</p>}
+      {me && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-lg font-semibold">{t("Tasks.hello", { name: me.name })}</p>
+          {arrived ? (
+            <span className="rounded-full bg-olive-soft px-3 py-1.5 text-[13px] font-medium text-olive">{t("Attendance.arrivedAt", { time: arrived })}</span>
+          ) : (
+            <button type="button" onClick={checkIn} className={secondary}>{t("Attendance.checkIn")}</button>
+          )}
+        </div>
+      )}
       {!manage && !me && <p className={card}>{t("Tasks.notStaff")}</p>}
       {shown.length > 0 && (
         <section aria-label={t("Tasks.progress")} className="flex items-center justify-between rounded-[18px] bg-ink px-4 py-3.5 text-shell">

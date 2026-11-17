@@ -33,6 +33,8 @@ export const WORKFORCE_MUTATIONS = {
   tickTask: "workforce.tickTask",
   untickTask: "workforce.untickTask",
   assignTask: "workforce.assignTask",
+  checkIn: "workforce.checkIn",
+  setAttendance: "workforce.setAttendance",
 } as const;
 
 /** WF6: a routine or one-off task ticked done on a farm day. Its id is the same on every phone that ticks it. */
@@ -48,3 +50,9 @@ const TASK_ASSIGNMENT_NAMESPACE = "d07f68b2-395f-458b-8e90-c0554fb09d40";
 // The organisation is part of the id: no one else can take the id of this organisation's task and day first.
 export const taskAssignmentId = (organizationId: string, key: string, day: string) => uuidv5(`${organizationId}:${key}:${day}`, TASK_ASSIGNMENT_NAMESPACE);
 export const isTaskKey = (key: string) => /^(entry|vaccine|routine|oneoff):[0-9a-f-]{36}$/.test(key);
+
+/** WF9: one status per employee and farm day. `userId`: the member linked to the employee, so they see their own days. */
+export const ATTENDANCE = ["present", "rest", "leave", "absent"] as const;
+export type AttendanceDto = { id: string; farmId: string; employeeId: string; day: string; status: (typeof ATTENDANCE)[number]; arrivedAt: string | null; userId: string | null };
+const ATTENDANCE_NAMESPACE = "1d4fd01a-5d67-48af-81c2-bab647be8228";
+export const attendanceId = (employeeId: string, day: string) => uuidv5(`${employeeId}:${day}`, ATTENDANCE_NAMESPACE);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isTaskKey, JOBS, taskDoneId, tickable } from "@/modules/workforce/shared";
+import { ATTENDANCE, attendanceId, isTaskKey, JOBS, taskDoneId, tickable } from "@/modules/workforce/shared";
 
 // SPEC-m4 §4, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009).
 export * from "@/modules/workforce/shared";
@@ -45,3 +45,10 @@ export const UntickTask = z.object({ id: z.uuid() });
 export const AssignTask = z
   .object({ id: z.uuid(), farmId: z.uuid(), key: z.string().max(80), day: z.iso.date(), employeeId: z.uuid() })
   .refine((t) => isTaskKey(t.key), "a task key"); // the id is checked against the caller's organisation on apply
+
+// WF9: the id is derived from employee and day, so a check-in and a manager's edit of that day meet on one record.
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const attendanceDay = { id: z.uuid(), employeeId: z.uuid(), day: z.iso.date() };
+const idOk = (a: { id: string; employeeId: string; day: string }) => a.id === attendanceId(a.employeeId, a.day);
+export const CheckIn = z.object({ ...attendanceDay, time: hhmm }).refine(idOk, "id from employee and day");
+export const SetAttendance = z.object({ ...attendanceDay, status: z.enum(ATTENDANCE), arrivedAt: hhmm.nullable() }).refine(idOk, "id from employee and day");

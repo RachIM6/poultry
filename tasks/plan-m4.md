@@ -92,8 +92,17 @@ Done 2026-11-17 (branch `feat/t74-assignment`), decisions taken without asking:
 ### T75: Attendance (WF9)
 **Description:** `Attendance` (employee, day, status, arrival time), `workforce.checkIn` (own linked employee, today) and `workforce.setAttendance` (manager). "Je suis arrivé" on `/tasks`; month grid on `/staff`.
 **AC:**
-- [ ] A worker's `checkIn` for another employee is refused; checking in twice keeps the first time (integration).
-- [ ] Check-in offline then the manager sees "P" in the grid after sync (Playwright).
+- [x] A worker's `checkIn` for another employee is refused; checking in twice keeps the first time (integration). (`workforce/attendance.int.test.ts`)
+- [x] Check-in offline then the manager sees "P" in the grid after sync (Playwright). (`e2e/attendance.spec.ts`)
+
+Done 2026-11-17 (branch `feat/t75-attendance`), decisions taken without asking:
+- **One record per employee and day,** id = UUIDv5 of employee + day: the worker's check-in and the manager's edit meet on one record. The employee is checked to be the caller's organisation's first, so no one else can take the id.
+- **Check-in** (`workforce.record`): only for the employee linked to the caller, today or up to SPEC X1's offline week back, never ahead. A second check-in, or one after the manager already set the day, changes nothing.
+- **The arrival time is the phone's farm clock** (HH:MM); the server keeps it as sent (it can't know when an offline tap happened).
+- **Statuses** present / rest / leave / absent, whole days only (the mockup's "1,25 j d'absence" needs part days: later, with MQ2). A non-present status drops the arrival time.
+- **Who sees what:** a worker pulls only their own days (the record carries the linked member); owners and managers everyone's.
+- **Screens:** `/tasks` shows "Je suis arrivé", then "Arrivé à 06:30" (`W-Tasks`); `/staff` shows the month grid (P R C A) and a form to set any day (`W-Staff` "Présence").
+- Edits of a validated pay month are refused with T77.
 **Size:** M
 
 ### T76: Advances (WF10)

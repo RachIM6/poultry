@@ -7,10 +7,11 @@ import { ageText } from "@/components/batch-age";
 import { BatchStrip, stripDays } from "@/components/batch-strip";
 import { card } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
-import { formatCount, formatDay } from "@/lib/format";
+import { formatCount, formatDay, formatPercent } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { ageOn, birdsStarted, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import { eggsIn, layerKpis, type EggCollectionDto } from "@/modules/eggs/shared";
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
 import { SyncBadge } from "@/components/sync-status";
 import { cachedReference, currentScope, localDb, scopeKey } from "@/offline/db";
@@ -52,7 +53,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "soldBirds", "vaccination", "treatment").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "soldBirds", "vaccination", "treatment", "eggCollection").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   if (!records || reference === undefined) return null;
 
@@ -71,6 +72,18 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
   const short = new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", day: "numeric", month: "short", timeZone: "UTC" });
   const shortDay = (d: string) => short.format(new Date(`${d}T00:00:00Z`));
   const farm = farms.find((f) => f.id === open[0]?.farmId) ?? farms[0];
+  // SPEC-m3 D1 (P-Owner): layers show their latest laying rate; the headline counts yesterday's eggs.
+  const collections = of<EggCollectionDto>("eggCollection");
+  const yesterday = addFarmDays(today, -1);
+  const eggsYesterday = collections.filter((c) => c.day === yesterday && open.some((b) => b.id === c.batchId)).reduce((n, c) => n + eggsIn(c.counts), 0);
+  const laying = (b: BatchDto) =>
+    layerKpis(
+      { placedOn: b.placedOn as FarmDay, ageAtPlacementDays: b.ageAtPlacementDays, hensHoused: birdsStarted(b) },
+      entries.filter((e) => e.batchId === b.id),
+      sold.filter((s) => s.batchId === b.id),
+      collections.filter((c) => c.batchId === b.id),
+      today,
+    ).lastDay;
 
   const batches = open.map((b) => {
     const placedOn = b.placedOn as FarmDay;
@@ -115,6 +128,10 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
               <span className="text-[15px] text-sand">{t("Today.birds", { count: formatCount(birds) })}</span>
             </span>
             <BatchStrip days={days} onDark label={t("Today.stripLabel", { day: String(age), missing: String(missing.length) })} />
+            {b.species === "layer" && (() => {
+              const last = laying(b);
+              return last?.layingRate != null ? <span className="text-sm text-sand">{t("Today.laying", { rate: formatPercent(last.layingRate), eggs: formatCount(last.eggs) })}</span> : null;
+            })()}
             <span className="flex justify-between gap-3 text-sm text-sand">
               <span>{b.species === "broiler" ? t("Today.dayOf", { day: String(age), total: String(days.length) }) : ageText(t, b, today)}</span>
               <span>{missing.length > 0 ? t("Today.missingOn", { date: shortDay(missing[missing.length - 1].day) }) : t("Today.allEntered")}</span>
@@ -126,6 +143,12 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
       <main className="mx-auto grid w-full max-w-xl flex-1 content-start gap-6 p-5 lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="flex flex-col gap-3.5">
         {alert}
+        {open.some((b) => b.species === "layer") && (
+          <p className={`${card} flex-row items-baseline justify-between`}>
+            <span className="text-ink-2">{t("Today.eggsYesterday")}</span>
+            <b className="text-[22px] font-semibold">{formatCount(eggsYesterday)}</b>
+          </p>
+        )}
         <h2 className="text-[17px] font-semibold text-ink-2">{t("Today.tasks")}</h2>
         {batches.length === 0 && (
           <div className={card}>

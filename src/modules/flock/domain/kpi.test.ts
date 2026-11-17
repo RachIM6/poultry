@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
-import { batchKpis, epef, feedConversionRatio, waterPerFeed } from "./kpi";
+import { batchKpis, closedBatchFigures, epef, feedConversionRatio, waterPerFeed } from "./kpi";
 
 // Reference batch, computed by hand. 10 050 chicks placed on 1 Oct 2026, 50 dead on arrival → 10 000 started; day-old
 // weight 42 g. Days 1–7: 20 dead/day, 150 kg feed/day. Days 8–21: 5 dead/day, 800 kg/day. Days 22–35: 3 dead + 2 culled
@@ -127,5 +127,21 @@ describe("water / feed (SPEC-m3 B14)", () => {
     const e = (day: string, grams: number | null, waterMl: number | null) => ({ day, feed: grams ? { grams } : null, waterMl });
     expect(waterPerFeed([e("2026-11-01", 10_000, 19_000), e("2026-11-03", 10_000, null), e("2026-11-02", 10_000, 16_000)])).toEqual({ day: "2026-11-02", ratio: 1.6 });
     expect(waterPerFeed([e("2026-11-01", null, 5_000)])).toBeNull();
+  });
+});
+
+describe("closed batch figures (SPEC-m3 D2)", () => {
+  it("matches a hand-computed batch", () => {
+    const e = (day: string, dead: number, grams: number) => ({ day, dead, culled: 0, feed: { grams } });
+    // 1 000 started; 10 dead in week 1, 20 later; 970 sold for 2 425 kg; 4 200 kg of feed; closed at day 42.
+    const f = closedBatchFigures({ placedOn: "2026-09-01", closedOn: "2026-10-13", birdsStarted: 1000 }, [e("2026-09-05", 10, 1_200_000), e("2026-09-20", 20, 3_000_000)], [
+      { day: "2026-10-13", birds: 970, liveWeightGrams: 2_425_000 },
+    ]);
+    expect(f.livabilityPercent).toBe(97);
+    expect(f.avgWeightGrams).toBe(2500);
+    expect(f.ageDays).toBe(42);
+    expect(f.fcr).toBeCloseTo(1.732, 3); // 4 200 ÷ 2 425
+    expect(f.epef).toBeCloseTo((97 * 2.5) / (42 * (4200 / 2425)) * 100, 6); // ≈ 333
+    expect(f.day7MortalityPercent).toBe(1);
   });
 });

@@ -174,7 +174,9 @@ Done 2026-11-17 (branch `feat/t66-owner-overview`, with the UI chain's U12 merge
 
 ### T67: Batch comparison (D2)
 **AC:**
-- [ ] Two closed broiler batches compared with their locked KPIs (e2e).
+- [x] Two closed broiler batches compared with their locked KPIs (e2e). (`e2e/production-types.spec.ts`, offline after a reload; `flock/domain/kpi.test.ts` for the figures.)
+
+Done 2026-11-17 (branch `feat/t67-batch-comparison`): `closedBatchFigures` (pure): livability, average weight sold, age at close, FCR = feed ÷ kg sold, EPEF, day-7 mortality. Page `/compare` (precached, in "Plus"): closed batches of a chosen production type, newest first, with hatchery, day-old weight and the locked cost per kg (money: absent for workers). Not done from P-Compare: the feed-supplier cost per kg live and the hatchery claims table (they need the feed items' suppliers per batch: a later task), the Excel export. Budget: `/fr/batches` 199.8 KB.
 **Size:** S
 
 ### T68: M3 offline journey (success criteria 1, 2)

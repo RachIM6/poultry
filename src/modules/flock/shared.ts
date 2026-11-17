@@ -76,5 +76,5 @@ export type { Sample } from "@/modules/flock/domain/weighing";
 export type WeighingDto = { id: string; batchId: string; day: string; count: number; totalGrams: number; weightsGrams: number[] };
 
 // SPEC B4: live KPIs, computed on the phone from its local data.
-export { batchKpis, waterPerFeed } from "@/modules/flock/domain/kpi";
+export { batchKpis, closedBatchFigures, waterPerFeed } from "@/modules/flock/domain/kpi";
 export type { BatchKpis } from "@/modules/flock/domain/kpi";

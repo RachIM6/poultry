@@ -100,3 +100,27 @@ export function waterPerFeed(entries: readonly { day: string; feed: { grams: num
   const last = entries.filter((e) => e.feed && e.waterMl !== null).sort((a, b) => a.day.localeCompare(b.day)).at(-1);
   return last ? { day: last.day, ratio: last.waterMl! / last.feed!.grams } : null;
 }
+
+/**
+ * SPEC-m3 D2 (P-Compare): a closed batch's figures, from what it recorded. Every bird left alive was sold, so the FCR is
+ * feed ÷ kg sold and the average weight is kg sold ÷ birds sold. Day-7 mortality counts the first week's dead and culls.
+ */
+export function closedBatchFigures(
+  b: { placedOn: string; closedOn: string; ageAtPlacementDays?: number; birdsStarted: number },
+  entries: readonly Day[],
+  sold: readonly Sold[],
+) {
+  const soldGrams = sold.reduce((g, s) => g + s.liveWeightGrams, 0);
+  const birdsSold = birds(sold);
+  const ageDays = daysBetween(b.placedOn as FarmDay, b.closedOn as FarmDay) + (b.ageAtPlacementDays ?? 0);
+  const firstWeek = entries.filter((e) => daysBetween(b.placedOn as FarmDay, e.day as FarmDay) <= 7);
+  const totals: BatchTotals = { placed: b.birdsStarted, dead: out(entries), feedGrams: feed(entries), liveWeightGrams: soldGrams, ageDays, avgWeightGrams: birdsSold > 0 ? soldGrams / birdsSold : 0 };
+  return {
+    livabilityPercent: ((b.birdsStarted - out(entries)) / b.birdsStarted) * 100,
+    avgWeightGrams: birdsSold > 0 ? soldGrams / birdsSold : null,
+    ageDays,
+    fcr: feedConversionRatio(totals),
+    epef: birdsSold > 0 ? epef(totals) : null,
+    day7MortalityPercent: (out(firstWeek) / b.birdsStarted) * 100,
+  };
+}

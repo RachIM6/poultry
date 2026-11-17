@@ -160,7 +160,9 @@ Done 2026-11-17 (branch `feat/t64-per-head-sales`): `sales.recordHeadSale`: a `S
 ### T65: Finance postings for egg and per-head sales (V8)
 **Description:** FN6 rules: egg sale → 71213 (fallback 7121), per-head → as live sales.
 **AC:**
-- [ ] With PCA on, an egg sale posts D 3421 / C 71213; with PCA off, C 7121 (unit test).
+- [x] With PCA on, an egg sale posts D 3421 / C 71213; with PCA off, C 7121 (unit test). (`finance/domain/posting.test.ts`; `finance/egg-postings.int.test.ts` through the sync push and `postPending`, with the cash received.)
+
+Done 2026-11-17 (branch `feat/t65-egg-postings`): `salesChangedSince` carries the sale's kind; FN6's sale rule credits 71213 for eggs (label "Vente d’œufs"), 712121 for live and per-head sales. 71213 and its fallback 7121 were already in the seeded chart (T28). ⚠️ The accountant reviews it with the other FN6 rules (ADR-010).
 **Size:** S
 
 ### T66: Owner overview (D1)

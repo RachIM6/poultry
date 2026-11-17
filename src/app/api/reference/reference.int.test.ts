@@ -12,7 +12,7 @@ describe("GET /api/reference (SPEC R4)", () => {
 
     await tenant("+212650000001");
     await requestCode("0650000001", {});
-    const code = (await db.verification.findFirstOrThrow({ where: { identifier: "+212650000001" } })).value.split(":")[0];
+    const code = (await db.verification.findFirstOrThrow({ where: { identifier: "phone-number-otp-+212650000001" } })).value.split(":")[0];
     const login = await verifyCode("0650000001", code, "fr", {});
     if (!login.ok) throw new Error(login.error);
     const cookie = login.value.getSetCookie().map((c) => c.split(";")[0]).join("; ");

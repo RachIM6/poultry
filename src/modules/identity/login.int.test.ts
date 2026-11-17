@@ -5,7 +5,7 @@ import { getSession, logout, logoutEverywhere, requestCode, verifyCode } from "@
 
 // Codes come from the Verification row (Better Auth stores "<code>:<attempts>").
 const latestCode = async (e164: string) =>
-  (await db.verification.findFirst({ where: { identifier: e164 }, orderBy: { createdAt: "desc" } }))?.value.split(":")[0];
+  (await db.verification.findFirst({ where: { identifier: `phone-number-otp-${e164}` }, orderBy: { createdAt: "desc" } }))?.value.split(":")[0];
 
 const cookieHeader = (setCookie: Headers) =>
   new Headers({ cookie: setCookie.getSetCookie().map((c) => c.split(";")[0]).join("; ") });
@@ -45,7 +45,7 @@ describe("phone + code login (SPEC I1–I2)", () => {
     const codes = [];
     for (let i = 0; i < 4; i++) {
       expect(await requestCode("0633333333", {})).toBe("sent_if_eligible");
-      codes.push(await db.verification.count({ where: { identifier: "+212633333333" } }));
+      codes.push(await db.verification.count({ where: { identifier: "phone-number-otp-+212633333333" } }));
     }
     expect(codes).toEqual([1, 2, 3, 3]);
   });
@@ -53,13 +53,13 @@ describe("phone + code login (SPEC I1–I2)", () => {
   it("never sends to a non-Moroccan or landline number, with the same answer", async () => {
     expect(await requestCode("+33612345678", {})).toBe("sent_if_eligible");
     expect(await requestCode("0522123456", {})).toBe("sent_if_eligible");
-    expect(await db.verification.count({ where: { identifier: { in: ["+33612345678", "0522123456"] } } })).toBe(0);
+    expect(await db.verification.count({ where: { identifier: { in: ["phone-number-otp-+33612345678", "phone-number-otp-0522123456"] } } })).toBe(0);
   });
 
   it("rejects an expired code", async () => {
     await requestCode("0644444444", {});
     const code = (await latestCode("+212644444444"))!;
-    await db.verification.updateMany({ where: { identifier: "+212644444444" }, data: { expiresAt: new Date(0) } });
+    await db.verification.updateMany({ where: { identifier: "phone-number-otp-+212644444444" }, data: { expiresAt: new Date(0) } });
     expect(await verifyCode("0644444444", code, "ar", {})).toEqual({ ok: false, error: "INVALID_OR_EXPIRED_CODE" });
   });
 

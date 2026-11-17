@@ -896,6 +896,12 @@
       "feedPerHen": "Aliment g/poule/j",
       "waterFeed": "Eau / aliment",
       "downgradedShort": "Déclassés"
-    }
+    },
+    "missingHint": "{house} · jour {day} : complétez-la",
+    "money": "Argent",
+    "cash": "Trésorerie disponible",
+    "lastBatch": "Dernière bande clôturée · {house}",
+    "margin": "Marge : {margin}",
+    "costPerKg": "{cost} / kg"
   }
 }

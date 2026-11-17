@@ -896,6 +896,12 @@
       "feedPerHen": "العلف غ/دجاجة/يوم",
       "waterFeed": "الماء / العلف",
       "downgradedShort": "المستبعد"
-    }
+    },
+    "missingHint": "{house} · اليوم {day}: أكمله الآن",
+    "money": "المال",
+    "cash": "السيولة المتوفرة",
+    "lastBatch": "آخر دفعة مغلقة · {house}",
+    "margin": "الهامش: {margin}",
+    "costPerKg": "{cost} / كغ"
   }
 }

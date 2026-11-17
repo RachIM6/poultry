@@ -941,6 +941,40 @@
       "ammoniaMax": "Ammoniac max (ppm)"
     },
     "addBand": "Ajouter une tranche",
-    "saveTargets": "Enregistrer les cibles"
+    "saveTargets": "Enregistrer les cibles",
+    "title": "Climat",
+    "open": "Climat des bâtiments",
+    "house": "Bâtiment",
+    "age": "Lot en place : J{day}",
+    "noBatch": "Pas de lot en place dans ce bâtiment : le relevé n’est comparé à aucune cible.",
+    "reading": "Relevé de climat",
+    "temperature": "Température (°C)",
+    "humidity": "Humidité (%)",
+    "ammonia": "Ammoniac (ppm, si mesuré)",
+    "day": "Jour",
+    "time": "Heure",
+    "target": "cible à J{age} : {range}",
+    "noTarget": "aucune cible saisie",
+    "verdicts": {
+      "below": "trop bas",
+      "within": "dans la cible",
+      "above": "trop haut"
+    },
+    "outOfRange": "Hors des cibles pour l’âge du lot : {values}.",
+    "offValue": {
+      "temperature": {
+        "below": "trop froid",
+        "above": "trop chaud"
+      },
+      "humidity": {
+        "below": "trop sec",
+        "above": "trop humide"
+      },
+      "ammonia": {
+        "below": "ammoniac bas",
+        "above": "trop d’ammoniac"
+      }
+    },
+    "save": "Enregistrer le relevé"
   }
 }

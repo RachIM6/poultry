@@ -984,3 +984,21 @@ model ClimateTargetSet {
 
   @@index([organizationId])
 }
+
+// Owner: climate. SPEC-m4 CL2: one reading of a house, by hand. Integers: tenths of °C, % humidity, ppm ammonia.
+model ClimateReading {
+  id                String   @id @db.Uuid
+  organizationId    String   @db.Uuid
+  farmId            String   @db.Uuid
+  houseId           String   @db.Uuid
+  day               DateTime @db.Date // farm day
+  time              String // HH:MM, farm clock
+  temperatureTenths Int
+  humidity          Int
+  ammonia           Int?
+  byUserId          String   @db.Uuid
+  createdAt         DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([houseId, day])
+}

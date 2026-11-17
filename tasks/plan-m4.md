@@ -152,9 +152,16 @@ Done 2026-11-17 (branch `feat/t80-climate-targets`), decisions taken without ask
 ### T81: Climate readings (CL2, CL3)
 **Description:** `ClimateReading`, `climate.recordReading`; `domain/verdict.ts`; `/climate` shell (`K-Climate`): house, values, target at the batch's age, verdicts.
 **AC:**
-- [ ] Unit: verdict below / within / above / no target per value.
-- [ ] Out-of-bounds values refused on both sides; idempotent; isolated (integration).
-- [ ] Reading recorded offline shows "aucune cible renseignée" and syncs once (Playwright).
+- [x] Unit: verdict below / within / above / no target per value. (`climate/domain/targets.test.ts`, since T80: the verdicts live with the targets.)
+- [x] Out-of-bounds values refused on both sides; idempotent; isolated (integration). (`climate/readings.int.test.ts`; the phone's form refuses non-numbers.)
+- [x] Reading recorded offline shows "aucune cible saisie" and syncs once (Playwright). (`e2e/climate.spec.ts`)
+
+Done 2026-11-17 (branch `feat/t81-climate-readings`), decisions taken without asking:
+- **A reading belongs to a house,** not a batch: it can be taken in an empty house; it is judged only when the house has an open batch that day (its age picks the band).
+- **`climate` reaches houses through `flock`** (`flock` re-exports `farm-registry.houseOf`): the capability map gives `climate` only `flock` and `notifications`.
+- **Day and time** default to now on the farm clock and can be changed (a reading noted on paper and typed later); never a future day. Temperatures typed with one decimal ("24,5"), stored in tenths.
+- **Every member pulls every reading** (no money): the history (T84) and the verdicts work on any phone.
+- **`/climate`** (static shell, "Plus" → "Climat des bâtiments", replacing the targets link, which is now on this screen): house, the batch's age, the values with the target and a live verdict under each, the "out of range" banner after saving. The mockup's weather card is not built (external service: ask first).
 **Size:** M
 
 ### T82: Climate alerts (CL4)

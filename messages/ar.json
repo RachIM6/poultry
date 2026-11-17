@@ -805,7 +805,12 @@
     "entryHint": "النفوق، العلف، الماء: أقل من دقيقة",
     "entryDone": "تم الإدخال اليومي · {house}",
     "missing": "{count, plural, one {إدخال ناقص · {date}} other {{n} إدخالات ناقصة، منذ {date}}}",
-    "missingHint": "{house} · اليوم {day}: أكمله الآن"
+    "missingHint": "{house} · اليوم {day}: أكمله الآن",
+    "money": "المال",
+    "cash": "السيولة المتوفرة",
+    "lastBatch": "آخر دفعة مغلقة · {house}",
+    "margin": "الهامش: {margin}",
+    "costPerKg": "{cost} / كغ"
   },
   "Transfer": {
     "title": "الانتقال إلى البيض",
@@ -896,12 +901,6 @@
       "feedPerHen": "العلف غ/دجاجة/يوم",
       "waterFeed": "الماء / العلف",
       "downgradedShort": "المستبعد"
-    },
-    "missingHint": "{house} · اليوم {day}: أكمله الآن",
-    "money": "المال",
-    "cash": "السيولة المتوفرة",
-    "lastBatch": "آخر دفعة مغلقة · {house}",
-    "margin": "الهامش: {margin}",
-    "costPerKg": "{cost} / كغ"
+    }
   }
 }

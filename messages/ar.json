@@ -198,6 +198,10 @@
       "creditApproval": {
         "title": "بيع بالأجل ينتظر موافقتك: {buyer}",
         "body": "بيع بالأجل بمبلغ {amount} يتجاوز السقف المحدد في {limit}."
+      },
+      "climateOutOfRange": {
+        "title": "مناخ خارج الهدف: {house}",
+        "body": "اليوم {age}: {values}. خارج الأهداف المدخلة لعمر الدفعة."
       }
     }
   },

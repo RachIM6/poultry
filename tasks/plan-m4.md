@@ -167,7 +167,13 @@ Done 2026-11-17 (branch `feat/t81-climate-readings`), decisions taken without as
 ### T82: Climate alerts (CL4)
 **Description:** in `recordReading`, an out-of-target verdict calls `notifications.notify` (owner, manager, urgent) in the same transaction. Templates in `ar.json` / `fr.json`.
 **AC:**
-- [ ] One notification per out-of-range reading, none without targets, none on a replayed mutation (integration).
+- [x] One notification per out-of-range reading, none without targets, none on a replayed mutation (integration). (`climate/alerts.int.test.ts`, also none for a house without a batch; `e2e/climate-alert.spec.ts`: banner on the phone, notification in the inbox.)
+
+Done 2026-11-17 (branch `feat/t82-climate-alerts`), decisions taken without asking:
+- **The server judges with the same domain rule as the phone** (`targetFor`, `verdicts`, `outOfRange`), using the age of the batch in the house that day (`flock.batchPlacedInHouseOn`), then `notifications.notify` in the reading's transaction: the inbox row is the outbox, push after commit (poultry-ddd §4).
+- **Recipients:** owners and managers, **urgent** (it ignores quiet hours: a hot house at night can't wait). One alert per out-of-range reading; no grouping or repeat limit yet: if managers find it noisy, a cool-down per house is the next step.
+- **New template `climateOutOfRange`** (title: the house; body: age and the values). The values travel as a short text with units, the same in both languages.
+- No WhatsApp or call escalation (MQ5, OQ2).
 **Size:** S
 
 ### T83: Power cuts (CL5)

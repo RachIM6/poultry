@@ -73,3 +73,31 @@ export function checkEggSale(s: {
   if (!needsInstrument(s.paymentMethod) && s.instrument) return fail("INVALID_INPUT");
   return ok({ amountCentimes });
 }
+
+/** SPEC-m3 V7: what a per-head line sells (P-Beldi: roosters and hens; quail, ducks, old hens: birds). */
+export const HEAD_KINDS = ["rooster", "hen", "bird"] as const;
+export type HeadLine = { item: (typeof HEAD_KINDS)[number]; birds: number; pricePerHeadCentimes: bigint };
+
+/**
+ * V7: may this per-head sale be recorded? Blocked during a withdrawal like V3; amount = Σ birds × price per head; the farm
+ * weight is optional. Returns the amount and the birds sold.
+ */
+export function checkHeadSale(
+  s: {
+    lines: readonly HeadLine[];
+    farmWeightGrams: number | null;
+    paymentMethod: PaymentMethod;
+    paidCentimes: bigint;
+    instrument: { number: string; dueOn: string } | null;
+  },
+  withdrawalUntil: FarmDay | null,
+): Result<{ amountCentimes: bigint; birds: number }, SaleError> {
+  if (withdrawalUntil) return fail("WITHDRAWAL_IN_PROGRESS");
+  if (s.lines.length === 0 || s.paidCentimes < 0n || (s.farmWeightGrams !== null && (!Number.isSafeInteger(s.farmWeightGrams) || s.farmWeightGrams <= 0))) return fail("INVALID_QUANTITY");
+  if (s.lines.some((l) => !Number.isSafeInteger(l.birds) || l.birds <= 0 || l.pricePerHeadCentimes <= 0n)) return fail("INVALID_QUANTITY");
+  const amountCentimes = s.lines.reduce((a, l) => a + BigInt(l.birds) * l.pricePerHeadCentimes, 0n);
+  if (s.paidCentimes > amountCentimes) return fail("PAID_MORE_THAN_AMOUNT");
+  if (needsInstrument(s.paymentMethod) && !s.instrument) return fail("INSTRUMENT_REQUIRED");
+  if (!needsInstrument(s.paymentMethod) && s.instrument) return fail("INVALID_INPUT");
+  return ok({ amountCentimes, birds: s.lines.reduce((n, l) => n + l.birds, 0) });
+}

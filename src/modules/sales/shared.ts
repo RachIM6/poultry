@@ -3,7 +3,7 @@ import type { BUYER_TYPES, PaymentMethod } from "@/modules/sales/domain/sale";
 // What the phone's screens need from sales, without Zod (ADR-009): the amount, the gap, the sale and payment checks
 // the phone runs like the server, the DTOs and the mutation names. The Zod schemas are in ./schema.ts, which
 // re-exports this file.
-export { BUYER_TYPES, PAYMENT_METHODS, checkEggSale, checkSale, eggLineAmount, saleAmount, weighingGap } from "@/modules/sales/domain/sale";
+export { BUYER_TYPES, HEAD_KINDS, PAYMENT_METHODS, checkEggSale, checkHeadSale, checkSale, eggLineAmount, saleAmount, weighingGap } from "@/modules/sales/domain/sale";
 export type { PaymentMethod, SaleError } from "@/modules/sales/domain/sale";
 export { AGEING_BUCKETS, ageing, ageingBucket, buyerBalances, checkPayment } from "@/modules/sales/domain/receivables";
 export type { AgeingBucket } from "@/modules/sales/domain/receivables";
@@ -41,10 +41,11 @@ export type SaleDto = {
   paidCentimes?: string;
   instrument?: { number: string; dueOn: string } | null; // cheque or bill of exchange
   creditApproval?: "pending" | "approved" | null; // FN12: beyond the buyer's credit limit, waits for the owner
-  kind?: "live" | "eggs"; // SPEC-m3 V6; absent = live
+  kind?: "live" | "eggs" | "perHead"; // SPEC-m3 V6, V7; absent = live
   lines?: SaleLineDto[]; // an egg sale's
 };
-/** SPEC-m3 V6: a line of an egg sale. Money in centimes, as strings. */
+/** SPEC-m3 V6, V7: a line of an egg sale, or of a per-head sale (then `eggs` counts birds and `eggsPerTray` is 1).
+ * Money in centimes, as strings. */
 export type SaleLineDto = { item: string; eggs: number; eggsPerTray: number; unitPriceCentimes: string; amountCentimes: string };
 export const SALE_MONEY = ["pricePerKgCentimes", "amountCentimes", "paymentMethod", "paidCentimes", "instrument", "creditApproval", "lines"] as const;
 
@@ -55,6 +56,7 @@ export const SALES_MUTATIONS = {
   createBuyer: "sales.createBuyer",
   recordSale: "sales.recordSale",
   recordEggSale: "sales.recordEggSale",
+  recordHeadSale: "sales.recordHeadSale",
   recordPayment: "sales.recordPayment",
   setInstrumentState: "sales.setInstrumentState",
   unblockBuyer: "sales.unblockBuyer",

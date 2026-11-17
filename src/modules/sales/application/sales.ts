@@ -9,7 +9,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { recordBirdsSold } from "@/modules/flock";
 import { eggWithdrawalWindowsOf, withdrawalOn } from "@/modules/health";
 import { buyerBalances, checkPayment } from "@/modules/sales/domain/receivables";
-import { checkEggSale, checkSale, eggLineAmount } from "@/modules/sales/domain/sale";
+import { checkEggSale, checkHeadSale, checkSale, eggLineAmount } from "@/modules/sales/domain/sale";
 import { drawEggs } from "@/modules/eggs";
 import type { EggItem } from "@/modules/eggs/schema";
 import { formatMoney } from "@/lib/format";
@@ -40,6 +40,7 @@ import type {
   InstrumentStatusDto,
   PaymentDto,
   RecordEggSale,
+  RecordHeadSale,
   RecordPayment,
   RecordSale,
   SaleDto,
@@ -223,5 +224,46 @@ export async function approveCredit(tx: Tx, ctx: TenantContext, cmd: z.infer<typ
   if (!sale) return fail("NOT_FOUND");
   await recordChange(tx, ctx, "sale", sale.id, sale);
   await audit(tx, ctx, { entity: "Sale", entityId: sale.id, action: "approveCredit", after: { creditApproval: "approved" }, ...meta });
+  return ok(undefined);
+}
+
+/**
+ * SPEC-m3 V7, applied by the sync push: live birds sold by the head (beldi roosters and hens, quail, ducks, old hens).
+ * Blocked during a withdrawal (V3), the birds leave the batch through flock (B5), money as a live sale.
+ */
+export async function recordHeadSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof RecordHeadSale>, meta: Meta, clock: Clock = systemClock) {
+  if (await saleIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
+  if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
+  const lines = cmd.lines.map((l) => ({ ...l, pricePerHeadCentimes: BigInt(l.pricePerHeadCentimes) }));
+  const checked = checkHeadSale({ ...cmd, lines, paidCentimes: BigInt(cmd.paidCentimes) }, await withdrawalOn(tx, ctx, cmd.batchId, cmd.day as FarmDay));
+  if (!checked.ok) return checked;
+  const credit = checked.value.amountCentimes - BigInt(cmd.paidCentimes);
+  const decided = await creditDecision(tx, ctx, cmd.buyerId, credit);
+  if (!decided.ok) return decided;
+
+  const sold = await recordBirdsSold(tx, ctx, { id: cmd.id, batchId: cmd.batchId, day: cmd.day, birds: checked.value.birds, liveWeightGrams: cmd.farmWeightGrams ?? 0 }, meta, clock);
+  if (!sold.ok) return sold; // nothing written yet: flock checks before it writes
+
+  const sale: Required<SaleDto> = {
+    id: cmd.id,
+    batchId: cmd.batchId,
+    buyerId: cmd.buyerId,
+    day: cmd.day,
+    birds: checked.value.birds,
+    farmWeightGrams: cmd.farmWeightGrams ?? 0,
+    buyerWeightGrams: null,
+    pricePerKgCentimes: "0",
+    amountCentimes: String(checked.value.amountCentimes),
+    paymentMethod: cmd.paymentMethod,
+    paidCentimes: cmd.paidCentimes,
+    instrument: cmd.instrument,
+    creditApproval: decided.value.creditApproval,
+    kind: "perHead",
+    lines: lines.map((l) => ({ item: l.item, eggs: l.birds, eggsPerTray: 1, unitPriceCentimes: String(l.pricePerHeadCentimes), amountCentimes: String(BigInt(l.birds) * l.pricePerHeadCentimes) })),
+  };
+  await saveSale(tx, ctx, sale);
+  await recordChange(tx, ctx, "sale", sale.id, sale);
+  await audit(tx, ctx, { entity: "Sale", entityId: sale.id, action: "create", after: sale, ...meta });
+  if (decided.value.creditApproval === "pending") await askOwnerToApprove(tx, ctx, cmd.buyerId, credit, decided.value.terms!.creditLimitCentimes!, clock);
   return ok(undefined);
 }

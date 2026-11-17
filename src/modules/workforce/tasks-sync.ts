@@ -9,7 +9,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { farmBelongsTo, houseOf } from "@/modules/farm-registry";
 import { batchPlacedInHouseOn } from "@/modules/flock";
 import { routineFalls } from "@/modules/workforce/domain/tasks";
-import { AddTask, CancelTask, SaveRoutine, TickTask, UntickTask, WORKFORCE_MUTATIONS as M, type OneOffTask, type Routine, type TaskDoneDto } from "@/modules/workforce/schema";
+import { AddTask, AssignTask, CancelTask, SaveRoutine, TickTask, UntickTask, WORKFORCE_MUTATIONS as M, type OneOffTask, type Routine, type TaskAssignmentDto, type TaskDoneDto } from "@/modules/workforce/schema";
 
 // SPEC-m4 WF5: the manager's routines and one-off tasks, written offline. The day's list itself is computed (domain/tasks.ts).
 
@@ -103,6 +103,23 @@ export const tasksSync: SyncRegistry = {
         return ok(undefined);
       },
     }),
+    // WF7: the owner or a manager gives one day's task to another active employee of the farm.
+    [M.assignTask]: defineMutation({
+      schema: AssignTask,
+      action: "workforce.manage",
+      async apply(tx, ctx, a, meta) {
+        const employee = await tx.employee.findFirst({ where: { id: a.employeeId, farmId: a.farmId, organizationId: ctx.organizationId } });
+        if (!employee) return fail("NOT_FOUND");
+        if (employee.startedOn > date(a.day)! || (employee.leftOn && employee.leftOn <= date(a.day)!)) return fail("EMPLOYEE_NOT_ACTIVE");
+        const before = await tx.taskAssignment.findUnique({ where: { id: a.id } });
+        if (before && before.organizationId !== ctx.organizationId) return fail("NOT_FOUND");
+        const data = { ...a, day: date(a.day)!, organizationId: ctx.organizationId };
+        await tx.taskAssignment.upsert({ where: { id: a.id }, create: data, update: { employeeId: a.employeeId } });
+        await recordChange(tx, ctx, "taskAssignment", a.id, a);
+        await audit(tx, ctx, { entity: "TaskAssignment", entityId: a.id, action: before ? "update" : "create", before: before && { employeeId: before.employeeId }, after: a, ...meta });
+        return ok(undefined);
+      },
+    }),
     // Any member ticks a task they can see; a second tick of the same task and day changes nothing.
     [M.tickTask]: defineMutation({
       schema: TickTask,
@@ -138,5 +155,10 @@ export const tasksSync: SyncRegistry = {
     }),
   },
   // No money in tasks: every member sees them (a worker needs the farm's whole list to see their own).
-  entities: { routine: (_ctx, data: Routine) => data, oneOffTask: (_ctx, data: OneOffTask) => data, taskDone: (_ctx, data: TaskDoneDto) => data },
+  entities: {
+    routine: (_ctx, data: Routine) => data,
+    oneOffTask: (_ctx, data: OneOffTask) => data,
+    taskDone: (_ctx, data: TaskDoneDto) => data,
+    taskAssignment: (_ctx, data: TaskAssignmentDto) => data,
+  },
 };

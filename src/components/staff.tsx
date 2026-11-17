@@ -11,7 +11,7 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ATTENDANCE, attendanceId, JOBS, WORKFORCE_MUTATIONS as W, type AttendanceDto, type EmployeeDto } from "@/modules/workforce/shared";
+import { ATTENDANCE, attendanceId, JOBS, WORKFORCE_MUTATIONS as W, type AdvanceDto, type AttendanceDto, type EmployeeDto } from "@/modules/workforce/shared";
 import { localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -26,7 +26,7 @@ function Staff(scope: Scope) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb(scope);
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance").toArray(), [scope.userId, scope.organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance").toArray(), [scope.userId, scope.organizationId]);
   const [editing, setEditing] = useState<EmployeeDto | "new" | null>(null);
   const [message, setMessage] = useState<string>();
   if (!can(scope, "workforce.manage")) return <p>{t("Staff.forbidden")}</p>;
@@ -85,6 +85,7 @@ function Staff(scope: Scope) {
         <button type="button" onClick={() => setEditing("new")} className={primary}>{t("Staff.add")}</button>
       )}
       <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
+      <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={(a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
     </>
   );
 }
@@ -251,6 +252,63 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
         </Field>
         {status === "present" && <Field label={t("Attendance.arrivedAtLabel")}>{(id) => <input id={id} name="arrivedAt" type="time" className={field} />}</Field>}
         <button type="submit" className={primary}>{t("Attendance.save")}</button>
+      </form>
+    </section>
+  );
+}
+
+/** WF10 (W-Staff "Avance en cours"): advances still to be deducted, and a form to record one. */
+function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; advances: AdvanceDto[]; onSave: (a: AdvanceDto) => Promise<void> }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const [error, setError] = useState<string>();
+  const [key, setKey] = useState(0); // a new key empties the form after a save
+  const today = farmDayOf(new Date());
+  const active = employees.filter((e) => !e.leftOn);
+  if (active.length === 0) return null;
+  const pending = advances.filter((a) => a.deductMonth >= today.slice(0, 7)).sort((x, y) => x.day.localeCompare(y.day));
+  const name = (id: string) => employees.find((e) => e.id === id)?.name ?? "";
+
+  const submit = async (ev: FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
+    const data = new FormData(ev.currentTarget);
+    const amount = parseCentimes(String(data.get("amount") ?? ""));
+    if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY");
+    const day = String(data.get("day"));
+    const deductMonth = String(data.get("deductMonth"));
+    if (deductMonth < day.slice(0, 7)) return setError("errors.DEDUCT_BEFORE_ADVANCE");
+    setError(undefined);
+    const employee = active.find((e) => e.id === data.get("employee"))!;
+    await onSave({ id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day, amountCentimes: String(amount), deductMonth, note: String(data.get("note") ?? "").trim() || null });
+    setKey((k) => k + 1);
+  };
+
+  return (
+    <section aria-label={t("Advances.title")} className="flex flex-col gap-3">
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Advances.title")}</h2>
+      {pending.length > 0 && (
+        <ul aria-label={t("Advances.pending")} className="flex flex-col gap-2">
+          {pending.map((a) => (
+            <li key={a.id} className="rounded-[18px] bg-chick-soft p-4">
+              {t("Advances.line", { name: name(a.employeeId), amount: formatMoney(BigInt(a.amountCentimes)), date: formatDay(a.day as FarmDay, locale), month: a.deductMonth })}
+            </li>
+          ))}
+        </ul>
+      )}
+      <form key={key} onSubmit={submit} className={card} aria-label={t("Advances.add")}>
+        <Field label={t("Attendance.employee")}>
+          {(id) => (
+            <select id={id} name="employee" className={field}>
+              {active.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required className={field} />}</Field>
+        <Field label={t("Advances.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
+        <Field label={t("Advances.deductMonth")}>{(id) => <input id={id} name="deductMonth" type="month" required defaultValue={today.slice(0, 7)} className={field} />}</Field>
+        <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
+        {error && <p role="alert">{t(error)}</p>}
+        <button type="submit" className={primary}>{t("Advances.save")}</button>
       </form>
     </section>
   );

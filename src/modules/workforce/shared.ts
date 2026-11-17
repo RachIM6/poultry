@@ -35,6 +35,7 @@ export const WORKFORCE_MUTATIONS = {
   assignTask: "workforce.assignTask",
   checkIn: "workforce.checkIn",
   setAttendance: "workforce.setAttendance",
+  recordAdvance: "workforce.recordAdvance",
 } as const;
 
 /** WF6: a routine or one-off task ticked done on a farm day. Its id is the same on every phone that ticks it. */
@@ -56,3 +57,6 @@ export const ATTENDANCE = ["present", "rest", "leave", "absent"] as const;
 export type AttendanceDto = { id: string; farmId: string; employeeId: string; day: string; status: (typeof ATTENDANCE)[number]; arrivedAt: string | null; userId: string | null };
 const ATTENDANCE_NAMESPACE = "1d4fd01a-5d67-48af-81c2-bab647be8228";
 export const attendanceId = (employeeId: string, day: string) => uuidv5(`${employeeId}:${day}`, ATTENDANCE_NAMESPACE);
+
+/** WF10: money given before pay day, deducted from one month's pay. Owners and managers only (never sent to workers). */
+export type AdvanceDto = { id: string; farmId: string; employeeId: string; day: string; amountCentimes: string; deductMonth: string; note: string | null };

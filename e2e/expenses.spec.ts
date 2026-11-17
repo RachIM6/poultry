@@ -53,4 +53,10 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
   // tasks/plan-ui.md U11: the owner's home shows the cash at hand in its "Argent" card.
   await page.goto("/fr/dashboard");
   await expect(page.getByRole("region", { name: "Argent" })).toContainText(/Trésorerie disponible\s*-1.200,00\sDH/);
+
+  // tasks/plan-ui.md U13: on a wide screen the owner's sidebar also lists Ventes, Comptabilité and Membres.
+  const nav = page.getByRole("navigation", { name: "Navigation principale" });
+  await expect(nav.getByRole("link", { name: "Comptabilité" })).toBeHidden();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  for (const name of ["Ventes", "Comptabilité", "Membres"]) await expect(nav.getByRole("link", { name })).toBeVisible();
 });

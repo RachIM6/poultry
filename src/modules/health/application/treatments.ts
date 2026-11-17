@@ -7,7 +7,7 @@ import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { batchFacts } from "@/modules/flock";
-import { checkBatchDay, checkTreatment, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
+import { checkBatchDay, checkTreatment, eggWithdrawalEnd, eggWithdrawalWindows, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
 import { saveTreatment, saveVisit, treatmentIdTaken, treatmentsOf, visitIdTaken } from "@/modules/health/infrastructure/treatments";
 import type { RecordTreatment, RecordVetVisit, TreatmentDto, VetVisitDto } from "@/modules/health/schema";
 import { recordConsumption } from "@/modules/inventory";
@@ -38,7 +38,7 @@ export async function recordTreatment(tx: Tx, ctx: TenantContext, cmd: z.infer<t
   });
   if (!consumed.ok) return consumed; // nothing written yet
 
-  const dto: TreatmentDto = { ...cmd, withdrawalEndsOn: withdrawalEnd(t), byUserId: ctx.userId };
+  const dto: TreatmentDto = { ...cmd, withdrawalEndsOn: withdrawalEnd(t), eggWithdrawalEndsOn: eggWithdrawalEnd(t), byUserId: ctx.userId };
   await saveTreatment(tx, ctx, dto);
   await recordChange(tx, ctx, "treatment", dto.id, dto);
   await audit(tx, ctx, { entity: "Treatment", entityId: dto.id, action: "create", after: dto, ...meta });
@@ -62,3 +62,6 @@ export async function recordVetVisit(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
   await audit(tx, ctx, { entity: "VetVisit", entityId: dto.id, action: "create", after: dto, ...meta });
   return ok(undefined);
 }
+
+/** SPEC-m3 V6, for sales: the laying days whose eggs may not be sold, per treatment of the batch (H7). */
+export const eggWithdrawalWindowsOf = async (tx: Tx, ctx: TenantContext, batchId: string) => eggWithdrawalWindows(await treatmentsOf(tx, ctx, batchId));

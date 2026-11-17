@@ -8,7 +8,7 @@ import type { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 // phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
 export { checkDone, remindedDueOn, statusOn } from "@/modules/health/domain/vaccination";
 export type { DoneError, Reminder, VaccinationStatus } from "@/modules/health/domain/vaccination";
-export { checkBatchDay, checkTreatment, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
+export { checkBatchDay, checkTreatment, eggWithdrawalEnd, eggWithdrawalUntil, eggWithdrawalWindows, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
 
 export type VaccinationMethod = (typeof VACCINATION_METHODS)[number];
 
@@ -43,6 +43,8 @@ export type TreatmentDto = {
   prescriber: string;
   withdrawalDays: number;
   withdrawalEndsOn: string;
+  eggWithdrawalDays?: number | null; // SPEC-m3 H7; absent from a record pulled before M3
+  eggWithdrawalEndsOn?: string | null;
   byUserId: string;
 };
 

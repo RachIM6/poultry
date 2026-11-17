@@ -409,7 +409,8 @@
     "FISCAL_YEAR_HAS_ENTRIES": "L’exercice a déjà des écritures : ce réglage ne peut changer qu’au début du prochain exercice.",
     "BUYER_CREDIT_BLOCKED": "Un chèque ou une traite de cet acheteur est revenu impayé : il paie comptant jusqu’à ce que le propriétaire lève le blocage.",
     "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état.",
-    "NOT_ENOUGH_EGGS": "Pas assez d’œufs dans ce lot."
+    "NOT_ENOUGH_EGGS": "Pas assez d’œufs dans ce lot.",
+    "EGG_WITHDRAWAL_REQUIRED": "Indiquez le délai d’attente des œufs : c’est un lot de pondeuses."
   },
   "Weighing": {
     "title": "Pesée",
@@ -487,7 +488,10 @@
     "cancel": "Annuler",
     "line": "{medicine} · du {start} au {end}",
     "detail": "{dose} · {reason} · prescrit par {prescriber}",
-    "withdrawalLine": "Délai d’attente {days} j : jusqu’au {date} inclus"
+    "withdrawalLine": "Délai d’attente {days} j : jusqu’au {date} inclus",
+    "eggWithdrawal": "Œufs à retirer de la vente jusqu’au {date} inclus",
+    "eggWithdrawalDays": "Délai d’attente œufs (jours)",
+    "eggWithdrawalLine": "Œufs retirés {days} jours, jusqu’au {date}"
   },
   "VetVisit": {
     "title": "Visites vétérinaires",

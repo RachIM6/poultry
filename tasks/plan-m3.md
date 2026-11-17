@@ -129,7 +129,9 @@ Done 2026-11-16 (branch `feat/t61-layer-kpis`): `layerKpis` (pure): hens on hand
 ### T62: Egg withdrawal on treatments (H7)
 **Description:** `Treatment.eggWithdrawalDays` + `eggWithdrawalEndsOn`, required on layer batches; banner.
 **AC:**
-- [ ] A layer-batch treatment without egg withdrawal days is refused (integration test); banner shows (e2e).
+- [x] A layer-batch treatment without egg withdrawal days is refused (integration test); banner shows (e2e). (`health/treatments.int.test.ts` → `EGG_WITHDRAWAL_REQUIRED`; `e2e/eggs.spec.ts` offline.)
+
+Done 2026-11-17 (branch `feat/t62-egg-withdrawal`): `Treatment.eggWithdrawalDays` + `eggWithdrawalEndsOn` (null for every M1 row and every non-layer batch); `checkTreatment` requires it on layer batches, phone and server. `eggWithdrawalUntil` (the H4 rule with the egg days) drives a second banner, "Œufs à retirer de la vente jusqu’au …". For T63, `health.eggWithdrawalWindowsOf(batch)` gives each treatment's laying days whose eggs can't be sold: from its first day to its egg withdrawal's last. ⚠️ MQ4: a vet confirms the rule.
 **Size:** S
 
 ### T63: Egg sales (V6)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { checkBatchDay, checkTreatment, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
+import { checkBatchDay, checkTreatment, eggWithdrawalEnd, eggWithdrawalUntil, eggWithdrawalWindows, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
 
 const day = (d: string) => d as FarmDay;
 // Made-up withdrawal days, to test the dates only: the real ones come from each medicine's label (OQ4).
@@ -63,5 +63,34 @@ describe("recording a treatment or a vet visit (SPEC H3, H5)", () => {
     expect(checkTreatment(batch, { ...tr, endOn: day("2026-11-05") }, today)).toEqual({ ok: false, error: "END_BEFORE_START" });
     expect(checkTreatment(batch, { ...tr, quantity: 0 }, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
     expect(checkTreatment({ ...batch, status: "closed" }, tr, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
+  });
+});
+
+describe("egg withdrawal (SPEC-m3 H7)", () => {
+  // Made-up days, to test the dates only: the real ones come from each medicine's label (MQ4).
+  const e = (endOn: string, eggWithdrawalDays: number | null, startOn = "2026-11-01") => ({ startOn: day(startOn), endOn: day(endOn), eggWithdrawalDays });
+
+  it("ends the treatment's end day + its egg withdrawal days; none without them", () => {
+    expect(eggWithdrawalEnd(e("2026-11-08", 7))).toBe("2026-11-15");
+    expect(eggWithdrawalEnd(e("2026-11-08", 0))).toBe("2026-11-08");
+    expect(eggWithdrawalEnd(e("2026-11-08", null))).toBeNull();
+  });
+
+  it("runs like the meat withdrawal, and gives the laying days whose eggs can't be sold", () => {
+    const ts = [e("2026-11-08", 7), e("2026-11-10", null), e("2026-11-20", 2, "2026-11-18")];
+    expect(eggWithdrawalUntil(ts, day("2026-11-12"))).toBe("2026-11-15");
+    expect(eggWithdrawalUntil(ts, day("2026-11-16"))).toBeNull();
+    expect(eggWithdrawalWindows(ts)).toEqual([
+      { from: "2026-11-01", to: "2026-11-15" },
+      { from: "2026-11-18", to: "2026-11-22" },
+    ]);
+  });
+
+  it("is required on a treatment of a layer batch", () => {
+    const layers = { placedOn: day("2026-10-01"), status: "open" as const, species: "layer" };
+    const tr = { startOn: day("2026-11-01"), endOn: day("2026-11-03"), quantity: 10 };
+    expect(checkTreatment(layers, { ...tr, eggWithdrawalDays: null }, day("2026-11-05"))).toEqual({ ok: false, error: "EGG_WITHDRAWAL_REQUIRED" });
+    expect(checkTreatment(layers, { ...tr, eggWithdrawalDays: 0 }, day("2026-11-05")).ok).toBe(true);
+    expect(checkTreatment({ ...layers, species: "broiler" }, { ...tr, eggWithdrawalDays: null }, day("2026-11-05")).ok).toBe(true);
   });
 });

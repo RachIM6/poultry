@@ -816,3 +816,26 @@ model Budget {
 
   @@index([organizationId])
 }
+
+// Owner: workforce. SPEC-m4 WF1–WF3: a person working on a farm. Not every employee has a phone, so not every one is a
+// member; `userId` is the member signing in with `phone`, set by the server when the employee is saved.
+model Employee {
+  id                String    @id @db.Uuid
+  organizationId    String    @db.Uuid
+  farmId            String    @db.Uuid
+  name              String
+  job               String // lead | worker | guard | other
+  phone             String? // E.164
+  userId            String?   @db.Uuid
+  housedOnFarm      Boolean
+  startedOn         DateTime  @db.Date // farm day
+  leftOn            DateTime? @db.Date // farm day; no new task from then on
+  dailyWageCentimes BigInt // agreed with the employee; never sent to workers
+  cnssNumber        String?
+  houseIds          String[]  @db.Uuid // the houses they look after (WF7)
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @db.Timestamptz
+
+  @@unique([farmId, userId]) // WF2: one employee per member and farm (NULLs don't collide)
+  @@index([organizationId])
+}

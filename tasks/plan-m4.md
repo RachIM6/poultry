@@ -24,9 +24,16 @@ The climate chain does not depend on workforce; it is stacked after it only to k
 ### T70: Employees (WF1–WF3)
 **Description:** `Employee` table (workforce), mutations `workforce.saveEmployee` (create or edit, field-level last write wins) and `workforce.markLeft`; synced entity `employee`, wage and CNSS number stripped for workers. `/staff` static shell: list per farm, add / edit form, link to a member.
 **AC:**
-- [ ] A worker pulls employees without `dailyWageCentimes` and `cnssNumber`; a worker's `saveEmployee` is refused (integration test).
-- [ ] Linking one member to two employees of a farm is refused (`MEMBER_ALREADY_LINKED`).
-- [ ] An employee added offline on `/staff` survives a reload and syncs once (Playwright).
+- [x] A worker pulls employees without `dailyWageCentimes` and `cnssNumber`; a worker's `saveEmployee` is refused (integration test). (`workforce/employees.int.test.ts`; the phone is stripped too.)
+- [x] Linking one member to two employees of a farm is refused (`MEMBER_ALREADY_LINKED`).
+- [x] An employee added offline on `/staff` survives a reload and syncs once (Playwright). (`e2e/staff.spec.ts`)
+
+Done 2026-11-17 (branch `feat/t70-employees`), decisions taken without asking:
+- **Two mutations,** `workforce.createEmployee` and `workforce.updateEmployee` (only the changed fields, like farms); leaving is `leftOn`, no separate mutation.
+- **The member link is the phone number:** the server sets `userId` to the member who signs in with the employee's phone, when the employee is saved (`identity.memberByPhone`). A worker invited after their employee record is linked by saving the employee again. No members list on the phone was needed.
+- **Workers** pull every employee's name, job and houses (to see who does what), never the phone, wage or CNSS number.
+- **Jobs** are a short list: team lead, poultry worker, guard, other.
+- `components/scoped.tsx`: the "who is signed in on this phone" gate shared by M4's static shells.
 **Size:** M
 
 ### T71: Day tasks (WF4, WF7 rule)

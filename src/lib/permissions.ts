@@ -16,6 +16,7 @@ const ALLOWED = {
   "money.read": ["owner", "manager"], // prices, costs, sale amounts, supplier credit
   "finance.record": ["owner", "manager"], // entries, expenses, payments, cheques (SPEC-finance FX2); never workers
   "finance.manage": ["owner"], // periods, the accounting profile, overrides, credit limits, opening a fiscal year
+  "workforce.manage": ["owner", "manager"], // employees, routines, attendance, advances, pay (SPEC-m4 §6); wages never reach workers
 } satisfies Record<string, Role[]>;
 
 export type Action = keyof typeof ALLOWED;

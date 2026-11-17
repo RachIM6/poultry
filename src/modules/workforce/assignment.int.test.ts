@@ -19,7 +19,7 @@ describe("giving one day's task to someone else (SPEC-m4 WF7)", () => {
   const [farmA, farmB, said, hamid, left, foreign] = [uuidv7(), uuidv7(), uuidv7(), uuidv7(), uuidv7(), uuidv7()];
   const key = taskKey.entry(uuidv7());
   const day = "2026-11-17";
-  const assign = (employeeId: string, over: object = {}) => ({ id: taskAssignmentId(key, day), farmId: farmA, key, day, employeeId, ...over });
+  const assign = (employeeId: string, over: object = {}) => ({ id: taskAssignmentId(a.organizationId, key, day), farmId: farmA, key, day, employeeId, ...over });
 
   beforeAll(async () => {
     [a, b] = await twoTenants();
@@ -38,7 +38,10 @@ describe("giving one day's task to someone else (SPEC-m4 WF7)", () => {
     expect(await statuses({ ...a, role: "worker" }, [m(M.assignTask, assign(said))])).toEqual(["errors.FORBIDDEN"]);
     expect(await statuses(a, [m(M.assignTask, assign(left))])).toEqual(["errors.EMPLOYEE_NOT_ACTIVE"]);
     expect(await statuses(a, [m(M.assignTask, assign(foreign))])).toEqual(["errors.NOT_FOUND"]);
-    expect(await statuses(b, [m(M.assignTask, assign(foreign, { farmId: farmB }))])).toEqual(["errors.NOT_FOUND"]); // a's record id
+    // The id carries the organisation: b can neither use a's id nor, with its own, touch a's record.
+    expect(await statuses(b, [m(M.assignTask, assign(foreign, { farmId: farmB }))])).toEqual(["errors.INVALID_INPUT"]);
+    expect(await statuses(b, [m(M.assignTask, assign(foreign, { farmId: farmB, id: taskAssignmentId(b.organizationId, key, day) }))])).toEqual(["applied"]);
+    expect(await db.taskAssignment.findUniqueOrThrow({ where: { id: taskAssignmentId(a.organizationId, key, day) } })).toMatchObject({ employeeId: hamid });
     expect(await statuses(a, [m(M.assignTask, assign(said, { id: uuidv7() }))])).toEqual(["errors.INVALID_INPUT"]);
   });
 });

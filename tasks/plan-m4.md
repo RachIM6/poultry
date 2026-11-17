@@ -84,7 +84,7 @@ Done 2026-11-17 (branch `feat/t73-my-tasks`), decisions taken without asking:
 - [x] A reassigned task leaves the first worker's list and appears in the other's (unit + Playwright). (Unit: `workforce/domain/tasks.test.ts` since T71; `workforce/assignment.int.test.ts`; `e2e/assignment.spec.ts`: given offline, "Pour : Hamid M.", synced once.)
 
 Done 2026-11-17 (branch `feat/t74-assignment`), decisions taken without asking:
-- **One record per task and day,** id = UUIDv5 of key + day, upserted: the last assignment received wins (no history beyond the audit log).
+- **One record per task and day,** id = UUIDv5 of organisation + key + day, upserted: the last assignment received wins (no history beyond the audit log). The organisation is in the id (checked on apply) so another organisation can never take this one's id first (automated security review).
 - **Any task can be given,** entries and vaccines too (`entry|vaccine|routine|oneoff:<uuid>`), but only to an employee of that farm who works there that day (`EMPLOYEE_NOT_ACTIVE`).
 - **Screen:** under each of today's tasks, owners and managers get a "Confier à…" select of the farm's active employees. Today only: planning other days' assignments waits for a need.
 **Size:** S

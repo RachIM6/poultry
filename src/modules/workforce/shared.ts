@@ -45,5 +45,6 @@ export const tickable = (key: string) => /^(routine|oneoff):[0-9a-f-]{36}$/.test
 /** WF7: one day's task given to another employee. One record per task and day (the last write wins). */
 export type TaskAssignmentDto = { id: string; farmId: string; key: string; day: string; employeeId: string };
 const TASK_ASSIGNMENT_NAMESPACE = "d07f68b2-395f-458b-8e90-c0554fb09d40";
-export const taskAssignmentId = (key: string, day: string) => uuidv5(`${key}:${day}`, TASK_ASSIGNMENT_NAMESPACE);
+// The organisation is part of the id: no one else can take the id of this organisation's task and day first.
+export const taskAssignmentId = (organizationId: string, key: string, day: string) => uuidv5(`${organizationId}:${key}:${day}`, TASK_ASSIGNMENT_NAMESPACE);
 export const isTaskKey = (key: string) => /^(entry|vaccine|routine|oneoff):[0-9a-f-]{36}$/.test(key);

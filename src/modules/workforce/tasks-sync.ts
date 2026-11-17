@@ -9,7 +9,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { farmBelongsTo, houseOf } from "@/modules/farm-registry";
 import { batchPlacedInHouseOn } from "@/modules/flock";
 import { routineFalls } from "@/modules/workforce/domain/tasks";
-import { AddTask, AssignTask, CancelTask, SaveRoutine, TickTask, UntickTask, WORKFORCE_MUTATIONS as M, type OneOffTask, type Routine, type TaskAssignmentDto, type TaskDoneDto } from "@/modules/workforce/schema";
+import { AddTask, AssignTask, CancelTask, taskAssignmentId, SaveRoutine, TickTask, UntickTask, WORKFORCE_MUTATIONS as M, type OneOffTask, type Routine, type TaskAssignmentDto, type TaskDoneDto } from "@/modules/workforce/schema";
 
 // SPEC-m4 WF5: the manager's routines and one-off tasks, written offline. The day's list itself is computed (domain/tasks.ts).
 
@@ -108,6 +108,7 @@ export const tasksSync: SyncRegistry = {
       schema: AssignTask,
       action: "workforce.manage",
       async apply(tx, ctx, a, meta) {
+        if (a.id !== taskAssignmentId(ctx.organizationId, a.key, a.day)) return fail("INVALID_INPUT");
         const employee = await tx.employee.findFirst({ where: { id: a.employeeId, farmId: a.farmId, organizationId: ctx.organizationId } });
         if (!employee) return fail("NOT_FOUND");
         if (employee.startedOn > date(a.day)! || (employee.leftOn && employee.leftOn <= date(a.day)!)) return fail("EMPLOYEE_NOT_ACTIVE");

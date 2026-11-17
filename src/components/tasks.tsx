@@ -130,7 +130,7 @@ function Tasks(scope: Scope) {
                 : write({ type: W.tickTask, payload: tick }, "taskDone", id, { ...tick, byUserId: scope.userId });
             // WF6: routines and one-off tasks are ticked here; an entry or a vaccine is done by recording it on its batch.
             const assign = (employeeId: string) => {
-              const a: TaskAssignmentDto = { id: taskAssignmentId(task.key, today), farmId: farm.id, key: task.key, day: today, employeeId };
+              const a: TaskAssignmentDto = { id: taskAssignmentId(scope.organizationId, task.key, today), farmId: farm.id, key: task.key, day: today, employeeId };
               return write({ type: W.assignTask, payload: a }, "taskAssignment", a.id, a);
             };
             return (

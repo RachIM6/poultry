@@ -97,7 +97,7 @@ Done 2026-11-17 (branch `feat/t74-assignment`), decisions taken without asking:
 
 Done 2026-11-17 (branch `feat/t75-attendance`), decisions taken without asking:
 - **One record per employee and day,** id = UUIDv5 of employee + day: the worker's check-in and the manager's edit meet on one record. The employee is checked to be the caller's organisation's first, so no one else can take the id.
-- **Check-in** (`workforce.record`): only for the employee linked to the caller, today or up to SPEC X1's offline week back, never ahead. A second check-in, or one after the manager already set the day, changes nothing.
+- **Check-in** (`workforce.record`): only for the employee linked to the caller, for the farm day the phone recorded it (its clock, in the audit log), within the employee's working period, up to SPEC X1's offline week back, never ahead (automated security review). A second check-in, or one after the manager already set the day, changes nothing.
 - **The arrival time is the phone's farm clock** (HH:MM); the server keeps it as sent (it can't know when an offline tap happened).
 - **Statuses** present / rest / leave / absent, whole days only (the mockup's "1,25 j d'absence" needs part days: later, with MQ2). A non-present status drops the arrival time.
 - **Who sees what:** a worker pulls only their own days (the record carries the linked member); owners and managers everyone's.

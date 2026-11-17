@@ -9,7 +9,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { attendanceId, WORKFORCE_MUTATIONS as M } from "@/modules/workforce/schema";
 import { twoTenants } from "@/test/tenant";
 
-const m = (type: string, payload: unknown): PushedMutation => ({ id: uuidv7(), type, payload, createdAt: "2026-11-17T09:00:00+01:00" });
+const m = (type: string, payload: unknown): PushedMutation => ({ id: uuidv7(), type, payload, createdAt: new Date().toISOString() });
 const statuses = async (ctx: TenantContext, ms: PushedMutation[]) =>
   (await push(ctx, ms, registry)).results.map((r) => (r.status === "rejected" ? r.messageKey : r.status));
 
@@ -37,6 +37,8 @@ describe("attendance (SPEC-m4 WF9)", () => {
     expect(await db.attendance.findUniqueOrThrow({ where: { id: attendanceId(saidId, today) } })).toMatchObject({ status: "present", arrivedAt: "06:30" });
     const tomorrow = farmDayOf(new Date(Date.now() + 86_400_000));
     expect(await statuses(said, [m(M.checkIn, checkIn(saidId, "06:30", tomorrow))])).toEqual(["errors.DAY_IN_FUTURE"]);
+    const yesterday = farmDayOf(new Date(Date.now() - 86_400_000));
+    expect(await statuses(said, [m(M.checkIn, checkIn(saidId, "06:30", yesterday))])).toEqual(["errors.INVALID_INPUT"]); // not the day the phone recorded it
   });
 
   it("the manager sets any day; workers pull only their own days, other organisations nothing", async () => {

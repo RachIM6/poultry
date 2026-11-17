@@ -28,6 +28,9 @@ export const attendanceSync: SyncRegistry = {
         const today = farmDayOf(clock.now());
         if (c.day > today) return fail("DAY_IN_FUTURE");
         if (c.day < addFarmDays(today, -OFFLINE_DAYS)) return fail("TASK_DAY_PAST");
+        // A self check-in is for the day the phone recorded it (its clock, kept in the audit log), never another day.
+        if (c.day !== farmDayOf(meta.deviceCreatedAt)) return fail("INVALID_INPUT");
+        if (date(c.day) < employee.startedOn || (employee.leftOn && date(c.day) >= employee.leftOn)) return fail("EMPLOYEE_NOT_ACTIVE");
         const existing = await tx.attendance.findUnique({ where: { id: c.id } });
         if (existing) return existing.organizationId === ctx.organizationId ? ok(undefined) : fail("NOT_FOUND");
         const row = await tx.attendance.create({ data: { id: c.id, employeeId: c.employeeId, day: date(c.day), status: "present", arrivedAt: c.time, farmId: employee.farmId, userId: employee.userId, organizationId: ctx.organizationId, updatedBy: ctx.userId } });

@@ -31,6 +31,28 @@ export const RecordSale = z.object({
   instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(), // cheque or bill of exchange
 });
 
+/** SPEC-m3 V6: eggs of a layer batch, by item, priced per tray. */
+export const RecordEggSale = z.object({
+  id: z.uuid(),
+  batchId: z.uuid(),
+  buyerId: z.uuid(),
+  day: z.iso.date(),
+  lines: z
+    .array(
+      z.object({
+        item: z.union([z.literal("ungraded"), z.literal("downgraded"), z.string().regex(/^grade:[a-z0-9]+(-[a-z0-9]+)*$/).max(26)]),
+        eggs: z.int32().positive(),
+        eggsPerTray: z.int32().positive().max(1000).default(30), // MQ8
+        unitPriceCentimes: centimes,
+      }),
+    )
+    .min(1)
+    .max(20),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+  paidCentimes: centimes,
+  instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(),
+});
+
 /** V4: a later payment from a buyer, against what they owe. */
 export const RecordPayment = z.object({
   id: z.uuid(),

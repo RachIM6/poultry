@@ -48,3 +48,28 @@ export function checkSale(
   if (!needsInstrument(s.paymentMethod) && s.instrument) return fail("INVALID_INPUT");
   return ok({ amountCentimes });
 }
+
+/** SPEC-m3 V6: one line of an egg sale: eggs of one item, priced per tray of `eggsPerTray` (30 by default, MQ8). */
+export type EggLine = { item: string; eggs: number; eggsPerTray: number; unitPriceCentimes: bigint };
+
+/** V6: a line's amount = eggs × price per tray ÷ eggs per tray, rounded half up to the centime. */
+export const eggLineAmount = (l: Pick<EggLine, "eggs" | "eggsPerTray" | "unitPriceCentimes">) =>
+  (BigInt(l.eggs) * l.unitPriceCentimes * 2n + BigInt(l.eggsPerTray)) / (2n * BigInt(l.eggsPerTray));
+
+/** V6: may this egg sale be recorded? The amount is the sum of its lines; payment rules as V2. Returns the amount. */
+export function checkEggSale(s: {
+  lines: readonly EggLine[];
+  paymentMethod: PaymentMethod;
+  paidCentimes: bigint;
+  instrument: { number: string; dueOn: string } | null;
+}): Result<{ amountCentimes: bigint }, SaleError> {
+  if (s.lines.length === 0 || s.paidCentimes < 0n) return fail("INVALID_QUANTITY");
+  if (s.lines.some((l) => !Number.isSafeInteger(l.eggs) || l.eggs <= 0 || !Number.isSafeInteger(l.eggsPerTray) || l.eggsPerTray <= 0 || l.unitPriceCentimes <= 0n)) {
+    return fail("INVALID_QUANTITY");
+  }
+  const amountCentimes = s.lines.reduce((a, l) => a + eggLineAmount(l), 0n);
+  if (s.paidCentimes > amountCentimes) return fail("PAID_MORE_THAN_AMOUNT");
+  if (needsInstrument(s.paymentMethod) && !s.instrument) return fail("INSTRUMENT_REQUIRED");
+  if (!needsInstrument(s.paymentMethod) && s.instrument) return fail("INVALID_INPUT");
+  return ok({ amountCentimes });
+}

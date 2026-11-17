@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { checkDiscard, checkGrading, eggLots, stockByAge, stockByItem } from "./stock";
+import { checkDiscard, checkGrading, drawFifo, eggLots, stockByAge, stockByItem } from "./stock";
 
 const c = (day: string, normal: number, cracked = 0, broken = 0) => ({ batchId: "b", day, counts: { normal, cracked, dirty: 0, doubleYolk: 2, floor: 0, broken } });
 // A hand-made ledger: two laying days, one graded, a few discarded.
@@ -38,5 +38,34 @@ describe("egg stock (SPEC-m3 E2–E4)", () => {
     expect(checkDiscard(lots, { batchId: "b", laidOn: "2026-11-10", item: "grade:m", eggs: 900 }).ok).toBe(true);
     expect(checkDiscard(lots, { batchId: "b", laidOn: "2026-11-10", item: "grade:m", eggs: 901 })).toEqual({ ok: false, error: "NOT_ENOUGH_EGGS" });
     expect(checkDiscard(lots, { batchId: "b", laidOn: "2026-11-10", item: "grade:m", eggs: 0 })).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+  });
+});
+
+describe("FIFO draw for a sale (SPEC-m3 V6)", () => {
+  const two = eggLots({
+    collections: [c("2026-11-10", 100), c("2026-11-12", 100)],
+    gradings: [
+      { batchId: "b", laidOn: "2026-11-10", grades: { m: 60 } },
+      { batchId: "b", laidOn: "2026-11-12", grades: { m: 80 } },
+    ],
+    discards: [],
+  });
+
+  it("takes the oldest laying day first, across days", () => {
+    expect(drawFifo(two, "b", [{ item: "grade:m", eggs: 100 }], [])).toEqual({
+      ok: true,
+      value: [
+        { laidOn: "2026-11-10", item: "grade:m", eggs: 60 },
+        { laidOn: "2026-11-12", item: "grade:m", eggs: 40 },
+      ],
+    });
+    expect(drawFifo(two, "b", [{ item: "grade:m", eggs: 141 }], [])).toEqual({ ok: false, error: "NOT_ENOUGH_EGGS" });
+    expect(drawFifo(two, "other", [{ item: "grade:m", eggs: 1 }], [])).toEqual({ ok: false, error: "NOT_ENOUGH_EGGS" });
+  });
+
+  it("refuses eggs laid during a withdrawal it would take, not those it wouldn't", () => {
+    const withheld = [{ from: "2026-11-12", to: "2026-11-20" }];
+    expect(drawFifo(two, "b", [{ item: "grade:m", eggs: 60 }], withheld).ok).toBe(true); // only the 10th's
+    expect(drawFifo(two, "b", [{ item: "grade:m", eggs: 61 }], withheld)).toEqual({ ok: false, error: "EGGS_IN_WITHDRAWAL" });
   });
 });

@@ -196,3 +196,49 @@ test("a layer batch's treatment withholds its eggs until the egg withdrawal ends
     );
   await expect.poll(stored).toEqual([{ days: 7 }]);
 });
+
+// T63 acceptance (SPEC-m3 V6): eggs sold by the tray offline, oldest first; stock and receivables follow once synced.
+test("egg sale by the tray, offline: stock drops, the buyer owes the amount", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const e164 = await ownerWithFarm(page, "Élevage Vente d’Œufs");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), batch: crypto.randomUUID(), buyer: crypto.randomUUID() };
+  const counts = (normal: number) => ({ normal, cracked: 0, dirty: 0, doubleYolk: 0, floor: 0, broken: 0 });
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Sidi Hajjaj", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment P1", areaM2: 1000, capacity: 6000, type: "closed" } },
+    {
+      type: "flock.placeBatch",
+      payload: { id: ids.batch, houseId: ids.house, species: "layer", strainId: "lohmann-brown", placedOn: farmDaysAgo(5), chicksPlaced: 6000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: 273 },
+    },
+    { type: "eggs.recordCollection", payload: { id: uuidv7(), batchId: ids.batch, day: farmDaysAgo(3), counts: counts(300), sample: null } },
+    { type: "eggs.recordCollection", payload: { id: uuidv7(), batchId: ids.batch, day: farmDaysAgo(1), counts: counts(600), sample: null } },
+    { type: "eggs.gradeEggs", payload: { id: uuidv7(), batchId: ids.batch, laidOn: farmDaysAgo(3), grades: { m: 300 } } },
+    { type: "eggs.gradeEggs", payload: { id: uuidv7(), batchId: ids.batch, laidOn: farmDaysAgo(1), grades: { m: 600 } } },
+    { type: "sales.createBuyer", payload: { id: ids.buyer, name: "Grossiste Al Wafa", phone: null, type: "trader" } },
+  ]);
+  await page.goto("/fr/eggs");
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await referenceCached(page);
+  await expect(page.getByText(/900 œufs en stock · 30 plateaux/)).toBeVisible();
+  await context.setOffline(true);
+  await context.route("**", (route) => route.abort("internetdisconnected"));
+
+  await page.getByRole("button", { name: "Vendre des œufs" }).click();
+  await page.getByLabel("Plateaux").fill("15");
+  await page.getByLabel("Prix d’un plateau (DH)").fill("33,00");
+  await page.getByLabel("Mode de paiement").selectOption({ label: "Crédit" });
+  await expect(page.getByText(/Montant : 495,00.DH/)).toBeVisible();
+  await page.getByRole("button", { name: "Enregistrer la vente" }).click();
+  await expect(page.getByText(/450 œufs en stock · 15 plateaux/)).toBeVisible();
+
+  await context.unroute("**");
+  await context.setOffline(false);
+  const sold = async () =>
+    await query<{ amount: string; drawn: number }>(
+      `SELECT s."amountCentimes"::text AS amount, (SELECT sum(eggs)::int FROM "EggDraw" d WHERE d."saleId" = s.id) AS drawn
+       FROM "Sale" s JOIN "Membership" m ON m."organizationId" = s."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
+      [e164],
+    );
+  await expect.poll(sold).toEqual([{ amount: "49500", drawn: 450 }]);
+});

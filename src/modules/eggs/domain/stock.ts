@@ -77,3 +77,37 @@ export function stockByAge(lots: readonly Lot[], today: FarmDay): Record<(typeof
   }
   return by;
 }
+
+export type Draw = { laidOn: string; item: EggItem; eggs: number };
+export type DrawError = "NOT_ENOUGH_EGGS" | "EGGS_IN_WITHDRAWAL" | "INVALID_QUANTITY";
+
+/**
+ * SPEC-m3 V6: the eggs a sale takes from a batch, oldest laying day first (FIFO), item by item. Refused when the stock
+ * is short, or when an egg it would take was laid inside a withdrawal window (H7): those must be discarded first.
+ * ⚠️ MQ4: the rule waits for a vet's review.
+ */
+export function drawFifo(
+  lots: readonly Lot[],
+  batchId: string,
+  wanted: readonly { item: EggItem; eggs: number }[],
+  withheld: readonly { from: string; to: string }[],
+): Result<Draw[], DrawError> {
+  const draws: Draw[] = [];
+  const left = new Map(lots.filter((l) => l.batchId === batchId).map((l) => [`${l.laidOn}|${l.item}`, l.eggs]));
+  for (const w of wanted) {
+    if (!Number.isSafeInteger(w.eggs) || w.eggs <= 0) return fail("INVALID_QUANTITY");
+    let need = w.eggs;
+    for (const l of lots) {
+      if (need === 0) break;
+      const have = l.batchId === batchId && l.item === w.item ? (left.get(`${l.laidOn}|${l.item}`) ?? 0) : 0;
+      if (have <= 0) continue;
+      if (withheld.some((x) => x.from <= l.laidOn && l.laidOn <= x.to)) return fail("EGGS_IN_WITHDRAWAL");
+      const take = Math.min(have, need);
+      left.set(`${l.laidOn}|${l.item}`, have - take);
+      draws.push({ laidOn: l.laidOn, item: w.item, eggs: take });
+      need -= take;
+    }
+    if (need > 0) return fail("NOT_ENOUGH_EGGS");
+  }
+  return ok(draws);
+}

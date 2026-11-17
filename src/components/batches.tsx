@@ -147,7 +147,7 @@ function Batches(scope: Scope) {
     return `${p ? (locale === "ar" ? p.nameAr : p.nameFr) : v.productId} · ${t("Batches.age", { age: String(v.dayOfAge) })}`;
   };
   const costsOf = (batchId: string) => of<BatchCostDto>("batchCost").filter((c) => c.batchId === batchId);
-  const salesOf = (batchId: string) => of<SaleDto>("sale").filter((s) => s.batchId === batchId);
+  const salesOf = (batchId: string) => of<SaleDto>("sale").filter((s) => s.batchId === batchId && s.kind !== "eggs"); // egg sales: /eggs
   if (shown?.status === "closed") {
     // B6: read-only, with the locked figures; its sales stay listed for their origin documents (V5).
     const curves = strains.find((s) => s.id === shown.strainId)?.curves ?? [];

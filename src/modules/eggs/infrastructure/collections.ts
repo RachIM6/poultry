@@ -1,6 +1,6 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import type { EggCollectionDto, EggDiscardDto, EggGradingDto, EggItem } from "@/modules/eggs/schema";
+import type { EggCollectionDto, EggDiscardDto, EggDrawDto, EggGradingDto, EggItem } from "@/modules/eggs/schema";
 
 // Egg collection repository (Prisma), scoped to the caller's organisation.
 
@@ -34,16 +34,18 @@ export const lockEggs = (tx: Tx, batchId: string) => tx.$executeRaw`SELECT pg_ad
 /** What a batch's egg stock is made of (E2): its collections, gradings and discards. */
 export async function eggFlowsOf(tx: Tx, ctx: TenantContext, batchId: string) {
   const where = { organizationId: ctx.organizationId, batchId };
-  const [collections, gradings, discards] = await Promise.all([
+  const [collections, gradings, discards, drawn] = await Promise.all([
     tx.eggCollection.findMany({ where }),
     tx.eggGrading.findMany({ where }),
     tx.eggDiscard.findMany({ where }),
+    tx.eggDraw.findMany({ where }),
   ]);
   const day = (d: Date) => d.toISOString().slice(0, 10);
   return {
     collections: collections.map(dto),
     gradings: gradings.map((g) => ({ batchId: g.batchId, laidOn: day(g.laidOn), grades: g.grades as Record<string, number> })),
     discards: discards.map((d) => ({ batchId: d.batchId, laidOn: day(d.laidOn), item: d.item as EggItem, eggs: d.eggs })),
+    drawn: drawn.map((d) => ({ batchId: d.batchId, laidOn: day(d.laidOn), item: d.item as EggItem, eggs: d.eggs })),
   };
 }
 
@@ -71,4 +73,8 @@ export async function saveNewCollection(tx: Tx, ctx: TenantContext, farmId: stri
 
 export async function saveCorrection(tx: Tx, c: EggCollectionDto) {
   await tx.eggCollection.update({ where: { id: c.id }, data: columns(c) });
+}
+
+export async function saveDraws(tx: Tx, ctx: TenantContext, farmId: string, draws: EggDrawDto[]) {
+  await tx.eggDraw.createMany({ data: draws.map((d) => ({ ...d, laidOn: date(d.laidOn), organizationId: ctx.organizationId, farmId })) });
 }

@@ -839,3 +839,39 @@ model Employee {
   @@unique([farmId, userId]) // WF2: one employee per member and farm (NULLs don't collide)
   @@index([organizationId])
 }
+
+// Owner: workforce. SPEC-m4 WF5: a recurring task, every `everyDays` days from `startOn`, or from an age (`fromAge`)
+// of the open batch of its house. The day's tasks are computed from it (domain/tasks.ts), never stored.
+model Routine {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  farmId         String    @db.Uuid
+  houseId        String?   @db.Uuid // null: the whole farm
+  title          String
+  time           String? // HH:MM, farm clock
+  everyDays      Int
+  startOn        DateTime? @db.Date
+  fromAge        Int?
+  stopOn         DateTime? @db.Date // nothing from this day on
+  employeeId     String?   @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: workforce. SPEC-m4 WF5: a task the manager adds for one farm day.
+model OneOffTask {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  houseId        String?  @db.Uuid
+  day            DateTime @db.Date
+  title          String
+  time           String?
+  employeeId     String?  @db.Uuid
+  cancelled      Boolean  @default(false)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, day])
+}

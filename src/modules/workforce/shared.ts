@@ -26,4 +26,7 @@ export const EMPLOYEE_PRIVATE = ["phone", "dailyWageCentimes", "cnssNumber"] as 
 export const WORKFORCE_MUTATIONS = {
   createEmployee: "workforce.createEmployee",
   updateEmployee: "workforce.updateEmployee",
+  saveRoutine: "workforce.saveRoutine",
+  addTask: "workforce.addTask",
+  cancelTask: "workforce.cancelTask",
 } as const;

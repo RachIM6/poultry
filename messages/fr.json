@@ -385,7 +385,8 @@
     "BUYER_CREDIT_BLOCKED": "Un chèque ou une traite de cet acheteur est revenu impayé : il paie comptant jusqu’à ce que le propriétaire lève le blocage.",
     "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état.",
     "MEMBER_ALREADY_LINKED": "Ce numéro est déjà celui d’un autre ouvrier de la ferme.",
-    "LEFT_BEFORE_START": "La date de départ est avant la date d’entrée."
+    "LEFT_BEFORE_START": "La date de départ est avant la date d’entrée.",
+    "HOUSE_REQUIRED": "Choisissez un bâtiment : la tâche suit l’âge de son lot."
   },
   "Weighing": {
     "title": "Pesée",
@@ -806,5 +807,43 @@
     "leftOn": "parti le {date}",
     "usesApp": "utilise l’application",
     "noApp": "sans compte"
+  },
+  "Tasks": {
+    "title": "Tâches du jour",
+    "open": "Tâches du jour",
+    "today": "Tâches d’aujourd’hui",
+    "none": "Aucune tâche aujourd’hui.",
+    "source": "Les tâches viennent de l’âge des lots, du plan de vaccination et des tâches régulières. Le responsable peut en ajouter.",
+    "entry": "Saisie du jour · {house}",
+    "vaccine": "vaccin du plan",
+    "late": "vaccin en retard",
+    "oneOff": "ajoutée par le responsable",
+    "every": "{count, plural, =1 {tous les jours} other {tous les # jours}}",
+    "age": "J{day}",
+    "for": "Pour : {names}",
+    "nobody": "personne",
+    "done": "Faite",
+    "todo": "À faire",
+    "add": "Ajouter une tâche",
+    "addSave": "Ajouter la tâche",
+    "task": "Tâche",
+    "day": "Jour",
+    "house": "Bâtiment",
+    "time": "Heure (facultatif)",
+    "assignee": "Confiée à",
+    "auto": "Automatique (selon le bâtiment)",
+    "routines": "Tâches régulières",
+    "addRoutine": "Ajouter une tâche régulière",
+    "saveRoutine": "Enregistrer la tâche régulière",
+    "everyDays": "Tous les combien de jours",
+    "from": "À partir de",
+    "fromCalendar": "Une date",
+    "fromBatch": "Un âge du lot du bâtiment",
+    "startOn": "Date de début",
+    "fromAgeLabel": "Âge du lot (jours)",
+    "fromAge": "à partir de J{day}",
+    "fromDay": "à partir du {date}",
+    "needsHouse": "Une tâche qui suit l’âge du lot a besoin d’un bâtiment.",
+    "stop": "Arrêter « {title} »"
   }
 }

@@ -66,7 +66,7 @@ async function save(tx: Tx, ctx: TenantContext, dto: EmployeeDto, action: "creat
   return ok(undefined);
 }
 
-export const workforceSync: SyncRegistry = {
+export const employeesSync: SyncRegistry = {
   mutations: {
     [M.createEmployee]: defineMutation({
       schema: CreateEmployee,

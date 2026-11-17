@@ -52,8 +52,15 @@ Done 2026-11-17 (branch `feat/t71-day-tasks`), decisions taken without asking:
 ### T72: Routines and one-off tasks (WF5)
 **Description:** `Routine` and `OneOffTask` tables and mutations (`workforce.saveRoutine`, `stopRoutine`, `addTask`, `cancelTask`), manager part of `/tasks`.
 **AC:**
-- [ ] Idempotent, tenant-isolated, worker refused (integration).
-- [ ] A routine created offline shows in today's list after a reload (Playwright, with T73).
+- [x] Idempotent, tenant-isolated, worker refused (integration). (`workforce/tasks.int.test.ts`)
+- [x] A routine created offline shows in today's list after a reload (Playwright). (`e2e/tasks.spec.ts`, with a one-off task)
+
+Done 2026-11-17 (branch `feat/t72-routines`), decisions taken without asking:
+- **`saveRoutine` creates or replaces the whole routine;** stopping is saving it with `stopOn` = today (no `stopRoutine` mutation). Two managers editing one routine offline is rare enough for last-write-wins on the whole record.
+- **A one-off task is never deleted,** only cancelled (`cancelTask`), so a phone that saw it learns it was cancelled.
+- **Every member pulls routines and one-off tasks** (no money in them): a worker's phone needs the farm's whole list to compute its own.
+- **`/tasks`** is a static shell linked from "Plus" for everyone: today's list (each entry or vaccine task opens its batch), and for owners and managers the assignee of each task, "Ajouter une tâche" and the routines with "Arrêter". The ticks and the worker's own view come with T73.
+- A batch-age routine has no default start age in the form: the manager types it.
 **Size:** M
 
 ### T73: "Mes tâches" (WF6, WF8)

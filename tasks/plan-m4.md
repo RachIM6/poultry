@@ -179,8 +179,14 @@ Done 2026-11-17 (branch `feat/t82-climate-alerts`), decisions taken without aski
 ### T83: Power cuts (CL5)
 **Description:** `PowerCut`, `climate.startPowerCut` / `endPowerCut`; "Coupure de courant" on `/climate`; urgent notification on start.
 **AC:**
-- [ ] A second open cut on the farm is refused (`POWER_CUT_OPEN`); end before start refused (integration).
-- [ ] Started offline, ended, synced (Playwright).
+- [x] A second open cut on the farm is refused (`POWER_CUT_OPEN`); end before start refused (integration). (`climate/power-cuts.int.test.ts`: `CUT_END_BEFORE_START`, ending twice `ALREADY_DONE`, other organisations `NOT_FOUND`.)
+- [x] Started offline, ended, synced (Playwright). (`e2e/power-cut.spec.ts`)
+
+Done 2026-11-17 (branch `feat/t83-power-cuts`), decisions taken without asking:
+- **A cut belongs to a farm** (the selected house's farm), with the phone's instants (UTC); `flock` re-exports `farm-registry.farmBelongsTo` for `climate`.
+- **Starting it notifies owners and managers, urgently** (template `powerCut`, the farm-clock time); ending it doesn't. A worker's phone can't know whether the start reached the server before it ends: if both sync together, the alert still goes out.
+- **Generator details when the power is back:** started or not, seconds to start, diesel in millilitres (typed in litres, "18,5" → 18 500 ml, from the digits). The mockup's "next no-load test" is a routine (T72), not code.
+- No escalation chain (MQ5, OQ2).
 **Size:** S
 
 ### T84: Climate history (CL6)

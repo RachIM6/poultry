@@ -1002,3 +1002,20 @@ model ClimateReading {
   @@index([organizationId])
   @@index([houseId, day])
 }
+
+// Owner: climate. SPEC-m4 CL5: a farm's power cut and how the generator did. One open cut per farm (checked on push).
+model PowerCut {
+  id               String    @id @db.Uuid
+  organizationId   String    @db.Uuid
+  farmId           String    @db.Uuid
+  startedAt        DateTime  @db.Timestamptz
+  endedAt          DateTime? @db.Timestamptz
+  generatorStarted Boolean?
+  generatorSeconds Int? // how long it took to start
+  dieselMl         Int? // diesel used, millilitres
+  byUserId         String    @db.Uuid
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([farmId, endedAt])
+}

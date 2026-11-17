@@ -1,11 +1,11 @@
 import { audit } from "@/lib/audit";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import { checkBands, outOfRange, targetFor, verdicts } from "@/modules/climate/domain/targets";
-import { CLIMATE_MUTATIONS as M, RecordReading, SaveTargets, type Band, type ReadingDto, type TargetSet } from "@/modules/climate/schema";
-import { batchPlacedInHouseOn, houseOf } from "@/modules/flock";
+import { CLIMATE_MUTATIONS as M, EndPowerCut, RecordReading, SaveTargets, StartPowerCut, type Band, type PowerCutDto, type ReadingDto, type TargetSet } from "@/modules/climate/schema";
+import { batchPlacedInHouseOn, farmBelongsTo, houseOf } from "@/modules/flock";
 import { notify } from "@/modules/notifications";
 
 const clock: Clock = systemClock;
@@ -58,7 +58,43 @@ export const climateSync: SyncRegistry = {
         return ok(undefined);
       },
     }),
+    // CL5: anyone starts a power cut ("Coupure de courant"); one open cut per farm; owners and managers are told at once.
+    [M.startPowerCut]: defineMutation({
+      schema: StartPowerCut,
+      action: "climate.record",
+      async apply(tx, ctx, c, meta) {
+        if (!(await farmBelongsTo(tx, ctx, c.farmId))) return fail("NOT_FOUND");
+        if (await tx.powerCut.findUnique({ where: { id: c.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
+        if (await tx.powerCut.count({ where: { farmId: c.farmId, endedAt: null } })) return fail("POWER_CUT_OPEN");
+        const startedAt = new Date(c.startedAt);
+        await tx.powerCut.create({ data: { id: c.id, farmId: c.farmId, startedAt, organizationId: ctx.organizationId, byUserId: ctx.userId } });
+        const dto: PowerCutDto = { id: c.id, farmId: c.farmId, startedAt: startedAt.toISOString(), endedAt: null, generatorStarted: null, generatorSeconds: null, dieselMl: null };
+        await recordChange(tx, ctx, "powerCut", c.id, dto);
+        await audit(tx, ctx, { entity: "PowerCut", entityId: c.id, action: "create", after: dto, ...meta });
+        const minutes = farmMinutesOf(startedAt);
+        const time = `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+        await notify(tx, ctx, { roles: ["owner", "manager"], templateKey: "powerCut", params: { time }, urgency: "urgent" });
+        return ok(undefined);
+      },
+    }),
+    [M.endPowerCut]: defineMutation({
+      schema: EndPowerCut,
+      action: "climate.record",
+      async apply(tx, ctx, e, meta) {
+        const row = await tx.powerCut.findFirst({ where: { id: e.id, organizationId: ctx.organizationId } });
+        if (!row) return fail("NOT_FOUND");
+        if (row.endedAt) return fail("ALREADY_DONE");
+        const endedAt = new Date(e.endedAt);
+        if (endedAt < row.startedAt) return fail("CUT_END_BEFORE_START");
+        const generator = { generatorStarted: e.generatorStarted, generatorSeconds: e.generatorSeconds, dieselMl: e.dieselMl };
+        await tx.powerCut.update({ where: { id: e.id }, data: { endedAt, ...generator } });
+        const dto: PowerCutDto = { id: row.id, farmId: row.farmId, startedAt: row.startedAt.toISOString(), endedAt: endedAt.toISOString(), ...generator };
+        await recordChange(tx, ctx, "powerCut", row.id, dto);
+        await audit(tx, ctx, { entity: "PowerCut", entityId: row.id, action: "end", after: dto, ...meta });
+        return ok(undefined);
+      },
+    }),
   },
   // Every member sees the targets: the reading screen judges against them offline.
-  entities: { climateTargets: (_ctx, data: TargetSet) => data, climateReading: (_ctx, data: ReadingDto) => data },
+  entities: { climateTargets: (_ctx, data: TargetSet) => data, climateReading: (_ctx, data: ReadingDto) => data, powerCut: (_ctx, data: PowerCutDto) => data },
 };

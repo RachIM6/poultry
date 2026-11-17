@@ -1,13 +1,14 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { parseTenths, tenths } from "@/components/climate-targets";
 import { Scoped } from "@/components/scoped";
 import { card, danger, done, field, primary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
+import { formatDay } from "@/lib/format";
 import { daysBetween, farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { CLIMATE_MUTATIONS as C, outOfRange, targetFor, verdicts, type Band, type PowerCutDto, type ReadingDto, type TargetSet, type Verdict } from "@/modules/climate/shared";
 import type { HouseDto } from "@/modules/farm-registry/schema";
@@ -109,6 +110,7 @@ function Climate(scope: Scope) {
         cuts={of<PowerCutDto>("powerCut")}
         save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
       />
+      <History house={house} readings={of<ReadingDto>("climateReading")} cuts={of<PowerCutDto>("powerCut")} batches={of<BatchDto>("batch")} sets={sets} />
       <Link href="/climate/targets" className="text-sm underline underline-offset-4">{t("Climate.targetsOpen")}</Link>
     </>
   );
@@ -165,5 +167,61 @@ function PowerCuts({ farmId, cuts, save }: { farmId: string; cuts: PowerCutDto[]
       {error && <p role="alert">{t(error)}</p>}
       <button type="submit" className={primary}>{t("Climate.cutEnd")}</button>
     </form>
+  );
+}
+
+/** CL6: the house's last readings with their verdicts, and the farm's last power cuts with their duration. */
+function History({ house, readings, cuts, batches, sets }: { house: HouseDto; readings: ReadingDto[]; cuts: PowerCutDto[]; batches: BatchDto[]; sets: TargetSet[] }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const day = (d: string) => formatDay(d as FarmDay, locale);
+  const last = readings.filter((r) => r.houseId === house.id).sort((a, b) => b.day.localeCompare(a.day) || b.time.localeCompare(a.time)).slice(0, 10);
+  const lastCuts = cuts.filter((c) => c.farmId === house.farmId && c.endedAt !== null).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 5);
+  // The batch that was in the house on the reading's day: its age then picks the band, as on the server.
+  const ageOn = (d: string) => {
+    const b = batches.find((x) => x.houseId === house.id && x.placedOn <= d && (x.status === "open" || (x.closedOn ?? "") >= d));
+    return b ? daysBetween(b.placedOn as FarmDay, d as FarmDay) : null;
+  };
+  if (last.length === 0 && lastCuts.length === 0) return null;
+  return (
+    <section aria-label={t("Climate.history")} className="flex flex-col gap-3">
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Climate.history")}</h2>
+      {last.length > 0 && (
+        <ul aria-label={t("Climate.lastReadings")} className={card}>
+          {last.map((r) => {
+            const age = ageOn(r.day);
+            const v = verdicts(r, age === null ? null : targetFor(sets, r.day, age));
+            const off = (["temperature", "humidity", "ammonia"] as const).filter((k) => v[k] === "below" || v[k] === "above");
+            return (
+              <li key={r.id} className="flex justify-between gap-3 border-t border-line py-2 first:border-t-0">
+                <span>
+                  {day(r.day)} · {r.time}
+                  <span className="block text-sm text-ink-2">{tenths(r.temperatureTenths)} °C · {r.humidity} %{r.ammonia === null ? "" : ` · ${r.ammonia} ppm`}</span>
+                </span>
+                <span className={`text-sm ${off.length ? "text-brick-fg" : "text-ink-2"}`}>
+                  {off.length ? off.map((k) => t(`Climate.offValue.${k}.${v[k]}`)).join(", ") : Object.values(v).every((x) => x === "none") ? t("Climate.noTarget") : t("Climate.verdicts.within")}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {lastCuts.length > 0 && (
+        <ul aria-label={t("Climate.lastCuts")} className={card}>
+          {lastCuts.map((c) => {
+            const minutes = Math.round((Date.parse(c.endedAt!) - Date.parse(c.startedAt)) / 60_000);
+            return (
+              <li key={c.id} className="flex justify-between gap-3 border-t border-line py-2 first:border-t-0">
+                <span>{day(farmDayOf(new Date(c.startedAt)))} · {clockOf(c.startedAt)} → {clockOf(c.endedAt!)}</span>
+                <span className="text-sm text-ink-2">
+                  {t("Climate.cutMinutes", { minutes: String(minutes) })}
+                  {c.generatorStarted ? ` · ${t("Climate.generatorLine", { seconds: c.generatorSeconds ?? "—", litres: c.dieselMl === null ? "—" : (c.dieselMl / 1000).toLocaleString(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", maximumFractionDigits: 3 }) })}` : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

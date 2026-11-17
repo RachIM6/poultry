@@ -192,7 +192,12 @@ Done 2026-11-17 (branch `feat/t83-power-cuts`), decisions taken without asking:
 ### T84: Climate history (CL6)
 **Description:** last readings and cuts per house on `/climate`.
 **AC:**
-- [ ] The last 10 readings with verdicts and the last 5 cuts with their duration (Playwright).
+- [x] The last 10 readings with verdicts and the last 5 cuts with their duration (Playwright). (`e2e/climate-history.spec.ts`)
+
+Done 2026-11-17 (branch `feat/t84-climate-history`), decisions taken without asking:
+- **Computed on the phone** from the records it already has: no new table, mutation or server code. A past reading is judged with the targets in force on its day and the age of the batch that was in the house then (closed batches included), the same rule as the server's alert.
+- **Readings per house, cuts per farm** (the selected house's farm); only ended cuts, newest first, with the generator line when it started.
+- A chart of the day's readings is left for later: the list answers "was it too hot this week", and a chart library would cost JS.
 **Size:** S
 
 ### ✅ Checkpoint M4

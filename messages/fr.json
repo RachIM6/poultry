@@ -1026,5 +1026,15 @@
     "what": "Ce qui s’est passé",
     "daysOff": "Jours d’arrêt (si connus)",
     "save": "Enregistrer"
+  },
+  "Organizations": {
+    "title": "Mes exploitations",
+    "hint": "Chaque exploitation garde ses données à part sur ce téléphone.",
+    "current": "Ouverte",
+    "open": "Ouvrir {name}",
+    "invitations": "Invitations reçues",
+    "invitedAs": "{name} vous invite comme {role}.",
+    "accept": "Accepter l’invitation de {name}",
+    "link": "Changer d’exploitation"
   }
 }

@@ -5,16 +5,83 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Role, TenantContext } from "@/lib/tenant";
 import { getSession } from "@/modules/identity/application/login";
 
-/** ADR-006 choke point: session cookie → membership → tenant context. A signed-in user with no membership onboards. */
+/** SPEC-m5 PA2 (ADR-011): the organisation the user chose. Only a hint: it opens nothing unless it is a live membership. */
+export const ORG_COOKIE = "__Host-org";
+const chosenOrganization = (headers: Headers) =>
+  headers.get("cookie")?.split(";").map((c) => c.trim().split("=")).find(([k]) => k === ORG_COOKIE)?.[1];
+
+// SPEC-m5 PA3: a partner's membership opens the organisation up to its end day, included.
+const live = (clock: Clock) => ({ OR: [{ accessUntil: null }, { accessUntil: { gte: new Date(`${farmDayOf(clock.now())}T00:00:00Z`) } }] });
+const liveMemberships = (userId: string, clock: Clock) =>
+  db.membership.findMany({ where: { userId, ...live(clock) }, orderBy: { createdAt: "asc" }, include: { organization: { select: { name: true } } } });
+
+/**
+ * ADR-006 choke point: session cookie → membership → tenant context. A signed-in user with no membership onboards.
+ * With several memberships: the chosen organisation when it is one of them, else the oldest.
+ */
 export async function getTenantContext(headers: Headers, clock: Clock = systemClock): Promise<Result<TenantContext, "UNAUTHENTICATED" | "NO_MEMBERSHIP">> {
   const session = await getSession(headers);
   if (!session) return fail("UNAUTHENTICATED");
-  // ponytail: the oldest membership wins; add an organisation switcher once someone belongs to two (vet, accountant: M5).
-  // SPEC-m5 PA3: a partner's membership opens the organisation up to its end day, included.
-  const live = { OR: [{ accessUntil: null }, { accessUntil: { gte: new Date(`${farmDayOf(clock.now())}T00:00:00Z`) } }] };
-  const membership = await db.membership.findFirst({ where: { userId: session.userId, ...live }, orderBy: { createdAt: "asc" } });
+  const memberships = await liveMemberships(session.userId, clock);
+  const chosen = chosenOrganization(headers);
+  const membership = memberships.find((m) => m.organizationId === chosen) ?? memberships[0];
   if (!membership) return fail("NO_MEMBERSHIP");
   return ok({ userId: session.userId, organizationId: membership.organizationId, role: membership.role });
+}
+
+export type MyOrganizations = {
+  current: string | null;
+  memberships: { organizationId: string; name: string; role: Role; accessUntil: string | null }[];
+  invitations: { id: string; organizationId: string; name: string; role: Role }[]; // pending, for this user's phone
+};
+
+/** SPEC-m5 PA2: the farms this user can open, and the invitations waiting for them (a partner already elsewhere). */
+export async function myOrganizations(headers: Headers, clock: Clock = systemClock): Promise<Result<MyOrganizations, "UNAUTHENTICATED">> {
+  const session = await getSession(headers);
+  if (!session) return fail("UNAUTHENTICATED");
+  const [memberships, invitations, ctx] = await Promise.all([
+    liveMemberships(session.userId, clock),
+    session.phone ? db.invitation.findMany({ where: { phoneNumber: session.phone, expiresAt: { gt: clock.now() } }, include: { organization: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
+    getTenantContext(headers, clock),
+  ]);
+  return ok({
+    current: ctx.ok ? ctx.value.organizationId : null,
+    memberships: memberships.map((m) => ({ organizationId: m.organizationId, name: m.organization.name, role: m.role, accessUntil: m.accessUntil && m.accessUntil.toISOString().slice(0, 10) })),
+    invitations: invitations
+      .filter((i) => !memberships.some((m) => m.organizationId === i.organizationId))
+      .map((i) => ({ id: i.id, organizationId: i.organizationId, name: i.organization.name, role: i.role })),
+  });
+}
+
+/** SPEC-m5 PA2, PA6: checks the user may open this organisation, and audits it. The caller sets ORG_COOKIE. */
+export async function chooseOrganization(headers: Headers, organizationId: string, clock: Clock = systemClock): Promise<Result<void, "UNAUTHENTICATED" | "NOT_FOUND">> {
+  const session = await getSession(headers);
+  if (!session) return fail("UNAUTHENTICATED");
+  const membership = (await liveMemberships(session.userId, clock)).find((m) => m.organizationId === organizationId);
+  if (!membership) return fail("NOT_FOUND");
+  await db.auditEvent.create({ data: { organizationId, userId: session.userId, entity: "Membership", entityId: membership.id, action: "open", after: { role: membership.role } } });
+  return ok(undefined);
+}
+
+/** SPEC-m5 PA2: a signed-in user accepts an invitation sent to their own phone; returns the organisation it opens. */
+export async function acceptInvitation(headers: Headers, invitationId: string, clock: Clock = systemClock): Promise<Result<string, "UNAUTHENTICATED" | "NOT_FOUND">> {
+  const session = await getSession(headers);
+  if (!session?.phone) return fail("UNAUTHENTICATED");
+  const phone = session.phone;
+  return db.$transaction(async (tx) => {
+    const inv = await tx.invitation.findFirst({ where: { id: invitationId, phoneNumber: phone, expiresAt: { gt: clock.now() } } });
+    if (!inv) return fail("NOT_FOUND");
+    const membership = await tx.membership.upsert({
+      where: { organizationId_userId: { organizationId: inv.organizationId, userId: session.userId } },
+      create: { organizationId: inv.organizationId, userId: session.userId, role: inv.role, accessUntil: inv.accessUntil },
+      update: {}, // already a member: keep the current role
+    });
+    await tx.invitation.delete({ where: { id: inv.id } });
+    await tx.auditEvent.create({
+      data: { organizationId: inv.organizationId, userId: session.userId, entity: "Invitation", entityId: inv.id, action: "accept", after: { membershipId: membership.id, role: membership.role } },
+    });
+    return ok(inv.organizationId);
+  });
 }
 
 /** Each user's language (SPEC I3), for messages sent outside a request: push notifications. */

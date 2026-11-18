@@ -1,48 +1,58 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T86 (SPEC-m4 WF13): a training and a work accident recorded offline on /staff survive a reload and sync once.
-test("a training and a work accident recorded offline survive a reload and sync once", async ({ page, context }) => {
-  test.setTimeout(120_000);
-  const e164 = await ownerWithFarm(page, "Élevage des Formations");
-  await scopeRemembered(page);
-  const ids = await farmWithBatch(page);
-  await pushAs(page, [
-    { type: "workforce.createEmployee", payload: { id: crypto.randomUUID(), farmId: ids.farm, name: "Said A.", job: "worker", phone: null, housedOnFarm: true, startedOn: farmDaysAgo(30), leftOn: null, dailyWageCentimes: "13846", cnssNumber: null, houseIds: [] } },
-  ]);
+// Labels come from the app's messages, so the Arabic run checks the Arabic screen; the owner signs up in French.
 
-  await page.goto("/fr/staff");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
-  const form = page.getByRole("form", { name: "Enregistrer une formation ou un accident" });
-  await expect(form).toBeVisible();
+type Messages = Record<string, Record<string, unknown>>;
 
-  await context.setOffline(true);
-  await context.route("**", (route) => route.abort("internetdisconnected"));
-  await form.getByLabel("Thème").selectOption({ label: "Technique de vaccination" });
-  await form.getByRole("button", { name: "Enregistrer" }).click();
-  await form.getByLabel("Type").selectOption({ label: "Accident du travail" });
-  await form.getByLabel("Ce qui s’est passé").fill("Coupure à la main en réparant une mangeoire");
-  await form.getByLabel("Jours d’arrêt (si connus)").fill("2");
-  await form.getByRole("button", { name: "Enregistrer" }).click();
+for (const locale of ["fr", "ar"] as const) {
+  test(`a training and a work accident recorded offline in ${locale} survive a reload and sync once`, async ({ page, context }) => {
+    test.setTimeout(120_000);
+    const m = JSON.parse(readFileSync(`messages/${locale}.json`, "utf8")) as Messages;
+    const t = (key: string) => key.split(".").reduce<unknown>((o, k) => (o as Record<string, unknown>)[k], m) as string;
+    const e164 = await ownerWithFarm(page, `Élevage des Formations ${locale}`);
+    await scopeRemembered(page);
+    const ids = await farmWithBatch(page);
+    await pushAs(page, [
+      { type: "workforce.createEmployee", payload: { id: crypto.randomUUID(), farmId: ids.farm, name: "Said A.", job: "worker", phone: null, housedOnFarm: true, startedOn: farmDaysAgo(30), leftOn: null, dailyWageCentimes: "13846", cnssNumber: null, houseIds: [] } },
+    ]);
 
-  const list = page.getByRole("list", { name: "Derniers enregistrements" }).getByRole("listitem");
-  await expect(list).toHaveCount(2);
-  await expect(list.filter({ hasText: "accident du travail" })).toHaveText(/^Said A\. · accident du travail le .+ : Coupure à la main en réparant une mangeoire\s*Arrêt de travail : 2 j$/);
-  await expect(list.filter({ hasText: "formation" })).toHaveText(/^Said A\. · formation : Technique de vaccination · .+$/);
-  const reload = await page.reload(); // still offline: kept on the phone
-  expect(reload?.fromServiceWorker()).toBe(true);
-  await expect(list).toHaveCount(2);
+    await page.goto(`/${locale}/staff`);
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    const form = page.getByRole("form", { name: t("Records.add") });
+    await expect(form).toBeVisible();
 
-  await context.unroute("**");
-  await context.setOffline(false);
-  const server = () =>
-    query<{ kind: string; topic: string | null; daysOff: number | null }>(
-      `SELECT r.kind, r.topic, r."daysOff" FROM "StaffRecord" r
-       JOIN "Membership" m ON m."organizationId" = r."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1 ORDER BY r.kind`,
-      [e164],
-    );
-  await expect.poll(server).toEqual([
-    { kind: "accident", topic: null, daysOff: 2 },
-    { kind: "training", topic: "vaccination", daysOff: null },
-  ]);
-});
+    await context.setOffline(true);
+    await context.route("**", (route) => route.abort("internetdisconnected"));
+    await form.getByLabel(t("Records.topic")).selectOption({ label: t("Records.topics.vaccination") });
+    await form.getByRole("button", { name: t("Records.save"), exact: true }).click();
+    await form.getByLabel(t("Records.kind")).selectOption({ label: t("Records.kinds.accident") });
+    await form.getByLabel(t("Records.what")).fill("Coupure à la main en réparant une mangeoire");
+    await form.getByLabel(t("Records.daysOff")).fill("2");
+    await form.getByRole("button", { name: t("Records.save"), exact: true }).click();
+
+    const list = page.getByRole("list", { name: t("Records.list") }).getByRole("listitem");
+    await expect(list).toHaveCount(2);
+    const accident = list.filter({ hasText: "Coupure à la main" });
+    await expect(accident).toContainText(t("Records.daysOffLine").replace("{days}", "2"));
+    await expect(list.filter({ hasNotText: "Coupure à la main" })).toContainText(t("Records.topics.vaccination"));
+    const reload = await page.reload(); // still offline: kept on the phone
+    expect(reload?.fromServiceWorker()).toBe(true);
+    await expect(list).toHaveCount(2);
+
+    await context.unroute("**");
+    await context.setOffline(false);
+    const server = () =>
+      query<{ kind: string; topic: string | null; daysOff: number | null }>(
+        `SELECT r.kind, r.topic, r."daysOff" FROM "StaffRecord" r
+         JOIN "Membership" m ON m."organizationId" = r."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1 ORDER BY r.kind`,
+        [e164],
+      );
+    await expect.poll(server).toEqual([
+      { kind: "accident", topic: null, daysOff: 2 },
+      { kind: "training", topic: "vaccination", daysOff: null },
+    ]);
+  });
+}

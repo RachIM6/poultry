@@ -7,12 +7,14 @@ import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
 import { card, done, field, primary, secondary } from "@/components/ui";
 import { formatDay } from "@/lib/format";
-import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto } from "@/modules/flock/schema";
+import { HEALTH_MUTATIONS as H, planFor } from "@/modules/health/shared";
 import { downtimeOn, houseTimeline, PLANNING_MUTATIONS as P, saleDay, type DowntimeRule, type PlanDto, type Slot } from "@/modules/planning/shared";
+import type { ProtocolDto } from "@/modules/reference-data/schema";
 import { cachedReference, localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -25,9 +27,10 @@ function Planning(scope: Scope) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb(scope);
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "plannedBatch", "downtimeRule").toArray(), [scope.userId, scope.organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "plannedBatch", "downtimeRule", "protocol").toArray(), [scope.userId, scope.organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [message, setMessage] = useState<string>();
+  const [placing, setPlacing] = useState<string | null>(null); // the plan being placed (PL3)
   if (!records) return null;
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const farms = of<FarmDto>("farm");
@@ -47,6 +50,24 @@ function Planning(scope: Scope) {
       setMessage("Farms.saved");
     } catch {
       setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
+    }
+  };
+
+  // PL3: one mutation places the batch and marks the plan; the vaccination plan follows, as on /batches (H1).
+  const place = async (plan: PlanDto, batch: BatchDto, sent: object, protocol: ProtocolDto | undefined) => {
+    try {
+      await writeLocal(db, { type: P.placeFromPlan, payload: { planId: plan.id, batch: sent } }, [
+        { entity: "batch", id: batch.id, data: batch },
+        { entity: "plannedBatch", id: plan.id, data: { ...plan, status: "placed", batchId: batch.id } },
+      ]);
+      if (protocol && protocol.items.length > 0) {
+        const vaccinations = planFor(batch.id, batch.placedOn as FarmDay, protocol.items);
+        await writeLocal(db, { type: H.planVaccinations, payload: { batchId: batch.id, protocolId: protocol.id, items: protocol.items } }, vaccinations.map((v) => ({ entity: "vaccination", id: v.id, data: v })));
+      }
+      setMessage("Farms.saved");
+      setPlacing(null);
+    } catch {
+      setMessage("Farms.saveFailed");
     }
   };
 
@@ -86,10 +107,18 @@ function Planning(scope: Scope) {
                             <span className="block text-sm text-ink-2">{line.saleDay ? t("Planning.sale", { date: day(line.saleDay) }) : t("Planning.saleUnknown")}</span>
                             {line.overlaps && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.overlaps")}</span>}
                             {line.shortDowntime && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.short", { days: String(min) })}</span>}
-                            {plan && manage && (
-                              <button type="button" onClick={() => write(P.cancelPlan, "plannedBatch", { ...plan, status: "cancelled" }, { id: plan.id })} className={`${secondary} mt-2`}>
-                                {t("Planning.cancel", { date: day(plan.placeOn) })}
-                              </button>
+                            {plan && manage && placing === plan.id && (
+                              <PlaceForm plan={plan} today={today} protocols={of<ProtocolDto>("protocol")} onSave={(batch, sent, protocol) => place(plan, batch, sent, protocol)} onCancel={() => setPlacing(null)} />
+                            )}
+                            {plan && manage && placing !== plan.id && (
+                              <span className="mt-2 flex flex-wrap gap-2">
+                                {plan.placeOn <= nextFarmDay(today) && (
+                                  <button type="button" onClick={() => setPlacing(plan.id)} className={primary}>{t("Planning.place", { date: day(plan.placeOn) })}</button>
+                                )}
+                                <button type="button" onClick={() => write(P.cancelPlan, "plannedBatch", { ...plan, status: "cancelled" }, { id: plan.id })} className={secondary}>
+                                  {t("Planning.cancel", { date: day(plan.placeOn) })}
+                                </button>
+                              </span>
                             )}
                           </li>
                         );
@@ -109,6 +138,57 @@ function Planning(scope: Scope) {
 }
 
 type Strain = { id: string; name: string };
+
+/** PL3: the placement, filled from the plan; what only the delivery says (dead on arrival, delivery note) is asked here. */
+function PlaceForm({ plan, today, protocols, onSave, onCancel }: { plan: PlanDto; today: string; protocols: ProtocolDto[]; onSave: (batch: BatchDto, sent: object, protocol: ProtocolDto | undefined) => Promise<void>; onCancel: () => void }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const [error, setError] = useState<string>();
+  const id = { day: useId(), chicks: useId(), dead: useId(), note: useId(), price: useId(), weight: useId(), protocol: useId() };
+  const price = plan.chickPriceCentimes ? `${BigInt(plan.chickPriceCentimes) / 100n},${String(BigInt(plan.chickPriceCentimes) % 100n).padStart(2, "0")}` : "";
+  const submit = async (ev: FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
+    const data = new FormData(ev.currentTarget);
+    const get = (k: string) => String(data.get(k) ?? "").trim();
+    const int = (k: string) => (/^\d+$/.test(get(k)) ? Number(get(k)) : NaN);
+    const centimes = parseCentimes(get("price"));
+    const [chicks, dead, weight] = [int("chicks"), get("dead") ? int("dead") : 0, get("weight") ? int("weight") : null];
+    if (centimes === null || !get("note") || !(chicks > 0) || Number.isNaN(dead) || (weight !== null && !(weight > 0))) return setError("Batches.invalid");
+    setError(undefined);
+    const sent = { id: uuidv7(), houseId: plan.houseId, strainId: plan.strainId, placedOn: get("day"), chicksPlaced: chicks, deadOnArrival: dead, hatchery: plan.hatchery, deliveryNote: get("note"), chickUnitPriceCentimes: String(centimes), dayOldWeightGrams: weight };
+    await onSave({ ...sent, farmId: plan.farmId, species: "broiler", status: "open" }, sent, protocols.find((p) => p.id === get("protocol")));
+  };
+  return (
+    <form onSubmit={submit} className="mt-2 flex flex-col gap-2 rounded-2xl border border-line p-3" aria-label={t("Planning.place", { date: formatDay(plan.placeOn as FarmDay, locale) })}>
+      <label htmlFor={id.day}>{t("Batches.placedOn")}</label>
+      <input id={id.day} name="day" type="date" required max={nextFarmDay(today as FarmDay)} defaultValue={plan.placeOn <= today ? today : plan.placeOn} className={field} />
+      <label htmlFor={id.chicks}>{t("Batches.chicksPlaced")}</label>
+      <input id={id.chicks} name="chicks" inputMode="numeric" dir="ltr" required defaultValue={String(plan.chicks)} className={field} />
+      <label htmlFor={id.dead}>{t("Batches.deadOnArrival")}</label>
+      <input id={id.dead} name="dead" inputMode="numeric" dir="ltr" defaultValue="0" className={field} />
+      <label htmlFor={id.note}>{t("Batches.deliveryNote")}</label>
+      <input id={id.note} name="note" required maxLength={60} dir="ltr" className={field} />
+      <label htmlFor={id.price}>{t("Batches.chickPrice")}</label>
+      <input id={id.price} name="price" inputMode="decimal" dir="ltr" required defaultValue={price} className={field} />
+      <label htmlFor={id.weight}>{t("Batches.dayOldWeight")}</label>
+      <input id={id.weight} name="weight" inputMode="numeric" dir="ltr" className={field} />
+      {protocols.length > 0 && (
+        <>
+          <label htmlFor={id.protocol}>{t("Batches.protocol")}</label>
+          <select id={id.protocol} name="protocol" className={field}>
+            {protocols.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            <option value="">{t("Batches.noProtocol")}</option>
+          </select>
+        </>
+      )}
+      {error && <p role="alert">{t(error)}</p>}
+      <div className="flex gap-3">
+        <button type="submit" className={primary}>{t("Planning.placeSave")}</button>
+        <button type="button" onClick={onCancel} className={secondary}>{t("Batches.cancel")}</button>
+      </div>
+    </form>
+  );
+}
 
 function PlanForm({ houses, strains, today, onSave }: { houses: HouseDto[]; strains: readonly Strain[]; today: string; onSave: (p: PlanDto) => Promise<void> }) {
   const t = useTranslations();

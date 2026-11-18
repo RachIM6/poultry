@@ -6,4 +6,5 @@ export const PLANNING_MUTATIONS = {
   savePlan: "planning.savePlan",
   cancelPlan: "planning.cancelPlan",
   saveDowntime: "planning.saveDowntime",
+  placeFromPlan: "planning.placeFromPlan",
 } as const;

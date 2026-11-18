@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PlaceBatch } from "@/modules/flock/schema";
 
 // SPEC-m5 §7, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009).
 export * from "@/modules/planning/shared";
@@ -15,6 +16,9 @@ export const SavePlan = z.object({
   saleAge: z.int32().min(1).max(800).nullable(),
 });
 export const CancelPlan = z.object({ id: z.uuid() });
+
+// PL3: the batch placed from a plan, with flock's own placement rules.
+export const PlaceFromPlan = z.object({ planId: z.uuid(), batch: PlaceBatch });
 
 // PL5, §2: the owner's minimum downtime with its source; a new dated version each time.
 export const SaveDowntime = z.object({ id: z.uuid(), farmId: z.uuid(), validFrom: z.iso.date(), minDays: z.int32().min(0).max(365), source: z.string().trim().min(3).max(300) });

@@ -106,7 +106,12 @@ Done 2026-11-18 with T96: `/planning` is precached and linked from "Plus" (farm 
 ### T98: Place from a plan (PL3)
 **Description:** the placement form prefilled from the plan; one mutation places the batch and marks the plan placed (flock's placement through `flock/index.ts`).
 **AC:**
-- [ ] Placing twice from one plan places one batch (integration); the plan shows "Mis en place" (Playwright).
+- [x] Placing twice from one plan places one batch (integration); the plan shows "Mis en place" (Playwright). (`planning/plans.int.test.ts`: twice → one batch, `ALREADY_DONE`; a second open batch in the house is still refused and the plan stays planned. `e2e/place-from-plan.spec.ts`: placed offline, the house shows the batch with the plan's sale day, then one batch and the plan placed on the server.)
+
+Done 2026-11-18 (branch `feat/t98-place-from-plan`), decisions taken without asking:
+- **`planning.placeFromPlan` calls flock's own `placeBatch`** (now exported by `flock/index.ts`) in the same transaction: every placement rule applies (strain, one open batch per house, the day), then the plan is marked placed with the batch's id.
+- **The form lives on `/planning`, not `/batches`:** prefilled from the plan (chicks, strain, hatchery, booked price); it asks what only the delivery says (dead on arrival, delivery note, day-old weight) and the vaccination protocol, then sends the vaccination plan as `/batches` does. `/batches` has no room in its JS budget.
+- "Mettre en place" shows from the day before the planned day (the server accepts up to tomorrow), so an early or late delivery is still placed from its plan.
 **Size:** M
 
 ### T99: Reminder the day before (PL4)

@@ -1069,6 +1069,7 @@ model PlannedBatch {
   saleAge            Int? // days
   status             String // planned | cancelled | placed
   batchId            String?  @db.Uuid // the batch it became (PL3)
+  remindedAt         DateTime? @db.Timestamptz // PL4: the day-before reminder was sent
   createdBy          String   @db.Uuid
   createdAt          DateTime @default(now()) @db.Timestamptz
   updatedAt          DateTime @updatedAt @db.Timestamptz

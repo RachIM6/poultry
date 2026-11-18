@@ -117,12 +117,16 @@ Done 2026-11-18 (branch `feat/t98-place-from-plan`), decisions taken without ask
 ### T99: Reminder the day before (PL4)
 **Description:** a daily job like the vaccination reminders: one notification per plan the day before, to owners and managers, held by quiet hours.
 **AC:**
-- [ ] Once per plan, none for a cancelled or placed plan (integration, fixed clock).
+- [x] Once per plan, none for a cancelled or placed plan (integration, fixed clock). (`planning/reminders.int.test.ts`: once, owners and managers only, none for a cancelled, a placed or a later plan.)
+
+Done 2026-11-18 (branch `feat/t99-placement-reminder`), decisions taken without asking:
+- **Claimed once** with `PlannedBatch.remindedAt` in one `UPDATE … RETURNING`, the notifications in the same transaction, like the instrument reminders; run by `POST /api/push/dispatch` with the others.
+- **From the start of the farm day before**, not urgent: quiet hours hold it (N2). Template `placementTomorrow`: house, chicks, hatchery (no price: no money in the message).
 **Size:** S
 
 ### ✅ Checkpoint M5
 - [ ] The owner reviewed SPEC-m5, ADR-011 and NQ1–NQ7; a real vet used the access for a week.
-- [ ] SPEC-m5 §9 criteria met.
+- [ ] SPEC-m5 §9 criteria met. (§9.1 `e2e/switch-farm.spec.ts` + `app/api/sync/partners.int.test.ts`; §9.2 the same test file, accountant part; §9.3 `identity/partners.int.test.ts`, `identity/organizations.int.test.ts`; §9.4 `e2e/place-from-plan.spec.ts` + `planning/reminders.int.test.ts`; §9.5 each task's verification.)
 
 ## Later
 - Farm-level partner scope (NQ1), regional price index (NQ2), FISA prices (NQ3), seasonality (NQ5), vet signature (NQ6), accountant writes (NQ7), best selling day (OQ5), bank and insurer access.

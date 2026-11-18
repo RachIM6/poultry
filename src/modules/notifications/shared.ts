@@ -2,7 +2,7 @@
 // which re-exports this file.
 
 /** Message keys under Notifications.templates in ar.json / fr.json. Modules add theirs here (low stock, vaccines…). */
-export const TEMPLATE_KEYS = ["test", "lowStock", "vaccineTomorrow", "vaccineToday", "instrumentDue", "creditApproval", "climateOutOfRange", "powerCut"] as const;
+export const TEMPLATE_KEYS = ["test", "lowStock", "vaccineTomorrow", "vaccineToday", "instrumentDue", "creditApproval", "climateOutOfRange", "powerCut", "placementTomorrow"] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
 export type NotificationDto = {

@@ -1054,3 +1054,39 @@ model PriceObservation {
 
   @@index([organizationId, product, day])
 }
+
+// Owner: planning (SPEC-m5 PL1). A batch planned in a house: edited while planned, then cancelled or placed.
+model PlannedBatch {
+  id                 String   @id @db.Uuid
+  organizationId     String   @db.Uuid
+  farmId             String   @db.Uuid
+  houseId            String   @db.Uuid
+  placeOn            DateTime @db.Date
+  chicks             Int
+  strainId           String
+  hatchery           String
+  chickPriceCentimes BigInt?
+  saleAge            Int? // days
+  status             String // planned | cancelled | placed
+  batchId            String?  @db.Uuid // the batch it became (PL3)
+  createdBy          String   @db.Uuid
+  createdAt          DateTime @default(now()) @db.Timestamptz
+  updatedAt          DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([placeOn, status])
+}
+
+// Owner: planning (SPEC-m5 PL5, §2). The owner's minimum downtime between batches of a farm, from a source; dated.
+model DowntimeRule {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  validFrom      DateTime @db.Date
+  minDays        Int
+  source         String
+  createdBy      String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}

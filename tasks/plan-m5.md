@@ -84,14 +84,23 @@ Done 2026-11-18 with T94: `/prices` is precached and linked from "Plus" (money g
 ### T96: Planned batches (PL1, PL5)
 **Description:** module `planning` (light): `PlannedBatch` (create, edit until placed, cancel) and `PlanningSettings` (minimum downtime with source, dated). Pure `domain/plan.ts`: sale day, gaps, overlaps.
 **AC:**
-- [ ] Unit: sale day; gap; overlap with the open batch and between plans; no overlap claimed without a sale age; downtime warning only with a minimum entered.
-- [ ] Workers refused; chick price stripped for workers; isolated (integration).
+- [x] Unit: sale day; gap; overlap with the open batch and between plans; no overlap claimed without a sale age; downtime warning only with a minimum entered. (`planning/domain/plan.test.ts`)
+- [x] Workers refused; chick price stripped for workers; isolated (integration). (`planning/plans.int.test.ts`)
+
+Done 2026-11-18 (branch `feat/t96-planning`, with T97), decisions taken without asking:
+- **No new permission:** plans use `flock.manage` (owner, manager: the people who place batches); the minimum downtime uses `organization.manage` (owner). Keeps the shared role table, and `/batches`'s JS, as they were.
+- **An open batch's sale day** is known only when it was placed from a plan with a sale age (T98); otherwise nothing is claimed after it.
+- **Gaps and overlaps compare each slot with the one just before it** in placement order.
+- **Edit = save again while planned** (the server accepts it); the screen offers "Annuler" and a new plan, not an edit form yet.
+- Planning is hidden from both partner roles (allowlist test updated).
 **Size:** M
 
 ### T97: /planning (PL2)
 **Description:** static shell: per house, open batch and plans in order, gaps and warnings; the plan form.
 **AC:**
-- [ ] A plan added offline overlapping the open batch shows the warning, survives a reload and syncs once (Playwright).
+- [x] A plan added offline overlapping the open batch shows the warning, survives a reload and syncs once (Playwright). (`e2e/planning.spec.ts`: three plans, one placed before the previous sale, one 10 days after a sale with a 14-day test minimum.)
+
+Done 2026-11-18 with T96: `/planning` is precached and linked from "Plus" (farm group); the owner's minimum with its source on top, or "non saisi".
 **Size:** S
 
 ### T98: Place from a plan (PL3)

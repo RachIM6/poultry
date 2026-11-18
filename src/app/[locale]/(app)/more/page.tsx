@@ -25,7 +25,7 @@ const row = "flex min-h-12 items-center justify-between py-2 after:text-muted af
 async function Content() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
-  const money = can(ctx.value, "finance.record");
+  const money = can(ctx.value, "money.read"); // reads: the accountant too (SPEC-m5 PA5)
   const groups = [
     {
       title: t("More.farm"),
@@ -43,7 +43,7 @@ async function Content() {
       title: t("More.money"),
       links: [
         can(ctx.value, "sales.manage") && { href: "/receivables", label: t("Receivables.open") },
-        money && { href: "/expenses", label: t("Expenses.open") },
+        can(ctx.value, "finance.record") && { href: "/expenses", label: t("Expenses.open") },
         money && { href: "/treasury", label: t("Treasury.open") },
         money && { href: "/results", label: t("Results.open") },
         money && { href: "/budget", label: t("Budget.open") },

@@ -35,7 +35,7 @@ async function bookedSales(ctx: TenantContext, legalEntityId: string, from: stri
  * "3 years in a row" rule. Owners and managers only.
  */
 export async function thresholdTracker(ctx: TenantContext, clock: Clock = systemClock): Promise<Result<ThresholdTracker | null, "FORBIDDEN" | "NOT_FOUND">> {
-  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
   const today = farmDayOf(clock.now());

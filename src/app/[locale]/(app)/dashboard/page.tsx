@@ -27,11 +27,11 @@ async function Content() {
   const { userId, organizationId, role } = ctx.value;
   const [entity] = await listLegalEntities(ctx.value);
   // FN17: from 90 % of the exemption threshold, the owner and the manager see it first thing.
-  const tracker = can(ctx.value, "finance.record") ? await thresholdTracker(ctx.value) : null;
+  const tracker = can(ctx.value, "money.read") ? await thresholdTracker(ctx.value) : null;
   const nearThreshold = tracker?.ok && tracker.value?.usage.alert ? tracker.value.usage.percent : null;
   // WebOverview.dc.html "Argent": the cash at hand and the last closed batch, for those who see money (FX2).
   let money: React.ReactNode = null;
-  if (can(ctx.value, "finance.record")) {
+  if (can(ctx.value, "money.read")) {
     const [treasury, results] = await Promise.all([treasuryOverview(ctx.value, farmDayOf(new Date()).slice(0, 7)), batchResults(ctx.value)]);
     const cash = treasury.ok ? treasury.value.accounts.reduce((sum, a) => sum + a.balanceCentimes, 0n) : null;
     const last = results.ok ? results.value.filter((r) => r.closedOn).sort((a, b) => b.closedOn!.localeCompare(a.closedOn!))[0] : undefined;

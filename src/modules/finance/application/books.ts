@@ -48,7 +48,7 @@ async function entriesBetween(ctx: TenantContext, legalEntityId: string, from: s
  * first day, so the à-nouveaux entry is in it). Owners and managers only (FX2).
  */
 export async function readBooks(ctx: TenantContext, month: string): Promise<Result<Books, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND">> {
-  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("INVALID_INPUT");
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");

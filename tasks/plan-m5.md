@@ -30,8 +30,14 @@ Done 2026-11-18 (branch `feat/t90-partner-roles`), decisions taken without askin
 ### T91: Partner pull allowlist (PA4, PA5, ADR-011)
 **Description:** the sync pull skips, for a vet or an accountant, every entity not on that role's list; the lists live with the registry.
 **AC:**
-- [ ] A vet pulls batches, entries and health, and no sale, purchase, expense, employee, staff record, advance or price (integration on the full registry: the test fails when a new entity is added without a decision).
-- [ ] An accountant pulls money and batches, and no staff record or climate target set.
+- [x] A vet pulls batches, entries and health, and no sale, purchase, expense, employee, staff record, advance or price (integration on the full registry: the test fails when a new entity is added without a decision). (`app/api/sync/partners.int.test.ts`)
+- [x] An accountant pulls money and batches, and no staff record or climate target set.
+
+Done 2026-11-18 (branch `feat/t91-partner-pull`), decisions taken without asking:
+- **`SyncRegistry.views`:** per partner role, the entities that may leave; the pull skips the rest. Staff roles have no view and keep the serializers' rules. The lists live in `app/api/sync/registry.ts` (server only: nothing added to the phone's JS).
+- **Vet:** farms, houses, batches (money stripped), daily entries, weighings, birds sold (counts), protocols, vaccinations, treatments, vet visits, stock items and movements (vaccine lots, no prices), their own notifications. Not climate: SPEC-m5 PA4 keeps the vet to batches and health.
+- **Accountant:** everything with money (purchases, suppliers, stock, sales, buyers, payments, instruments, treasury, expenses, transfers, batch costs, employees, advances, pay, labour rules), farms, houses, batches, birds sold, their own notifications. Not daily entries, weighings, health, tasks, attendance, staff records or climate.
+- **Finance reads moved from `finance.record` to `money.read`** (the books, the export, treasury, results, budgets list, threshold, and the synced treasury, expenses and transfers): the same owners and managers as before, plus the accountant. Writes keep `finance.record`. The "Plus" menu shows the accountant every finance screen except expenses.
 **Size:** M
 
 ### T92: Active organisation (PA2)

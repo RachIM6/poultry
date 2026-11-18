@@ -117,7 +117,7 @@ export type TreasuryOverview = {
 
 /** FN10: each bank account's and cash box's balance, and this month's movements on 5141 / 5161 (owner, manager). */
 export async function treasuryOverview(ctx: TenantContext, month: string): Promise<Result<TreasuryOverview, "FORBIDDEN" | "INVALID_INPUT">> {
-  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("INVALID_INPUT");
   const org = { organizationId: ctx.organizationId };
   const [accounts, balances, lines] = await Promise.all([

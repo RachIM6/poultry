@@ -72,7 +72,7 @@ export type BatchResultRow = BatchResult & {
  * its share of the shared ones). A purchase is never a batch cost, only what was consumed (no double count).
  */
 export async function batchResults(ctx: TenantContext): Promise<Result<BatchResultRow[], "FORBIDDEN">> {
-  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   return ok(
     await db.$transaction(async (tx) => {
       const batches = await batchesForFinance(tx, ctx);

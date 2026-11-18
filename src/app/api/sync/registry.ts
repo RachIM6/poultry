@@ -16,4 +16,12 @@ const modules: SyncRegistry[] = [farmRegistrySync, referenceDataSync, notificati
 export const registry: SyncRegistry = {
   mutations: Object.assign({}, ...modules.map((m) => m.mutations)),
   entities: Object.assign({}, ...modules.map((m) => m.entities)),
+  // SPEC-m5 PA4, PA5 (ADR-011): what a partner's phone receives; anything else, a new entity included, never leaves.
+  views: {
+    vet: ["farm", "house", "batch", "dailyEntry", "weighing", "soldBirds", "protocol", "vaccination", "treatment", "vetVisit", "stockItem", "movement", "notification"],
+    accountant: [
+      "farm", "house", "batch", "soldBirds", "batchCost", "supplier", "stockItem", "movement", "purchase", "buyer", "sale", "buyerPayment", "instrumentStatus",
+      "treasuryAccount", "expense", "transfer", "employee", "advance", "payMonth", "labourRules", "notification",
+    ],
+  },
 };

@@ -2,18 +2,18 @@ import type { Role, TenantContext } from "./tenant";
 
 // SPEC I5 role → action table, the only place roles are checked (poultry-auth §1). Never compare role names inline.
 const ALLOWED = {
-  "organization.read": ["owner", "manager", "worker"],
+  "organization.read": ["owner", "manager", "worker", "vet", "accountant"], // vet, accountant: SPEC-m5 §5
   "organization.manage": ["owner"], // a manager does everything except organisation settings and members
   "members.manage": ["owner"],
   "farms.manage": ["owner", "manager"], // create and edit farms and houses; workers see them
-  "protocols.manage": ["owner", "manager"], // copy and edit vaccination protocols; workers see them
+  "protocols.manage": ["owner", "manager", "vet"], // copy and edit vaccination protocols; workers see them
   "stock.manage": ["owner", "manager"], // suppliers, purchases, corrections; workers see quantities (I5)
   "flock.manage": ["owner", "manager"], // place batches (B1); workers see them and enter daily data (I5)
   "flock.record": ["owner", "manager", "worker"], // daily entries (B2), weighings (B3): the worker's job
-  "health.manage": ["owner", "manager"], // a batch's vaccination plan (H1), with its placement
-  "health.record": ["owner", "manager", "worker"], // vaccinations given (H2), treatments (H3), vet visits (H5), I5
+  "health.manage": ["owner", "manager", "vet"], // a batch's vaccination plan (H1), with its placement
+  "health.record": ["owner", "manager", "worker", "vet"], // vaccinations given (H2), treatments (H3), vet visits (H5), I5
   "sales.manage": ["owner", "manager"], // buyers and sales (V1–V3): prices and amounts, so never workers (I5)
-  "money.read": ["owner", "manager"], // prices, costs, sale amounts, supplier credit
+  "money.read": ["owner", "manager", "accountant"], // prices, costs, sale amounts, supplier credit
   "finance.record": ["owner", "manager"], // entries, expenses, payments, cheques (SPEC-finance FX2); never workers
   "finance.manage": ["owner"], // periods, the accounting profile, overrides, credit limits, opening a fiscal year
   "workforce.manage": ["owner", "manager"], // employees, routines, attendance, advances, pay (SPEC-m4 §6); wages never reach workers

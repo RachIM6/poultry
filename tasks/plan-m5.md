@@ -17,9 +17,14 @@ T96 planned batches ── T97 /planning + warnings ── T98 place from plan �
 ### T90: Vet and accountant roles, access end date (PA1, PA3, §5)
 **Description:** `MemberRole` and `Role` gain `vet`, `accountant`; `Invitation` and `Membership` gain `accessUntil`; the invitation form offers the two roles and the date (owner only). `getTenantContext` ignores a membership past its end. The role → action table gets the rows of SPEC-m5 §5.
 **AC:**
-- [ ] An owner invites a vet with an end date; a manager cannot invite one (integration).
-- [ ] A membership past `accessUntil` gives `NO_MEMBERSHIP` for that organisation (integration).
-- [ ] Vet: `health.record` yes, `flock.manage`, `money.read`, `workforce.manage` no; accountant: `money.read` yes, every write no (unit on `can`).
+- [x] An owner invites a vet with an end date; a manager cannot invite one (integration). (`identity/partners.int.test.ts`; `e2e/partners.spec.ts`)
+- [x] A membership past `accessUntil` gives `NO_MEMBERSHIP` for that organisation (integration). (On the end day itself it still opens.)
+- [x] Vet: `health.record` yes, `flock.manage`, `money.read`, `workforce.manage` no; accountant: `money.read` yes, every write no (unit on `can`). (`lib/permissions.test.ts` lists every action each partner gets.)
+
+Done 2026-11-18 (branch `feat/t90-partner-roles`), decisions taken without asking:
+- **The end day is a farm day, included:** the membership opens the organisation up to and on that day. Only partners may have one; staff are ended by removing them, and a partner whose role is changed to staff loses theirs.
+- **An end day in the past is refused** at invitation.
+- **Not yet:** a vet who already belongs to another farm stays with their pending invitation until T92 (the accept screen and the switcher). Until T91, a partner's phone pulls what a worker's would, money included for the accountant.
 **Size:** M
 
 ### T91: Partner pull allowlist (PA4, PA5, ADR-011)

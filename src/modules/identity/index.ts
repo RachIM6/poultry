@@ -4,4 +4,4 @@ export { cancelInvitation, changeRole, inviteMember, listMembers, removeMember }
 export type { MembersDto } from "./application/members";
 export { addOwner, getTenantContext, localesOf, lockForOnboarding, memberByPhone, membersWithRoles } from "./application/membership";
 export { PhoneNumber } from "./domain/phone-number";
-export { ROLES } from "./schema";
+export { PARTNER_ROLES, ROLES } from "./schema";

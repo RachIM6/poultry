@@ -26,7 +26,7 @@ The farm opens to the two outside people it already works with, and plans ahead:
 | **Partner** | identity, partner-access | A member with the role **vet** or **accountant**, invited by the owner's phone invitation (the farmer's consent is the invitation). Optional **access end date**: after it, the membership no longer opens the organisation |
 | **Active organisation** | identity | A user with several memberships picks one; it is kept in a cookie and checked against their live memberships on every request, so a forged value opens nothing. Without a choice, the oldest membership (today's rule) |
 | **Partner view** | partner-access | What a partner's phone receives on pull: an allowlist of entities per role (§5), applied at the one place the sync pull serializes changes |
-| **Price observation** | market-prices | Product, farm, farm day, price per unit in centimes, what it was seen on (free text), who recorded it. Units are fixed per product (§6) |
+| **Price observation** | market-prices | Product, farm day, price per unit in centimes, where or what it was seen on (free text), who recorded it. Units are fixed per product (§6). Per organisation, not per farm: `market-prices` may not depend on `farm-registry` (CAPABILITY-MAP) |
 | **Planned batch** | planning | House, planned placement day, chicks, strain, hatchery, booked chick price (optional), planned sale age in days (optional), status planned / placed / cancelled, and the batch it became |
 | **Farm planning settings** | planning | Minimum downtime in days (§2), entered by the owner, dated and with a source |
 
@@ -53,7 +53,7 @@ Every other action stays as it is: a partner creates no batch, entry, sale or pa
 
 ## 6. `market-prices` requirements
 
-- **MP1.** The owner or a manager records a price, offline: product (day-old chick per head, feed per kg, live broiler per kg, egg per egg, cull hen per head), farm, farm day, price, what it was seen on. Integer centimes; a price of zero is refused. Workers neither record nor receive prices; accountants receive them.
+- **MP1.** The owner or a manager records a price, offline: product (day-old chick per head, feed per kg, live broiler per kg, egg per egg, cull hen per head), farm day, price, where or what it was seen on (a souk, a buyer's offer, a supplier's invoice). Integer centimes; a price of zero is refused. Workers neither record nor receive prices; accountants receive them.
 - **MP2.** `/prices`: per product, the latest price with its day and what it was seen on, and the change against the previous one; below, the history, newest first. Offline.
 - **MP3.** Nothing leaves the organisation: no shared index (NQ2).
 

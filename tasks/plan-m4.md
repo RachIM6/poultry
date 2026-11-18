@@ -13,6 +13,7 @@ Screens are static shells under `src/app/[locale]/(app)/`, precached in `src/app
 ```
 T70 employees ── T71 day tasks (pure) ── T72 routines + one-off ── T73 "Mes tâches" ── T74 assignment
 T70 ── T75 attendance ── T76 advances ── T77 labour rules + pay ── (T78 CNSS export, blocked MQ3)
+T70 ── T86 trainings and accidents
 T80 climate targets ── T81 readings ── T82 alerts
                        T81 ── T83 power cuts ── T84 history
 ```
@@ -135,6 +136,21 @@ Done 2026-11-17 (branch `feat/t77-pay`), decisions taken without asking:
 ### T78: CNSS declaration export (blocked: MQ3)
 Not started until the file format is provided.
 
+### T86: Trainings and work accidents (WF13)
+**Description:** `StaffRecord` (kind training or accident), `workforce.addStaffRecord`; a "Formations et accidents" card on `/staff`.
+**AC:**
+- [x] Recorded once; workers refused and never pull a record, their own included; topic required for a training, what happened for an accident; a day in the future and other organisations refused (integration). (`workforce/staff-records.int.test.ts`)
+- [x] A training and an accident recorded offline on `/staff` survive a reload and sync once (Playwright). (`e2e/staff-records.spec.ts`)
+
+Done 2026-11-18 (branch `feat/t86-trainings-accidents`), decisions taken without asking:
+- **Added to M4 after the fact:** SCOPE §16 lists them under workforce; SPEC-m4 had left them out only to keep M4 small. Now WF13.
+- **One table, two kinds** (`StaffRecord`): a training has a topic (biosecurity, vaccination technique or other, the SCOPE §16 examples) and an optional note; an accident has what happened (required) and days off work if known.
+- **Recorded once, never edited,** like advances; a wrong record stays, with a correcting one after it.
+- **Workers never receive any record, their own included:** an accident is health data (`workforce.manage` decides, not `money.read`).
+- **No legal step:** no declaration deadline, insurer form or reminder (MQ6).
+- `/staff` shows the last ten records and the form, with a line saying only the owner and managers see them.
+**Size:** S
+
 ### T80: Climate targets (CL1)
 **Description:** `ClimateTargetSet` (dated, source, bands JSON) owned by climate, `climate.saveTargets` (owner), `domain/targets.ts` (`targetFor(sets, day, age)`, overlap check). `/climate/targets` shell.
 **AC:**
@@ -207,7 +223,7 @@ Done 2026-11-17 (branch `feat/t84-climate-history`), decisions taken without ask
 ## Later
 
 - T78 CNSS export and payslips (MQ3), income tax (MQ4).
-- Training records and work accidents (SCOPE §16, `W-Staff` "Formations").
+- Work accident declarations and their deadlines (MQ6).
 - Targets per production type (after M3 merges), sensors and controllers (`iot`), escalation chain (MQ5, OQ2), weather alerts (external service: ask first).
 - Pay posted to finance (6171 / 4441 / 4432 in the mockup, to confirm with the accountant).
 - Workforce tasks on the "Aujourd'hui" home itself (UI session).

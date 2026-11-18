@@ -937,6 +937,23 @@ model SalaryAdvance {
   @@index([organizationId])
 }
 
+/// SPEC-m4 WF13: a training or a work accident, recorded once. Owners and managers only.
+model StaffRecord {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  employeeId     String   @db.Uuid
+  day            DateTime @db.Date
+  kind           String // training | accident
+  topic          String? // training: biosecurity | vaccination | other
+  note           String? // an accident: what happened (required)
+  daysOff        Int? // an accident: days off work, if known
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
 // Owner: workforce. SPEC-m4 §2, MQ2: the labour figures the owner entered, with their source. Dated, never edited;
 // no value is seeded. Rates in basis points (1 % = 100); null: not given by the source.
 model LabourRules {

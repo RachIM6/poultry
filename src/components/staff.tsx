@@ -11,7 +11,7 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ATTENDANCE, attendanceId, JOBS, monthEnd, payFor, payMonthId, rulesOn, WORKFORCE_MUTATIONS as W, type AdvanceDto, type AttendanceDto, type EmployeeDto, type LabourRules, type PayLine, type PayMonthDto } from "@/modules/workforce/shared";
+import { ATTENDANCE, attendanceId, JOBS, monthEnd, payFor, payMonthId, rulesOn, TRAINING_TOPICS, WORKFORCE_MUTATIONS as W, type AdvanceDto, type AttendanceDto, type EmployeeDto, type LabourRules, type PayLine, type PayMonthDto, type StaffRecordDto } from "@/modules/workforce/shared";
 import { localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -26,7 +26,7 @@ function Staff(scope: Scope) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb(scope);
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance", "labourRules", "payMonth").toArray(), [scope.userId, scope.organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance", "labourRules", "payMonth", "staffRecord").toArray(), [scope.userId, scope.organizationId]);
   const [editing, setEditing] = useState<EmployeeDto | "new" | null>(null);
   const [message, setMessage] = useState<string>();
   if (!can(scope, "workforce.manage")) return <p>{t("Staff.forbidden")}</p>;
@@ -86,6 +86,7 @@ function Staff(scope: Scope) {
       )}
       <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
       <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={(a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
+      <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
       <Pay scope={scope} farms={farms} employees={employees} attendance={of<AttendanceDto>("attendance")} advances={of<AdvanceDto>("advance")} rules={of<LabourRules>("labourRules")} months={of<PayMonthDto>("payMonth")} write={(type, entity, data) => writeLocal(db, { type, payload: data }, { entity, id: data.id, data }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
     </>
   );
@@ -310,6 +311,90 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
         <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
         {error && <p role="alert">{t(error)}</p>}
         <button type="submit" className={primary}>{t("Advances.save")}</button>
+      </form>
+    </section>
+  );
+}
+
+/** WF13 (SCOPE §16): trainings and work accidents, the last ten, and a form. Never on a worker's phone. */
+function Records({ employees, records, onSave }: { employees: EmployeeDto[]; records: StaffRecordDto[]; onSave: (r: StaffRecordDto) => Promise<void> }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const [kind, setKind] = useState<StaffRecordDto["kind"]>("training");
+  const [error, setError] = useState<string>();
+  const [key, setKey] = useState(0); // a new key empties the form after a save
+  const today = farmDayOf(new Date());
+  if (employees.length === 0) return null;
+  const name = (id: string) => employees.find((e) => e.id === id)?.name ?? "";
+  const last = [...records].sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 10);
+
+  const submit = async (ev: FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
+    const data = new FormData(ev.currentTarget);
+    const get = (k: string) => String(data.get(k) ?? "").trim();
+    const daysOff = get("daysOff") === "" ? null : Number(get("daysOff"));
+    if (daysOff !== null && !(Number.isInteger(daysOff) && daysOff >= 0 && daysOff <= 365)) return setError("errors.INVALID_QUANTITY");
+    if (kind === "accident" && get("note") === "") return setError("errors.INVALID_INPUT"); // only spaces passes "required"
+    setError(undefined);
+    const employee = employees.find((e) => e.id === data.get("employee"))!;
+    const base = { id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day: get("day"), kind };
+    await onSave(kind === "training" ? { ...base, topic: get("topic") as StaffRecordDto["topic"], note: get("note") || null, daysOff: null } : { ...base, topic: null, note: get("note"), daysOff });
+    setKey((k) => k + 1);
+  };
+
+  return (
+    <section aria-label={t("Records.title")} className="flex flex-col gap-3">
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Records.title")}</h2>
+      <p className="text-[13px] text-ink-2">{t("Records.private")}</p>
+      {last.length > 0 && (
+        <ul aria-label={t("Records.list")} className={`${card} gap-2`}>
+          {last.map((r) => {
+            const date = formatDay(r.day as FarmDay, locale);
+            return (
+              <li key={r.id}>
+                {r.kind === "training" ? t("Records.training", { name: name(r.employeeId), topic: t(`Records.topics.${r.topic}`), date }) : t("Records.accident", { name: name(r.employeeId), date, note: r.note ?? "" })}
+                {r.daysOff !== null && <span className="block text-sm text-ink-2">{t("Records.daysOffLine", { days: String(r.daysOff) })}</span>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <form key={key} onSubmit={submit} className={card} aria-label={t("Records.add")}>
+        <Field label={t("Records.kind")}>
+          {(id) => (
+            <select id={id} value={kind} onChange={(e) => setKind(e.target.value as StaffRecordDto["kind"])} className={field}>
+              <option value="training">{t("Records.kinds.training")}</option>
+              <option value="accident">{t("Records.kinds.accident")}</option>
+            </select>
+          )}
+        </Field>
+        <Field label={t("Attendance.employee")}>
+          {(id) => (
+            <select id={id} name="employee" className={field}>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label={t("Records.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
+        {kind === "training" ? (
+          <>
+            <Field label={t("Records.topic")}>
+              {(id) => (
+                <select id={id} name="topic" className={field}>
+                  {TRAINING_TOPICS.map((x) => <option key={x} value={x}>{t(`Records.topics.${x}`)}</option>)}
+                </select>
+              )}
+            </Field>
+            <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={500} className={field} />}</Field>
+          </>
+        ) : (
+          <>
+            <Field label={t("Records.what")}>{(id) => <textarea id={id} name="note" required maxLength={500} rows={3} className={field} />}</Field>
+            <Field label={t("Records.daysOff")}>{(id) => <input id={id} name="daysOff" inputMode="numeric" dir="ltr" className={field} />}</Field>
+          </>
+        )}
+        {error && <p role="alert">{t(error)}</p>}
+        <button type="submit" className={primary}>{t("Records.save")}</button>
       </form>
     </section>
   );

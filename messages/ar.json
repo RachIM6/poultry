@@ -997,5 +997,29 @@
     "lastCuts": "آخر الانقطاعات",
     "cutMinutes": "{minutes} دقيقة",
     "generatorLine": "المولد في {seconds} ث · {litres} ل من الغازوال"
+  },
+  "Records": {
+    "title": "التكوينات وحوادث الشغل",
+    "private": "يطلع عليها المالك والمسيرون فقط.",
+    "list": "آخر التسجيلات",
+    "training": "{name} · تكوين: {topic} · {date}",
+    "accident": "{name} · حادثة شغل في {date}: {note}",
+    "daysOffLine": "التوقف عن العمل: {days} يوم",
+    "add": "تسجيل تكوين أو حادثة",
+    "kind": "النوع",
+    "kinds": {
+      "training": "تكوين",
+      "accident": "حادثة شغل"
+    },
+    "topic": "الموضوع",
+    "topics": {
+      "biosecurity": "الأمن الحيوي",
+      "vaccination": "تقنية التلقيح",
+      "other": "أخرى"
+    },
+    "day": "التاريخ",
+    "what": "ما الذي حدث",
+    "daysOff": "أيام التوقف عن العمل (إن كانت معروفة)",
+    "save": "حفظ"
   }
 }

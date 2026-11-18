@@ -997,5 +997,29 @@
     "lastCuts": "Dernières coupures",
     "cutMinutes": "{minutes} min",
     "generatorLine": "groupe en {seconds} s · {litres} L de gasoil"
+  },
+  "Records": {
+    "title": "Formations et accidents",
+    "private": "Visible par le propriétaire et les gérants seulement.",
+    "list": "Derniers enregistrements",
+    "training": "{name} · formation : {topic} · {date}",
+    "accident": "{name} · accident du travail le {date} : {note}",
+    "daysOffLine": "Arrêt de travail : {days} j",
+    "add": "Enregistrer une formation ou un accident",
+    "kind": "Type",
+    "kinds": {
+      "training": "Formation",
+      "accident": "Accident du travail"
+    },
+    "topic": "Thème",
+    "topics": {
+      "biosecurity": "Biosécurité",
+      "vaccination": "Technique de vaccination",
+      "other": "Autre"
+    },
+    "day": "Date",
+    "what": "Ce qui s’est passé",
+    "daysOff": "Jours d’arrêt (si connus)",
+    "save": "Enregistrer"
   }
 }

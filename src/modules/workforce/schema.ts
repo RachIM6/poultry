@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ATTENDANCE, attendanceId, isTaskKey, JOBS, taskDoneId, tickable } from "@/modules/workforce/shared";
+import { ATTENDANCE, attendanceId, isTaskKey, JOBS, taskDoneId, tickable, TRAINING_TOPICS } from "@/modules/workforce/shared";
 
 // SPEC-m4 §4, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009).
 export * from "@/modules/workforce/shared";
@@ -56,6 +56,13 @@ export const SetAttendance = z.object({ ...attendanceDay, status: z.enum(ATTENDA
 export const RecordAdvance = z
   .object({ id: z.uuid(), employeeId: z.uuid(), day: z.iso.date(), amountCentimes: z.string().regex(/^[1-9]\d{0,11}$/), deductMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), note: optional(200) })
   .refine((a) => a.deductMonth >= a.day.slice(0, 7), "deducted in the month it is given or later");
+
+// WF13: a training has a topic, an accident says what happened; days off only for an accident.
+const record = { id: z.uuid(), employeeId: z.uuid(), day: z.iso.date() };
+export const AddStaffRecord = z.discriminatedUnion("kind", [
+  z.object({ ...record, kind: z.literal("training"), topic: z.enum(TRAINING_TOPICS), note: optional(500) }),
+  z.object({ ...record, kind: z.literal("accident"), note: text(500), daysOff: z.int32().min(0).max(365).nullable() }),
+]);
 
 // §2, MQ2: each value is optional (the owner enters what their source gives); the source is not.
 const centimes = z.string().regex(/^\d{1,12}$/);

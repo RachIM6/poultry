@@ -40,6 +40,9 @@ export type BatchDto = {
 };
 export const BATCH_MONEY = ["chickUnitPriceCentimes"] as const;
 
+/** B5: birds that left alive, recorded by sales with the sale's id. No money: workers see birds on hand. */
+export type SoldBirdsDto = { id: string; batchId: string; day: string; birds: number; liveWeightGrams: number };
+
 export const FLOCK_MUTATIONS = { placeBatch: "flock.placeBatch", recordDay: "flock.recordDay", recordWeighing: "flock.recordWeighing" } as const;
 
 // SPEC B2: the daily entry.

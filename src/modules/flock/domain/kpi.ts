@@ -28,6 +28,7 @@ export function epef(t: BatchTotals): number | null {
 
 type Day = { day: string; dead: number; culled: number; feed: { grams: number } | null };
 type Weighed = { id: string; day: string; count: number; totalGrams: number };
+type Sold = { day: string; birds: number; liveWeightGrams: number }; // B5: birds that left alive, at the farm's weight
 
 export type BatchKpis = {
   ageDays: number;
@@ -48,25 +49,28 @@ export type BatchKpis = {
 
 const out = (es: readonly Day[]) => es.reduce((n, e) => n + e.dead + e.culled, 0);
 const feed = (es: readonly Day[]) => es.reduce((n, e) => n + (e.feed?.grams ?? 0), 0);
+const birds = (ss: readonly Sold[]) => ss.reduce((n, s) => n + s.birds, 0);
 
 export function batchKpis(
   batch: { placedOn: FarmDay; birdsStarted: number; dayOldWeightGrams: number | null },
   entries: readonly Day[],
   weighings: readonly Weighed[],
   today: FarmDay,
+  sold: readonly Sold[] = [],
 ): BatchKpis {
-  const birdsOnHand = batch.birdsStarted - out(entries);
+  const birdsOnHand = batch.birdsStarted - out(entries) - birds(sold);
   const last = [...weighings].sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id)).at(-1); // UUIDv7: later id = later
   let weighed: BatchKpis["weighed"] = null;
   if (last) {
     const until = entries.filter((e) => e.day <= last.day); // ISO dates sort as text
+    const soldUntil = sold.filter((x) => x.day <= last.day);
     const ageDays = daysBetween(batch.placedOn, last.day as FarmDay);
     const averageGrams = Math.round(last.totalGrams / last.count); // as sampleStats
     const totals: BatchTotals = {
       placed: batch.birdsStarted,
       dead: out(until),
       feedGrams: feed(until),
-      liveWeightGrams: (batch.birdsStarted - out(until)) * averageGrams, // + sold, from sales (B5)
+      liveWeightGrams: (batch.birdsStarted - out(until) - birds(soldUntil)) * averageGrams + soldUntil.reduce((g, x) => g + x.liveWeightGrams, 0),
       ageDays,
       avgWeightGrams: averageGrams,
     };

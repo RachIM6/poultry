@@ -4,7 +4,7 @@ import { checkBatchDay, checkTreatment, withdrawalEnd, withdrawalUntil } from "@
 
 const day = (d: string) => d as FarmDay;
 // Made-up withdrawal days, to test the dates only: the real ones come from each medicine's label (OQ4).
-const t = (endOn: string, withdrawalDays: number) => ({ endOn: day(endOn), withdrawalDays });
+const t = (endOn: string, withdrawalDays: number, startOn = "2026-11-01") => ({ startOn: day(startOn), endOn: day(endOn), withdrawalDays });
 
 describe("withdrawal end (SPEC H3)", () => {
   it("is the treatment's end day + the product's withdrawal days, in farm days", () => {
@@ -30,6 +30,12 @@ describe("withdrawal running on a day (SPEC H4)", () => {
     expect(withdrawalUntil([long, short], day("2026-11-08"))).toBe("2026-11-16");
     expect(withdrawalUntil([short, long], day("2026-11-16"))).toBe("2026-11-16");
     expect(withdrawalUntil([short, long], day("2026-11-17"))).toBeNull();
+  });
+
+  it("starts on the treatment's start day: a sale made before it is not blocked", () => {
+    const treatments = [t("2026-11-08", 5, "2026-11-04")];
+    expect(withdrawalUntil(treatments, day("2026-11-03"))).toBeNull();
+    expect(withdrawalUntil(treatments, day("2026-11-04"))).toBe("2026-11-13");
   });
 
   it("is null without treatments", () => {

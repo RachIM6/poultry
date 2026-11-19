@@ -45,3 +45,24 @@ describe("Batch placement (SPEC B1)", () => {
     expect(Batch.place({ ...placement, dayOldWeightGrams: null, chickUnitPriceCentimes: 0n }, today).ok).toBe(true);
   });
 });
+
+describe("Birds sold (SPEC B5)", () => {
+  const batch = Batch.rehydrate(placement, "open"); // 11 964 started
+  const today = day("2026-11-21");
+
+  it("lets birds leave alive while some are on hand, between placement and today", () => {
+    expect(batch.checkBirdsSold(today, 2000, 9_000, today).ok).toBe(true);
+    expect(batch.checkBirdsSold(today, 2964, 9_000, today).ok).toBe(true); // the last ones
+    expect(batch.checkBirdsSold(today, 2965, 9_000, today)).toEqual({ ok: false, error: "MORE_BIRDS_THAN_ON_HAND" });
+    expect(batch.checkBirdsSold(today, 0, 0, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(batch.checkBirdsSold(day("2026-10-13"), 1, 0, today)).toEqual({ ok: false, error: "DAY_BEFORE_PLACEMENT" });
+    expect(batch.checkBirdsSold(day("2026-11-22"), 1, 0, today)).toEqual({ ok: false, error: "DAY_IN_FUTURE" });
+    expect(Batch.rehydrate(placement, "closed").checkBirdsSold(today, 1, 0, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
+  });
+
+  it("counts birds sold against a day's dead and culled", () => {
+    const entry = { dead: 10, deathCause: "heat" as const, culled: 0, feed: null, waterMl: null, note: null };
+    expect(batch.checkDay(today, entry, 11_954, today).ok).toBe(true); // 11 954 out elsewhere (dead + sold) + 10
+    expect(batch.checkDay(today, entry, 11_955, today)).toEqual({ ok: false, error: "MORE_DEAD_THAN_ON_HAND" });
+  });
+});

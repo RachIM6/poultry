@@ -10,12 +10,14 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto, type DailyEntryDto, type WeighingDto } from "@/modules/flock/schema";
+import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/schema";
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/schema";
 import type { StockItemDto } from "@/modules/inventory/schema";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
+import type { BuyerDto, SaleDto } from "@/modules/sales/schema";
 import { BatchDashboard } from "@/components/batch-dashboard";
 import { DayForm, type Write } from "@/components/daily-entry";
+import { Sales } from "@/components/sales";
 import { Treatments, VetVisits, WithdrawalBanner } from "@/components/treatments";
 import { Vaccinations } from "@/components/vaccinations";
 import { Weighings } from "@/components/weighing";
@@ -57,7 +59,7 @@ function Batches(scope: Scope) {
   const t = useTranslations();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -74,7 +76,9 @@ function Batches(scope: Scope) {
   const busy = new Set(batches.filter((b) => b.status === "open").map((b) => b.houseId));
   const entries = of<DailyEntryDto>("dailyEntry");
   const entriesOf = (batchId: string) => entries.filter((e) => e.batchId === batchId);
-  const onHand = (b: BatchDto) => b.chicksPlaced - b.deadOnArrival - entriesOf(b.id).reduce((n, e) => n + e.dead + e.culled, 0);
+  const soldOf = (batchId: string) => of<SoldBirdsDto>("soldBirds").filter((s) => s.batchId === batchId);
+  const soldBirds = (batchId: string) => soldOf(batchId).reduce((n, s) => n + s.birds, 0); // B5
+  const onHand = (b: BatchDto) => b.chicksPlaced - b.deadOnArrival - soldBirds(b.id) - entriesOf(b.id).reduce((n, e) => n + e.dead + e.culled, 0);
 
   const write: Write = async (mutation, recs) => {
     try {
@@ -99,10 +103,11 @@ function Batches(scope: Scope) {
         <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
         <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
-        <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} curve={curve} />
+        <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curve={curve} />
         <DayForm
           batch={open}
           entries={entriesOf(open.id)}
+          soldBirds={soldBirds(open.id)}
           feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
           write={write}
         />
@@ -129,6 +134,16 @@ function Batches(scope: Scope) {
           write={write}
         />
         <VetVisits batch={open} visits={of<VetVisitDto>("vetVisit").filter((v) => v.batchId === open.id)} userId={userId} write={write} />
+        {can(scope, "sales.manage") && (
+          <Sales
+            batch={open}
+            sales={of<SaleDto>("sale").filter((s) => s.batchId === open.id)}
+            buyers={of<BuyerDto>("buyer")}
+            treatments={treatments}
+            birdsOnHand={onHand(open)}
+            write={write}
+          />
+        )}
       </>
     );
   }

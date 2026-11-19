@@ -57,7 +57,7 @@ export class Batch {
     return ageOn(this.placement.placedOn, day);
   }
 
-  /** Birds actually started: placed minus dead on arrival. Mortality and sales lower it from T16. */
+  /** Birds actually started: placed minus dead on arrival. Mortality and sales lower what is on hand. */
   get birdsStarted() {
     return this.placement.chicksPlaced - this.placement.deadOnArrival;
   }
@@ -67,8 +67,8 @@ export class Batch {
   }
 
   /**
-   * B2: may this be the day's entry? `outOnOtherDays` = dead + culled on the batch's other days, so the check also
-   * holds when an edit raises an earlier day. Editing is allowed until the batch is closed.
+   * B2: may this be the day's entry? `outOnOtherDays` = dead + culled on the batch's other days, plus every bird sold,
+   * so the check also holds when an edit raises an earlier day. Editing is allowed until the batch is closed.
    */
   checkDay(day: FarmDay, entry: DayFields, outOnOtherDays: number, today: FarmDay): Result<void, DayError> {
     const open = this.acceptsDataFor(day, today);
@@ -77,6 +77,15 @@ export class Batch {
     if (counts.some((n) => !Number.isSafeInteger(n) || n < 0)) return fail("INVALID_QUANTITY");
     if (entry.feed && (!Number.isSafeInteger(entry.feed.grams) || entry.feed.grams <= 0)) return fail("INVALID_QUANTITY");
     if (outOnOtherDays + birdsOut(entry) > this.birdsStarted) return fail("MORE_DEAD_THAN_ON_HAND");
+    return ok(undefined);
+  }
+
+  /** B5: may `birds` leave alive (a sale, thinning or the last one) on this day? `outAlready` = dead, culled, sold. */
+  checkBirdsSold(day: FarmDay, birds: number, outAlready: number, today: FarmDay): Result<void, DataDayError | "INVALID_QUANTITY" | "MORE_BIRDS_THAN_ON_HAND"> {
+    const open = this.acceptsDataFor(day, today);
+    if (!open.ok) return open;
+    if (!Number.isSafeInteger(birds) || birds <= 0) return fail("INVALID_QUANTITY");
+    if (outAlready + birds > this.birdsStarted) return fail("MORE_BIRDS_THAN_ON_HAND");
     return ok(undefined);
   }
 

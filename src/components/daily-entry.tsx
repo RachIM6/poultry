@@ -26,7 +26,7 @@ const today = () => farmDayOf(new Date());
 
 export type Write = (mutation: { type: string; payload: unknown }, records: { entity: string; id: string; data: unknown }[]) => Promise<boolean>;
 
-export function DayForm({ batch, entries, feedItems, write }: { batch: BatchDto; entries: DailyEntryDto[]; feedItems: StockItemDto[]; write: Write }) {
+export function DayForm({ batch, entries, soldBirds, feedItems, write }: { batch: BatchDto; entries: DailyEntryDto[]; soldBirds: number; feedItems: StockItemDto[]; write: Write }) {
   const t = useTranslations("Day");
   const [day, setDay] = useState<string>(today());
   const id = useId();
@@ -37,12 +37,26 @@ export function DayForm({ batch, entries, feedItems, write }: { batch: BatchDto;
         <input id={id} type="date" value={day} max={today()} min={batch.placedOn} onChange={(e) => setDay(e.target.value)} className={field} />
       </div>
       {/* keyed by day: switching days reloads that day's saved values */}
-      <EntryFields key={day} batch={batch} day={day} entries={entries} feedItems={feedItems} write={write} />
+      <EntryFields key={day} batch={batch} day={day} entries={entries} soldBirds={soldBirds} feedItems={feedItems} write={write} />
     </div>
   );
 }
 
-function EntryFields({ batch, day, entries, feedItems, write }: { batch: BatchDto; day: string; entries: DailyEntryDto[]; feedItems: StockItemDto[]; write: Write }) {
+function EntryFields({
+  batch,
+  day,
+  entries,
+  soldBirds,
+  feedItems,
+  write,
+}: {
+  batch: BatchDto;
+  day: string;
+  entries: DailyEntryDto[];
+  soldBirds: number;
+  feedItems: StockItemDto[];
+  write: Write;
+}) {
   const t = useTranslations();
   const entryId = dailyEntryId(batch.id, day);
   const saved = entries.find((e) => e.id === entryId) ?? null;
@@ -68,7 +82,7 @@ function EntryFields({ batch, day, entries, feedItems, write }: { batch: BatchDt
       note: get("note") || null,
     };
     const aggregate = Batch.rehydrate({ ...batch, placedOn: batch.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, batch.status);
-    const outElsewhere = entries.filter((x) => x.id !== entryId).reduce((n, x) => n + x.dead + x.culled, 0);
+    const outElsewhere = entries.filter((x) => x.id !== entryId).reduce((n, x) => n + x.dead + x.culled, soldBirds); // B5: sold count too
     const checked = aggregate.checkDay(day as FarmDay, next, outElsewhere, today());
     if (!checked.ok) return setError(checked.error === "INVALID_QUANTITY" ? "Stock.invalid" : `errors.${checked.error}`);
     const changes = changedFields(saved, next);

@@ -1,4 +1,5 @@
 import type { Tx } from "@/lib/db";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import type { TreatmentDto, VetVisitDto } from "@/modules/health/schema";
 
@@ -21,6 +22,13 @@ export async function saveTreatment(tx: Tx, ctx: TenantContext, t: TreatmentDto)
       recordedBy: byUserId,
     },
   });
+}
+
+/** What the withdrawal rule needs of the batch's treatments. */
+export async function treatmentsOf(tx: Tx, ctx: TenantContext, batchId: string) {
+  const rows = await tx.treatment.findMany({ where: { organizationId: ctx.organizationId, batchId }, select: { startOn: true, endOn: true, withdrawalDays: true } });
+  const day = (d: Date) => d.toISOString().slice(0, 10) as FarmDay;
+  return rows.map((r) => ({ startOn: day(r.startOn), endOn: day(r.endOn), withdrawalDays: r.withdrawalDays }));
 }
 
 export async function saveVisit(tx: Tx, ctx: TenantContext, v: VetVisitDto) {

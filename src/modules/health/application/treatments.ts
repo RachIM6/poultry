@@ -7,8 +7,8 @@ import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { batchFacts } from "@/modules/flock";
-import { checkBatchDay, checkTreatment, withdrawalEnd } from "@/modules/health/domain/withdrawal";
-import { saveTreatment, saveVisit, treatmentIdTaken, visitIdTaken } from "@/modules/health/infrastructure/treatments";
+import { checkBatchDay, checkTreatment, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
+import { saveTreatment, saveVisit, treatmentIdTaken, treatmentsOf, visitIdTaken } from "@/modules/health/infrastructure/treatments";
 import type { RecordTreatment, RecordVetVisit, TreatmentDto, VetVisitDto } from "@/modules/health/schema";
 import { recordConsumption } from "@/modules/inventory";
 
@@ -43,6 +43,9 @@ export async function recordTreatment(tx: Tx, ctx: TenantContext, cmd: z.infer<t
   await audit(tx, ctx, { entity: "Treatment", entityId: dto.id, action: "create", after: dto, ...meta });
   return ok(undefined);
 }
+
+/** V3, for sales: the last day of the batch's withdrawal running on `day`, or null. The same rule as the banner (H4). */
+export const withdrawalOn = async (tx: Tx, ctx: TenantContext, batchId: string, day: FarmDay) => withdrawalUntil(await treatmentsOf(tx, ctx, batchId), day);
 
 /** SPEC H5, applied by the sync push: a vet visit to the batch. */
 export async function recordVetVisit(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof RecordVetVisit>, meta: Meta, clock: Clock = systemClock) {

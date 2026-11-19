@@ -42,8 +42,25 @@ test("hens placed at 18 weeks show their age in weeks, and beldi bands share a r
   await expect(page.getByRole("alert").filter({ hasText: "Ce bâtiment a déjà une bande en cours" })).toBeVisible();
   await page.getByRole("button", { name: "Annuler" }).click();
 
+  // T56 (SPEC-m3 B11): the run's bands together, each with its own day.
+  await expect(page.getByText("Parcours · 2 bandes · 270 sujets")).toBeVisible();
+  for (const age of ["22 sem.", "3 sem."]) {
+    await page.getByRole("listitem").filter({ hasText: age }).getByRole("link", { name: "Saisir le jour" }).click();
+    await page.getByLabel("Morts").fill("1");
+    await page.getByRole("button", { name: "Enregistrer la journée" }).click();
+    await page.getByRole("link", { name: "Toutes les bandes" }).click();
+  }
+  await expect(page.getByText("Parcours · 2 bandes · 268 sujets")).toBeVisible();
+
   await context.unroute("**");
   await context.setOffline(false);
+  const dead = async () =>
+    await query<{ dead: number }>(
+      `SELECT sum(d.dead)::int AS dead FROM "DailyEntry" d JOIN "Batch" b ON b.id = d."batchId" JOIN "Membership" m ON m."organizationId" = b."organizationId"
+       JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1 AND b.species = 'beldi'`,
+      [e164],
+    );
+  await expect.poll(dead).toEqual([{ dead: 2 }]);
   const batches = async () =>
     await query<{ species: string; age: number }>(
       `SELECT b.species, b."ageAtPlacementDays" AS age FROM "Batch" b JOIN "Membership" m ON m."organizationId" = b."organizationId"
@@ -54,6 +71,9 @@ test("hens placed at 18 weeks show their age in weeks, and beldi bands share a r
 
   await page.goto("/ar/batches");
   await expect(page.getByText("18 أسبوع", { exact: true })).toBeVisible();
+  await page.goto("/fr/dashboard"); // "Aujourd'hui": every type, ages in weeks (T56)
+  await expect(page.getByText("22 sem.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Parcours · Beldi / plein air").first()).toBeVisible();
 });
 
 // T54 acceptance (SPEC-m3 B9): turkeys placed "sexes séparés" become one batch per sex in the same house, offline.

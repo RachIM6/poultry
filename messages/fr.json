@@ -329,7 +329,8 @@
     "weakChicks": "Poussins faibles",
     "litterTemp": "Température litière (°C)",
     "density": "Densité : {density} sujets/m²",
-    "claim": "Morts à l’arrivée au-dessus du seuil du contrat : réclamation au couvoir"
+    "claim": "Morts à l’arrivée au-dessus du seuil du contrat : réclamation au couvoir",
+    "run": "{house} · {bands} bandes · {birds} sujets"
   },
   "Day": {
     "title": "Saisie du jour",

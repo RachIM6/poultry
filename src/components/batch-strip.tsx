@@ -5,7 +5,10 @@ import { addFarmDays, type FarmDay } from "@/lib/kernel/farm-day";
 
 export type StripDay = { age: number; day: FarmDay; state: "done" | "missing" | "today" | "upcoming"; vaccine: boolean; withdrawal: boolean };
 
-/** Days 1 … max(42, age) of a batch placed on `placedOn`, seen on `today`. Pure. */
+/**
+ * Days 1 … max(42, age) of a batch placed on `placedOn`, seen on `today`. Pure. A long cycle (SPEC-m3: pullets, layers,
+ * turkeys, beldi) shows a rolling window instead: the last 35 days and the coming 7, so the bars stay readable.
+ */
 export function stripDays(input: {
   placedOn: FarmDay;
   today: FarmDay;
@@ -13,10 +16,12 @@ export function stripDays(input: {
   entered: ReadonlySet<string>; // farm days with a daily entry
   vaccineDays: readonly string[]; // due days of vaccinations not done yet
   withdrawal: { from: FarmDay; to: FarmDay } | null;
+  rolling?: boolean;
 }): StripDay[] {
-  const length = Math.max(42, input.age);
+  const start = input.rolling ? Math.max(1, input.age - 34) : 1;
+  const length = input.rolling ? 42 : Math.max(42, input.age);
   return Array.from({ length }, (_, i) => {
-    const age = i + 1;
+    const age = start + i;
     const day = addFarmDays(input.placedOn, age);
     const state = age === input.age ? "today" : age > input.age ? "upcoming" : input.entered.has(day) ? "done" : "missing";
     const withdrawal = input.withdrawal !== null && day >= input.withdrawal.from && day <= input.withdrawal.to;

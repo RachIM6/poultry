@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { ageText } from "@/components/batch-age";
 import { BatchStrip, stripDays } from "@/components/batch-strip";
 import { card } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
@@ -68,10 +69,13 @@ export function Today({ title, userId, organizationId, sync, alert }: { title: s
       entered: new Set(own.map((e) => e.day)),
       vaccineDays: due.map((v) => v.dueOn),
       withdrawal: until && from ? { from: from as FarmDay, to: until } : null,
+      rolling: b.species !== "broiler", // SPEC-m3: long cycles show a rolling window
     });
     const birds = birdsStarted(b) - sold.filter((s) => s.batchId === b.id).reduce((n, s) => n + s.birds, 0) - own.reduce((n, e) => n + e.dead + e.culled, 0);
     const house = houses.find((h) => h.id === b.houseId)?.name ?? "";
-    const strain = strains.find((s) => s.id === b.strainId)?.name ?? b.strainId;
+    // SPEC-m3 R5: a "non précisée" strain shows the production type instead; turkeys show their sex.
+    const named = b.strainId.startsWith("unspecified-") ? t(`Types.${b.species}`) : (strains.find((s) => s.id === b.strainId)?.name ?? b.strainId);
+    const strain = b.sex && b.sex !== "mixed" ? `${named} · ${t(`Batches.sexes.${b.sex}`)}` : named;
     return { b, age, days, birds, house, strain, until, due, enteredToday: own.some((e) => e.day === today), missing: days.filter((d) => d.state === "missing") };
   });
 
@@ -94,7 +98,7 @@ export function Today({ title, userId, organizationId, sync, alert }: { title: s
             </span>
             <BatchStrip days={days} onDark label={t("Today.stripLabel", { day: String(age), missing: String(missing.length) })} />
             <span className="flex justify-between gap-3 text-sm text-sand">
-              <span>{t("Today.dayOf", { day: String(age), total: String(days.length) })}</span>
+              <span>{b.species === "broiler" ? t("Today.dayOf", { day: String(age), total: String(days.length) }) : ageText(t, b, today)}</span>
               <span>{missing.length > 0 ? t("Today.missingOn", { date: shortDay(missing[missing.length - 1].day) }) : t("Today.allEntered")}</span>
             </span>
           </Link>

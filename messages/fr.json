@@ -1,7 +1,9 @@
 {
   "App": {
-    "name": "Poultry",
-    "description": "Gestion des élevages avicoles"
+    "name": "DigiAtlas-VOLAILLE",
+    "shortName": "DigiAtlas",
+    "description": "Gestion des élevages avicoles",
+    "tagline": "L’élevage avicole, jour après jour."
   },
   "LocaleSwitcher": {
     "label": "Langue",
@@ -529,7 +531,8 @@
     "buyerPhone": "Téléphone",
     "signFarm": "Signature et cachet de l’éleveur",
     "signBuyer": "Signature de l’acheteur",
-    "print": "Imprimer"
+    "print": "Imprimer",
+    "editedWith": "Édité avec {app}"
   },
   "Closing": {
     "open": "Voir le bilan",

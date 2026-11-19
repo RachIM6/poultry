@@ -35,7 +35,7 @@ test("each locale links its own manifest, starting on that locale", async ({ pag
   const href = await page.locator('link[rel="manifest"]').getAttribute("href");
   expect(href).toBe("/fr/manifest.webmanifest");
   const manifest = await (await request.get(href!)).json();
-  expect(manifest).toMatchObject({ name: "Poultry", start_url: "/fr", lang: "fr", dir: "ltr", display: "standalone" });
+  expect(manifest).toMatchObject({ name: "DigiAtlas-VOLAILLE", short_name: "DigiAtlas", start_url: "/fr", lang: "fr", dir: "ltr", display: "standalone" });
   // Chrome's install criteria: icons of 192 px and 512 px.
   expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(expect.arrayContaining(["192x192", "512x512"]));
   for (const icon of manifest.icons) expect((await request.get(icon.src)).ok()).toBe(true);

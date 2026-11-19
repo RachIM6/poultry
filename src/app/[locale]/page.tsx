@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { BrandLockup } from "@/components/brand";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { Link } from "@/i18n/navigation";
 
@@ -10,8 +11,10 @@ export default function Home() {
         <LocaleSwitcher />
       </header>
       <main className="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
-        <h1 className="text-2xl font-semibold">{t("App.name")}</h1>
-        <p>{t("App.description")}</p>
+        <h1>
+          <BrandLockup large />
+        </h1>
+        <p>{t("App.tagline")}</p>
         <Link href="/login" className="underline underline-offset-4">
           {t("Login.title")}
         </Link>

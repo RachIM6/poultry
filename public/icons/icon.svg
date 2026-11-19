@@ -1,6 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Source of icon-192.png, icon-512.png and apple-touch-icon.png. Full-bleed so it also works as a maskable icon:
-       the egg stays inside the central safe circle (radius 40 %). -->
-  <rect width="512" height="512" fill="#15803d"/>
-  <path d="M256 112c-62 0-112 98-112 170 0 66 50 118 112 118s112-52 112-118c0-72-50-170-112-170z" fill="#fef3c7"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 132 132">
+  <!-- DigiAtlas-VOLAILLE mark (validated 2026-11-12): a white egg holding the Atlas range, on the Poussin tile.
+       Source of icon-192.png, icon-512.png and apple-touch-icon.png. Full-bleed (no rounded corners) so it also works
+       as a maskable icon and iOS rounds it itself: the egg stays inside the central safe circle (radius 40 %). -->
+  <defs><clipPath id="da-egg"><path d="M66 18c-20 0-34 29-34 52a34 34 0 0 0 68 0c0-23-14-52-34-52z"/></clipPath></defs>
+  <rect width="132" height="132" fill="#F2C14E"/>
+  <path d="M66 18c-20 0-34 29-34 52a34 34 0 0 0 68 0c0-23-14-52-34-52z" fill="#FFFFFF"/>
+  <path clip-path="url(#da-egg)" d="M20 120V88l26-26 14 12 18-22 34 36v32z" fill="#24211C"/>
 </svg>

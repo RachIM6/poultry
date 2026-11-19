@@ -109,6 +109,7 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
           </div>
         ))}
       </div>
+      <p className="text-center text-sm opacity-75">{t("editedWith", { app: tr("App.name") })}</p>
       <button type="button" onClick={() => window.print()} className="rounded-lg bg-green-700 px-4 py-3 font-semibold text-white print:hidden">
         {t("print")}
       </button>

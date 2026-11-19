@@ -9,7 +9,7 @@ import { Scoped } from "@/components/scoped";
 import { card, danger, done, field, primary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { daysBetween, farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { CLIMATE_MUTATIONS as C, outOfRange, targetFor, verdicts, type Band, type ReadingDto, type TargetSet, type Verdict } from "@/modules/climate/shared";
+import { CLIMATE_MUTATIONS as C, outOfRange, targetFor, verdicts, type Band, type PowerCutDto, type ReadingDto, type TargetSet, type Verdict } from "@/modules/climate/shared";
 import type { HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto } from "@/modules/flock/shared";
 import { localDb, type Scope } from "@/offline/db";
@@ -30,7 +30,7 @@ const TONE: Record<Verdict, string> = { below: "text-brick-fg", above: "text-bri
 function Climate(scope: Scope) {
   const t = useTranslations();
   const db = localDb(scope);
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("house", "batch", "climateTargets", "climateReading").toArray(), [scope.userId, scope.organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("house", "batch", "climateTargets", "climateReading", "powerCut").toArray(), [scope.userId, scope.organizationId]);
   const [houseId, setHouseId] = useState<string>();
   const [values, setValues] = useState({ temperature: "", humidity: "", ammonia: "" });
   const [saved, setSaved] = useState<ReadingDto | null>(null);
@@ -104,7 +104,66 @@ function Climate(scope: Scope) {
         <label className="flex flex-col gap-1 text-sm">{t("Climate.time")}<input name="time" type="time" required defaultValue={now()} className={field} /></label>
         <button type="submit" className={`${primary} col-span-2`}>{t("Climate.save")}</button>
       </form>
+      <PowerCuts
+        farmId={house.farmId}
+        cuts={of<PowerCutDto>("powerCut")}
+        save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
+      />
       <Link href="/climate/targets" className="text-sm underline underline-offset-4">{t("Climate.targetsOpen")}</Link>
     </>
+  );
+}
+
+const clockOf = (iso: string) => {
+  const m = farmMinutesOf(new Date(iso));
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+};
+
+/** CL5 (K-Climate footer, "Courant et groupe électrogène"): start a cut now; end it with the generator's details. */
+function PowerCuts({ farmId, cuts, save }: { farmId: string; cuts: PowerCutDto[]; save: (type: string, cut: PowerCutDto) => Promise<void> }) {
+  const t = useTranslations();
+  const [error, setError] = useState<string>();
+  const open = cuts.find((c) => c.farmId === farmId && c.endedAt === null);
+
+  const end = async (ev: FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
+    if (!open) return;
+    const data = new FormData(ev.currentTarget);
+    const started = data.get("generator") === "on";
+    const seconds = String(data.get("seconds") ?? "").trim();
+    const litres = String(data.get("diesel") ?? "").trim().replace(",", ".");
+    if ((seconds && !/^\d{1,4}$/.test(seconds)) || (litres && !/^\d{1,4}(\.\d{1,3})?$/.test(litres))) return setError("errors.INVALID_QUANTITY");
+    setError(undefined);
+    // Diesel in millilitres (SPEC §5): "18,5" L → 18 500 ml, from the digits, never through a float.
+    const [whole, frac = ""] = litres.split(".");
+    await save(C.endPowerCut, {
+      ...open,
+      endedAt: new Date().toISOString(),
+      generatorStarted: started,
+      generatorSeconds: started && seconds ? Number(seconds) : null,
+      dieselMl: started && litres ? Number(whole) * 1000 + Number(frac.padEnd(3, "0")) : null,
+    });
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => save(C.startPowerCut, { id: uuidv7(), farmId, startedAt: new Date().toISOString(), endedAt: null, generatorStarted: null, generatorSeconds: null, dieselMl: null })}
+        className="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-alert-fg px-5 text-[15px] font-semibold text-alert-fg"
+      >
+        {t("Climate.cutStart")}
+      </button>
+    );
+  }
+  return (
+    <form onSubmit={end} className={`${card} border-2 border-alert-fg`} aria-label={t("Climate.cutEnd")}>
+      <p role="status" className="font-semibold text-alert-fg">{t("Climate.cutOpen", { time: clockOf(open.startedAt) })}</p>
+      <label className="flex min-h-11 items-center gap-3"><input type="checkbox" name="generator" className="size-5" />{t("Climate.generatorStarted")}</label>
+      <label className="flex flex-col gap-1">{t("Climate.generatorSeconds")}<input name="seconds" inputMode="numeric" dir="ltr" className={field} /></label>
+      <label className="flex flex-col gap-1">{t("Climate.diesel")}<input name="diesel" inputMode="decimal" dir="ltr" className={field} /></label>
+      {error && <p role="alert">{t(error)}</p>}
+      <button type="submit" className={primary}>{t("Climate.cutEnd")}</button>
+    </form>
   );
 }

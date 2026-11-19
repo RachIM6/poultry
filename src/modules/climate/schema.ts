@@ -29,3 +29,13 @@ export const RecordReading = z.object({
   humidity: z.int32().min(0).max(100),
   ammonia: z.int32().min(0).max(500).nullable(),
 });
+
+// CL5: the phone's instants (ISO with offset); generator details when the power is back.
+export const StartPowerCut = z.object({ id: z.uuid(), farmId: z.uuid(), startedAt: z.iso.datetime({ offset: true }) });
+export const EndPowerCut = z.object({
+  id: z.uuid(),
+  endedAt: z.iso.datetime({ offset: true }),
+  generatorStarted: z.boolean(),
+  generatorSeconds: z.int32().min(0).max(86_400).nullable(),
+  dieselMl: z.int32().min(0).max(10_000_000).nullable(),
+});

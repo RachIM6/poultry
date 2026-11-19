@@ -202,6 +202,10 @@
       "climateOutOfRange": {
         "title": "Climat hors cible : {house}",
         "body": "J{age} : {values}. Hors des cibles saisies pour l’âge du lot."
+      },
+      "powerCut": {
+        "title": "Coupure de courant",
+        "body": "Coupure signalée à {time}. Vérifiez le groupe électrogène et la ventilation."
       }
     }
   },
@@ -396,7 +400,9 @@
     "DEDUCT_BEFORE_ADVANCE": "L’avance se retient sur la paie du mois où elle est donnée, ou d’un mois suivant.",
     "PAY_MONTH_VALIDATED": "La paie de ce mois est validée : ses présences et ses avances ne changent plus.",
     "INVALID_BAND": "Une tranche est incomplète ou à l’envers (de ≤ à, min ≤ max).",
-    "TARGET_BANDS_OVERLAP": "Deux tranches d’âge se chevauchent."
+    "TARGET_BANDS_OVERLAP": "Deux tranches d’âge se chevauchent.",
+    "POWER_CUT_OPEN": "Une coupure de courant est déjà en cours sur cette ferme.",
+    "CUT_END_BEFORE_START": "Le courant ne peut pas revenir avant la coupure."
   },
   "Weighing": {
     "title": "Pesée",
@@ -979,6 +985,12 @@
         "above": "trop d’ammoniac"
       }
     },
-    "save": "Enregistrer le relevé"
+    "save": "Enregistrer le relevé",
+    "cutStart": "Coupure de courant",
+    "cutOpen": "Coupure de courant depuis {time}",
+    "cutEnd": "Courant revenu",
+    "generatorStarted": "Le groupe électrogène a démarré",
+    "generatorSeconds": "Temps de démarrage du groupe (secondes, facultatif)",
+    "diesel": "Gasoil utilisé (litres, facultatif)"
   }
 }

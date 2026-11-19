@@ -43,7 +43,7 @@ function Expenses(scope: Scope) {
   const locale = useLocale();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("treasuryAccount", "expense").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("treasuryAccount", "expense", "batch", "house").toArray(), [userId, organizationId]);
   const [message, setMessage] = useState<string>();
   const [adding, setAdding] = useState(false);
   if (!can(scope, "finance.record")) return <p>{t("Expenses.forbidden")}</p>;
@@ -51,6 +51,11 @@ function Expenses(scope: Scope) {
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const accounts = of<TreasuryAccountDto>("treasuryAccount").sort((x, y) => x.name.localeCompare(y.name));
+  // FN13, FN14: an expense goes to one open batch, or is shared across the month's batches, or to none.
+  const houses = of<{ id: string; name: string }>("house");
+  const batches = of<{ id: string; houseId: string; placedOn: string; status: string }>("batch")
+    .filter((b) => b.status === "open")
+    .map((b) => ({ id: b.id, label: t("Expenses.batch", { house: houses.find((h) => h.id === b.houseId)?.name ?? "—", date: formatDay(b.placedOn as FarmDay, locale) }) }));
   const recent = of<ExpenseDto>("expense").sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 20);
 
   const write = async (mutation: { type: string; payload: unknown }, entity: string, data: { id: string }) => {
@@ -67,7 +72,7 @@ function Expenses(scope: Scope) {
   return (
     <>
       {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
-      <ExpenseForm accounts={accounts} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
+      <ExpenseForm accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
 
       <h2 className="text-lg font-semibold">{t("Expenses.recent")}</h2>
       {recent.length === 0 ? (
@@ -110,7 +115,7 @@ function Field({ label, children }: { label: string; children: (id: string) => R
   );
 }
 
-function ExpenseForm({ accounts, onSave }: { accounts: TreasuryAccountDto[]; onSave: (e: ExpenseDto) => Promise<boolean> }) {
+function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountDto[]; batches: { id: string; label: string }[]; onSave: (e: ExpenseDto) => Promise<boolean> }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
   const [key, setKey] = useState(0); // a new key empties the form after a save
@@ -125,16 +130,21 @@ function ExpenseForm({ accounts, onSave }: { accounts: TreasuryAccountDto[]; onS
     // "from" is "credit", "cash", "bank", or a treasury account's id
     const from = get("from");
     const account = accounts.find((a) => a.id === from);
+    // "shared" | "general" | a batch id
+    const to = get("allocation");
+    const day = get("day") || today();
     const paidFrom = (account ? account.kind : from) as ExpenseDto["paidFrom"];
     setError(undefined);
     const saved = await onSave({
       id: uuidv7(),
-      day: get("day") || today(),
+      day,
       category: get("category") as ExpenseDto["category"],
       amountCentimes: String(amount),
       paidFrom,
       treasuryId: account?.id ?? null,
       note: get("note") || null,
+      batchId: to !== "shared" && to !== "general" ? to : null,
+      serviceMonth: to === "shared" ? get("month") || day.slice(0, 7) : null,
     });
     if (saved) setKey((k) => k + 1);
   };
@@ -159,6 +169,16 @@ function ExpenseForm({ accounts, onSave }: { accounts: TreasuryAccountDto[]; onS
           </select>
         )}
       </Field>
+      <Field label={t("Expenses.allocation")}>
+        {(id) => (
+          <select id={id} name="allocation" className={field}>
+            <option value="shared">{t("Expenses.shared")}</option>
+            {batches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+            <option value="general">{t("Expenses.general")}</option>
+          </select>
+        )}
+      </Field>
+      <Field label={t("Expenses.month")}>{(id) => <input id={id} name="month" type="month" defaultValue={today().slice(0, 7)} max={today().slice(0, 7)} className={field} />}</Field>
       <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} max={today()} required className={field} />}</Field>
       <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
       {error && <p role="alert">{t(error)}</p>}

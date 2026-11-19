@@ -136,11 +136,28 @@ Not yet:
 ### T34: Batch result and shared-cost allocation (FN13, FN14)
 **Description:** Batch P&L from tagged lines and valued consumptions, `allocate` with bird-days default, freeze at close. Migrate the M1 T24 "other cost" entries.
 **AC:**
-- [ ] B-2026-13 fixture: margin 44 210,00, 1,87 DH/kg, cost 11,43 DH/kg.
-- [ ] Allocated parts always sum to the shared total (property test).
-- [ ] A closed batch keeps its allocation when the key changes.
-- [ ] A feed purchase tagged with the batch does not change its cost; only the valued consumption does.
-- [ ] An electricity bill paid in November with service period October is split across the batches present in October.
+- [x] B-2026-13 fixture: margin 44 210,00, 1,87 DH/kg, cost 11,43 DH/kg. (`finance/domain/batch.test.ts`, plus 14,0 %.)
+- [x] Allocated parts always sum to the shared total (property test). (500 random runs; also with frozen shares, `finance/batch-results.int.test.ts`.)
+- [x] A closed batch keeps its allocation when the key changes. (B's deaths in October and a new shared expense after A closed: A keeps 3 100,00.)
+- [x] A feed purchase tagged with the batch does not change its cost; only the valued consumption does. (A purchase is never a batch cost: 85 kg consumed → 382,50.)
+- [x] An electricity bill paid in November with service period October is split across the batches present in October. (3 900,00 by 31 000 / 8 000 bird-days → 3 100,00 / 800,00.)
+
+Done 2026-11-15 (branch `feat/t34-batch-result`), decisions taken without asking:
+- **Computed from facts, not ledger tags.** `batchResults` reads sales per batch (`sales`), chicks, M1 other costs and kg sold (`flock`), valued consumptions (`inventory`), and finance's own expenses. The cost is chicks + consumptions + other costs + direct expenses + the allocated share.
+  - **M1 other costs:** T24's entries count as direct charges as they are; they are not migrated or posted. New ones are quick expenses aimed at the batch.
+- **Allocation:**
+  - An expense is aimed at one batch (direct), shared over a month's batches (`serviceMonth`), or general (no batch).
+  - The only key is bird-days. House m² and kg sold come when an owner asks.
+  - An open batch counts as present until the end of the service period.
+- **Freeze:** after each push, `freezeClosedBatches` stores a closed batch's share of every shared expense (`FrozenAllocation`, `FrozenBatch`). Later splits share only what's left of each expense among the batches still open, so the parts always sum to the expense.
+- **Screens:**
+  - The quick-expense form has "Imputation" (shared by default, an open batch, or general) and the month.
+  - `/results` is online (owner, manager): each batch's sales, cost, margin, margin and cost per kg, % of sales, and the cost breakdown, newest first, which serves as FN13's comparison with past batches.
+
+Not yet:
+- The comparison of mortality, FCR, feed price and price per kg next to the result (the M1 KPIs are on the phone).
+- The ledger's analytic tags (batch on 712x lines).
+
 **Size:** L
 
 ### T35: Budget and break-even (FN15)

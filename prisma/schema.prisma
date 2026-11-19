@@ -558,17 +558,17 @@ model BatchCost {
 
 // Owner: sales (SPEC V1).
 model Buyer {
-  id             String   @id @db.Uuid
-  organizationId String   @db.Uuid
-  name           String
-  phone          String?
-  type           String // trader | abattoir | market | other
+  id                  String   @id @db.Uuid
+  organizationId      String   @db.Uuid
+  name                String
+  phone               String?
+  type                String // trader | abattoir | market | other
   // SPEC-finance FN11/FN12: set when one of their cheques or bills comes back unpaid; no sale on credit until the
   // owner lifts it.
-  creditBlocked  Boolean  @default(false)
+  creditBlocked       Boolean  @default(false)
   // FN12: what they may owe at most, set by the owner; null = no limit. A credit sale beyond it waits for the owner.
   creditLimitCentimes BigInt?
-  createdAt      DateTime @default(now()) @db.Timestamptz
+  createdAt           DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId])
 }
@@ -742,18 +742,45 @@ model TreasuryAccount {
 
 // Owner: finance. SPEC-finance FN6, FX4: a quick expense recorded on the phone, offline; posted when it syncs.
 model Expense {
-  id             String   @id @db.Uuid
-  organizationId String   @db.Uuid
-  day            DateTime @db.Date // farm day
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  day            DateTime  @db.Date // farm day
   category       String // electricity | water | vet_fees | insurance | catching
   amountCentimes BigInt
   paidFrom       String // cash | bank | credit
-  treasuryId     String?  @db.Uuid
+  treasuryId     String?   @db.Uuid
   note           String?
-  recordedBy     String   @db.Uuid
-  createdAt      DateTime @default(now()) @db.Timestamptz
+  // FN13, FN14: a direct charge of one batch, or shared across the batches present during the service period
+  // (by bird-days). Neither: a general charge, in no batch's result.
+  batchId        String?   @db.Uuid
+  shared         Boolean   @default(false)
+  serviceFrom    DateTime? @db.Date
+  serviceTo      DateTime? @db.Date
+  recordedBy     String    @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
 
   @@index([organizationId, day])
+}
+
+// Owner: finance. FN14: a closed batch's share of each shared expense, frozen at its closing (its result never moves
+// again). Later allocations split only what's left of an expense across the batches still open.
+model FrozenAllocation {
+  organizationId String @db.Uuid
+  batchId        String @db.Uuid
+  expenseId      String @db.Uuid
+  amountCentimes BigInt
+
+  @@id([batchId, expenseId])
+  @@index([organizationId, expenseId])
+}
+
+// Owner: finance. FN14: the batches whose allocation is frozen (with or without a share of anything).
+model FrozenBatch {
+  batchId        String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  frozenAt       DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
 }
 
 // Owner: finance. SPEC-finance FN6: money moved between two treasury accounts, through 5115.

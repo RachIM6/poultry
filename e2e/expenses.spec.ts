@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, scopeRemembered } from "./auth";
+import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T32 acceptance (browser part): a quick expense recorded offline on the phone is posted once after sync, and shows in
 // the treasury. Workers are refused on the server (src/modules/finance/treasury.int.test.ts).
@@ -7,6 +7,8 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
   test.setTimeout(120_000);
   const e164 = await ownerWithFarm(page, "Élevage des Dépenses");
   await scopeRemembered(page);
+  await farmWithBatch(page); // one batch, placed today: a shared expense of this month goes to it (FN14)
+  await page.goto("/fr/dashboard");
 
   await page.getByRole("link", { name: "Dépense rapide" }).click();
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
@@ -42,4 +44,8 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
 
   await page.goto("/fr/treasury");
   await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").first()).toContainText(/Caisse · Caisse ferme\s*-1.200,00\sDH/);
+
+  // T34: shared across this month's batches (the default), it is all this batch's.
+  await page.goto("/fr/results");
+  await expect(page.getByRole("row").nth(1)).toContainText(/réparti 1.200,00\sDH/);
 });

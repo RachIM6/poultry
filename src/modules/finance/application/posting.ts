@@ -6,6 +6,7 @@ import { listLegalEntities } from "@/modules/farm-registry";
 import { placementsChangedSince } from "@/modules/flock";
 import { purchasesChangedSince } from "@/modules/inventory";
 import { instrumentStepsChangedSince, paymentsChangedSince, salesChangedSince } from "@/modules/sales";
+import { freezeClosedBatches } from "@/modules/finance/application/batch-results";
 import { postEntry } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
@@ -113,5 +114,6 @@ export async function postPending(pusher: TenantContext): Promise<number> {
       return n;
     });
   }
+  await freezeClosedBatches(ctx); // FN14: a batch that closed in this push gets its allocation frozen
   return posted;
 }

@@ -50,3 +50,9 @@ export async function instrumentStepsChangedSince(tx: Tx, ctx: TenantContext, af
     return [{ version, id: s.id, day: s.day as FarmDay, kind: i.kind, from: (before?.state ?? "in_portfolio") as InstrumentState, to: s.state, amountCentimes: i.amount }];
   });
 }
+
+/** For finance (SPEC-finance FN13): what each batch's sales came to, in centimes (the farm-weight amount). */
+export async function salesByBatch(tx: Tx, ctx: TenantContext): Promise<Map<string, bigint>> {
+  const rows = await tx.sale.groupBy({ by: ["batchId"], where: { organizationId: ctx.organizationId }, _sum: { amountCentimes: true } });
+  return new Map(rows.map((r) => [r.batchId, r._sum.amountCentimes ?? 0n]));
+}

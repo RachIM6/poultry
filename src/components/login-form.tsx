@@ -34,7 +34,7 @@ export function LoginForm() {
   const verify = submit(async (form) => {
     const code = new FormData(form).get("code");
     const res = await postJson("/api/auth/verify-code", { phone, code, locale });
-    if (res.status === 200) router.replace("/account");
+    if (res.status === 200) router.replace("/dashboard");
     else setError(res.messageKey);
   });
 

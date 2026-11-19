@@ -6,3 +6,5 @@ overrides:
   # One browserslist, so serwist installs once. @serwist/turbopack pins an older patch, which gave a second
   # serwist copy: its defaultCache then failed `instanceof Strategy` and the offline fallback was silently dropped.
   browserslist: 4.29.5
+  # @serwist/turbopack pins zod 4.6.5 (GHSA: memory exhaustion on oversized collections, fixed in 4.6.6). Drop when it updates.
+  zod: 4.6.7

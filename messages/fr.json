@@ -41,14 +41,34 @@
     "changeNumber": "Changer de numéro"
   },
   "Account": {
-    "title": "Mon compte",
-    "signedInAs": "Connecté avec le numéro",
     "logout": "Se déconnecter"
+  },
+  "Onboarding": {
+    "title": "Créer votre exploitation",
+    "intro": "Une seule fois : elle regroupera vos fermes, vos bâtiments et vos bandes.",
+    "nameLabel": "Nom de l’exploitation ou raison sociale",
+    "formLabel": "Forme juridique",
+    "formHint": "Elle sert à préparer votre comptabilité.",
+    "submit": "Créer",
+    "forms": {
+      "individual": "Exploitant individuel",
+      "indivision": "Indivision (exploitation familiale)",
+      "company": "Société (SARL, SA…)",
+      "cooperative": "Coopérative",
+      "association": "Association",
+      "gie": "GIE (groupement d’intérêt économique)"
+    }
+  },
+  "Dashboard": {
+    "noFarms": "Aucune ferme pour l’instant."
   },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
     "FORBIDDEN": "Action refusée.",
-    "NETWORK": "Pas de connexion. Réessayez."
+    "NETWORK": "Pas de connexion. Réessayez.",
+    "UNAUTHENTICATED": "Session expirée. Reconnectez-vous.",
+    "INVALID_INPUT": "Vérifiez les champs du formulaire.",
+    "ALREADY_ONBOARDED": "Votre exploitation existe déjà."
   }
 }

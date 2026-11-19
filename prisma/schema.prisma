@@ -14,8 +14,30 @@ datasource db {
 model Organization {
   id          String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
   name        String
-  createdAt   DateTime     @default(now()) @db.Timestamptz
-  memberships Membership[]
+  createdAt     DateTime      @default(now()) @db.Timestamptz
+  memberships   Membership[]
+  legalEntities LegalEntity[]
+}
+
+// Owner: farm-registry. SPEC F1: the form sets the accounting profile (derived in code, not stored).
+model LegalEntity {
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @db.Uuid
+  name           String
+  form           LegalForm
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+enum LegalForm {
+  individual
+  indivision
+  company
+  cooperative
+  association
+  gie
 }
 
 // Owner: identity. User, Session, Account and Verification follow Better Auth's schema (ADR-005);

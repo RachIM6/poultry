@@ -937,5 +937,24 @@
     "addLine": "Ajouter une ligne",
     "amount": "Montant : {amount}",
     "save": "Enregistrer la vente"
+  },
+  "Compare": {
+    "title": "Comparer les lots",
+    "none": "Aucun lot clôturé de ce type.",
+    "caption": "Indicateurs par lot clôturé",
+    "days": "{days} j",
+    "cols": {
+      "batch": "Lot",
+      "hatchery": "Couvoir",
+      "livability": "Viabilité",
+      "weight": "Poids",
+      "age": "Âge",
+      "fcr": "IC",
+      "epef": "IEP (EPEF)",
+      "costPerKg": "Coût / kg",
+      "dayOld": "Poids J1",
+      "day7": "Mortalité J7"
+    },
+    "epef": "IEP = viabilité (%) × poids moyen (kg) ÷ (âge (j) × IC) × 100."
   }
 }

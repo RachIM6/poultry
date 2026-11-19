@@ -62,4 +62,16 @@ describe("module boundaries", { timeout: 120_000 }, () => {
     expect(await boundaryErrors("src/modules/health/x.ts", 'export * from "@/modules/sales/schema";')).not.toEqual([]); // not a dependency
     expect(await boundaryErrors("src/lib/db.ts", 'export * from "@/modules/flock";')).not.toEqual([]);
   });
+
+  it("keeps Zod off the screens that don't validate: values from shared.ts, schema.ts for types only (ADR-009)", async () => {
+    const zodErrors = async (file: string, code: string) => {
+      const [result] = await eslint.lintText(code, { filePath: file });
+      return result.messages.filter((m) => m.ruleId === "@typescript-eslint/no-restricted-imports" || m.ruleId === "no-restricted-imports");
+    };
+    expect(await zodErrors("src/components/batches.tsx", 'import { FLOCK_MUTATIONS } from "@/modules/flock/shared";\nexport const m = FLOCK_MUTATIONS;')).toEqual([]);
+    expect(await zodErrors("src/components/batches.tsx", 'import type { CurvePoint } from "@/modules/reference-data/schema";\nexport type C = CurvePoint;')).toEqual([]);
+    expect(await zodErrors("src/components/batches.tsx", 'import { FLOCK_MUTATIONS } from "@/modules/flock/schema";\nexport const m = FLOCK_MUTATIONS;')).not.toEqual([]);
+    expect(await zodErrors("src/components/stock.tsx", 'import { CreateStockItem } from "@/modules/inventory/schema";\nexport const s = CreateStockItem;')).toEqual([]); // validates
+    expect(await zodErrors("src/modules/health/x.ts", 'export * from "@/modules/flock/shared";')).toEqual([]);
+  });
 });

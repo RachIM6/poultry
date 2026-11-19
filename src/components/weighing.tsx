@@ -6,9 +6,10 @@ import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
 import { formatCount, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, sampleStats, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/schema";
-import { parseQuantity } from "@/modules/inventory/schema";
-import { standardAt, type CurvePoint } from "@/modules/reference-data/schema";
+import { Batch, FLOCK_MUTATIONS as M, ageOn, sampleStats, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/shared";
+import { parseQuantity } from "@/modules/inventory/shared";
+import type { CurvePoint } from "@/modules/reference-data/schema";
+import { standardAt } from "@/modules/reference-data/shared";
 
 // SPEC B3 on the phone: type the sample, see the average, uniformity (CV%) and the gap to the strain standard at once.
 // Without a published curve for the strain (OQ5) the gap is not shown: a standard is never guessed.

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T20 acceptance (browser part): the withdrawal banner shows while a withdrawal runs and is gone once it has ended; a
@@ -16,7 +17,7 @@ test("a treatment recorded offline shows the withdrawal banner; an ended withdra
     {
       // ended 12 days ago + 5 days of withdrawal: over a week ago
       type: "health.recordTreatment",
-      payload: { id: crypto.randomUUID(), batchId: ids.batch, stockItemId: medicine, quantity: 200, dose: "1 ml/L", startOn: farmDaysAgo(15), endOn: farmDaysAgo(12), reason: "Toux", prescriber: "Dr Alaoui", withdrawalDays: 5 },
+      payload: { id: uuidv7(), batchId: ids.batch, stockItemId: medicine, quantity: 200, dose: "1 ml/L", startOn: farmDaysAgo(15), endOn: farmDaysAgo(12), reason: "Toux", prescriber: "Dr Alaoui", withdrawalDays: 5 },
     },
   ]);
 

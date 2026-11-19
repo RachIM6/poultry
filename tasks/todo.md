@@ -406,8 +406,8 @@ Decisions (2026-11-09, taken without asking): only the sale of the last birds cl
 - Measure the JS budget (≤ 200 KB compressed for the shell) and the daily-entry interactivity (< 3 s with Fast 4G) on a real mid-range Android phone.
 
 **AC:**
-- [ ] No open high-severity security findings.
-- [ ] Both performance budgets are met, or a written exception has been approved.
+- [x] No open high-severity security findings. (`docs/t25-security-and-performance.md`: the one high finding, a phone-chosen treatment id overwriting another stock movement, is fixed with a regression test. Two medium and three low findings remain open, for T26.)
+- [x] Both performance budgets are met, or a written exception has been approved. (Emulated Pixel 7, Fast 4G, 4× CPU, `docs/t25-security-and-performance.md`. JS of the daily-entry shell: 232.8 → **197.5 KB** gzip after ADR-009, which keeps Zod off the screens, and lazy sections on the batch screen. Login: 155.5 KB. Daily entry usable in 1.78 s cold and 1.05 s warm. **A real-phone measurement and a Lighthouse report are still owed**, with the device, before the pilot.)
 
 **Verify:** review report in `docs/`. `pnpm build` output. Lighthouse report.
 **Dependencies:** Checkpoint G

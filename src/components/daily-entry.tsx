@@ -14,8 +14,8 @@ import {
   type DailyEntryDto,
   type DayFields,
   type DeathCause,
-} from "@/modules/flock/schema";
-import { parseQuantity, type StockItemDto } from "@/modules/inventory/schema";
+} from "@/modules/flock/shared";
+import { parseQuantity, type StockItemDto } from "@/modules/inventory/shared";
 
 // SPEC B2 on the phone: one short screen, built to be filled in under a minute. Same checks as the server; only the
 // fields that changed are sent, so two phones entering the same day merge instead of overwriting each other.

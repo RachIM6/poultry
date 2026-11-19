@@ -6,7 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
 import { formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import type { BatchDto } from "@/modules/flock/schema";
+import type { BatchDto } from "@/modules/flock/shared";
 import {
   HEALTH_MUTATIONS as H,
   checkBatchDay,
@@ -15,8 +15,8 @@ import {
   withdrawalUntil,
   type TreatmentDto,
   type VetVisitDto,
-} from "@/modules/health/schema";
-import { parseQuantity, type MovementDto, type StockItemDto } from "@/modules/inventory/schema";
+} from "@/modules/health/shared";
+import { parseQuantity, type MovementDto, type StockItemDto } from "@/modules/inventory/shared";
 
 // SPEC H3–H5 on the batch screen, offline: the withdrawal banner, treatments with the lot they came from, vet visits.
 // The phone runs the same checks and the same withdrawal rule as the server.

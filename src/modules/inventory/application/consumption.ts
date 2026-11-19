@@ -8,21 +8,24 @@ import type { MovementDto } from "@/modules/inventory/schema";
 
 /**
  * S4: what another module's record consumed (the feed of a daily entry, the doses of a vaccination), as exactly one
- * "consumption" movement with the record's id, `quantity` in the item's base unit. Saving again updates that movement:
- * the one place a movement changes, because the record it mirrors was edited (and that edit is audited by its owner).
+ * "consumption" movement with the record's id, `quantity` in the item's base unit. With `replace`, saving again updates
+ * that movement: the one place a movement changes, because the record it mirrors was edited (and that edit is audited
+ * by its owner). Only a daily entry replaces: its id is computed from its batch and day. Any other id already in the
+ * ledger belongs to another movement (a purchase, a correction…), which is never touched (S3): the ids come from phones.
  * `of` restricts the item to a kind and, when both name a catalogue product, to that product. Runs inside the
  * caller's transaction; validates before writing.
  */
 export async function recordConsumption(
   tx: Tx,
   ctx: TenantContext,
-  c: { id: string; batchId: string; farmId: string; stockItemId: string; quantity: number; day: string; of?: { kind: string; productId?: string } },
-): Promise<Result<void, "NOT_FOUND" | "WRONG_STOCK_ITEM">> {
+  c: { id: string; batchId: string; farmId: string; stockItemId: string; quantity: number; day: string; of?: { kind: string; productId?: string }; replace?: boolean },
+): Promise<Result<void, "NOT_FOUND" | "WRONG_STOCK_ITEM" | "ALREADY_EXISTS">> {
   const item = await findItem(tx, ctx, c.stockItemId);
   if (!item || item.farmId !== c.farmId) return fail("NOT_FOUND"); // the item must be in the batch's farm
   if (c.of && (item.kind !== c.of.kind || (item.productId !== null && c.of.productId !== undefined && item.productId !== c.of.productId))) return fail("WRONG_STOCK_ITEM");
 
   const previous = await findMovement(tx, ctx, c.id);
+  if (previous && !(c.replace && previous.kind === "consumption")) return fail("ALREADY_EXISTS");
   if (previous && previous.stockItemId !== item.id) await removeConsumption(tx, ctx, c.id); // another item this time
   const same = previous && previous.stockItemId === item.id ? previous : null;
 

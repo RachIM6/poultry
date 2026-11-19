@@ -1,11 +1,25 @@
 import { isSameOriginRequest } from "@/lib/security/csrf";
 import { consume } from "@/lib/security/rate-limit";
-import { PushBody } from "@/lib/sync/protocol";
+import { z } from "zod";
+import { MAX_MUTATIONS_PER_PUSH } from "@/lib/sync/protocol";
 import { push, scopeMatches } from "@/lib/sync/server";
 import { getTenantContext } from "@/modules/identity";
 import { registry } from "../registry";
 
 const MAX_BODY_BYTES = 2_000_000; // 500 mutations of a few KB
+
+const PushBody = z.object({
+  mutations: z
+    .array(
+      z.object({
+        id: z.uuid(), // UUIDv7 from the device: the idempotency key
+        type: z.string().max(64), // "<module>.<action>", e.g. "farm-registry.saveFarm"
+        payload: z.unknown(),
+        createdAt: z.iso.datetime({ offset: true }), // device clock, kept for the audit log only
+      }),
+    )
+    .max(MAX_MUTATIONS_PER_PUSH),
+});
 
 export async function POST(req: Request) {
   if (!isSameOriginRequest(req)) return Response.json({ ok: false, messageKey: "errors.FORBIDDEN" }, { status: 403 });

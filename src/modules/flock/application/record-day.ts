@@ -36,7 +36,16 @@ export async function recordDay(
 
   if ("feed" in cmd.changes) {
     if (merged.feed) {
-      const consumed = await recordConsumption(tx, ctx, { id, batchId: cmd.batchId, farmId: batch.placement.farmId, stockItemId: merged.feed.stockItemId, quantity: merged.feed.grams, day: cmd.day });
+      const consumed = await recordConsumption(tx, ctx, {
+        id,
+        batchId: cmd.batchId,
+        farmId: batch.placement.farmId,
+        stockItemId: merged.feed.stockItemId,
+        quantity: merged.feed.grams,
+        day: cmd.day,
+        of: { kind: "feed" },
+        replace: true, // the day's own movement: its id is computed from the batch and the day
+      });
       if (!consumed.ok) return consumed; // nothing written yet
     } else if (previous?.feed) {
       await removeConsumption(tx, ctx, id);

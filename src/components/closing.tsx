@@ -7,7 +7,7 @@ import type { Write } from "@/components/daily-entry";
 import { formatDay, formatKg, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
-import { Batch, FLOCK_MUTATIONS as M, type BatchCostDto, type BatchDto } from "@/modules/flock/schema";
+import { Batch, FLOCK_MUTATIONS as M, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
 
 // SPEC B6 on the batch screen: other costs while it runs, closing by hand with a reason, and the locked figures once
 // closed. The last sale closes the batch by itself (sales). The cost per kg comes from the server, which values the

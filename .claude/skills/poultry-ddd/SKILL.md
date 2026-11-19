@@ -54,7 +54,8 @@ If a light module starts accumulating interdependent rules or status changes, pr
 ```
 src/modules/<id>/
   index.ts          server API: other modules and app code import this, or schema.ts (ADR-008)
-  schema.ts         Zod schemas + mutation types, shared by client (offline) and server (sync push)
+  schema.ts         Zod schemas, used by the sync push and by forms that validate; re-exports shared.ts
+  shared.ts         no Zod (ADR-009): mutation names, DTO types, constants, domain re-exports, for the phone's screens
   domain/           strict only. Pure TS: aggregates, value objects, policies, KPI/withdrawal functions
   application/      strict only. Use cases: load → domain method → save + audit, in one transaction
   infrastructure/   strict only. Prisma repositories + mappers
@@ -66,7 +67,7 @@ Callers:
 - `src/lib/sync/server.ts`: applies sync mutations;
 - `src/offline/**`: client sync and local reads.
 
-All three call the module **only through `index.ts`**, or `schema.ts` for the isomorphic schemas (the offline client must not pull in Prisma).
+All three call the module **only through `index.ts`**, or `schema.ts` / `shared.ts` for the isomorphic parts (the offline client must not pull in Prisma). Screens import values from `shared.ts` and only types from `schema.ts`, so Zod stays out of the app shell (ADR-009, enforced by ESLint).
 
 ## 3. Non-negotiable rules (all modules)
 

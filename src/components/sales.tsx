@@ -9,9 +9,9 @@ import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
-import { Batch, type BatchDto, type SoldBirdsDto } from "@/modules/flock/schema";
-import { withdrawalUntil, type TreatmentDto } from "@/modules/health/schema";
-import { parseQuantity } from "@/modules/inventory/schema";
+import { Batch, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import { withdrawalUntil, type TreatmentDto } from "@/modules/health/shared";
+import { parseQuantity } from "@/modules/inventory/shared";
 import {
   BUYER_TYPES,
   PAYMENT_METHODS,
@@ -22,7 +22,7 @@ import {
   type BuyerDto,
   type PaymentMethod,
   type SaleDto,
-} from "@/modules/sales/schema";
+} from "@/modules/sales/shared";
 
 // SPEC V1–V3 and B5 on the batch screen, offline, for owners and managers only (prices). The phone shows the amount and
 // the weighing gap as they are typed, and refuses a sale during a withdrawal with the same rule as the server.

@@ -6,7 +6,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { Link } from "@/i18n/navigation";
 import { postJson } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
-import { NOTIFICATION_MUTATIONS as M, type NotificationDto } from "@/modules/notifications/schema";
+import { NOTIFICATION_MUTATIONS as M, type NotificationDto } from "@/modules/notifications/shared";
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { requestSync, startSync } from "@/offline/sync";

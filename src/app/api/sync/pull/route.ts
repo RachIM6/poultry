@@ -1,8 +1,10 @@
 import { consume } from "@/lib/security/rate-limit";
-import { PullQuery } from "@/lib/sync/protocol";
+import { z } from "zod";
 import { pull, scopeMatches } from "@/lib/sync/server";
 import { getTenantContext } from "@/modules/identity";
 import { registry } from "../registry";
+
+const PullQuery = z.object({ since: z.coerce.number().int().min(0).default(0) });
 
 // A read: no CSRF check. The session cookie is SameSite=Lax and the JSON is not readable cross-origin.
 export async function GET(req: Request) {

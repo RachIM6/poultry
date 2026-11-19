@@ -400,7 +400,8 @@
     "ALREADY_REVERSED": "Cette écriture a déjà été annulée.",
     "FISCAL_YEAR_HAS_ENTRIES": "L’exercice a déjà des écritures : ce réglage ne peut changer qu’au début du prochain exercice.",
     "BUYER_CREDIT_BLOCKED": "Un chèque ou une traite de cet acheteur est revenu impayé : il paie comptant jusqu’à ce que le propriétaire lève le blocage.",
-    "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état."
+    "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état.",
+    "NOT_ENOUGH_EGGS": "Pas assez d’œufs dans ce lot."
   },
   "Weighing": {
     "title": "Pesée",
@@ -835,5 +836,33 @@
     "save": "Enregistrer le ramassage",
     "correct": "Corriger",
     "saveCorrection": "Enregistrer la correction"
+  },
+  "EggStock": {
+    "title": "Stock d’œufs",
+    "farm": "Ferme",
+    "headline": "{eggs} œufs en stock · {trays} plateaux",
+    "byItem": "Par calibre",
+    "eggsTrays": "{eggs} œufs · {trays} plateaux",
+    "items": {
+      "ungraded": "Non calibrés",
+      "downgraded": "Déclassés"
+    },
+    "limitsPending": "Limites de poids des calibres à confirmer selon la norme marocaine.",
+    "byAge": "Âge des œufs · premier pondu, premier vendu",
+    "ages": {
+      "0-2": "Pondus il y a 0 à 2 jours",
+      "3-5": "Pondus il y a 3 à 5 jours",
+      "6+": "Pondus il y a 6 jours ou plus"
+    },
+    "lots": "Lots",
+    "none": "Aucun œuf en stock.",
+    "lot": "{day} · {house} · {item} : {eggs} œufs",
+    "grade": "Calibrer",
+    "discard": "Écarter",
+    "gradeCount": "Calibre {grade}",
+    "saveGrading": "Enregistrer le calibrage",
+    "discardEggs": "Œufs écartés",
+    "reason": "Raison",
+    "saveDiscard": "Écarter ces œufs"
   }
 }

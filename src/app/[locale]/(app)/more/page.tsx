@@ -31,6 +31,7 @@ async function Content() {
       title: t("More.farm"),
       links: [
         { href: "/farms", label: t("Farms.title") },
+        { href: "/eggs", label: t("EggStock.title") }, // SPEC-m3 E4
         { href: "/protocol", label: t("Protocol.open") },
         { href: "/inbox", label: t("Inbox.open") },
         { href: "/sync", label: t("More.sync") },

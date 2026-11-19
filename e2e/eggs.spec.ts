@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { farmDaysAgo, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T59 acceptance (SPEC-m3 E1): collections recorded offline on a layer batch, one corrected, kept across a reload,
@@ -56,4 +57,58 @@ test("egg collections offline: two a day, one corrected, synced", async ({ page,
   await page.goto(`/ar/batches#${ids.batch}`);
   await expect(page.getByRole("heading", { name: "جمع البيض" })).toBeVisible();
   await expect(page.getByText(/الجمعة 2 · 1.100 بيضة/)).toBeVisible();
+});
+
+// T60 acceptance (SPEC-m3 E2–E4): the farm's egg stock by grade and age, grading and a discard, offline then synced.
+test("egg stock: grade a day's eggs, discard some, offline", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const e164 = await ownerWithFarm(page, "Élevage Stock d’Œufs");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), batch: crypto.randomUUID() };
+  const counts = { normal: 2700, cracked: 30, dirty: 20, doubleYolk: 0, floor: 10, broken: 5 };
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Sidi Hajjaj", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment P1", areaM2: 1000, capacity: 6000, type: "closed" } },
+    {
+      type: "flock.placeBatch",
+      payload: { id: ids.batch, houseId: ids.house, species: "layer", strainId: "lohmann-brown", placedOn: farmDaysAgo(3), chicksPlaced: 6000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: 273 },
+    },
+    { type: "eggs.recordCollection", payload: { id: uuidv7(), batchId: ids.batch, day: farmDaysAgo(3), counts, sample: null } },
+  ]);
+  await page.goto("/fr/eggs");
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await referenceCached(page);
+  await expect(page.getByText(/2.760 œufs en stock · 92 plateaux/)).toBeVisible();
+  await context.setOffline(true);
+  await context.route("**", (route) => route.abort("internetdisconnected"));
+
+  const ungraded = page.getByRole("listitem").filter({ hasText: "Non calibrés : 2" });
+  await ungraded.getByRole("button", { name: "Calibrer" }).click();
+  await ungraded.getByLabel("Calibre M").fill("2701");
+  await ungraded.getByRole("button", { name: "Enregistrer le calibrage" }).click();
+  await expect(ungraded.getByRole("alert")).toHaveText("Pas assez d’œufs dans ce lot.");
+  await ungraded.getByLabel("Calibre M").fill("2000");
+  await ungraded.getByLabel("Calibre L").fill("650");
+  await ungraded.getByRole("button", { name: "Enregistrer le calibrage" }).click();
+  await expect(page.getByText(/Non calibrés : 50 œufs/)).toBeVisible();
+
+  const downgraded = page.getByRole("listitem").filter({ hasText: "Déclassés : 60" });
+  await downgraded.getByRole("button", { name: "Écarter" }).click();
+  await downgraded.getByLabel("Œufs écartés").fill("10");
+  await downgraded.getByLabel("Raison").fill("Cassés au transport");
+  await downgraded.getByRole("button", { name: "Écarter ces œufs" }).click();
+  await expect(page.getByText(/Déclassés : 50 œufs/)).toBeVisible();
+  await expect(page.getByText(/2.750 œufs en stock/)).toBeVisible();
+  await expect(page.getByText("Pondus il y a 3 à 5 jours")).toBeVisible();
+
+  await context.unroute("**");
+  await context.setOffline(false);
+  const written = async () =>
+    await query<{ graded: number; discarded: number }>(
+      `SELECT (SELECT count(*)::int FROM "EggGrading" g WHERE g."organizationId" = m."organizationId") AS graded,
+              (SELECT sum(eggs)::int FROM "EggDiscard" d WHERE d."organizationId" = m."organizationId") AS discarded
+       FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
+      [e164],
+    );
+  await expect.poll(written).toEqual([{ graded: 1, discarded: 10 }]);
 });

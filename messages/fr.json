@@ -854,5 +854,30 @@
     "tick": "Faite : {task}",
     "assign": "Confier « {task} » à",
     "assignTo": "Confier à…"
+  },
+  "Attendance": {
+    "title": "Présence",
+    "month": "Mois",
+    "checkIn": "Je suis arrivé",
+    "arrivedAt": "Arrivé à {time}",
+    "legend": "P présent · R repos · C congé · A absent. Pointage par l’ouvrier sur son téléphone ou par le responsable.",
+    "short": {
+      "present": "P",
+      "rest": "R",
+      "leave": "C",
+      "absent": "A"
+    },
+    "statuses": {
+      "present": "Présent",
+      "rest": "Repos",
+      "leave": "Congé",
+      "absent": "Absent"
+    },
+    "set": "Modifier la présence",
+    "employee": "Ouvrier",
+    "day": "Jour",
+    "status": "Présence",
+    "arrivedAtLabel": "Heure d’arrivée (facultatif)",
+    "save": "Enregistrer la présence"
   }
 }

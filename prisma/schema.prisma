@@ -903,3 +903,20 @@ model TaskAssignment {
 
   @@index([organizationId])
 }
+
+// Owner: workforce. SPEC-m4 WF9: one status per employee and farm day. id = UUIDv5 of employee + day, so a check-in on
+// the worker's phone and the manager's edit meet on one record. userId: the linked member, who sees their own days.
+model Attendance {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  employeeId     String   @db.Uuid
+  day            DateTime @db.Date
+  status         String // present | rest | leave | absent
+  arrivedAt      String? // HH:MM, farm clock
+  userId         String?  @db.Uuid
+  updatedBy      String   @db.Uuid
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId, day])
+}

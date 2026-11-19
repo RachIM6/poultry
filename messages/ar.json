@@ -854,5 +854,30 @@
     "tick": "منجزة: {task}",
     "assign": "إسناد «{task}» إلى",
     "assignTo": "إسناد إلى…"
+  },
+  "Attendance": {
+    "title": "الحضور",
+    "month": "الشهر",
+    "checkIn": "وصلت",
+    "arrivedAt": "وصل على {time}",
+    "legend": "ح حاضر · ر راحة · ع عطلة · غ غائب. يسجل العامل حضوره بهاتفه أو يسجله المسؤول.",
+    "short": {
+      "present": "ح",
+      "rest": "ر",
+      "leave": "ع",
+      "absent": "غ"
+    },
+    "statuses": {
+      "present": "حاضر",
+      "rest": "راحة",
+      "leave": "عطلة",
+      "absent": "غائب"
+    },
+    "set": "تعديل الحضور",
+    "employee": "العامل",
+    "day": "اليوم",
+    "status": "الحضور",
+    "arrivedAtLabel": "ساعة الوصول (اختياري)",
+    "save": "حفظ الحضور"
   }
 }

@@ -11,7 +11,7 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { JOBS, WORKFORCE_MUTATIONS as W, type EmployeeDto } from "@/modules/workforce/shared";
+import { ATTENDANCE, attendanceId, JOBS, WORKFORCE_MUTATIONS as W, type AttendanceDto, type EmployeeDto } from "@/modules/workforce/shared";
 import { localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -26,7 +26,7 @@ function Staff(scope: Scope) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb(scope);
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee").toArray(), [scope.userId, scope.organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance").toArray(), [scope.userId, scope.organizationId]);
   const [editing, setEditing] = useState<EmployeeDto | "new" | null>(null);
   const [message, setMessage] = useState<string>();
   if (!can(scope, "workforce.manage")) return <p>{t("Staff.forbidden")}</p>;
@@ -84,6 +84,7 @@ function Staff(scope: Scope) {
       ) : (
         <button type="button" onClick={() => setEditing("new")} className={primary}>{t("Staff.add")}</button>
       )}
+      <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
     </>
   );
 }
@@ -178,5 +179,79 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
       </div>
     </form>
+  );
+}
+
+const CELL: Record<AttendanceDto["status"], string> = { present: "bg-olive-soft text-olive", rest: "bg-line text-ink-2", leave: "bg-chick-soft text-ink", absent: "bg-brick-soft text-brick-fg" };
+
+/** WF9 (W-Staff "Présence"): the month's grid, filled by check-ins and by the form below. */
+function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[]; attendance: AttendanceDto[]; onSave: (a: AttendanceDto) => Promise<void> }) {
+  const t = useTranslations();
+  const today = farmDayOf(new Date());
+  const [month, setMonth] = useState(today.slice(0, 7));
+  const [status, setStatus] = useState<AttendanceDto["status"]>("present");
+  const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
+  const days = Array.from({ length: last }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`).filter((d) => d <= today);
+  const working = employees.filter((e) => e.startedOn <= `${month}-31` && (!e.leftOn || e.leftOn > `${month}-01`));
+  if (working.length === 0) return null;
+
+  const submit = async (ev: FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
+    const data = new FormData(ev.currentTarget);
+    const employee = working.find((e) => e.id === data.get("employee"))!;
+    const day = String(data.get("day"));
+    await onSave({ id: attendanceId(employee.id, day), farmId: employee.farmId, employeeId: employee.id, day, status, arrivedAt: status === "present" ? String(data.get("arrivedAt") || "") || null : null, userId: employee.userId });
+  };
+
+  return (
+    <section aria-label={t("Attendance.title")} className="flex flex-col gap-3">
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Attendance.title")}</h2>
+      <input type="month" aria-label={t("Attendance.month")} value={month} max={today.slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className={field} />
+      <div className="overflow-x-auto rounded-[18px] bg-card">
+        <table className="text-sm">
+          <thead>
+            <tr>
+              <th scope="col" className="sticky start-0 bg-card px-3 py-2 text-start font-medium text-ink-2">{t("Staff.name")}</th>
+              {days.map((d) => <th key={d} scope="col" className="px-1 py-2 font-medium text-ink-2">{Number(d.slice(8))}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {working.map((e) => (
+              <tr key={e.id} className="border-t border-line">
+                <th scope="row" className="sticky start-0 bg-card px-3 py-2 text-start font-semibold">{e.name}</th>
+                {days.map((d) => {
+                  const a = attendance.find((x) => x.employeeId === e.id && x.day === d);
+                  return (
+                    <td key={d} className="px-1 py-1 text-center">
+                      {a ? <span title={a.arrivedAt ?? undefined} className={`inline-grid h-7 min-w-7 place-items-center rounded-md text-xs font-semibold ${CELL[a.status]}`}>{t(`Attendance.short.${a.status}`)}</span> : <span className="text-muted">·</span>}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[13px] text-ink-2">{t("Attendance.legend")}</p>
+      <form onSubmit={submit} className={card} aria-label={t("Attendance.set")}>
+        <Field label={t("Attendance.employee")}>
+          {(id) => (
+            <select id={id} name="employee" className={field}>
+              {working.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label={t("Attendance.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
+        <Field label={t("Attendance.status")}>
+          {(id) => (
+            <select id={id} value={status} onChange={(e) => setStatus(e.target.value as AttendanceDto["status"])} className={field}>
+              {ATTENDANCE.map((s) => <option key={s} value={s}>{t(`Attendance.statuses.${s}`)}</option>)}
+            </select>
+          )}
+        </Field>
+        {status === "present" && <Field label={t("Attendance.arrivedAtLabel")}>{(id) => <input id={id} name="arrivedAt" type="time" className={field} />}</Field>}
+        <button type="submit" className={primary}>{t("Attendance.save")}</button>
+      </form>
+    </section>
   );
 }

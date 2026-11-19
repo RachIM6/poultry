@@ -16,12 +16,11 @@ import {
   type DeathCause,
 } from "@/modules/flock/shared";
 import { parseQuantity, type StockItemDto } from "@/modules/inventory/shared";
+import { card, danger, field, primary } from "@/components/ui";
 
 // SPEC B2 on the phone: one short screen, built to be filled in under a minute. Same checks as the server; only the
 // fields that changed are sent, so two phones entering the same day merge instead of overwriting each other.
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const primary = "rounded-lg bg-green-700 px-4 py-3 text-lg font-semibold text-white";
 const today = () => farmDayOf(new Date());
 
 export type Write = (mutation: { type: string; payload: unknown }, records: { entity: string; id: string; data: unknown }[]) => Promise<boolean>;
@@ -100,24 +99,70 @@ function EntryFields({
 
   const kg = (g: number) => String(g / 1000).replace(".", ",");
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
-        <Field name="dead" label={t("Day.dead")} defaultValue={current.dead || ""} inputMode="numeric" pattern="\d*" dir="ltr" />
-        <Field name="culled" label={t("Day.culled")} defaultValue={current.culled || ""} inputMode="numeric" pattern="\d*" dir="ltr" />
-      </div>
-      <Select name="cause" label={t("Day.cause")} defaultValue={current.deathCause ?? "unknown"}>
-        {DEATH_CAUSES.map((c) => <option key={c} value={c}>{t(`Day.causes.${c}`)}</option>)}
-      </Select>
-      <Select name="feedItem" label={t("Day.feed")} defaultValue={current.feed?.stockItemId ?? feedItems[0]?.id ?? ""}>
-        <option value="">{t("Day.noFeed")}</option>
-        {feedItems.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-      </Select>
-      <Field name="feedKg" label={t("Day.feedKg")} defaultValue={current.feed ? kg(current.feed.grams) : ""} inputMode="decimal" dir="ltr" />
-      <Field name="water" label={t("Day.water")} defaultValue={current.waterMl ? kg(current.waterMl) : ""} inputMode="decimal" dir="ltr" />
+    <form onSubmit={submit} className="flex flex-col gap-2.5">
+      <section className={card}>
+        <Stepper name="dead" label={t("Day.dead")} defaultValue={current.dead ? String(current.dead) : ""} step={1} big />
+        <fieldset className="flex flex-wrap gap-1.5">
+          <legend className="sr-only">{t("Day.cause")}</legend>
+          {DEATH_CAUSES.map((c) => (
+            <label key={c} className="relative inline-flex min-h-11 cursor-pointer items-center rounded-full border border-line bg-card px-3.5 text-[15px] has-checked:border-ink has-checked:bg-ink has-checked:font-semibold has-checked:text-shell">
+              <input type="radio" name="cause" value={c} defaultChecked={(current.deathCause ?? "unknown") === c} className="absolute inset-0 cursor-pointer appearance-none rounded-full" />
+              {t(`Day.causes.${c}`)}
+            </label>
+          ))}
+        </fieldset>
+        <div className="border-t border-line pt-2.5">
+          <Stepper name="culled" label={t("Day.culled")} defaultValue={current.culled ? String(current.culled) : ""} step={1} />
+        </div>
+      </section>
+      <section className={card}>
+        <Select name="feedItem" label={t("Day.feed")} defaultValue={current.feed?.stockItemId ?? feedItems[0]?.id ?? ""}>
+          <option value="">{t("Day.noFeed")}</option>
+          {feedItems.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+        </Select>
+        <Stepper name="feedKg" label={t("Day.feedKg")} defaultValue={current.feed ? kg(current.feed.grams) : ""} step={25} decimal big />
+        <p className="text-[13px] text-muted">{t("Day.feedHint")}</p>
+      </section>
+      <section className={card}>
+        <Stepper name="water" label={t("Day.water")} defaultValue={current.waterMl ? kg(current.waterMl) : ""} step={100} decimal />
+      </section>
       <Field name="note" label={t("Day.note")} defaultValue={current.note ?? ""} maxLength={500} />
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <button type="submit" className={primary}>{t("Day.save")}</button>
+      <p className="text-center text-[13px] text-muted">{t("Day.offline")}</p>
     </form>
+  );
+}
+
+// M1-DailyEntry.dc.html: big − / + around a value that can still be typed (1 425 kg is quicker to type than to tap).
+function Stepper({ name, label, defaultValue, step, decimal = false, big = false }: { name: string; label: string; defaultValue: string; step: number; decimal?: boolean; big?: boolean }) {
+  const t = useTranslations("Day");
+  const id = useId();
+  const [value, setValue] = useState(defaultValue);
+  const bump = (by: number) => {
+    const n = Math.max(0, Math.round(((Number(value.replace(",", ".")) || 0) + by) * 1000) / 1000); // display only: parsed exactly on save
+    setValue(n === 0 ? "" : String(n).replace(".", ","));
+  };
+  const button = `grid ${big ? "size-[52px] text-2xl" : "size-11 text-lg"} shrink-0 place-items-center rounded-2xl font-semibold active:scale-95`;
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <label htmlFor={id} className={big ? "text-lg font-semibold" : "text-base text-ink-2"}>{label}</label>
+      <div className="inline-flex items-center rounded-2xl bg-shell">
+        <button type="button" aria-label={t("minus", { step: String(step) })} onClick={() => bump(-step)} className={button}>−</button>
+        <input
+          id={id}
+          name={name}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          inputMode={decimal ? "decimal" : "numeric"}
+          pattern={decimal ? undefined : "\\d*"}
+          dir="ltr"
+          placeholder="0"
+          className={`${big ? "w-24 text-[28px]" : "w-20 text-xl"} min-w-0 bg-transparent text-center font-semibold placeholder:text-muted`}
+        />
+        <button type="button" aria-label={t("plus", { step: String(step) })} onClick={() => bump(step)} className={button}>+</button>
+      </div>
+    </div>
   );
 }
 
@@ -125,7 +170,7 @@ function Field({ label, ...input }: { label: string } & InputHTMLAttributes<HTML
   const id = useId();
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} className="text-sm text-ink-2">{label}</label>
       <input id={id} className={field} {...input} />
     </div>
   );

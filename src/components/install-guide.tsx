@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { primary } from "@/components/ui";
 
 type Platform = "android" | "ios";
 type InstallPrompt = Event & { prompt(): Promise<void> };
@@ -40,7 +41,7 @@ export function InstallGuide() {
         <button
           type="button"
           onClick={() => void prompt.prompt().then(() => setPrompt(null))}
-          className="rounded-lg bg-green-700 px-4 py-3 font-semibold text-white"
+          className={primary}
         >
           {t("title")}
         </button>

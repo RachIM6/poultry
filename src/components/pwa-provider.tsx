@@ -38,7 +38,7 @@ function UpdateBanner() {
 
   if (!waiting || !serwist) return null;
   return (
-    <div role="status" className="flex items-center justify-between gap-3 bg-green-700 p-3 text-white">
+    <div role="status" className="flex items-center justify-between gap-3 bg-ink p-3 text-shell">
       <span>{t("updateAvailable")}</span>
       <button
         type="button"

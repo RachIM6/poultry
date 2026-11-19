@@ -20,7 +20,7 @@ test("the day's entry works offline; its feed lowers stock once, and editing the
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.getByRole("link", { name: "Saisir le jour" }).click();
   await page.getByLabel("Morts").fill("3");
-  await page.getByLabel("Cause").selectOption({ label: "Chaleur" });
+  await page.getByRole("radio", { name: "Chaleur" }).check(); // tasks/plan-ui.md U3: cause chips
   await page.getByLabel("Aliment consommé (kg)").fill("85");
   await page.getByLabel("Eau (litres, facultatif)").fill("150");
   await page.getByRole("button", { name: "Enregistrer la journée" }).click();

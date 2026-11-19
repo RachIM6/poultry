@@ -4,9 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { postJson } from "@/lib/api";
+import { field, primary as button } from "@/components/ui";
 
-const field = "rounded-lg border border-current/30 bg-transparent px-3 py-3 text-lg";
-const button = "rounded-lg bg-green-700 px-4 py-3 font-semibold text-white disabled:opacity-60";
 
 // The forms come from the page (farm-registry's LEGAL_FORMS): importing the module here would bundle its server code.
 export function OnboardingForm({ forms }: { forms: readonly string[] }) {
@@ -38,8 +37,8 @@ export function OnboardingForm({ forms }: { forms: readonly string[] }) {
       <fieldset className="flex flex-col gap-2" aria-describedby="form-hint">
         <legend className="mb-2">{t("Onboarding.formLabel")}</legend>
         {forms.map((form) => (
-          <label key={form} className="flex items-center gap-3 rounded-lg border border-current/30 px-3 py-3 has-checked:border-green-700 has-checked:bg-green-700/10">
-            <input type="radio" name="form" value={form} required className="size-5 accent-green-700" />
+          <label key={form} className="flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 has-checked:border-ink has-checked:bg-chick-soft">
+            <input type="radio" name="form" value={form} required className="size-5 accent-ink" />
             {t(`Onboarding.forms.${form}`)}
           </label>
         ))}

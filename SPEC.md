@@ -27,7 +27,7 @@ Vets and accountants come in M5.
 | Layer | Choice | ADR |
 |---|---|---|
 | Client | **PWA**: Next.js App Router pages, service worker (Serwist), IndexedDB (Dexie) | [ADR-001](docs/decisions/ADR-001-pwa-only-client.md), [ADR-003](docs/decisions/ADR-003-offline-first-sync.md) |
-| Server | **Single Next.js app** (route handlers + server actions), TypeScript strict. Modular monolith | [ADR-002](docs/decisions/ADR-002-nextjs-modular-monolith-postgres.md) |
+| Server | **Single Next.js app** (route handlers + server actions), TypeScript strict. Modular monolith, scaled out as copies of the same app | [ADR-002](docs/decisions/ADR-002-nextjs-modular-monolith-postgres.md), [ADR-012](docs/decisions/ADR-012-no-separate-backend.md) |
 | Database | **PostgreSQL 16+** through **Prisma** | ADR-002 |
 | Validation | **Zod**. The same schemas run on the client (offline writes) and the server (sync push) | ADR-003 |
 | i18n | **next-intl**. Locales `ar` (default, RTL) and `fr`. Tailwind logical properties | [ADR-004](docs/decisions/ADR-004-i18n-arabic-french-rtl.md) |

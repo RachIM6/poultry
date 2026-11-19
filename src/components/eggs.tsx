@@ -72,30 +72,30 @@ export function EggCollections({ batch, collections, write }: { batch: BatchDto;
         <form onSubmit={submit} className={card}>
           <h4 className="font-semibold">{t("Eggs.collection", { n: String(number) })}</h4>
           {EGG_CATEGORIES.map((k) => (
-            <div key={k} className="flex items-center gap-2">
-              <span className="flex flex-1 flex-col">
+            <div key={k} className="flex min-w-0 items-center gap-2">
+              <span className="flex min-w-0 flex-1 flex-col">
                 <b className="font-semibold">{t(`Eggs.categories.${k}`)}</b>
                 <span className="text-sm text-muted">{t(`Eggs.hints.${k}`)}</span>
               </span>
-              <button type="button" className={`${secondary} size-11 text-xl`} aria-label={t("Eggs.remove", { step: String(STEP[k]), label: t(`Eggs.categories.${k}`) })} onClick={() => set(k, counts[k] - STEP[k])}>−</button>
+              <button type="button" className={`${secondary} size-11 shrink-0 px-0 text-xl`} aria-label={t("Eggs.remove", { step: String(STEP[k]), label: t(`Eggs.categories.${k}`) })} onClick={() => set(k, counts[k] - STEP[k])}>−</button>
               <input
                 aria-label={t(`Eggs.categories.${k}`)}
                 value={String(counts[k])}
                 onChange={(e) => set(k, Number(e.target.value))}
                 inputMode="numeric"
                 dir="ltr"
-                className={`${field} w-24 text-center`}
+                className={`${field} w-20 shrink-0 px-1 text-center`}
               />
-              <button type="button" className={`${secondary} size-11 text-xl`} aria-label={t("Eggs.add", { step: String(STEP[k]), label: t(`Eggs.categories.${k}`) })} onClick={() => set(k, counts[k] + STEP[k])}>+</button>
+              <button type="button" className={`${secondary} size-11 shrink-0 px-0 text-xl`} aria-label={t("Eggs.add", { step: String(STEP[k]), label: t(`Eggs.categories.${k}`) })} onClick={() => set(k, counts[k] + STEP[k])}>+</button>
             </div>
           ))}
-          <fieldset className="flex gap-2">
-            <legend className="mb-1">{t("Eggs.sample")}</legend>
-            <label className="flex flex-1 flex-col gap-1">
+          <fieldset className="grid grid-cols-2 gap-2">
+            <legend className="col-span-2 mb-1">{t("Eggs.sample")}</legend>
+            <label className="flex min-w-0 flex-col gap-1">
               {t("Eggs.sampleCount")}
               <input id={ids.sampleCount} value={sample.count} onChange={(e) => setSample((s) => ({ ...s, count: e.target.value }))} inputMode="numeric" dir="ltr" className={field} />
             </label>
-            <label className="flex flex-1 flex-col gap-1">
+            <label className="flex min-w-0 flex-col gap-1">
               {t("Eggs.sampleGrams")}
               <input id={ids.sampleGrams} value={sample.grams} onChange={(e) => setSample((s) => ({ ...s, grams: e.target.value }))} inputMode="numeric" dir="ltr" className={field} />
             </label>

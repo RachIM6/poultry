@@ -181,10 +181,16 @@ Done 2026-11-17 (branch `feat/t67-batch-comparison`): `closedBatchFigures` (pure
 
 ### T68: M3 offline journey (success criteria 1, 2)
 **AC:**
-- [ ] Pullets → transfer → collections → grading → egg sale → old-hen sale, offline, ar and fr (e2e). The M1 journey still passes.
+- [x] Pullets → transfer → collections → grading → egg sale → old-hen sale, offline, ar and fr (e2e). The M1 journey still passes. (`e2e/m3-journey.spec.ts`, every label from the message files; the whole suite, 60 tests, passes: 13 needed a single-worker re-run because the database's transactions expired under load with the disk at 98 %.)
+
+Done 2026-11-17 (branch `feat/t68-m3-journey`). The Arabic run found a real bug: on a phone the egg-collection steppers overflowed and covered the save button; the rows now shrink (label column `min-w-0`, fixed-size buttons and input).
+
+SPEC-m3 §6 success criteria: 1 ✔ (this journey), 2 ✔ (`e2e/production-types.spec.ts`: turkeys by sex, beldi bands, per-head sale), 3 ✔ (every requirement has a unit or integration test), 4 ✔ (M1 journey unchanged, ar and fr).
 **Size:** M
 
 ### T69: Reserved
+
+Left for later (from the build, none blocking): a "laying below standard" alert (needs a threshold and a loaded curve), P-Compare's feed-supplier and hatchery-claim tables, per-house weight vs standard on the home, the grade ids checked against reference data (needs `eggs` → `reference-data` in CAPABILITY-MAP), renaming `SaleLine.eggs` to a neutral name (an "ask first" migration).
 
 ## Source documents needed (SPEC-m3 §5)
 

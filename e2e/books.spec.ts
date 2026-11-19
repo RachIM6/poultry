@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { farmDaysAgo, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { unzip } from "../src/test/unzip";
 
 // T36 (FN16): an individual farmer (cash_book) sees their receipts-and-expenses book; the ledger views are tested on
 // the server (src/modules/finance/books.int.test.ts).
@@ -23,4 +25,12 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   const book = page.getByRole("table", { name: "Recettes et dépenses" });
   await expect(book.getByRole("row").nth(1)).toContainText(/Dépense · Consommation d’Eau.*5161 Caisses.*450,00\sDH/);
   await expect(book.getByRole("row").last()).toContainText(/Total du mois\s*0,00\sDH\s*450,00\sDH/);
+
+  // T38 (FN18): the month for the accountant, as a zip of CSV and Excel.
+  const month = farmDaysAgo(0).slice(0, 7);
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("link", { name: "Exporter pour le comptable (CSV, Excel)" }).click()]);
+  expect(download.suggestedFilename()).toBe(`comptabilite-${month}.zip`);
+  const files = unzip(await readFile(await download.path()));
+  expect([...files.keys()]).toEqual([`recettes-depenses-${month}.csv`, `livres-${month}.xlsx`]);
+  expect(files.get(`recettes-depenses-${month}.csv`)).toMatch(/;5161;Caisses;[^;]+;0,00;450,00\r\nTotal;;;;;0,00;450,00\r\n$/);
 });

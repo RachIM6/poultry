@@ -207,7 +207,18 @@ Not yet: a push notification when the year crosses 90 %; the dashboard warning o
 
 ### T38: Export to the accountant (FN18)
 **AC:**
-- [ ] CSV and Excel per period open in Excel with French formatting; zip with receipts.
+- [x] CSV and Excel per period open in Excel with French formatting. (`finance/domain/export.test.ts`, `lib/xlsx.test.ts`, `finance/books.int.test.ts`, `e2e/books.spec.ts`: the link on `/books` downloads the zip. Opened by hand in Excel 16: the .xlsx opens without repair, with numbers and dates; the CSV, read with French separators, gives numbers and keeps accents.)
+- [ ] Zip with receipts: no receipt is recorded yet (receipt photos are deferred). The zip gets a `pieces/` folder when they are.
+
+Done 2026-11-16 (branch `feat/t38-export`), decisions taken without asking:
+- **One download per month:** `GET /api/finance/export?month=YYYY-MM` (owner, manager) gives `comptabilite-YYYY-MM.zip` with one CSV per sheet and the same sheets in `livres-YYYY-MM.xlsx`. It reuses `readBooks`, so it holds what `/books` shows: a `ledger` entity gets the entries, the trial balance (from the fiscal year's first day) and the cash book; a `cash_book` entity gets the cash book only.
+- **No new dependency:** the zip writer (`lib/zip.ts`, `node:zlib`) and the .xlsx writer (`lib/xlsx.ts`, minimal SpreadsheetML) are a few dozen lines each. Amounts are written from the bigint, never through a float.
+- **CSV for French Excel:** UTF-8 with BOM, `;`, decimal comma without thousands separator, dates dd/mm/yyyy, CRLF. A text starting with `= + - @` gets a `'` in front (CSV injection).
+- **Headers in French** in both locales: the CGNC and the accountants work in French.
+- **Entry columns** are FN18's. "Pièce" is the entry id (stable, traces back to the app). Party, farm, house and batch are empty: ledger lines carry no analytic tag yet (see T34, T36).
+
+Not yet: receipts in the zip; the analytic columns; the accounting software's own import format (M6, FQ10).
+
 **Size:** M
 
 ### T39: VAT on purchases and sales (FN9), after FQ4

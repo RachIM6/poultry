@@ -715,7 +715,8 @@
     "balance": "Solde",
     "since": "Depuis le début de l’exercice, le {from}",
     "balanced": "Balance équilibrée",
-    "unbalanced": "Balance déséquilibrée"
+    "unbalanced": "Balance déséquilibrée",
+    "export": "Exporter pour le comptable (CSV, Excel)"
   },
   "Threshold": {
     "open": "Seuil des 5 M DH",

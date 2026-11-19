@@ -11,4 +11,5 @@ export { batchResults, freezeClosedBatches, type BatchResultRow } from "./applic
 export { budgetBases, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";
 export { readBooks, type Books } from "./application/books";
+export { exportBooks } from "./application/export";
 export { thresholdTracker, type ThresholdTracker } from "./application/threshold";

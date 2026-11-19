@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
+import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
@@ -82,6 +83,14 @@ export function Sales({
                   <span>{t("Sale.detail", { amount: formatMoney(BigInt(s.amountCentimes)), method: t(`Sale.methods.${s.paymentMethod}`), paid: formatMoney(BigInt(s.paidCentimes ?? "0")) })}</span>
                 )}
                 {gap && <span>{t("Sale.gap", { kg: formatKg(gap.grams), percent: formatPercent(gap.percent) })}</span>}
+                {/* V5: printed in either language, whatever the screen's */}
+                <span className="flex gap-4">
+                  {(["fr", "ar"] as const).map((l) => (
+                    <Link key={l} href={`/origin#${s.id}`} locale={l} className="py-2 underline underline-offset-4">
+                      {t("Sale.origin", { language: t(`LocaleSwitcher.${l}`) })}
+                    </Link>
+                  ))}
+                </span>
               </li>
             );
           })}

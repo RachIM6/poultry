@@ -482,7 +482,8 @@
     "save": "Enregistrer la vente",
     "cancel": "Annuler",
     "line": "{date} · {buyer} · {birds} oiseaux · {kg}",
-    "detail": "{amount} · {method} · reçu {paid}"
+    "detail": "{amount} · {method} · reçu {paid}",
+    "origin": "Document d’origine ({language})"
   },
   "Receivables": {
     "title": "Créances",
@@ -497,5 +498,35 @@
     "save": "Enregistrer le paiement",
     "cancel": "Annuler",
     "forbidden": "Les créances sont réservées au propriétaire et au gérant."
+  },
+  "Origin": {
+    "title": "Document d’origine des volailles",
+    "law": "Loi n° 49-99, article 10",
+    "number": "N° {number}",
+    "notFound": "Vente introuvable sur ce téléphone.",
+    "farm": "Élevage d’origine",
+    "farmName": "Ferme",
+    "address": "Adresse",
+    "onssa": "Agrément ONSSA",
+    "onssaValue": "<code>{number}</code>, valable jusqu’au {date}",
+    "onssaNone": "Non renseigné",
+    "batch": "Bande",
+    "house": "Bâtiment",
+    "strain": "Souche",
+    "placedOn": "Mise en place",
+    "age": "Âge à la vente",
+    "days": "{age} jours",
+    "sale": "Vente",
+    "day": "Date",
+    "birds": "Nombre d’oiseaux",
+    "weight": "Poids total à la ferme",
+    "average": "Poids moyen par oiseau",
+    "buyer": "Acheteur",
+    "buyerName": "Nom",
+    "buyerType": "Type",
+    "buyerPhone": "Téléphone",
+    "signFarm": "Signature et cachet de l’éleveur",
+    "signBuyer": "Signature de l’acheteur",
+    "print": "Imprimer"
   }
 }

@@ -668,5 +668,29 @@
     "costs": "Poussins {chicks} · consommations {consumption} · autres {other} · direct {direct} · réparti {allocated}",
     "open_": "en cours",
     "closed": "clôturée le {date}"
+  },
+  "Budget": {
+    "title": "Budget d’une bande",
+    "open": "Budget et seuil de rentabilité",
+    "basedOn": "Copié de la bande",
+    "blank": "Partir de zéro",
+    "chicks": "Poussins",
+    "chickPrice": "Prix du poussin (DH)",
+    "feedKg": "Aliment (kg)",
+    "feedPrice": "Prix de l’aliment (DH/kg)",
+    "other": "Autres coûts (DH)",
+    "plannedKg": "Kg vendus prévus",
+    "salePrice": "Prix de vente (DH/kg)",
+    "figures": "Résultat prévu",
+    "plannedCost": "Coût prévu",
+    "breakEven": "Seuil de rentabilité",
+    "plannedSales": "Ventes prévues",
+    "plannedMargin": "Marge prévue",
+    "name": "Nom du budget",
+    "save": "Enregistrer le budget",
+    "savedOk": "Budget enregistré.",
+    "saved": "Budgets enregistrés",
+    "none": "Aucun budget enregistré.",
+    "line": "seuil {breakEven} / kg, marge {margin}"
   }
 }

@@ -827,7 +827,9 @@
     "cash": "السيولة المتوفرة",
     "lastBatch": "آخر دفعة مغلقة · {house}",
     "margin": "الهامش: {margin}",
-    "costPerKg": "{cost} / كغ"
+    "costPerKg": "{cost} / كغ",
+    "laying": "الوضع {rate} % · {eggs} بيضة في آخر يوم جمع",
+    "eggsYesterday": "البيض المجموع أمس"
   },
   "Transfer": {
     "title": "الانتقال إلى البيض",

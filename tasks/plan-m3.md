@@ -167,7 +167,9 @@ Done 2026-11-17 (branch `feat/t65-egg-postings`): `salesChangedSince` carries th
 
 ### T66: Owner overview (D1)
 **AC:**
-- [ ] One farm with a broiler, a layer and a beldi run shows each house's figures (e2e).
+- [x] One farm with a broiler, a layer and a beldi run shows each house's figures (e2e). (`e2e/production-types.spec.ts`: "Jour 3 sur 42", the layers' laying rate and yesterday's 1 713 eggs, "21 sem. 3 j" for the band.)
+
+Done 2026-11-17 (branch `feat/t66-owner-overview`, with the UI chain's U12 merged): **no second dashboard**. The design session owns the home ("Aujourd'hui", WebOverview on wide screens, the owner's "Argent" card); M3 extends it: each layer batch shows its latest laying rate and eggs under its strip, and a card counts yesterday's eggs on the farm. Ages in weeks and type labels came with T56. Not done from P-Owner: weight vs standard and FCR per broiler house on the home (they need a weighing and a curve: the batch screen has them), uniformity for pullets, farm filter (the home already follows the farm of the open batches).
 **Size:** M
 
 ### T67: Batch comparison (D2)

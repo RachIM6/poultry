@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { farmDaysAgo, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T53 acceptance (SPEC-m3 B7, B8): a layer batch placed at 18 weeks counts its age in weeks, and two beldi bands share a
@@ -269,4 +270,35 @@ test("a beldi band sold by the head: 6 roosters and 4 hens, 790,00 DH", async ({
       [e164],
     );
   await expect.poll(sold).toEqual([{ kind: "perHead", amount: "79000", birds: 10 }]);
+});
+
+// T66 acceptance (SPEC-m3 D1, P-Owner): the home shows every type: broilers by day, layers with their laying rate and
+// yesterday's eggs, beldi bands in weeks.
+test("the home shows a broiler batch, a layer batch with yesterday's eggs and a beldi band", async ({ page }) => {
+  test.setTimeout(120_000);
+  await ownerWithFarm(page, "Élevage Vue d’Ensemble");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), b1: crypto.randomUUID(), p1: crypto.randomUUID(), run: crypto.randomUUID(), layers: crypto.randomUUID() };
+  const place = (id: string, houseId: string, species: string, strainId: string, birds: number, age: number) => ({
+    type: "flock.placeBatch",
+    payload: { id, houseId, species, strainId, placedOn: farmDaysAgo(3), chicksPlaced: birds, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: age },
+  });
+  const house = (id: string, name: string) => ({ type: "farm-registry.createHouse", payload: { id, farmId: ids.farm, name, areaM2: 1000, capacity: 12000, type: "closed" } });
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Sidi Hajjaj", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    house(ids.b1, "Bâtiment 2"),
+    house(ids.p1, "Bâtiment P1"),
+    house(ids.run, "Parcours"),
+    place(crypto.randomUUID(), ids.b1, "broiler", "ross-308", 12000, 0),
+    place(ids.layers, ids.p1, "layer", "lohmann-brown", 6000, 266),
+    place(crypto.randomUUID(), ids.run, "beldi", "unspecified-beldi", 140, 147),
+    // P-EggCollect's collection, yesterday: 1 713 eggs.
+    { type: "eggs.recordCollection", payload: { id: uuidv7(), batchId: ids.layers, day: farmDaysAgo(1), counts: { normal: 1642, cracked: 18, dirty: 31, doubleYolk: 6, floor: 12, broken: 4 }, sample: null } },
+  ]);
+  await page.goto("/fr/dashboard");
+  await expect(page.getByText(/Œufs ramassés hier/).locator("..")).toContainText(/1.713/);
+  await expect(page.getByText(/Ponte 28,5 % · 1.713 œufs le dernier jour ramassé/)).toBeVisible(); // 1 713 ÷ 6 000 = 28,549…
+  await expect(page.getByText("Jour 3 sur 42")).toBeVisible();
+  await expect(page.getByText("38 sem. 3 j", { exact: true })).toBeVisible(); // layers: 266 + 3 days
+  await expect(page.getByText("21 sem. 3 j", { exact: true })).toBeVisible(); // the beldi band: 147 + 3 days
 });

@@ -827,7 +827,9 @@
     "cash": "Trésorerie disponible",
     "lastBatch": "Dernière bande clôturée · {house}",
     "margin": "Marge : {margin}",
-    "costPerKg": "{cost} / kg"
+    "costPerKg": "{cost} / kg",
+    "laying": "Ponte {rate} % · {eggs} œufs le dernier jour ramassé",
+    "eggsYesterday": "Œufs ramassés hier"
   },
   "Transfer": {
     "title": "Passage en ponte",

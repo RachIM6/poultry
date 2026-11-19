@@ -45,3 +45,9 @@ export const SetInstrumentState = z.object({ id: z.uuidv7(), instrumentId: z.uui
 
 /** FN12: the owner lets a buyer whose cheque or bill came back unpaid buy on credit again. */
 export const UnblockBuyer = z.object({ buyerId: z.uuid() });
+
+/** FN12: the owner sets what a buyer may owe at most; null removes the limit. */
+export const SetCreditLimit = z.object({ buyerId: z.uuid(), limitCentimes: centimes.nullable() });
+
+/** FN12: the owner approves a credit sale that went past the buyer's limit. */
+export const ApproveCredit = z.object({ saleId: z.uuid() });

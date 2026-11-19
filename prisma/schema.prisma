@@ -566,6 +566,8 @@ model Buyer {
   // SPEC-finance FN11/FN12: set when one of their cheques or bills comes back unpaid; no sale on credit until the
   // owner lifts it.
   creditBlocked  Boolean  @default(false)
+  // FN12: what they may owe at most, set by the owner; null = no limit. A credit sale beyond it waits for the owner.
+  creditLimitCentimes BigInt?
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId])
@@ -588,6 +590,7 @@ model Sale {
   instrumentNumber     String? // cheque or bill of exchange
   instrumentDueOn      DateTime? @db.Date
   instrumentRemindedAt DateTime? @db.Timestamptz // V4: claimed by the reminder job, so it goes out once
+  creditApproval       String? // FN12: "pending" when it took the buyer past their credit limit, "approved" by the owner
   recordedBy           String    @db.Uuid
   createdAt            DateTime  @default(now()) @db.Timestamptz
 

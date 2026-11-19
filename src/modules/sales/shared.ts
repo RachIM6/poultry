@@ -5,7 +5,8 @@ import type { BUYER_TYPES, PaymentMethod } from "@/modules/sales/domain/sale";
 // re-exports this file.
 export { BUYER_TYPES, PAYMENT_METHODS, checkSale, saleAmount, weighingGap } from "@/modules/sales/domain/sale";
 export type { PaymentMethod, SaleError } from "@/modules/sales/domain/sale";
-export { buyerBalances, checkPayment } from "@/modules/sales/domain/receivables";
+export { AGEING_BUCKETS, ageing, ageingBucket, buyerBalances, checkPayment } from "@/modules/sales/domain/receivables";
+export type { AgeingBucket } from "@/modules/sales/domain/receivables";
 export { INSTRUMENT_STATES, checkTransition, instrumentsOf } from "@/modules/sales/domain/instruments";
 export type { Instrument, InstrumentKind, InstrumentState } from "@/modules/sales/domain/instruments";
 
@@ -13,7 +14,14 @@ export type { Instrument, InstrumentKind, InstrumentState } from "@/modules/sale
 export const LATER_PAYMENT_METHODS = ["cash", "cheque", "bill", "transfer"] as const;
 
 /** `creditBlocked`: one of their cheques or bills came back unpaid; no sale on credit until the owner lifts it (FN12). */
-export type BuyerDto = { id: string; name: string; phone: string | null; type: (typeof BUYER_TYPES)[number]; creditBlocked?: boolean };
+export type BuyerDto = {
+  id: string;
+  name: string;
+  phone: string | null;
+  type: (typeof BUYER_TYPES)[number];
+  creditBlocked?: boolean;
+  creditLimitCentimes?: string | null; // FN12, money: owners and managers only
+};
 
 /** FN11: one step of a received cheque or bill. Its id is a UUIDv7 from the phone, so ids sort by time. */
 export type InstrumentStatusDto = { id: string; instrumentId: string; state: "remitted" | "cashed" | "unpaid"; day: string };
@@ -32,8 +40,9 @@ export type SaleDto = {
   paymentMethod?: PaymentMethod;
   paidCentimes?: string;
   instrument?: { number: string; dueOn: string } | null; // cheque or bill of exchange
+  creditApproval?: "pending" | "approved" | null; // FN12: beyond the buyer's credit limit, waits for the owner
 };
-export const SALE_MONEY = ["pricePerKgCentimes", "amountCentimes", "paymentMethod", "paidCentimes", "instrument"] as const;
+export const SALE_MONEY = ["pricePerKgCentimes", "amountCentimes", "paymentMethod", "paidCentimes", "instrument", "creditApproval"] as const;
 
 /** V4: a later payment. All money: owners and managers only (I5). */
 export type PaymentDto = { id: string; buyerId: string; day: string; amountCentimes: string; method: (typeof LATER_PAYMENT_METHODS)[number] };
@@ -44,4 +53,6 @@ export const SALES_MUTATIONS = {
   recordPayment: "sales.recordPayment",
   setInstrumentState: "sales.setInstrumentState",
   unblockBuyer: "sales.unblockBuyer",
+  setCreditLimit: "sales.setCreditLimit",
+  approveCredit: "sales.approveCredit",
 } as const;

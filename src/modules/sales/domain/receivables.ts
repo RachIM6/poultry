@@ -26,3 +26,36 @@ export function checkPayment(amountCentimes: bigint, balanceCentimes: bigint): R
   return ok(undefined);
 }
 
+/** FN12: the ageing columns, by days past the due date. */
+export const AGEING_BUCKETS = ["notDue", "1-30", "31-60", "61-90", "90+"] as const;
+export type AgeingBucket = (typeof AGEING_BUCKETS)[number];
+
+/** FN12: which column a debt sits in, from the days since its due date (SPEC-finance §7: 77 days → 61–90). */
+export function ageingBucket(daysPastDue: number): AgeingBucket {
+  if (daysPastDue <= 0) return "notDue";
+  if (daysPastDue <= 30) return "1-30";
+  if (daysPastDue <= 60) return "31-60";
+  if (daysPastDue <= 90) return "61-90";
+  return "90+";
+}
+
+/**
+ * FN12: what a buyer owes, split by age. Their debts are what each sale left unpaid (due on the sale day: M1 records no
+ * payment terms) and each cheque or bill that came back unpaid (due on its agreed date); later payments settle the
+ * oldest first. `daysPastDue(dueOn)` is today − dueOn in farm days.
+ */
+export function ageing(
+  debts: readonly { dueOn: string; amountCentimes: bigint }[],
+  paidLaterCentimes: bigint,
+  daysPastDue: (dueOn: string) => number,
+): Record<AgeingBucket, bigint> {
+  const out = Object.fromEntries(AGEING_BUCKETS.map((b) => [b, 0n])) as Record<AgeingBucket, bigint>;
+  let paid = paidLaterCentimes;
+  for (const d of [...debts].sort((x, y) => x.dueOn.localeCompare(y.dueOn))) {
+    const settled = paid < d.amountCentimes ? paid : d.amountCentimes;
+    paid -= settled;
+    const left = d.amountCentimes - settled;
+    if (left > 0n) out[ageingBucket(daysPastDue(d.dueOn))] += left;
+  }
+  return out;
+}

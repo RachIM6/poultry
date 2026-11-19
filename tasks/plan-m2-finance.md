@@ -117,8 +117,20 @@ Not yet:
 
 ### T33: Ageing and credit limits (FN12)
 **AC:**
-- [ ] Ageing buckets match the fixture (77 days → 61–90).
-- [ ] A credit sale above the buyer's limit waits for the owner's approval.
+- [x] Ageing buckets match the fixture (77 days → 61–90). (`sales/domain/receivables.test.ts`; later payments settle the oldest debts first.)
+- [x] A credit sale above the buyer's limit waits for the owner's approval. (`sales/credit.int.test.ts`; `e2e/receivables.spec.ts` approves offline.)
+
+Done 2026-11-15 (branch `feat/t33-ageing-credit-limits`), decisions taken without asking:
+- **Due dates:** a credit sale is due on its sale day, because M1 records no payment terms; an unpaid cheque or bill is due on its agreed date.
+- **Credit limit:** `Buyer.creditLimitCentimes`, set by the owner (`sales.setCreditLimit`), stripped for workers.
+- **A sale past the limit is still recorded:** the birds have left, and refusing it after an offline sync would lose a real sale. It's marked `Sale.creditApproval = "pending"` and the owners get a `creditApproval` notification (a money template, owners only). The owner approves it with `sales.approveCredit`.
+- **The owner's own sales:** never held, since the owner is the one who approves.
+- **Receivables screen:** each owing buyer's debts by age and their limit, the credits waiting for approval, and the owner's list of limits.
+
+Not yet:
+- The supplier side of FN12 (amounts due by due date), which comes with supplier payments.
+- Refusing a pending credit: the owner can block the buyer (T31) instead.
+
 **Size:** S
 
 ### T34: Batch result and shared-cost allocation (FN13, FN14)

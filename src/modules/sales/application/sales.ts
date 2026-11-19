@@ -10,12 +10,16 @@ import { recordBirdsSold } from "@/modules/flock";
 import { withdrawalOn } from "@/modules/health";
 import { buyerBalances, checkPayment } from "@/modules/sales/domain/receivables";
 import { checkSale } from "@/modules/sales/domain/sale";
+import { formatMoney } from "@/lib/format";
+import { notify } from "@/modules/notifications";
 import { checkTransition } from "@/modules/sales/domain/instruments";
 import {
   buyerIdTaken,
   buyerLedger,
-  creditBlocked,
+  approveSaleCredit,
+  creditTerms,
   instrumentsWhere,
+  setCreditLimit as saveCreditLimit,
   lockBuyer,
   ownBuyer,
   paymentIdTaken,
@@ -27,7 +31,19 @@ import {
   setCreditBlocked,
   statusIdTaken,
 } from "@/modules/sales/infrastructure/sales";
-import type { BuyerDto, CreateBuyer, InstrumentStatusDto, PaymentDto, RecordPayment, RecordSale, SaleDto, SetInstrumentState, UnblockBuyer } from "@/modules/sales/schema";
+import type {
+  ApproveCredit,
+  BuyerDto,
+  CreateBuyer,
+  InstrumentStatusDto,
+  PaymentDto,
+  RecordPayment,
+  RecordSale,
+  SaleDto,
+  SetCreditLimit,
+  SetInstrumentState,
+  UnblockBuyer,
+} from "@/modules/sales/schema";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
 
@@ -54,16 +70,31 @@ export async function recordSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof
     await withdrawalOn(tx, ctx, cmd.batchId, cmd.day as FarmDay),
   );
   if (!checked.ok) return checked;
-  // FN12: a buyer whose cheque or bill came back unpaid pays everything at once until the owner lifts the block.
-  if (checked.value.amountCentimes > BigInt(cmd.paidCentimes) && (await creditBlocked(tx, ctx, cmd.buyerId))) return fail("BUYER_CREDIT_BLOCKED");
+  // FN12: a buyer whose cheque or bill came back unpaid pays everything at once until the owner lifts the block. A
+  // credit sale that takes them past their limit is recorded (the birds have left), but waits for the owner's approval.
+  const credit = checked.value.amountCentimes - BigInt(cmd.paidCentimes);
+  const terms = await creditTerms(tx, ctx, cmd.buyerId);
+  if (credit > 0n && terms?.creditBlocked) return fail("BUYER_CREDIT_BLOCKED");
+  let creditApproval: "pending" | null = null;
+  if (credit > 0n && terms?.creditLimitCentimes != null && ctx.role !== "owner") {
+    await lockBuyer(tx, cmd.buyerId);
+    const { sales, payments, unpaid } = await buyerLedger(tx, ctx, cmd.buyerId);
+    const owed = buyerBalances(sales, payments, unpaid).get(cmd.buyerId) ?? 0n;
+    if (owed + credit > terms.creditLimitCentimes) creditApproval = "pending";
+  }
 
   const sold = await recordBirdsSold(tx, ctx, { id: cmd.id, batchId: cmd.batchId, day: cmd.day, birds: cmd.birds, liveWeightGrams: cmd.farmWeightGrams }, meta, clock);
   if (!sold.ok) return sold; // nothing written yet: flock checks before it writes
 
-  const sale: Required<SaleDto> = { ...cmd, amountCentimes: String(checked.value.amountCentimes) };
+  const sale: Required<SaleDto> = { ...cmd, amountCentimes: String(checked.value.amountCentimes), creditApproval };
   await saveSale(tx, ctx, sale);
   await recordChange(tx, ctx, "sale", sale.id, sale);
   await audit(tx, ctx, { entity: "Sale", entityId: sale.id, action: "create", after: sale, ...meta });
+  if (creditApproval === "pending") {
+    const buyer = await tx.buyer.findUniqueOrThrow({ where: { id: cmd.buyerId }, select: { name: true } });
+    const params = { buyer: buyer.name, amount: formatMoney(credit), limit: formatMoney(terms!.creditLimitCentimes!) };
+    await notify(tx, ctx, { roles: ["owner"], templateKey: "creditApproval", params, urgency: "normal" }, clock);
+  }
   return ok(undefined);
 }
 
@@ -116,5 +147,23 @@ export async function unblockBuyer(tx: Tx, ctx: TenantContext, cmd: z.infer<type
   const buyer = await setCreditBlocked(tx, ctx, cmd.buyerId, false);
   await recordChange(tx, ctx, "buyer", buyer.id, buyer);
   await audit(tx, ctx, { entity: "Buyer", entityId: buyer.id, action: "unblock", after: buyer, ...meta });
+  return ok(undefined);
+}
+
+/** FN12: the owner sets a buyer's credit limit (null removes it). */
+export async function setCreditLimit(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof SetCreditLimit>, meta: Meta) {
+  if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
+  const buyer = await saveCreditLimit(tx, ctx, cmd.buyerId, cmd.limitCentimes === null ? null : BigInt(cmd.limitCentimes));
+  await recordChange(tx, ctx, "buyer", buyer.id, buyer);
+  await audit(tx, ctx, { entity: "Buyer", entityId: buyer.id, action: "creditLimit", after: buyer, ...meta });
+  return ok(undefined);
+}
+
+/** FN12: the owner approves a credit sale that went past the buyer's limit. */
+export async function approveCredit(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof ApproveCredit>, meta: Meta) {
+  const sale = await approveSaleCredit(tx, ctx, cmd.saleId);
+  if (!sale) return fail("NOT_FOUND");
+  await recordChange(tx, ctx, "sale", sale.id, sale);
+  await audit(tx, ctx, { entity: "Sale", entityId: sale.id, action: "approveCredit", after: { creditApproval: "approved" }, ...meta });
   return ok(undefined);
 }

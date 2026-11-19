@@ -43,4 +43,9 @@ Done 2026-11-16 (branch `feat/u4-batch-page`). Not yet: the batch page's lower s
 - [x] Sale form (`M1-Sale`): buyer and weights in one card, price and payment in another, the weighing gap in brick, a dark summary with the amount.
 - [x] Receivables: a dark "À encaisser" total first (`WebOverview`), shared cards. Section headings across the batch page share one style.
 
-### U7–U8 (next):, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.
+### U7: Finance screens
+- [x] Books, budget, results, threshold, treasury and inbox: the old "←" header becomes the round back button to "Plus"; finance tables sit on white cards; the quick expense and the transfer forms are cards (`F-Expense`). Full browser suite: 44 passed.
+
+Not yet: tables scroll sideways on a phone only inside the page; the mockup's receipt photo and "paid how" chips on the expense.
+
+### U8 (next):, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

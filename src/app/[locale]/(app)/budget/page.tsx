@@ -3,20 +3,19 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BudgetPlanner } from "@/components/budget";
-import { LocaleSwitcher } from "@/components/locale-switcher";
-import { Link, redirect } from "@/i18n/navigation";
+import { redirect } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
 import { budgetBases, budgetOf, listBudgets } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { saveBudgetAction } from "./actions";
+import { BackLink } from "@/components/app-nav";
 
 // SPEC-finance FN15: plan the next batch from a closed one, with what-if feed and sale prices. Online, owner and manager.
 export default function BudgetPage() {
   return (
     <>
-      <header className="flex justify-between gap-4 p-4">
-        <Link href="/dashboard" className="py-2 underline underline-offset-4">←</Link>
-        <LocaleSwitcher />
+      <header className="px-4 pt-4">
+        <BackLink href="/more" />
       </header>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">
         <Suspense>

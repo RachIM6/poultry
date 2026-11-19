@@ -2,20 +2,19 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { LocaleSwitcher } from "@/components/locale-switcher";
-import { Link, redirect } from "@/i18n/navigation";
+import { redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { thresholdTracker } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
+import { BackLink } from "@/components/app-nav";
 
 // SPEC-finance FN17: this fiscal year's agricultural sales against the exemption threshold. Online, owner and manager.
 export default function ThresholdPage() {
   return (
     <>
-      <header className="flex justify-between gap-4 p-4">
-        <Link href="/dashboard" className="py-2 underline underline-offset-4">←</Link>
-        <LocaleSwitcher />
+      <header className="px-4 pt-4">
+        <BackLink href="/more" />
       </header>
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">
         <Suspense>

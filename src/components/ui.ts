@@ -9,3 +9,4 @@ export const card = "flex flex-col gap-2 rounded-[18px] bg-card p-4 shadow-[0_1p
 export const done = "rounded-2xl bg-olive-soft p-3 text-olive"; // saved, synced
 export const warn = "rounded-2xl bg-brick-soft p-3 text-brick-fg"; // missing, low
 export const danger = "rounded-2xl bg-alert-soft p-3 text-alert-fg"; // withdrawal, blocked
+export const table = "w-full rounded-[18px] bg-card text-sm shadow-[0_1px_2px_rgba(36,33,28,.06)] [&_th]:font-medium [&_th]:text-ink-2"; // finance tables

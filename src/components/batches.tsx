@@ -12,6 +12,7 @@ import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { Batch, FLOCK_MUTATIONS as M, birdsStarted, canJoinHouse, doaClaim, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
+import type { EggCollectionDto } from "@/modules/eggs/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
 import { PRODUCTION_TYPES, curveFor, type BirdSex, type ProductionType } from "@/modules/reference-data/shared";
@@ -35,6 +36,7 @@ const Sales = dynamic(() => import("@/components/sales").then((m) => m.Sales));
 const Treatments = dynamic(() => import("@/components/treatments").then((m) => m.Treatments));
 const VetVisits = dynamic(() => import("@/components/treatments").then((m) => m.VetVisits));
 const WithdrawalBanner = dynamic(() => import("@/components/treatments").then((m) => m.WithdrawalBanner));
+const EggCollections = dynamic(() => import("@/components/eggs").then((m) => m.EggCollections));
 const Vaccinations = dynamic(() => import("@/components/vaccinations").then((m) => m.Vaccinations));
 const Weighings = dynamic(() => import("@/components/weighing").then((m) => m.Weighings));
 
@@ -69,7 +71,7 @@ function Batches(scope: Scope) {
   const t = useTranslations();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale", "batchCost").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale", "batchCost", "eggCollection").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -166,6 +168,7 @@ function Batches(scope: Scope) {
           feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
           write={write}
         />
+        {open.species === "layer" && <EggCollections batch={open} collections={of<EggCollectionDto>("eggCollection").filter((c) => c.batchId === open.id)} write={write} />}
         <Weighings
           batch={open}
           weighings={weighings}

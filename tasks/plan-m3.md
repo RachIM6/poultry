@@ -103,8 +103,10 @@ Done 2026-11-16 (branch `feat/t58-transfer-to-laying`): `flock.transferToLaying`
 ### T59: Eggs module and collection (E1)
 **Description:** New strict module `eggs`: `EggCollection`, record + correct offline (workers), audit, change log, collection screen with steppers (P-EggCollect).
 **AC:**
-- [ ] Three collections on one day sum into the day's total; a correction is audited (integration test).
-- [ ] Recorded offline, reloaded, synced (e2e, ar and fr).
+- [x] Three collections on one day sum into the day's total; a correction is audited (integration test). (`eggs/collections.int.test.ts`, by a worker; also a pullet batch refused, another organisation's, a closed batch's correction.)
+- [x] Recorded offline, reloaded, synced (e2e, ar and fr). (`e2e/eggs.spec.ts`: P-EggCollect's 1 713 eggs, a second collection corrected, the Arabic screen.)
+
+Done 2026-11-16 (branch `feat/t59-egg-collection`): new strict module `eggs` (domain / application / infrastructure, `eggs.record` for owners, managers and workers), `EggCollection` table, `eggs.recordCollection` and `eggs.correctCollection` (the day and batch stay; old counts audited). Steppers on a layer batch's screen: normal eggs by 30 (a tray), the rest by 1; any count can be typed. No egg stock yet: T60.
 **Size:** M
 
 ### T60: Egg stock, grading, discard (E2–E4)

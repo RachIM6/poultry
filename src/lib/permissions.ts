@@ -10,6 +10,7 @@ const ALLOWED = {
   "stock.manage": ["owner", "manager"], // suppliers, purchases, corrections; workers see quantities (I5)
   "flock.manage": ["owner", "manager"], // place batches (B1); workers see them and enter daily data (I5)
   "flock.record": ["owner", "manager", "worker"], // daily entries (B2), weighings (B3): the worker's job
+  "eggs.record": ["owner", "manager", "worker"], // egg collections (SPEC-m3 E1): the worker's job, no money
   "health.manage": ["owner", "manager"], // a batch's vaccination plan (H1), with its placement
   "health.record": ["owner", "manager", "worker"], // vaccinations given (H2), treatments (H3), vet visits (H5), I5
   "sales.manage": ["owner", "manager"], // buyers and sales (V1–V3): prices and amounts, so never workers (I5)

@@ -1040,3 +1040,17 @@ model PowerCut {
   @@index([organizationId])
   @@index([farmId, endedAt])
 }
+
+// Owner: market-prices (SPEC-m5 MP1). A price someone on the farm saw, per unit; never edited, never shared.
+model PriceObservation {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  product        String // chick | feed | liveBroiler | egg | cullHen (fixed units: head, kg, egg)
+  day            DateTime @db.Date
+  priceCentimes  BigInt
+  seenOn         String?
+  byUserId       String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, product, day])
+}

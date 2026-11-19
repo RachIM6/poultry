@@ -14,6 +14,7 @@ const ALLOWED = {
   "health.record": ["owner", "manager", "worker", "vet"], // vaccinations given (H2), treatments (H3), vet visits (H5), I5
   "sales.manage": ["owner", "manager"], // buyers and sales (V1–V3): prices and amounts, so never workers (I5)
   "money.read": ["owner", "manager", "accountant"], // prices, costs, sale amounts, supplier credit
+  "prices.record": ["owner", "manager"], // the farm's price log (SPEC-m5 MP1)
   "finance.record": ["owner", "manager"], // entries, expenses, payments, cheques (SPEC-finance FX2); never workers
   "finance.manage": ["owner"], // periods, the accounting profile, overrides, credit limits, opening a fiscal year
   "workforce.manage": ["owner", "manager"], // employees, routines, attendance, advances, pay (SPEC-m4 §6); wages never reach workers

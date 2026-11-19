@@ -64,13 +64,21 @@ Done 2026-11-18 with T92 (no separate branch): opening a farm is audited; sign-i
 ### T94: Price log (MP1, MP3)
 **Description:** module `market-prices` (light): `PriceObservation`, `market-prices.recordPrice`; units fixed per product; synced entity never sent to workers.
 **AC:**
-- [ ] Recorded once, integer centimes > 0, workers refused and never pull a price, other organisations isolated (integration).
+- [x] Recorded once, integer centimes > 0, workers refused and never pull a price, other organisations isolated (integration). (`market-prices/prices.int.test.ts`; `domain/prices.test.ts` for the latest and its change)
+
+Done 2026-11-18 (branch `feat/t94-prices`, with T95), decisions taken without asking:
+- **Per organisation, not per farm:** `market-prices` may only depend on `identity` and `reference-data` (CAPABILITY-MAP), so a price says where or what it was seen on as free text instead of pointing at a farm. SPEC-m5 MP1 says so now.
+- **Units fixed per product:** chick and cull hen by the head, feed and live broiler by the kg, egg by the egg (no tray size assumed).
+- **New action `prices.record`** (owner, manager). Reading prices is `money.read`, so the accountant sees them and records none; workers and vets receive none (vets: hidden in the partner view).
+- **Recorded once, never edited,** like advances: a wrong price is followed by the right one.
 **Size:** S
 
 ### T95: /prices (MP2)
 **Description:** static shell: latest per product with its change, then the history; the form.
 **AC:**
-- [ ] A price recorded offline shows as latest, survives a reload and syncs once (Playwright).
+- [x] A price recorded offline shows as latest, survives a reload and syncs once (Playwright). (`e2e/prices.spec.ts`: two prices, the latest with "+0,50 DH depuis le précédent")
+
+Done 2026-11-18 with T94: `/prices` is precached and linked from "Plus" (money group). The latest per product in a fixed order, then the full history, newest first.
 **Size:** S
 
 ### T96: Planned batches (PL1, PL5)

@@ -1036,5 +1036,38 @@
     "invitedAs": "{name} vous invite comme {role}.",
     "accept": "Accepter l’invitation de {name}",
     "link": "Changer d’exploitation"
+  },
+  "Prices": {
+    "title": "Prix du marché",
+    "open": "Prix du marché",
+    "forbidden": "Les prix sont réservés au propriétaire, au gérant et au comptable.",
+    "latest": "Derniers prix",
+    "none": "Aucun prix noté pour l’instant.",
+    "history": "Historique",
+    "add": "Noter un prix",
+    "product": "Produit",
+    "price": "Prix (DH)",
+    "day": "Vu le",
+    "seenOn": "Où ou sur quoi (facultatif)",
+    "save": "Enregistrer le prix",
+    "products": {
+      "chick": "Poussin d’un jour",
+      "feed": "Aliment",
+      "liveBroiler": "Poulet vif",
+      "egg": "Œuf",
+      "cullHen": "Poule de réforme"
+    },
+    "units": {
+      "head": "par tête",
+      "kg": "par kg",
+      "egg": "par œuf"
+    },
+    "per": {
+      "head": "{amount} / tête",
+      "kg": "{amount} / kg",
+      "egg": "{amount} / œuf"
+    },
+    "up": "+{amount} depuis le précédent",
+    "down": "−{amount} depuis le précédent"
   }
 }

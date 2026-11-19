@@ -51,7 +51,7 @@ Not yet: tables scroll sideways on a phone only inside the page; the mockup's re
 ### U8: Farms, protocol, members
 - [x] Farms, protocol and members get the round back button to "Plus"; members use the shared cards. Full browser suite: 44 passed.
 
-Still open after U8: the sidebar's longer owner list on wide screens; an Arabic check by a native speaker.
+Still open after U8: the sidebar's longer owner list on wide screens (role-dependent, so not in the static tab bar); an Arabic check by a native speaker.
 
 ### U9: Onboarding, offline, install
 - [x] Onboarding (`M1-Onboarding`): the logo above, a large question, the legal forms as cards; offline page (`M1-Offline`): icon, heading and the way home at the bottom; install: the round back button. Full browser suite: 44 passed.
@@ -63,5 +63,8 @@ Still open after U8: the sidebar's longer owner list on wide screens; an Arabic 
 ### U11: The owner's "Argent" card
 - [x] The online home shows, for owners and managers, the cash at hand and the last closed batch's cost per kg and margin (`WebOverview` "Argent"), linking to Trésorerie and Résultats. The offline twin shows no money.
 - [x] PR #45 (next 16.4.6 and the dependency overrides) is merged into the chain: Next.js 16.4.3 had GHSA-mfr8-8qww-v76h (root params), and `next build` refused to start the test server. `pnpm audit`: no known vulnerabilities. Full browser suite: 45 passed.
+
+### U12: The home on wide screens
+- [x] `WebOverview` layout: on wide screens the tasks and the "Argent" card sit side by side, and the dark header is inset as its own card next to the sidebar. Full browser suite: 45 passed.
 
 ### Later:, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

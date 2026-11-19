@@ -3,3 +3,4 @@
 export { inventorySync } from "./sync";
 export { stockOnHand, supplierBalances } from "./domain/stock";
 export { valuate } from "./domain/valuation";
+export { recordConsumption, removeConsumption } from "./application/consumption";

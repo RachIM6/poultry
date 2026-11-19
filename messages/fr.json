@@ -285,6 +285,31 @@
       "closed": "Clôturée"
     }
   },
+  "Day": {
+    "title": "Saisie du jour",
+    "back": "Toutes les bandes",
+    "open": "Saisir le jour",
+    "day": "Jour",
+    "dead": "Morts",
+    "cause": "Cause",
+    "causes": {
+      "unknown": "Inconnue",
+      "heat": "Chaleur",
+      "disease": "Maladie",
+      "smothering": "Étouffement",
+      "leg": "Pattes",
+      "other": "Autre"
+    },
+    "culled": "Réformés (éliminés)",
+    "feed": "Aliment",
+    "noFeed": "Pas d’aliment ce jour",
+    "feedKg": "Aliment consommé (kg)",
+    "water": "Eau (litres, facultatif)",
+    "note": "Note (facultatif)",
+    "save": "Enregistrer la journée",
+    "nothing": "Rien n’a changé.",
+    "onHand": "Oiseaux présents : {birds}"
+  },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
@@ -307,6 +332,10 @@
     "REASON_REQUIRED": "Indiquez le motif de la correction.",
     "HOUSE_HAS_OPEN_BATCH": "Ce bâtiment a déjà une bande en cours. Clôturez-la avant d’en placer une nouvelle.",
     "DEAD_ON_ARRIVAL_TOO_HIGH": "Les morts à l’arrivée doivent être moins nombreux que les poussins placés.",
-    "PLACEMENT_IN_FUTURE": "La date de mise en place ne peut pas être dans le futur."
+    "PLACEMENT_IN_FUTURE": "La date de mise en place ne peut pas être dans le futur.",
+    "BATCH_CLOSED": "Cette bande est clôturée : ses saisies ne peuvent plus changer.",
+    "DAY_BEFORE_PLACEMENT": "Ce jour est avant la mise en place de la bande.",
+    "DAY_IN_FUTURE": "Ce jour n’est pas encore arrivé.",
+    "MORE_DEAD_THAN_ON_HAND": "Plus de morts et de réformés que d’oiseaux dans la bande."
   }
 }

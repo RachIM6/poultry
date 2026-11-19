@@ -1,6 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import type { Batch } from "@/modules/flock/domain/batch";
+import type { FarmDay } from "@/lib/kernel/farm-day";
+import { Batch, type BatchStatus } from "@/modules/flock/domain/batch";
 import type { BatchDto } from "@/modules/flock/schema";
 
 // Batch repository (Prisma). Scoped to the caller's organisation.
@@ -35,4 +36,26 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Pr
     status: batch.status,
     chickUnitPriceCentimes: String(p.chickUnitPriceCentimes),
   };
+}
+
+/** The Batch aggregate, or null outside the caller's organisation. */
+export async function loadBatch(tx: Tx, ctx: TenantContext, id: string): Promise<Batch | null> {
+  const r = await tx.batch.findFirst({ where: { id, organizationId: ctx.organizationId } });
+  if (!r) return null;
+  return Batch.rehydrate(
+    {
+      id: r.id,
+      farmId: r.farmId,
+      houseId: r.houseId,
+      strainId: r.strainId,
+      placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay,
+      chicksPlaced: r.chicksPlaced,
+      deadOnArrival: r.deadOnArrival,
+      hatchery: r.hatchery,
+      deliveryNote: r.deliveryNote,
+      chickUnitPriceCentimes: r.chickUnitPriceCentimes,
+      dayOldWeightGrams: r.dayOldWeightGrams,
+    },
+    r.status as BatchStatus,
+  );
 }

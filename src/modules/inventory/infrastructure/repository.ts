@@ -50,6 +50,16 @@ export async function insertMovement(tx: Tx, ctx: TenantContext, m: MovementDto)
   return { ...m, day: dayOf(row.day) };
 }
 
+export async function findMovement(tx: Tx, ctx: TenantContext, id: string): Promise<MovementDto | null> {
+  const row = await tx.stockMovement.findFirst({ where: { id, organizationId: ctx.organizationId } });
+  return row && { ...row, kind: row.kind as MovementDto["kind"], day: dayOf(row.day) };
+}
+
+export const updateMovementQuantity = (tx: Tx, id: string, quantity: number, day: string) =>
+  tx.stockMovement.update({ where: { id }, data: { quantity, day: date(day) } });
+
+export const deleteMovement = (tx: Tx, id: string) => tx.stockMovement.delete({ where: { id } });
+
 export async function insertPurchase(
   tx: Tx,
   ctx: TenantContext,

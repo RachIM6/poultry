@@ -3,9 +3,10 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { addOwner, lockForOnboarding } from "@/modules/identity";
-import { accountingProfileOf, type AccountingProfile, type LegalForm, type OnboardingInput } from "@/modules/farm-registry/schema";
+import { accountingProfileOf, type AccountingProfile, type Books, type LegalForm, type OnboardingInput } from "@/modules/farm-registry/schema";
 
-export type LegalEntityDto = { id: string; name: string; form: LegalForm; accountingProfile: AccountingProfile };
+/** `fiscalYearStartMonth`: 1–12, the month the fiscal year starts (ADR-010 §1, default January). */
+export type LegalEntityDto = { id: string; name: string; form: LegalForm; accountingProfile: AccountingProfile; fiscalYearStartMonth: number };
 
 /** SPEC F1: first login → the organisation, its legal entity and the owner membership, in one transaction. */
 export async function createOrganization(userId: string, input: OnboardingInput): Promise<Result<TenantContext, "ALREADY_ONBOARDED">> {
@@ -37,9 +38,12 @@ export async function listLegalEntities(ctx: TenantContext): Promise<LegalEntity
   return rows.map(toDto);
 }
 
-const toDto = (row: { id: string; name: string; form: LegalForm }): LegalEntityDto => ({
+type Row = { id: string; name: string; form: LegalForm; books: Books | null; pcaOverlay: boolean | null; fiscalYearStartMonth: number };
+
+const toDto = (row: Row): LegalEntityDto => ({
   id: row.id,
   name: row.name,
   form: row.form,
-  accountingProfile: accountingProfileOf(row.form),
+  accountingProfile: accountingProfileOf(row.form, { books: row.books, pcaOverlay: row.pcaOverlay }),
+  fiscalYearStartMonth: row.fiscalYearStartMonth,
 });

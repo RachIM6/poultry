@@ -65,14 +65,24 @@ enum HouseType {
 
 // Owner: farm-registry. SPEC F1: the form sets the accounting profile (derived in code, not stored).
 model LegalEntity {
-  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  organizationId String       @db.Uuid
-  name           String
-  form           LegalForm
-  createdAt      DateTime     @default(now()) @db.Timestamptz
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                   String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId       String       @db.Uuid
+  name                 String
+  form                 LegalForm
+  // ADR-010: the owner's accounting choices; null keeps the legal form's default (farm-registry accountingProfileOf).
+  // Changed only while the fiscal year has no entry: the check lives in finance (T29), which calls farm-registry.
+  books                Books?
+  pcaOverlay           Boolean?
+  fiscalYearStartMonth Int          @default(1) // 1 = January: the fiscal year runs 1 Jan–31 Dec
+  createdAt            DateTime     @default(now()) @db.Timestamptz
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+}
+
+enum Books {
+  cash_book
+  ledger
 }
 
 enum LegalForm {
@@ -400,27 +410,27 @@ model Purchase {
 // Owner: flock (SPEC B1). Created offline: the id comes from the device. One open batch per house is enforced by the
 // partial unique index "Batch_one_open_per_house" (raw SQL in the migration: Prisma can't declare it).
 model Batch {
-  id                     String   @id @db.Uuid
-  organizationId         String   @db.Uuid
-  farmId                 String   @db.Uuid
-  houseId                String   @db.Uuid
-  species                String   @default("broiler")
+  id                     String    @id @db.Uuid
+  organizationId         String    @db.Uuid
+  farmId                 String    @db.Uuid
+  houseId                String    @db.Uuid
+  species                String    @default("broiler")
   strainId               String
-  placedOn               DateTime @db.Date // farm day
+  placedOn               DateTime  @db.Date // farm day
   chicksPlaced           Int
   deadOnArrival          Int
   hatchery               String
   deliveryNote           String
   chickUnitPriceCentimes BigInt
   dayOldWeightGrams      Int?
-  status                 String   @default("open") // open | closed
+  status                 String    @default("open") // open | closed
   // B6, set when it closes and never changed afterwards: the locked figures.
   closedOn               DateTime? @db.Date // farm day
   closeReason            String? // null: closed by the sale of its last birds
   soldGrams              Int? // farm weight of every bird sold
   costCentimes           BigInt? // chicks + valued consumptions + other costs
   costPerKgCentimes      BigInt? // null when nothing was sold
-  createdAt              DateTime @default(now()) @db.Timestamptz
+  createdAt              DateTime  @default(now()) @db.Timestamptz
 
   @@index([organizationId])
   @@index([houseId])
@@ -560,23 +570,23 @@ model Buyer {
 
 // Owner: sales (SPEC V2, V3). Money in centimes; the amount is computed by the server from the farm weight.
 model Sale {
-  id                 String    @id @db.Uuid
-  organizationId     String    @db.Uuid
-  batchId            String    @db.Uuid
-  buyerId            String    @db.Uuid
-  day                DateTime  @db.Date // farm day
-  birds              Int
-  farmWeightGrams    Int
-  buyerWeightGrams   Int?
-  pricePerKgCentimes BigInt
-  amountCentimes     BigInt
-  paymentMethod      String // cash | cheque | bill | transfer | credit
-  paidCentimes       BigInt
-  instrumentNumber   String? // cheque or bill of exchange
-  instrumentDueOn    DateTime? @db.Date
+  id                   String    @id @db.Uuid
+  organizationId       String    @db.Uuid
+  batchId              String    @db.Uuid
+  buyerId              String    @db.Uuid
+  day                  DateTime  @db.Date // farm day
+  birds                Int
+  farmWeightGrams      Int
+  buyerWeightGrams     Int?
+  pricePerKgCentimes   BigInt
+  amountCentimes       BigInt
+  paymentMethod        String // cash | cheque | bill | transfer | credit
+  paidCentimes         BigInt
+  instrumentNumber     String? // cheque or bill of exchange
+  instrumentDueOn      DateTime? @db.Date
   instrumentRemindedAt DateTime? @db.Timestamptz // V4: claimed by the reminder job, so it goes out once
-  recordedBy         String    @db.Uuid
-  createdAt          DateTime  @default(now()) @db.Timestamptz
+  recordedBy           String    @db.Uuid
+  createdAt            DateTime  @default(now()) @db.Timestamptz
 
   @@index([organizationId, batchId])
 }

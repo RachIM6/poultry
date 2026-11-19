@@ -1,0 +1,11 @@
+{
+  "App": {
+    "name": "Poultry",
+    "description": "تسيير ضيعات الدواجن"
+  },
+  "LocaleSwitcher": {
+    "label": "اللغة",
+    "ar": "العربية",
+    "fr": "Français"
+  }
+}

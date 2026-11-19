@@ -45,7 +45,7 @@ T1 scaffold ─┬─ T2 db/test harness ─┬─ T5 OTP auth ── T6 org + t
 ### Phase 1: Foundation
 - [x] T1 Scaffold app and tooling
 - [x] T2 Database and integration-test harness
-- [ ] T3 i18n Arabic/French with RTL shell
+- [x] T3 i18n Arabic/French with RTL shell
 - [ ] T4 PWA shell (install + offline fallback)
 - [ ] **Checkpoint A:** app builds, installs, switches AR ↔ FR, CI green
 

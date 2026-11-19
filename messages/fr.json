@@ -1,0 +1,11 @@
+{
+  "App": {
+    "name": "Poultry",
+    "description": "Gestion des élevages avicoles"
+  },
+  "LocaleSwitcher": {
+    "label": "Langue",
+    "ar": "العربية",
+    "fr": "Français"
+  }
+}

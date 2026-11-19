@@ -66,6 +66,7 @@ Each milestone ends with something **pilot farmers can use**. Validate it in the
 | **M3: All production types** | Turkey, beldi, ducks / quail, pullets → layers with eggs | `reference-data` (all species), `flock` variants, `eggs`, `sales` (eggs, old hens) |
 | **M4: Farm operations** | Workers and tasks, climate log | `workforce`, `climate` |
 | **M5: Network** | Vet and accountant access, prices, planning | `partner-access`, `market-prices`, `planning` |
+| **M6: Accounting close** | Fixed assets, loans, year-end inventory and biological assets, simplified CGNC statements ([ADR-010](docs/decisions/ADR-010-accounting-model.md)) | `finance` |
 
 ## Later (post-MVP)
 

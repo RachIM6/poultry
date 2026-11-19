@@ -59,6 +59,7 @@ test("a farm and two houses created offline survive a reload, sync, and reach a 
   await login(second, "fr", `0${e164.slice(4)}`);
   await expect(second).toHaveURL(/\/fr\/dashboard$/);
   await scopeRemembered(second);
+  await second.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: farms are under "Plus"
   await second.getByRole("link", { name: "Fermes et bâtiments" }).click();
   await second.getByRole("link", { name: /Ferme du Plateau/ }).click();
   await expect(second.getByText("Bâtiment 1")).toBeVisible();

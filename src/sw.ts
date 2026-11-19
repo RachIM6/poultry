@@ -2,7 +2,7 @@
 /// <reference lib="webworker" />
 import { defaultCache } from "@serwist/turbopack/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import { NetworkOnly, Serwist } from "serwist";
 
 // Bundled by src/app/serwist/[path]/route.ts and served at /serwist/sw.js.
 declare global {
@@ -19,7 +19,11 @@ const serwist = new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching: [
+    // Signed-in pages are never stored: on a shared phone they would show the last user's data offline.
+    { matcher: ({ url }) => /^\/(ar|fr)\/account/.test(url.pathname), handler: new NetworkOnly() },
+    ...defaultCache,
+  ],
   fallbacks: {
     // A page that was never visited while online opens the offline page, in the page's language.
     entries: [

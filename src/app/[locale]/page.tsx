@@ -12,6 +12,9 @@ export default function Home() {
       <main className="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
         <h1 className="text-2xl font-semibold">{t("App.name")}</h1>
         <p>{t("App.description")}</p>
+        <Link href="/login" className="underline underline-offset-4">
+          {t("Login.title")}
+        </Link>
         <Link href="/install" className="underline underline-offset-4">
           {t("Install.title")}
         </Link>

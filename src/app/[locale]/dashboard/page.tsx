@@ -9,6 +9,7 @@ import { SyncBadge } from "@/components/sync-status";
 import { Link, redirect } from "@/i18n/navigation";
 import { can } from "@/lib/permissions";
 import { listLegalEntities } from "@/modules/farm-registry";
+import { thresholdTracker } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 
 // Empty until farms exist (T10).
@@ -31,12 +32,20 @@ async function Content() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const [entity] = await listLegalEntities(ctx.value);
+  // FN17: from 90 % of the exemption threshold, the owner and the manager see it first thing.
+  const tracker = can(ctx.value, "finance.record") ? await thresholdTracker(ctx.value) : null;
+  const nearThreshold = tracker?.ok && tracker.value?.usage.alert ? tracker.value.usage.percent : null;
   return (
     <>
       <div>
         <h1 className="text-2xl font-semibold">{entity?.name}</h1>
         {entity && <p className="opacity-75">{t(`Onboarding.forms.${entity.form}`)}</p>}
       </div>
+      {nearThreshold !== null && (
+        <Link href="/threshold" role="alert" className="rounded-lg border border-red-700/60 p-3 font-semibold">
+          {t("Threshold.alert", { percent: String(nearThreshold) })}
+        </Link>
+      )}
       <SyncBadge userId={ctx.value.userId} organizationId={ctx.value.organizationId} role={ctx.value.role} />
       <FarmsLink userId={ctx.value.userId} organizationId={ctx.value.organizationId} />
       <Link href="/batches" className="underline underline-offset-4">{t("Batches.open")}</Link>
@@ -48,6 +57,7 @@ async function Content() {
       {can(ctx.value, "finance.record") && <Link href="/results" className="underline underline-offset-4">{t("Results.open")}</Link>}
       {can(ctx.value, "finance.record") && <Link href="/budget" className="underline underline-offset-4">{t("Budget.open")}</Link>}
       {can(ctx.value, "finance.record") && <Link href="/books" className="underline underline-offset-4">{t("Books.open")}</Link>}
+      {can(ctx.value, "finance.record") && <Link href="/threshold" className="underline underline-offset-4">{t("Threshold.open")}</Link>}
       <Link href="/inbox" className="underline underline-offset-4">{t("Inbox.open")}</Link>
       {can(ctx.value, "members.manage") && (
         <Link href="/settings/members" className="underline underline-offset-4">{t("Members.title")}</Link>

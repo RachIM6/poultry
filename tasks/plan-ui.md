@@ -67,4 +67,7 @@ Still open after U8: the sidebar's longer owner list on wide screens (role-depen
 ### U12: The home on wide screens
 - [x] `WebOverview` layout: on wide screens the tasks and the "Argent" card sit side by side, and the dark header is inset as its own card next to the sidebar. Full browser suite: 45 passed.
 
+### U13: The owner's sidebar
+- [x] On wide screens the sidebar also lists Ventes, Comptabilité and Membres (`WebOverview`), each only when the role signed in on this phone may use it (`can()`, the role read from the phone's database so the shell stays static; the server still checks every page). The phone's tab bar is unchanged. (`e2e/expenses.spec.ts`.) Full browser suite: 45 passed; `/fr/batches` still under the 200 KB budget.
+
 ### Later:, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

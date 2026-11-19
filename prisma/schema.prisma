@@ -559,6 +559,9 @@ model Treatment {
   prescriber       String
   withdrawalDays   Int // from the label or the prescription, as entered
   withdrawalEndsOn DateTime @db.Date // endOn + withdrawalDays (H3): what the sale block reads (T21)
+  // SPEC-m3 H7: eggs, for layer batches (required there, as entered, never a default); null elsewhere.
+  eggWithdrawalDays   Int?
+  eggWithdrawalEndsOn DateTime? @db.Date
   recordedBy       String   @db.Uuid
   createdAt        DateTime @default(now()) @db.Timestamptz
 

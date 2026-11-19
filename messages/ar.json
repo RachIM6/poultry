@@ -409,7 +409,8 @@
     "FISCAL_YEAR_HAS_ENTRIES": "تتضمن السنة المالية قيودًا بالفعل: لا يمكن تغيير هذا الإعداد إلا في بداية السنة المالية القادمة.",
     "BUYER_CREDIT_BLOCKED": "عاد شيك أو كمبيالة لهذا المشتري دون أداء: يدفع نقدًا إلى أن يرفع المالك الحظر.",
     "INVALID_TRANSITION": "لا يمكن نقل هذا الشيك أو هذه الكمبيالة إلى هذه الحالة.",
-    "NOT_ENOUGH_EGGS": "لا يوجد ما يكفي من البيض في هذه الدفعة."
+    "NOT_ENOUGH_EGGS": "لا يوجد ما يكفي من البيض في هذه الدفعة.",
+    "EGG_WITHDRAWAL_REQUIRED": "أدخل مدة سحب البيض: هذه دفعة دجاج بيّاض."
   },
   "Weighing": {
     "title": "الوزن",
@@ -487,7 +488,10 @@
     "cancel": "إلغاء",
     "line": "{medicine} · من {start} إلى {end}",
     "detail": "{dose} · {reason} · وصفه {prescriber}",
-    "withdrawalLine": "مدة الانتظار {days} يوم: حتى {date} (ضمنه)"
+    "withdrawalLine": "مدة الانتظار {days} يوم: حتى {date} (ضمنه)",
+    "eggWithdrawal": "البيض ممنوع من البيع حتى {date} ضمناً",
+    "eggWithdrawalDays": "مدة سحب البيض (أيام)",
+    "eggWithdrawalLine": "سحب البيض {days} أيام، حتى {date}"
   },
   "VetVisit": {
     "title": "زيارات الطبيب البيطري",

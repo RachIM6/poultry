@@ -150,3 +150,49 @@ test("layer KPIs: hens, laying rate, eggs per hen housed, downgraded, weekly tab
   await page.goto(`/ar/batches#${ids.batch}`);
   await expect(page.locator("dl > div").filter({ hasText: "نسبة الوضع" })).toContainText("92,9 %");
 });
+
+// T62 acceptance (SPEC-m3 H7): a layer batch's treatment asks for the egg withdrawal and shows the banner, offline.
+test("a layer batch's treatment withholds its eggs until the egg withdrawal ends", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const e164 = await ownerWithFarm(page, "Élevage Retrait Œufs");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), batch: crypto.randomUUID(), supplier: crypto.randomUUID(), medicine: crypto.randomUUID() };
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Sidi Hajjaj", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment P1", areaM2: 1000, capacity: 6000, type: "closed" } },
+    { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Véto", phone: null } },
+    { type: "inventory.createStockItem", payload: { id: ids.medicine, farmId: ids.farm, productId: null, kind: "medicine", name: "Amoxicilline", unit: "ml", lot: "AMX-1", expiresOn: farmDaysAgo(-365) } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.medicine, day: farmDaysAgo(5), quantity: 1000, unitPriceCentimes: "50", paidCentimes: "0", dueOn: null } },
+    {
+      type: "flock.placeBatch",
+      payload: { id: ids.batch, houseId: ids.house, species: "layer", strainId: "lohmann-brown", placedOn: farmDaysAgo(5), chicksPlaced: 6000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: 200 },
+    },
+  ]);
+  await page.goto(`/fr/batches`);
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await referenceCached(page);
+  await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
+  await context.setOffline(true);
+  await context.route("**", (route) => route.abort("internetdisconnected"));
+  await page.getByRole("link", { name: "Saisir le jour" }).click();
+
+  await page.getByRole("button", { name: "Ajouter un traitement" }).click();
+  await page.getByLabel("Quantité utilisée (ml)").fill("250");
+  await page.getByLabel("Dose prescrite").fill("1 ml par litre d’eau");
+  await page.getByLabel("Motif").fill("Colibacillose");
+  await page.getByLabel("Prescrit par").fill("Dr Alaoui");
+  await page.getByLabel("Délai d’attente viande (jours)").fill("3");
+  await page.getByLabel("Délai d’attente œufs (jours)").fill("7"); // made up for the test (MQ4)
+  await page.getByRole("button", { name: "Enregistrer le traitement" }).click();
+  await expect(page.getByText(/Œufs à retirer de la vente jusqu’au/)).toBeVisible();
+
+  await context.unroute("**");
+  await context.setOffline(false);
+  const stored = async () =>
+    await query<{ days: number }>(
+      `SELECT t."eggWithdrawalDays" AS days FROM "Treatment" t JOIN "Membership" m ON m."organizationId" = t."organizationId"
+       JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
+      [e164],
+    );
+  await expect.poll(stored).toEqual([{ days: 7 }]);
+});

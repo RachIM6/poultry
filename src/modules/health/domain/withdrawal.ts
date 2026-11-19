@@ -20,6 +20,22 @@ export function withdrawalUntil(treatments: readonly { startOn: FarmDay; endOn: 
   return until;
 }
 
+/** SPEC-m3 H7: the last farm day eggs are withheld after a treatment; null when it has no egg withdrawal. */
+export const eggWithdrawalEnd = (t: { endOn: FarmDay; eggWithdrawalDays: number | null }) => (t.eggWithdrawalDays === null ? null : addFarmDays(t.endOn, t.eggWithdrawalDays));
+
+type EggTreatment = { startOn: FarmDay; endOn: FarmDay; eggWithdrawalDays: number | null };
+
+/** SPEC-m3 H7: the day eggs are withheld until, seen on `day` (the same rule as H4, with the egg days). */
+export const eggWithdrawalUntil = (treatments: readonly EggTreatment[], day: FarmDay) =>
+  withdrawalUntil(treatments.flatMap((t) => (t.eggWithdrawalDays === null ? [] : [{ ...t, withdrawalDays: t.eggWithdrawalDays }])), day);
+
+/**
+ * SPEC-m3 H7, V6: the laying days whose eggs may not be sold, one window per treatment, from its first day to its egg
+ * withdrawal's last. ⚠️ OQ4 / MQ4: to be validated by a vet.
+ */
+export const eggWithdrawalWindows = (treatments: readonly EggTreatment[]) =>
+  treatments.flatMap((t) => (t.eggWithdrawalDays === null ? [] : [{ from: t.startOn, to: addFarmDays(t.endOn, t.eggWithdrawalDays) }]));
+
 export type BatchDayError = "BATCH_CLOSED" | "DAY_BEFORE_PLACEMENT" | "DAY_IN_FUTURE";
 
 /** H5 and the start of H3: something that happened to an open batch, between its placement and today. */
@@ -32,13 +48,15 @@ export function checkBatchDay(batch: { placedOn: FarmDay; status: "open" | "clos
 
 /** H3: started by today (it may still be running), ending on or after its start, with some medicine taken from stock. */
 export function checkTreatment(
-  batch: { placedOn: FarmDay; status: "open" | "closed" },
-  t: { startOn: FarmDay; endOn: FarmDay; quantity: number },
+  batch: { placedOn: FarmDay; status: "open" | "closed"; species?: string },
+  t: { startOn: FarmDay; endOn: FarmDay; quantity: number; eggWithdrawalDays?: number | null },
   today: FarmDay,
-): Result<void, BatchDayError | "END_BEFORE_START" | "INVALID_QUANTITY"> {
+): Result<void, BatchDayError | "END_BEFORE_START" | "INVALID_QUANTITY" | "EGG_WITHDRAWAL_REQUIRED"> {
   const started = checkBatchDay(batch, t.startOn, today);
   if (!started.ok) return started;
   if (daysBetween(t.startOn, t.endOn) < 0) return fail("END_BEFORE_START");
   if (!Number.isSafeInteger(t.quantity) || t.quantity <= 0) return fail("INVALID_QUANTITY");
+  // SPEC-m3 H7: a laying hen's eggs carry the medicine too; the days come from the label or the prescription (MQ4).
+  if (batch.species === "layer" && (t.eggWithdrawalDays === null || t.eggWithdrawalDays === undefined)) return fail("EGG_WITHDRAWAL_REQUIRED");
   return ok(undefined);
 }

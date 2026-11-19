@@ -34,6 +34,7 @@ export const RecordTreatment = z.object({
   reason: text(200),
   prescriber: text(120),
   withdrawalDays: z.int32().min(0).max(365), // from the label or the prescription: never a default (OQ4)
+  eggWithdrawalDays: z.int32().min(0).max(365).nullable().default(null), // SPEC-m3 H7: required for layers (domain)
 });
 
 export const RecordVetVisit = z.object({

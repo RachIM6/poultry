@@ -35,7 +35,7 @@ Vets and accountants come in M5.
 | Tenancy | One shared database. Every farm-data row carries `organizationId`, enforced in one data-access helper | [ADR-006](docs/decisions/ADR-006-multi-tenancy-and-audit.md) |
 | Styling | Tailwind CSS | — |
 | Tests | Vitest (unit + integration on a real Postgres), Playwright (e2e incl. offline) | — |
-| Tooling | Node 22 LTS, pnpm, Docker Compose (local Postgres), GitHub Actions | — |
+| Tooling | Node 24 LTS, pnpm, Docker Compose (local Postgres), GitHub Actions | — |
 | Hosting | **Open**: depends on law 09-08 (data location) | [ADR-007](docs/decisions/ADR-007-data-protection-and-hosting.md) |
 
 Exact package versions are pinned in `package.json` when the project is scaffolded (task T1). From then on, the lockfile is the source of truth.
@@ -63,13 +63,16 @@ src/
   app/[locale]/...        pages (UI routes), one folder per area
   app/api/sync/...        sync push / pull endpoints
   app/api/auth/...        OTP request / verify / logout
-  modules/<module-id>/    one folder per capability-map module
+  modules/<module-id>/    one folder per capability-map module (layout: ADR-008, skill poultry-ddd)
     index.ts              the ONLY file other modules may import
-    schema.ts             Zod schemas (shared client/server)
-    service.ts            server-side domain logic
-    *.ts                  pure domain functions (KPIs, withdrawal, …)
+    schema.ts             Zod schemas + mutation types (shared client/server)
+    domain/               strict modules: pure, isomorphic rules (KPIs, withdrawal, aggregates)
+    application/          strict modules: use cases (transaction + audit)
+    infrastructure/       strict modules: Prisma repositories + mappers
+    service.ts            light modules: Prisma + rules in one place
     *.test.ts             tests next to the code
-  lib/                    db client, tenant context, auth session, i18n, formatting
+  lib/                    db client, tenant context, auth session, i18n, formatting, security
+  lib/kernel/             Result, Clock, FarmDay, branded ids (the only lib code domain/ may import)
   offline/                Dexie database, outbox, sync engine, service worker
 prisma/                   schema.prisma, migrations/, seed.ts
 messages/                 ar.json, fr.json (every user-facing string)
@@ -79,6 +82,12 @@ tasks/                    plan.md, todo.md
 ```
 
 **Module boundary rule:** code in `src/modules/a/` can import `src/modules/b/index.ts` only if the capability map says `a` depends on `b`. The rule is enforced with ESLint's built-in `no-restricted-imports`, configured once per module.
+
+ESLint also enforces two more rules (ADR-008), both tested in `eslint.boundaries.test.ts`:
+- **`domain/` is pure:** no Next, React, Prisma or Node imports;
+- **no system clock** in `domain/` or `application/`: use the `Clock`.
+
+**Project skills:** `.claude/skills/poultry-ddd` (architecture) and `.claude/skills/poultry-auth` (login, sessions, rate limits). Contribution rules: `CONTRIBUTING.md`.
 
 ## 5. Code style & domain conventions
 

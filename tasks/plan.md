@@ -43,7 +43,7 @@ T1 scaffold ─┬─ T2 db/test harness ─┬─ T5 OTP auth ── T6 org + t
 ## Task list (index; details in todo.md)
 
 ### Phase 1: Foundation
-- [ ] T1 Scaffold app and tooling
+- [x] T1 Scaffold app and tooling
 - [ ] T2 Database and integration-test harness
 - [ ] T3 i18n Arabic/French with RTL shell
 - [ ] T4 PWA shell (install + offline fallback)

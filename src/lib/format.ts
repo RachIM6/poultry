@@ -41,3 +41,8 @@ export function formatDay(day: FarmDay, locale: string): string {
     timeZone: "UTC", // a FarmDay is already a calendar date
   }).format(new Date(`${day}T00:00:00Z`));
 }
+
+const percent = new Intl.NumberFormat("fr", { numberingSystem: "latn", minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const signedPercent = new Intl.NumberFormat("fr", { numberingSystem: "latn", minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: "exceptZero" });
+/** "7,9" (a CV) or, signed, "+3,1" / "-5,0" (a gap to the standard): the number alone, messages place the % sign. */
+export const formatPercent = (n: number, signed = false) => (signed ? signedPercent : percent).format(n);

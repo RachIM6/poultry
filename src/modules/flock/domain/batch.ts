@@ -1,6 +1,7 @@
 import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { birdsOut, type DayFields } from "@/modules/flock/domain/daily-entry";
+import { checkSample, type Sample } from "@/modules/flock/domain/weighing";
 
 // SPEC B1 (placement); daily entries, weighings and closing join this aggregate in T16–T24. Pure and isomorphic: the
 // phone and the server run the same rules (poultry-ddd §3.1).
@@ -70,15 +71,29 @@ export class Batch {
    * holds when an edit raises an earlier day. Editing is allowed until the batch is closed.
    */
   checkDay(day: FarmDay, entry: DayFields, outOnOtherDays: number, today: FarmDay): Result<void, DayError> {
-    if (this._status !== "open") return fail("BATCH_CLOSED");
-    if (ageOn(this.placement.placedOn, day) < 0) return fail("DAY_BEFORE_PLACEMENT");
-    if (daysBetween(day, today) < 0) return fail("DAY_IN_FUTURE");
+    const open = this.acceptsDataFor(day, today);
+    if (!open.ok) return open;
     const counts = [entry.dead, entry.culled, entry.waterMl ?? 0];
     if (counts.some((n) => !Number.isSafeInteger(n) || n < 0)) return fail("INVALID_QUANTITY");
     if (entry.feed && (!Number.isSafeInteger(entry.feed.grams) || entry.feed.grams <= 0)) return fail("INVALID_QUANTITY");
     if (outOnOtherDays + birdsOut(entry) > this.birdsStarted) return fail("MORE_DEAD_THAN_ON_HAND");
     return ok(undefined);
   }
+
+  /** B3: a weighing of this batch on this day. */
+  checkWeighing(day: FarmDay, sample: Sample, today: FarmDay): Result<void, DataDayError | "INVALID_SAMPLE"> {
+    const open = this.acceptsDataFor(day, today);
+    return open.ok ? checkSample(sample) : open;
+  }
+
+  /** Data for a day (entry, weighing) while the batch is open, between its placement and today. */
+  private acceptsDataFor(day: FarmDay, today: FarmDay): Result<void, DataDayError> {
+    if (this._status !== "open") return fail("BATCH_CLOSED");
+    if (ageOn(this.placement.placedOn, day) < 0) return fail("DAY_BEFORE_PLACEMENT");
+    if (daysBetween(day, today) < 0) return fail("DAY_IN_FUTURE");
+    return ok(undefined);
+  }
 }
 
-export type DayError = "BATCH_CLOSED" | "DAY_BEFORE_PLACEMENT" | "DAY_IN_FUTURE" | "INVALID_QUANTITY" | "MORE_DEAD_THAN_ON_HAND";
+type DataDayError = "BATCH_CLOSED" | "DAY_BEFORE_PLACEMENT" | "DAY_IN_FUTURE";
+export type DayError = DataDayError | "INVALID_QUANTITY" | "MORE_DEAD_THAN_ON_HAND";

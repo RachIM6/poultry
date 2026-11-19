@@ -29,6 +29,7 @@ export type Placement = {
   parentFlock?: string | null;
   weakChicks?: number | null;
   litterTempTenths?: number | null;
+  fromBatchId?: string | null; // SPEC-m3 B13
 };
 
 /** SPEC-m3 B10: birds that started the batch: billed + free supplement − dead on arrival. */
@@ -151,6 +152,18 @@ export class Batch {
     if (!open.ok) return open;
     this._status = "closed";
     return ok(undefined);
+  }
+
+  /**
+   * SPEC-m3 B13: may `hens` of this pullet batch move to a laying house on `day`? `onHand` = birds on hand that day.
+   * The ones left behind are culled; the batch then closes.
+   */
+  checkTransfer(day: FarmDay, hens: number, onHand: number, today: FarmDay): Result<void, DataDayError | "INVALID_INPUT" | "INVALID_QUANTITY" | "MORE_BIRDS_THAN_ON_HAND"> {
+    const open = this.acceptsDataFor(day, today);
+    if (!open.ok) return open;
+    if (this.placement.species !== "pullet") return fail("INVALID_INPUT");
+    if (!Number.isSafeInteger(hens) || hens <= 0) return fail("INVALID_QUANTITY");
+    return hens > onHand ? fail("MORE_BIRDS_THAN_ON_HAND") : ok(undefined);
   }
 
   /** B3: a weighing of this batch on this day. */

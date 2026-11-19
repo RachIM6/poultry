@@ -29,6 +29,7 @@ import { field, primary, secondary, warn } from "@/components/ui";
 const BatchDashboard = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchDashboard));
 const BatchCosts = dynamic(() => import("@/components/closing").then((m) => m.BatchCosts));
 const CloseBatchForm = dynamic(() => import("@/components/closing").then((m) => m.CloseBatchForm));
+const TransferForm = dynamic(() => import("@/components/closing").then((m) => m.TransferForm));
 const ClosedSummary = dynamic(() => import("@/components/closing").then((m) => m.ClosedSummary));
 const Sales = dynamic(() => import("@/components/sales").then((m) => m.Sales));
 const Treatments = dynamic(() => import("@/components/treatments").then((m) => m.Treatments));
@@ -199,6 +200,18 @@ function Batches(scope: Scope) {
           />
         )}
         <BatchCosts batch={open} costs={costsOf(open.id)} manage={can(scope, "flock.manage")} write={write} />
+        {can(scope, "flock.manage") && open.species === "pullet" && (
+          <TransferForm
+            batch={open}
+            onHand={onHand(open)}
+            houses={houses.map((h) => ({
+              id: h.id,
+              label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
+              free: canJoinHouse("layer", batches.filter((b) => b.status === "open" && b.houseId === h.id)).ok,
+            }))}
+            write={write}
+          />
+        )}
         {can(scope, "flock.manage") && <CloseBatchForm batch={open} write={write} />}
       </>
     );

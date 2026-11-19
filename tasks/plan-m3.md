@@ -94,8 +94,10 @@ Done 2026-11-16 (branch `feat/t57-pullet-uniformity`): `uniformityPercent` (band
 ### T58: Transfer pullets → layers (B13)
 **Description:** `flock.transferToLaying`: closes the pullet batch, records the birds left behind as culled, places the layer batch with age carried over and `fromBatchId`; finance skips the transfer's chick purchase.
 **AC:**
-- [ ] One mutation, idempotent; the layer batch's age continues the pullet batch's (integration test).
-- [ ] No chick-purchase entry is posted for the layer batch (integration test).
+- [x] One mutation, idempotent; the layer batch's age continues the pullet batch's (integration test). (`flock/transfer.int.test.ts`: replay, another organisation, too many hens, an occupied laying house, the 95 left behind culled.)
+- [x] No chick-purchase entry is posted for the layer batch (integration test). (Its chick price is 0, and finance's rules post nothing for a zero amount (`finance/domain/posting.ts`, already tested); no finance change.)
+
+Done 2026-11-16 (branch `feat/t58-transfer-to-laying`): `flock.transferToLaying` (owner, manager) culls the birds left behind on the day's entry, closes the pullet batch with the reason code `transferToLaying` (shown "Passée en ponte"), and places a layer batch with `fromBatchId`, the pullets' strain, hatchery and delivery note, and their age. The pullet batch keeps its costs. "Passage en ponte" form on an open pullet batch, offline (`e2e/production-types.spec.ts`).
 **Size:** M
 
 ### T59: Eggs module and collection (E1)

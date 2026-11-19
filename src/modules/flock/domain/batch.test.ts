@@ -133,3 +133,17 @@ describe("chick arrival (SPEC-m3 B10)", () => {
     expect(doaClaim({ ...delivery, deadOnArrival: 52 }, 5)).toBe(true);
   });
 });
+
+describe("transfer to laying (SPEC-m3 B13)", () => {
+  const pullets = Batch.rehydrate({ ...placement, species: "pullet", ageAtPlacementDays: 0 }, "open");
+  const today = day("2027-02-10");
+
+  it("moves some or all of the pullets on hand, from a pullet batch only", () => {
+    expect(pullets.checkTransfer(today, 4780, 4780, today).ok).toBe(true);
+    expect(pullets.checkTransfer(today, 4700, 4780, today).ok).toBe(true); // 80 left behind, culled by the use case
+    expect(pullets.checkTransfer(today, 4781, 4780, today)).toEqual({ ok: false, error: "MORE_BIRDS_THAN_ON_HAND" });
+    expect(pullets.checkTransfer(today, 0, 4780, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(Batch.rehydrate(placement, "open").checkTransfer(today, 10, 4780, today)).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(Batch.rehydrate({ ...placement, species: "pullet" }, "closed").checkTransfer(today, 10, 4780, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
+  });
+});

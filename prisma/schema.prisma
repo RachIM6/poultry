@@ -471,6 +471,7 @@ model Batch {
   parentFlock            String?
   weakChicks             Int?
   litterTempTenths       Int? // °C × 10
+  fromBatchId            String?   @db.Uuid // SPEC-m3 B13: the pullet batch these hens were transferred from
   status                 String    @default("open") // open | closed
   // B6, set when it closes and never changed afterwards: the locked figures.
   closedOn               DateTime? @db.Date // farm day

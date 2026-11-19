@@ -29,6 +29,9 @@ export const PlaceBatch = z.object({
   litterTempTenths: z.int32().min(0).max(600).nullable().default(null),
 });
 
+/** SPEC-m3 B13: pullets move to a laying house, which starts a layer batch with their age. */
+export const TransferToLaying = z.object({ batchId: z.uuid(), day: z.iso.date(), newBatchId: z.uuid(), houseId: z.uuid(), hens: z.int32().positive() });
+
 /** B6: by hand, with a reason (the last sale closes it by itself). */
 export const CloseBatch = z.object({ batchId: z.uuid(), day: z.iso.date(), reason: text(200) });
 

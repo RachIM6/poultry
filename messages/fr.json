@@ -774,7 +774,10 @@
     "batches": "Lots",
     "stock": "Stock",
     "more": "Plus",
-    "back": "Retour"
+    "back": "Retour",
+    "sales": "Ventes",
+    "finance": "Comptabilité",
+    "members": "Membres"
   },
   "More": {
     "farm": "Élevage",

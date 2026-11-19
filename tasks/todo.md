@@ -316,8 +316,10 @@ Decisions (2026-11-08, taken without asking): the placement form offers the orga
 ### T20: Treatments, withdrawal, vet visits (H3–H6)
 **Description:** Record treatments (product, dose, start / end, reason, prescriber), compute the withdrawal end date, show the banner on the batch, and keep a vet visit log. Data is stored in the form needed for the M2 ONSSA register.
 **AC:**
-- [ ] Withdrawal end = end date + withdrawal days, using farm days and the longest of overlapping treatments (unit tests).
-- [ ] The banner shows until the withdrawal end date, then disappears.
+- [x] Withdrawal end = end date + withdrawal days, using farm days and the longest of overlapping treatments (unit tests). (`src/modules/health/domain/withdrawal.test.ts`: year end, leap day, 0 days, overlaps in either order; the server stores the same end, `src/modules/health/treatments.int.test.ts`.)
+- [x] The banner shows until the withdrawal end date, then disappears. (`withdrawalUntil` unit tests: shown on the last day, gone the day after; `e2e/treatment.spec.ts`: no banner for a withdrawal that ended a week ago, the banner after a treatment recorded offline, still there after an offline reload.)
+
+Decisions (2026-11-08, taken without asking): the catalogue has no medicines yet, so the withdrawal days are typed from the label or the prescription on each treatment, required, never defaulted, and stored with the treatment (with its computed end) so the ONSSA register (M2) and the sale block (T21) read what was recorded. The withdrawal runs **through** its end day: a sale is allowed from the day after (⚠️ OQ4, for the vet). A treatment takes its medicine from a medicine lot of the batch's farm (S4, one consumption movement with the treatment's id, dated on its start day); it may still be running (end in the future) but must have started by today. Vet visits are per batch (date, vet, notes), like the rest of the batch's health. Owners, managers and workers can record both: a treatment only adds a withdrawal. Treatments and visits are not editable yet. One page again (`/batches#<id>`).
 
 **Verify:** `pnpm test -- src/modules/health/withdrawal`. e2e banner.
 **Dependencies:** T19

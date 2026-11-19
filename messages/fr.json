@@ -349,7 +349,8 @@
     "MORE_DEAD_THAN_ON_HAND": "Plus de morts et de réformés que d’oiseaux dans la bande.",
     "INVALID_SAMPLE": "Pesée invalide : vérifiez les poids (entre 1 g et 20 kg par oiseau, 1 000 oiseaux au plus).",
     "ALREADY_DONE": "Ce vaccin est déjà marqué comme fait.",
-    "WRONG_STOCK_ITEM": "Ce lot ne correspond pas à ce vaccin."
+    "WRONG_STOCK_ITEM": "Ce lot ne correspond pas à ce produit.",
+    "END_BEFORE_START": "La fin du traitement est avant son début."
   },
   "Weighing": {
     "title": "Pesée",
@@ -403,5 +404,38 @@
     "doses": "Doses",
     "save": "Enregistrer la vaccination",
     "cancel": "Annuler"
+  },
+  "Treatment": {
+    "withdrawal": "Délai d’attente en cours jusqu’au {date} inclus : pas de vente de cette bande avant.",
+    "title": "Traitements",
+    "none": "Aucun traitement.",
+    "add": "Ajouter un traitement",
+    "medicine": "Médicament",
+    "medicineOption": "{name} · lot {lot} (périme le {date})",
+    "noMedicine": "Aucun médicament valide en stock : ajoutez-le dans Stock.",
+    "quantity": "Quantité utilisée ({unit})",
+    "dose": "Dose prescrite",
+    "startOn": "Début du traitement",
+    "endOn": "Fin du traitement",
+    "reason": "Motif",
+    "prescriber": "Prescrit par",
+    "withdrawalDays": "Délai d’attente viande (jours)",
+    "withdrawalHint": "Indiqué sur l’étiquette ou l’ordonnance.",
+    "save": "Enregistrer le traitement",
+    "cancel": "Annuler",
+    "line": "{medicine} · du {start} au {end}",
+    "detail": "{dose} · {reason} · prescrit par {prescriber}",
+    "withdrawalLine": "Délai d’attente {days} j : jusqu’au {date} inclus"
+  },
+  "VetVisit": {
+    "title": "Visites vétérinaires",
+    "none": "Aucune visite.",
+    "add": "Ajouter une visite",
+    "on": "Date de la visite",
+    "vet": "Vétérinaire",
+    "notes": "Notes",
+    "save": "Enregistrer la visite",
+    "cancel": "Annuler",
+    "line": "{date} · {vet}"
   }
 }

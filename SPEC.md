@@ -64,7 +64,7 @@ src/
   app/api/sync/...        sync push / pull endpoints
   app/api/auth/...        OTP request / verify / logout
   modules/<module-id>/    one folder per capability-map module (layout: ADR-008, skill poultry-ddd)
-    index.ts              the ONLY file other modules may import
+    index.ts              server API: with schema.ts, the only files other modules may import (ADR-008)
     schema.ts             Zod schemas + mutation types (shared client/server)
     domain/               strict modules: pure, isomorphic rules (KPIs, withdrawal, aggregates)
     application/          strict modules: use cases (transaction + audit)

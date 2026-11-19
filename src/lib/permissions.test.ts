@@ -16,6 +16,12 @@ describe("can (SPEC I5)", () => {
       expect(can(as("worker"), action)).toBe(false);
     }
   });
+
+  it("lets owners and managers manage farms, not workers", () => {
+    expect(can(as("owner"), "farms.manage")).toBe(true);
+    expect(can(as("manager"), "farms.manage")).toBe(true);
+    expect(can(as("worker"), "farms.manage")).toBe(false);
+  });
 });
 
 describe("withoutMoney (SPEC I5)", () => {

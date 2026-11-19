@@ -152,8 +152,10 @@ Also done in T9: one local database per user and organisation with a scope heade
 ### T10: Farms and houses offline (F2, F3, F4)
 **Description:** The first real vertical slice through sync: create and edit farms (region, province, commune, GPS, ONSSA authorization + expiry) and houses (area, capacity, type) offline.
 **AC:**
-- [ ] A farm and 2 houses created offline are visible after a reload, then sync. A second device sees them after pull.
-- [ ] Concurrent edits of the same farm field converge to the last value received. The overwritten value is in the audit log.
+- [x] A farm and 2 houses created offline are visible after a reload, then sync. A second device sees them after pull. (`e2e/farms.spec.ts`: offline on `/fr/farms`, reload from the precache, back online, then a second browser logs in to the same account.)
+- [x] Concurrent edits of the same farm field converge to the last value received. The overwritten value is in the audit log. (`src/modules/farm-registry/farms.int.test.ts`. Updates carry only the changed fields, so edits of different fields on two phones both survive.)
+
+Notes: the screens are one static, precached page (`/[locale]/farms`, a farm opens as `#<id>`). Region, province and commune are free text for now; a reference list can come with reference data. Farms can't be deleted in M1. App code may now import a module's `schema.ts` as well as its `index.ts`, as ADR-008 already said (lint and the skill had only `index`).
 
 **Verify:** e2e: two browser contexts, one offline. Integration test for the merge.
 **Dependencies:** T9

@@ -60,9 +60,6 @@
       "gie": "GIE (groupement d’intérêt économique)"
     }
   },
-  "Dashboard": {
-    "noFarms": "Aucune ferme pour l’instant."
-  },
   "Members": {
     "title": "Membres",
     "back": "Retour au tableau de bord",
@@ -107,6 +104,44 @@
     "updateAvailable": "Une nouvelle version de l’application est prête.",
     "update": "Mettre à jour"
   },
+  "Farms": {
+    "title": "Fermes et bâtiments",
+    "none": "Aucune ferme pour l’instant.",
+    "count": "Fermes : {count}",
+    "add": "Ajouter une ferme",
+    "name": "Nom de la ferme",
+    "region": "Région",
+    "province": "Province",
+    "commune": "Commune",
+    "gps": "Position GPS (facultatif)",
+    "lat": "Latitude",
+    "lng": "Longitude",
+    "onssa": "Autorisation ONSSA (facultatif)",
+    "onssaNumber": "Numéro d’autorisation",
+    "onssaExpiresOn": "Valable jusqu’au",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "edit": "Modifier",
+    "back": "Toutes les fermes",
+    "saved": "Enregistré sur ce téléphone. L’envoi se fait dès qu’il y a du réseau.",
+    "saveFailed": "Impossible d’enregistrer : la mémoire du téléphone est peut-être pleine.",
+    "invalid": "Vérifiez les champs. La position GPS et l’autorisation ONSSA se remplissent en entier ou pas du tout.",
+    "notFound": "Cette ferme n’est pas (ou plus) sur ce téléphone.",
+    "houses": "Bâtiments",
+    "noHouses": "Aucun bâtiment.",
+    "addHouse": "Ajouter un bâtiment",
+    "houseName": "Nom du bâtiment",
+    "areaM2": "Surface (m²)",
+    "capacity": "Capacité (oiseaux)",
+    "type": "Type",
+    "types": {
+      "open": "Ouvert",
+      "closed": "Fermé"
+    },
+    "houseSummary": "{area} m² · {capacity} oiseaux · {type}",
+    "farmSummary": "{commune}, {province} · bâtiments : {count}",
+    "onssaUntil": "Autorisation ONSSA {number}, valable jusqu’au {date}"
+  },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
@@ -120,6 +155,7 @@
     "LAST_OWNER": "Il faut au moins un propriétaire.",
     "NOT_FOUND": "Introuvable.",
     "UNKNOWN_MUTATION": "Cette action n’est pas reconnue. Mettez l’application à jour.",
-    "SYNC_SCOPE": "Ce téléphone a changé de compte. Reconnectez-vous."
+    "SYNC_SCOPE": "Ce téléphone a changé de compte. Reconnectez-vous.",
+    "ALREADY_EXISTS": "Cet élément existe déjà."
   }
 }

@@ -16,7 +16,7 @@ const origin = process.env.APP_ORIGIN!;
 async function signedIn(phone: string) {
   const ctx = await tenant(`+212${phone.slice(1)}`);
   await requestCode(phone, {});
-  const code = (await db.verification.findFirstOrThrow({ where: { identifier: `+212${phone.slice(1)}` } })).value.split(":")[0];
+  const code = (await db.verification.findFirstOrThrow({ where: { identifier: `phone-number-otp-+212${phone.slice(1)}` } })).value.split(":")[0];
   const res = await verifyCode(phone, code, "fr", {});
   if (!res.ok) throw new Error(res.error);
   const cookie = res.value.getSetCookie().map((c) => c.split(";")[0]).join("; ");

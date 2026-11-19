@@ -14,7 +14,7 @@ export async function query<T>(sql: string, params: unknown[]): Promise<T[]> {
 
 // Better Auth stores the pending code as "<code>:<attempts>".
 export const codeFor = async (e164: string) =>
-  (await query<{ value: string }>(`SELECT value FROM "Verification" WHERE identifier = $1 ORDER BY "createdAt" DESC LIMIT 1`, [e164]))[0]
+  (await query<{ value: string }>(`SELECT value FROM "Verification" WHERE identifier = $1 ORDER BY "createdAt" DESC LIMIT 1`, [`phone-number-otp-${e164}`]))[0]
     .value.split(":")[0];
 
 // A fresh number per run: rate limits persist in the database between runs.

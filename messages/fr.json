@@ -211,6 +211,10 @@
       "powerCut": {
         "title": "Coupure de courant",
         "body": "Coupure signalée à {time}. Vérifiez le groupe électrogène et la ventilation."
+      },
+      "placementTomorrow": {
+        "title": "Mise en place prévue demain",
+        "body": "{house} : {chicks} poussins, couvoir {hatchery}. Vérifiez le bâtiment, l’eau et le chauffage."
       }
     }
   },

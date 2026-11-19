@@ -281,8 +281,10 @@ Built as the `flock.recordWeighing` mutation (offline, `flock.record`), `src/mod
 ### T18: KPI engine and batch dashboard (B4)
 **Description:** Pure KPI functions (age, birds on hand, mortality %, feed per bird, FCR, EPEF, average daily gain) and the batch dashboard with a growth chart vs the standard. They run on the client from local data.
 **AC:**
-- [ ] Each KPI matches a hand-calculated reference batch (fixture) on days 7, 21 and 35. Every branch is covered (zero birds, no weighing yet…).
-- [ ] The dashboard works offline and updates right after a daily entry.
+- [x] Each KPI matches a hand-calculated reference batch (fixture) on days 7, 21 and 35. Every branch is covered (zero birds, no weighing yet…).
+- [x] The dashboard works offline and updates right after a daily entry.
+
+Built in `src/modules/flock/domain/kpi.ts` and `src/components/batch-dashboard.tsx`, shown in the batch's day view (`/batches#<id>`, the precached shell), not a separate route. Decisions: mortality and feed per bird use birds started (placed − dead on arrival); FCR, EPEF and daily gain are taken at the last weighing, with feed and deaths up to that day; daily gain counts from the day-old weight when entered, else from 0 g; FCR is unknown until feed is recorded.
 
 **Verify:** `pnpm test -- src/modules/flock/kpi`. e2e: dashboard after 3 entries.
 **Dependencies:** T16, T17

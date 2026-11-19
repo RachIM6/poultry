@@ -12,6 +12,7 @@ import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto, type DailyEntryDto, type WeighingDto } from "@/modules/flock/schema";
 import type { StockItemDto } from "@/modules/inventory/schema";
+import { BatchDashboard } from "@/components/batch-dashboard";
 import { DayForm, type Write } from "@/components/daily-entry";
 import { Weighings } from "@/components/weighing";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
@@ -84,12 +85,15 @@ function Batches(scope: Scope) {
 
   const open = batches.find((b) => b.id === openId && b.status === "open");
   if (open) {
+    const weighings = of<WeighingDto>("weighing").filter((w) => w.batchId === open.id);
+    const curve = strains.find((s) => s.id === open.strainId)?.curves.at(-1)?.points ?? null; // latest version (OQ5)
     return (
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
         <h2 className="text-xl font-semibold">{t("Batches.summary", { farm: farms.get(open.farmId)?.name ?? "", house: houseName(open.houseId), strain: strains.find((s) => s.id === open.strainId)?.name ?? open.strainId })}</h2>
         <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
         {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+        <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} curve={curve} />
         <DayForm
           batch={open}
           entries={entriesOf(open.id)}
@@ -98,8 +102,8 @@ function Batches(scope: Scope) {
         />
         <Weighings
           batch={open}
-          weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === open.id)}
-          curve={strains.find((s) => s.id === open.strainId)?.curves.at(-1)?.points ?? null} // latest version (OQ5)
+          weighings={weighings}
+          curve={curve}
           write={write}
         />
       </>

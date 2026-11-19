@@ -46,3 +46,7 @@ const percent = new Intl.NumberFormat("fr", { numberingSystem: "latn", minimumFr
 const signedPercent = new Intl.NumberFormat("fr", { numberingSystem: "latn", minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: "exceptZero" });
 /** "7,9" (a CV) or, signed, "+3,1" / "-5,0" (a gap to the standard): the number alone, messages place the % sign. */
 export const formatPercent = (n: number, signed = false) => (signed ? signedPercent : percent).format(n);
+
+/** A ratio or rate with fixed decimals: FCR "1,49" (2), EPEF "429" (0). */
+export const formatDecimal = (n: number, decimals: number) =>
+  new Intl.NumberFormat("fr", { numberingSystem: "latn", minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(n);

@@ -349,10 +349,28 @@
     "totalKg": "Poids total (kg)",
     "count": "Nombre d’oiseaux",
     "average": "Moyenne {average} ({count} oiseaux)",
-    "cv": "CV {cv} %",
-    "versusStandard": "{gap} % par rapport au standard ({standard})",
+    "cv": "CV {cv} %",
+    "versusStandard": "{gap} % par rapport au standard ({standard})",
     "noStandard": "Pas de standard publié pour cette souche à cet âge",
     "save": "Enregistrer la pesée",
     "past": "Pesées précédentes"
+  },
+  "Kpi": {
+    "title": "Indicateurs",
+    "mortality": "Mortalité",
+    "feedPerBird": "Aliment par oiseau",
+    "weight": "Poids moyen (jour {age})",
+    "weightNone": "Poids moyen",
+    "fcr": "IC (indice de consommation)",
+    "epef": "EPEF",
+    "dailyGain": "GMQ (gain moyen quotidien)",
+    "gramsPerDay": "{grams} g/jour",
+    "atWeighing": "IC, EPEF et GMQ au jour {age}, celui de la dernière pesée.",
+    "weighFirst": "Pesez un échantillon pour voir le poids, l’IC, l’EPEF et le GMQ.",
+    "chart": "Croissance",
+    "flock": "Bande",
+    "standard": "Standard de la souche",
+    "day": "J{age}",
+    "chartLabel": "Poids moyen par âge : {points}"
   }
 }

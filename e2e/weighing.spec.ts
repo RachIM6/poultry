@@ -1,15 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered, syntheticStrain } from "./auth";
 
 // T17 acceptance (browser part): a weighing typed offline shows the average, CV% and the gap to the strain standard.
-// No breeder table is committed yet (OQ5), so the test brings its own strain with a made-up two-point curve and removes
-// it afterwards. The numbers are not a real standard.
+// No breeder table is committed yet (OQ5), so the test brings its own strain with a made-up curve and removes it.
 test("a weighing offline shows average, uniformity and the gap to the standard", async ({ page, context }) => {
   test.setTimeout(90_000);
-  const strain = `e2e-${crypto.randomUUID().slice(0, 8)}`;
-  await query(`INSERT INTO "Strain" (id, name) VALUES ($1, 'Souche de test')`, [strain]);
-  const [curve] = await query<{ id: string }>(`INSERT INTO "StandardCurve" ("strainId", source, version) VALUES ($1, 'E2E synthetic', '1') RETURNING id`, [strain]);
-  await query(`INSERT INTO "StandardPoint" ("curveId", day, "bodyWeightGrams", "cumulativeFeedGrams") VALUES ($1, 0, 40, 0), ($1, 7, 200, 150)`, [curve.id]);
+  const strain = await syntheticStrain();
   try {
     const e164 = await ownerWithFarm(page, "Élevage de la Pesée");
     await scopeRemembered(page);

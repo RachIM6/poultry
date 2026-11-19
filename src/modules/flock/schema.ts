@@ -84,3 +84,7 @@ export const RecordWeighing = z.object({
 
 /** `weightsGrams` is empty for a group weighing. */
 export type WeighingDto = { id: string; batchId: string; day: string; count: number; totalGrams: number; weightsGrams: number[] };
+
+// SPEC B4: live KPIs, computed on the phone from its local data.
+export { batchKpis } from "@/modules/flock/domain/kpi";
+export type { BatchKpis } from "@/modules/flock/domain/kpi";

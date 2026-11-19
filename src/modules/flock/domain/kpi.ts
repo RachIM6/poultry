@@ -52,7 +52,7 @@ const feed = (es: readonly Day[]) => es.reduce((n, e) => n + (e.feed?.grams ?? 0
 const birds = (ss: readonly Sold[]) => ss.reduce((n, s) => n + s.birds, 0);
 
 export function batchKpis(
-  batch: { placedOn: FarmDay; birdsStarted: number; dayOldWeightGrams: number | null },
+  batch: { placedOn: FarmDay; birdsStarted: number; dayOldWeightGrams: number | null; ageAtPlacementDays?: number },
   entries: readonly Day[],
   weighings: readonly Weighed[],
   today: FarmDay,
@@ -64,7 +64,7 @@ export function batchKpis(
   if (last) {
     const until = entries.filter((e) => e.day <= last.day); // ISO dates sort as text
     const soldUntil = sold.filter((x) => x.day <= last.day);
-    const ageDays = daysBetween(batch.placedOn, last.day as FarmDay);
+    const ageDays = daysBetween(batch.placedOn, last.day as FarmDay) + (batch.ageAtPlacementDays ?? 0); // SPEC-m3 B7
     const averageGrams = Math.round(last.totalGrams / last.count); // as sampleStats
     const totals: BatchTotals = {
       placed: batch.birdsStarted,
@@ -84,7 +84,7 @@ export function batchKpis(
     };
   }
   return {
-    ageDays: daysBetween(batch.placedOn, today),
+    ageDays: daysBetween(batch.placedOn, today) + (batch.ageAtPlacementDays ?? 0),
     birdsOnHand,
     mortalityPercent: (out(entries) / batch.birdsStarted) * 100,
     feedPerBirdGrams: birdsOnHand > 0 ? feed(entries) / birdsOnHand : null,

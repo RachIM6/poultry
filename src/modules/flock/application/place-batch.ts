@@ -7,8 +7,8 @@ import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { houseOf } from "@/modules/farm-registry";
-import { Batch } from "@/modules/flock/domain/batch";
-import { batchIdTaken, findOpenInHouse, lockHouse, saveNewBatch } from "@/modules/flock/infrastructure/batches";
+import { Batch, canJoinHouse } from "@/modules/flock/domain/batch";
+import { batchIdTaken, lockHouse, openInHouse, saveNewBatch } from "@/modules/flock/infrastructure/batches";
 import type { PlaceBatch } from "@/modules/flock/schema";
 import { strainServes } from "@/modules/reference-data";
 
@@ -36,7 +36,8 @@ export async function placeBatch(
   if (!batch.ok) return batch;
 
   await lockHouse(tx, house.id);
-  if (await findOpenInHouse(tx, ctx, house.id)) return fail("HOUSE_HAS_OPEN_BATCH");
+  const joins = canJoinHouse(cmd.species, await openInHouse(tx, ctx, house.id), cmd.sex); // SPEC-m3 B8, B9
+  if (!joins.ok) return joins;
   if (await batchIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
 
   const dto = await saveNewBatch(tx, ctx, batch.value);

@@ -10,11 +10,11 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, canJoinHouse, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
-import { PRODUCTION_TYPES, curveFor, type ProductionType } from "@/modules/reference-data/shared";
+import { PRODUCTION_TYPES, curveFor, type BirdSex, type ProductionType } from "@/modules/reference-data/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import dynamic from "next/dynamic";
 import { DayForm, type Write } from "@/components/daily-entry";
@@ -100,13 +100,21 @@ function Batches(scope: Scope) {
   };
 
   const shown = batches.find((b) => b.id === openId);
+  // SPEC-m3 B7: days for broilers, weeks (+ days) for the longer cycles.
+  const ageText = (b: BatchDto) => {
+    const age = ageOfBatch(b, today());
+    if (b.species === "broiler") return t("Batches.age", { age: String(age) });
+    const [weeks, days] = [Math.floor(age / 7), age % 7];
+    return days === 0 ? t("Batches.ageWeeks", { weeks: String(weeks) }) : t("Batches.ageWeeksDays", { weeks: String(weeks), days: String(days) });
+  };
   const strainName = (id: string) => (id.startsWith("unspecified-") ? t("Batches.unspecifiedStrain") : (strains.find((s) => s.id === id)?.name ?? id));
-  const title = (b: BatchDto) => `${t(`Types.${b.species}`)} · ${t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strainName(b.strainId) })}`;
+  const sexOf = (b: BatchDto) => (b.sex && b.sex !== "mixed" ? ` · ${t(`Batches.sexes.${b.sex}`)}` : ""); // SPEC-m3 B9
+  const title = (b: BatchDto) => `${t(`Types.${b.species}`)}${sexOf(b)} · ${t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strainName(b.strainId) })}`;
   const costsOf = (batchId: string) => of<BatchCostDto>("batchCost").filter((c) => c.batchId === batchId);
   const salesOf = (batchId: string) => of<SaleDto>("sale").filter((s) => s.batchId === batchId);
   if (shown?.status === "closed") {
     // B6: read-only, with the locked figures; its sales stay listed for their origin documents (V5).
-    const curve = curveFor(strains.find((s) => s.id === shown.strainId)?.curves ?? [], "mixed")?.points ?? null;
+    const curve = curveFor(strains.find((s) => s.id === shown.strainId)?.curves ?? [], shown.sex ?? "mixed")?.points ?? null;
     return (
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
@@ -123,13 +131,21 @@ function Batches(scope: Scope) {
   const open = shown;
   if (open) {
     const weighings = of<WeighingDto>("weighing").filter((w) => w.batchId === open.id);
-    const curve = curveFor(strains.find((s) => s.id === open.strainId)?.curves ?? [], "mixed")?.points ?? null; // latest version (OQ5, R6)
+    const curve = curveFor(strains.find((s) => s.id === open.strainId)?.curves ?? [], open.sex ?? "mixed")?.points ?? null; // latest version of its sex (OQ5, R6)
     const treatments = of<TreatmentDto>("treatment").filter((x) => x.batchId === open.id);
     return (
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
         <h2 className="text-xl font-semibold">{title(open)}</h2>
-        <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
+        <p>{ageText(open)} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
+        {open.sex && open.sex !== "mixed" && (() => {
+          const other = batches.find((b) => b.status === "open" && b.houseId === open.houseId && b.species === open.species && b.id !== open.id);
+          return other ? (
+            <a href={`#${other.id}`} className="rounded-2xl border border-line bg-card p-3 underline underline-offset-4">
+              {t("Batches.otherSex", { sex: t(`Batches.sexes.${other.sex ?? "mixed"}`), birds: formatCount(onHand(other)) })}
+            </a>
+          ) : null;
+        })()}
         <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curve={curve} />
@@ -180,19 +196,22 @@ function Batches(scope: Scope) {
   }
 
   const protocols = of<ProtocolDto>("protocol").sort((x, y) => x.name.localeCompare(y.name));
-  const save = async (batch: BatchDto, payload: unknown, protocol: ProtocolDto | undefined) => {
+  const save = async (placed: { batch: BatchDto; payload: unknown }[], protocol: ProtocolDto | undefined) => {
     try {
-      await writeLocal(db, { type: M.placeBatch, payload }, [{ entity: "batch", id: batch.id, data: batch }]);
-      if (protocol && protocol.items.length > 0) {
-        // H1: the plan from the farm's protocol, queued right after the placement it belongs to
-        const plan = planFor(batch.id, batch.placedOn as FarmDay, protocol.items);
-        const items = protocol.items;
-        await writeLocal(db, { type: H.planVaccinations, payload: { batchId: batch.id, protocolId: protocol.id, items } }, plan.map((v) => ({ entity: "vaccination", id: v.id, data: v })));
-      }
+      for (const { batch, payload } of placed) await placeOne(batch, payload, protocol);
       setMessage("Farms.saved");
       setPlacing(false);
     } catch {
       setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
+    }
+  };
+  const placeOne = async (batch: BatchDto, payload: unknown, protocol: ProtocolDto | undefined) => {
+    await writeLocal(db, { type: M.placeBatch, payload }, [{ entity: "batch", id: batch.id, data: batch }]);
+    if (protocol && protocol.items.length > 0) {
+      // H1: the plan from the farm's protocol, queued right after the placement it belongs to
+      const plan = planFor(batch.id, batch.placedOn as FarmDay, protocol.items, batch.ageAtPlacementDays);
+      const items = protocol.items;
+      await writeLocal(db, { type: H.planVaccinations, payload: { batchId: batch.id, protocolId: protocol.id, items } }, plan.map((v) => ({ entity: "vaccination", id: v.id, data: v })));
     }
   };
 
@@ -206,7 +225,7 @@ function Batches(scope: Scope) {
           {batches.map((b) => (
             <li key={b.id} className="flex flex-col gap-1 rounded-lg border border-current/30 p-3">
               <span className="font-semibold">
-                {b.status === "open" ? t("Batches.age", { age: String(ageOn(b.placedOn as FarmDay, today())) }) : t("Batches.status.closed")}
+                {b.status === "open" ? ageText(b) : t("Batches.status.closed")}
               </span>
               <span>{title(b)}</span>
               <span className="text-sm opacity-75">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
@@ -229,7 +248,12 @@ function Batches(scope: Scope) {
           <p>{t("Protocol.noReference")}</p> // strains come with the reference data, after one sync online
         ) : placing ? (
           <PlacementForm
-            houses={houses.map((h) => ({ ...h, label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`, busy: busy.has(h.id) }))}
+            houses={houses.map((h) => ({
+              ...h,
+              label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
+              busy: busy.has(h.id),
+              open: batches.filter((b) => b.status === "open" && b.houseId === h.id),
+            }))}
             strains={strains.map((s) => ({ id: s.id, name: strainName(s.id), productionTypes: s.productionTypes ?? ["broiler"] }))}
             protocols={protocols}
             onSave={save}
@@ -269,16 +293,18 @@ function PlacementForm({
   onSave,
   onCancel,
 }: {
-  houses: (HouseDto & { label: string; busy: boolean })[];
+  houses: (HouseDto & { label: string; busy: boolean; open: { species: ProductionType; sex?: BirdSex }[] })[];
   strains: { id: string; name: string; productionTypes: readonly ProductionType[] }[];
   protocols: ProtocolDto[];
-  onSave: (batch: BatchDto, payload: unknown, protocol: ProtocolDto | undefined) => Promise<void>;
+  onSave: (batches: { batch: BatchDto; payload: unknown }[], protocol: ProtocolDto | undefined) => Promise<void>;
   onCancel: () => void;
 }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
   const [type, setType] = useState<ProductionType>("broiler"); // R5: the type first, then only its strains
   const typeStrains = strains.filter((s) => s.productionTypes.includes(type));
+  const [bySex, setBySex] = useState(false); // SPEC-m3 B9: turkeys only
+  const sexed = type === "turkey" && bySex;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -288,28 +314,39 @@ function PlacementForm({
     const price = parseCentimes(get("price") || "0");
     const int = (k: string) => (/^\d+$/.test(get(k)) ? Number(get(k)) : NaN);
     if (!house || price === null || !get("hatchery") || !get("deliveryNote")) return setError("Batches.invalid");
-    if (house.busy) return setError("errors.HOUSE_HAS_OPEN_BATCH"); // the server enforces it too
+    const groups: { sex: BirdSex; birds: string; doa: string }[] = sexed
+      ? [{ sex: "female", birds: "females", doa: "femaleDoa" }, { sex: "male", birds: "males", doa: "maleDoa" }]
+      : [{ sex: "mixed", birds: "chicksPlaced", doa: "deadOnArrival" }];
+    const open = [...house.open];
+    for (const g of groups) {
+      if (!canJoinHouse(type, open, g.sex).ok) return setError("errors.HOUSE_HAS_OPEN_BATCH"); // the server enforces it too (B8)
+      open.push({ species: type, sex: g.sex });
+    }
 
-    const placement = {
+    const placements = groups.map((g) => ({
       id: uuidv7(),
       farmId: house.farmId,
       houseId: house.id,
       species: type,
+      sex: g.sex,
       strainId: get("strainId"),
       placedOn: (get("placedOn") || today()) as FarmDay,
-      chicksPlaced: int("chicksPlaced"),
-      deadOnArrival: get("deadOnArrival") ? int("deadOnArrival") : 0,
+      chicksPlaced: int(g.birds),
+      deadOnArrival: get(g.doa) ? int(g.doa) : 0,
       hatchery: get("hatchery"),
       deliveryNote: get("deliveryNote"),
       chickUnitPriceCentimes: price,
       dayOldWeightGrams: get("dayOldWeight") ? int("dayOldWeight") : null,
-    };
-    const batch = Batch.place(placement, today()); // the same rules as the server
-    if (!batch.ok) return setError(batch.error === "INVALID_QUANTITY" ? "Batches.invalid" : `errors.${batch.error}`);
+      ageAtPlacementDays: get("ageWeeks") ? int("ageWeeks") * 7 : 0, // SPEC-m3 B7: asked in weeks
+    }));
+    for (const placement of placements) {
+      const batch = Batch.place(placement, today()); // the same rules as the server
+      if (!batch.ok) return setError(batch.error === "INVALID_QUANTITY" ? "Batches.invalid" : `errors.${batch.error}`);
+    }
     setError(undefined);
 
-    const sent = { ...placement, chickUnitPriceCentimes: String(price) }; // farmId is dropped by the schema: the server derives it
-    await onSave({ ...sent, status: "open" }, sent, protocols.find((p) => p.id === get("protocolId")));
+    const sent = placements.map((p) => ({ ...p, chickUnitPriceCentimes: String(price) })); // farmId is dropped by the schema: the server derives it
+    await onSave(sent.map((p) => ({ batch: { ...p, status: "open" }, payload: p })), protocols.find((p) => p.id === get("protocolId")));
   };
 
   return (
@@ -335,8 +372,26 @@ function PlacementForm({
         </Select>
       )}
       <Field name="placedOn" label={t("Batches.placedOn")} type="date" defaultValue={today()} required />
-      <Field name="chicksPlaced" label={t("Batches.chicksPlaced")} inputMode="numeric" pattern="\d+" required dir="ltr" />
-      <Field name="deadOnArrival" label={t("Batches.deadOnArrival")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />
+      {type !== "broiler" && <Field name="ageWeeks" label={t("Batches.ageAtPlacement")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />}
+      {type === "turkey" && (
+        <label className="flex min-h-11 items-center gap-3">
+          <input type="checkbox" checked={bySex} onChange={(e) => setBySex(e.target.checked)} className="size-5" />
+          {t("Batches.bySex")}
+        </label>
+      )}
+      {sexed ? (
+        <>
+          <Field name="females" label={t("Batches.females")} inputMode="numeric" pattern="\d+" required dir="ltr" />
+          <Field name="femaleDoa" label={t("Batches.femaleDoa")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />
+          <Field name="males" label={t("Batches.males")} inputMode="numeric" pattern="\d+" required dir="ltr" />
+          <Field name="maleDoa" label={t("Batches.maleDoa")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />
+        </>
+      ) : (
+        <>
+          <Field name="chicksPlaced" label={t("Batches.chicksPlaced")} inputMode="numeric" pattern="\d+" required dir="ltr" />
+          <Field name="deadOnArrival" label={t("Batches.deadOnArrival")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />
+        </>
+      )}
       <Field name="hatchery" label={t("Batches.hatchery")} required maxLength={120} />
       <Field name="deliveryNote" label={t("Batches.deliveryNote")} required maxLength={60} dir="ltr" />
       <Field name="price" label={t("Batches.chickPrice")} inputMode="decimal" required dir="ltr" />

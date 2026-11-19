@@ -307,7 +307,21 @@
     "protocol": "برنامج التلقيح",
     "noProtocol": "بدون",
     "type": "نوع الإنتاج",
-    "unspecifiedStrain": "سلالة غير محددة"
+    "unspecifiedStrain": "سلالة غير محددة",
+    "ageWeeks": "{weeks} أسبوع",
+    "ageWeeksDays": "{weeks} أسبوع و{days} يوم",
+    "ageAtPlacement": "العمر عند الإيواء (بالأسابيع)",
+    "bySex": "الجنسان منفصلان",
+    "females": "الإناث الموضوعة",
+    "femaleDoa": "الإناث النافقة عند الوصول",
+    "males": "الذكور الموضوعة",
+    "maleDoa": "الذكور النافقة عند الوصول",
+    "sexes": {
+      "mixed": "مختلط",
+      "female": "إناث",
+      "male": "ذكور"
+    },
+    "otherSex": "نفس الدفعة، {sex}: {birds} طائر"
   },
   "Day": {
     "title": "تسجيل اليوم",

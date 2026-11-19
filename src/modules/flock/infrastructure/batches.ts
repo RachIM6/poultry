@@ -4,7 +4,7 @@ import { houseOf } from "@/modules/farm-registry";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, type BatchStatus } from "@/modules/flock/domain/batch";
 import type { BatchCostDto, BatchDto } from "@/modules/flock/schema";
-import type { ProductionType } from "@/modules/reference-data/shared";
+import type { BirdSex, ProductionType } from "@/modules/reference-data/shared";
 
 // Batch repository (Prisma). Scoped to the caller's organisation.
 
@@ -13,8 +13,12 @@ const date = (day: string) => new Date(`${day}T00:00:00Z`); // a farm day, store
 /** B1: serializes placements in one house until the transaction ends, so the open-batch check can't race. */
 export const lockHouse = (tx: Tx, houseId: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${houseId}, 0))`;
 
-export const findOpenInHouse = (tx: Tx, ctx: TenantContext, houseId: string) =>
-  tx.batch.findFirst({ where: { organizationId: ctx.organizationId, houseId, status: "open" }, select: { id: true } });
+/** SPEC-m3 B8: the house's open batches, with what the sharing rule needs. */
+export const openInHouse = async (tx: Tx, ctx: TenantContext, houseId: string) =>
+  (await tx.batch.findMany({ where: { organizationId: ctx.organizationId, houseId, status: "open" }, select: { species: true, sex: true } })).map((b) => ({
+    species: b.species as ProductionType,
+    sex: b.sex as BirdSex,
+  }));
 
 export const batchIdTaken = async (tx: Tx, id: string) => (await tx.batch.count({ where: { id } })) > 0;
 
@@ -35,6 +39,8 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Pr
     hatchery: p.hatchery,
     deliveryNote: p.deliveryNote,
     dayOldWeightGrams: p.dayOldWeightGrams,
+    ageAtPlacementDays: p.ageAtPlacementDays ?? 0,
+    sex: p.sex ?? "mixed",
     status: batch.status,
     chickUnitPriceCentimes: String(p.chickUnitPriceCentimes),
   };
@@ -63,6 +69,8 @@ export async function loadBatch(tx: Tx, ctx: TenantContext, id: string): Promise
       deliveryNote: r.deliveryNote,
       chickUnitPriceCentimes: r.chickUnitPriceCentimes,
       dayOldWeightGrams: r.dayOldWeightGrams,
+      ageAtPlacementDays: r.ageAtPlacementDays,
+      sex: r.sex as BirdSex,
     },
     r.status as BatchStatus,
   );
@@ -73,7 +81,14 @@ export async function batchFacts(tx: Tx, ctx: TenantContext, id: string) {
   const r = await tx.batch.findFirst({ where: { id, organizationId: ctx.organizationId } });
   if (!r) return null;
   const house = await houseOf(tx, ctx, r.houseId);
-  return { farmId: r.farmId, houseName: house?.name ?? "", placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay, status: r.status as BatchStatus };
+  return {
+    farmId: r.farmId,
+    houseName: house?.name ?? "",
+    placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay,
+    ageAtPlacementDays: r.ageAtPlacementDays,
+    species: r.species as ProductionType,
+    status: r.status as BatchStatus,
+  };
 }
 
 /** B6: what the closing needs: other costs and the farm weight of every bird sold. */
@@ -104,6 +119,8 @@ export async function saveClosing(
     hatchery: r.hatchery,
     deliveryNote: r.deliveryNote,
     dayOldWeightGrams: r.dayOldWeightGrams,
+    ageAtPlacementDays: r.ageAtPlacementDays,
+    sex: r.sex as BirdSex,
     status: batch.status,
     chickUnitPriceCentimes: String(r.chickUnitPriceCentimes),
     closedOn: c.closedOn,

@@ -23,6 +23,13 @@ describe("vaccination plan (SPEC H1)", () => {
     expect(FIXTURE[0].dayOfAge).toBe(14); // the protocol itself is left as it was
   });
 
+  it("skips the lines due before birds placed older arrived, and dates the rest from their age (SPEC-m3 B7)", () => {
+    expect(planVaccinations(day("2026-10-25"), FIXTURE, 7)).toEqual([
+      { dayOfAge: 7, productId: "vaccine-infectious-bronchitis", method: "eyeDrop", dueOn: "2026-10-25" }, // day 7 = arrival
+      { dayOfAge: 14, productId: "vaccine-gumboro", method: "drinkingWater", dueOn: "2026-11-01" },
+    ]);
+  });
+
   it("counts calendar days across a year end and a leap day", () => {
     expect(planVaccinations(day("2027-12-25"), [{ dayOfAge: 10, productId: "v", method: "spray" }])[0].dueOn).toBe("2028-01-04");
     expect(planVaccinations(day("2028-02-20"), [{ dayOfAge: 10, productId: "v", method: "spray" }])[0].dueOn).toBe("2028-03-01");

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DEATH_CAUSES } from "@/modules/flock/domain/daily-entry";
-import { PRODUCTION_TYPES } from "@/modules/reference-data/shared";
+import { BIRD_SEXES, PRODUCTION_TYPES } from "@/modules/reference-data/shared";
 
 // SPEC B1–B6, the sync push's validation: the same schemas on every server path. The phone's screens import
 // ./shared.ts (no Zod, ADR-009), re-exported here so server code and tests keep one import.
@@ -20,6 +20,8 @@ export const PlaceBatch = z.object({
   deliveryNote: text(60),
   chickUnitPriceCentimes: z.string().regex(/^\d{1,12}$/), // JSON has no bigint
   dayOldWeightGrams: z.int32().positive().nullable(),
+  ageAtPlacementDays: z.int32().min(0).default(0), // SPEC-m3 B7; the domain caps it
+  sex: z.enum(BIRD_SEXES).default("mixed"), // SPEC-m3 B9
 });
 
 /** B6: by hand, with a reason (the last sale closes it by itself). */

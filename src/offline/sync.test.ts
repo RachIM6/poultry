@@ -2,9 +2,9 @@ import "fake-indexeddb/auto";
 import { Dexie } from "dexie";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { MutationResult, PullResponse } from "@/lib/sync/protocol";
-import { currentScope, localDb, metaValue, rememberScope, signOutLocally, type Scope } from "./db";
+import { cachedReference, currentScope, localDb, metaValue, rememberScope, signOutLocally, type Scope } from "./db";
 import { writeLocal } from "./outbox";
-import { syncOnce } from "./sync";
+import { refreshReference, syncOnce } from "./sync";
 
 let n = 0;
 const scope = (): Scope => ({ userId: `user-${++n}`, organizationId: "org", role: "owner" });
@@ -15,6 +15,7 @@ function server(opts: { decide?: (type: string) => MutationResult | "crash"; sta
   const log = [...(opts.changes ?? [])];
   const fetchFn = (async (url: string, init?: RequestInit) => {
     if (opts.status) return new Response("{}", { status: opts.status });
+    if (url === "/api/reference") return new Response(null, { status: 404 });
     if (url.startsWith("/api/sync/push")) {
       const { mutations } = JSON.parse(String(init!.body)) as { mutations: { id: string; type: string }[] };
       const results = [];
@@ -155,5 +156,31 @@ describe("pull merge (ADR-003)", () => {
     const [a, b] = [scope(), scope()];
     await writeLocal(localDb(a), { type: "x", payload: {} });
     expect(await localDb(b).outbox.count()).toBe(0);
+  });
+});
+
+describe("reference data cache (SPEC R4)", () => {
+  const data = (n: number) => ({ strains: [], products: [], protocolTemplates: [{ id: `t${n}`, nameFr: "x", nameAr: "x", reviewedByVet: false, items: [] }] });
+
+  it("keeps the server's copy, asks again with its ETag, and replaces it only when it changed", async () => {
+    let served = { etag: '"v1"', body: data(1) };
+    const sent: (string | null)[] = [];
+    const fetchFn = (async (_url: string, init?: RequestInit) => {
+      const ifNoneMatch = new Headers(init?.headers).get("if-none-match");
+      sent.push(ifNoneMatch);
+      if (ifNoneMatch === served.etag) return new Response(null, { status: 304 });
+      return Response.json(served.body, { headers: { etag: served.etag } });
+    }) as typeof fetch;
+
+    await refreshReference(fetchFn);
+    expect(await cachedReference()).toMatchObject({ etag: '"v1"', data: data(1) });
+    await refreshReference(fetchFn);
+    served = { etag: '"v2"', body: data(2) };
+    await refreshReference(fetchFn);
+    expect(sent).toEqual([null, '"v1"', '"v1"']);
+    expect(await cachedReference()).toMatchObject({ etag: '"v2"', data: data(2) });
+
+    await refreshReference((async () => { throw new TypeError("offline"); }) as typeof fetch).catch(() => {});
+    expect((await cachedReference())?.etag).toBe('"v2"'); // offline: the copy stays
   });
 });

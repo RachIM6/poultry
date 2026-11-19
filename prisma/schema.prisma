@@ -12,8 +12,8 @@ datasource db {
 
 // Owner: farm-registry
 model Organization {
-  id          String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  name        String
+  id            String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name          String
   createdAt     DateTime      @default(now()) @db.Timestamptz
   memberships   Membership[]
   legalEntities LegalEntity[]
@@ -227,6 +227,73 @@ model Change {
   data           Json?
 
   @@id([organizationId, version])
+}
+
+// Owner: reference-data (SPEC R1–R4). Global, not per organisation: read-only for farms, seeded from
+// prisma/seed/reference/*.json, cached offline through GET /api/reference.
+model Strain {
+  id     String          @id // "ross-308"
+  name   String
+  curves StandardCurve[]
+}
+
+// One published performance-objectives table (R1). Each value keeps its source and version (OQ5).
+model StandardCurve {
+  id       String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  strainId String
+  source   String // document title + publisher
+  version  String // e.g. "2022"
+  points   StandardPoint[]
+  strain   Strain          @relation(fields: [strainId], references: [id], onDelete: Cascade)
+
+  @@unique([strainId, version])
+}
+
+model StandardPoint {
+  curveId             String        @db.Uuid
+  day                 Int // age in days, as-hatched
+  bodyWeightGrams     Int
+  cumulativeFeedGrams Int
+  curve               StandardCurve @relation(fields: [curveId], references: [id], onDelete: Cascade)
+
+  @@id([curveId, day])
+}
+
+enum ProductKind {
+  feed
+  vaccine
+  medicine
+}
+
+// R3. Withdrawal days come from the product, never from code (poultry-ddd §3.7); null = not known yet.
+model Product {
+  id             String      @id // "feed-starter"
+  kind           ProductKind
+  nameFr         String
+  nameAr         String
+  withdrawalDays Int?
+}
+
+// R2. The global template is read-only; farms copy it into VaccinationProtocol and edit the copy.
+model ProtocolTemplate {
+  id            String  @id // "broiler-default"
+  nameFr        String
+  nameAr        String
+  reviewedByVet Boolean @default(false) // OQ4: false until a vet signs it off
+  items         Json // [{ dayOfAge, productId, method }]
+}
+
+// Owner: reference-data. An organisation's own, editable copy of a protocol (written offline, ADR-003).
+model VaccinationProtocol {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  templateId     String?
+  name           String
+  items          Json // same shape as ProtocolTemplate.items
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId])
 }
 
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.

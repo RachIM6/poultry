@@ -179,9 +179,11 @@ Notes: the screens are one static, precached page (`/[locale]/farms`, a farm ope
 - Make all of it versioned and pullable for offline use.
 
 **AC:**
-- [ ] Reference data is available offline after the first sync.
-- [ ] Day 35 standard weight for each strain matches the source document. This is a manual spot check of 5 values per strain.
-- [ ] Farms can copy and edit the protocol. The global template stays read-only.
+- [x] Reference data is available offline after the first sync. (`GET /api/reference` with an ETag, kept in the phone's device database and refreshed after each sync; `e2e/protocol.spec.ts` reloads offline.)
+- [ ] Day 35 standard weight for each strain matches the source document. This is a manual spot check of 5 values per strain. **Blocked on OQ5:** the import format, seed and lookup (`standardAt`, linear between published days, never extrapolated) are done and tested, but no curve values are committed: they must come from the Aviagen and Cobb documents, never from memory, and their licence is OQ5. See `prisma/seed/reference/curves/README.md`.
+- [x] Farms can copy and edit the protocol. The global template stays read-only. (Per organisation, offline, through sync; `src/modules/reference-data/protocols.int.test.ts` and the e2e.)
+
+Decisions (2026-11-04, taken without asking, to keep going): the default protocol template is **empty and flagged "not reviewed by a vet"** (OQ4), and the catalogue holds only the 3 feed phases and 3 generic vaccines, with no withdrawal days. No schedule days or withdrawal periods were invented. The copy is per organisation, not per farm, because `reference-data` may not depend on `farm-registry`. CI now runs `pnpm db:seed` before e2e.
 
 **Verify:** `pnpm db:seed`. Unit test on curve lookup (interpolation between days). Manual spot check.
 **Dependencies:** T10

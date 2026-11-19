@@ -1,3 +1,4 @@
+import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { fail, ok } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
@@ -54,12 +55,6 @@ const houseDto = (r: HouseDto): HouseDto => ({ id: r.id, farmId: r.farmId, name:
 
 const pick = <T extends object>(obj: T, keys: string[]) => Object.fromEntries(keys.map((k) => [k, obj[k as keyof T]]));
 
-type Meta = { mutationId: string; deviceCreatedAt: Date };
-const audit = (tx: Tx, ctx: TenantContext, meta: Meta, entity: string, entityId: string, action: string, before: object | null, after: object) =>
-  tx.auditEvent.create({
-    data: { organizationId: ctx.organizationId, userId: ctx.userId, entity, entityId, action, before: before ?? undefined, after, ...meta },
-  });
-
 // Every lookup is scoped to the caller's organisation: another organisation's id is NOT_FOUND, never touched.
 const ownFarm = (tx: Tx, ctx: TenantContext, id: string) => tx.farm.findFirst({ where: { id, organizationId: ctx.organizationId } });
 const ownHouse = (tx: Tx, ctx: TenantContext, id: string) => tx.house.findFirst({ where: { id, organizationId: ctx.organizationId } });
@@ -75,7 +70,7 @@ export const farmRegistrySync: SyncRegistry = {
         const data = { ...farmColumns(fields), id, organizationId: ctx.organizationId, name, region, province, commune };
         const dto = farmDto(await tx.farm.create({ data }));
         await recordChange(tx, ctx, "farm", id, dto);
-        await audit(tx, ctx, meta, "Farm", id, "create", null, dto);
+        await audit(tx, ctx, { entity: "Farm", entityId: id, action: "create", after: dto, ...meta });
         return ok(undefined);
       },
     }),
@@ -88,7 +83,7 @@ export const farmRegistrySync: SyncRegistry = {
         if (!row) return fail("NOT_FOUND");
         const dto = farmDto(await tx.farm.update({ where: { id }, data: farmColumns(changes) }));
         await recordChange(tx, ctx, "farm", id, dto);
-        await audit(tx, ctx, meta, "Farm", id, "update", pick(farmDto(row), Object.keys(changes)), changes);
+        await audit(tx, ctx, { entity: "Farm", entityId: id, action: "update", before: pick(farmDto(row), Object.keys(changes)), after: changes, ...meta });
         return ok(undefined);
       },
     }),
@@ -100,7 +95,7 @@ export const farmRegistrySync: SyncRegistry = {
         if (await tx.house.findUnique({ where: { id }, select: { id: true } })) return fail("ALREADY_EXISTS");
         const dto = houseDto(await tx.house.create({ data: { id, farmId, organizationId: ctx.organizationId, ...fields } }));
         await recordChange(tx, ctx, "house", id, dto);
-        await audit(tx, ctx, meta, "House", id, "create", null, dto);
+        await audit(tx, ctx, { entity: "House", entityId: id, action: "create", after: dto, ...meta });
         return ok(undefined);
       },
     }),
@@ -112,7 +107,7 @@ export const farmRegistrySync: SyncRegistry = {
         if (!row) return fail("NOT_FOUND");
         const dto = houseDto(await tx.house.update({ where: { id }, data: changes }));
         await recordChange(tx, ctx, "house", id, dto);
-        await audit(tx, ctx, meta, "House", id, "update", pick(houseDto(row), Object.keys(changes)), changes);
+        await audit(tx, ctx, { entity: "House", entityId: id, action: "update", before: pick(houseDto(row), Object.keys(changes)), after: changes, ...meta });
         return ok(undefined);
       },
     }),

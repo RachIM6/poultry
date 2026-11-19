@@ -942,3 +942,20 @@ model RodentCheck {
 
   @@index([organizationId, farmId, day])
 }
+
+// Owner: documents. SPEC-m2-compliance DC1: a document of the vault. farmId null: the organisation as a whole.
+model Document {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  title          String
+  category       String // authorization | vetContract | labReport | insurance | land | company | tax | equipment | other
+  farmId         String?   @db.Uuid
+  issuedOn       DateTime? @db.Date
+  expiresOn      DateTime? @db.Date
+  notes          String?
+  fileId         String?   @db.Uuid // a StoredFile, attached online
+  createdBy      String    @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, expiresOn])
+}

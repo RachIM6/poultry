@@ -2,10 +2,10 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { card, danger, done, field, primary, secondary, warn } from "@/components/ui";
-import { Link } from "@/i18n/navigation";
+import { Field, FileUpload, Shell, of, useOnline, type Save, type Screen } from "@/components/local-screen";
+import { card, danger, field, primary, secondary, warn } from "@/components/ui";
 import { formatCount, formatDateTime, formatDay, formatKg } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
@@ -35,70 +35,11 @@ import {
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto, DailyEntryDto } from "@/modules/flock/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import { currentScope, localDb, scopeKey, type LocalDb, type LocalRecord, type Scope } from "@/offline/db";
-import { writeLocal } from "@/offline/outbox";
-import { requestSync, startSync } from "@/offline/sync";
+import type { LocalRecord } from "@/offline/db";
 
-// SPEC-m2-compliance §4 on static shells, offline: the logs a farm keeps on the phone (visitors, BS1–BS3).
+// SPEC-m2-compliance §4 on static shells, offline: the logs a farm keeps on the phone.
 
 const check = "flex min-h-11 items-center gap-3";
-
-type Screen = (props: Scope & { db: LocalDb; records: LocalRecord[]; save: Save }) => ReactNode;
-type Save = (mutation: { type: string; payload: unknown }, entity: string, data: { id: string }) => Promise<boolean>;
-
-/** Signed-in scope, sync, the local records of `entities`, and a save that queues a mutation: what every log needs. */
-function Shell({ entities, screen: Inner }: { entities: string[]; screen: Screen }) {
-  const t = useTranslations("Sync");
-  const scope = useLiveQuery(() => currentScope().then((s) => s ?? null), [], undefined);
-  if (scope === undefined) return null;
-  if (scope === null) {
-    return (
-      <p>
-        {t("signedOut")} <Link href="/login" className="underline underline-offset-4">{t("login")}</Link>
-      </p>
-    );
-  }
-  return <Records key={scopeKey(scope)} scope={scope} entities={entities} screen={Inner} />;
-}
-
-function Records({ scope, entities, screen: Inner }: { scope: Scope; entities: string[]; screen: Screen }) {
-  const { userId, organizationId, role } = scope;
-  const t = useTranslations();
-  useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
-  const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf(entities).toArray(), [userId, organizationId]);
-  const [message, setMessage] = useState<string>();
-  if (!can(scope, "biosecurity.record")) return <p>{t("Biosecurity.forbidden")}</p>;
-  if (!records) return null;
-  const save: Save = async (mutation, entity, data) => {
-    try {
-      await writeLocal(db, mutation, [{ entity, id: data.id, data }]);
-      setMessage("Farms.saved");
-      return true;
-    } catch {
-      setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
-      return false;
-    }
-  };
-  return (
-    <>
-      {message && <p role="status" className={done}>{t(message)}</p>}
-      <Inner {...scope} db={db} records={records} save={save} />
-    </>
-  );
-}
-
-const of = <T,>(records: LocalRecord[], entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
-
-function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
-  const id = useId();
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id}>{label}</label>
-      {children(id)}
-    </div>
-  );
-}
 
 /** The farm the log is about: the only one, or a choice. */
 function useFarm(records: LocalRecord[]) {
@@ -122,7 +63,9 @@ function FarmPicker({ farms, farm, setFarm }: ReturnType<typeof useFarm>) {
   );
 }
 
-export const VisitorsScreen = () => <Shell entities={["farm", "visit"]} screen={Visitors} />;
+const log = { action: "biosecurity.record", forbidden: "Biosecurity.forbidden" } as const;
+
+export const VisitorsScreen = () => <Shell {...log} entities={["farm", "visit"]} screen={Visitors} />;
 
 function Visitors({ records, save }: Parameters<Screen>[0]) {
   const t = useTranslations("Visitors");
@@ -232,7 +175,7 @@ function VisitForm({ farmId, onSave }: { farmId: string; onSave: (v: VisitDto) =
 const TABS = ["dead", "manure", "rodents"] as const;
 const GAP_DAYS = 14; // how far back the dead/disposed comparison looks on the phone: a screen choice, not a rule
 
-export const DisposalScreen = () => <Shell entities={["farm", "house", "batch", "dailyEntry", "disposal", "manureRemoval", "rodentCheck"]} screen={Disposal} />;
+export const DisposalScreen = () => <Shell {...log} entities={["farm", "house", "batch", "dailyEntry", "disposal", "manureRemoval", "rodentCheck"]} screen={Disposal} />;
 
 type Choice = { id: string; label: string };
 type Tab = (typeof TABS)[number];
@@ -461,7 +404,7 @@ function Manure({ farmId, records, houses, batches, day, save }: LogProps & { ho
 }
 
 // BS4–BS5: a house between two batches. The clean-out follows the house's last closed batch.
-export const CleanoutScreen = () => <Shell entities={["farm", "house", "batch", "cleanout", "downtimeSetting"]} screen={Cleanouts} />;
+export const CleanoutScreen = () => <Shell {...log} entities={["farm", "house", "batch", "cleanout", "downtimeSetting"]} screen={Cleanouts} />;
 
 function Cleanouts(props: Parameters<Screen>[0]) {
   const { records, save } = props;
@@ -605,12 +548,11 @@ function MinDowntime({ farmId, minDays, save }: { farmId: string; minDays: numbe
 
 // BS8: rodent control with physical proof (law 49-99 art. 15). The check is recorded offline; its photo goes up once
 // the check is on the server and the phone is online.
-function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "batches"> & { houses: HouseDto[]; db: LocalDb }) {
+function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "batches"> & { houses: HouseDto[]; db: Parameters<Screen>[0]["db"] }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
   const [key, setKey] = useState(0);
-  const [uploading, setUploading] = useState<string>();
-  const online = useSyncExternalStore(onOnline, () => navigator.onLine, () => true);
+  const online = useOnline();
   const queued = useLiveQuery(() => db.outbox.toArray(), [db]);
   const today = farmDayOf(new Date());
   const checks = of<RodentCheckDto>(records, "rodentCheck")
@@ -628,21 +570,6 @@ function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "bat
     const fields = { id: uuidv7(), farmId, houseId: get("house") || null, day: get("day") || today, action: get("action") as RodentCheckDto["action"], product: get("product") || null };
     const local: RodentCheckDto = { ...fields, proofFileId: null };
     if (await save({ type: B.recordRodentCheck, payload: fields }, "rodentCheck", local)) setKey((k) => k + 1);
-  };
-
-  const upload = async (checkId: string, file: File | undefined) => {
-    if (!file) return;
-    setUploading(checkId);
-    setError(undefined);
-    try {
-      const res = await fetch(`/api/files?purpose=proof&rodentCheck=${checkId}`, { method: "POST", body: file, headers: { "x-requested-with": "poultry" } });
-      if (!res.ok) setError(((await res.json().catch(() => null)) as { messageKey?: string } | null)?.messageKey ?? "Disposal.proofFailed");
-      else requestSync(); // the check comes back from the server with its proof
-    } catch {
-      setError("Disposal.proofFailed");
-    } finally {
-      setUploading(undefined);
-    }
   };
 
   return (
@@ -682,10 +609,7 @@ function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "bat
             ) : unsent.has(`rodentCheck:${r.id}`) || !online ? (
               <span className={warn}>{t("Disposal.proofMissing")}</span>
             ) : (
-              <label className={secondary}>
-                {uploading === r.id ? t("Disposal.proofSending") : t("Disposal.proofAdd")}
-                <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" disabled={uploading !== undefined} onChange={(e) => upload(r.id, e.target.files?.[0])} />
-              </label>
+              <FileUpload url={`/api/files?purpose=proof&rodentCheck=${r.id}`} accept="image/jpeg,image/png,image/webp" camera label={t("Disposal.proofAdd")} onError={setError} />
             )}
           </li>
         ))}
@@ -693,9 +617,3 @@ function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "bat
     </>
   );
 }
-
-const onOnline = (notify: () => void) => {
-  window.addEventListener("online", notify);
-  window.addEventListener("offline", notify);
-  return () => (window.removeEventListener("online", notify), window.removeEventListener("offline", notify));
-};

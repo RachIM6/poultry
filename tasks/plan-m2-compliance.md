@@ -85,9 +85,15 @@ Done 2026-11-16 (branch `feat/t43-files`), decisions taken without asking (ADR-0
 ### T44: Document vault (DC1, DC3)
 **Description:** `Document` table, `documents.manage` (owner, manager), online page `/documents` (list by expiry with state, add or edit with an optional file), `documentState`.
 **AC:**
-- [ ] Fixture: expiry 30 Nov 2026, today 5 Nov, soon = 60 → `soon`; 15 Mar 2027 → `valid`; 1 Nov → `expired`.
-- [ ] A worker can't open `/documents`, upload, or download a vault file (integration test).
-- [ ] e2e: add an insurance policy with a PDF; it shows as "bientôt" with the file link.
+- [x] Fixture: expiry 30 Nov 2026, today 5 Nov, soon = 60 → `soon`; 15 Mar 2027 → `valid`; 1 Nov → `expired`. (`documents/domain/document.test.ts`.)
+- [x] A worker can't open `/documents`, upload, or download a vault file (integration test). (`documents.int.test.ts`, `app/api/files/files.int.test.ts`.)
+- [x] e2e: add an insurance policy with a PDF; it shows as "à renouveler bientôt" with the file link (`e2e/documents.spec.ts`).
+
+Done 2026-11-16 (branch `feat/t44-vault`), decisions taken without asking:
+- **The vault is offline like the logs**, not an online page: documents are synced records (owners and managers only, never pulled by workers), so the inspection pack and the register can read them on the phone. The scan is attached online by the upload route (`?purpose=document&document=<id>`), once, like the rodent proof.
+- **Attach is a conditional update** (security review): of two uploads at once, only the first attaches. Same fix for the rodent proof.
+- **No edit screen yet**: `documents.updateDocument` exists (field by field, audited); a renewal is a new document.
+- Shared screen helpers (`local-screen.tsx`: static shell, field, file upload) now serve the logs and the vault.
 **Size:** M
 
 ### T45: Expiry alerts (DC4)

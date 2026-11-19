@@ -393,7 +393,7 @@ Decisions (2026-11-09, taken without asking): only the sale of the last birds cl
 **Size:** M
 
 ### ✅ Checkpoint G
-- [ ] Full M1 e2e passes in `ar` and `fr` on a mobile viewport, with an offline segment (SPEC §9.2).
+- [x] Full M1 e2e passes in `ar` and `fr` on a mobile viewport, with an offline segment (SPEC §9.2). (`e2e/m1-journey.spec.ts`, once per language on the Pixel 7 profile, labels read from `messages/<locale>.json`: an owner signs up, then offline places a batch, enters 3 days, weighs, marks the vaccine done, reloads from the service worker; back online the server has it all, and a second phone signed in to the same account shows the same birds on hand, weighing and vaccine. Passed in both languages on 2026-11-10. The rest of the e2e suite, French only, passed on 2026-11-09.)
 - [ ] Human review.
 
 ---

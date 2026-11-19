@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { Client } from "pg";
 import { z } from "zod";
 import { AccountsFile } from "../src/modules/finance/schema.ts";
-import { CurveFile, LayingFile, Product, ProtocolTemplate, Strain } from "../src/modules/reference-data/schema.ts";
+import { CurveFile, EggGrade, LayingFile, Product, ProtocolTemplate, Strain } from "../src/modules/reference-data/schema.ts";
 
 // `pnpm db:seed`, under plain Node (hence pg, not the generated Prisma client): reference data from
 // prisma/seed/reference, validated by the module's own schemas. Idempotent: run it after any change to those files.
@@ -18,6 +18,7 @@ const read = <T>(schema: z.ZodType<T>, url: URL): T => schema.parse(JSON.parse(r
 const strains = read(z.array(Strain), new URL("strains.json", dir));
 const products = read(z.array(Product), new URL("products.json", dir));
 const templates = read(z.array(ProtocolTemplate), new URL("protocols.json", dir));
+const eggGrades = read(z.array(EggGrade), new URL("egg-grades.json", dir)); // SPEC-m3 R8
 const curvesDir = new URL("curves/", dir);
 const curves = readdirSync(curvesDir)
   .filter((f) => f.endsWith(".json"))
@@ -48,18 +49,26 @@ try {
   }
   for (const p of products) {
     await db.query(
-      `INSERT INTO "Product" (id, kind, "nameFr", "nameAr", "withdrawalDays") VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO "Product" (id, kind, "nameFr", "nameAr", "withdrawalDays", "eggWithdrawalDays") VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (id) DO UPDATE SET kind = EXCLUDED.kind, "nameFr" = EXCLUDED."nameFr", "nameAr" = EXCLUDED."nameAr",
-         "withdrawalDays" = EXCLUDED."withdrawalDays"`,
-      [p.id, p.kind, p.nameFr, p.nameAr, p.withdrawalDays],
+         "withdrawalDays" = EXCLUDED."withdrawalDays", "eggWithdrawalDays" = EXCLUDED."eggWithdrawalDays"`,
+      [p.id, p.kind, p.nameFr, p.nameAr, p.withdrawalDays, p.eggWithdrawalDays],
     );
   }
   for (const t of templates) {
     await db.query(
-      `INSERT INTO "ProtocolTemplate" (id, "nameFr", "nameAr", "reviewedByVet", items) VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO "ProtocolTemplate" (id, "nameFr", "nameAr", "reviewedByVet", "productionType", items) VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (id) DO UPDATE SET "nameFr" = EXCLUDED."nameFr", "nameAr" = EXCLUDED."nameAr",
-         "reviewedByVet" = EXCLUDED."reviewedByVet", items = EXCLUDED.items`,
-      [t.id, t.nameFr, t.nameAr, t.reviewedByVet, JSON.stringify(t.items)],
+         "reviewedByVet" = EXCLUDED."reviewedByVet", "productionType" = EXCLUDED."productionType", items = EXCLUDED.items`,
+      [t.id, t.nameFr, t.nameAr, t.reviewedByVet, t.productionType, JSON.stringify(t.items)],
+    );
+  }
+  for (const g of eggGrades) {
+    await db.query(
+      `INSERT INTO "EggGrade" (id, label, "sortOrder", "minGrams", "maxGrams") VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label, "sortOrder" = EXCLUDED."sortOrder", "minGrams" = EXCLUDED."minGrams",
+         "maxGrams" = EXCLUDED."maxGrams"`,
+      [g.id, g.label, g.sortOrder, g.minGrams, g.maxGrams],
     );
   }
   for (const c of curves) {
@@ -105,5 +114,5 @@ try {
 }
 
 console.log(
-  `Reference data: ${strains.length} strains, ${curves.length} growth curves, ${layingCurves.length} laying curves, ${products.length} products, ${templates.length} protocol templates, ${accounts.length} ledger accounts.`,
+  `Reference data: ${strains.length} strains, ${curves.length} growth curves, ${layingCurves.length} laying curves, ${products.length} products, ${templates.length} protocol templates, ${eggGrades.length} egg grades, ${accounts.length} ledger accounts.`,
 );

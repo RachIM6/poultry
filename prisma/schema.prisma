@@ -310,6 +310,16 @@ model Product {
   nameFr         String
   nameAr         String
   withdrawalDays Int?
+  eggWithdrawalDays Int? // SPEC-m3 R10: eggs, for layers; null = not known yet, never a default
+}
+
+// SPEC-m3 R8. Egg grade classes; the weight limits stay null until the Moroccan standard is supplied (MQ2).
+model EggGrade {
+  id        String @id // "m"
+  label     String // as printed on trays: "M"
+  sortOrder Int
+  minGrams  Int?
+  maxGrams  Int?
 }
 
 // R2. The global template is read-only; farms copy it into VaccinationProtocol and edit the copy.
@@ -318,6 +328,7 @@ model ProtocolTemplate {
   nameFr        String
   nameAr        String
   reviewedByVet Boolean @default(false) // OQ4: false until a vet signs it off
+  productionType String @default("broiler") // SPEC-m3 R9
   items         Json // [{ dayOfAge, productId, method }]
 }
 

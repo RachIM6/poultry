@@ -61,11 +61,12 @@ export const Product = z.object({
   nameFr: text(120),
   nameAr: text(120),
   withdrawalDays: z.int32().min(0).max(365).nullable(), // meat withdrawal (R3); null = not known yet
+  eggWithdrawalDays: z.int32().min(0).max(365).nullable().default(null), // SPEC-m3 R10
 });
 export type Product = z.infer<typeof Product>;
 
 export const ProtocolItem = z.object({
-  dayOfAge: z.int32().min(0).max(120),
+  dayOfAge: z.int32().min(0).max(600), // up to 85 weeks for layers (SPEC-m3 R9)
   productId: slug, // a vaccine of the catalogue
   method: z.enum(VACCINATION_METHODS),
 });
@@ -77,15 +78,23 @@ export const ProtocolTemplate = z.object({
   nameFr: text(120),
   nameAr: text(120),
   reviewedByVet: z.boolean(), // OQ4
+  productionType: z.enum(PRODUCTION_TYPES).default("broiler"), // SPEC-m3 R9
   items: ProtocolItems,
 });
 export type ProtocolTemplate = z.infer<typeof ProtocolTemplate>;
+
+/** SPEC-m3 R8: limits null until the Moroccan standard is supplied (MQ2). */
+export const EggGrade = z
+  .object({ id: slug, label: text(10), sortOrder: z.int32(), minGrams: z.int32().positive().nullable(), maxGrams: z.int32().positive().nullable() })
+  .refine((g) => g.minGrams === null || g.maxGrams === null || g.minGrams < g.maxGrams, "min below max");
+export type EggGrade = z.infer<typeof EggGrade>;
 
 /** GET /api/reference: everything the phone keeps offline (R4). */
 export type ReferenceData = {
   strains: (Strain & { curves: Omit<CurveFile, "strainId">[]; layingCurves: Omit<LayingFile, "strainId">[] })[];
   products: Product[];
   protocolTemplates: ProtocolTemplate[];
+  eggGrades: EggGrade[]; // ordered; absent from a phone's cache from before M3
 };
 
 // An organisation's own protocol, copied from a template and edited offline (R2). The template never changes.

@@ -4,6 +4,55 @@
     "nameFr": "Programme de vaccination poulet de chair",
     "nameAr": "برنامج تلقيح دجاج اللحم",
     "reviewedByVet": false,
+    "items": [],
+    "productionType": "broiler"
+  },
+  {
+    "id": "turkey-default",
+    "nameFr": "Programme de vaccination dinde",
+    "nameAr": "برنامج تلقيح الديك الرومي",
+    "reviewedByVet": false,
+    "productionType": "turkey",
+    "items": []
+  },
+  {
+    "id": "pullet-default",
+    "nameFr": "Programme de vaccination poulette",
+    "nameAr": "برنامج تلقيح الفراخ البيّاضة",
+    "reviewedByVet": false,
+    "productionType": "pullet",
+    "items": []
+  },
+  {
+    "id": "layer-default",
+    "nameFr": "Programme de vaccination pondeuse",
+    "nameAr": "برنامج تلقيح الدجاج البيّاض",
+    "reviewedByVet": false,
+    "productionType": "layer",
+    "items": []
+  },
+  {
+    "id": "beldi-default",
+    "nameFr": "Programme de vaccination beldi",
+    "nameAr": "برنامج تلقيح الدجاج البلدي",
+    "reviewedByVet": false,
+    "productionType": "beldi",
+    "items": []
+  },
+  {
+    "id": "duck-default",
+    "nameFr": "Programme de vaccination canard",
+    "nameAr": "برنامج تلقيح البط",
+    "reviewedByVet": false,
+    "productionType": "duck",
+    "items": []
+  },
+  {
+    "id": "quail-default",
+    "nameFr": "Programme de vaccination caille",
+    "nameAr": "برنامج تلقيح السمان",
+    "reviewedByVet": false,
+    "productionType": "quail",
     "items": []
   }
 ]

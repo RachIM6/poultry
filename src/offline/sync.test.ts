@@ -184,3 +184,17 @@ describe("reference data cache (SPEC R4)", () => {
     expect((await cachedReference())?.etag).toBe('"v2"'); // offline: the copy stays
   });
 });
+
+describe("a write that touched several records", () => {
+  it("drops all of them from the phone when the server refuses it", async () => {
+    const s = scope();
+    const db = localDb(s);
+    await writeLocal(db, { type: "inventory.recordPurchase", payload: {} }, [
+      { entity: "purchase", id: "p1", data: { quantity: 1 } },
+      { entity: "movement", id: "m1", data: { quantity: 1 } },
+    ]);
+    expect(await db.records.count()).toBe(2);
+    await syncOnce(db, s, server({ decide: () => ({ status: "rejected", messageKey: "errors.NOT_FOUND" }) }).fetchFn);
+    expect(await db.records.count()).toBe(0); // no stray movement left to inflate the stock shown
+  });
+});

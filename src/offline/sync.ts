@@ -65,7 +65,7 @@ async function pushOutbox(db: LocalDb, scope: Scope, fetchFn: Fetch): Promise<Sy
           await db.needsAttention.put({ ...entry, messageKey: result.messageKey }); // ADR-003 §7: never dropped silently
           // The local copy showed a write the server refused: drop it and read everything again from the server.
           // ponytail: a full re-pull per rejection; rejections are rare. Re-pull one entity if they aren't.
-          if (entry.recordKey) await db.records.delete(entry.recordKey);
+          for (const key of entry.recordKeys ?? []) await db.records.delete(key);
           await db.meta.put({ key: "cursor", value: 0 });
         }
       }
@@ -84,7 +84,7 @@ async function pullChanges(db: LocalDb, scope: Scope, fetchFn: Fetch): Promise<S
 
     await db.transaction("rw", db.records, db.outbox, db.meta, async () => {
       // A record with a write still queued keeps its local value; the server's change for that write comes later.
-      const pending = new Set((await db.outbox.toArray()).map((e) => e.recordKey));
+      const pending = new Set((await db.outbox.toArray()).flatMap((e) => e.recordKeys ?? []));
       for (const change of page.changes) {
         const key = `${change.entity}:${change.id}`;
         if (pending.has(key)) continue;

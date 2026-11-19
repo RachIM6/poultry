@@ -8,7 +8,7 @@ import type { ReferenceData } from "@/modules/reference-data/schema";
 export type Scope = { userId: string; organizationId: string; role: Role };
 export const scopeKey = (s: Pick<Scope, "userId" | "organizationId">) => `${s.userId}:${s.organizationId}`;
 
-export type OutboxEntry = { id: string; type: string; payload: unknown; createdAt: string; recordKey?: string };
+export type OutboxEntry = { id: string; type: string; payload: unknown; createdAt: string; recordKeys?: string[] };
 export type RejectedEntry = OutboxEntry & { messageKey: string };
 export type LocalRecord = { key: string; entity: string; id: string; data: unknown };
 export type SyncOutcome = "ok" | "offline" | "unauthenticated" | "wrong-scope";

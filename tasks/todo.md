@@ -206,9 +206,11 @@ Notes: held pushes go out when `POST /api/push/dispatch` is called (Bearer `CRON
 ### T13: Stock ledger, purchases, supplier credit (S1–S3)
 **Description:** Stock items per farm (linked to catalogue products, with lot and expiry for vaccines and medicines), suppliers, purchases as `purchase` movements with amount paid and credit due date, supplier balances, stock on hand = sum of movements. All offline.
 **AC:**
-- [ ] A purchase made offline increases stock after sync. The unpaid part shows in the supplier balance.
-- [ ] Stock on hand is never stored as an editable number. An adjustment is a movement with a reason.
-- [ ] A worker sees quantities but not prices or balances.
+- [x] A purchase made offline increases stock after sync. The unpaid part shows in the supplier balance. (`e2e/stock.spec.ts`: 2 t at 4,50 DH/kg with 3 000 DH paid, offline and after reload; the server holds 9 000,00 / 3 000,00 DH exactly.)
+- [x] Stock on hand is never stored as an editable number. An adjustment is a movement with a reason. (`stockOnHand` sums the ledger, `checkAdjustment` needs a reason; there is no stock column and no update path.)
+- [x] A worker sees quantities but not prices or balances. (Purchases go through `withoutMoney` on pull; `src/modules/inventory/stock.int.test.ts`. The screen shows money only to `stock.manage`.)
+
+Notes: units are integers of a base unit (grams for kg). Purchase amount = quantity × unit price, exact in centimes. Supplier balance = unpaid at purchase; recording later payments to a supplier is left to finance (M2). Stock may go negative when offline records cross; it isn't blocked. A write that touches several records (purchase + movement) is fully undone on the phone if refused.
 
 **Verify:** unit tests for the balance and stock computation. Integration tests for isolation and roles.
 **Dependencies:** T11, T7

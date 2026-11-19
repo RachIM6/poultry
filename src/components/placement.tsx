@@ -3,9 +3,10 @@
 import { useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { field, primary, secondary } from "@/components/ui";
+import { field, primary, secondary, warn } from "@/components/ui";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
+import { downtimeWarning } from "@/modules/biosecurity/shared";
 import type { HouseDto } from "@/modules/farm-registry/schema";
 import { Batch, FLOCK_MUTATIONS as M, canJoinHouse, type BatchDto } from "@/modules/flock/shared";
 import { HEALTH_MUTATIONS as H, planFor } from "@/modules/health/shared";
@@ -47,7 +48,7 @@ export function PlacementForm({
   onPlaced,
   onCancel,
 }: {
-  houses: (HouseDto & { label: string; busy: boolean; open: { species: ProductionType; sex?: BirdSex }[] })[];
+  houses: (HouseDto & { label: string; busy: boolean; open: { species: ProductionType; sex?: BirdSex }[]; disinfectedOn: FarmDay | null; minDays: number | null })[];
   strains: { id: string; name: string; productionTypes: readonly ProductionType[] }[];
   protocols: ProtocolDto[];
   db: LocalDb;
@@ -60,6 +61,9 @@ export function PlacementForm({
   const typeStrains = strains.filter((s) => s.productionTypes.includes(type));
   const [bySex, setBySex] = useState(false); // SPEC-m3 B9: turkeys only
   const sexed = type === "turkey" && bySex;
+  const [draft, setDraft] = useState<{ houseId?: string; placedOn: string }>({ houseId: houses[0]?.id, placedOn: today() });
+  const chosen = houses.find((h) => h.id === draft.houseId);
+  const warning = chosen && downtimeWarning(chosen.minDays, chosen.disinfectedOn, draft.placedOn as FarmDay); // a warning, never a block
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -126,7 +130,14 @@ export function PlacementForm({
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
+    <form
+      onSubmit={submit}
+      onChange={(e) => {
+        const data = new FormData(e.currentTarget);
+        setDraft({ houseId: String(data.get("houseId")), placedOn: String(data.get("placedOn") || today()) });
+      }}
+      className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3"
+    >
       <Select label={t("Batches.house")} name="houseId">
         {houses.map((h) => (
           <option key={h.id} value={h.id}>{h.busy ? t("Batches.houseBusy", { house: h.label }) : h.label}</option>
@@ -179,6 +190,7 @@ export function PlacementForm({
         {!sexed && <Field name="weakChicks" label={t("Batches.weakChicks")} inputMode="numeric" pattern="\d+" dir="ltr" />}
         <Field name="litterTemp" label={t("Batches.litterTemp")} inputMode="decimal" dir="ltr" />
       </fieldset>
+      {warning && <p role="status" className={warn}>{t("Batches.downtimeWarning", { elapsed: warning.elapsedDays, min: warning.minDays })}</p>}
       {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Batches.save")}</button>

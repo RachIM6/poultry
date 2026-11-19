@@ -23,7 +23,7 @@ export type SyncRegistry = {
    * isn't theirs to see at all (another user's notification). Unlisted entities never leave.
    */
   entities: Record<string, (ctx: TenantContext, data: never) => unknown>;
-  /** ADR-011: for a role listed here (partners), only these entities leave; a role not listed keeps `entities` alone. */
+  /** ADR-013: for a role listed here (partners), only these entities leave; a role not listed keeps `entities` alone. */
   views?: Partial<Record<TenantContext["role"], readonly string[]>>;
 };
 

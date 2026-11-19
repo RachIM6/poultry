@@ -93,6 +93,7 @@ export async function batchFacts(tx: Tx, ctx: TenantContext, id: string) {
   const house = await houseOf(tx, ctx, r.houseId);
   return {
     farmId: r.farmId,
+    houseId: r.houseId,
     houseName: house?.name ?? "",
     placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay,
     ageAtPlacementDays: r.ageAtPlacementDays,

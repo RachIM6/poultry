@@ -26,6 +26,9 @@ export type BuyerDto = {
 /** FN11: one step of a received cheque or bill. Its id is a UUIDv7 from the phone, so ids sort by time. */
 export type InstrumentStatusDto = { id: string; instrumentId: string; state: "remitted" | "cashed" | "unpaid"; day: string };
 
+/** V5: the origin document's number, from the sale's id (also the id of the birds it took out). */
+export const originNumber = (saleId: string) => saleId.slice(0, 8).toUpperCase();
+
 /** What pull returns and the phone stores. Workers never record or receive sales (I5); the money is stripped anyway. */
 export type SaleDto = {
   id: string;

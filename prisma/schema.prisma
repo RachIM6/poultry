@@ -1227,3 +1227,158 @@ model DowntimeRule {
 
   @@index([organizationId])
 }
+
+// Owner: biosecurity. SPEC-m2-compliance BS1–BS2: one entry of the visitor and vehicle register, recorded on the phone.
+model Visit {
+  id                String   @id @db.Uuid
+  organizationId    String   @db.Uuid
+  farmId            String   @db.Uuid
+  enteredAt         DateTime @db.Timestamptz
+  visitor           String // name and company
+  vehicle           String? // plate
+  purpose           String // feedDelivery | gas | chickDelivery | vet | buyer | technician | other
+  recentFarm        Boolean // on another poultry farm recently (VISITOR_RECENT_FARM_HOURS)
+  wheelsDisinfected Boolean
+  footbath          Boolean
+  farmClothing      Boolean
+  zone              String // clean | dirty
+  recordedBy        String   @db.Uuid
+  createdAt         DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, enteredAt])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS6: dead birds disposed of (law 49-99 art. 12).
+model Disposal {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  batchId        String?  @db.Uuid
+  birds          Int
+  weightGrams    Int?
+  method         String // incineration | authorizedSite | other (CQ4)
+  methodNote     String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS7: manure taken out (art. 13). Kilograms, no money.
+model ManureRemoval {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  day            DateTime @db.Date
+  houseId        String?  @db.Uuid
+  batchId        String?  @db.Uuid
+  quantityKg     Int
+  destination    String // stored | spread | sold | given
+  recipient      String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS4: the clean-out of a house after one batch, once per batch.
+model Cleanout {
+  id             String         @id @db.Uuid
+  organizationId String         @db.Uuid
+  farmId         String         @db.Uuid
+  houseId        String         @db.Uuid
+  afterBatchId   String         @unique @db.Uuid
+  startedOn      DateTime       @db.Date
+  startedBy      String         @db.Uuid
+  createdAt      DateTime       @default(now()) @db.Timestamptz
+  steps          CleanoutStep[]
+
+  @@index([organizationId, houseId])
+}
+
+// Owner: biosecurity. BS4: one step of SCOPE §4's checklist, each once per clean-out. Ids are UUIDv7: they sort by time.
+model CleanoutStep {
+  id         String   @id @db.Uuid
+  cleanoutId String   @db.Uuid
+  step       String // manureOut | equipmentWashed | pressureWash | disinfection | rodentControl | waterFlush | litterPreheat
+  day        DateTime @db.Date
+  product    String?
+  dose       String?
+  productLot String?
+  note       String?
+  recordedBy String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  cleanout   Cleanout @relation(fields: [cleanoutId], references: [id], onDelete: Cascade)
+
+  @@unique([cleanoutId, step])
+}
+
+// Owner: biosecurity. BS5: the farm's own minimum downtime between batches, set by the owner or manager (CQ3).
+model DowntimeSetting {
+  farmId         String @id @db.Uuid
+  organizationId String @db.Uuid
+  minDays        Int?
+}
+
+// Owner: documents. SPEC-m2-compliance DC2, ADR-011: an uploaded file, kept in the database until hosting is chosen
+// (OQ1). `purpose`: "proof" (a biosecurity photo, every member) or "document" (the vault, owners and managers).
+model StoredFile {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  purpose        String // proof | document
+  contentType    String // from the file's own bytes
+  sizeBytes      Int
+  sha256         String
+  bytes          Bytes
+  uploadedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS8: rodent control with physical proof (law 49-99 art. 15). The photo is a
+// StoredFile, attached online after the check was recorded.
+model RodentCheck {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  houseId        String?  @db.Uuid
+  day            DateTime @db.Date
+  action         String // baitPlaced | baitChecked
+  product        String?
+  proofFileId    String?  @db.Uuid
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: documents. SPEC-m2-compliance DC1: a document of the vault. farmId null: the organisation as a whole.
+model Document {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  title          String
+  category       String // authorization | vetContract | labReport | insurance | land | company | tax | equipment | other
+  farmId         String?   @db.Uuid
+  issuedOn       DateTime? @db.Date
+  expiresOn      DateTime? @db.Date
+  notes          String?
+  fileId         String?   @db.Uuid // a StoredFile, attached online
+  createdBy      String    @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, expiresOn])
+}
+
+// Owner: documents. SPEC-m2-compliance DC4: which expiry reminders went out, so each goes once per subject (a vault
+// document or a farm's ONSSA authorization), expiry date and kind ("soon" | "expired"). A new expiry date starts over.
+model DocumentReminder {
+  subjectId      String   @db.Uuid
+  expiresOn      DateTime @db.Date
+  kind           String
+  organizationId String   @db.Uuid
+  sentAt         DateTime @db.Timestamptz
+
+  @@id([subjectId, expiresOn, kind])
+}

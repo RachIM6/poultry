@@ -55,6 +55,8 @@ async function Content() {
         money && { href: "/threshold", label: t("Threshold.open") },
       ].filter((l) => l !== false),
     },
+    // SPEC-m2-compliance: the logs and documents an inspection asks for.
+    { title: t("More.compliance"), links: [{ href: "/visitors", label: t("Visitors.open") }, { href: "/disposal", label: t("Disposal.open") }, { href: "/cleanout", label: t("Cleanout.open") }, can(ctx.value, "documents.manage") && { href: "/documents", label: t("Documents.open") }, can(ctx.value, "documents.manage") && { href: "/inspection", label: t("Inspection.open") }].filter((l) => l !== false) },
     {
       title: t("More.account"),
       links: [

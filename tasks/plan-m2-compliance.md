@@ -136,9 +136,15 @@ Done 2026-11-16 (branch `feat/t47-register-pdf`):
 ### T48: Batch report (RP3)
 **Description:** Online page `/report?batch=<id>` (owner, manager), printable; `buildBatchReport` (pure) from flock KPIs and standard, health summary, sales, finance's batch result, and the farm's previous closed batches.
 **AC:**
-- [ ] The report's margin and cost per kg equal `/results` for the same batch (integration test).
-- [ ] Comparison rows: previous closed batches of the farm, newest first.
-- [ ] A worker gets a refusal page, never money (integration test); e2e opens a closed demo batch's report.
+- [x] The report's margin and cost per kg equal `/results` for the same batch. (Both read `finance.batchResults`; the builder passes finance's row through untouched, `reporting/domain/report.test.ts`; `e2e/report.spec.ts` compares the two pages.)
+- [x] Comparison rows: previous closed batches of the farm, newest first.
+- [x] A worker gets a refusal page, never money: the server page checks `money.read` before reading any result and sends no row otherwise. e2e opens a closed batch's report.
+
+Done 2026-11-16 (branch `feat/t48-batch-report`), decisions taken without asking:
+- **Half server, half phone:** `/report?batch=<id>` is online; its server part reads finance's results (like `/results`), its client part reads the batch's flock and health records from the phone and runs `buildBatchReport`. No new flock or health server API.
+- **FCR of a closed batch = feed ÷ live weight sold** (all its birds left); an open batch keeps the latest weighing's FCR (B4).
+- **Standard comparison:** the latest weighing's average is shown; the gap to the strain standard waits for the curves (OQ5, none committed).
+- Linked from the batch screen ("Rapport de bande") for owners and managers. Not precached: it needs the server's money.
 **Size:** M
 
 ### T49: Inspection pack (RP4)

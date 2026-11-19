@@ -95,6 +95,7 @@
     "INVALID_PHONE": "Numéro invalide : mobile marocain 06… ou 07….",
     "ALREADY_MEMBER": "Ce numéro est déjà membre.",
     "LAST_OWNER": "Il faut au moins un propriétaire.",
-    "NOT_FOUND": "Introuvable."
+    "NOT_FOUND": "Introuvable.",
+    "UNKNOWN_MUTATION": "Cette action n’est pas reconnue. Mettez l’application à jour."
   }
 }

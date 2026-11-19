@@ -126,9 +126,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 
 A test-only entity can be used until T10.
 **AC:**
-- [ ] Pushing the same mutation twice applies it once and returns the same result.
-- [ ] Pull returns exactly the rows changed after the cursor, including deletions, and only for the caller's organisation.
-- [ ] An invalid or forbidden mutation returns `rejected` with a `messageKey`. Valid mutations in the same batch still apply.
+- [x] Pushing the same mutation twice applies it once and returns the same result. (Also when both arrive at once; mutation-checked. `src/lib/sync/server.int.test.ts`, with a test-only `note` entity.)
+- [x] Pull returns exactly the rows changed after the cursor, including deletions, and only for the caller's organisation. (Versions live on a per-organisation change log, not on each table: see ADR-003 "Implementation notes". Money is stripped for workers on pull.)
+- [x] An invalid or forbidden mutation returns `rejected` with a `messageKey`. Valid mutations in the same batch still apply. (Route-level rules in `src/app/api/sync/sync.int.test.ts`: CSRF, 401, body validation, 500 mutations and 120 pushes / min per user.)
 
 **Verify:** `pnpm test -- src/app/api/sync src/lib/sync` (integration).
 **Dependencies:** T6

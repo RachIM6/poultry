@@ -20,6 +20,7 @@ describe("planned batches (SPEC-m5 PL1, PL5)", () => {
 
   beforeAll(async () => {
     [a, b] = await twoTenants();
+    await db.strain.create({ data: { id: "ross-308", name: "Ross 308" } });
     await push(a, [
       m("farm-registry.createFarm", { id: farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
       m("farm-registry.createHouse", { id: house, farmId: farm, name: "Bâtiment 1", areaM2: 1200, capacity: 12000, type: "closed" }),
@@ -55,5 +56,24 @@ describe("planned batches (SPEC-m5 PL1, PL5)", () => {
       "errors.ALREADY_EXISTS",
     ]);
     expect(await statuses(b, [m(M.saveDowntime, { ...rule, id: uuidv7() })])).toEqual(["errors.NOT_FOUND"]);
+  });
+
+  it("T98 (PL3): placing from a plan places one batch and marks the plan, even when sent twice", async () => {
+    const p = plan({ placeOn: "2026-11-01" });
+    await push(a, [m(M.savePlan, p)], registry);
+    const batch = { id: uuidv7(), houseId: house, strainId: "ross-308", placedOn: "2026-11-01", chicksPlaced: 10_000, deadOnArrival: 12, hatchery: "Couvoir X", deliveryNote: "BL-1", chickUnitPriceCentimes: "450", dayOldWeightGrams: null };
+    expect(await statuses(b, [m(M.placeFromPlan, { planId: p.id, batch })])).toEqual(["errors.NOT_FOUND"]);
+    expect(await statuses(a, [m(M.placeFromPlan, { planId: p.id, batch: { ...batch, houseId: uuidv7() } })])).toEqual(["errors.INVALID_INPUT"]);
+    expect(await statuses({ ...a, role: "manager" }, [m(M.placeFromPlan, { planId: p.id, batch }), m(M.placeFromPlan, { planId: p.id, batch: { ...batch, id: uuidv7() } })])).toEqual(["applied", "errors.ALREADY_DONE"]);
+    expect(await db.batch.count({ where: { houseId: house } })).toBe(1);
+    expect(await db.plannedBatch.findUniqueOrThrow({ where: { id: p.id } })).toMatchObject({ status: "placed", batchId: batch.id });
+  });
+
+  it("T98: flock's rules still apply: a second open batch in the house is refused and the plan stays planned", async () => {
+    const p = plan({ placeOn: "2026-11-05" });
+    await push(a, [m(M.savePlan, p)], registry);
+    const batch = { id: uuidv7(), houseId: house, strainId: "ross-308", placedOn: "2026-11-05", chicksPlaced: 9_000, deadOnArrival: 0, hatchery: "Couvoir X", deliveryNote: "BL-2", chickUnitPriceCentimes: "450", dayOldWeightGrams: null };
+    expect(await statuses(a, [m(M.placeFromPlan, { planId: p.id, batch })])).toEqual(["errors.HOUSE_HAS_OPEN_BATCH"]);
+    expect(await db.plannedBatch.findUniqueOrThrow({ where: { id: p.id } })).toMatchObject({ status: "planned", batchId: null });
   });
 });

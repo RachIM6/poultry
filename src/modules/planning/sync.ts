@@ -2,8 +2,8 @@ import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/kernel/result";
 import { withoutMoney } from "@/lib/permissions";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
-import { farmBelongsTo, houseOf } from "@/modules/flock";
-import { CancelPlan, PLANNING_MUTATIONS as M, SaveDowntime, SavePlan, type DowntimeRule, type PlanDto } from "@/modules/planning/schema";
+import { farmBelongsTo, houseOf, placeBatch } from "@/modules/flock";
+import { CancelPlan, PlaceFromPlan, PLANNING_MUTATIONS as M, SaveDowntime, SavePlan, type DowntimeRule, type PlanDto } from "@/modules/planning/schema";
 
 // SPEC-m5 §7: planned batches and the farm's minimum downtime, written offline. Light module: Prisma and rules here;
 // the planner's rules (sale day, gaps, overlaps) are in domain/ because the phone runs them too.
@@ -58,6 +58,23 @@ export const planningSync: SyncRegistry = {
         const dto = planDto(await tx.plannedBatch.update({ where: { id }, data: { status: "cancelled" } }));
         await recordChange(tx, ctx, "plannedBatch", id, dto);
         await audit(tx, ctx, { entity: "PlannedBatch", entityId: id, action: "cancel", before: planDto(before), after: dto, ...meta });
+        return ok(undefined);
+      },
+    }),
+    // PL3: one mutation places the batch (flock's rules) and marks the plan placed; placing twice places one batch.
+    [M.placeFromPlan]: defineMutation({
+      schema: PlaceFromPlan,
+      action: "flock.manage",
+      async apply(tx, ctx, { planId, batch }, meta) {
+        const before = await tx.plannedBatch.findFirst({ where: { id: planId, organizationId: ctx.organizationId } });
+        if (!before) return fail("NOT_FOUND");
+        if (before.status !== "planned") return fail("ALREADY_DONE");
+        if (batch.houseId !== before.houseId) return fail("INVALID_INPUT");
+        const placed = await placeBatch(tx, ctx, batch, meta);
+        if (!placed.ok) return placed;
+        const dto = planDto(await tx.plannedBatch.update({ where: { id: planId }, data: { status: "placed", batchId: batch.id } }));
+        await recordChange(tx, ctx, "plannedBatch", planId, dto);
+        await audit(tx, ctx, { entity: "PlannedBatch", entityId: planId, action: "place", before: planDto(before), after: dto, ...meta });
         return ok(undefined);
       },
     }),

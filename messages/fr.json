@@ -1097,6 +1097,8 @@
     "enterDowntime": "Saisir le vide sanitaire minimum",
     "downtimeHint": "Nombre de jours entre la vente d’un lot et la mise en place du suivant, selon votre vétérinaire ou votre guide. Indiquez la source.",
     "minDays": "Jours minimum",
-    "saveDowntime": "Enregistrer le minimum"
+    "saveDowntime": "Enregistrer le minimum",
+    "place": "Mettre en place le lot prévu le {date}",
+    "placeSave": "Mettre en place"
   }
 }

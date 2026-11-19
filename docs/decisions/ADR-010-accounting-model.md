@@ -15,7 +15,7 @@ Also replaces the `AccountingProfile` shape derived in SPEC F1 (`chart: cash_boo
 
 ## Context
 - The finance mockups (canvas "Dawra — maquettes", page 5, 1 Nov 2026; a private claude.ai page, ask the owner for access) show a full ledger: generated journal entries, period locking, trial balance, year-end inventory with biological assets, simplified CGNC financial statements, and an export to the accountant. The product owner chose to follow them (3 Nov 2026).
-- Three charts of accounts apply to our users (the [Dawra Accounting Primer](https://claude.ai/artifact/1rhzsgz9pQjGPcb8nT5Dwb), a private page, explains them; the accounts Dawra uses are listed in [SPEC-finance.md](../../SPEC-finance.md)):
+- Three charts of accounts apply to our users (the [Dawra Accounting Primer](https://claude.ai/artifact/ASycXSbhioZ73rQhs6Hiqx), a private page, explains them; the accounts Dawra uses are listed in [SPEC-finance.md](../../SPEC-finance.md)):
   - **CGNC / PCGE** (law 9-88): the base for every Moroccan company.
   - **Plan Comptable Agricole (PCA)**, CNC opinion n° 7 of 22 Dec 2015: the CGNC refined for agricultural activity "whatever the legal form" (biological assets, animal purchases and sales, feed, vet products). The text is titled "projet"; whether it is mandatory is open (FQ1).
   - **Cooperative chart**, arrêté n° 441-01 of 26 Feb 2001, mandatory under law 112-12: the CGNC with adapted equity and member accounts. We do not have its official account list yet (FQ2).

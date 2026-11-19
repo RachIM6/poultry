@@ -1,5 +1,6 @@
 // What the phone's screens need from workforce, without Zod (ADR-009). The Zod schemas are in ./schema.ts.
 import { v5 as uuidv5 } from "uuid";
+import type { PayLine } from "@/modules/workforce/domain/pay";
 
 export { dayTasks, routineFalls, taskKey } from "@/modules/workforce/domain/tasks";
 export type { DayTask, OneOffTask, Routine, TaskInputs } from "@/modules/workforce/domain/tasks";
@@ -36,6 +37,8 @@ export const WORKFORCE_MUTATIONS = {
   checkIn: "workforce.checkIn",
   setAttendance: "workforce.setAttendance",
   recordAdvance: "workforce.recordAdvance",
+  saveLabourRules: "workforce.saveLabourRules",
+  validatePay: "workforce.validatePay",
 } as const;
 
 /** WF6: a routine or one-off task ticked done on a farm day. Its id is the same on every phone that ticks it. */
@@ -60,3 +63,10 @@ export const attendanceId = (employeeId: string, day: string) => uuidv5(`${emplo
 
 /** WF10: money given before pay day, deducted from one month's pay. Owners and managers only (never sent to workers). */
 export type AdvanceDto = { id: string; farmId: string; employeeId: string; day: string; amountCentimes: string; deductMonth: string; note: string | null };
+
+// WF11, WF12, §2: pay. The labour figures are the owner's dated entries (none built in); a validated month is frozen.
+export { monthEnd, payFor, rulesOn } from "@/modules/workforce/domain/pay";
+export type { LabourRules, PayLine } from "@/modules/workforce/domain/pay";
+export type PayMonthDto = { id: string; farmId: string; month: string; lines: PayLine[]; rulesId: string | null; validatedOn: string; validatedBy: string };
+const PAY_MONTH_NAMESPACE = "beca2c54-80ae-4319-a653-6a222a01a863";
+export const payMonthId = (farmId: string, month: string) => uuidv5(`${farmId}:${month}`, PAY_MONTH_NAMESPACE);

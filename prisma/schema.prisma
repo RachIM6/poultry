@@ -936,3 +936,37 @@ model SalaryAdvance {
 
   @@index([organizationId])
 }
+
+// Owner: workforce. SPEC-m4 §2, MQ2: the labour figures the owner entered, with their source. Dated, never edited;
+// no value is seeded. Rates in basis points (1 % = 100); null: not given by the source.
+model LabourRules {
+  id                 String   @id @db.Uuid
+  organizationId     String   @db.Uuid
+  validFrom          DateTime @db.Date
+  source             String
+  smagDailyCentimes  BigInt?
+  employeeCappedBp   Int?
+  employeeUncappedBp Int?
+  employerCappedBp   Int?
+  employerUncappedBp Int?
+  monthlyCapCentimes BigInt?
+  createdBy          String   @db.Uuid
+  createdAt          DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: workforce. SPEC-m4 WF12: a farm's month of pay, frozen by the owner as the server computed it.
+model PayMonth {
+  id             String   @id @db.Uuid // UUIDv5 of farm + month
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  month          String // YYYY-MM
+  lines          Json // PayLine[]
+  rulesId        String?  @db.Uuid
+  validatedOn    DateTime @db.Date
+  validatedBy    String   @db.Uuid
+
+  @@unique([farmId, month])
+  @@index([organizationId])
+}

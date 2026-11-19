@@ -376,7 +376,8 @@
     "FISCAL_YEAR_HAS_ENTRIES": "L’exercice a déjà des écritures : ce réglage ne peut changer qu’au début du prochain exercice.",
     "BUYER_CREDIT_BLOCKED": "Un chèque ou une traite de cet acheteur est revenu impayé : il paie comptant jusqu’à ce que le propriétaire lève le blocage.",
     "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état.",
-    "VISIT_DIRTY_ZONE_ONLY": "Ce visiteur est passé par un autre élevage : zone sale uniquement."
+    "VISIT_DIRTY_ZONE_ONLY": "Ce visiteur est passé par un autre élevage : zone sale uniquement.",
+    "DISPOSAL_METHOD_NOTE_REQUIRED": "Décrivez la méthode d’élimination."
   },
   "Weighing": {
     "title": "Pesée",
@@ -796,5 +797,51 @@
     "today": "Déjà venus aujourd’hui",
     "none": "Aucun visiteur aujourd’hui.",
     "line": "{visitor} · {time} · {zone}"
+  },
+  "Disposal": {
+    "title": "Sorties de la ferme",
+    "open": "Cadavres et fumier",
+    "noFarm": "Créez d’abord une ferme.",
+    "tabs": "Registre",
+    "tab": {
+      "dead": "Cadavres",
+      "manure": "Fumier"
+    },
+    "batch": "Bande {house} du {date}",
+    "day": "Date",
+    "batchField": "Bande",
+    "noBatch": "Aucune bande précise",
+    "birds": "Nombre de sujets",
+    "weight": "Poids total (kg, facultatif)",
+    "method": "Méthode d’élimination",
+    "methods": {
+      "incineration": "Incinération",
+      "authorizedSite": "Site ou collecteur autorisé",
+      "other": "Autre (à décrire)"
+    },
+    "methodNote": "Méthode utilisée",
+    "toConfirm": "Méthodes autorisées et distances à confirmer avec l’ONSSA (loi 49-99, art. 12).",
+    "save": "Enregistrer l’élimination",
+    "gaps": "Morts et éliminés, {days} derniers jours",
+    "noGaps": "Aucune mortalité ni élimination sur cette période.",
+    "dead": "Morts",
+    "disposed": "Éliminés",
+    "gap": "Écart",
+    "recent": "Dernières éliminations",
+    "line": "{date} : {birds} sujets, {method}",
+    "house": "Bâtiment",
+    "noHouse": "Plusieurs ou aucun",
+    "quantity": "Quantité (kg)",
+    "destination": "Destination",
+    "destinations": {
+      "stored": "Stocké sur la ferme",
+      "spread": "Épandu",
+      "sold": "Vendu",
+      "given": "Donné"
+    },
+    "recipient": "Destinataire (facultatif)",
+    "saveManure": "Enregistrer la sortie de fumier",
+    "recentManure": "Dernières sorties de fumier",
+    "manureLine": "{date} : {kg} kg, {destination}"
   }
 }

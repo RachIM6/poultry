@@ -42,9 +42,14 @@ Done 2026-11-16 (branch `feat/t40-visitors`):
 ### T41: Dead-bird disposal and manure (BS6, BS7)
 **Description:** `Disposal` and `ManureRemoval` tables and mutations; static shell `/disposal` with two tabs (dead birds, manure) and, per batch, the daily mortality next to the birds disposed (`disposalGap`).
 **AC:**
-- [ ] Methods are `incineration`, `authorizedSite`, `other` + description (CQ4); `other` without a description is refused.
-- [ ] `disposalGap` per day = dead + culls of the daily entry − birds disposed.
-- [ ] e2e: a disposal and a manure removal recorded offline sync once.
+- [x] Methods are `incineration`, `authorizedSite`, `other` + description (CQ4); `other` without a description is refused. (`domain/disposal.test.ts`, `disposals.int.test.ts`.)
+- [x] `disposalGap` per day = dead + culls of the daily entry − birds disposed. (`disposalGaps`, per farm day across the farm's batches.)
+- [x] e2e: a disposal and a manure removal recorded offline sync once (`e2e/disposal.spec.ts`, with the gap going from 6 to 0).
+
+Done 2026-11-16 (branch `feat/t41-disposal`):
+- The comparison is **per farm day**, all the farm's batches together: a disposal often covers several houses. It looks back 14 days on the phone (a screen choice).
+- A disposal or removal may name a batch (and a house for manure); the server checks they are on the farm given.
+- `/disposal` is a precached static shell with two tabs; the "Nuisibles" tab comes with T43.
 **Size:** M
 
 ### T42: Clean-out and downtime (BS4, BS5)

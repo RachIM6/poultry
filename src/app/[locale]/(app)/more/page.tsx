@@ -49,7 +49,7 @@ async function Content() {
       ].filter((l) => l !== false),
     },
     // SPEC-m2-compliance: the logs and documents an inspection asks for.
-    { title: t("More.compliance"), links: [{ href: "/visitors", label: t("Visitors.open") }] },
+    { title: t("More.compliance"), links: [{ href: "/visitors", label: t("Visitors.open") }, { href: "/disposal", label: t("Disposal.open") }] },
     { title: t("More.account"), links: can(ctx.value, "members.manage") ? [{ href: "/settings/members", label: t("Members.title") }] : [] },
   ].filter((g) => g.links.length > 0);
 

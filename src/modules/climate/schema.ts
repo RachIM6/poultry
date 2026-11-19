@@ -18,3 +18,14 @@ export const BandInput = z.object({
 
 /** A new version of the farm's targets: never edited in place, so past readings keep their verdict. */
 export const SaveTargets = z.object({ id: z.uuid(), validFrom: z.iso.date(), source: z.string().trim().min(3).max(300), bands: z.array(BandInput).min(1).max(30) });
+
+// CL2: input bounds only (typos), not targets.
+export const RecordReading = z.object({
+  id: z.uuid(),
+  houseId: z.uuid(),
+  day: z.iso.date(),
+  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), // farm clock
+  temperatureTenths: z.int32().min(-100).max(600),
+  humidity: z.int32().min(0).max(100),
+  ammonia: z.int32().min(0).max(500).nullable(),
+});

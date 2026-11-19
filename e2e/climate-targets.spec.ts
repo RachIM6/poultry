@@ -8,8 +8,7 @@ test("the owner enters climate targets from a source, offline, and they sync onc
   const e164 = await ownerWithFarm(page, "Élevage du Climat");
   await scopeRemembered(page);
 
-  await page.getByRole("link", { name: "Plus", exact: true }).click();
-  await page.getByRole("link", { name: "Cibles de climat" }).click();
+  await page.goto("/fr/climate/targets"); // linked from /climate, which needs a house first
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await expect(page.getByRole("note")).toContainText("Aucune cible saisie");
 

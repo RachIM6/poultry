@@ -41,7 +41,7 @@ async function Treasury() {
       <h1 className="text-2xl font-semibold">{t("Treasury.title")}</h1>
       <ul className="flex flex-col gap-2" aria-label={t("Treasury.balances")}>
         {accounts.map((a) => (
-          <li key={a.id} className="flex justify-between gap-4 rounded-lg border border-current/30 p-3">
+          <li key={a.id} className="flex justify-between gap-4 rounded-2xl border border-line bg-card p-3">
             <span>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</span>
             <span dir="ltr" className="font-semibold tabular-nums">{formatMoney(a.balanceCentimes)}</span>
           </li>
@@ -68,7 +68,7 @@ async function Treasury() {
           </thead>
           <tbody>
             {movements.map((m, i) => (
-              <tr key={i} className="border-t border-current/20">
+              <tr key={i} className="border-t border-line">
                 <td className="p-2">{formatDay(m.day as FarmDay, lang)}</td>
                 <td className="p-2">{m.journal}</td>
                 <td className="p-2">{m.label}</td>

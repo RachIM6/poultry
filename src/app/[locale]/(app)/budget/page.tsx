@@ -46,7 +46,7 @@ async function Budget() {
           {saved.value.map((s) => {
             const b = budgetOf(s.inputs);
             return (
-              <li key={s.id} className="rounded-lg border border-current/30 p-3">
+              <li key={s.id} className="rounded-2xl border border-line bg-card p-3">
                 <span className="font-semibold">{s.name}</span> ·{" "}
                 {t("Budget.line", {
                   breakEven: b.breakEvenPerKgCentimes === null ? "—" : formatMoney(b.breakEvenPerKgCentimes),

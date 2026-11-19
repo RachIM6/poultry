@@ -56,11 +56,11 @@ async function Results() {
             </thead>
             <tbody>
               {results.value.map((r) => (
-                <tr key={r.id} className="border-t border-current/20 align-top">
+                <tr key={r.id} className="border-t border-line align-top">
                   <td className="p-2">
                     <div className="font-semibold">{r.houseName} · {formatDay(r.placedOn as FarmDay, lang)}</div>
-                    <div className="opacity-75">{r.closedOn ? t("Results.closed", { date: formatDay(r.closedOn as FarmDay, lang) }) : t("Results.open_")}</div>
-                    <div className="opacity-75">
+                    <div className="text-muted">{r.closedOn ? t("Results.closed", { date: formatDay(r.closedOn as FarmDay, lang) }) : t("Results.open_")}</div>
+                    <div className="text-muted">
                       {t("Results.costs", { chicks: money(r.costs.chicks), consumption: money(r.costs.consumption), other: money(r.costs.other), direct: money(r.costs.direct), allocated: money(r.costs.allocated) })}
                     </div>
                   </td>

@@ -38,7 +38,7 @@ async function Tracker() {
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Threshold.title", { amount: formatMoney(threshold.centimes) })}</h1>
-      <p className="opacity-75">{lang === "ar" ? threshold.ruleAr : threshold.ruleFr}</p>
+      <p className="text-muted">{lang === "ar" ? threshold.ruleAr : threshold.ruleFr}</p>
       {usage.alert && (
         <p role="alert" className="rounded-2xl bg-alert-soft p-3 font-semibold text-alert-fg">
           {t(usage.over ? "Threshold.over" : "Threshold.alert", { percent: String(usage.percent) })}
@@ -46,7 +46,7 @@ async function Tracker() {
       )}
       <section className="flex flex-col gap-2" aria-label={t("Threshold.year", { from: day(fiscalYear.from), to: day(fiscalYear.to) })}>
         <h2 className="text-lg font-semibold">{t("Threshold.year", { from: day(fiscalYear.from), to: day(fiscalYear.to) })}</h2>
-        <div className="h-3 w-full rounded-full bg-current/15" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(usage.percent)}>
+        <div className="h-3 w-full rounded-full bg-line" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(usage.percent)}>
           <div className={`h-3 rounded-full ${usage.alert ? "bg-alert" : "bg-olive"}`} style={{ width }} />
         </div>
         <dl className="grid grid-cols-2 gap-2">

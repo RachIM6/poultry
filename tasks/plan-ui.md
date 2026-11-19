@@ -35,4 +35,8 @@ Done 2026-11-16 (branch `feat/u3-login-daily-entry`): login with the big phone f
 
 Done 2026-11-16 (branch `feat/u4-batch-page`). Not yet: the batch page's lower sections (weighing, vaccinations, treatments, sales, costs) only got the shared classes; the mockup's cost per kg tile.
 
-### U5–U8 (next): stock, sales and receivables, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.
+### U5: Stock and the palette everywhere
+- [x] Stock (`M1-Stock`): total value for managers, item cards with a "Bas" / "Suffisant" tag, the purchase as the main action.
+- [x] Every screen: `opacity-75` and `border-current/*` become the palette's muted text and line colours; outlined boxes become white cards. Full browser suite: 44 passed.
+
+### U6–U8 (next): sales and receivables, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

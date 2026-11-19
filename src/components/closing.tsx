@@ -34,11 +34,11 @@ export function ClosedSummary({ batch }: { batch: BatchDto }) {
   const t = useTranslations("Closing");
   const locale = useLocale();
   return (
-    <section className="flex flex-col gap-1 rounded-lg border border-current/30 p-3" aria-label={t("summary")}>
+    <section className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-3" aria-label={t("summary")}>
       <span className="font-semibold">{t("closedOn", { date: formatDay((batch.closedOn ?? batch.placedOn) as FarmDay, locale) })}</span>
       <span>{batch.closeReason ? t("reasonLine", { reason: batch.closeReason }) : t("soldOut")}</span>
       {batch.soldGrams === undefined ? (
-        <span className="opacity-75">{t("pending")}</span>
+        <span className="text-muted">{t("pending")}</span>
       ) : (
         <>
           <span>{t("sold", { kg: formatKg(batch.soldGrams) })}</span>
@@ -123,7 +123,7 @@ export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-current/30 p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
       <p>{t("Closing.warning")}</p>
       <Field label={t("Closing.reason")}>{(id) => <input id={id} name="reason" required maxLength={200} className={field} />}</Field>
       <Field label={t("Closing.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required className={field} />}</Field>

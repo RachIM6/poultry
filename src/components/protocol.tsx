@@ -21,7 +21,7 @@ import { field, primary, secondary } from "@/components/ui";
 // SPEC R2 on the static /protocol shell: the template comes from the cached reference data, the organisation's copies
 // from its own database; both work offline (ADR-003, R4).
 
-const card = "flex flex-col gap-2 rounded-lg border border-current/30 p-3";
+const card = "flex flex-col gap-2 rounded-2xl border border-line bg-card p-3";
 
 type Save = (mutation: { type: string; payload: unknown }, record: { entity: string; id: string; data: unknown }) => Promise<void>;
 
@@ -76,7 +76,7 @@ function Protocols(scope: Scope) {
             {/* OQ4: shown until a vet signs the template off */}
             {!template.reviewedByVet && <p className="rounded-xl bg-chick-soft p-2 text-sm text-chick-fg">{t("Protocol.notReviewed")}</p>}
             {template.items.length === 0 ? (
-              <p className="text-sm opacity-75">{t("Protocol.emptyTemplate")}</p>
+              <p className="text-sm text-muted">{t("Protocol.emptyTemplate")}</p>
             ) : (
               <Items items={template.items} vaccines={vaccines} nameOf={nameOf} />
             )}
@@ -151,7 +151,7 @@ function Editor({ protocol, vaccines, nameOf, manage, save }: { protocol: Protoc
     <div className={card}>
       <span className="font-semibold">{protocol.name}</span>
       {protocol.items.length === 0 ? (
-        <p className="text-sm opacity-75">{t("noItems")}</p>
+        <p className="text-sm text-muted">{t("noItems")}</p>
       ) : (
         <Items items={protocol.items} vaccines={vaccines} nameOf={nameOf} onRemove={manage ? (i) => void update(protocol.items.filter((_, j) => j !== i)) : undefined} />
       )}

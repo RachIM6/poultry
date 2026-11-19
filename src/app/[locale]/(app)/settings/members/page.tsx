@@ -30,7 +30,7 @@ async function Content() {
       <ul className="flex flex-col gap-3">
         {members.map((m) =>
           m.userId === ctx.value.userId ? (
-            <li key={m.membershipId} className="rounded-lg border border-current/30 p-3">
+            <li key={m.membershipId} className="rounded-2xl border border-line bg-card p-3">
               <bdi dir="ltr" className="font-semibold">{m.phone}</bdi> · {t(`roles.${m.role}`)} ({t("you")})
             </li>
           ) : (
@@ -43,7 +43,7 @@ async function Content() {
           <h2 className="text-lg font-semibold">{t("pending")}</h2>
           <ul className="flex flex-col gap-3">
             {invitations.map((i) => (
-              <li key={i.id} className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-current/30 p-3">
+              <li key={i.id} className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-line p-3">
                 <span>
                   <bdi dir="ltr">{i.phone}</bdi> · {t(`roles.${i.role}`)}
                 </span>
@@ -55,7 +55,7 @@ async function Content() {
       )}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">{t("inviteTitle")}</h2>
-        <p className="text-sm opacity-75">{t("inviteHint")}</p>
+        <p className="text-sm text-muted">{t("inviteHint")}</p>
         <InviteForm roles={ROLES} />
       </section>
     </>

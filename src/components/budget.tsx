@@ -94,7 +94,7 @@ export function BudgetPlanner({ bases, save }: { bases: Base[]; save: (state: Sa
       </div>
 
       {b && inputs ? (
-        <dl className="grid grid-cols-2 gap-2 rounded-lg border border-current/30 p-3" aria-label={t("figures")} aria-live="polite">
+        <dl className="grid grid-cols-2 gap-2 rounded-2xl border border-line bg-card p-3" aria-label={t("figures")} aria-live="polite">
           <dt>{t("plannedCost")}</dt>
           <dd dir="ltr" className="text-end tabular-nums">{formatMoney(b.plannedCostCentimes)}</dd>
           <dt>{t("breakEven")}</dt>

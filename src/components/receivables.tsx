@@ -136,11 +136,11 @@ function Receivables(scope: Scope) {
       ) : (
         <ul className="flex flex-col gap-3" aria-label={t("Receivables.portfolio")}>
           {pending.map((i) => (
-            <li key={i.id} className="flex flex-col gap-2 rounded-lg border border-current/30 p-3">
+            <li key={i.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
               <span>
                 {t("Receivables.instrument", { kind: i.kind, number: i.number ?? "none", buyer: nameOf(i.buyerId), amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
               </span>
-              <span className="opacity-75">{t(`Receivables.states.${i.state}`)}</span>
+              <span className="text-muted">{t(`Receivables.states.${i.state}`)}</span>
               <div className="flex flex-wrap gap-2">
                 {(["remitted", "cashed", "unpaid"] as const).filter((to) => checkTransition(i.state, to).ok).map((to) => (
                   <button key={to} type="button" onClick={() => move(i, to)} className={secondary}>
@@ -177,9 +177,9 @@ function Receivables(scope: Scope) {
             const balance = balances.get(b.id)!;
             const instruments = sales.filter((s) => s.buyerId === b.id && s.instrument).sort((x, y) => x.instrument!.dueOn.localeCompare(y.instrument!.dueOn));
             return (
-              <li key={b.id} className="flex flex-col gap-2 rounded-lg border border-current/30 p-3">
+              <li key={b.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
                 <span className="font-semibold">{t("Receivables.owes", { buyer: b.name, amount: formatMoney(balance) })}</span>
-                <span className="text-sm opacity-75">
+                <span className="text-sm text-muted">
                   {AGEING_BUCKETS.flatMap((bucket) => {
                     const amount = ageOf(b.id)[bucket];
                     return amount > 0n ? [t(`Receivables.ageing.${bucket}`, { amount: formatMoney(amount) })] : [];
@@ -235,7 +235,7 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
     setEditing(false);
   };
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-current/30 p-3">
+    <li className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
       <span>{buyer.name} · {limit === null ? t("Receivables.noLimit") : t("Receivables.limit", { amount: formatMoney(limit) })}</span>
       {editing ? (
         <form onSubmit={submit} className="flex flex-col gap-2">

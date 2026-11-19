@@ -335,7 +335,7 @@ function PlacementForm({
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-lg border border-current/30 p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
       <Select label={t("Batches.house")} name="houseId">
         {houses.map((h) => (
           <option key={h.id} value={h.id}>{h.busy ? t("Batches.houseBusy", { house: h.label }) : h.label}</option>

@@ -35,8 +35,8 @@ export function OriginDocumentScreen() {
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2 border-b border-current/20 py-1">
-      <dt className="opacity-75">{label}</dt>
+    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2 border-b border-line py-1">
+      <dt className="text-muted">{label}</dt>
       <dd className="font-semibold">{children}</dd>
     </div>
   );
@@ -76,7 +76,7 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
     <article className="flex flex-col gap-4">
       <header className="flex flex-col gap-1 text-center">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="opacity-75">{t("law")}</p>
+        <p className="text-muted">{t("law")}</p>
         <p>{t("number", { number: sale.id.slice(0, 8).toUpperCase() })}</p>
       </header>
       <Part title={t("farm")}>
@@ -110,7 +110,7 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
           </div>
         ))}
       </div>
-      <p className="text-center text-sm opacity-75">{t("editedWith", { app: tr("App.name") })}</p>
+      <p className="text-center text-sm text-muted">{t("editedWith", { app: tr("App.name") })}</p>
       <button type="button" onClick={() => window.print()} className={`${primary} print:hidden`}>
         {t("print")}
       </button>

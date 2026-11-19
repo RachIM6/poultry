@@ -111,8 +111,14 @@ Done 2026-11-16 (branch `feat/t45-expiry-alerts`), decisions taken without askin
 ### T46: Register builder (RP1)
 **Description:** Create the `reporting` module with the pure `buildRegister(input)` over the synced DTOs (batch, farm, house, daily entries, vaccinations, treatments, vet visits, sold birds and sales, disposals, lab-report documents when visible).
 **AC:**
-- [ ] B-2026-13 fixtures: 26 Oct (J36) birds on hand 9 620 with 4 dead; enrofloxacine 22–26 Oct + 5 days → withdrawal end 31 Oct.
-- [ ] Every RP1 section is present; no money field reaches the output (unit test on a worker's input).
+- [x] B-2026-13 fixtures: 26 Oct birds on hand 9 620 with 4 dead; enrofloxacine 22–26 Oct + 5 days → withdrawal end 31 Oct. (`reporting/domain/register.test.ts`.)
+- [x] Every RP1 section is present; no money field reaches the output (unit test on a worker's input).
+
+Done 2026-11-16 (branch `feat/t46-register-builder`), decisions taken without asking:
+- **Ages follow the app's own rule** (`flock.ageOn`, placement day = day 0): 26 Oct is day 35 here, where the canvas wrote "J36". Which convention ONSSA's register uses is part of CQ1.
+- **Birds on hand** are after the day's deaths, culls and birds sold; a day "under withdrawal" runs from a treatment's start to its withdrawal end.
+- **Lab reports** are vault documents of category `labReport` for the batch's farm (or the whole organisation) issued between placement and closing; owners' and managers' phones have them, workers' don't.
+- `sales.originNumber` is now the one place the origin document's number is made (the origin page uses it too).
 **Size:** S
 
 ### T47: Register PDF (RP2)

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { JOBS } from "@/modules/workforce/shared";
+import { JOBS, taskDoneId, tickable } from "@/modules/workforce/shared";
 
 // SPEC-m4 §4, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009).
 export * from "@/modules/workforce/shared";
@@ -35,3 +35,9 @@ export const SaveRoutine = z
 
 export const AddTask = z.object({ id: z.uuid(), ...place, day: z.iso.date(), title: text(120), time });
 export const CancelTask = z.object({ id: z.uuid() });
+
+// WF6: the id is derived from the task and the day, so two phones ticking the same task converge on one record.
+export const TickTask = z
+  .object({ id: z.uuid(), farmId: z.uuid(), key: z.string().max(80), day: z.iso.date() })
+  .refine((t) => tickable(t.key) && t.id === taskDoneId(t.key, t.day), "routine or one-off, id from key and day");
+export const UntickTask = z.object({ id: z.uuid() });

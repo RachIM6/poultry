@@ -12,7 +12,7 @@ import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto, DailyEntryDto } from "@/modules/flock/shared";
 import type { VaccinationDto } from "@/modules/health/shared";
-import { dayTasks, WORKFORCE_MUTATIONS as W, type DayTask, type EmployeeDto, type OneOffTask, type Routine } from "@/modules/workforce/shared";
+import { dayTasks, taskDoneId, tickable, WORKFORCE_MUTATIONS as W, type DayTask, type EmployeeDto, type OneOffTask, type Routine, type TaskDoneDto } from "@/modules/workforce/shared";
 import { cachedReference, localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -21,7 +21,7 @@ import { writeLocal } from "@/offline/outbox";
 
 export const TasksScreen = () => <Scoped>{(scope) => <Tasks {...scope} />}</Scoped>;
 
-const ENTITIES = ["farm", "house", "batch", "dailyEntry", "vaccination", "employee", "routine", "oneOffTask"];
+const ENTITIES = ["farm", "house", "batch", "dailyEntry", "vaccination", "employee", "routine", "oneOffTask", "taskDone"];
 
 function Tasks(scope: Scope) {
   const t = useTranslations();
@@ -49,9 +49,13 @@ function Tasks(scope: Scope) {
     employees,
     routines,
     oneOffs: of<OneOffTask>("oneOffTask"),
-    done: [],
+    done: of<TaskDoneDto>("taskDone"),
     assignments: [],
   });
+  // WF8: a worker sees their own tasks; owners and managers see the farm's, with who does each.
+  const me = employees.find((e) => e.userId === scope.userId && e.farmId === farm.id && !e.leftOn);
+  const shown = manage || !me ? tasks : tasks.filter((x) => x.assignees.includes(me.id));
+  const doneCount = shown.filter((x) => x.done).length;
 
   const house = (id: string | null) => (id === null ? t("Staff.wholeFarm") : (houses.find((h) => h.id === id)?.name ?? ""));
   const product = (id: string | null) => reference?.data.products.find((p) => p.id === id);
@@ -69,9 +73,9 @@ function Tasks(scope: Scope) {
     ].filter(Boolean).join(" · ");
   const names = (ids: string[]) => ids.map((id) => employees.find((e) => e.id === id)?.name).filter(Boolean).join(", ") || t("Tasks.nobody");
 
-  const write = async (mutation: { type: string; payload: unknown }, entity: string, data: { id: string }) => {
+  const write = async (mutation: { type: string; payload: unknown }, entity: string, id: string, data: object | null) => {
     try {
-      await writeLocal(db, mutation, { entity, id: data.id, data });
+      await writeLocal(db, mutation, { entity, id, data });
       setMessage("Farms.saved");
       return true;
     } catch {
@@ -87,12 +91,25 @@ function Tasks(scope: Scope) {
           {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
       )}
+      {me && <p className="text-lg font-semibold">{t("Tasks.hello", { name: me.name })}</p>}
+      {!manage && !me && <p className={card}>{t("Tasks.notStaff")}</p>}
+      {shown.length > 0 && (
+        <section aria-label={t("Tasks.progress")} className="flex items-center justify-between rounded-[18px] bg-ink px-4 py-3.5 text-shell">
+          <span className="flex flex-col">
+            <span className="text-[13px] text-sand">{t("Nav.today")}</span>
+            <b className="text-xl font-semibold">{t("Tasks.doneOf", { done: String(doneCount), total: String(shown.length) })}</b>
+          </span>
+          <span className="flex gap-1" aria-hidden="true">
+            {shown.map((x) => <span key={x.key} className={`h-2 w-[18px] rounded-sm ${x.done ? "bg-sand" : "bg-shell/20"}`} />)}
+          </span>
+        </section>
+      )}
       {message && <p role="status" className={done}>{t(message)}</p>}
-      {tasks.length === 0 ? (
+      {shown.length === 0 ? (
         <p className={card}>{t("Tasks.none")}</p>
       ) : (
         <ol aria-label={t("Tasks.today")} className="flex flex-col rounded-[18px] bg-card px-3.5 py-1">
-          {tasks.map((task) => {
+          {shown.map((task) => {
             const body = (
               <>
                 <span className="w-11 shrink-0 text-[13px] text-ink-2">{task.time ?? ""}</span>
@@ -101,14 +118,31 @@ function Tasks(scope: Scope) {
                   <span className="text-xs text-muted">{why(task)}</span>
                   {manage && <span className="text-xs text-muted">{t("Tasks.for", { names: names(task.assignees) })}</span>}
                 </span>
-                <span className={`grid size-[34px] shrink-0 place-items-center rounded-full text-sm font-bold ${task.done ? "bg-ink-2 text-shell" : "bg-line"}`} aria-label={t(task.done ? "Tasks.done" : "Tasks.todo")}>
-                  {task.done ? "✓" : ""}
-                </span>
               </>
             );
+            const mark = `grid size-[34px] shrink-0 place-items-center rounded-full text-sm font-bold ${task.done ? "bg-ink-2 text-shell" : "bg-line"}`;
+            const id = taskDoneId(task.key, today);
+            const tick = { id, farmId: farm.id, key: task.key, day: today };
+            const toggle = () =>
+              task.done
+                ? write({ type: W.untickTask, payload: { id } }, "taskDone", id, null)
+                : write({ type: W.tickTask, payload: tick }, "taskDone", id, { ...tick, byUserId: scope.userId });
+            // WF6: routines and one-off tasks are ticked here; an entry or a vaccine is done by recording it on its batch.
             return (
               <li key={task.key} className="flex min-h-[62px] items-center gap-3 border-t border-line first:border-t-0">
-                {task.batchId ? <Link href={{ pathname: "/batches", hash: task.batchId }} className="flex flex-1 items-center gap-3">{body}</Link> : body}
+                {tickable(task.key) ? (
+                  <>
+                    <span className="flex flex-1 items-center gap-3">{body}</span>
+                    <button type="button" onClick={toggle} aria-pressed={task.done} aria-label={t("Tasks.tick", { task: label(task) })} className={`${mark} min-h-11 min-w-11`}>
+                      {task.done ? "✓" : ""}
+                    </button>
+                  </>
+                ) : (
+                  <Link href={{ pathname: "/batches", hash: task.batchId ?? "" }} className="flex flex-1 items-center gap-3">
+                    {body}
+                    <span className={mark} aria-label={t(task.done ? "Tasks.done" : "Tasks.todo")}>{task.done ? "✓" : ""}</span>
+                  </Link>
+                )}
               </li>
             );
           })}
@@ -118,8 +152,8 @@ function Tasks(scope: Scope) {
 
       {manage && (
         <>
-          <OneOffForm farm={farm} houses={houses} employees={employees} today={today} onSave={(o) => write({ type: W.addTask, payload: o }, "oneOffTask", o)} />
-          <Routines farm={farm} routines={routines} houses={houses} employees={employees} today={today} house={house} onSave={(r) => write({ type: W.saveRoutine, payload: r }, "routine", r)} />
+          <OneOffForm farm={farm} houses={houses} employees={employees} today={today} onSave={(o) => write({ type: W.addTask, payload: o }, "oneOffTask", o.id, o)} />
+          <Routines farm={farm} routines={routines} houses={houses} employees={employees} today={today} house={house} onSave={(r) => write({ type: W.saveRoutine, payload: r }, "routine", r.id, r)} />
         </>
       )}
     </>

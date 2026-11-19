@@ -816,3 +816,23 @@ model Budget {
 
   @@index([organizationId])
 }
+
+// Owner: biosecurity. SPEC-m2-compliance BS1–BS2: one entry of the visitor and vehicle register, recorded on the phone.
+model Visit {
+  id                String   @id @db.Uuid
+  organizationId    String   @db.Uuid
+  farmId            String   @db.Uuid
+  enteredAt         DateTime @db.Timestamptz
+  visitor           String // name and company
+  vehicle           String? // plate
+  purpose           String // feedDelivery | gas | chickDelivery | vet | buyer | technician | other
+  recentFarm        Boolean // on another poultry farm recently (VISITOR_RECENT_FARM_HOURS)
+  wheelsDisinfected Boolean
+  footbath          Boolean
+  farmClothing      Boolean
+  zone              String // clean | dirty
+  recordedBy        String   @db.Uuid
+  createdAt         DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, enteredAt])
+}

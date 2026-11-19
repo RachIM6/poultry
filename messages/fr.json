@@ -62,6 +62,28 @@
   "Dashboard": {
     "noFarms": "Aucune ferme pour l’instant."
   },
+  "Members": {
+    "title": "Membres",
+    "back": "Retour au tableau de bord",
+    "you": "vous",
+    "pending": "Invitations en attente",
+    "inviteTitle": "Inviter un membre",
+    "inviteHint": "La personne se connecte avec ce numéro dans les 7 jours. Aucun SMS d’invitation n’est envoyé : prévenez-la.",
+    "phoneLabel": "Numéro de téléphone",
+    "roleLabel": "Rôle",
+    "invite": "Inviter",
+    "invited": "Invitation enregistrée.",
+    "roleOf": "Rôle de {phone}",
+    "saveRole": "Enregistrer",
+    "remove": "Retirer",
+    "removeConfirm": "Retirer {phone} ? Ses appareils seront déconnectés.",
+    "cancel": "Annuler",
+    "roles": {
+      "owner": "Propriétaire",
+      "manager": "Gérant",
+      "worker": "Ouvrier"
+    }
+  },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
@@ -69,6 +91,10 @@
     "NETWORK": "Pas de connexion. Réessayez.",
     "UNAUTHENTICATED": "Session expirée. Reconnectez-vous.",
     "INVALID_INPUT": "Vérifiez les champs du formulaire.",
-    "ALREADY_ONBOARDED": "Votre exploitation existe déjà."
+    "ALREADY_ONBOARDED": "Votre exploitation existe déjà.",
+    "INVALID_PHONE": "Numéro invalide : mobile marocain 06… ou 07….",
+    "ALREADY_MEMBER": "Ce numéro est déjà membre.",
+    "LAST_OWNER": "Il faut au moins un propriétaire.",
+    "NOT_FOUND": "Introuvable."
   }
 }

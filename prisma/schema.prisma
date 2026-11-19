@@ -17,6 +17,7 @@ model Organization {
   createdAt     DateTime      @default(now()) @db.Timestamptz
   memberships   Membership[]
   legalEntities LegalEntity[]
+  invitations   Invitation[]
 }
 
 // Owner: farm-registry. SPEC F1: the form sets the accounting profile (derived in code, not stored).
@@ -130,6 +131,22 @@ model Membership {
 
   @@unique([organizationId, userId])
   @@index([userId])
+}
+
+// Owner: identity. poultry-auth §1: managers and workers get access only through a pending, unexpired invitation
+// for their number. Accepted (and deleted) at their next login; one pending invitation per number per organisation.
+model Invitation {
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @db.Uuid
+  phoneNumber    String // E.164, through PhoneNumber
+  role           MemberRole
+  invitedById    String       @db.Uuid
+  expiresAt      DateTime     @db.Timestamptz
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, phoneNumber])
+  @@index([phoneNumber])
 }
 
 enum MemberRole {

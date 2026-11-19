@@ -3,6 +3,7 @@ import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { consume } from "@/lib/security/rate-limit";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
+import { acceptInvitations } from "@/modules/identity/application/members";
 import { auth, AUTH_CONFIG } from "@/modules/identity/infrastructure/better-auth";
 
 type Net = { ip?: string; subnet?: string };
@@ -41,6 +42,7 @@ export async function verifyCode(
     });
     // SPEC I3: the language used to log in is the user's current choice. (Better Auth drops extra body fields.)
     await db.user.update({ where: { id: response.user.id }, data: { locale } });
+    await acceptInvitations(response.user.id, phone.value.e164);
     return ok(headers);
   } catch {
     return fail("INVALID_OR_EXPIRED_CODE");

@@ -100,9 +100,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T7: Members, roles and field visibility (I4, I5)
 **Description:** The owner invites members by phone with a role (owner / manager / worker), lists them, changes their role, and removes them (which revokes their sessions). Add a role → action table and server-side stripping of money fields for workers.
 **AC:**
-- [ ] An invited number logs in and joins the organisation with the right role.
-- [ ] A worker's API responses contain **no** price, cost, amount or credit fields. This is checked by tests on the serializers.
-- [ ] Removing a member logs out all their devices at their next online request.
+- [x] An invited number logs in and joins the organisation with the right role. (`src/modules/identity/members.int.test.ts`; expired or cancelled invitations onboard as a new owner. No invitation SMS: the owner tells the person.)
+- [x] A worker's API responses contain **no** price, cost, amount or credit fields. This is checked by tests on the serializers. (`withoutMoney(ctx, dto, fields)` in `src/lib/permissions.ts`, tested in `permissions.test.ts`. No API returns money yet: every money serializer from T13 on must go through it.)
+- [x] Removing a member logs out all their devices at their next online request. (Sessions deleted in the same transaction; a role change does the same instead of a `roleVersion` counter, since the role is re-read on every request. `e2e/members.spec.ts` runs the two-browser check.)
 
 **Verify:** integration tests per role. Manual check with two browsers.
 **Dependencies:** T6

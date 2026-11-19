@@ -26,6 +26,7 @@ export const POLICIES = {
   ],
   syncPush: [{ dim: "user", limit: 120, windowSec: MIN }],
   syncPull: [{ dim: "user", limit: 120, windowSec: MIN }],
+  fileUpload: [{ dim: "user", limit: 30, windowSec: HOUR }], // up to 5 MB each, into the database (ADR-011)
 } satisfies Record<string, Rule[]>;
 
 export type PolicyName = keyof typeof POLICIES;

@@ -2,9 +2,9 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { card, done, field, primary, secondary, warn } from "@/components/ui";
+import { card, danger, done, field, primary, secondary, warn } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDateTime, formatDay, formatKg } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -14,6 +14,7 @@ import {
   CLEANOUT_STEPS,
   DISPOSAL_METHODS,
   MANURE_DESTINATIONS,
+  RODENT_ACTIONS,
   VISIT_PURPOSES,
   VISITOR_RECENT_FARM_HOURS,
   ZONES,
@@ -27,6 +28,7 @@ import {
   type DisposalDto,
   type DowntimeSettingDto,
   type ManureRemovalDto,
+  type RodentCheckDto,
   type VisitDto,
   type Zone,
 } from "@/modules/biosecurity/shared";
@@ -35,7 +37,7 @@ import type { BatchDto, DailyEntryDto } from "@/modules/flock/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
 import { currentScope, localDb, scopeKey, type LocalDb, type LocalRecord, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
-import { startSync } from "@/offline/sync";
+import { requestSync, startSync } from "@/offline/sync";
 
 // SPEC-m2-compliance §4 on static shells, offline: the logs a farm keeps on the phone (visitors, BS1–BS3).
 
@@ -227,10 +229,10 @@ function VisitForm({ farmId, onSave }: { farmId: string; onSave: (v: VisitDto) =
 }
 
 // BS6–BS7: what leaves the farm. Tabs, one log each.
-const TABS = ["dead", "manure"] as const;
+const TABS = ["dead", "manure", "rodents"] as const;
 const GAP_DAYS = 14; // how far back the dead/disposed comparison looks on the phone: a screen choice, not a rule
 
-export const DisposalScreen = () => <Shell entities={["farm", "house", "batch", "dailyEntry", "disposal", "manureRemoval"]} screen={Disposal} />;
+export const DisposalScreen = () => <Shell entities={["farm", "house", "batch", "dailyEntry", "disposal", "manureRemoval", "rodentCheck"]} screen={Disposal} />;
 
 type Choice = { id: string; label: string };
 type Tab = (typeof TABS)[number];
@@ -238,7 +240,7 @@ type Tab = (typeof TABS)[number];
 function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const t = useTranslations("Disposal");
   return (
-    <div role="tablist" aria-label={t("tabs")} className="grid grid-cols-2 gap-1 rounded-2xl bg-line/60 p-1">
+    <div role="tablist" aria-label={t("tabs")} className="grid grid-cols-3 gap-1 rounded-2xl bg-line/60 p-1">
       {TABS.map((k) => (
         <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`min-h-11 rounded-xl ${tab === k ? "bg-card font-semibold" : ""}`}>
           {t(`tab.${k}`)}
@@ -248,7 +250,7 @@ function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   );
 }
 
-function Disposal({ records, save }: Parameters<Screen>[0]) {
+function Disposal({ records, save, db }: Parameters<Screen>[0]) {
   const t = useTranslations("Disposal");
   const locale = useLocale();
   const picker = useFarm(records);
@@ -270,8 +272,10 @@ function Disposal({ records, save }: Parameters<Screen>[0]) {
       <Tabs tab={tab} setTab={setTab} />
       {tab === "dead" ? (
         <DeadBirds farmId={farm.id} records={records} batches={choices} batchLabel={batchLabel} day={day} save={save} />
-      ) : (
+      ) : tab === "manure" ? (
         <Manure farmId={farm.id} records={records} houses={houses} batches={choices} day={day} save={save} />
+      ) : (
+        <Rodents farmId={farm.id} records={records} houses={houses} day={day} save={save} db={db} />
       )}
     </>
   );
@@ -598,3 +602,100 @@ function MinDowntime({ farmId, minDays, save }: { farmId: string; minDays: numbe
     </form>
   );
 }
+
+// BS8: rodent control with physical proof (law 49-99 art. 15). The check is recorded offline; its photo goes up once
+// the check is on the server and the phone is online.
+function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "batches"> & { houses: HouseDto[]; db: LocalDb }) {
+  const t = useTranslations();
+  const [error, setError] = useState<string>();
+  const [key, setKey] = useState(0);
+  const [uploading, setUploading] = useState<string>();
+  const online = useSyncExternalStore(onOnline, () => navigator.onLine, () => true);
+  const queued = useLiveQuery(() => db.outbox.toArray(), [db]);
+  const today = farmDayOf(new Date());
+  const checks = of<RodentCheckDto>(records, "rodentCheck")
+    .filter((r) => r.farmId === farmId)
+    .sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id))
+    .slice(0, 20);
+  const unsent = new Set((queued ?? []).flatMap((e) => e.recordKeys ?? []));
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const get = (k: string) => String(data.get(k) ?? "").trim();
+    if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
+    setError(undefined);
+    const fields = { id: uuidv7(), farmId, houseId: get("house") || null, day: get("day") || today, action: get("action") as RodentCheckDto["action"], product: get("product") || null };
+    const local: RodentCheckDto = { ...fields, proofFileId: null };
+    if (await save({ type: B.recordRodentCheck, payload: fields }, "rodentCheck", local)) setKey((k) => k + 1);
+  };
+
+  const upload = async (checkId: string, file: File | undefined) => {
+    if (!file) return;
+    setUploading(checkId);
+    setError(undefined);
+    try {
+      const res = await fetch(`/api/files?purpose=proof&rodentCheck=${checkId}`, { method: "POST", body: file, headers: { "x-requested-with": "poultry" } });
+      if (!res.ok) setError(((await res.json().catch(() => null)) as { messageKey?: string } | null)?.messageKey ?? "Disposal.proofFailed");
+      else requestSync(); // the check comes back from the server with its proof
+    } catch {
+      setError("Disposal.proofFailed");
+    } finally {
+      setUploading(undefined);
+    }
+  };
+
+  return (
+    <>
+      <form key={key} onSubmit={submit} className="flex flex-col gap-3">
+        <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today} max={today} required className={field} />}</Field>
+        <Field label={t("Disposal.house")}>
+          {(id) => (
+            <select id={id} name="house" className={field}>
+              {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+              <option value="">{t("Disposal.noHouse")}</option>
+            </select>
+          )}
+        </Field>
+        <Field label={t("Disposal.rodentAction")}>
+          {(id) => (
+            <select id={id} name="action" className={field}>
+              {RODENT_ACTIONS.map((k) => <option key={k} value={k}>{t(`Disposal.rodentActions.${k}`)}</option>)}
+            </select>
+          )}
+        </Field>
+        <Field label={t("Disposal.product")}>{(id) => <input id={id} name="product" maxLength={120} className={field} />}</Field>
+        <button type="submit" className={primary}>{t("Disposal.saveRodent")}</button>
+      </form>
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
+      <h2 className="text-lg font-semibold">{t("Disposal.recentRodents")}</h2>
+      <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentRodents")}>
+        {checks.map((r) => (
+          <li key={r.id} className={card}>
+            <span>
+              {t("Disposal.rodentLine", { date: day(r.day), action: t(`Disposal.rodentActions.${r.action}`) })}
+              {r.product && ` · ${r.product}`}
+              {r.houseId && ` · ${houses.find((h) => h.id === r.houseId)?.name ?? ""}`}
+            </span>
+            {r.proofFileId ? (
+              <a href={`/api/files/${r.proofFileId}`} className="underline underline-offset-4">{t("Disposal.proof")}</a>
+            ) : unsent.has(`rodentCheck:${r.id}`) || !online ? (
+              <span className={warn}>{t("Disposal.proofMissing")}</span>
+            ) : (
+              <label className={secondary}>
+                {uploading === r.id ? t("Disposal.proofSending") : t("Disposal.proofAdd")}
+                <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" disabled={uploading !== undefined} onChange={(e) => upload(r.id, e.target.files?.[0])} />
+              </label>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+const onOnline = (notify: () => void) => {
+  window.addEventListener("online", notify);
+  window.addEventListener("offline", notify);
+  return () => (window.removeEventListener("online", notify), window.removeEventListener("offline", notify));
+};

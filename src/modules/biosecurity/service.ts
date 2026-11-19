@@ -1,6 +1,7 @@
 import { audit } from "@/lib/audit";
-import type { Tx } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import { fail, ok, type Result } from "@/lib/kernel/result";
+import { can } from "@/lib/permissions";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import {
@@ -8,6 +9,7 @@ import {
   RecordCleanoutStep,
   RecordDisposal,
   RecordManure,
+  RecordRodentCheck,
   RecordVisit,
   SetMinDowntime,
   StartCleanout,
@@ -19,6 +21,7 @@ import {
   visitZone,
   type DisposalDto,
   type ManureRemovalDto,
+  type RodentCheckDto,
   type VisitDto,
 } from "@/modules/biosecurity/schema";
 import { farmBelongsTo, houseOf } from "@/modules/farm-registry";
@@ -144,6 +147,20 @@ export const biosecuritySync: SyncRegistry = {
         return ok(undefined);
       },
     }),
+    [M.recordRodentCheck]: defineMutation({
+      schema: RecordRodentCheck,
+      action: "biosecurity.record",
+      async apply(tx, ctx, fields, meta) {
+        const place = await placeOf(tx, ctx, fields);
+        if (!place.ok) return place;
+        if (await tx.rodentCheck.findUnique({ where: { id: fields.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
+        await tx.rodentCheck.create({ data: { ...fields, organizationId: ctx.organizationId, day: day(fields.day), recordedBy: ctx.userId } });
+        const dto: RodentCheckDto = { ...fields, proofFileId: null };
+        await recordChange(tx, ctx, "rodentCheck", dto.id, dto);
+        await audit(tx, ctx, { entity: "RodentCheck", entityId: dto.id, action: "create", after: dto, ...meta });
+        return ok(undefined);
+      },
+    }),
   },
   // No money in these logs: every member sees them.
   entities: {
@@ -152,5 +169,24 @@ export const biosecuritySync: SyncRegistry = {
     manureRemoval: (_ctx, data: ManureRemovalDto) => data,
     cleanout: (_ctx, data: CleanoutDto) => data,
     downtimeSetting: (_ctx, data: DowntimeSettingDto) => data,
+    rodentCheck: (_ctx, data: RodentCheckDto) => data,
   },
 };
+
+/**
+ * BS8: attaches the proof photo the upload route has just stored for this organisation, once. A proof is never
+ * replaced: a new check gets a new photo.
+ */
+export async function attachRodentProof(ctx: TenantContext, checkId: string, fileId: string): Promise<Result<void>> {
+  if (!can(ctx, "biosecurity.record")) return fail("FORBIDDEN");
+  return db.$transaction(async (tx) => {
+    const row = await tx.rodentCheck.findFirst({ where: { id: checkId, organizationId: ctx.organizationId } });
+    if (!row) return fail("NOT_FOUND");
+    if (row.proofFileId) return fail("PROOF_ALREADY_ATTACHED");
+    await tx.rodentCheck.update({ where: { id: checkId }, data: { proofFileId: fileId } });
+    const dto: RodentCheckDto = { id: row.id, farmId: row.farmId, houseId: row.houseId, day: dayOf(row.day), action: row.action as RodentCheckDto["action"], product: row.product, proofFileId: fileId };
+    await recordChange(tx, ctx, "rodentCheck", checkId, dto);
+    await audit(tx, ctx, { entity: "RodentCheck", entityId: checkId, action: "update", before: { proofFileId: null }, after: { proofFileId: fileId } });
+    return ok(undefined);
+  });
+}

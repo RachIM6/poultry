@@ -70,9 +70,16 @@ Done 2026-11-16 (branch `feat/t42-cleanout`), decisions taken without asking:
 ### T43: File storage and rodent control with proof (DC2, BS8, ADR-011)
 **Description:** Create the `documents` module with `StoredFile`; `POST /api/files` and `GET /api/files/[id]`; `RodentCheck` in `biosecurity` with `proofFileId`; the "Nuisibles" tab on `/disposal`; "Ajouter la photo" when online.
 **AC:**
-- [ ] Upload refuses a wrong type (magic bytes), > 5 MB, no session, wrong origin; download is tenant-scoped, `Content-Disposition: attachment`, `nosniff`.
-- [ ] A rodent check is recorded offline; its photo is attached online once (`PROOF_ALREADY_ATTACHED`); without one it shows "preuve à ajouter".
-- [ ] e2e: record a check, attach a photo, the proof link downloads it.
+- [x] Upload refuses a wrong type (magic bytes), > 5 MB, no session, wrong origin; download is tenant-scoped, `Content-Disposition: attachment`, `nosniff`. (`documents/domain/file.test.ts`, `app/api/files/files.int.test.ts`.)
+- [x] A rodent check is recorded offline; its photo is attached online once (`PROOF_ALREADY_ATTACHED`); without one it shows "preuve à ajouter".
+- [x] e2e: record a check, attach a photo, the proof link downloads it (`e2e/rodents.spec.ts`).
+
+Done 2026-11-16 (branch `feat/t43-files`), decisions taken without asking (ADR-011, proposed):
+- **The file is the request body**, not multipart, so the 5 MB cap applies while reading. Rate limit `fileUpload`: 30 per user per hour.
+- **The upload route attaches the proof itself** (`?purpose=proof&rodentCheck=<id>`): a check only points at a file its organisation just uploaded, and `biosecurity` doesn't import `documents` (the capability map is unchanged).
+- **The photo button shows once the check is on the server** (no unsent write for it) and the phone is online; until then "Preuve à ajouter".
+- Permission `documents.manage` (owner, manager) is for the vault; proofs follow `biosecurity.record`.
+- The rodent-control step of a clean-out (T42) and a rodent check are separate records; the inspection pack (T49) shows both.
 **Size:** M
 
 ### T44: Document vault (DC1, DC3)

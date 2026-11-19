@@ -5,6 +5,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { placementsChangedSince } from "@/modules/flock";
 import { purchasesChangedSince } from "@/modules/inventory";
+import { instrumentStepsChangedSince, paymentsChangedSince, salesChangedSince } from "@/modules/sales";
 import { postEntry } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
@@ -31,6 +32,33 @@ const SOURCES: Source[] = [
       (await placementsChangedSince(tx, ctx, after)).map((b) => ({
         version: b.version,
         event: { type: "chicks", id: b.id, day: b.placedOn, amount: b.chicksCentimes },
+      })),
+  },
+  {
+    name: "sales.sale",
+    module: "sales",
+    read: async (tx, ctx, after) =>
+      (await salesChangedSince(tx, ctx, after)).map((s) => ({
+        version: s.version,
+        event: { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method },
+      })),
+  },
+  {
+    name: "sales.payment",
+    module: "sales",
+    read: async (tx, ctx, after) =>
+      (await paymentsChangedSince(tx, ctx, after)).map((p) => ({
+        version: p.version,
+        event: { type: "receipt", id: p.id, day: p.day, amount: p.amountCentimes, method: p.method },
+      })),
+  },
+  {
+    name: "sales.instrument",
+    module: "sales",
+    read: async (tx, ctx, after) =>
+      (await instrumentStepsChangedSince(tx, ctx, after)).map((i) => ({
+        version: i.version,
+        event: { type: "instrument", id: i.id, day: i.day, amount: i.amountCentimes, kind: i.kind, from: i.from, to: i.to },
       })),
   },
 ];
@@ -74,7 +102,7 @@ export async function postPending(pusher: TenantContext): Promise<number> {
         const standing = await standingEntryFor(tx, ctx, source.module, event.id);
         if (standing && posting && samePosting(standing, { day, lines: posting.lines })) continue;
         if (standing) {
-          await post({ id: uuidv7(), legalEntityId: entity.id, journal: "AC", day, label: "Annulation", reversesId: standing.id, lines: reversalOf(standing.lines) });
+          await post({ id: uuidv7(), legalEntityId: entity.id, journal: standing.journal, day, label: "Annulation", reversesId: standing.id, lines: reversalOf(standing.lines) });
         }
         if (posting) {
           const key = { module: source.module, id: event.id, version: Number(version) };

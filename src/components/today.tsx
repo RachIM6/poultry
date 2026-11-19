@@ -47,7 +47,7 @@ export function TodayShell() {
   return <Today key={scopeKey(scope)} userId={scope.userId} organizationId={scope.organizationId} sync={<SyncBadge {...scope} />} alert={null} />;
 }
 
-export function Today({ title, userId, organizationId, sync, alert }: { title?: string; userId: string; organizationId: string; sync: ReactNode; alert: ReactNode }) {
+export function Today({ title, userId, organizationId, sync, alert, money = null }: { title?: string; userId: string; organizationId: string; sync: ReactNode; alert: ReactNode; money?: ReactNode }) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb({ userId, organizationId });
@@ -177,6 +177,7 @@ export function Today({ title, userId, organizationId, sync, alert }: { title?: 
             )}
           </section>
         ))}
+        {money}
       </main>
     </>
   );

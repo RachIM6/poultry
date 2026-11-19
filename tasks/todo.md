@@ -292,7 +292,7 @@ Built in `src/modules/flock/domain/kpi.ts` and `src/components/batch-dashboard.t
 **Size:** M
 
 ### ✅ Checkpoint E
-- [ ] 10 simulated days of a batch, offline, with KPIs equal to the hand calculation (fixture).
+- [x] 10 simulated days of a batch, offline, with KPIs equal to the hand calculation (fixture). (`e2e/checkpoint-e.spec.ts`, 2026-11-18: 10 days and a weighing entered offline; mortality, feed per bird, weight, FCR, EPEF and daily gain equal the hand calculation in the file, before and after an offline reload; online, the 10 days and the weighing reach the server once.)
 - [ ] Human review.
 
 ---

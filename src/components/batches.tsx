@@ -5,12 +5,12 @@ import { useTranslations } from "next-intl";
 import { useEffect, useId, useState, useSyncExternalStore, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
-import { formatCount } from "@/lib/format";
+import { formatCount, formatDecimal } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, canJoinHouse, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, birdsStarted, canJoinHouse, doaClaim, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
@@ -21,7 +21,7 @@ import { DayForm, type Write } from "@/components/daily-entry";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { field, primary, secondary } from "@/components/ui";
+import { field, primary, secondary, warn } from "@/components/ui";
 
 // SPEC §9.3 budget (ADR-009, T25): the day's entry loads with the page; the rest of the batch screen comes in its own
 // chunks right after. The service worker precaches every chunk, so they load offline too.
@@ -86,7 +86,7 @@ function Batches(scope: Scope) {
   const entriesOf = (batchId: string) => entries.filter((e) => e.batchId === batchId);
   const soldOf = (batchId: string) => of<SoldBirdsDto>("soldBirds").filter((s) => s.batchId === batchId);
   const soldBirds = (batchId: string) => soldOf(batchId).reduce((n, s) => n + s.birds, 0); // B5
-  const onHand = (b: BatchDto) => b.chicksPlaced - b.deadOnArrival - soldBirds(b.id) - entriesOf(b.id).reduce((n, e) => n + e.dead + e.culled, 0);
+  const onHand = (b: BatchDto) => birdsStarted(b) - soldBirds(b.id) - entriesOf(b.id).reduce((n, e) => n + e.dead + e.culled, 0);
 
   const write: Write = async (mutation, recs) => {
     try {
@@ -145,6 +145,16 @@ function Batches(scope: Scope) {
               {t("Batches.otherSex", { sex: t(`Batches.sexes.${other.sex ?? "mixed"}`), birds: formatCount(onHand(other)) })}
             </a>
           ) : null;
+        })()}
+        {(() => {
+          const house = houses.find((h) => h.id === open.houseId);
+          const density = house ? formatDecimal(birdsStarted(open) / house.areaM2, 1) : null;
+          return (
+            <>
+              {density && <p>{t("Batches.density", { density })}</p>}
+              {doaClaim(open, farms.get(open.farmId)?.doaClaimThresholdPermille) && <p role="alert" className={warn}>{t("Batches.claim")}</p>}
+            </>
+          );
         })()}
         <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
@@ -313,6 +323,7 @@ function PlacementForm({
     const house = houses.find((h) => h.id === get("houseId"));
     const price = parseCentimes(get("price") || "0");
     const int = (k: string) => (/^\d+$/.test(get(k)) ? Number(get(k)) : NaN);
+    const tenths = (v: string) => (/^\d+([.,]\d)?$/.test(v) ? Math.round(Number(v.replace(",", ".")) * 10) : NaN);
     if (!house || price === null || !get("hatchery") || !get("deliveryNote")) return setError("Batches.invalid");
     const groups: { sex: BirdSex; birds: string; doa: string }[] = sexed
       ? [{ sex: "female", birds: "females", doa: "femaleDoa" }, { sex: "male", birds: "males", doa: "maleDoa" }]
@@ -338,6 +349,11 @@ function PlacementForm({
       chickUnitPriceCentimes: price,
       dayOldWeightGrams: get("dayOldWeight") ? int("dayOldWeight") : null,
       ageAtPlacementDays: get("ageWeeks") ? int("ageWeeks") * 7 : 0, // SPEC-m3 B7: asked in weeks
+      // SPEC-m3 B10, optional; a sexed placement takes no supplement (it is per delivery, not per sex)
+      freeChicks: !sexed && get("freeChicks") ? int("freeChicks") : 0,
+      parentFlock: get("parentFlock") || null,
+      weakChicks: !sexed && get("weakChicks") ? int("weakChicks") : null,
+      litterTempTenths: get("litterTemp") ? tenths(get("litterTemp")) : null,
     }));
     for (const placement of placements) {
       const batch = Batch.place(placement, today()); // the same rules as the server
@@ -392,10 +408,17 @@ function PlacementForm({
           <Field name="deadOnArrival" label={t("Batches.deadOnArrival")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />
         </>
       )}
+      {!sexed && <Field name="freeChicks" label={t("Batches.freeChicks")} inputMode="numeric" pattern="\d+" dir="ltr" />}
       <Field name="hatchery" label={t("Batches.hatchery")} required maxLength={120} />
       <Field name="deliveryNote" label={t("Batches.deliveryNote")} required maxLength={60} dir="ltr" />
       <Field name="price" label={t("Batches.chickPrice")} inputMode="decimal" required dir="ltr" />
       <Field name="dayOldWeight" label={t("Batches.dayOldWeight")} inputMode="numeric" pattern="\d+" dir="ltr" />
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-1 font-semibold">{t("Batches.arrival")}</legend>
+        <Field name="parentFlock" label={t("Batches.parentFlock")} maxLength={60} dir="ltr" />
+        {!sexed && <Field name="weakChicks" label={t("Batches.weakChicks")} inputMode="numeric" pattern="\d+" dir="ltr" />}
+        <Field name="litterTemp" label={t("Batches.litterTemp")} inputMode="decimal" dir="ltr" />
+      </fieldset>
       {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Batches.save")}</button>

@@ -6,7 +6,7 @@ import type { BirdSex, ProductionType } from "@/modules/reference-data/shared";
 // rules the phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
 
 // SPEC B1: placement, age, closing.
-export { Batch, ageOfBatch, ageOn, canJoinHouse } from "@/modules/flock/domain/batch";
+export { Batch, ageOfBatch, ageOn, birdsStarted, canJoinHouse, doaClaim } from "@/modules/flock/domain/batch";
 export type { BatchStatus, PlacementError } from "@/modules/flock/domain/batch";
 export { batchCost } from "@/modules/flock/domain/closing";
 
@@ -25,6 +25,10 @@ export type BatchDto = {
   dayOldWeightGrams: number | null;
   ageAtPlacementDays?: number; // SPEC-m3 B7; absent from a record pulled before M3 (= 0)
   sex?: BirdSex; // SPEC-m3 B9; absent = mixed
+  freeChicks?: number; // SPEC-m3 B10; absent = 0
+  parentFlock?: string | null;
+  weakChicks?: number | null;
+  litterTempTenths?: number | null;
   status: "open" | "closed";
   chickUnitPriceCentimes?: string; // money (SPEC I5): absent for workers
   // B6, once closed: the locked figures (the cost ones are money).

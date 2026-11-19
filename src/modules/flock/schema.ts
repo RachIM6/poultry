@@ -22,6 +22,11 @@ export const PlaceBatch = z.object({
   dayOldWeightGrams: z.int32().positive().nullable(),
   ageAtPlacementDays: z.int32().min(0).default(0), // SPEC-m3 B7; the domain caps it
   sex: z.enum(BIRD_SEXES).default("mixed"), // SPEC-m3 B9
+  // SPEC-m3 B10, all optional.
+  freeChicks: z.int32().min(0).default(0),
+  parentFlock: z.string().trim().max(60).transform((s) => s || null).nullable().default(null),
+  weakChicks: z.int32().min(0).nullable().default(null),
+  litterTempTenths: z.int32().min(0).max(600).nullable().default(null),
 });
 
 /** B6: by hand, with a reason (the last sale closes it by itself). */

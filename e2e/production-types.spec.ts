@@ -100,3 +100,37 @@ test("turkeys placed by sex become two batches side by side", async ({ page, con
     );
   await expect.poll(batches).toEqual([{ sex: "female", birds: 1500 }, { sex: "male", birds: 1496 }]);
 });
+
+// T55 acceptance (SPEC-m3 B10): the free supplement counts in the birds placed, the density shows, and a dead-on-arrival
+// count above the farm's own threshold shows a claim; P-ChickArrival's example, offline.
+test("chick arrival: supplement, density and the hatchery claim above the farm's threshold", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await ownerWithFarm(page, "Élevage Arrivée");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID() };
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme El Kheir", region: "R", province: "P", commune: "C", gps: null, onssa: null, doaClaimThresholdPermille: 1 } },
+    { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1000, capacity: 12000, type: "closed" } },
+  ]);
+  await page.goto("/fr/batches");
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await referenceCached(page);
+  await context.setOffline(true);
+  await context.route("**", (route) => route.abort("internetdisconnected"));
+
+  await page.getByRole("button", { name: "Mettre en place une bande" }).click();
+  await page.getByLabel("Poussins placés").fill("10000");
+  await page.getByLabel("Supplément gratuit (facultatif)").fill("200");
+  await page.getByLabel("Morts à l’arrivée").fill("14");
+  await page.getByLabel("Couvoir").fill("Couvoir Chaouia");
+  await page.getByLabel("N° de bon de livraison").fill("BL 26-4471");
+  await page.getByLabel("Prix d’un poussin (DH)").fill("5,20");
+  await page.getByLabel("Lot reproducteur").fill("PS-12");
+  await page.getByLabel("Poussins faibles").fill("22");
+  await page.getByLabel("Température litière (°C)").fill("31");
+  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await page.getByRole("link", { name: "Saisir le jour" }).click();
+  await expect(page.getByText(/Oiseaux présents : 10.186/).first()).toBeVisible();
+  await expect(page.getByText("Densité : 10,2 sujets/m²")).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "réclamation au couvoir" })).toBeVisible(); // 14 of 10 200 > 1 ‰
+});

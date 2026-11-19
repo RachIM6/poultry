@@ -121,6 +121,17 @@ describe("batch placement (SPEC B1)", () => {
     await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
   });
 
+  it("keeps the chick arrival quality, and the farm's claim threshold (SPEC-m3 B10)", async () => {
+    const arrival = placement(houses.b1, { chicksPlaced: 10_000, freeChicks: 200, deadOnArrival: 14, parentFlock: "PS-12", weakChicks: 22, litterTempTenths: 310 });
+    expect(await statuses(b, [m(M.placeBatch, arrival)])).toEqual(["applied"]);
+    const pulled = (await pull(b, 0, registry)).changes.map((c) => c.data as BatchDto).find((d) => d.id === arrival.id);
+    expect(pulled).toMatchObject({ freeChicks: 200, parentFlock: "PS-12", weakChicks: 22, litterTempTenths: 310 });
+    await push(b, [m(FARM_MUTATIONS.updateFarm, { id: farmB, changes: { doaClaimThresholdPermille: 5 } })], farmRegistrySync);
+    const farm = (await pull(b, 0, farmRegistrySync)).changes.findLast((c) => c.id === farmB)?.data;
+    expect(farm).toMatchObject({ doaClaimThresholdPermille: 5, name: "F" });
+    await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
+  });
+
   it("refuses a number too big for its column instead of failing the push (T25 S4)", async () => {
     // 2^31 used to pass z.int() and throw on the int4 column: the phone retried it forever, blocking its outbox.
     const results = await statuses(b, [m(M.placeBatch, placement(houses.b1, { chicksPlaced: 2 ** 31 })), m(M.placeBatch, placement(houses.b1))]);

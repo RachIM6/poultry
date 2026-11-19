@@ -252,6 +252,7 @@ function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSub
     e.preventDefault();
     const { text, num } = read(e.currentTarget);
     const [lat, lng, number, expiresOn] = [num("lat"), num("lng"), text("onssaNumber"), text("onssaExpiresOn")];
+    const claim = num("doaClaim"); // SPEC-m3 B10: entered in %, stored per mille
     const parsed = FarmFields.safeParse({
       name: text("name"),
       region: text("region"),
@@ -259,6 +260,7 @@ function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSub
       commune: text("commune"),
       gps: lat === undefined && lng === undefined ? null : { lat, lng },
       onssa: !number && !expiresOn ? null : { number, expiresOn },
+      doaClaimThresholdPermille: claim === undefined ? null : Math.round(claim * 10),
     });
     setInvalid(!parsed.success);
     if (parsed.success) onSubmit(parsed.data);
@@ -278,6 +280,15 @@ function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSub
         <legend className="mb-1">{t("onssa")}</legend>
         <Field name="onssaNumber" label={t("onssaNumber")} defaultValue={initial?.onssa?.number} maxLength={40} dir="ltr" />
         <Field name="onssaExpiresOn" label={t("onssaExpiresOn")} defaultValue={initial?.onssa?.expiresOn} type="date" />
+      </fieldset>
+      <fieldset className="flex flex-col gap-2">
+        <Field
+          name="doaClaim"
+          label={t("doaClaim")}
+          defaultValue={initial?.doaClaimThresholdPermille == null ? undefined : String(initial.doaClaimThresholdPermille / 10)}
+          inputMode="decimal"
+          dir="ltr"
+        />
       </fieldset>
       {invalid && <p role="alert">{t("invalid")}</p>}
       <div className="flex gap-3">

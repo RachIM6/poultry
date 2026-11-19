@@ -4,22 +4,28 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { card, done, field, primary, warn } from "@/components/ui";
+import { card, done, field, primary, secondary, warn } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDateTime, formatDay, formatKg } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import {
   BIOSECURITY_MUTATIONS as B,
+  CLEANOUT_STEPS,
   DISPOSAL_METHODS,
   MANURE_DESTINATIONS,
   VISIT_PURPOSES,
   VISITOR_RECENT_FARM_HOURS,
   ZONES,
   checkDisposal,
+  checkStep,
   disposalGaps,
+  downtimeDay,
   visitZone,
+  type CleanoutDto,
+  type CleanoutStepKey,
   type DisposalDto,
+  type DowntimeSettingDto,
   type ManureRemovalDto,
   type VisitDto,
   type Zone,
@@ -447,5 +453,148 @@ function Manure({ farmId, records, houses, batches, day, save }: LogProps & { ho
         ))}
       </ul>
     </>
+  );
+}
+
+// BS4–BS5: a house between two batches. The clean-out follows the house's last closed batch.
+export const CleanoutScreen = () => <Shell entities={["farm", "house", "batch", "cleanout", "downtimeSetting"]} screen={Cleanouts} />;
+
+function Cleanouts(props: Parameters<Screen>[0]) {
+  const { records, save } = props;
+  const t = useTranslations("Cleanout");
+  const locale = useLocale();
+  const picker = useFarm(records);
+  const { farm } = picker;
+  if (!farm) return <p>{t("noFarm")}</p>;
+  const today = farmDayOf(new Date());
+  const day = (d: string) => formatDay(d as FarmDay, locale);
+  const houses = of<HouseDto>(records, "house").filter((h) => h.farmId === farm.id).sort((x, y) => x.name.localeCompare(y.name));
+  const batches = of<BatchDto>(records, "batch");
+  const cleanouts = of<CleanoutDto>(records, "cleanout");
+  const minDays = of<DowntimeSettingDto>(records, "downtimeSetting").find((s) => s.farmId === farm.id)?.minDays ?? null;
+
+  return (
+    <>
+      <FarmPicker {...picker} />
+      {can(props, "farms.manage") && <MinDowntime key={farm.id} farmId={farm.id} minDays={minDays} save={save} />}
+      {houses.map((house) => {
+        const last = batches.filter((b) => b.houseId === house.id).sort((x, y) => y.placedOn.localeCompare(x.placedOn))[0];
+        if (!last) return null;
+        const cleanout = cleanouts.find((c) => c.afterBatchId === last.id);
+        const disinfectedOn = cleanout?.steps.find((s) => s.step === "disinfection")?.day ?? null;
+        return (
+          <section key={house.id} aria-label={house.name} className={card}>
+            <h2 className="text-lg font-semibold">{house.name}</h2>
+            {last.status === "open" ? (
+              <p>{t("busy", { date: day(last.placedOn) })}</p>
+            ) : !cleanout ? (
+              <>
+                <p>{t("after", { date: day(last.placedOn) })}</p>
+                <button
+                  type="button"
+                  className={primary}
+                  onClick={() => {
+                    const payload = { id: uuidv7(), houseId: house.id, afterBatchId: last.id, startedOn: today };
+                    const local: CleanoutDto = { ...payload, farmId: farm.id, steps: [] };
+                    void save({ type: B.startCleanout, payload }, "cleanout", local);
+                  }}
+                >
+                  {t("start")}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="rounded-2xl bg-ink p-3 font-semibold text-shell" role="status">
+                  {disinfectedOn
+                    ? minDays === null
+                      ? t("downtime", { day: downtimeDay(disinfectedOn as FarmDay, today) })
+                      : t("downtimeOf", { day: downtimeDay(disinfectedOn as FarmDay, today), min: minDays, end: day(addFarmDays(disinfectedOn as FarmDay, minDays)) })
+                    : t("notDisinfected")}
+                </p>
+                <Steps cleanout={cleanout} day={day} save={save} />
+              </>
+            )}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string) => string; save: Save }) {
+  const t = useTranslations();
+  const [open, setOpen] = useState<CleanoutStepKey>();
+  const [error, setError] = useState<string>();
+  const today = farmDayOf(new Date());
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!open) return;
+    const data = new FormData(e.currentTarget);
+    const get = (k: string) => String(data.get(k) ?? "").trim() || null;
+    const step = { id: uuidv7(), step: open, day: get("day") ?? today, product: get("product"), dose: get("dose"), productLot: get("productLot"), note: get("note") };
+    const checked = checkStep(cleanout.steps, step);
+    if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (step.day > today) return setError("errors.DAY_IN_FUTURE");
+    setError(undefined);
+    const next: CleanoutDto = { ...cleanout, steps: [...cleanout.steps, step] };
+    if (await save({ type: B.recordCleanoutStep, payload: { ...step, cleanoutId: cleanout.id } }, "cleanout", next)) setOpen(undefined);
+  };
+
+  return (
+    <ol className="flex flex-col gap-2">
+      {CLEANOUT_STEPS.map((key, i) => {
+        const done = cleanout.steps.find((s) => s.step === key);
+        return (
+          <li key={key} className="flex flex-col gap-2 border-t border-line pt-2">
+            <div className="flex items-center justify-between gap-2">
+              <span>
+                <span aria-hidden="true">{done ? "✓" : i + 1} </span>
+                <span className={done ? "font-semibold" : ""}>{t(`Cleanout.steps.${key}`)}</span>
+                {done && <span className="block text-sm text-muted">{[day(done.day), done.product, done.dose, done.productLot && t("Cleanout.lot", { lot: done.productLot }), done.note].filter(Boolean).join(" · ")}</span>}
+              </span>
+              {!done && open !== key && (
+                <button type="button" onClick={() => (setOpen(key), setError(undefined))} className={secondary} aria-label={t("Cleanout.markNamed", { step: t(`Cleanout.steps.${key}`) })}>
+                  {t("Cleanout.mark")}
+                </button>
+              )}
+            </div>
+            {open === key && (
+              <form onSubmit={submit} className="flex flex-col gap-3">
+                <Field label={t("Cleanout.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today} max={today} required className={field} />}</Field>
+                {key === "disinfection" && (
+                  <>
+                    <Field label={t("Cleanout.product")}>{(id) => <input id={id} name="product" required maxLength={120} className={field} />}</Field>
+                    <Field label={t("Cleanout.dose")}>{(id) => <input id={id} name="dose" maxLength={60} className={field} />}</Field>
+                    <Field label={t("Cleanout.productLot")}>{(id) => <input id={id} name="productLot" maxLength={60} dir="ltr" className={field} />}</Field>
+                  </>
+                )}
+                <Field label={t("Cleanout.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
+                {error && <p role="alert">{t(error)}</p>}
+                <button type="submit" className={primary}>{t("Cleanout.save")}</button>
+              </form>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function MinDowntime({ farmId, minDays, save }: { farmId: string; minDays: number | null; save: Save }) {
+  const t = useTranslations("Cleanout");
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const text = String(new FormData(e.currentTarget).get("minDays") ?? "").trim();
+    const value = text === "" ? null : Number(text);
+    if (value !== null && !(Number.isInteger(value) && value >= 1 && value <= 365)) return;
+    const s: DowntimeSettingDto = { id: farmId, farmId, minDays: value };
+    await save({ type: B.setMinDowntime, payload: { farmId, minDays: value } }, "downtimeSetting", s);
+  };
+  return (
+    <form onSubmit={submit} className="flex items-end gap-2">
+      <Field label={t("minDays")}>{(id) => <input id={id} name="minDays" inputMode="numeric" pattern="\d*" defaultValue={minDays ?? ""} dir="ltr" className={field} />}</Field>
+      <button type="submit" className={secondary}>{t("saveMin")}</button>
+    </form>
   );
 }

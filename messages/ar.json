@@ -305,7 +305,8 @@
       "closed": "مغلقة"
     },
     "protocol": "برنامج التلقيح",
-    "noProtocol": "بدون"
+    "noProtocol": "بدون",
+    "downtimeWarning": "تنبيه: فراغ صحي من {elapsed} يوماً في هذا المبنى، والحد الأدنى للضيعة {min} يوماً."
   },
   "Day": {
     "title": "تسجيل اليوم",
@@ -377,7 +378,11 @@
     "BUYER_CREDIT_BLOCKED": "عاد شيك أو كمبيالة لهذا المشتري دون أداء: يدفع نقدًا إلى أن يرفع المالك الحظر.",
     "INVALID_TRANSITION": "لا يمكن نقل هذا الشيك أو هذه الكمبيالة إلى هذه الحالة.",
     "VISIT_DIRTY_ZONE_ONLY": "مرّ هذا الزائر بضيعة دواجن أخرى: المنطقة غير النظيفة فقط.",
-    "DISPOSAL_METHOD_NOTE_REQUIRED": "صف طريقة التخلص."
+    "DISPOSAL_METHOD_NOTE_REQUIRED": "صف طريقة التخلص.",
+    "STEP_ALREADY_DONE": "هذه المرحلة مسجّلة من قبل.",
+    "DISINFECTANT_REQUIRED": "اذكر مادة التعقيم.",
+    "BATCH_NOT_CLOSED": "دفعة هذا المبنى لم تُغلق بعد.",
+    "CLEANOUT_ALREADY_STARTED": "التنظيف بعد هذه الدفعة بدأ من قبل."
   },
   "Weighing": {
     "title": "الوزن",
@@ -843,5 +848,36 @@
     "saveManure": "تسجيل خروج السماد",
     "recentManure": "آخر عمليات إخراج السماد",
     "manureLine": "{date}: {kg} كلغ، {destination}"
+  },
+  "Cleanout": {
+    "title": "التنظيف والفراغ الصحي",
+    "open": "التنظيف والفراغ الصحي",
+    "noFarm": "أنشئ ضيعة أولاً.",
+    "busy": "دفعة جارية، وُضعت بتاريخ {date}.",
+    "after": "دفعة وُضعت بتاريخ {date}، مغلقة.",
+    "start": "بدء التنظيف",
+    "notDisinfected": "الفراغ الصحي: يبدأ يوم التعقيم.",
+    "downtime": "الفراغ الصحي: اليوم {day}",
+    "downtimeOf": "الفراغ الصحي: اليوم {day} من {min} · ينتهي في {end}",
+    "steps": {
+      "manureOut": "إخراج السماد",
+      "equipmentWashed": "فك المعدات وغسلها",
+      "pressureWash": "الغسل بالضغط العالي",
+      "disinfection": "التعقيم",
+      "rodentControl": "مكافحة القوارض",
+      "waterFlush": "مراقبة الماء وتنظيف القنوات",
+      "litterPreheat": "الفرشة والتسخين المسبق"
+    },
+    "mark": "تسجيل",
+    "markNamed": "تسجيل: {step}",
+    "day": "التاريخ",
+    "product": "المادة",
+    "dose": "الجرعة (اختياري)",
+    "productLot": "رقم حصة المادة (اختياري)",
+    "lot": "الحصة {lot}",
+    "note": "ملاحظة (اختياري)",
+    "save": "تسجيل المرحلة",
+    "minDays": "الحد الأدنى للفراغ الصحي في الضيعة (أيام، اختياري)",
+    "saveMin": "حفظ"
   }
 }

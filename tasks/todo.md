@@ -33,9 +33,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T2: Database and integration-test harness
 **Description:** Docker Compose Postgres, Prisma init, first models (`Organization`, `User`, `Membership`, `AuditEvent`), seed script stub, and a test helper that runs integration tests against a separate database that is reset per file.
 **AC:**
-- [ ] `docker compose up -d db && pnpm db:migrate && pnpm db:seed` works on a clean machine.
-- [ ] One `*.int.test.ts` creates and reads an organisation against the test database.
-- [ ] CI runs the integration tests with a Postgres service.
+- [x] `docker compose up -d db && pnpm db:migrate && pnpm db:seed` works on a clean machine. (Prisma 7.10.1 + pg adapter, Postgres 18 for `uuidv7()`.)
+- [x] One `*.int.test.ts` creates and reads an organisation against the test database. (`src/lib/db.int.test.ts`; also asserts the per-file reset.)
+- [x] CI runs the integration tests with a Postgres service. (PR #3: `poultry_test` created from scratch, `db.int.test.ts` passed.)
 
 **Verify:** `pnpm test`. CI is green.
 **Dependencies:** T1
@@ -45,9 +45,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T3: i18n Arabic/French with RTL shell
 **Description:** next-intl with `/[locale]` routing, `ar` as default, `<html lang dir>`, a language switcher, and formatting helpers (money from centimes, grams → kg, farm day in `Africa/Casablanca`, Western digits). Add a CI check for missing keys.
 **AC:**
-- [ ] `/ar` renders RTL and `/fr` renders LTR. The switcher keeps the current page.
-- [ ] `formatMoney(123450n)` → `1 234,50 DH` in both locales, with Western digits. `farmDay()` returns the right date around the Ramadan time change. Both are covered by unit tests.
-- [ ] CI fails when a key is missing in one locale.
+- [x] `/ar` renders RTL and `/fr` renders LTR. The switcher keeps the current page. (`e2e/smoke.spec.ts`, plus a manual check at 375 px.)
+- [x] `formatMoney(123450n)` → `1 234,50 DH` in both locales, with Western digits. `farmDay()` returns the right date around the Ramadan time change. Both are covered by unit tests. (`src/lib/format.test.ts`; `farmDayOf` lives in `src/lib/kernel/farm-day.ts`.)
+- [x] CI fails when a key is missing in one locale. (A unit test, `src/i18n/messages.test.ts`, instead of a separate script, so the existing `pnpm test` step enforces it.)
 
 **Verify:** `pnpm test -- src/lib/format`. Manual check of both locales on a mobile viewport.
 **Dependencies:** T1
@@ -57,8 +57,8 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T4: PWA shell
 **Description:** Web manifest (AR/FR name, icons), Serwist service worker precaching the app shell, offline fallback page, in-app "install the app" guide (Android and iOS steps), and a `navigator.storage.persist()` request.
 **AC:**
-- [ ] Lighthouse reports the app as installable. After the first visit, the shell loads with the network off.
-- [ ] The install guide shows the right steps for Android Chrome and for iOS Safari.
+- [x] Lighthouse reports the app as installable. After the first visit, the shell loads with the network off. (`e2e/pwa.spec.ts`: offline reload is served by the service worker with every request aborted; Chrome parses the manifest cleanly and it meets the install criteria. Lighthouse 12 no longer has a PWA/installable audit, so real installation is checked on a phone at Checkpoint A.)
+- [x] The install guide shows the right steps for Android Chrome and for iOS Safari. (e2e with Android and iPhone user agents; one-tap install button when Chrome offers it.)
 
 **Verify:** `pnpm build && pnpm start`. Lighthouse PWA audit. Playwright test: offline reload shows the shell.
 **Dependencies:** T1, T3
@@ -76,9 +76,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T5: Phone OTP login and sessions (I1, I2)
 **Description:** Evaluate the auth library (Better Auth phone-OTP vs. a minimal in-house version on the same `Session` table) and record the outcome in ADR-005. Then implement login with a Moroccan number, a hashed 6-digit code, the limits from SPEC I1, 30-day database sessions in secure cookies, logout, and a dev OTP sink that prints to the console.
 **AC:**
-- [ ] Login works end to end in dev. A wrong code 5 times locks the code. The 4th request within 15 min is refused.
-- [ ] The session cookie is `httpOnly; Secure; SameSite=Lax`. Logout invalidates the session on the server.
-- [ ] ADR-005 is updated to Accepted, with the library decision.
+- [x] Login works end to end in dev. A wrong code 5 times locks the code. The 4th request within 15 min is refused. (`src/modules/identity/login.int.test.ts`, `e2e/login.spec.ts`; both limits mutation-checked.)
+- [x] The session cookie is `httpOnly; Secure; SameSite=Lax`. Logout invalidates the session on the server. (Cookie is `__Secure-sid`, see ADR-005.)
+- [x] ADR-005 is updated to Accepted, with the library decision. (Better Auth 1.7.14; differences from `poultry-auth` listed there.)
 
 **Verify:** integration tests for every OTP rule. Playwright e2e login on a mobile viewport.
 **Dependencies:** T2, T3
@@ -88,9 +88,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T6: Onboarding, legal entity and tenant context (I3, F1)
 **Description:** First login → create the organisation and its legal entity (form → accounting profile), and save the language on the user. Build `getTenantContext()` and `can(ctx, action, resource)`, plus a reusable isolation test pattern.
 **AC:**
-- [ ] A new user completes onboarding in AR or FR and lands on an empty dashboard.
-- [ ] Every repository function requires a `ctx`. A test shows that user A gets 404 on organisation B's legal entity.
-- [ ] The accounting profile is derived correctly for all 6 legal forms (unit test).
+- [x] A new user completes onboarding in AR or FR and lands on an empty dashboard. (`e2e/onboarding.spec.ts`, both locales; manual check at 375 px.)
+- [x] Every repository function requires a `ctx`. A test shows that user A gets 404 on organisation B's legal entity. (`getLegalEntity(ctx, id)` → null; `src/modules/farm-registry/service.int.test.ts` with the reusable `twoTenants()` from `src/test/tenant.ts`. `getTenantContext()` lives in `identity`, since `src/lib` may not import modules; `src/lib/tenant.ts` holds the type.)
+- [x] The accounting profile is derived correctly for all 6 legal forms (unit test). (`src/modules/farm-registry/schema.test.ts`; mapping from NEEDS-ANALYSIS §3, ⚠️ accountant to validate before M2.)
 
 **Verify:** `pnpm test -- src/modules/farm-registry src/lib/tenant`. e2e onboarding.
 **Dependencies:** T5
@@ -100,9 +100,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 ### T7: Members, roles and field visibility (I4, I5)
 **Description:** The owner invites members by phone with a role (owner / manager / worker), lists them, changes their role, and removes them (which revokes their sessions). Add a role → action table and server-side stripping of money fields for workers.
 **AC:**
-- [ ] An invited number logs in and joins the organisation with the right role.
-- [ ] A worker's API responses contain **no** price, cost, amount or credit fields. This is checked by tests on the serializers.
-- [ ] Removing a member logs out all their devices at their next online request.
+- [x] An invited number logs in and joins the organisation with the right role. (`src/modules/identity/members.int.test.ts`; expired or cancelled invitations onboard as a new owner. No invitation SMS: the owner tells the person.)
+- [x] A worker's API responses contain **no** price, cost, amount or credit fields. This is checked by tests on the serializers. (`withoutMoney(ctx, dto, fields)` in `src/lib/permissions.ts`, tested in `permissions.test.ts`. No API returns money yet: every money serializer from T13 on must go through it.)
+- [x] Removing a member logs out all their devices at their next online request. (Sessions deleted in the same transaction; a role change does the same instead of a `roleVersion` counter, since the role is re-read on every request. `e2e/members.spec.ts` runs the two-browser check.)
 
 **Verify:** integration tests per role. Manual check with two browsers.
 **Dependencies:** T6
@@ -126,9 +126,9 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 
 A test-only entity can be used until T10.
 **AC:**
-- [ ] Pushing the same mutation twice applies it once and returns the same result.
-- [ ] Pull returns exactly the rows changed after the cursor, including deletions, and only for the caller's organisation.
-- [ ] An invalid or forbidden mutation returns `rejected` with a `messageKey`. Valid mutations in the same batch still apply.
+- [x] Pushing the same mutation twice applies it once and returns the same result. (Also when both arrive at once; mutation-checked. `src/lib/sync/server.int.test.ts`, with a test-only `note` entity.)
+- [x] Pull returns exactly the rows changed after the cursor, including deletions, and only for the caller's organisation. (Versions live on a per-organisation change log, not on each table: see ADR-003 "Implementation notes". Money is stripped for workers on pull.)
+- [x] An invalid or forbidden mutation returns `rejected` with a `messageKey`. Valid mutations in the same batch still apply. (Route-level rules in `src/app/api/sync/sync.int.test.ts`: CSRF, 401, body validation, 500 mutations and 120 pushes / min per user.)
 
 **Verify:** `pnpm test -- src/app/api/sync src/lib/sync` (integration).
 **Dependencies:** T6
@@ -138,9 +138,11 @@ A test-only entity can be used until T10.
 ### T9: Sync client: Dexie, outbox, status (X1)
 **Description:** Dexie database, generic local write → outbox, sync loop (start, `online` event, after a write, every 60 s, Background Sync on Android), pull merge, a sync status badge (pending count, last sync) and a "needs attention" list for rejected mutations.
 **AC:**
-- [ ] Offline writes survive a reload and appear in the pending count.
-- [ ] Back online, the outbox empties and the pending count goes back to 0.
-- [ ] A rejected mutation appears in "needs attention" with a translated message.
+- [x] Offline writes survive a reload and appear in the pending count. (`e2e/sync.spec.ts`: the static `/fr/sync` shell reloads offline from the precache; unit tests in `src/offline/sync.test.ts`.)
+- [x] Back online, the outbox empties and the pending count goes back to 0. (The `online` event triggers the sync; also on start, after a write, on return to the foreground and every 60 s. Background Sync on Android is wired but not testable in Playwright: check on a real phone at Checkpoint C.)
+- [x] A rejected mutation appears in "needs attention" with a translated message. (No screen writes until T10, so the e2e queues a raw mutation of an unknown type.)
+
+Also done in T9: one local database per user and organisation with a scope header the server checks (ADR-003 notes); the service worker no longer caches signed-in pages, RSC payloads or `/api` responses (Serwist's `defaultCache` did, since T4; e2e checks Cache Storage); updates wait for the user (update banner, poultry-pwa §0.6); logout warns about unsent changes.
 
 **Verify:** unit tests for the outbox and merge logic (fake IndexedDB). Playwright offline → reload → online scenario.
 **Dependencies:** T4, T8
@@ -150,8 +152,10 @@ A test-only entity can be used until T10.
 ### T10: Farms and houses offline (F2, F3, F4)
 **Description:** The first real vertical slice through sync: create and edit farms (region, province, commune, GPS, ONSSA authorization + expiry) and houses (area, capacity, type) offline.
 **AC:**
-- [ ] A farm and 2 houses created offline are visible after a reload, then sync. A second device sees them after pull.
-- [ ] Concurrent edits of the same farm field converge to the last value received. The overwritten value is in the audit log.
+- [x] A farm and 2 houses created offline are visible after a reload, then sync. A second device sees them after pull. (`e2e/farms.spec.ts`: offline on `/fr/farms`, reload from the precache, back online, then a second browser logs in to the same account.)
+- [x] Concurrent edits of the same farm field converge to the last value received. The overwritten value is in the audit log. (`src/modules/farm-registry/farms.int.test.ts`. Updates carry only the changed fields, so edits of different fields on two phones both survive.)
+
+Notes: the screens are one static, precached page (`/[locale]/farms`, a farm opens as `#<id>`). Region, province and commune are free text for now; a reference list can come with reference data. Farms can't be deleted in M1. App code may now import a module's `schema.ts` as well as its `index.ts`, as ADR-008 already said (lint and the skill had only `index`).
 
 **Verify:** e2e: two browser contexts, one offline. Integration test for the merge.
 **Dependencies:** T9
@@ -175,9 +179,11 @@ A test-only entity can be used until T10.
 - Make all of it versioned and pullable for offline use.
 
 **AC:**
-- [ ] Reference data is available offline after the first sync.
-- [ ] Day 35 standard weight for each strain matches the source document. This is a manual spot check of 5 values per strain.
-- [ ] Farms can copy and edit the protocol. The global template stays read-only.
+- [x] Reference data is available offline after the first sync. (`GET /api/reference` with an ETag, kept in the phone's device database and refreshed after each sync; `e2e/protocol.spec.ts` reloads offline.)
+- [ ] Day 35 standard weight for each strain matches the source document. This is a manual spot check of 5 values per strain. **Blocked on OQ5:** the import format, seed and lookup (`standardAt`, linear between published days, never extrapolated) are done and tested, but no curve values are committed: they must come from the Aviagen and Cobb documents, never from memory, and their licence is OQ5. See `prisma/seed/reference/curves/README.md`.
+- [x] Farms can copy and edit the protocol. The global template stays read-only. (Per organisation, offline, through sync; `src/modules/reference-data/protocols.int.test.ts` and the e2e.)
+
+Decisions (2026-11-04, taken without asking, to keep going): the default protocol template is **empty and flagged "not reviewed by a vet"** (OQ4), and the catalogue holds only the 3 feed phases and 3 generic vaccines, with no withdrawal days. No schedule days or withdrawal periods were invented. The copy is per organisation, not per farm, because `reference-data` may not depend on `farm-registry`. CI now runs `pnpm db:seed` before e2e.
 
 **Verify:** `pnpm db:seed`. Unit test on curve lookup (interpolation between days). Manual spot check.
 **Dependencies:** T10
@@ -187,8 +193,10 @@ A test-only entity can be used until T10.
 ### T12: Notifications (N1–N3)
 **Description:** In-app inbox, web push subscription (VAPID), `notify(userIds, templateKey, params, urgency)`, AR/FR templates, quiet hours per user.
 **AC:**
-- [ ] A test notification reaches the inbox and, on Android, a push.
-- [ ] During quiet hours, non-urgent notifications are held and delivered at the end. Urgent ones go through immediately (unit test on the scheduling rule).
+- [ ] A test notification reaches the inbox and, on Android, a push. **Inbox part done** (`e2e/inbox.spec.ts`: sent, pulled into the phone's inbox, marked read). **Push on a real phone not verified:** headless Chromium has no push service; the sender, payload, dead-subscription cleanup and double-dispatch guard are covered by `src/modules/notifications/notifications.int.test.ts`. Check on Android and an installed iPhone at Checkpoint D, with dev VAPID keys in `.env` (see `.env.example`).
+- [x] During quiet hours, non-urgent notifications are held and delivered at the end. Urgent ones go through immediately (unit test on the scheduling rule). (`src/modules/notifications/schedule.test.ts`, farm clock including Ramadan's offset; per-user windows in the integration test.)
+
+Notes: held pushes go out when `POST /api/push/dispatch` is called (Bearer `CRON_SECRET`); the host's scheduler must call it every minute (T26). Until then they go out with the next notification's dispatch. Push subscriptions only accept HTTPS endpoints of the browsers' push services (no server-side request to arbitrary URLs). Logout unsubscribes the phone from push.
 
 **Verify:** `pnpm test -- src/modules/notifications`. Manual push on a real Android phone and on an installed iPhone.
 **Dependencies:** T10
@@ -198,9 +206,11 @@ A test-only entity can be used until T10.
 ### T13: Stock ledger, purchases, supplier credit (S1–S3)
 **Description:** Stock items per farm (linked to catalogue products, with lot and expiry for vaccines and medicines), suppliers, purchases as `purchase` movements with amount paid and credit due date, supplier balances, stock on hand = sum of movements. All offline.
 **AC:**
-- [ ] A purchase made offline increases stock after sync. The unpaid part shows in the supplier balance.
-- [ ] Stock on hand is never stored as an editable number. An adjustment is a movement with a reason.
-- [ ] A worker sees quantities but not prices or balances.
+- [x] A purchase made offline increases stock after sync. The unpaid part shows in the supplier balance. (`e2e/stock.spec.ts`: 2 t at 4,50 DH/kg with 3 000 DH paid, offline and after reload; the server holds 9 000,00 / 3 000,00 DH exactly.)
+- [x] Stock on hand is never stored as an editable number. An adjustment is a movement with a reason. (`stockOnHand` sums the ledger, `checkAdjustment` needs a reason; there is no stock column and no update path.)
+- [x] A worker sees quantities but not prices or balances. (Purchases go through `withoutMoney` on pull; `src/modules/inventory/stock.int.test.ts`. The screen shows money only to `stock.manage`.)
+
+Notes: units are integers of a base unit (grams for kg). Purchase amount = quantity × unit price, exact in centimes. Supplier balance = unpaid at purchase; recording later payments to a supplier is left to finance (M2). Stock may go negative when offline records cross; it isn't blocked. A write that touches several records (purchase + movement) is fully undone on the phone if refused.
 
 **Verify:** unit tests for the balance and stock computation. Integration tests for isolation and roles.
 **Dependencies:** T11, T7
@@ -210,8 +220,10 @@ A test-only entity can be used until T10.
 ### T14: Stock valuation and low-stock alerts (S5, S6)
 **Description:** Weighted-average cost per item and farm, applied to consumption movements. Low-stock threshold per item triggers a notification.
 **AC:**
-- [ ] The valuation matches a hand-computed example of 3 purchases at different prices and 2 consumptions (unit test).
-- [ ] Crossing the threshold sends one notification, not one per movement.
+- [x] The valuation matches a hand-computed example of 3 purchases at different prices and 2 consumptions (unit test). (`src/modules/inventory/domain/valuation.test.ts`: 2 520,00 and 3 080,00 DH charged, 500 kg left worth 2 200,00 DH; rounding never loses a centime.)
+- [x] Crossing the threshold sends one notification, not one per movement. (`src/modules/inventory/alerts.int.test.ts`: once per crossing to owners and managers, re-armed by a restock, one alert when two corrections cross at once; mutation-checked.)
+
+Notes: valuation is computed from the ledger on demand (`valuate`), on the server and on the phone; nothing is stored. Each outgoing movement gets its cost, for batches to use (T16, T24). Today only stock corrections can lower stock; consumptions (T16) and vaccine use (T19) must call `alertIfLow` too. Setting a threshold above the current stock shows "Stock bas" on the phone but sends no notification (only a movement crosses). `notify` now also takes `roles`.
 
 **Verify:** `pnpm test -- src/modules/inventory`
 **Dependencies:** T12, T13
@@ -229,8 +241,10 @@ A test-only entity can be used until T10.
 ### T15: Create batch, placement (B1)
 **Description:** Create a broiler batch in a house: strain, placement date, chicks placed, hatchery, delivery note n°, chick unit price, day-old weight, dead on arrival. One open batch per house: checked on the client, enforced on the server as a rejected mutation.
 **AC:**
-- [ ] Creating a batch offline works. Its age counts from the placement farm day.
-- [ ] A second open batch in the same house is rejected with a clear message, including when two devices create one offline at the same time.
+- [x] Creating a batch offline works. Its age counts from the placement farm day. (Placement day = day 0, as in the breeders' tables: `src/modules/flock/domain/batch.test.ts`; `e2e/batches.spec.ts` places offline and reloads.)
+- [x] A second open batch in the same house is rejected with a clear message, including when two devices create one offline at the same time. (Checked on the phone; on the server a per-house lock then a check, with a partial unique index as the last line: `src/modules/flock/batches.int.test.ts`, two simultaneous placements → one applied, one `HOUSE_HAS_OPEN_BATCH`; mutation-checked.)
+
+Notes: owners and managers place batches (`flock.manage`); workers see them without the chick price. The server accepts a placement date up to tomorrow's farm day, for phones whose clock runs ahead. One page (`/[locale]/batches`), not `batches/new`: the form opens in place so the page stays the precached shell.
 
 **Verify:** unit test on age computation. Integration test on the uniqueness conflict. e2e create flow.
 **Dependencies:** T11, T10
@@ -240,9 +254,11 @@ A test-only entity can be used until T10.
 ### T16: Daily entry with automatic feed consumption (B2, S4)
 **Description:** One entry per batch per farm day: mortality + cause, culls, feed (item + kg), water, note. It creates the feed consumption movement automatically. Edits are allowed until closing and are audited. Same-day entries from two devices are merged.
 **AC:**
-- [ ] A trained user completes an entry in **under 60 s** on a phone. Timed manually with 3 testers.
-- [ ] Saving feed creates exactly one consumption movement. Editing the kg updates that movement, never a duplicate.
-- [ ] Two offline entries for the same day merge into one after sync (integration test).
+- [ ] A trained user completes an entry in **under 60 s** on a phone. Timed manually with 3 testers. **Not done: needs people.** The screen is one form with zeros as defaults and the farm's first feed preselected; the e2e fills it in a few seconds.
+- [x] Saving feed creates exactly one consumption movement. Editing the kg updates that movement, never a duplicate. (The movement takes the entry's id; `src/modules/flock/daily-entries.int.test.ts` and `e2e/daily-entry.spec.ts`: 85 then 90 kg leave 910 kg of 1 000. Clearing the feed removes the movement.)
+- [x] Two offline entries for the same day merge into one after sync (integration test). (The entry id is a UUIDv5 of batch + day, the same on every phone; only changed fields are sent; the overwritten value is audited. Also when both arrive at the same moment, under a per-batch lock: mutation-checked.)
+
+Notes: one page, `/[locale]/batches#<id>` opens the day (the path stays the precached shell), not `batches/[id]/today`. Workers can enter the day (`flock.record`). Mortality + culls can never exceed the birds started. A consumption movement is the one movement that changes in place, because the entry it mirrors was edited (audited there). Water is entered in litres and stored in ml.
 
 **Verify:** unit tests for the merge. Integration tests. e2e daily-entry flow in AR and FR.
 **Dependencies:** T15, T14
@@ -252,8 +268,10 @@ A test-only entity can be used until T10.
 ### T17: Weighings and uniformity (B3)
 **Description:** Record a sample, as individual weights or as total ÷ count. Compute average and CV% (CV only with individual weights). Compare with the strain standard for that age.
 **AC:**
-- [ ] Average and CV% match a hand-computed sample (unit test).
-- [ ] The screen shows "x % vs standard" for that age, from the reference curve.
+- [x] Average and CV% match a hand-computed sample (unit test).
+- [x] The screen shows "x % vs standard" for that age, from the reference curve. Tested with a made-up e2e curve (`e2e/weighing.spec.ts`); real strains show "no standard" until the breeder tables are added (OQ5).
+
+Built as the `flock.recordWeighing` mutation (offline, `flock.record`), `src/modules/flock/domain/weighing.ts`, and a weighing section in the batch's day view (`src/components/weighing.tsx`), not a separate route.
 
 **Verify:** `pnpm test -- src/modules/flock/weighing`
 **Dependencies:** T15, T11
@@ -263,8 +281,10 @@ A test-only entity can be used until T10.
 ### T18: KPI engine and batch dashboard (B4)
 **Description:** Pure KPI functions (age, birds on hand, mortality %, feed per bird, FCR, EPEF, average daily gain) and the batch dashboard with a growth chart vs the standard. They run on the client from local data.
 **AC:**
-- [ ] Each KPI matches a hand-calculated reference batch (fixture) on days 7, 21 and 35. Every branch is covered (zero birds, no weighing yet…).
-- [ ] The dashboard works offline and updates right after a daily entry.
+- [x] Each KPI matches a hand-calculated reference batch (fixture) on days 7, 21 and 35. Every branch is covered (zero birds, no weighing yet…).
+- [x] The dashboard works offline and updates right after a daily entry.
+
+Built in `src/modules/flock/domain/kpi.ts` and `src/components/batch-dashboard.tsx`, shown in the batch's day view (`/batches#<id>`, the precached shell), not a separate route. Decisions: mortality and feed per bird use birds started (placed − dead on arrival); FCR, EPEF and daily gain are taken at the last weighing, with feed and deaths up to that day; daily gain counts from the day-old weight when entered, else from 0 g; FCR is unknown until feed is recorded.
 
 **Verify:** `pnpm test -- src/modules/flock/kpi`. e2e: dashboard after 3 entries.
 **Dependencies:** T16, T17
@@ -272,7 +292,7 @@ A test-only entity can be used until T10.
 **Size:** M
 
 ### ✅ Checkpoint E
-- [ ] 10 simulated days of a batch, offline, with KPIs equal to the hand calculation (fixture).
+- [x] 10 simulated days of a batch, offline, with KPIs equal to the hand calculation (fixture). (`e2e/checkpoint-e.spec.ts`, 2026-11-18: 10 days and a weighing entered offline; mortality, feed per bird, weight, FCR, EPEF and daily gain equal the hand calculation in the file, before and after an offline reload; online, the 10 days and the weighing reach the server once.)
 - [ ] Human review.
 
 ---
@@ -282,9 +302,11 @@ A test-only entity can be used until T10.
 ### T19: Vaccination plan, reminders, mark as done (H1, H2)
 **Description:** Generate the plan from the farm protocol when a batch is created. Send reminders the day before and on the due day. "Mark done" records the date, the lot (picked from stock, which deducts it), the method and who did it.
 **AC:**
-- [ ] A new batch gets the expected items with their due dates (unit test against the protocol fixture).
-- [ ] Marking a vaccine done deducts the vaccine lot from stock.
-- [ ] Reminders arrive at the right times and respect quiet hours.
+- [x] A new batch gets the expected items with their due dates (unit test against the protocol fixture). (`src/modules/health/domain/vaccination.test.ts`, with a made-up fixture that is not a schedule; placement day = day 0, across month, year end and leap day. `e2e/vaccination.spec.ts` places offline with the farm's protocol and sees the plan.)
+- [x] Marking a vaccine done deducts the vaccine lot from stock. (One consumption movement with the plan line's id, in the same transaction; only from a lot of that vaccine in the batch's farm: `src/modules/health/vaccinations.int.test.ts`; offline, 990 of 2 000 doses in the e2e.)
+- [ ] Reminders arrive at the right times and respect quiet hours. **Server part done:** the day before and on the due day, once each, held until the end of each person's quiet hours, none for a vaccination done (integration test with a fixed clock). **Push on a real phone not verified**, as for T12.
+
+Decisions (2026-11-08, taken without asking): the placement form offers the organisation's protocols (the first one preselected, or "Aucun"); the phone sends `health.planVaccinations` right after `flock.placeBatch`, with the protocol's lines as it saw them, so the plan never changes when the protocol is edited later (flock can't depend on health). Reminders are created from the start of the farm day (the day before, then the due day) by the scheduler that already calls `POST /api/push/dispatch` every minute, and go to owners, managers and workers; quiet hours set the hour they arrive (06:00 by default). Doses default to the birds on hand; expired lots aren't offered. "Who did it" is whoever recorded it. One page again (`/batches#<id>`), not `batches/[id]/health`. A batch placed without a protocol has no plan; adding one later is not in M1 yet.
 
 **Verify:** `pnpm test -- src/modules/health`. Manual check of reminder delivery.
 **Dependencies:** T18, T12
@@ -294,8 +316,10 @@ A test-only entity can be used until T10.
 ### T20: Treatments, withdrawal, vet visits (H3–H6)
 **Description:** Record treatments (product, dose, start / end, reason, prescriber), compute the withdrawal end date, show the banner on the batch, and keep a vet visit log. Data is stored in the form needed for the M2 ONSSA register.
 **AC:**
-- [ ] Withdrawal end = end date + withdrawal days, using farm days and the longest of overlapping treatments (unit tests).
-- [ ] The banner shows until the withdrawal end date, then disappears.
+- [x] Withdrawal end = end date + withdrawal days, using farm days and the longest of overlapping treatments (unit tests). (`src/modules/health/domain/withdrawal.test.ts`: year end, leap day, 0 days, overlaps in either order; the server stores the same end, `src/modules/health/treatments.int.test.ts`.)
+- [x] The banner shows until the withdrawal end date, then disappears. (`withdrawalUntil` unit tests: shown on the last day, gone the day after; `e2e/treatment.spec.ts`: no banner for a withdrawal that ended a week ago, the banner after a treatment recorded offline, still there after an offline reload.)
+
+Decisions (2026-11-08, taken without asking): the catalogue has no medicines yet, so the withdrawal days are typed from the label or the prescription on each treatment, required, never defaulted, and stored with the treatment (with its computed end) so the ONSSA register (M2) and the sale block (T21) read what was recorded. The withdrawal runs **through** its end day: a sale is allowed from the day after (⚠️ OQ4, for the vet). A treatment takes its medicine from a medicine lot of the batch's farm (S4, one consumption movement with the treatment's id, dated on its start day); it may still be running (end in the future) but must have started by today. Vet visits are per batch (date, vet, notes), like the rest of the batch's health. Owners, managers and workers can record both: a treatment only adds a withdrawal. Treatments and visits are not editable yet. One page again (`/batches#<id>`).
 
 **Verify:** `pnpm test -- src/modules/health/withdrawal`. e2e banner.
 **Dependencies:** T19
@@ -317,9 +341,11 @@ A test-only entity can be used until T10.
 - a **hard block while a withdrawal period is running**, checked on the client and on the server.
 
 **AC:**
-- [ ] A sale during withdrawal is refused with a translated explanation. This includes a sale created offline and pushed later.
-- [ ] Amount = weight × price/kg, in integer centimes. The weighing gap is shown in kg and %.
-- [ ] Partial sales reduce birds on hand and keep the batch open.
+- [x] A sale during withdrawal is refused with a translated explanation. This includes a sale created offline and pushed later. (Server: `WITHDRAWAL_IN_PROGRESS` for a sale dated on any day of the withdrawal, its last day included, whenever it arrives, with nothing written: `src/modules/sales/sales.int.test.ts`. Phone: the same rule from `health/schema`, `e2e/sales.spec.ts`.)
+- [x] Amount = weight × price/kg, in integer centimes. The weighing gap is shown in kg and %. (`src/modules/sales/domain/sale.test.ts`: half up, bigint, no float; gap = farm − buyer, as a % of the farm weight. Shown live in the form and on each sale.)
+- [x] Partial sales reduce birds on hand and keep the batch open. (Flock's `SoldBirds` ledger, written by sales with the sale's id; daily entries and later sales can't exceed what is left; KPIs count sold birds out of birds on hand, not as dead, and their weight in the FCR.)
+
+Decisions (2026-11-08, taken without asking): flock owns birds on hand, and sales can't be one of its dependencies, so a sale tells flock through `recordBirdsSold` (like health → inventory for stock); the phone keeps the same `soldBirds` records. The withdrawal is checked on the **sale's day**, and a treatment counts from its start day (a sale made before the treatment began is allowed, also when it syncs after the treatment; this also fixes T20's rule, which ignored the start). The amount uses the farm weight; the buyer weight only gives the gap. Payment: cash, cheque, bill of exchange, transfer, credit; cheque and bill need a number and a due date; "amount received now" is typed, never assumed. Only owners and managers record or see sales (prices); workers see birds on hand go down. The sale form is on the batch screen (`/batches#<id>`), with a new buyer created inline as for suppliers; no separate `/sales` page until receivables (T22). Sales are not editable yet.
 
 **Verify:** unit tests on amounts and the gap. Integration test for the server-side block. e2e sale flow.
 **Dependencies:** T20, T18
@@ -329,8 +355,10 @@ A test-only entity can be used until T10.
 ### T22: Receivables and due-date reminders (V4)
 **Description:** List unpaid amounts per buyer with due dates. Record later payments. Remind on cheque and bill due dates.
 **AC:**
-- [ ] The balance per buyer equals sales − payments (unit test).
-- [ ] A reminder is sent on the due date of each cheque or bill.
+- [x] The balance per buyer equals sales − payments (unit test). (`src/modules/sales/domain/receivables.test.ts`; the server refuses a payment above the balance under a per-buyer lock, `src/modules/sales/receivables.int.test.ts`; offline payments in `e2e/receivables.spec.ts`.)
+- [ ] A reminder is sent on the due date of each cheque or bill. **Server part done:** one notification per cheque or bill, from the start of its due day, to owners and managers, held by quiet hours (integration test with a fixed clock). **Push on a real phone not verified**, as for T12 and T19.
+
+Decisions (2026-11-09, taken without asking): payments are per buyer, not per sale (balance = what sales left unpaid − later payments), with no allocation to sales yet; the list shows each owing buyer with all their cheques and bills and due dates. A payment can't exceed the balance or be in the future. The reminder goes out on the due day whether or not a payment was recorded (the cheque still has to be cashed). `sales` now depends on `notifications` (CAPABILITY-MAP and lint rule), like every other module that reminds. One page, `/receivables` (precached, offline), linked from the dashboard for owners and managers.
 
 **Verify:** `pnpm test -- src/modules/sales/receivables`
 **Dependencies:** T21, T12
@@ -340,8 +368,10 @@ A test-only entity can be used until T10.
 ### T23: Printable origin document (V5)
 **Description:** A printable page per sale, in AR or FR: farm identity and ONSSA authorization, batch, birds, weight, date, buyer, signature box. It uses print CSS, with no PDF library in M1.
 **AC:**
-- [ ] It prints on A4 in both locales with no layout break, RTL included.
-- [ ] It contains every field listed in this task's description.
+- [x] It prints on A4 in both locales with no layout break, RTL included. (`e2e/origin.spec.ts`: print media at A4 width, nothing wider than the page, one A4 page per document in FR and AR; the PDFs it saves in `test-results/` were checked by eye: the Arabic one is right to left, with codes kept in their order.)
+- [x] It contains every field listed in this task's description. (Same test, in both locales, offline: farm name, address, ONSSA authorization and expiry, batch house, strain, placement and age, sale date, birds, total and average weight, buyer name, type and phone, two signature boxes, the document number and the law reference.)
+
+Decisions (2026-11-09, taken without asking): built from the phone's own records, so it prints offline (`/origin#<sale id>`, precached), not a server page under `sales/[id]`. Each sale on the batch screen links to its document in French and in Arabic, whatever the screen's language (the language switcher drops the `#`). The producer is identified by the farm (name, address, ONSSA): the legal entity's name isn't on the phone yet. No prices on the document: an abattoir needs origin, not the deal. Print CSS is two rules in `globals.css` (A4 page, black on white in dark mode), no separate stylesheet.
 
 **Verify:** manual print preview in AR and FR. Snapshot test of the content.
 **Dependencies:** T21
@@ -351,9 +381,11 @@ A test-only entity can be used until T10.
 ### T24: Batch closing and cost per kg (B6)
 **Description:** Automatic close when birds on hand reach 0, or manual close with a reason. Lock the final KPIs. Cost per kg sold = (chicks + valued consumptions + other batch costs) ÷ kg sold. Add a simple "other cost" entry on the batch (electricity, labour…) until finance arrives in M2.
 **AC:**
-- [ ] The last sale closes the batch automatically. Afterwards, entries are read-only.
-- [ ] Cost per kg matches the reference fixture (unit test).
-- [ ] The house becomes free for a new batch.
+- [x] The last sale closes the batch automatically. Afterwards, entries are read-only. (Server: `src/modules/flock/closing.int.test.ts` and `src/modules/sales/sales.int.test.ts`; after closing, daily entries, other costs, sales and a second close are refused with `BATCH_CLOSED`, as are weighings and health records through the same status. Phone: `e2e/closing.spec.ts`, offline: the last sale closes it at once, every form disappears, its sales keep their origin documents.)
+- [x] Cost per kg matches the reference fixture (unit test). (`src/modules/flock/domain/closing.test.ts`, the reference batch of the KPI tests by hand; end to end 2,58 DH/kg in the integration test and the e2e.)
+- [x] The house becomes free for a new batch. (Same tests: a new batch is placed in the house right after.)
+
+Decisions (2026-11-09, taken without asking): only the sale of the last birds closes a batch by itself; deaths that bring birds on hand to 0 don't, because closing can't be undone and a mistyped daily entry would lock the batch: the owner or manager closes it by hand, with a reason (also with birds left, e.g. a sanitary cull). The server locks the figures on the batch when it closes: kg sold (farm weight), total cost and cost per kg, with every chick placed paid for (dead on arrival included), consumptions valued at each item's weighted average cost (each consumption movement now records its batch), and the other costs. A batch with nothing sold has a total cost but no cost per kg. Workers see the batch closed and kg sold, not the costs; other costs are entered by owners and managers. The phone shows the batch closed at once and the locked figures after the next sync; the final KPIs are those of the last records, unchanged since nothing can be added. One page again (`/batches#<id>` shows the closed batch's summary), not `batches/[id]/close`.
 
 **Verify:** `pnpm test -- src/modules/flock/closing`. e2e full lifecycle.
 **Dependencies:** T21, T14
@@ -361,7 +393,7 @@ A test-only entity can be used until T10.
 **Size:** M
 
 ### ✅ Checkpoint G
-- [ ] Full M1 e2e passes in `ar` and `fr` on a mobile viewport, with an offline segment (SPEC §9.2).
+- [x] Full M1 e2e passes in `ar` and `fr` on a mobile viewport, with an offline segment (SPEC §9.2). (`e2e/m1-journey.spec.ts`, once per language on the Pixel 7 profile, labels read from `messages/<locale>.json`: an owner signs up, then offline places a batch, enters 3 days, weighs, marks the vaccine done, reloads from the service worker; back online the server has it all, and a second phone signed in to the same account shows the same birds on hand, weighing and vaccine. Passed in both languages on 2026-11-10. The rest of the e2e suite, French only, passed on 2026-11-09.)
 - [ ] Human review.
 
 ---
@@ -374,8 +406,8 @@ A test-only entity can be used until T10.
 - Measure the JS budget (≤ 200 KB compressed for the shell) and the daily-entry interactivity (< 3 s with Fast 4G) on a real mid-range Android phone.
 
 **AC:**
-- [ ] No open high-severity security findings.
-- [ ] Both performance budgets are met, or a written exception has been approved.
+- [x] No open high-severity security findings. (`docs/t25-security-and-performance.md`: the one high finding, a phone-chosen treatment id overwriting another stock movement, is fixed with a regression test. Two medium and three low findings remain open, for T26.)
+- [x] Both performance budgets are met, or a written exception has been approved. (Emulated Pixel 7, Fast 4G, 4× CPU, `docs/t25-security-and-performance.md`. JS of the daily-entry shell: 232.8 → **197.5 KB** gzip after ADR-009, which keeps Zod off the screens, and lazy sections on the batch screen. Login: 155.5 KB. Daily entry usable in 1.78 s cold and 1.05 s warm. **A real-phone measurement and a Lighthouse report are still owed**, with the device, before the pilot.)
 
 **Verify:** review report in `docs/`. `pnpm build` output. Lighthouse report.
 **Dependencies:** Checkpoint G
@@ -385,8 +417,20 @@ A test-only entity can be used until T10.
 ### T26: Pilot deployment
 **Description:** Deploy staging and pilot environments with the hosting chosen in OQ1 (ADR-007 superseded). Plug in the production OTP provider (OQ2), set up backups, add a demo-farm seed, and write a one-page quick guide in AR and FR.
 **AC:**
+- [ ] Captcha (ALTCHA candidate) before every code request, verified server-side and single use (poultry-auth §0.8), and `TRUSTED_PROXY_HOPS` set for the chosen host so the IP and subnet limits apply. Deferred from T5 on 2026-10-28; required before real SMS are sent. Until both exist, anyone who knows a farmer's number can use up that number's verify budget (10 / h) and block their login, or spend the global SMS cap (security review of PR #6).
+- [ ] An alert (not just a log line) when the global SMS cap reaches 50 %.
 - [ ] The pilot farm owner and a worker log in on their own phones and complete the first daily entry.
 - [ ] A daily backup runs and has been restored once as a test.
+
+Done ahead of the host choice (2026-11-11, branch `feat/t26-pilot-hardening`): the T25 findings S2 ("log out all my devices"), S4 (int4 bounds), S5 (a role change clears money from the phone) and S7 (`@serwist/turbopack` is a runtime dependency). Still open from T25 and tied to the host: brotli.
+
+Also done without the host (2026-11-14; OQ1 hosting and OQ2 SMS set aside by the product owner, branch `feat/t26-pilot-prep`):
+- [x] Content-Security-Policy (T25 S3), without nonces so the offline shells stay static: inline scripts are allowed, everything else is this origin only (`next.config.ts`, `e2e/login.spec.ts`).
+- [x] JS size check in CI: `e2e/budget.spec.ts` fails if `/fr/login` or `/fr/batches` loads more than 200 KB of compressed JS (now 154.3 and 196.4 KB).
+- [x] Demo farm: `pnpm db:seed:demo` (after `pnpm db:seed`) creates a demo owner (`DEMO_PHONE`, default +212600000099), a farm, two houses, stock and a 21-day batch with daily entries and two weighings, through the app's own mutations. Made-up figures, demo only.
+- [x] Quick guides: `docs/quick-guide-fr.md`, `docs/quick-guide-ar.md` (the Arabic one needs a native review).
+
+Waiting on OQ1/OQ2: the deployment, the real SMS sender, backups, brotli, `TRUSTED_PROXY_HOPS`, the SMS-cap alert, and the pilot farm's first day. Captcha needs a new dependency (ALTCHA), which poultry-auth says to ask about first.
 
 **Verify:** smoke test on production. Backup restore drill.
 **Dependencies:** T25, **OQ1, OQ2 resolved**

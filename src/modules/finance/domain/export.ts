@@ -1,0 +1,45 @@
+import type { Cell, Sheet } from "@/lib/kernel/sheet";
+import type { CashBookRow, TrialBalanceRow } from "@/modules/finance/domain/books";
+import type { Line } from "@/modules/finance/domain/entry";
+
+// SPEC-finance FN18: what the accountant gets for a period. Pure: the same books the /books screen shows.
+
+type Books = {
+  labels: Record<string, string>;
+  cashBook: { rows: CashBookRow[]; receipts: bigint; expenses: bigint };
+  journals?: { journal: string; entries: { id: string; day: string; label: string; lines: Line[] }[] }[];
+  trialBalance?: { rows: TrialBalanceRow[]; debit: bigint; credit: bigint };
+};
+
+/** The sheets of a period's export, each with the file name it gets as CSV. A `cash_book` entity only has its cash book. */
+export function exportSheets(books: Books): (Sheet & { file: string })[] {
+  const label = (account: string) => books.labels[account] ?? "";
+  const sheets: (Sheet & { file: string })[] = [];
+  if (books.journals) {
+    // Party, farm, house and batch stay empty: ledger lines carry no analytic tag yet (T34, T36).
+    const rows: Cell[][] = books.journals.flatMap((j) =>
+      j.entries.flatMap((e) => e.lines.map((l) => [{ day: e.day }, j.journal, e.id, l.account, label(l.account), e.label, l.debit, l.credit, "", "", "", ""])),
+    );
+    sheets.push({ name: "Écritures", file: "ecritures", header: ["Date", "Journal", "Pièce", "Compte", "Libellé du compte", "Libellé", "Débit", "Crédit", "Tiers", "Ferme", "Bâtiment", "Lot"], rows });
+  }
+  if (books.trialBalance) {
+    const t = books.trialBalance;
+    sheets.push({
+      name: "Balance",
+      file: "balance",
+      header: ["Compte", "Libellé du compte", "Débit", "Crédit", "Solde"],
+      rows: [...t.rows.map((r) => [r.account, label(r.account), r.debit, r.credit, r.balance]), ["Total", "", t.debit, t.credit, t.debit - t.credit]],
+    });
+  }
+  const c = books.cashBook;
+  sheets.push({
+    name: "Recettes et dépenses",
+    file: "recettes-depenses",
+    header: ["Date", "Libellé", "Compte", "Libellé du compte", "Contrepartie", "Recette", "Dépense"],
+    rows: [
+      ...c.rows.map((r) => [{ day: r.day }, r.label, r.account, label(r.account), r.counterAccounts.map((a) => `${a} ${label(a)}`).join(", "), r.receipt, r.expense]),
+      ["Total", "", "", "", "", c.receipts, c.expenses],
+    ],
+  });
+  return sheets;
+}

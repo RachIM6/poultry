@@ -1,0 +1,8 @@
+[
+  { "id": "feed-starter", "kind": "feed", "nameFr": "Aliment démarrage", "nameAr": "علف البداية", "withdrawalDays": null },
+  { "id": "feed-grower", "kind": "feed", "nameFr": "Aliment croissance", "nameAr": "علف النمو", "withdrawalDays": null },
+  { "id": "feed-finisher", "kind": "feed", "nameFr": "Aliment finition", "nameAr": "علف الإنهاء", "withdrawalDays": null },
+  { "id": "vaccine-newcastle", "kind": "vaccine", "nameFr": "Vaccin maladie de Newcastle", "nameAr": "لقاح مرض نيوكاسل", "withdrawalDays": null },
+  { "id": "vaccine-infectious-bronchitis", "kind": "vaccine", "nameFr": "Vaccin bronchite infectieuse", "nameAr": "لقاح التهاب الشعب الهوائية المعدي", "withdrawalDays": null },
+  { "id": "vaccine-gumboro", "kind": "vaccine", "nameFr": "Vaccin Gumboro", "nameAr": "لقاح الجمبورو", "withdrawalDays": null }
+]

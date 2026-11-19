@@ -27,7 +27,7 @@ Vets and accountants come in M5.
 | Layer | Choice | ADR |
 |---|---|---|
 | Client | **PWA**: Next.js App Router pages, service worker (Serwist), IndexedDB (Dexie) | [ADR-001](docs/decisions/ADR-001-pwa-only-client.md), [ADR-003](docs/decisions/ADR-003-offline-first-sync.md) |
-| Server | **Single Next.js app** (route handlers + server actions), TypeScript strict. Modular monolith | [ADR-002](docs/decisions/ADR-002-nextjs-modular-monolith-postgres.md) |
+| Server | **Single Next.js app** (route handlers + server actions), TypeScript strict. Modular monolith, scaled out as copies of the same app | [ADR-002](docs/decisions/ADR-002-nextjs-modular-monolith-postgres.md), [ADR-012](docs/decisions/ADR-012-no-separate-backend.md) |
 | Database | **PostgreSQL 16+** through **Prisma** | ADR-002 |
 | Validation | **Zod**. The same schemas run on the client (offline writes) and the server (sync push) | ADR-003 |
 | i18n | **next-intl**. Locales `ar` (default, RTL) and `fr`. Tailwind logical properties | [ADR-004](docs/decisions/ADR-004-i18n-arabic-french-rtl.md) |
@@ -64,8 +64,9 @@ src/
   app/api/sync/...        sync push / pull endpoints
   app/api/auth/...        OTP request / verify / logout
   modules/<module-id>/    one folder per capability-map module (layout: ADR-008, skill poultry-ddd)
-    index.ts              the ONLY file other modules may import
+    index.ts              server API: with schema.ts and shared.ts, the only files other modules may import (ADR-008, ADR-009)
     schema.ts             Zod schemas + mutation types (shared client/server)
+    shared.ts             the same without Zod: mutation names, DTO types, domain functions, for the phone's screens (ADR-009)
     domain/               strict modules: pure, isomorphic rules (KPIs, withdrawal, aggregates)
     application/          strict modules: use cases (transaction + audit)
     infrastructure/       strict modules: Prisma repositories + mappers
@@ -180,7 +181,7 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 ### `farm-registry`
 - F1. First login → create the organisation and its **legal entity**:
   - form: individual / indivision / company / cooperative / association / GIE;
-  - the accounting profile is derived from the form and used in M2.
+  - the accounting profile is derived from the form and used in M2 (its shape changes in M2: [ADR-010](docs/decisions/ADR-010-accounting-model.md), [SPEC-finance.md](SPEC-finance.md) FN1).
 - F2. A farm has a name, region and province, commune, optional GPS, and optional **ONSSA authorization number + expiry date**.
 - F3. A poultry house has a name, floor area (m²), capacity (birds) and type (open / closed).
 - F4. Farms and houses can be created and edited **offline**.

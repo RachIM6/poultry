@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Dawra / DigiAtlas-VOLAILLE palette (design canvas, 2026-10-29). Colour only for what needs action; done stays neutral.
+   Light only, like the mockups. */
+@theme {
+  --color-shell: #f5f3ee; /* Coquille: the ground */
+  --color-card: #ffffff;
+  --color-ink: #24211c; /* Charbon: text, menu */
+  --color-ink-2: #55504a; /* Ardoise chaude: secondary text */
+  --color-muted: #6b655c;
+  --color-line: #e2ded3;
+  --color-sand: #cfc6b4; /* done days on dark */
+  --color-entered: #4a453d; /* done days on light */
+  --color-chick: #f2c14e; /* Poussin: primary action, today */
+  --color-chick-edge: #c99a2e;
+  --color-chick-soft: #fbf1d3;
+  --color-chick-fg: #6b4e0a;
+  --color-olive: #3f4a1f; /* OK, synced, sufficient */
+  --color-olive-soft: #eaeedc;
+  --color-brick: #c4541d; /* missing, low stock */
+  --color-brick-soft: #fbe3d6;
+  --color-brick-fg: #8a3412;
+  --color-alert: #b3261e; /* withdrawal, blocked */
+  --color-alert-soft: #fdecea;
+  --color-alert-fg: #7a1a14;
+  --font-sans: var(--font-readex), system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-shell);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--color-chick);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* T23: documents print black on white on A4, whatever the screen theme. */
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+@media print {
+  body {
+    background: #ffffff;
+    color: #000000;
+  }
+}

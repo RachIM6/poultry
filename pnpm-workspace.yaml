@@ -1,3 +1,14 @@
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+
+overrides:
+  # One browserslist, so serwist installs once. @serwist/turbopack pins an older patch, which gave a second
+  # serwist copy: its defaultCache then failed `instanceof Strategy` and the offline fallback was silently dropped.
+  browserslist: 4.29.5
+  # @serwist/turbopack pins zod 4.6.5 (GHSA: memory exhaustion on oversized collections, fixed in 4.6.6). Drop when it updates.
+  zod: 4.6.7
+  # @serwist/build pins glob 13.0.6 (GHSA-3g3m-2fjr-6pw4, fixed in 14.0.2). It only calls globSync({cwd, follow, ignore}). Drop when it updates.
+  '@serwist/build>glob': 14.0.6
+  # typescript-estree asks for minimatch ^10 (GHSA-g3hv-75wg-m249, fixed in 11.0.1). It only calls minimatch(). Drop when it updates.
+  '@typescript-eslint/typescript-estree>minimatch': 11.0.8

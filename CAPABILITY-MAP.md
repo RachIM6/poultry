@@ -31,7 +31,7 @@ _Draft v0.2, 26 Oct 2026. Status: **approved** (27 Oct 2026). Derived from [SCOP
 | `eggs` | Egg collection (normal / cracked / dirty…), grading, packing, egg stock and age | 11 | `flock`, `inventory` |
 | `planning` | Placement calendar across houses, chick booking, sale-date planning against seasonality and prices | 3 | `flock`, `market-prices`, `notifications` |
 | `workforce` | Workers, daily tasks generated from batch age and the health plan, attendance, pay (SMAG), advances, CNSS export | 16 | `identity`, `farm-registry`, `flock`, `health`, `notifications` |
-| `sales` | Buyers, sales of live birds / eggs / old hens / manure, weighing gap, **origin document**, receivables, cheques and bills of exchange, **withdrawal-period block** | 10, 11, 13 | `flock`, `health`, `eggs` |
+| `sales` | Buyers, sales of live birds / eggs / old hens / manure, weighing gap, **origin document**, receivables, cheques and bills of exchange, **withdrawal-period block** | 10, 11, 13 | `flock`, `health`, `eggs`, `notifications` |
 | `finance` | Cash book, payables and receivables, loans, cost allocation, **margin and cost per kg per batch**, export to the accountant per accounting profile | 15 | `farm-registry`, `inventory`, `flock`, `sales`, `workforce` |
 | `reporting` | Dashboards, batch closing report, **ONSSA register PDF**, **inspection pack**, PDF/Excel exports | 17, 23 | `flock`, `health`, `biosecurity`, `documents`, `sales`, `finance` |
 
@@ -66,6 +66,7 @@ Each milestone ends with something **pilot farmers can use**. Validate it in the
 | **M3: All production types** | Turkey, beldi, ducks / quail, pullets → layers with eggs | `reference-data` (all species), `flock` variants, `eggs`, `sales` (eggs, old hens) |
 | **M4: Farm operations** | Workers and tasks, climate log | `workforce`, `climate` |
 | **M5: Network** | Vet and accountant access, prices, planning | `partner-access`, `market-prices`, `planning` |
+| **M6: Accounting close** | Fixed assets, loans, year-end inventory and biological assets, simplified CGNC statements ([ADR-010](docs/decisions/ADR-010-accounting-model.md)) | `finance` |
 
 ## Later (post-MVP)
 

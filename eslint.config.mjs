@@ -20,15 +20,38 @@ const moduleDeps = {
   eggs: ["flock", "inventory"],
   planning: ["flock", "market-prices", "notifications"],
   workforce: ["identity", "farm-registry", "flock", "health", "notifications"],
-  sales: ["flock", "health", "eggs"],
+  sales: ["flock", "health", "eggs", "notifications"],
   finance: ["farm-registry", "inventory", "flock", "sales", "workforce"],
   reporting: ["flock", "health", "biosecurity", "documents", "sales", "finance"],
 };
 
+// ADR-008, ADR-009: a module exposes index.ts (server API), schema.ts (Zod schemas, isomorphic: the offline client
+// imports it without pulling in Prisma) and shared.ts (the same without Zod, for the phone's screens). Nothing else.
 const deepImport = (self) => ({
-  regex: `^@/modules/(?!${self}/)[^/]+/(?!index$).+`,
-  message: "Import other modules only through their index (@/modules/<id>).",
+  regex: `^@/modules/(?!${self}/)[^/]+/(?!(index|schema|shared)$).+`,
+  message: "Import other modules only through their index, schema or shared (@/modules/<id>, @/modules/<id>/schema, …/shared).",
 });
+
+// ADR-009: screens that don't validate with Zod take values from shared.ts; schema.ts only for types (erased). Keeps
+// Zod (~32 KB gzip) out of the app shell (SPEC §9.3 budget).
+const zodFreeScreens = {
+  files: ["src/components/**"],
+  ignores: ["src/components/farms.tsx", "src/components/protocol.tsx", "src/components/stock.tsx"], // they validate forms
+  rules: {
+    "@typescript-eslint/no-restricted-imports": [
+      "error",
+      {
+        patterns: [
+          {
+            regex: "^@/modules/[^/]+/schema$",
+            allowTypeImports: true,
+            message: "Import values from @/modules/<id>/shared (no Zod, ADR-009); schema.ts is for types and validating forms.",
+          },
+        ],
+      },
+    ],
+  },
+};
 
 const boundaryPatterns = (id, deps) => [
   deepImport(id),
@@ -95,8 +118,9 @@ const eslintConfig = defineConfig([
     },
   },
   ...moduleBoundaries,
+  zodFreeScreens,
   noSystemClock,
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "playwright-report/**", "test-results/**"]),
+  globalIgnores([".claude/**", "src/generated/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "playwright-report/**", "test-results/**"]),
 ]);
 
 export default eslintConfig;

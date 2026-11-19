@@ -1,11 +1,12 @@
 import { audit } from "@/lib/audit";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf } from "@/lib/kernel/farm-day";
+import { daysBetween, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
-import { checkBands } from "@/modules/climate/domain/targets";
-import { CLIMATE_MUTATIONS as M, RecordReading, SaveTargets, type ReadingDto, type TargetSet } from "@/modules/climate/schema";
-import { houseOf } from "@/modules/flock";
+import { checkBands, outOfRange, targetFor, verdicts } from "@/modules/climate/domain/targets";
+import { CLIMATE_MUTATIONS as M, RecordReading, SaveTargets, type Band, type ReadingDto, type TargetSet } from "@/modules/climate/schema";
+import { batchPlacedInHouseOn, houseOf } from "@/modules/flock";
+import { notify } from "@/modules/notifications";
 
 const clock: Clock = systemClock;
 
@@ -40,6 +41,18 @@ export const climateSync: SyncRegistry = {
         if (await tx.climateReading.findUnique({ where: { id: r.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
         const dto: ReadingDto = { ...r, farmId: house.farmId, byUserId: ctx.userId };
         await tx.climateReading.create({ data: { ...dto, day: new Date(`${r.day}T00:00:00Z`), organizationId: ctx.organizationId } });
+        // CL4: out of the owner's targets for the age of the house's batch that day → owners and managers, urgently.
+        const placedOn = await batchPlacedInHouseOn(tx, ctx, r.houseId, r.day);
+        if (placedOn) {
+          const age = daysBetween(placedOn, r.day as FarmDay);
+          const sets = (await tx.climateTargetSet.findMany({ where: { organizationId: ctx.organizationId } })).map(
+            (s): TargetSet => ({ id: s.id, validFrom: s.validFrom.toISOString().slice(0, 10), source: s.source, bands: s.bands as Band[] }),
+          );
+          if (outOfRange(verdicts(r, targetFor(sets, r.day, age)))) {
+            const values = [`${(r.temperatureTenths / 10).toFixed(1).replace(".", ",")} °C`, `${r.humidity} %`, ...(r.ammonia === null ? [] : [`${r.ammonia} ppm`])].join(" · ");
+            await notify(tx, ctx, { roles: ["owner", "manager"], templateKey: "climateOutOfRange", params: { house: house.name, age: String(age), values }, urgency: "urgent" });
+          }
+        }
         await recordChange(tx, ctx, "climateReading", r.id, dto);
         await audit(tx, ctx, { entity: "ClimateReading", entityId: r.id, action: "create", after: dto, ...meta });
         return ok(undefined);

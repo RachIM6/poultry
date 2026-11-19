@@ -198,6 +198,10 @@
       "creditApproval": {
         "title": "Crédit à approuver : {buyer}",
         "body": "Une vente à crédit de {amount} dépasse le plafond de {limit}."
+      },
+      "climateOutOfRange": {
+        "title": "Climat hors cible : {house}",
+        "body": "J{age} : {values}. Hors des cibles saisies pour l’âge du lot."
       }
     }
   },

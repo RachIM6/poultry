@@ -78,7 +78,7 @@ export async function saveBudget(ctx: TenantContext, input: unknown): Promise<Re
 }
 
 export async function listBudgets(ctx: TenantContext): Promise<Result<SavedBudget[], "FORBIDDEN">> {
-  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN");
   const rows = await db.budget.findMany({ where: { organizationId: ctx.organizationId }, orderBy: { createdAt: "desc" } });
   return ok(
     rows.map((b) => ({

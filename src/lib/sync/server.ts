@@ -23,6 +23,8 @@ export type SyncRegistry = {
    * isn't theirs to see at all (another user's notification). Unlisted entities never leave.
    */
   entities: Record<string, (ctx: TenantContext, data: never) => unknown>;
+  /** ADR-011: for a role listed here (partners), only these entities leave; a role not listed keeps `entities` alone. */
+  views?: Partial<Record<TenantContext["role"], readonly string[]>>;
 };
 
 export const scopeMatches = (req: Request, ctx: TenantContext) => req.headers.get(SCOPE_HEADER) === `${ctx.userId}:${ctx.organizationId}`;
@@ -95,9 +97,10 @@ export async function pull(ctx: TenantContext, since: number, registry: SyncRegi
     orderBy: { version: "asc" },
     take: PULL_PAGE,
   });
+  const view = registry.views?.[ctx.role];
   const changes = rows.flatMap((row) => {
     const serialize = Object.hasOwn(registry.entities, row.entity) ? registry.entities[row.entity] : undefined;
-    if (!serialize) return [];
+    if (!serialize || (view && !view.includes(row.entity))) return [];
     const data = row.data === null ? null : serialize(ctx, row.data as never);
     if (data === undefined) return [];
     return [{ entity: row.entity, id: row.entityId, version: Number(row.version), data }];

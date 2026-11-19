@@ -5,7 +5,7 @@ import { CreateTreasuryAccount, FINANCE_MUTATIONS as M, RecordExpense, RecordTra
 
 // SPEC-finance FX2: owners and managers record expenses and treasury moves, offline (FX4). Workers get none of it,
 // neither the mutations nor the records.
-const forFinance = <T,>(ctx: Parameters<typeof can>[0], data: T) => (can(ctx, "finance.record") ? data : undefined);
+const forFinance = <T,>(ctx: Parameters<typeof can>[0], data: T) => (can(ctx, "money.read") ? data : undefined);
 
 export const financeSync: SyncRegistry = {
   mutations: {

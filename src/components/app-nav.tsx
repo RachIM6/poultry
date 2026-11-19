@@ -18,7 +18,7 @@ export function AppNav() {
   const pathname = usePathname();
   const isIn = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   // Everything that isn't one of the first three tabs is reached from "Plus".
-  const current = TABS.find((tab) => tab.key !== "more" && isIn(tab.href))?.key ?? (pathname === "/" ? undefined : "more");
+  const current = pathname === "/today" ? "today" : (TABS.find((tab) => tab.key !== "more" && isIn(tab.href))?.key ?? (pathname === "/" ? undefined : "more"));
   return (
     <nav
       aria-label={t("label")}

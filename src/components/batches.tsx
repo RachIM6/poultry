@@ -20,7 +20,7 @@ import { DayForm, type Write } from "@/components/daily-entry";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { BatchStrip, stripDays, type StripDay } from "@/components/batch-strip";
+import { BatchStrip, stripDays } from "@/components/batch-strip";
 import { card, field, primary, secondary } from "@/components/ui";
 
 // SPEC §9.3 budget (ADR-009, T25): the day's entry loads with the page; the rest of the batch screen comes in its own
@@ -35,6 +35,8 @@ const VetVisits = dynamic(() => import("@/components/treatments").then((m) => m.
 const WithdrawalBanner = dynamic(() => import("@/components/treatments").then((m) => m.WithdrawalBanner));
 const Vaccinations = dynamic(() => import("@/components/vaccinations").then((m) => m.Vaccinations));
 const Weighings = dynamic(() => import("@/components/weighing").then((m) => m.Weighings));
+const BatchHeader = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchHeader));
+const OpenBatchCard = dynamic(() => import("@/components/batch-dashboard").then((m) => m.OpenBatchCard));
 
 // SPEC B1 on the static /batches shell: from and to the phone's database (ADR-003). The one-open-batch rule is checked
 // here for a quick answer and enforced by the server, which rejects the second of two phones placing offline.
@@ -366,33 +368,3 @@ function PlacementForm({
   );
 }
 
-// Batch.dc.html: a round back button and the batch's name, then a dark card with its day and strip.
-function BatchHeader({ title }: { title: string }) {
-  const t = useTranslations("Day");
-  return (
-    <div className="flex items-center gap-3">
-      <a href="#" aria-label={t("back")} className="grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
-          <path d="M15 6l-6 6 6 6" />
-        </svg>
-      </a>
-      <h2 className="text-[21px] font-semibold leading-tight">{title}</h2>
-    </div>
-  );
-}
-
-function OpenBatchCard({ strip, birds, next }: { strip: { age: number; days: StripDay[]; label: string }; birds: string; next: string | null }) {
-  const t = useTranslations();
-  return (
-    <section aria-label={strip.label} className="flex flex-col gap-2.5 rounded-[20px] bg-ink p-4 text-shell">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-[26px] font-semibold">
-          {t("Batches.age", { age: String(strip.age) })} <span className="text-base font-normal text-sand">/ {strip.days.length}</span>
-        </span>
-        <span className="text-sm text-sand">{birds}</span>
-      </div>
-      <BatchStrip days={strip.days} onDark label={strip.label} />
-      {next && <span className="text-sm text-sand">{t("Batches.nextVaccine", { vaccine: next })}</span>}
-    </section>
-  );
-}

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { cancel, invite, remove, updateRole, type ActionState } from "./actions";
-import { field, primary, secondary } from "@/components/ui";
+import { card, field, primary, secondary } from "@/components/ui";
 
 
 const ErrorText = ({ state }: { state: ActionState }) => {
@@ -34,7 +34,7 @@ export function MemberRow({ membershipId, phone, role, roles }: { membershipId: 
   const [roleState, roleAction, rolePending] = useActionState(updateRole, {});
   const [removeState, removeAction, removePending] = useActionState(remove, {});
   return (
-    <li className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
+    <li className={card}>
       <bdi dir="ltr" className="font-semibold">{phone}</bdi>
       <form action={roleAction} className="flex gap-2">
         <input type="hidden" name="membershipId" value={membershipId} />

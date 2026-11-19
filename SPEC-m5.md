@@ -24,7 +24,7 @@ The farm opens to the two outside people it already works with, and plans ahead:
 | Concept | Module | Rule |
 |---|---|---|
 | **Partner** | identity, partner-access | A member with the role **vet** or **accountant**, invited by the owner's phone invitation (the farmer's consent is the invitation). Optional **access end date**: after it, the membership no longer opens the organisation |
-| **Active organisation** | identity | A user with several memberships picks one; it is kept in a signed cookie and checked against their memberships on every request. Without a choice, the oldest membership (today's rule) |
+| **Active organisation** | identity | A user with several memberships picks one; it is kept in a cookie and checked against their live memberships on every request, so a forged value opens nothing. Without a choice, the oldest membership (today's rule) |
 | **Partner view** | partner-access | What a partner's phone receives on pull: an allowlist of entities per role (§5), applied at the one place the sync pull serializes changes |
 | **Price observation** | market-prices | Product, farm, farm day, price per unit in centimes, what it was seen on (free text), who recorded it. Units are fixed per product (§6) |
 | **Planned batch** | planning | House, planned placement day, chicks, strain, hatchery, booked chick price (optional), planned sale age in days (optional), status planned / placed / cancelled, and the batch it became |

@@ -14,7 +14,7 @@ Proposed (written while the owner was away, 2026-11-18; to be reviewed with SPEC
 
 ## Decision
 - **Partners are members.** `MemberRole` gains `vet` and `accountant`. The owner invites them through the existing phone invitation; the invitation is the consent. `Membership` and `Invitation` gain an optional `accessUntil`; a membership past it does not open the organisation.
-- **Active organisation:** a user with several memberships picks one; the choice is an organisation id in a signed, httpOnly cookie, and `getTenantContext` uses it only when it matches a live membership of the session's user, else the oldest live membership. Changing it is a same-origin POST.
+- **Active organisation:** a user with several memberships picks one; the choice is an organisation id in an httpOnly cookie, and `getTenantContext` uses it only when it matches a live membership of the session's user, else the oldest live membership. No signature is needed: a forged value can only pick among the user's own memberships. Changing it is a server action (Next's Origin check), audited.
 - **Actions:** the two roles join the existing table (SPEC-m5 §5). No action is checked by role name anywhere else.
 - **Pull allowlist:** the sync pull, the one place every change is serialized, skips any entity not on the partner role's list. A new entity is invisible to partners until it is added to the list on purpose.
 - **No farm-level scope yet** (SPEC-m5 NQ1): a partner sees the whole organisation, like a manager.

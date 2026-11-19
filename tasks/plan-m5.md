@@ -41,16 +41,24 @@ Done 2026-11-18 (branch `feat/t91-partner-pull`), decisions taken without asking
 **Size:** M
 
 ### T92: Active organisation (PA2)
-**Description:** signed cookie with the chosen organisation; `POST /api/auth/organization` (same origin, a membership of the user); a chooser after sign-in when the user has several live memberships; "Changer d’exploitation" in the menu.
+**Description:** a cookie with the chosen organisation, checked against the user's live memberships on every request; `/organizations` to open a farm or accept a waiting invitation; "Changer d’exploitation" in "Plus".
 **AC:**
-- [ ] A user with two memberships switches; each organisation's data stays in its own phone database (Playwright).
-- [ ] A forged cookie or someone else's organisation falls back to the oldest live membership (integration).
+- [x] A user with two memberships switches; each organisation's data stays in its own phone database (Playwright). (`e2e/switch-farm.spec.ts`)
+- [x] A forged cookie or someone else's organisation falls back to the oldest live membership (integration). (`identity/organizations.int.test.ts`)
+
+Done 2026-11-18 (branch `feat/t92-switch-farm`), decisions taken without asking:
+- **Cookie `__Host-org`, not signed:** httpOnly, Secure, SameSite=Lax, one year. It is only a hint: `getTenantContext` opens it only when it is one of the user's live memberships, else the oldest, so a forged value opens nothing. ADR-011 and SPEC-m5 §3 say so now.
+- **Server actions, not a new route:** `openFarm` and `acceptAndOpen` on `/organizations` (Next's Origin check), then the dashboard. Opening a farm is audited (`Membership`, `open`).
+- **Invitations for someone already elsewhere** stay pending (as before) and show on `/organizations`, where the person accepts them; only an invitation to their own phone, unexpired. No chooser right after sign-in: the oldest farm opens, and "Changer d’exploitation" appears in "Plus" as soon as there is a second farm or an invitation.
+- The phone needed nothing new: each signed-in page stores the server's organisation, and every farm already has its own database (ADR-003).
 **Size:** M
 
 ### T93: Partners on the members screen (PA6)
 **Description:** role and end date shown; the owner removes a partner; partner sign-ins audited.
 **AC:**
-- [ ] Removed partner: next pull refused (integration + Playwright).
+- [x] Removed partner: next pull refused (integration + Playwright). (`identity/organizations.int.test.ts`: a farm that removes its vet is closed to them at once, their other farm still opens. Role and end day on the members screen came with T90, `e2e/partners.spec.ts`; removal is the existing "Retirer", `e2e/members.spec.ts`.)
+
+Done 2026-11-18 with T92 (no separate branch): opening a farm is audited; sign-ins already are.
 **Size:** S
 
 ### T94: Price log (MP1, MP3)

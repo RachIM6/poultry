@@ -176,8 +176,17 @@ Not yet: the weekly cash need. M1 records no supplier credit terms (only a purch
 
 ### T36: Books and trial balance (FN16)
 **AC:**
-- [ ] Cash-book view for `cash_book` entities; journals, ledger and trial balance for `ledger` entities.
-- [ ] Trial balance is balanced for any sequence of M1 events (property test).
+- [x] Cash-book view for `cash_book` entities; journals, ledger and trial balance for `ledger` entities. (`finance/books.int.test.ts` with the same M1 events in both kinds of entity; `e2e/books.spec.ts`.)
+- [x] Trial balance is balanced for any sequence of M1 events (property test). (`finance/domain/books.test.ts`: 200 random runs over every posting rule, purchases to instrument steps, expenses and transfers.)
+
+Done 2026-11-15 (branch `feat/t36-books`):
+- `trialBalance` and `cashBookOf` are pure.
+- `readBooks(ctx, month)` gives every entity its cash book. A `ledger` entity also gets the month's journals, and the general ledger and trial balance from the fiscal year's first day, so the à-nouveaux entry is in them. Labels come from the chart.
+- **Cash book scope:** the lines on 51xx, without 5115 (a transfer only passes through it; its two legs show on the accounts it moves money between).
+- `/books` is online (owner, manager): month navigation, and only the views the profile keeps.
+
+Not yet: the batch column in the cash book (FN16 "with category and batch"). Ledger lines carry no batch tag; T34 computes results from facts.
+
 **Size:** M
 
 ### T37: 5 M DH tracker (FN17)

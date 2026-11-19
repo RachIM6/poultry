@@ -692,5 +692,29 @@
     "saved": "Budgets enregistrés",
     "none": "Aucun budget enregistré.",
     "line": "seuil {breakEven} / kg, marge {margin}"
+  },
+  "Books": {
+    "open": "Comptabilité",
+    "titleLedger": "Comptabilité",
+    "titleCashBook": "Livre des recettes et dépenses",
+    "month": "Mois",
+    "views": "Livres",
+    "cash": "Recettes et dépenses",
+    "journals": "Journaux",
+    "ledger": "Grand livre",
+    "trial": "Balance",
+    "day": "Date",
+    "label": "Libellé",
+    "account": "Compte",
+    "receipt": "Recette",
+    "expense": "Dépense",
+    "total": "Total du mois",
+    "journal": "Journal {journal}",
+    "debit": "Débit",
+    "credit": "Crédit",
+    "balance": "Solde",
+    "since": "Depuis le début de l’exercice, le {from}",
+    "balanced": "Balance équilibrée",
+    "unbalanced": "Balance déséquilibrée"
   }
 }

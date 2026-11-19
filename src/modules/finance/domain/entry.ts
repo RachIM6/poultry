@@ -2,8 +2,11 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { ChartOfAccounts } from "@/modules/finance/domain/chart";
 
-/** One line of a journal entry: amounts in centimes (FX1), exactly one side above zero. */
-export type Line = { account: string; debit: bigint; credit: bigint };
+/**
+ * One line of a journal entry: amounts in centimes (FX1), exactly one side above zero. `treasuryId`: which bank
+ * account or cash box a 5141 / 5161 line moves (FN3), as a tag rather than a sub-account per organisation.
+ */
+export type Line = { account: string; debit: bigint; credit: bigint; treasuryId?: string | null };
 
 export type EntryError = "TOO_FEW_LINES" | "ONE_SIDE_PER_LINE" | "UNKNOWN_ACCOUNT" | "UNBALANCED";
 
@@ -22,7 +25,7 @@ export function checkEntry(lines: readonly Line[], chart: ChartOfAccounts): Resu
 }
 
 /** SPEC-finance FN5: a correction first cancels the posted entry with the same lines, sides swapped. */
-export const reversalOf = (lines: readonly Line[]): Line[] => lines.map((l) => ({ account: l.account, debit: l.credit, credit: l.debit }));
+export const reversalOf = (lines: readonly Line[]): Line[] => lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const lastDay = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate(); // month: 1–12

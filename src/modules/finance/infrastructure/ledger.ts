@@ -51,7 +51,7 @@ export async function saveEntry(tx: Tx, ctx: TenantContext, e: EntryRow) {
     },
   });
   await tx.journalLine.createMany({
-    data: e.lines.map((l) => ({ organizationId: ctx.organizationId, entryId: e.id, account: l.account, debitCentimes: l.debit, creditCentimes: l.credit })),
+    data: e.lines.map((l) => ({ organizationId: ctx.organizationId, entryId: e.id, account: l.account, debitCentimes: l.debit, creditCentimes: l.credit, treasuryId: l.treasuryId ?? null })),
   });
 }
 
@@ -66,7 +66,7 @@ export async function loadEntry(tx: Tx, ctx: TenantContext, id: string): Promise
     day: dayOf(e.day),
     label: e.label,
     reversesId: e.reversesId,
-    lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes })),
+    lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes, treasuryId: l.treasuryId })),
     reversed,
   };
 }
@@ -106,7 +106,7 @@ export async function standingEntryFor(tx: Tx, ctx: TenantContext, module: strin
     include: { lines: true },
   });
   if (!e || (await tx.journalEntry.count({ where: { reversesId: e.id } })) > 0) return null;
-  return { id: e.id, journal: e.journal, day: dayOf(e.day), lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes })) };
+  return { id: e.id, journal: e.journal, day: dayOf(e.day), lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes, treasuryId: l.treasuryId })) };
 }
 
 export async function sourceAlreadyPosted(tx: Tx, source: { module: string; id: string; version: number }) {

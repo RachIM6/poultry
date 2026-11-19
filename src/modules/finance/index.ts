@@ -5,3 +5,5 @@ export { type Line } from "./domain/entry";
 export type { EntryRow } from "./infrastructure/ledger";
 export { CHARTS, type AccountRow, type Chart } from "./schema";
 export { postPending } from "./application/posting";
+export { financeSync } from "./sync";
+export { treasuryOverview, type TreasuryOverview } from "./application/treasury";

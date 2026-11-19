@@ -581,5 +581,52 @@
     "reason": "Motif de la clôture",
     "confirm": "Clôturer",
     "cancel": "Annuler"
+  },
+  "Expenses": {
+    "title": "Dépense rapide",
+    "open": "Dépense rapide",
+    "forbidden": "Les dépenses et la trésorerie sont réservées au propriétaire et au gérant.",
+    "category": "Nature",
+    "categories": {
+      "electricity": "Électricité",
+      "water": "Eau",
+      "vet_fees": "Honoraires du vétérinaire",
+      "insurance": "Assurance",
+      "catching": "Équipe d’enlèvement ou transport"
+    },
+    "amount": "Montant (DH)",
+    "from": "Payé avec",
+    "credit": "À payer plus tard (fournisseur)",
+    "day": "Date",
+    "note": "Note (facultatif)",
+    "save": "Enregistrer la dépense",
+    "recent": "Dernières dépenses",
+    "none": "Aucune dépense enregistrée.",
+    "line": "{category} : {amount}, le {date}",
+    "accounts": "Caisses et comptes bancaires",
+    "kinds": {
+      "cash": "Caisse",
+      "bank": "Banque"
+    },
+    "kind": "Type",
+    "accountName": "Nom",
+    "addAccount": "Ajouter une caisse ou un compte",
+    "saveAccount": "Enregistrer"
+  },
+  "Treasury": {
+    "title": "Trésorerie",
+    "open": "Trésorerie",
+    "balances": "Soldes",
+    "total": "Total disponible",
+    "movements": "Mouvements du mois",
+    "none": "Aucun mouvement ce mois-ci.",
+    "day": "Date",
+    "journal": "Journal",
+    "label": "Libellé",
+    "account": "Caisse ou compte",
+    "in": "Entrée",
+    "out": "Sortie",
+    "untagged": "Non précisé",
+    "unknown": "Autre"
   }
 }

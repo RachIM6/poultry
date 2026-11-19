@@ -86,6 +86,29 @@ export async function entriesBetween(tx: Tx, ctx: TenantContext, legalEntityId: 
   return tx.journalEntry.count({ where: { organizationId: ctx.organizationId, legalEntityId, day: { gte: date(from), lte: date(to) } } });
 }
 
+/** FN7: the source's cursor, row-locked for the rest of the transaction (created at 0 the first time). */
+export async function lockCursor(tx: Tx, ctx: TenantContext, source: string): Promise<bigint> {
+  await tx.$executeRaw`INSERT INTO "PostingCursor" ("organizationId", source) VALUES (${ctx.organizationId}::uuid, ${source}) ON CONFLICT DO NOTHING`;
+  const [{ version }] = await tx.$queryRaw<{ version: bigint }[]>`
+    SELECT version FROM "PostingCursor" WHERE "organizationId" = ${ctx.organizationId}::uuid AND source = ${source} FOR UPDATE`;
+  return version;
+}
+
+export async function moveCursor(tx: Tx, ctx: TenantContext, source: string, version: bigint) {
+  await tx.postingCursor.update({ where: { organizationId_source: { organizationId: ctx.organizationId, source } }, data: { version } });
+}
+
+/** The entry currently standing for a source record: its latest posting that no entry reverses. */
+export async function standingEntryFor(tx: Tx, ctx: TenantContext, module: string, sourceId: string) {
+  const e = await tx.journalEntry.findFirst({
+    where: { organizationId: ctx.organizationId, sourceModule: module, sourceId },
+    orderBy: { sourceVersion: "desc" },
+    include: { lines: true },
+  });
+  if (!e || (await tx.journalEntry.count({ where: { reversesId: e.id } })) > 0) return null;
+  return { id: e.id, day: dayOf(e.day), lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes })) };
+}
+
 export async function sourceAlreadyPosted(tx: Tx, source: { module: string; id: string; version: number }) {
   return (await tx.journalEntry.count({ where: { sourceModule: source.module, sourceId: source.id, sourceVersion: source.version } })) > 0;
 }

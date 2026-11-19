@@ -1,8 +1,10 @@
+import { after } from "next/server";
 import { isSameOriginRequest } from "@/lib/security/csrf";
 import { consume } from "@/lib/security/rate-limit";
 import { z } from "zod";
 import { MAX_MUTATIONS_PER_PUSH } from "@/lib/sync/protocol";
 import { push, scopeMatches } from "@/lib/sync/server";
+import { postPending } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { registry } from "../registry";
 
@@ -36,7 +38,10 @@ export async function POST(req: Request) {
   const body = PushBody.safeParse(parseJson(text));
   if (!body.success) return Response.json({ ok: false, messageKey: "errors.INVALID_INPUT" }, { status: 400 });
 
-  return Response.json(await push(ctx.value, body.data.mutations, registry));
+  const result = await push(ctx.value, body.data.mutations, registry);
+  // SPEC-finance FN7: post what this push recorded, once the phone has its answer. A failure is retried at the next push.
+  after(() => postPending(ctx.value).catch((error) => console.error("[finance] posting failed", error)));
+  return Response.json(result);
 }
 
 /** The body as text, or null past `max` bytes: stops reading there instead of buffering an oversized body first. */

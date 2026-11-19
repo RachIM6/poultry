@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { SCOPE_HEADER } from "@/lib/sync/protocol";
 import { requestCode, verifyCode } from "@/modules/identity";
 import { tenant } from "@/test/tenant";
 import { GET } from "./pull/route";
 import { POST } from "./push/route";
+
+// The route posts to finance with after(), which needs a real request scope: here it runs right away.
+vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: (task: () => unknown) => void task() }));
 
 // Route-level rules: CSRF, session, scope, validation, limits. Push/pull semantics: src/lib/sync/server.int.test.ts.
 const origin = process.env.APP_ORIGIN!;

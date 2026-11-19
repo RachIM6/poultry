@@ -4,3 +4,4 @@ export { chartOf, postingAccount, rollUp, type ChartOfAccounts } from "./domain/
 export { type Line } from "./domain/entry";
 export type { EntryRow } from "./infrastructure/ledger";
 export { CHARTS, type AccountRow, type Chart } from "./schema";
+export { postPending } from "./application/posting";

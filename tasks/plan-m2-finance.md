@@ -57,9 +57,21 @@ Done 2026-11-14 (branch `feat/t29-ledger-core`): permissions `finance.record` (o
 ### T30: Posting pipeline, purchases and payments (FN6–FN8)
 **Description:** `PostingRule` (versioned, with entity overrides), pure `post(event, rules)`, `PostingCursor` per source, `inventory.listChangedSince` and `flock.listChangedSince` (chick purchase at placement). Rules for purchases and supplier payments (cash, transfer, cheque issued, bill accepted). Runs after each sync push.
 **AC:**
-- [ ] Replaying the same sync twice creates no new entry (integration test).
-- [ ] Editing a purchase posts a reversal and a new entry.
-- [ ] With PCA off, a feed purchase posts to 6121.
+- [x] Replaying the same sync twice creates no new entry (integration test). (`finance/posting.int.test.ts`: the cursor moves, and the source key `(module, id, change version)` is unique.)
+- [x] Editing a purchase posts a reversal and a new entry. (Any newer version of a record whose entry differs; a version that leaves the books alone, like a batch closing, posts nothing.)
+- [x] With PCA off, a feed purchase posts to 6121.
+Done 2026-11-14 (branch `feat/t30-posting-pipeline`):
+- `finance/domain/posting.ts` holds FN6's purchase and chick rules as data (pure), mapped to the entity's chart.
+- The cursor is the organisation's sync change log: `inventory.purchasesChangedSince` and `flock.placementsChangedSince` read it, one `PostingCursor` per source, row-locked.
+- `postPending` runs after each push through Next's `after()`, so the phone doesn't wait.
+- An entry whose month is locked goes to the first open month.
+
+Not yet:
+- **Supplier payment rules:** M1 records no supplier payment, only the part paid at the purchase. That part goes to 5161 (cash), because M1 doesn't record how it was paid. ⚠️ until purchases carry a payment method (T32).
+- **`PostingRule` table and FN8 overrides:** the rules are code until an owner needs to override one.
+- **The "other" item kind:** it goes to 61221; FN6 has no rule for it (for the accountant).
+- **One legal entity per organisation,** as onboarding creates.
+
 **Size:** L
 
 ### T31: Sales, cheques and bills (FN6, FN11)

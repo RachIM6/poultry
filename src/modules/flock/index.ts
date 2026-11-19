@@ -3,3 +3,4 @@
 export { flockSync } from "./sync";
 export { batchFacts } from "./infrastructure/batches";
 export { recordBirdsSold } from "./application/sold-birds";
+export { placementsChangedSince, type PlacementChange } from "./application/changes";

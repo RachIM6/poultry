@@ -9,9 +9,10 @@ import { twoTenants } from "@/test/tenant";
 
 // SPEC-m5 PA4, PA5, ADR-013 (T91): a partner's phone receives only the entities on their role's list. Every synced
 // entity must be on the list or below as hidden: adding an entity without deciding for partners fails this test.
+// M3 eggs and M2-compliance logs and documents: hidden from both until the owner decides (SPEC-m5 §8).
 const HIDDEN = {
-  vet: ["treasuryAccount", "expense", "transfer", "batchCost", "supplier", "purchase", "buyer", "sale", "buyerPayment", "instrumentStatus", "employee", "routine", "oneOffTask", "taskDone", "taskAssignment", "attendance", "advance", "payMonth", "labourRules", "staffRecord", "climateTargets", "climateReading", "powerCut", "price", "plannedBatch", "downtimeRule"],
-  accountant: ["dailyEntry", "weighing", "vaccination", "treatment", "vetVisit", "protocol", "routine", "oneOffTask", "taskDone", "taskAssignment", "attendance", "staffRecord", "climateTargets", "climateReading", "powerCut", "plannedBatch", "downtimeRule"],
+  vet: ["treasuryAccount", "expense", "transfer", "batchCost", "supplier", "purchase", "buyer", "sale", "buyerPayment", "instrumentStatus", "employee", "routine", "oneOffTask", "taskDone", "taskAssignment", "attendance", "advance", "payMonth", "labourRules", "staffRecord", "climateTargets", "climateReading", "powerCut", "price", "plannedBatch", "downtimeRule", "eggCollection", "eggDiscard", "eggDraw", "eggGrading", "visit", "disposal", "manureRemoval", "cleanout", "rodentCheck", "downtimeSetting", "document"],
+  accountant: ["dailyEntry", "weighing", "vaccination", "treatment", "vetVisit", "protocol", "routine", "oneOffTask", "taskDone", "taskAssignment", "attendance", "staffRecord", "climateTargets", "climateReading", "powerCut", "plannedBatch", "downtimeRule", "eggCollection", "eggDiscard", "eggDraw", "eggGrading", "visit", "disposal", "manureRemoval", "cleanout", "rodentCheck", "downtimeSetting", "document"],
 } as const;
 
 describe("what a partner's phone pulls (SPEC-m5 PA4, PA5)", () => {

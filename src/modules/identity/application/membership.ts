@@ -13,6 +13,12 @@ export async function getTenantContext(headers: Headers): Promise<Result<TenantC
   return ok({ userId: session.userId, organizationId: membership.organizationId, role: membership.role });
 }
 
+/** Each user's language (SPEC I3), for messages sent outside a request: push notifications. */
+export async function localesOf(userIds: string[]): Promise<Map<string, "ar" | "fr">> {
+  const users = await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, locale: true } });
+  return new Map(users.map((u) => [u.id, u.locale]));
+}
+
 /**
  * Locks the user row for the rest of the transaction, so two onboarding submits run one after the other.
  * True when the user has no organisation yet.

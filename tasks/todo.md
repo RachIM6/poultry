@@ -193,8 +193,10 @@ Decisions (2026-11-04, taken without asking, to keep going): the default protoco
 ### T12: Notifications (N1–N3)
 **Description:** In-app inbox, web push subscription (VAPID), `notify(userIds, templateKey, params, urgency)`, AR/FR templates, quiet hours per user.
 **AC:**
-- [ ] A test notification reaches the inbox and, on Android, a push.
-- [ ] During quiet hours, non-urgent notifications are held and delivered at the end. Urgent ones go through immediately (unit test on the scheduling rule).
+- [ ] A test notification reaches the inbox and, on Android, a push. **Inbox part done** (`e2e/inbox.spec.ts`: sent, pulled into the phone's inbox, marked read). **Push on a real phone not verified:** headless Chromium has no push service; the sender, payload, dead-subscription cleanup and double-dispatch guard are covered by `src/modules/notifications/notifications.int.test.ts`. Check on Android and an installed iPhone at Checkpoint D, with dev VAPID keys in `.env` (see `.env.example`).
+- [x] During quiet hours, non-urgent notifications are held and delivered at the end. Urgent ones go through immediately (unit test on the scheduling rule). (`src/modules/notifications/schedule.test.ts`, farm clock including Ramadan's offset; per-user windows in the integration test.)
+
+Notes: held pushes go out when `POST /api/push/dispatch` is called (Bearer `CRON_SECRET`); the host's scheduler must call it every minute (T26). Until then they go out with the next notification's dispatch. Push subscriptions only accept HTTPS endpoints of the browsers' push services (no server-side request to arbitrary URLs). Logout unsubscribes the phone from push.
 
 **Verify:** `pnpm test -- src/modules/notifications`. Manual push on a real Android phone and on an installed iPhone.
 **Dependencies:** T10

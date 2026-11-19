@@ -64,3 +64,16 @@ self.addEventListener("sync", (event) => {
     })(),
   );
 });
+
+// SPEC N1: show a push as a notification (browsers require a visible one), and open the inbox when it is tapped.
+self.addEventListener("push", (event) => {
+  const { title, body, url } = (event.data?.json() ?? {}) as { title?: string; body?: string; url?: string };
+  if (!title) return;
+  event.waitUntil(self.registration.showNotification(title, { body, icon: "/icons/icon-192.png", data: { url } }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data as { url?: string } | null)?.url ?? "/ar/inbox";
+  event.waitUntil(self.clients.openWindow(url));
+});

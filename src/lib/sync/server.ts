@@ -18,7 +18,10 @@ export type MutationHandler<P> = {
 /** Built in the app layer from module indexes (src/lib may not import modules). */
 export type SyncRegistry = {
   mutations: Record<string, MutationHandler<never>>;
-  /** Per synced entity: what a caller may see of a record (money stripped for workers). Unlisted entities never leave. */
+  /**
+   * Per synced entity: what a caller may see of a record (money stripped for workers), or undefined when the record
+   * isn't theirs to see at all (another user's notification). Unlisted entities never leave.
+   */
   entities: Record<string, (ctx: TenantContext, data: never) => unknown>;
 };
 
@@ -96,6 +99,7 @@ export async function pull(ctx: TenantContext, since: number, registry: SyncRegi
     const serialize = Object.hasOwn(registry.entities, row.entity) ? registry.entities[row.entity] : undefined;
     if (!serialize) return [];
     const data = row.data === null ? null : serialize(ctx, row.data as never);
+    if (data === undefined) return [];
     return [{ entity: row.entity, id: row.entityId, version: Number(row.version), data }];
   });
   return { version: rows.length ? Number(rows[rows.length - 1].version) : since, hasMore: rows.length === PULL_PAGE, changes };

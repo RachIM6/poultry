@@ -296,6 +296,43 @@ model VaccinationProtocol {
   @@index([organizationId])
 }
 
+// Owner: notifications (SPEC N1–N3). One row per recipient: their inbox entry, and the outbox for web push, written in
+// the caller's transaction and pushed after commit (poultry-ddd §4).
+model Notification {
+  id             String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String    @db.Uuid
+  userId         String    @db.Uuid
+  templateKey    String // messages: Notifications.templates.<key>
+  params         Json
+  urgent         Boolean   @default(false)
+  deliverAfter   DateTime  @db.Timestamptz // end of the recipient's quiet hours when held (N2)
+  pushedAt       DateTime? @db.Timestamptz // claimed by the dispatcher
+  readAt         DateTime? @db.Timestamptz
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  @@index([userId, createdAt])
+  @@index([pushedAt, deliverAfter])
+}
+
+// Owner: notifications. One per browser that accepted push (N1).
+model PushSubscription {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@index([userId])
+}
+
+// Owner: notifications. N2: quiet hours per user, in farm time (Africa/Casablanca), "HH:MM".
+model NotificationPreference {
+  userId     String @id @db.Uuid
+  quietStart String @default("22:00")
+  quietEnd   String @default("06:00")
+}
+
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
 // No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
 model AuditEvent {

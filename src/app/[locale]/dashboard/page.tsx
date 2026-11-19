@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LogoutButton } from "@/components/logout-button";
+import { SyncBadge } from "@/components/sync-status";
 import { Link, redirect } from "@/i18n/navigation";
 import { can } from "@/lib/permissions";
 import { listLegalEntities } from "@/modules/farm-registry";
@@ -35,6 +36,7 @@ async function Content() {
         <h1 className="text-2xl font-semibold">{entity?.name}</h1>
         {entity && <p className="opacity-75">{t(`Onboarding.forms.${entity.form}`)}</p>}
       </div>
+      <SyncBadge userId={ctx.value.userId} organizationId={ctx.value.organizationId} role={ctx.value.role} />
       <p className="rounded-lg border border-dashed border-current/30 p-6 text-center">{t("Dashboard.noFarms")}</p>
       {can(ctx.value, "members.manage") && (
         <Link href="/settings/members" className="underline underline-offset-4">{t("Members.title")}</Link>

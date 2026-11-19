@@ -3,6 +3,12 @@ import { z } from "zod";
 // ADR-003 wire format, shared by the sync client (T9) and the route handlers. Changing it is "ask first" (SPEC §7).
 
 export const MAX_MUTATIONS_PER_PUSH = 500; // poultry-auth rate-limiting.md §3
+
+/**
+ * "<userId>:<organizationId>" of the local database the request comes from. The server answers 409 when it isn't the
+ * session's, so a shared phone never pushes or pulls one user's data with another user's session (T9).
+ */
+export const SCOPE_HEADER = "x-sync-scope";
 export const PULL_PAGE = 1000;
 
 export const PushBody = z.object({

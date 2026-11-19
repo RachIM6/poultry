@@ -41,7 +41,8 @@
     "changeNumber": "Changer de numéro"
   },
   "Account": {
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "unsyncedConfirm": "Des modifications ne sont pas encore envoyées. Elles restent sur ce téléphone et partiront à votre prochaine connexion. Se déconnecter ?"
   },
   "Onboarding": {
     "title": "Créer votre exploitation",
@@ -84,6 +85,28 @@
       "worker": "Ouvrier"
     }
   },
+  "Sync": {
+    "title": "Synchronisation",
+    "savedHere": "Ce que vous saisissez est enregistré sur ce téléphone, puis envoyé dès qu’il y a du réseau.",
+    "pending": "Modifications en attente d’envoi : {count}",
+    "upToDate": "Tout est envoyé.",
+    "lastSync": "Dernière synchronisation : {time}",
+    "never": "Pas encore synchronisé sur ce téléphone.",
+    "offline": "Pas de réseau pour l’instant. Nouvel essai automatique.",
+    "unauthenticated": "Session expirée. Reconnectez-vous pour envoyer vos modifications : elles restent sur ce téléphone.",
+    "wrongScope": "Ce téléphone a changé de compte. Reconnectez-vous.",
+    "syncNow": "Synchroniser maintenant",
+    "attention": "À vérifier",
+    "attentionHint": "Le serveur a refusé ces modifications. Elles n’ont pas été enregistrées.",
+    "dismiss": "J’ai compris",
+    "signedOut": "Connectez-vous pour synchroniser ce téléphone.",
+    "login": "Se connecter",
+    "open": "Synchronisation"
+  },
+  "Pwa": {
+    "updateAvailable": "Une nouvelle version de l’application est prête.",
+    "update": "Mettre à jour"
+  },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
@@ -96,6 +119,7 @@
     "ALREADY_MEMBER": "Ce numéro est déjà membre.",
     "LAST_OWNER": "Il faut au moins un propriétaire.",
     "NOT_FOUND": "Introuvable.",
-    "UNKNOWN_MUTATION": "Cette action n’est pas reconnue. Mettez l’application à jour."
+    "UNKNOWN_MUTATION": "Cette action n’est pas reconnue. Mettez l’application à jour.",
+    "SYNC_SCOPE": "Ce téléphone a changé de compte. Reconnectez-vous."
   }
 }

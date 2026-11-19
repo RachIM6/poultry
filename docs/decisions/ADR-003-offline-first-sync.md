@@ -37,6 +37,9 @@ Proposed. To be confirmed by the sync spike (tasks T8–T9).
 - **Ordering:** the per-organisation counter (`SyncVersion`) is incremented with a row lock held until commit, so versions become visible in order and a pull never skips one. This serializes one organisation's writes, which is fine at farm scale.
 - **Idempotency:** each mutation runs in its own transaction, which first claims its id in `Mutation`. A concurrent duplicate waits on that row and then returns the stored result. Rejections are stored and replayed too. An unexpected error stops the batch with nothing recorded for that mutation, so the client retries it and everything after it.
 - **Wire format:** `src/lib/sync/protocol.ts`.
+- **One local database per user and organisation (T9)**, plus a `x-sync-scope: <userId>:<organizationId>` header on push and pull. The server answers 409 when it isn't the session's. On a shared phone, one user's outbox is never pushed (or another's data pulled) under someone else's session, including from the service worker's Background Sync, which only knows who signed in last. *Addition to the protocol, made during the spike: confirm at checkpoint C.*
+- **Client merge (T9):** push first; `applied` and `rejected` remove a mutation from the outbox, anything else keeps it and what follows. A rejection goes to "needs attention", drops the local copy of its record and resets the cursor to 0, so the next pull restores the server's version. A pulled change doesn't overwrite a record that has a write still queued.
+- **Offline screens (T9):** signed-in pages and every `/api` response are network-only in the service worker (Serwist's `defaultCache` stored them). Offline screens are static, precached shells that read IndexedDB; `/[locale]/sync` is the first.
 - **Later:** compact the change log (drop superseded versions) once it grows; until then a first pull reads every change.
 
 ## Alternatives Considered

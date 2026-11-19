@@ -7,7 +7,8 @@ const revision = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).
 const { generateStaticParams, GET } = createSerwistRoute({
   swSrc: "src/sw.ts",
   useNativeEsbuild: true,
-  additionalPrecacheEntries: ["/ar", "/fr", "/ar/offline", "/fr/offline"].map((url) => ({ url, revision })),
+  // Public, static shells only (poultry-pwa §0.3). /sync reads the signed-in user's data from IndexedDB, not the HTML.
+  additionalPrecacheEntries: ["/ar", "/fr", "/ar/offline", "/fr/offline", "/ar/sync", "/fr/sync"].map((url) => ({ url, revision })),
 });
 
 // The helper also returns `dynamic`, `dynamicParams` and `revalidate` segment configs, which cacheComponents

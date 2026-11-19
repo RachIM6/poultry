@@ -1,6 +1,6 @@
 # Spec: `finance` module
 
-_v0.1, 3 Nov 2026. Status: **draft**, to be reviewed by a Moroccan expert-comptable (§9). Architecture: [ADR-010](docs/decisions/ADR-010-accounting-model.md). Screens: canvas "Dawra — maquettes", page 5 · Finance et comptabilité. Background for engineers: [Dawra Accounting Primer](https://claude.ai/artifact/1rhzsgz9pQjGPcb8nT5Dwb). Both are private claude.ai pages (ask the owner for access); everything needed to build is in this file. Conventions, stack and boundaries from [SPEC.md](SPEC.md) apply unchanged._
+_v0.1, 3 Nov 2026. Status: **draft**, to be reviewed by a Moroccan expert-comptable (§9). Architecture: [ADR-010](docs/decisions/ADR-010-accounting-model.md). Screens: canvas "Dawra — maquettes", page 5 · Finance et comptabilité. Background for engineers: [Dawra Accounting Primer](https://claude.ai/artifact/ASycXSbhioZ73rQhs6Hiqx). Both are private claude.ai pages (ask the owner for access); everything needed to build is in this file. Conventions, stack and boundaries from [SPEC.md](SPEC.md) apply unchanged._
 
 ## 1. Objective
 

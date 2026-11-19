@@ -173,7 +173,7 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
         </div>
       )}
 
-      <h2 className="text-lg font-semibold">{t("houses")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("houses")}</h2>
       {houses.length === 0 ? (
         <p>{t("noHouses")}</p>
       ) : (

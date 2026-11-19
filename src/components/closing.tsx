@@ -74,7 +74,7 @@ export function BatchCosts({ batch, costs, manage, write }: { batch: BatchDto; c
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="cost-title">
-      <h3 id="cost-title" className="text-lg font-semibold">{t("Closing.costs")}</h3>
+      <h3 id="cost-title" className="text-[17px] font-semibold text-ink-2">{t("Closing.costs")}</h3>
       {costs.length === 0 ? (
         <p>{t("Closing.noCost")}</p>
       ) : (

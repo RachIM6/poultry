@@ -40,7 +40,7 @@ async function Content() {
       </ul>
       {invitations.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">{t("pending")}</h2>
+          <h2 className="text-[17px] font-semibold text-ink-2">{t("pending")}</h2>
           <ul className="flex flex-col gap-3">
             {invitations.map((i) => (
               <li key={i.id} className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-line p-3">
@@ -54,7 +54,7 @@ async function Content() {
         </section>
       )}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">{t("inviteTitle")}</h2>
+        <h2 className="text-[17px] font-semibold text-ink-2">{t("inviteTitle")}</h2>
         <p className="text-sm text-muted">{t("inviteHint")}</p>
         <InviteForm roles={ROLES} />
       </section>

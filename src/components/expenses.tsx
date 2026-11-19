@@ -72,7 +72,7 @@ function Expenses(scope: Scope) {
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
       <ExpenseForm accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
 
-      <h2 className="text-lg font-semibold">{t("Expenses.recent")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.recent")}</h2>
       {recent.length === 0 ? (
         <p>{t("Expenses.none")}</p>
       ) : (
@@ -85,7 +85,7 @@ function Expenses(scope: Scope) {
         </ul>
       )}
 
-      <h2 className="text-lg font-semibold">{t("Expenses.accounts")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.accounts")}</h2>
       <ul className="flex flex-col gap-1">
         {accounts.map((a) => <li key={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</li>)}
       </ul>

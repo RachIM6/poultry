@@ -67,7 +67,7 @@ export function Treatments({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="treatment-title">
-      <h3 id="treatment-title" className="text-lg font-semibold">{t("title")}</h3>
+      <h3 id="treatment-title" className="text-[17px] font-semibold text-ink-2">{t("title")}</h3>
       {list.length === 0 ? (
         <p>{t("none")}</p>
       ) : (
@@ -203,7 +203,7 @@ export function VetVisits({ batch, visits, userId, write }: { batch: BatchDto; v
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="visit-title">
-      <h3 id="visit-title" className="text-lg font-semibold">{t("VetVisit.title")}</h3>
+      <h3 id="visit-title" className="text-[17px] font-semibold text-ink-2">{t("VetVisit.title")}</h3>
       {list.length === 0 ? (
         <p>{t("VetVisit.none")}</p>
       ) : (

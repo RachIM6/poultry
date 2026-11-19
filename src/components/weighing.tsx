@@ -74,7 +74,7 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
   const past = [...weighings].sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id));
   return (
     <section className="flex flex-col gap-3 border-t border-line pt-4">
-      <h3 className="text-lg font-semibold">{t("Weighing.title")}</h3>
+      <h3 className="text-[17px] font-semibold text-ink-2">{t("Weighing.title")}</h3>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor={ids.day}>{t("Weighing.day")}</label>

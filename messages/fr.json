@@ -150,7 +150,8 @@
     },
     "houseSummary": "{area} m² · {capacity} oiseaux · {type}",
     "farmSummary": "{commune}, {province} · bâtiments : {count}",
-    "onssaUntil": "Autorisation ONSSA {number}, valable jusqu’au {date}"
+    "onssaUntil": "Autorisation ONSSA {number}, valable jusqu’au {date}",
+    "doaClaim": "Seuil de réclamation au couvoir (% de morts à l’arrivée, facultatif)"
   },
   "Protocol": {
     "title": "Programme de vaccination",
@@ -326,6 +327,30 @@
     },
     "protocol": "Programme de vaccination",
     "noProtocol": "Aucun",
+    "type": "Production",
+    "unspecifiedStrain": "Souche non précisée",
+    "ageWeeks": "{weeks} sem.",
+    "ageWeeksDays": "{weeks} sem. {days} j",
+    "ageAtPlacement": "Âge à la mise en place (semaines)",
+    "bySex": "Sexes séparés",
+    "females": "Femelles placées",
+    "femaleDoa": "Femelles mortes à l’arrivée",
+    "males": "Mâles placés",
+    "maleDoa": "Mâles morts à l’arrivée",
+    "sexes": {
+      "mixed": "Mixte",
+      "female": "femelles",
+      "male": "mâles"
+    },
+    "otherSex": "Même lot, {sex} : {birds} sujets",
+    "freeChicks": "Supplément gratuit (facultatif)",
+    "arrival": "Qualité à l’arrivée (facultatif)",
+    "parentFlock": "Lot reproducteur",
+    "weakChicks": "Poussins faibles",
+    "litterTemp": "Température litière (°C)",
+    "density": "Densité : {density} sujets/m²",
+    "claim": "Morts à l’arrivée au-dessus du seuil du contrat : réclamation au couvoir",
+    "run": "{house} · {bands} bandes · {birds} sujets",
     "nextVaccine": "Prochain vaccin : {vaccine}"
   },
   "Day": {
@@ -411,7 +436,10 @@
     "INVALID_BAND": "Une tranche est incomplète ou à l’envers (de ≤ à, min ≤ max).",
     "TARGET_BANDS_OVERLAP": "Deux tranches d’âge se chevauchent.",
     "POWER_CUT_OPEN": "Une coupure de courant est déjà en cours sur cette ferme.",
-    "CUT_END_BEFORE_START": "Le courant ne peut pas revenir avant la coupure."
+    "CUT_END_BEFORE_START": "Le courant ne peut pas revenir avant la coupure.",
+    "NOT_ENOUGH_EGGS": "Pas assez d’œufs dans ce lot.",
+    "EGG_WITHDRAWAL_REQUIRED": "Indiquez le délai d’attente des œufs : c’est un lot de pondeuses.",
+    "EGGS_IN_WITHDRAWAL": "Des œufs pondus pendant un délai d’attente sont encore dans ce stock : écartez-les avant de vendre."
   },
   "Weighing": {
     "title": "Pesée",
@@ -427,7 +455,8 @@
     "versusStandard": "{gap} % par rapport au standard ({standard})",
     "noStandard": "Pas de standard publié pour cette souche à cet âge",
     "save": "Enregistrer la pesée",
-    "past": "Pesées précédentes"
+    "past": "Pesées précédentes",
+    "uniformity": "Homogénéité {percent} %"
   },
   "Kpi": {
     "title": "Indicateurs",
@@ -445,7 +474,9 @@
     "flock": "Bande",
     "standard": "Standard de la souche",
     "day": "J{age}",
-    "chartLabel": "Poids moyen par âge : {points}"
+    "chartLabel": "Poids moyen par âge : {points}",
+    "waterFeed": "Eau / aliment",
+    "waterFeedOn": "L par kg, jour {day}"
   },
   "Vaccination": {
     "title": "Vaccinations",
@@ -486,7 +517,10 @@
     "cancel": "Annuler",
     "line": "{medicine} · du {start} au {end}",
     "detail": "{dose} · {reason} · prescrit par {prescriber}",
-    "withdrawalLine": "Délai d’attente {days} j : jusqu’au {date} inclus"
+    "withdrawalLine": "Délai d’attente {days} j : jusqu’au {date} inclus",
+    "eggWithdrawal": "Œufs à retirer de la vente jusqu’au {date} inclus",
+    "eggWithdrawalDays": "Délai d’attente œufs (jours)",
+    "eggWithdrawalLine": "Œufs retirés {days} jours, jusqu’au {date}"
   },
   "VetVisit": {
     "title": "Visites vétérinaires",
@@ -536,7 +570,19 @@
     "cancel": "Annuler",
     "line": "{date} · {buyer} · {birds} oiseaux · {kg}",
     "detail": "{amount} · {method} · reçu {paid}",
-    "origin": "Document d’origine ({language})"
+    "origin": "Document d’origine ({language})",
+    "pricing": "Prix",
+    "perKg": "Au kg",
+    "perHead": "À la tête",
+    "heads": {
+      "rooster": "Coqs",
+      "hen": "Poules",
+      "bird": "Sujets"
+    },
+    "pricePerHead": "Prix par tête · {what} (DH)",
+    "farmKgOptional": "Poids à la ferme (kg, facultatif)",
+    "headCount": "{birds} sujets",
+    "headLine": "{date} · {buyer} · {birds} sujets à la tête"
   },
   "Receivables": {
     "title": "Créances",
@@ -637,7 +683,8 @@
     "warning": "Une bande clôturée ne peut plus être modifiée. Les ventes la clôturent d’elles-mêmes quand tous les oiseaux sont vendus.",
     "reason": "Motif de la clôture",
     "confirm": "Clôturer",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "transferred": "Passée en ponte"
   },
   "Expenses": {
     "title": "Dépense rapide",
@@ -802,7 +849,9 @@
     "cash": "Trésorerie disponible",
     "lastBatch": "Dernière bande clôturée · {house}",
     "margin": "Marge : {margin}",
-    "costPerKg": "{cost} / kg"
+    "costPerKg": "{cost} / kg",
+    "laying": "Ponte {rate} % · {eggs} œufs le dernier jour ramassé",
+    "eggsYesterday": "Œufs ramassés hier"
   },
   "Staff": {
     "title": "Personnel",
@@ -1107,5 +1156,140 @@
     "saveDowntime": "Enregistrer le minimum",
     "place": "Mettre en place le lot prévu le {date}",
     "placeSave": "Mettre en place"
+  },
+  "Types": {
+    "broiler": "Poulet de chair",
+    "turkey": "Dinde",
+    "pullet": "Poulette",
+    "layer": "Pondeuse",
+    "beldi": "Beldi / plein air",
+    "duck": "Canard",
+    "quail": "Caille"
+  },
+  "Transfer": {
+    "title": "Passage en ponte",
+    "day": "Date du transfert",
+    "house": "Bâtiment de ponte",
+    "hens": "Poules transférées",
+    "left": "{birds} non transférées seront réformées ce jour-là.",
+    "save": "Transférer",
+    "noHouse": "Aucun bâtiment libre pour la ponte."
+  },
+  "Eggs": {
+    "title": "Ramassage des œufs",
+    "day": "Date",
+    "ofDay": "Ramassages du jour",
+    "collection": "Ramassage {n}",
+    "line": "Ramassage {n} · {eggs} œufs · {down} déclassés",
+    "categories": {
+      "normal": "Normaux",
+      "cracked": "Fêlés",
+      "dirty": "Sales",
+      "doubleYolk": "Double jaune",
+      "floor": "Œufs de sol",
+      "broken": "Cassés"
+    },
+    "hints": {
+      "normal": "propres, entiers",
+      "cracked": "coquille fendue",
+      "dirty": "fientes, sang",
+      "doubleYolk": "gros calibre",
+      "floor": "hors des nids",
+      "broken": "perdus"
+    },
+    "add": "Ajouter {step} · {label}",
+    "remove": "Retirer {step} · {label}",
+    "sample": "Œufs pesés pour le poids moyen (facultatif)",
+    "sampleCount": "Nombre d’œufs",
+    "sampleGrams": "Poids total (g)",
+    "total": "Ce ramassage : {eggs} œufs",
+    "downgraded": "déclassés {percent} %",
+    "save": "Enregistrer le ramassage",
+    "correct": "Corriger",
+    "saveCorrection": "Enregistrer la correction"
+  },
+  "EggStock": {
+    "title": "Stock d’œufs",
+    "farm": "Ferme",
+    "headline": "{eggs} œufs en stock · {trays} plateaux",
+    "byItem": "Par calibre",
+    "eggsTrays": "{eggs} œufs · {trays} plateaux",
+    "items": {
+      "ungraded": "Non calibrés",
+      "downgraded": "Déclassés"
+    },
+    "limitsPending": "Limites de poids des calibres à confirmer selon la norme marocaine.",
+    "byAge": "Âge des œufs · premier pondu, premier vendu",
+    "ages": {
+      "0-2": "Pondus il y a 0 à 2 jours",
+      "3-5": "Pondus il y a 3 à 5 jours",
+      "6+": "Pondus il y a 6 jours ou plus"
+    },
+    "lots": "Lots",
+    "none": "Aucun œuf en stock.",
+    "lot": "{day} · {house} · {item} : {eggs} œufs",
+    "grade": "Calibrer",
+    "discard": "Écarter",
+    "gradeCount": "Calibre {grade}",
+    "saveGrading": "Enregistrer le calibrage",
+    "discardEggs": "Œufs écartés",
+    "reason": "Raison",
+    "saveDiscard": "Écarter ces œufs"
+  },
+  "Layers": {
+    "hens": "Poules présentes",
+    "mortality": "mortalité {percent} % depuis le logement",
+    "rate": "Taux de ponte",
+    "standard": "standard {value}",
+    "noStandard": "pas de standard chargé",
+    "perHenHoused": "Œufs par poule logée",
+    "eggWeight": "Poids moyen de l’œuf",
+    "feedPerEgg": "Aliment par œuf",
+    "downgraded": "Œufs déclassés",
+    "weeks": "Dernières semaines",
+    "cols": {
+      "week": "Semaine",
+      "hens": "Poules",
+      "rate": "Ponte",
+      "eggWeight": "Poids œuf",
+      "feedPerHen": "Aliment g/poule/j",
+      "waterFeed": "Eau / aliment",
+      "downgradedShort": "Déclassés"
+    }
+  },
+  "EggSale": {
+    "open": "Vendre des œufs",
+    "title": "Vente d’œufs",
+    "noBuyer": "Ajoutez d’abord un acheteur, depuis la vente d’une bande.",
+    "buyer": "Acheteur",
+    "batch": "Lot de ponte (mis en place le)",
+    "day": "Date",
+    "line": "Ligne {n}",
+    "item": "Produit",
+    "trays": "Plateaux",
+    "eggsPerTray": "Œufs par plateau",
+    "price": "Prix d’un plateau (DH)",
+    "addLine": "Ajouter une ligne",
+    "amount": "Montant : {amount}",
+    "save": "Enregistrer la vente"
+  },
+  "Compare": {
+    "title": "Comparer les lots",
+    "none": "Aucun lot clôturé de ce type.",
+    "caption": "Indicateurs par lot clôturé",
+    "days": "{days} j",
+    "cols": {
+      "batch": "Lot",
+      "hatchery": "Couvoir",
+      "livability": "Viabilité",
+      "weight": "Poids",
+      "age": "Âge",
+      "fcr": "IC",
+      "epef": "IEP (EPEF)",
+      "costPerKg": "Coût / kg",
+      "dayOld": "Poids J1",
+      "day7": "Mortalité J7"
+    },
+    "epef": "IEP = viabilité (%) × poids moyen (kg) ÷ (âge (j) × IC) × 100."
   }
 }

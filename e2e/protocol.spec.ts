@@ -10,7 +10,9 @@ test("the vaccination template is available offline, and a farm's copy is edited
   await page.goto("/fr/protocol");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined)); // shells precached
   await expect(page.getByText("Programme de vaccination poulet de chair")).toBeVisible(); // reference data cached
-  await expect(page.getByText(/Pas encore vérifié par un vétérinaire/)).toBeVisible();
+  const broiler = page.getByText("Programme de vaccination poulet de chair").locator(".."); // one template per type (SPEC-m3 R9)
+  await expect(broiler.getByText(/Pas encore vérifié par un vétérinaire/)).toBeVisible();
+  await expect(page.getByText("Programme de vaccination pondeuse")).toBeVisible();
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -18,7 +20,7 @@ test("the vaccination template is available offline, and a farm's copy is edited
   expect(reload?.fromServiceWorker()).toBe(true);
   await expect(page.getByText("Programme de vaccination poulet de chair")).toBeVisible(); // from IndexedDB
 
-  await page.getByRole("button", { name: "Copier pour mon exploitation" }).click();
+  await broiler.getByRole("button", { name: "Copier pour mon exploitation" }).click();
   await page.getByRole("button", { name: "Ajouter un vaccin" }).click();
   await page.getByLabel("Âge (jours)").fill("14");
   await page.getByLabel("Vaccin", { exact: true }).selectOption({ label: "Vaccin Gumboro" });

@@ -1,43 +1,64 @@
 import { db, type Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import type { ProtocolItem, ReferenceData } from "@/modules/reference-data/schema";
+import type { BirdSex, ProductionType, ProtocolItem, ReferenceData, Strain } from "@/modules/reference-data/schema";
 
 /** R4: the same for every organisation (not farm data, so no tenant context), read-only, cached by the phone. */
 export async function getReferenceData(): Promise<ReferenceData> {
-  const [strains, products, templates] = await Promise.all([
+  const [strains, products, templates, eggGrades] = await Promise.all([
     db.strain.findMany({
       orderBy: { id: "asc" },
-      include: { curves: { orderBy: { version: "asc" }, include: { points: { orderBy: { day: "asc" } } } } },
+      include: {
+        curves: { orderBy: { version: "asc" }, include: { points: { orderBy: { day: "asc" } } } },
+        layingCurves: { orderBy: { version: "asc" }, include: { points: { orderBy: { week: "asc" } } } },
+      },
     }),
     db.product.findMany({ orderBy: { id: "asc" } }),
     db.protocolTemplate.findMany({ orderBy: { id: "asc" } }),
+    db.eggGrade.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
   return {
     strains: strains.map((s) => ({
       id: s.id,
       name: s.name,
+      productionTypes: s.productionTypes as Strain["productionTypes"],
       curves: s.curves.map((c) => ({
         source: c.source,
         version: c.version,
+        sex: c.sex as BirdSex,
         points: c.points.map(({ day, bodyWeightGrams, cumulativeFeedGrams }) => ({ day, bodyWeightGrams, cumulativeFeedGrams })),
       })),
+      layingCurves: s.layingCurves.map((c) => ({
+        source: c.source,
+        version: c.version,
+        points: c.points.map(({ week, layingRatePermille, eggsPerHenHousedTenths, eggWeightDg, feedGramsPerHenDay, bodyWeightGrams }) => ({
+          week,
+          layingRatePermille,
+          eggsPerHenHousedTenths,
+          eggWeightDg,
+          feedGramsPerHenDay,
+          bodyWeightGrams,
+        })),
+      })),
     })),
-    products: products.map(({ id, kind, nameFr, nameAr, withdrawalDays }) => ({ id, kind, nameFr, nameAr, withdrawalDays })),
-    protocolTemplates: templates.map(({ id, nameFr, nameAr, reviewedByVet, items }) => ({
+    products: products.map(({ id, kind, nameFr, nameAr, withdrawalDays, eggWithdrawalDays }) => ({ id, kind, nameFr, nameAr, withdrawalDays, eggWithdrawalDays })),
+    protocolTemplates: templates.map(({ id, nameFr, nameAr, reviewedByVet, productionType, items }) => ({
       id,
       nameFr,
       nameAr,
       reviewedByVet,
+      productionType: productionType as ProductionType,
       items: items as ProtocolItem[],
     })),
+    eggGrades: eggGrades.map(({ id, label, sortOrder, minGrams, maxGrams }) => ({ id, label, sortOrder, minGrams, maxGrams })),
   };
 }
 
 /** For other modules: is this id a product of the catalogue? Read inside their transaction. */
 export const isCatalogueProduct = async (tx: Tx, id: string) => (await tx.product.count({ where: { id } })) === 1;
 
-/** For other modules: is this a strain of the catalogue (R1)? */
-export const isStrain = async (tx: Tx, id: string) => (await tx.strain.count({ where: { id } })) === 1;
+/** For other modules: is this a strain of the catalogue that serves this production type (R1, R5)? */
+export const strainServes = async (tx: Tx, id: string, type: ProductionType) =>
+  (await tx.strain.count({ where: { id, productionTypes: { has: type } } })) === 1;
 
 /** For other modules: are these all vaccines of the catalogue (R3)? */
 export async function areVaccines(tx: Tx, ids: string[]) {

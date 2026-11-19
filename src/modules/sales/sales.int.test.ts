@@ -77,7 +77,7 @@ describe("live-bird sales (SPEC V1–V3, B5)", () => {
     const id = (given.payload as { id: string }).id;
     expect((await pulled<SaleDto>(a, "sale")).filter((s) => s.id === id)).toEqual([expect.objectContaining({ id, amountCentimes: "870000", paymentMethod: "cash", paidCentimes: "870000" })]); // 600 kg × 14,50
     const [, forWorker] = await pulled<SaleDto>({ ...a, role: "worker" }, "sale");
-    expect(Object.keys(forWorker).sort()).toEqual(["batchId", "birds", "buyerId", "buyerWeightGrams", "day", "farmWeightGrams", "id"]);
+    expect(Object.keys(forWorker).sort()).toEqual(["batchId", "birds", "buyerId", "buyerWeightGrams", "day", "farmWeightGrams", "id", "kind"]); // SPEC-m3: kind is not money; lines are
     expect(await pulled(b, "sale")).toEqual([]);
     expect(await db.auditEvent.count({ where: { entity: "Sale", entityId: id } })).toBe(1);
   });

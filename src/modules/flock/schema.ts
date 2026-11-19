@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DEATH_CAUSES } from "@/modules/flock/domain/daily-entry";
+import { BIRD_SEXES, PRODUCTION_TYPES } from "@/modules/reference-data/shared";
 
 // SPEC B1–B6, the sync push's validation: the same schemas on every server path. The phone's screens import
 // ./shared.ts (no Zod, ADR-009), re-exported here so server code and tests keep one import.
@@ -10,6 +11,7 @@ const text = (max: number) => z.string().trim().min(1).max(max);
 export const PlaceBatch = z.object({
   id: z.uuid(),
   houseId: z.uuid(),
+  species: z.enum(PRODUCTION_TYPES).default("broiler"), // SPEC-m3 R5; a placement queued by an M1 phone has none
   strainId: z.string().min(1).max(60),
   placedOn: z.iso.date(), // farm day
   chicksPlaced: z.int32().positive(),
@@ -18,7 +20,17 @@ export const PlaceBatch = z.object({
   deliveryNote: text(60),
   chickUnitPriceCentimes: z.string().regex(/^\d{1,12}$/), // JSON has no bigint
   dayOldWeightGrams: z.int32().positive().nullable(),
+  ageAtPlacementDays: z.int32().min(0).default(0), // SPEC-m3 B7; the domain caps it
+  sex: z.enum(BIRD_SEXES).default("mixed"), // SPEC-m3 B9
+  // SPEC-m3 B10, all optional.
+  freeChicks: z.int32().min(0).default(0),
+  parentFlock: z.string().trim().max(60).transform((s) => s || null).nullable().default(null),
+  weakChicks: z.int32().min(0).nullable().default(null),
+  litterTempTenths: z.int32().min(0).max(600).nullable().default(null),
 });
+
+/** SPEC-m3 B13: pullets move to a laying house, which starts a layer batch with their age. */
+export const TransferToLaying = z.object({ batchId: z.uuid(), day: z.iso.date(), newBatchId: z.uuid(), houseId: z.uuid(), hens: z.int32().positive() });
 
 /** B6: by hand, with a reason (the last sale closes it by itself). */
 export const CloseBatch = z.object({ batchId: z.uuid(), day: z.iso.date(), reason: text(200) });

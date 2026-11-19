@@ -41,7 +41,7 @@ const SOURCES: Source[] = [
     read: async (tx, ctx, after) =>
       (await salesChangedSince(tx, ctx, after)).map((s) => ({
         version: s.version,
-        event: { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method },
+        event: { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method, kind: s.kind },
       })),
   },
   {

@@ -4,6 +4,7 @@ import { closeBatch, recordBatchCost } from "@/modules/flock/application/close-b
 import { placeBatch } from "@/modules/flock/application/place-batch";
 import { recordDay } from "@/modules/flock/application/record-day";
 import { recordWeighing } from "@/modules/flock/application/record-weighing";
+import { transferToLaying } from "@/modules/flock/application/transfer";
 import {
   BATCH_MONEY,
   CloseBatch,
@@ -12,6 +13,7 @@ import {
   RecordBatchCost,
   RecordDay,
   RecordWeighing,
+  TransferToLaying,
   type BatchCostDto,
   type BatchDto,
   type DailyEntryDto,
@@ -27,6 +29,7 @@ export const flockSync: SyncRegistry = {
     [M.recordDay]: defineMutation({ schema: RecordDay, action: "flock.record", apply: (tx, ctx, cmd, meta) => recordDay(tx, ctx, cmd, meta) }),
     [M.recordWeighing]: defineMutation({ schema: RecordWeighing, action: "flock.record", apply: (tx, ctx, cmd, meta) => recordWeighing(tx, ctx, cmd, meta) }),
     [M.closeBatch]: defineMutation({ schema: CloseBatch, action: "flock.manage", apply: (tx, ctx, cmd, meta) => closeBatch(tx, ctx, cmd, meta) }),
+    [M.transferToLaying]: defineMutation({ schema: TransferToLaying, action: "flock.manage", apply: (tx, ctx, cmd, meta) => transferToLaying(tx, ctx, cmd, meta) }),
     [M.recordBatchCost]: defineMutation({ schema: RecordBatchCost, action: "flock.manage", apply: (tx, ctx, cmd, meta) => recordBatchCost(tx, ctx, cmd, meta) }),
   },
   entities: {

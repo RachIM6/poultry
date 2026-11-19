@@ -11,6 +11,8 @@ import {
   HEALTH_MUTATIONS as H,
   checkBatchDay,
   checkTreatment,
+  eggWithdrawalEnd,
+  eggWithdrawalUntil,
   withdrawalEnd,
   withdrawalUntil,
   type TreatmentDto,
@@ -30,8 +32,15 @@ export function WithdrawalBanner({ treatments }: { treatments: TreatmentDto[] })
   const t = useTranslations("Treatment");
   const locale = useLocale();
   const until = withdrawalUntil(treatments.map(asDays), today());
-  if (!until) return null;
-  return <p className="rounded-2xl bg-alert-soft p-3 font-semibold text-alert-fg">{t("withdrawal", { date: formatDay(until, locale) })}</p>;
+  // SPEC-m3 H7: eggs laid until then are withheld
+  const eggs = eggWithdrawalUntil(treatments.map((x) => ({ ...asDays(x), eggWithdrawalDays: x.eggWithdrawalDays ?? null })), today());
+  if (!until && !eggs) return null;
+  return (
+    <>
+      {until && <p className="rounded-2xl bg-alert-soft p-3 font-semibold text-alert-fg">{t("withdrawal", { date: formatDay(until, locale) })}</p>}
+      {eggs && <p className="rounded-2xl bg-alert-soft p-3 font-semibold text-alert-fg">{t("eggWithdrawal", { date: formatDay(eggs, locale) })}</p>}
+    </>
+  );
 }
 
 function Labelled({ label, hint, children }: { label: string; hint?: string; children: (id: string) => ReactNode }) {
@@ -77,6 +86,7 @@ export function Treatments({
               <span className="font-semibold">{t("line", { medicine: name(x.stockItemId), start: day(x.startOn), end: day(x.endOn) })}</span>
               <span>{t("detail", { dose: x.dose, reason: x.reason, prescriber: x.prescriber })}</span>
               <span>{t("withdrawalLine", { days: String(x.withdrawalDays), date: day(x.withdrawalEndsOn) })}</span>
+              {x.eggWithdrawalEndsOn && <span>{t("eggWithdrawalLine", { days: String(x.eggWithdrawalDays), date: day(x.eggWithdrawalEndsOn) })}</span>}
             </li>
           ))}
         </ul>
@@ -122,6 +132,8 @@ function TreatmentForm({
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const quantity = parseQuantity(get("quantity"), item.unit) ?? NaN;
     const withdrawalDays = /^\d{1,3}$/.test(get("withdrawalDays")) ? Number(get("withdrawalDays")) : NaN;
+    const eggDays = get("eggWithdrawalDays");
+    const eggWithdrawalDays = eggDays === "" ? null : /^\d{1,3}$/.test(eggDays) ? Number(eggDays) : NaN; // SPEC-m3 H7
     const payload = {
       id: uuidv7(),
       batchId: batch.id,
@@ -133,13 +145,14 @@ function TreatmentForm({
       reason: get("reason"),
       prescriber: get("prescriber"),
       withdrawalDays,
+      eggWithdrawalDays,
     };
-    if (Number.isNaN(withdrawalDays) || withdrawalDays > 365 || !payload.dose || !payload.reason || !payload.prescriber) return setError("errors.INVALID_INPUT");
-    const checked = checkTreatment({ placedOn: batch.placedOn as FarmDay, status: batch.status }, payload, today()); // as the server
+    if (Number.isNaN(withdrawalDays) || withdrawalDays > 365 || Number.isNaN(eggWithdrawalDays) || (eggWithdrawalDays ?? 0) > 365 || !payload.dose || !payload.reason || !payload.prescriber) return setError("errors.INVALID_INPUT");
+    const checked = checkTreatment({ placedOn: batch.placedOn as FarmDay, status: batch.status, species: batch.species }, payload, today()); // as the server
     if (!checked.ok) return setError(`errors.${checked.error}`);
     setError(undefined);
 
-    const treatment: TreatmentDto = { ...payload, withdrawalEndsOn: withdrawalEnd(payload), byUserId: userId };
+    const treatment: TreatmentDto = { ...payload, withdrawalEndsOn: withdrawalEnd(payload), eggWithdrawalEndsOn: eggWithdrawalEnd(payload), byUserId: userId };
     const movement: MovementDto = { id: payload.id, farmId: batch.farmId, stockItemId: item.id, kind: "consumption", quantity: -quantity, day: payload.startOn, reason: null, purchaseId: null };
     const saved = await write({ type: H.recordTreatment, payload }, [
       { entity: "treatment", id: payload.id, data: treatment },
@@ -172,6 +185,11 @@ function TreatmentForm({
       <Labelled label={t("Treatment.withdrawalDays")} hint={t("Treatment.withdrawalHint")}>
         {(id) => <input id={id} name="withdrawalDays" inputMode="numeric" pattern="\d{1,3}" required dir="ltr" className={field} />}
       </Labelled>
+      {batch.species === "layer" && (
+        <Labelled label={t("Treatment.eggWithdrawalDays")} hint={t("Treatment.withdrawalHint")}>
+          {(id) => <input id={id} name="eggWithdrawalDays" inputMode="numeric" pattern="\d{1,3}" required dir="ltr" className={field} />}
+        </Labelled>
+      )}
       {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Treatment.save")}</button>

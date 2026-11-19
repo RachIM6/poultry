@@ -25,7 +25,7 @@ export async function planBatchVaccinations(
   if (!(await areVaccines(tx, cmd.items.map((i) => i.productId)))) return fail("INVALID_INPUT");
   if (await batchHasPlan(tx, ctx, cmd.batchId)) return fail("ALREADY_EXISTS");
 
-  const plan = planFor(cmd.batchId, batch.placedOn, cmd.items);
+  const plan = planFor(cmd.batchId, batch.placedOn, cmd.items, batch.ageAtPlacementDays);
   await savePlan(tx, ctx, cmd.protocolId, plan);
   for (const v of plan) await recordChange(tx, ctx, "vaccination", v.id, v);
   await audit(tx, ctx, { entity: "VaccinationPlan", entityId: cmd.batchId, action: "create", after: { protocolId: cmd.protocolId, items: cmd.items }, ...meta });

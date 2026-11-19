@@ -6,7 +6,7 @@ import type { Line } from "@/modules/finance/domain/entry";
 export type FarmEvent =
   | { type: "purchase"; id: string; day: FarmDay; itemKind: string; amount: bigint; paid: bigint }
   | { type: "chicks"; id: string; day: FarmDay; amount: bigint } // the chicks bought at placement (SPEC B1)
-  | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string } // live birds (SPEC V2)
+  | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead" } // SPEC V2, SPEC-m3 V6, V7
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
   | { type: "instrument"; id: string; day: FarmDay; amount: bigint; kind: "cheque" | "bill"; from: string; to: string }; // FN11
 
@@ -28,7 +28,8 @@ const SUPPLIERS = "4411";
 // M1 doesn't record how a purchase was paid at once: cash (5161) until purchases carry a payment method (T32).
 const PAID_AT_ONCE = "5161";
 const BUYERS = "3421"; // Clients
-const BIRDS_SOLD = "712121"; // Ventes d'animaux
+const BIRDS_SOLD = "712121"; // Ventes d'animaux (per kg or per head: SPEC-m3 V8)
+const EGGS_SOLD = "71213"; // Ventes de produits d'animaux (SPEC-m3 V8); 7121 without the PCA
 const DOUBTFUL = "3424"; // Clients douteux ou litigieux: a cheque or bill that came back unpaid
 const BANK = "5141";
 // FN6: where money received from a buyer lands, and in which journal.
@@ -49,10 +50,11 @@ const line = (account: string, debit: bigint, credit: bigint): Line => ({ accoun
 export function postingOf(e: FarmEvent): Posting | null {
   if (e.amount <= 0n) return null;
   if (e.type === "sale") {
-    const lines = [line(BUYERS, e.amount, 0n), line(BIRDS_SOLD, 0n, e.amount)];
+    const eggs = e.kind === "eggs";
+    const lines = [line(BUYERS, e.amount, 0n), line(eggs ? EGGS_SOLD : BIRDS_SOLD, 0n, e.amount)];
     const received = RECEIVED[e.method];
     if (received && e.paid > 0n) lines.push(line(received.account, e.paid, 0n), line(BUYERS, 0n, e.paid));
-    return { journal: "VT", label: "Vente", lines };
+    return { journal: "VT", label: eggs ? "Vente d’œufs" : "Vente", lines };
   }
   if (e.type === "receipt") {
     const received = RECEIVED[e.method];

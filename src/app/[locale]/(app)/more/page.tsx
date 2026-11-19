@@ -31,6 +31,8 @@ async function Content() {
       title: t("More.farm"),
       links: [
         { href: "/farms", label: t("Farms.title") },
+        { href: "/eggs", label: t("EggStock.title") }, // SPEC-m3 E4
+        { href: "/compare", label: t("Compare.title") }, // SPEC-m3 D2
         { href: "/protocol", label: t("Protocol.open") },
         { href: "/tasks", label: t("Tasks.open") },
         { href: "/climate", label: t("Climate.open") },

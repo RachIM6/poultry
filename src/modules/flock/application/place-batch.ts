@@ -7,10 +7,10 @@ import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { houseOf } from "@/modules/farm-registry";
-import { Batch } from "@/modules/flock/domain/batch";
-import { batchIdTaken, findOpenInHouse, lockHouse, saveNewBatch } from "@/modules/flock/infrastructure/batches";
+import { Batch, canJoinHouse } from "@/modules/flock/domain/batch";
+import { batchIdTaken, lockHouse, openInHouse, saveNewBatch } from "@/modules/flock/infrastructure/batches";
 import type { PlaceBatch } from "@/modules/flock/schema";
-import { isStrain } from "@/modules/reference-data";
+import { strainServes } from "@/modules/reference-data";
 
 /**
  * SPEC B1, applied by the sync push: load → Batch.place → one-open-batch check → save + change log + audit.
@@ -25,7 +25,7 @@ export async function placeBatch(
 ) {
   const house = await houseOf(tx, ctx, cmd.houseId);
   if (!house) return fail("NOT_FOUND");
-  if (!(await isStrain(tx, cmd.strainId))) return fail("INVALID_INPUT");
+  if (!(await strainServes(tx, cmd.strainId, cmd.species))) return fail("INVALID_INPUT"); // R5
 
   // A phone's clock may run a little ahead of the server's: accept up to tomorrow's farm day.
   const today = nextFarmDay(farmDayOf(clock.now()));
@@ -36,7 +36,8 @@ export async function placeBatch(
   if (!batch.ok) return batch;
 
   await lockHouse(tx, house.id);
-  if (await findOpenInHouse(tx, ctx, house.id)) return fail("HOUSE_HAS_OPEN_BATCH");
+  const joins = canJoinHouse(cmd.species, await openInHouse(tx, ctx, house.id), cmd.sex); // SPEC-m3 B8, B9
+  if (!joins.ok) return joins;
   if (await batchIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
 
   const dto = await saveNewBatch(tx, ctx, batch.value);

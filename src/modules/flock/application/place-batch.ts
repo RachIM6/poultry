@@ -36,7 +36,7 @@ export async function placeBatch(
   if (!batch.ok) return batch;
 
   await lockHouse(tx, house.id);
-  const joins = canJoinHouse(cmd.species, await openInHouse(tx, ctx, house.id)); // SPEC-m3 B8
+  const joins = canJoinHouse(cmd.species, await openInHouse(tx, ctx, house.id), cmd.sex); // SPEC-m3 B8, B9
   if (!joins.ok) return joins;
   if (await batchIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
 

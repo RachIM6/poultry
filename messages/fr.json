@@ -310,7 +310,18 @@
     "unspecifiedStrain": "Souche non précisée",
     "ageWeeks": "{weeks} sem.",
     "ageWeeksDays": "{weeks} sem. {days} j",
-    "ageAtPlacement": "Âge à la mise en place (semaines)"
+    "ageAtPlacement": "Âge à la mise en place (semaines)",
+    "bySex": "Sexes séparés",
+    "females": "Femelles placées",
+    "femaleDoa": "Femelles mortes à l’arrivée",
+    "males": "Mâles placés",
+    "maleDoa": "Mâles morts à l’arrivée",
+    "sexes": {
+      "mixed": "Mixte",
+      "female": "femelles",
+      "male": "mâles"
+    },
+    "otherSex": "Même lot, {sex} : {birds} sujets"
   },
   "Day": {
     "title": "Saisie du jour",

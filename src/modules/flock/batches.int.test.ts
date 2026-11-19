@@ -103,6 +103,24 @@ describe("batch placement (SPEC B1)", () => {
     await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
   });
 
+  it("raises turkeys by sex: two batches in one house, each closing on its own (SPEC-m3 B9)", async () => {
+    await db.strain.create({ data: { id: "but-6", name: "BUT 6", productionTypes: ["turkey"] } });
+    const turkeys = (sex: string) => placement(houses.b1, { species: "turkey", strainId: "but-6", sex, chicksPlaced: 1500, deadOnArrival: 0 });
+    const [hens, toms] = [turkeys("female"), turkeys("male")];
+    expect(await statuses(b, [m(M.placeBatch, hens), m(M.placeBatch, toms), m(M.placeBatch, turkeys("male")), m(M.placeBatch, turkeys("mixed"))])).toEqual([
+      "applied",
+      "applied",
+      "errors.HOUSE_HAS_OPEN_BATCH",
+      "errors.HOUSE_HAS_OPEN_BATCH",
+    ]);
+    expect(await statuses(b, [m(M.closeBatch, { batchId: toms.id, day: farmDayOf(new Date()), reason: "Mâles vendus" })])).toEqual(["applied"]);
+    const status = async (id: string) => (await db.batch.findUniqueOrThrow({ where: { id } })).status;
+    expect([await status(hens.id), await status(toms.id)]).toEqual(["open", "closed"]);
+    const pulled = (await pull(b, 0, registry)).changes.map((c) => c.data as BatchDto).find((d) => d.id === hens.id);
+    expect(pulled?.sex).toBe("female");
+    await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
+  });
+
   it("refuses a number too big for its column instead of failing the push (T25 S4)", async () => {
     // 2^31 used to pass z.int() and throw on the int4 column: the phone retried it forever, blocking its outbox.
     const results = await statuses(b, [m(M.placeBatch, placement(houses.b1, { chicksPlaced: 2 ** 31 })), m(M.placeBatch, placement(houses.b1))]);

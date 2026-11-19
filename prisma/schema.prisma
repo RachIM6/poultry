@@ -622,3 +622,17 @@ model AuditEvent {
 
   @@index([organizationId, entity, entityId])
 }
+
+// Owner: finance. ADR-010 §2, SPEC-finance FN2: charts of accounts as data, the same for every organisation (like the
+// catalogue). `chart` is cgnc or pca (finance/schema.ts CHARTS); an overlay account can reuse a base number.
+// Seeded from prisma/seed/finance/accounts.json, which cites the official text. Per-organisation bank and cash
+// sub-accounts come with treasury (T32).
+model LedgerAccount {
+  chart        String
+  number       String
+  label        String
+  parentNumber String?
+  fallback     String? // the base-chart account used when this overlay is off
+
+  @@id([chart, number])
+}

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { Client } from "pg";
 import { z } from "zod";
+import { AccountsFile } from "../src/modules/finance/schema.ts";
 import { CurveFile, Product, ProtocolTemplate, Strain } from "../src/modules/reference-data/schema.ts";
 
 // `pnpm db:seed`, under plain Node (hence pg, not the generated Prisma client): reference data from
@@ -26,6 +27,11 @@ const curves = readdirSync(curvesDir)
 const vaccines = new Set(products.filter((p) => p.kind === "vaccine").map((p) => p.id));
 for (const c of curves) if (!strains.some((s) => s.id === c.strainId)) throw new Error(`curve ${c.strainId}-${c.version}: unknown strain`);
 for (const t of templates) for (const i of t.items) if (!vaccines.has(i.productId)) throw new Error(`${t.id}: ${i.productId} is not a vaccine`);
+
+// Charts of accounts (T28): every parent and fallback must exist, checked before anything is written.
+const { accounts } = AccountsFile.parse(JSON.parse(readFileSync(new URL("./seed/finance/accounts.json", import.meta.url), "utf8")));
+const numbers = new Set(accounts.map((a) => a.number));
+for (const a of accounts) for (const n of [a.parent, a.fallback]) if (n && !numbers.has(n)) throw new Error(`account ${a.number}: unknown ${n}`);
 
 const db = new Client({ connectionString: process.env.DATABASE_URL });
 await db.connect();
@@ -63,6 +69,13 @@ try {
       [rows[0].id, c.points.map((p) => p.day), c.points.map((p) => p.bodyWeightGrams), c.points.map((p) => p.cumulativeFeedGrams)],
     );
   }
+  for (const a of accounts) {
+    await db.query(
+      `INSERT INTO "LedgerAccount" (chart, number, label, "parentNumber", fallback) VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (chart, number) DO UPDATE SET label = EXCLUDED.label, "parentNumber" = EXCLUDED."parentNumber", fallback = EXCLUDED.fallback`,
+      [a.chart, a.number, a.label, a.parent, a.fallback],
+    );
+  }
   await db.query("COMMIT");
 } catch (error) {
   await db.query("ROLLBACK");
@@ -72,5 +85,5 @@ try {
 }
 
 console.log(
-  `Reference data: ${strains.length} strains, ${curves.length} curves, ${products.length} products, ${templates.length} protocol templates.`,
+  `Reference data: ${strains.length} strains, ${curves.length} curves, ${products.length} products, ${templates.length} protocol templates, ${accounts.length} ledger accounts.`,
 );

@@ -43,3 +43,9 @@ export async function membersWithRoles(tx: Tx, organizationId: string, roles: Ro
   const rows = await tx.membership.findMany({ where: { organizationId, role: { in: roles } }, select: { userId: true } });
   return rows.map((r) => r.userId);
 }
+
+/** The member of an organisation who signs in with this number (E.164), or null: links an employee to a user (SPEC-m4 WF2). */
+export async function memberByPhone(tx: Tx, organizationId: string, e164: string): Promise<string | null> {
+  const row = await tx.membership.findFirst({ where: { organizationId, user: { phoneNumber: e164 } }, select: { userId: true } });
+  return row?.userId ?? null;
+}

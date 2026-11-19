@@ -1,0 +1,3 @@
+// Public API of the `workforce` module (see CAPABILITY-MAP.md). Other modules and the app import only from here,
+// or from ./schema and ./shared (ADR-008, ADR-009).
+export { workforceSync } from "./sync";

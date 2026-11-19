@@ -39,7 +39,7 @@ Climate targets per age and every labour-law figure come from a source the owner
 
 ### Employees
 - **WF1.** The owner or a manager adds, edits and marks as left the employees of a farm, offline (`W-Staff`). An employee who left keeps their history and gets no new task.
-- **WF2.** An employee can be linked to a member of the organisation (any role). That member then sees the tasks of that employee. One member is linked to at most one employee per farm.
+- **WF2.** An employee can be linked to a member of the organisation (any role): the server links the member who signs in with the employee's phone number, when the employee is saved. That member then sees the tasks of that employee. One member is linked to at most one employee per farm (`MEMBER_ALREADY_LINKED`).
 - **WF3.** Workers receive no wage, no advance, no pay and no CNSS number, of anyone, from the server (stripped in the serializer, SPEC I5).
 
 ### Tasks

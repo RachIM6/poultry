@@ -7,9 +7,10 @@ import { inventorySync } from "@/modules/inventory";
 import { notificationsSync } from "@/modules/notifications";
 import { referenceDataSync } from "@/modules/reference-data";
 import { salesSync } from "@/modules/sales";
+import { workforceSync } from "@/modules/workforce";
 
 // Every offline mutation and synced entity, from the modules' index.ts.
-const modules: SyncRegistry[] = [farmRegistrySync, referenceDataSync, notificationsSync, inventorySync, flockSync, healthSync, salesSync, financeSync];
+const modules: SyncRegistry[] = [farmRegistrySync, referenceDataSync, notificationsSync, inventorySync, flockSync, healthSync, salesSync, financeSync, workforceSync];
 
 export const registry: SyncRegistry = {
   mutations: Object.assign({}, ...modules.map((m) => m.mutations)),

@@ -383,7 +383,9 @@
     "ALREADY_REVERSED": "Cette écriture a déjà été annulée.",
     "FISCAL_YEAR_HAS_ENTRIES": "L’exercice a déjà des écritures : ce réglage ne peut changer qu’au début du prochain exercice.",
     "BUYER_CREDIT_BLOCKED": "Un chèque ou une traite de cet acheteur est revenu impayé : il paie comptant jusqu’à ce que le propriétaire lève le blocage.",
-    "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état."
+    "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état.",
+    "MEMBER_ALREADY_LINKED": "Ce numéro est déjà celui d’un autre ouvrier de la ferme.",
+    "LEFT_BEFORE_START": "La date de départ est avant la date d’entrée."
   },
   "Weighing": {
     "title": "Pesée",
@@ -772,5 +774,37 @@
     "lastBatch": "Dernière bande clôturée · {house}",
     "margin": "Marge : {margin}",
     "costPerKg": "{cost} / kg"
+  },
+  "Staff": {
+    "title": "Personnel",
+    "open": "Personnel",
+    "forbidden": "Le personnel est réservé au propriétaire et au gérant.",
+    "list": "Ouvriers",
+    "add": "Ajouter un ouvrier",
+    "edit": "Modifier {name}",
+    "save": "Enregistrer",
+    "farm": "Ferme",
+    "name": "Nom",
+    "job": "Poste",
+    "jobs": {
+      "lead": "Chef d’équipe",
+      "worker": "Ouvrier avicole",
+      "guard": "Gardien",
+      "other": "Autre"
+    },
+    "phone": "Téléphone (facultatif)",
+    "phoneHint": "Si l’ouvrier est membre avec ce numéro, il voit ses tâches dans l’application.",
+    "wage": "Salaire par jour (DH)",
+    "startedOn": "Entré le",
+    "cnss": "N° CNSS (facultatif)",
+    "housedLabel": "Logé sur la ferme",
+    "houses": "Bâtiments dont il s’occupe",
+    "leftOnLabel": "Parti le (facultatif)",
+    "wholeFarm": "Toute la ferme",
+    "wagePerDay": "{amount} par jour",
+    "housed": "logé sur la ferme",
+    "leftOn": "parti le {date}",
+    "usesApp": "utilise l’application",
+    "noApp": "sans compte"
   }
 }

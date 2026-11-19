@@ -32,9 +32,10 @@ async function Content() {
       links: [
         { href: "/farms", label: t("Farms.title") },
         { href: "/protocol", label: t("Protocol.open") },
+        can(ctx.value, "workforce.manage") && { href: "/staff", label: t("Staff.open") },
         { href: "/inbox", label: t("Inbox.open") },
         { href: "/sync", label: t("More.sync") },
-      ],
+      ].filter((l) => l !== false),
     },
     {
       title: t("More.money"),

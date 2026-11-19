@@ -20,9 +20,9 @@ export const CreateStockItem = z.object({
   unit: z.enum(UNITS),
   lot: optionalText(60),
   expiresOn: day.nullable(),
-  lowStockThreshold: z.int().positive().nullable().default(null), // S6: base units; no alert when unset
+  lowStockThreshold: z.int32().positive().nullable().default(null), // S6: base units; no alert when unset
 });
-export const SetThreshold = z.object({ stockItemId: z.uuid(), lowStockThreshold: z.int().positive().nullable() });
+export const SetThreshold = z.object({ stockItemId: z.uuid(), lowStockThreshold: z.int32().positive().nullable() });
 // The purchase and its stock movement are created together; both ids come from the device.
 export const RecordPurchase = z.object({
   id: z.uuid(),
@@ -30,7 +30,7 @@ export const RecordPurchase = z.object({
   supplierId: z.uuid(),
   stockItemId: z.uuid(),
   day,
-  quantity: z.int().positive(), // base units (grams for kg)
+  quantity: z.int32().positive(), // base units (grams for kg)
   unitPriceCentimes: centimes, // per displayed unit
   paidCentimes: centimes,
   dueOn: day.nullable(),
@@ -39,6 +39,6 @@ export const AdjustStock = z.object({
   id: z.uuid(),
   stockItemId: z.uuid(),
   day,
-  quantity: z.int().refine((q) => q !== 0), // signed: + found, − lost
+  quantity: z.int32().refine((q) => q !== 0), // signed: + found, − lost
   reason: text(200),
 });

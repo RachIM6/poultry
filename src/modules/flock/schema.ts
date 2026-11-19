@@ -12,12 +12,12 @@ export const PlaceBatch = z.object({
   houseId: z.uuid(),
   strainId: z.string().min(1).max(60),
   placedOn: z.iso.date(), // farm day
-  chicksPlaced: z.int().positive(),
-  deadOnArrival: z.int().min(0),
+  chicksPlaced: z.int32().positive(),
+  deadOnArrival: z.int32().min(0),
   hatchery: text(120),
   deliveryNote: text(60),
   chickUnitPriceCentimes: z.string().regex(/^\d{1,12}$/), // JSON has no bigint
-  dayOldWeightGrams: z.int().positive().nullable(),
+  dayOldWeightGrams: z.int32().positive().nullable(),
 });
 
 /** B6: by hand, with a reason (the last sale closes it by itself). */
@@ -31,11 +31,11 @@ export const RecordDay = z.object({
   day: z.iso.date(),
   changes: z
     .object({
-      dead: z.int().min(0),
+      dead: z.int32().min(0),
       deathCause: z.enum(DEATH_CAUSES).nullable(),
-      culled: z.int().min(0),
-      feed: z.object({ stockItemId: z.uuid(), grams: z.int().positive() }).nullable(),
-      waterMl: z.int().min(0).nullable(),
+      culled: z.int32().min(0),
+      feed: z.object({ stockItemId: z.uuid(), grams: z.int32().positive() }).nullable(),
+      waterMl: z.int32().min(0).nullable(),
       note: z.string().trim().max(500).transform((s) => s || null).nullable(),
     })
     .partial()
@@ -47,7 +47,7 @@ export const RecordWeighing = z.object({
   batchId: z.uuid(),
   day: z.iso.date(),
   sample: z.union([
-    z.object({ weightsGrams: z.array(z.int()).min(1).max(1000) }),
-    z.object({ totalGrams: z.int(), count: z.int() }),
+    z.object({ weightsGrams: z.array(z.int32()).min(1).max(1000) }),
+    z.object({ totalGrams: z.int32(), count: z.int32() }),
   ]),
 });

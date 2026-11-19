@@ -48,6 +48,17 @@ describe("notifications (SPEC N1–N3)", () => {
     expect((await db.notification.findUniqueOrThrow({ where: { id: ownersOwn.id } })).readAt).not.toBeNull();
   });
 
+  it("never sends a notification with an amount to someone who can no longer see money (T25 S5)", async () => {
+    const manager = { ...worker, role: "manager" as const };
+    await db.$transaction((tx) =>
+      notify(tx, owner, { userIds: [manager.userId], templateKey: "instrumentDue", params: { amount: "9 000,00 DH" }, urgency: "normal" }, night),
+    );
+    const keys = (ctx: TenantContext) => pull(ctx, 0, registry).then((p) => p.changes.map((c) => (c.data as { templateKey: string }).templateKey));
+    expect(await keys(manager)).toContain("instrumentDue");
+    expect(await keys(worker)).not.toContain("instrumentDue"); // the same person, demoted to worker
+    await db.notification.deleteMany({ where: { templateKey: "instrumentDue" } }); // not due for the dispatch test below
+  });
+
   it("pushes only what is due, never twice even with two dispatchers, and forgets dead subscriptions", async () => {
     for (const [userId, n] of [[owner.userId, 1], [owner.userId, 2], [worker.userId, 3]] as const) {
       expect(await savePushSubscription(userId, { endpoint: endpoint(n), keys })).toEqual({ ok: true, value: undefined });

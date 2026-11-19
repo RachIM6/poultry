@@ -422,6 +422,8 @@ Decisions (2026-11-09, taken without asking): only the sale of the last birds cl
 - [ ] The pilot farm owner and a worker log in on their own phones and complete the first daily entry.
 - [ ] A daily backup runs and has been restored once as a test.
 
+Done ahead of the host choice (2026-11-11, branch `feat/t26-pilot-hardening`): the T25 findings S2 ("log out all my devices"), S4 (int4 bounds), S5 (a role change clears money from the phone) and S7 (`@serwist/turbopack` is a runtime dependency). Still open from T25 and tied to the host: the Content-Security-Policy (S3), brotli, and a JS size check in CI.
+
 **Verify:** smoke test on production. Backup restore drill.
 **Dependencies:** T25, **OQ1, OQ2 resolved**
 **Files:** deployment config (depends on the host), `docs/quick-guide-ar.md`, `docs/quick-guide-fr.md`

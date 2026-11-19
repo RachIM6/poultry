@@ -57,7 +57,16 @@ function deviceDb(): Device {
 }
 
 export const currentScope = async () => (await deviceDb().session.get("current"))?.scope;
-export const rememberScope = (scope: Scope) => deviceDb().session.put({ key: "current", scope });
+export async function rememberScope(scope: Scope) {
+  const before = await currentScope();
+  if (before && scopeKey(before) === scopeKey(scope) && before.role !== scope.role) {
+    // T25 S5: a new role pulls everything again, so prices a demoted worker may no longer see leave the phone.
+    // Unsent writes stay (poultry-auth §0.5); the server re-checks them against the new role.
+    const db = localDb(scope);
+    await db.transaction("rw", db.records, db.meta, () => Promise.all([db.records.clear(), db.meta.clear()]));
+  }
+  await deviceDb().session.put({ key: "current", scope });
+}
 
 export const cachedReference = () => deviceDb().reference.get("current");
 export const storeReference = (etag: string, data: ReferenceData) => deviceDb().reference.put({ key: "current", etag, data });

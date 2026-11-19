@@ -21,9 +21,9 @@ export const RecordSale = z.object({
   batchId: z.uuid(),
   buyerId: z.uuid(),
   day: z.iso.date(), // farm day
-  birds: z.int().positive(),
-  farmWeightGrams: z.int().positive(),
-  buyerWeightGrams: z.int().positive().nullable(),
+  birds: z.int32().positive(),
+  farmWeightGrams: z.int32().positive(),
+  buyerWeightGrams: z.int32().positive().nullable(),
   pricePerKgCentimes: centimes,
   paymentMethod: z.enum(PAYMENT_METHODS),
   paidCentimes: centimes,

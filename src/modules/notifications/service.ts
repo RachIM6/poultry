@@ -3,6 +3,7 @@ import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
+import { can } from "@/lib/permissions";
 import type { Role, TenantContext } from "@/lib/tenant";
 import { localesOf, membersWithRoles } from "@/modules/identity";
 import {
@@ -157,6 +158,12 @@ export const notificationsSync: SyncRegistry = {
       },
     }),
   },
-  // Everyone in the organisation shares one change log; each person only receives their own notifications.
-  entities: { notification: (ctx, data: NotificationDto) => (data.userId === ctx.userId ? data : undefined) },
+  // Everyone in the organisation shares one change log; each person only receives their own notifications, and none
+  // with an amount once they can't see money (a manager demoted to worker, T25 S5).
+  entities: {
+    notification: (ctx, data: NotificationDto) =>
+      data.userId === ctx.userId && (can(ctx, "money.read") || !MONEY_TEMPLATES.has(data.templateKey)) ? data : undefined,
+  },
 };
+
+const MONEY_TEMPLATES = new Set<TemplateKey>(["instrumentDue"]);

@@ -2,15 +2,16 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import type { FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { recordBirdsSold } from "@/modules/flock";
 import { withdrawalOn } from "@/modules/health";
+import { buyerBalances, checkPayment } from "@/modules/sales/domain/receivables";
 import { checkSale } from "@/modules/sales/domain/sale";
-import { buyerIdTaken, ownBuyer, saleIdTaken, saveBuyer, saveSale } from "@/modules/sales/infrastructure/sales";
-import type { BuyerDto, CreateBuyer, RecordSale, SaleDto } from "@/modules/sales/schema";
+import { buyerIdTaken, buyerLedger, lockBuyer, ownBuyer, paymentIdTaken, saleIdTaken, saveBuyer, savePayment, saveSale } from "@/modules/sales/infrastructure/sales";
+import type { BuyerDto, CreateBuyer, PaymentDto, RecordPayment, RecordSale, SaleDto } from "@/modules/sales/schema";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
 
@@ -45,5 +46,22 @@ export async function recordSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof
   await saveSale(tx, ctx, sale);
   await recordChange(tx, ctx, "sale", sale.id, sale);
   await audit(tx, ctx, { entity: "Sale", entityId: sale.id, action: "create", after: sale, ...meta });
+  return ok(undefined);
+}
+
+/** SPEC V4, applied by the sync push: a buyer pays later, up to what they owe, under the buyer's lock. */
+export async function recordPayment(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof RecordPayment>, meta: Meta, clock: Clock = systemClock) {
+  if (await paymentIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
+  if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
+  if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE"); // a phone may run a little ahead
+  await lockBuyer(tx, cmd.buyerId);
+  const { sales, payments } = await buyerLedger(tx, ctx, cmd.buyerId);
+  const checked = checkPayment(BigInt(cmd.amountCentimes), buyerBalances(sales, payments).get(cmd.buyerId) ?? 0n);
+  if (!checked.ok) return checked;
+
+  const payment: PaymentDto = cmd;
+  await savePayment(tx, ctx, payment);
+  await recordChange(tx, ctx, "buyerPayment", payment.id, payment);
+  await audit(tx, ctx, { entity: "BuyerPayment", entityId: payment.id, action: "create", after: payment, ...meta });
   return ok(undefined);
 }

@@ -20,7 +20,7 @@ const moduleDeps = {
   eggs: ["flock", "inventory"],
   planning: ["flock", "market-prices", "notifications"],
   workforce: ["identity", "farm-registry", "flock", "health", "notifications"],
-  sales: ["flock", "health", "eggs"],
+  sales: ["flock", "health", "eggs", "notifications"],
   finance: ["farm-registry", "inventory", "flock", "sales", "workforce"],
   reporting: ["flock", "health", "biosecurity", "documents", "sales", "finance"],
 };

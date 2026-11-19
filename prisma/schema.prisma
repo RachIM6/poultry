@@ -553,10 +553,25 @@ model Sale {
   paidCentimes       BigInt
   instrumentNumber   String? // cheque or bill of exchange
   instrumentDueOn    DateTime? @db.Date
+  instrumentRemindedAt DateTime? @db.Timestamptz // V4: claimed by the reminder job, so it goes out once
   recordedBy         String    @db.Uuid
   createdAt          DateTime  @default(now()) @db.Timestamptz
 
   @@index([organizationId, batchId])
+}
+
+// Owner: sales (SPEC V4). A buyer paying later what their sales left unpaid. Money in centimes.
+model BuyerPayment {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  buyerId        String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  amountCentimes BigInt
+  method         String // cash | cheque | bill | transfer
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, buyerId])
 }
 
 // Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.

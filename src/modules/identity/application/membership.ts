@@ -1,14 +1,18 @@
 import { db, type Tx } from "@/lib/db";
+import { systemClock, type Clock } from "@/lib/kernel/clock";
+import { farmDayOf } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Role, TenantContext } from "@/lib/tenant";
 import { getSession } from "@/modules/identity/application/login";
 
 /** ADR-006 choke point: session cookie → membership → tenant context. A signed-in user with no membership onboards. */
-export async function getTenantContext(headers: Headers): Promise<Result<TenantContext, "UNAUTHENTICATED" | "NO_MEMBERSHIP">> {
+export async function getTenantContext(headers: Headers, clock: Clock = systemClock): Promise<Result<TenantContext, "UNAUTHENTICATED" | "NO_MEMBERSHIP">> {
   const session = await getSession(headers);
   if (!session) return fail("UNAUTHENTICATED");
   // ponytail: the oldest membership wins; add an organisation switcher once someone belongs to two (vet, accountant: M5).
-  const membership = await db.membership.findFirst({ where: { userId: session.userId }, orderBy: { createdAt: "asc" } });
+  // SPEC-m5 PA3: a partner's membership opens the organisation up to its end day, included.
+  const live = { OR: [{ accessUntil: null }, { accessUntil: { gte: new Date(`${farmDayOf(clock.now())}T00:00:00Z`) } }] };
+  const membership = await db.membership.findFirst({ where: { userId: session.userId, ...live }, orderBy: { createdAt: "asc" } });
   if (!membership) return fail("NO_MEMBERSHIP");
   return ok({ userId: session.userId, organizationId: membership.organizationId, role: membership.role });
 }

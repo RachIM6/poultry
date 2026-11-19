@@ -1,18 +1,19 @@
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
+import { farmDayOf } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import { consume } from "@/lib/security/rate-limit";
 import type { Role, TenantContext } from "@/lib/tenant";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
 import { AUTH_CONFIG } from "@/modules/identity/infrastructure/better-auth";
-import { CancelInvitation, ChangeRole, InviteMember, RemoveMember } from "@/modules/identity/schema";
+import { CancelInvitation, ChangeRole, InviteMember, PARTNER_ROLES, RemoveMember } from "@/modules/identity/schema";
 
 type MemberError = "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "LAST_OWNER";
 
 export type MembersDto = {
-  members: { membershipId: string; userId: string; phone: string | null; role: Role }[];
-  invitations: { id: string; phone: string; role: Role; expiresAt: Date }[];
+  members: { membershipId: string; userId: string; phone: string | null; role: Role; accessUntil: string | null }[];
+  invitations: { id: string; phone: string; role: Role; expiresAt: Date; accessUntil: string | null }[];
 };
 
 /** SPEC I4. Owner only. Inviting again replaces the pending invitation (new role, new expiry). No SMS is sent. */
@@ -24,6 +25,8 @@ export async function inviteMember(
   if (!can(ctx, "members.manage")) return fail("FORBIDDEN");
   const input = InviteMember.safeParse(raw);
   if (!input.success) return fail("INVALID_INPUT");
+  const { accessUntil } = input.data;
+  if (accessUntil !== null && accessUntil < farmDayOf(clock.now())) return fail("INVALID_INPUT");
   const phone = PhoneNumber.create(input.data.phone);
   if (!phone.ok) return phone;
   // Per number *and organisation*: a shared per-number counter would let one owner block every other farm's invitations.
@@ -36,13 +39,13 @@ export async function inviteMember(
     const member = await tx.membership.findFirst({ where: { organizationId, user: { phoneNumber } } });
     if (member) return fail("ALREADY_MEMBER");
     const expiresAt = new Date(clock.now().getTime() + AUTH_CONFIG.invitation.expiresInSec * 1000);
-    const data = { role: input.data.role, invitedById: ctx.userId, expiresAt };
+    const data = { role: input.data.role, accessUntil: accessUntil && date(accessUntil), invitedById: ctx.userId, expiresAt };
     const invitation = await tx.invitation.upsert({
       where: { organizationId_phoneNumber: { organizationId, phoneNumber } },
       create: { organizationId, phoneNumber, ...data },
       update: data,
     });
-    await audit(tx, ctx, "Invitation", invitation.id, "create", null, { phone: phone.value.masked, role: input.data.role });
+    await audit(tx, ctx, "Invitation", invitation.id, "create", null, { phone: phone.value.masked, role: input.data.role, accessUntil });
     return ok(undefined);
   });
 }
@@ -62,8 +65,8 @@ export async function listMembers(ctx: TenantContext, clock: Clock = systemClock
     }),
   ]);
   return ok({
-    members: members.map((m) => ({ membershipId: m.id, userId: m.userId, phone: m.user.phoneNumber, role: m.role })),
-    invitations: invitations.map((i) => ({ id: i.id, phone: i.phoneNumber, role: i.role, expiresAt: i.expiresAt })),
+    members: members.map((m) => ({ membershipId: m.id, userId: m.userId, phone: m.user.phoneNumber, role: m.role, accessUntil: day(m.accessUntil) })),
+    invitations: invitations.map((i) => ({ id: i.id, phone: i.phoneNumber, role: i.role, expiresAt: i.expiresAt, accessUntil: day(i.accessUntil) })),
   });
 }
 
@@ -78,7 +81,8 @@ export async function changeRole(ctx: TenantContext, raw: unknown): Promise<Resu
     const { id, userId, role, isLastOwner } = member.value;
     if (role === input.data.role) return ok(undefined);
     if (isLastOwner) return fail("LAST_OWNER");
-    await tx.membership.update({ where: { id }, data: { role: input.data.role } });
+    // Staff have no end day (PA1): a partner made staff loses theirs.
+    await tx.membership.update({ where: { id }, data: { role: input.data.role, ...(PARTNER_ROLES.includes(input.data.role) ? {} : { accessUntil: null }) } });
     await revokeSessions(tx, ctx, userId);
     await audit(tx, ctx, "Membership", id, "update", { role }, { role: input.data.role });
     return ok(undefined);
@@ -126,7 +130,7 @@ export async function acceptInvitations(userId: string, phoneNumber: string, clo
     for (const inv of pending) {
       const membership = await tx.membership.upsert({
         where: { organizationId_userId: { organizationId: inv.organizationId, userId } },
-        create: { organizationId: inv.organizationId, userId, role: inv.role },
+        create: { organizationId: inv.organizationId, userId, role: inv.role, accessUntil: inv.accessUntil },
         update: {}, // already a member: keep the current role
       });
       await tx.invitation.delete({ where: { id: inv.id } });
@@ -159,6 +163,9 @@ const revokeSessions = async (tx: Tx, ctx: TenantContext, userId: string) => {
   const { count } = await tx.session.deleteMany({ where: { userId } });
   if (count > 0) await audit(tx, ctx, "Session", userId, "revoke", null, { count });
 };
+
+const date = (d: string) => new Date(`${d}T00:00:00Z`); // a calendar date
+const day = (d: Date | null) => d && d.toISOString().slice(0, 10);
 
 const audit = (
   tx: Tx,

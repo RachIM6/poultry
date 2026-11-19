@@ -178,6 +178,7 @@ model Membership {
   organizationId String       @db.Uuid
   userId         String       @db.Uuid
   role           MemberRole
+  accessUntil    DateTime?    @db.Date // partners (SPEC-m5 PA1): last farm day the membership opens the organisation
   createdAt      DateTime     @default(now()) @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -193,6 +194,7 @@ model Invitation {
   organizationId String       @db.Uuid
   phoneNumber    String // E.164, through PhoneNumber
   role           MemberRole
+  accessUntil    DateTime?    @db.Date // copied to the membership
   invitedById    String       @db.Uuid
   expiresAt      DateTime     @db.Timestamptz
   createdAt      DateTime     @default(now()) @db.Timestamptz
@@ -206,6 +208,8 @@ enum MemberRole {
   owner
   manager
   worker
+  vet
+  accountant
 }
 
 // Owner: src/lib/sync/server.ts (ADR-003). One row per pushed mutation id: a replay returns the stored result.

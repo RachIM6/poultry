@@ -84,8 +84,13 @@
     "roles": {
       "owner": "Propriétaire",
       "manager": "Gérant",
-      "worker": "Ouvrier"
-    }
+      "worker": "Ouvrier",
+      "vet": "Vétérinaire",
+      "accountant": "Comptable"
+    },
+    "accessUntilLabel": "Accès jusqu’au (facultatif)",
+    "accessUntilHint": "Le vétérinaire ou le comptable ne voit plus l’exploitation après ce jour. Vous pouvez aussi le retirer à tout moment.",
+    "accessUntil": "jusqu’au {date}"
   },
   "Sync": {
     "title": "Synchronisation",

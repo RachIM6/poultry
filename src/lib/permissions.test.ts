@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { can, withoutMoney } from "./permissions";
+import { can, withoutMoney, type Action } from "./permissions";
 import type { Role } from "./tenant";
 
 const as = (role: Role) => ({ userId: "u", organizationId: "o", role });
@@ -21,6 +21,29 @@ describe("can (SPEC I5)", () => {
     expect(can(as("owner"), "farms.manage")).toBe(true);
     expect(can(as("manager"), "farms.manage")).toBe(true);
     expect(can(as("worker"), "farms.manage")).toBe(false);
+  });
+});
+
+describe("partners (SPEC-m5 §5, ADR-011)", () => {
+  const ACTIONS: Action[] = [
+    "organization.read", "organization.manage", "members.manage", "farms.manage", "protocols.manage", "stock.manage", "flock.manage", "flock.record",
+    "health.manage", "health.record", "sales.manage", "money.read", "finance.record", "finance.manage", "workforce.manage", "workforce.record",
+    "workforce.validatePay", "labour.manage", "climate.record", "climate.manage",
+  ];
+  const allowed = (role: Role) => ACTIONS.filter((a) => can(as(role), a));
+
+  it("a vet does the farm's health work and sees no money", () => {
+    expect(allowed("vet")).toEqual(["organization.read", "protocols.manage", "health.manage", "health.record"]);
+  });
+
+  it("an accountant reads money and writes nothing", () => {
+    expect(allowed("accountant")).toEqual(["organization.read", "money.read"]);
+  });
+
+  it("an accountant's view keeps money, a vet's drops it", () => {
+    const dto = { id: "s1", amountCentimes: "100" };
+    expect(withoutMoney(as("accountant"), dto, ["amountCentimes"])).toEqual(dto);
+    expect(withoutMoney(as("vet"), dto, ["amountCentimes"])).toEqual({ id: "s1" });
   });
 });
 

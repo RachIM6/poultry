@@ -86,7 +86,9 @@ Done 2026-11-16 (branch `feat/t56-beldi-run`): the batches list keeps a run's op
 ### T57: Pullet uniformity and weekly standard (B12)
 **Description:** `uniformityPercent(weights)` (±10 % of the mean) next to CV%; pullet weighings compare with the strain's weekly curve.
 **AC:**
-- [ ] Uniformity of a hand-computed sample (unit test).
+- [x] Uniformity of a hand-computed sample (unit test). (`flock/domain/weighing.test.ts`: 5 of 6 within ±10 % → 83,3 %; the band's edges count in.)
+
+Done 2026-11-16 (branch `feat/t57-pullet-uniformity`): `uniformityPercent` (band `UNIFORMITY_BAND_PERCENT` = 10, MQ9) next to the CV on every non-broiler weighing (`e2e/production-types.spec.ts`, a pullet batch at 11 weeks). The weekly standard needs no new code: a pullet guide is imported as days (week × 7) and `standardAt` + `curveFor` already compare with it; no curve is loaded (MQ1).
 **Size:** S
 
 ### T58: Transfer pullets → layers (B13)

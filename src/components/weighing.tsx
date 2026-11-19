@@ -6,7 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
 import { formatCount, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, sampleStats, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/shared";
+import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, sampleStats, uniformityPercent, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
 import type { CurvePoint } from "@/modules/reference-data/schema";
 import { standardAt } from "@/modules/reference-data/shared";
@@ -46,6 +46,8 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
     return [
       t("Weighing.average", { average: formatKg(stats.averageGrams), count: formatCount(stats.count) }),
       stats.cvPercent === null ? null : t("Weighing.cv", { cv: formatPercent(stats.cvPercent) }),
+      // SPEC-m3 B12: the guides' uniformity, for the types weighed weekly against a target (pullets above all)
+      batch.species === "broiler" || uniformityPercent(s) === null ? null : t("Weighing.uniformity", { percent: formatPercent(uniformityPercent(s)!) }),
       standard
         ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(stats.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) })
         : t("Weighing.noStandard"),

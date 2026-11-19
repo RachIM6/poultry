@@ -416,7 +416,8 @@
     "versusStandard": "{gap} % par rapport au standard ({standard})",
     "noStandard": "Pas de standard publié pour cette souche à cet âge",
     "save": "Enregistrer la pesée",
-    "past": "Pesées précédentes"
+    "past": "Pesées précédentes",
+    "uniformity": "Homogénéité {percent} %"
   },
   "Kpi": {
     "title": "Indicateurs",

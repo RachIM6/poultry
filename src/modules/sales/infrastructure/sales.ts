@@ -103,7 +103,7 @@ export async function approveSaleCredit(tx: Tx, ctx: TenantContext, saleId: stri
     paidCentimes: String(s.paidCentimes),
     instrument: s.instrumentNumber && s.instrumentDueOn ? { number: s.instrumentNumber, dueOn: day(s.instrumentDueOn) } : null,
     creditApproval: "approved",
-    kind: s.kind as "live" | "eggs",
+    kind: s.kind as "live" | "eggs" | "perHead",
     lines: lines.map((l) => ({ item: l.item, eggs: l.eggs, eggsPerTray: l.eggsPerTray, unitPriceCentimes: String(l.unitPriceCentimes), amountCentimes: String(l.amountCentimes) })),
   };
 }

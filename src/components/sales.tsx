@@ -17,6 +17,8 @@ import {
   BUYER_TYPES,
   PAYMENT_METHODS,
   SALES_MUTATIONS as S,
+  HEAD_KINDS,
+  checkHeadSale,
   checkSale,
   saleAmount,
   weighingGap,
@@ -76,7 +78,9 @@ export function Sales({
             return (
               <li key={s.id} className={card}>
                 <span className="font-semibold">
-                  {t("Sale.line", { date: formatDay(s.day as FarmDay, locale), buyer: buyerName(s.buyerId), birds: formatCount(s.birds), kg: formatKg(s.farmWeightGrams) })}
+                  {s.kind === "perHead"
+                    ? t("Sale.headLine", { date: formatDay(s.day as FarmDay, locale), buyer: buyerName(s.buyerId), birds: formatCount(s.birds) })
+                    : t("Sale.line", { date: formatDay(s.day as FarmDay, locale), buyer: buyerName(s.buyerId), birds: formatCount(s.birds), kg: formatKg(s.farmWeightGrams) })}
                 </span>
                 {s.amountCentimes && s.paymentMethod && (
                   <span>{t("Sale.detail", { amount: formatMoney(BigInt(s.amountCentimes)), method: t(`Sale.methods.${s.paymentMethod}`), paid: formatMoney(BigInt(s.paidCentimes ?? "0")) })}</span>
@@ -126,6 +130,15 @@ function SaleForm({
   const [price, setPrice] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [error, setError] = useState<string>();
+  // SPEC-m3 V7: beldi and quail are sold by the head (P-Beldi); any batch may be.
+  const [perHead, setPerHead] = useState(batch.species === "beldi" || batch.species === "quail");
+  const [heads, setHeads] = useState<Record<(typeof HEAD_KINDS)[number], { birds: string; price: string }>>({ rooster: { birds: "", price: "" }, hen: { birds: "", price: "" }, bird: { birds: "", price: "" } });
+  const headLines = HEAD_KINDS.flatMap((k) => {
+    const birds = /^\d+$/.test(heads[k].birds) ? Number(heads[k].birds) : 0;
+    const price = parseCentimes(heads[k].price);
+    return birds > 0 ? [{ item: k, birds, pricePerHeadCentimes: price ?? -1n }] : [];
+  });
+  const headAmount = headLines.length > 0 && headLines.every((l) => l.pricePerHeadCentimes > 0n) ? headLines.reduce((a, l) => a + BigInt(l.birds) * l.pricePerHeadCentimes, 0n) : null;
   const farmGrams = parseQuantity(farmKg, "kg");
   const buyerGrams = buyerKg ? parseQuantity(buyerKg, "kg") : null;
   const pricePerKg = parseCentimes(price);
@@ -138,8 +151,9 @@ function SaleForm({
     const data = new FormData(e.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const day = (get("day") || today()) as FarmDay;
-    const birds = /^\d+$/.test(get("birds")) ? Number(get("birds")) : NaN;
     const paid = parseCentimes(get("paid"));
+    if (perHead) return submitPerHead(day, paid, get);
+    const birds = /^\d+$/.test(get("birds")) ? Number(get("birds")) : NaN;
     const newBuyer = buyerId === "new" ? { id: uuidv7(), name: get("buyerName"), phone: get("buyerPhone") || null, type: get("buyerType") as BuyerDto["type"] } : null;
     if (farmGrams === null || pricePerKg === null || paid === null || (buyerKg && buyerGrams === null) || (newBuyer && !newBuyer.name)) return setError("errors.INVALID_INPUT");
     const instrument = withInstrument && get("instrumentNumber") && get("instrumentDueOn") ? { number: get("instrumentNumber"), dueOn: get("instrumentDueOn") } : null;
@@ -179,8 +193,56 @@ function SaleForm({
     if (saved) onDone();
   };
 
+  // SPEC-m3 V7: the same checks as the server: withdrawal, lines, birds on hand.
+  const submitPerHead = async (day: FarmDay, paid: bigint | null, get: (k: string) => string) => {
+    const weighed = farmKg ? farmGrams : null;
+    const newBuyer = buyerId === "new" ? { id: uuidv7(), name: get("buyerName"), phone: get("buyerPhone") || null, type: get("buyerType") as BuyerDto["type"] } : null;
+    if (paid === null || (farmKg && weighed === null) || (newBuyer && !newBuyer.name)) return setError("errors.INVALID_INPUT");
+    const instrument = withInstrument && get("instrumentNumber") && get("instrumentDueOn") ? { number: get("instrumentNumber"), dueOn: get("instrumentDueOn") } : null;
+    const checked = checkHeadSale(
+      { lines: headLines, farmWeightGrams: weighed, paymentMethod: method, paidCentimes: paid, instrument },
+      withdrawalUntil(treatments.map((x) => ({ startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay, withdrawalDays: x.withdrawalDays })), day),
+    );
+    if (!checked.ok) return setError(`errors.${checked.error}`);
+    const birds = checked.value.birds;
+    const aggregate = Batch.rehydrate({ ...batch, placedOn: batch.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, batch.status);
+    const birdsOk = aggregate.checkBirdsSold(day, birds, birdsStarted(batch) - birdsOnHand, today());
+    if (!birdsOk.ok) return setError(`errors.${birdsOk.error}`);
+    setError(undefined);
+
+    if (newBuyer && !(await write({ type: S.createBuyer, payload: newBuyer }, [{ entity: "buyer", id: newBuyer.id, data: newBuyer }]))) return;
+    const lines = headLines.map((l) => ({ item: l.item, birds: l.birds, pricePerHeadCentimes: String(l.pricePerHeadCentimes) }));
+    const payload = { id: uuidv7(), batchId: batch.id, buyerId: newBuyer?.id ?? buyerId, day, lines, farmWeightGrams: weighed, paymentMethod: method, paidCentimes: String(paid), instrument };
+    const sale: SaleDto = {
+      ...payload,
+      birds,
+      farmWeightGrams: weighed ?? 0,
+      buyerWeightGrams: null,
+      pricePerKgCentimes: "0",
+      amountCentimes: String(checked.value.amountCentimes),
+      kind: "perHead",
+      lines: headLines.map((l) => ({ item: l.item, eggs: l.birds, eggsPerTray: 1, unitPriceCentimes: String(l.pricePerHeadCentimes), amountCentimes: String(BigInt(l.birds) * l.pricePerHeadCentimes) })),
+    };
+    const sold: SoldBirdsDto = { id: payload.id, batchId: batch.id, day, birds, liveWeightGrams: weighed ?? 0 };
+    const saved = await write({ type: S.recordHeadSale, payload }, [
+      { entity: "sale", id: payload.id, data: sale },
+      { entity: "soldBirds", id: payload.id, data: sold },
+      ...(birds === birdsOnHand ? [{ entity: "batch", id: batch.id, data: closedLocally(batch, day, null) }] : []),
+    ]);
+    if (saved) onDone();
+  };
+
   return (
     <form onSubmit={submit} className="flex flex-col gap-2.5">
+      <fieldset className="flex gap-2">
+        <legend className="sr-only">{t("Sale.pricing")}</legend>
+        {[false, true].map((head) => (
+          <label key={String(head)} className={`${secondary} flex-1 gap-2 has-[:checked]:border-ink has-[:checked]:font-semibold`}>
+            <input type="radio" name="pricing" checked={perHead === head} onChange={() => setPerHead(head)} />
+            {t(head ? "Sale.perHead" : "Sale.perKg")}
+          </label>
+        ))}
+      </fieldset>
       <div className={`${card} grid grid-cols-2 gap-2.5 [&>*]:min-w-0`}>
       <div className="col-span-2">
       <Field label={t("Sale.buyer")}>
@@ -206,13 +268,27 @@ function SaleForm({
         </>
       )}
       <Input label={t("Sale.day")} name="day" type="date" defaultValue={today()} required />
-      <Input label={t("Sale.birds")} name="birds" inputMode="numeric" pattern="\d+" required dir="ltr" />
-      <Input label={t("Sale.farmKg")} value={farmKg} onChange={(e) => setFarmKg(e.target.value)} inputMode="decimal" required dir="ltr" />
-      <Input label={t("Sale.buyerKg")} value={buyerKg} onChange={(e) => setBuyerKg(e.target.value)} inputMode="decimal" dir="ltr" />
+      {perHead ? (
+        <>
+          {HEAD_KINDS.map((k) => (
+            <div key={k} className="col-span-2 grid grid-cols-2 gap-2.5">
+              <Input label={t(`Sale.heads.${k}`)} value={heads[k].birds} onChange={(e) => setHeads((h) => ({ ...h, [k]: { ...h[k], birds: e.target.value } }))} inputMode="numeric" dir="ltr" />
+              <Input label={t("Sale.pricePerHead", { what: t(`Sale.heads.${k}`) })} value={heads[k].price} onChange={(e) => setHeads((h) => ({ ...h, [k]: { ...h[k], price: e.target.value } }))} inputMode="decimal" dir="ltr" />
+            </div>
+          ))}
+          <Input label={t("Sale.farmKgOptional")} value={farmKg} onChange={(e) => setFarmKg(e.target.value)} inputMode="decimal" dir="ltr" />
+        </>
+      ) : (
+        <>
+          <Input label={t("Sale.birds")} name="birds" inputMode="numeric" pattern="\d+" required dir="ltr" />
+          <Input label={t("Sale.farmKg")} value={farmKg} onChange={(e) => setFarmKg(e.target.value)} inputMode="decimal" required dir="ltr" />
+          <Input label={t("Sale.buyerKg")} value={buyerKg} onChange={(e) => setBuyerKg(e.target.value)} inputMode="decimal" dir="ltr" />
+        </>
+      )}
       {gap && <p className="col-span-2 text-sm font-medium text-brick-fg">{t("Sale.gap", { kg: formatKg(gap.grams), percent: formatPercent(gap.percent) })}</p>}
       </div>
       <div className={`${card} grid grid-cols-2 gap-2.5 [&>*]:min-w-0`}>
-      <Input label={t("Sale.price")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" required dir="ltr" />
+      {!perHead && <Input label={t("Sale.price")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" required dir="ltr" />}
       <Field label={t("Sale.method")}>
         {(id) => (
           <select id={id} value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className={field}>
@@ -228,7 +304,13 @@ function SaleForm({
         </>
       )}
       </div>
-      {amount !== null && (
+      {perHead && headAmount !== null && (
+        <p className="flex items-baseline justify-between gap-3 rounded-[18px] bg-ink px-4 py-3.5 text-shell">
+          <span className="text-sm text-sand">{t("Sale.headCount", { birds: formatCount(headLines.reduce((n, l) => n + l.birds, 0)) })}</span>
+          <b className="text-[22px] font-semibold">{t("Sale.amount", { amount: formatMoney(headAmount) })}</b>
+        </p>
+      )}
+      {!perHead && amount !== null && (
         <p className="flex items-baseline justify-between gap-3 rounded-[18px] bg-ink px-4 py-3.5 text-shell">
           <span className="text-sm text-sand">{farmKg} kg × {price}</span>
           <b className="text-[22px] font-semibold">{t("Sale.amount", { amount: formatMoney(amount) })}</b>

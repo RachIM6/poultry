@@ -151,8 +151,10 @@ Done 2026-11-17 (branch `feat/t63-egg-sales`). Decisions:
 ### T64: Sale per head (V7)
 **Description:** Per-head lines on live sales (rooster, hen, bird), farm weight optional for them; P-Beldi screen.
 **AC:**
-- [ ] 6 roosters × 85,00 + 4 hens × 70,00 = 790,00 DH, birds on hand −10 (integration test, e2e).
-- [ ] The meat withdrawal still blocks a per-head sale (integration test).
+- [x] 6 roosters × 85,00 + 4 hens × 70,00 = 790,00 DH, birds on hand −10 (integration test, e2e). (`sales/head-sales.int.test.ts`, `e2e/production-types.spec.ts` offline on a beldi band.)
+- [x] The meat withdrawal still blocks a per-head sale (integration test). (`WITHDRAWAL_IN_PROGRESS`, same `withdrawalOn` as V3.)
+
+Done 2026-11-17 (branch `feat/t64-per-head-sales`): `sales.recordHeadSale`: a `Sale` of `kind = "perHead"` with up to 3 lines (roosters, hens, birds) and their price per head, farm weight optional; the birds leave the batch through flock (B5, closes it with the last ones). Lines reuse `SaleLine` with a pack of 1 (`eggs` counts birds then): renaming the column would be an "ask first" migration. The sale form has "Au kg / À la tête", per head by default for beldi and quail. Old hens are sold per kg or per head from the layer batch, no new code.
 **Size:** S
 
 ### T65: Finance postings for egg and per-head sales (V8)

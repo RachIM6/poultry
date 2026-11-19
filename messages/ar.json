@@ -542,7 +542,19 @@
     "cancel": "إلغاء",
     "line": "{date} · {buyer} · {birds} طائر · {kg}",
     "detail": "{amount} · {method} · المقبوض {paid}",
-    "origin": "وثيقة المصدر ({language})"
+    "origin": "وثيقة المصدر ({language})",
+    "pricing": "الثمن",
+    "perKg": "بالكيلو",
+    "perHead": "بالرأس",
+    "heads": {
+      "rooster": "ديوك",
+      "hen": "دجاجات",
+      "bird": "طيور"
+    },
+    "pricePerHead": "الثمن للرأس · {what} (درهم)",
+    "farmKgOptional": "الوزن في الضيعة (كغ، اختياري)",
+    "headCount": "{birds} طائر",
+    "headLine": "{date} · {buyer} · {birds} طائر بالرأس"
   },
   "Receivables": {
     "title": "الديون",

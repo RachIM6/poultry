@@ -224,3 +224,49 @@ test("pullets move to the laying house and become a layer batch", async ({ page,
     );
   await expect.poll(batches).toEqual([{ species: "layer", status: "open", age: 119, culled: null }, { species: "pullet", status: "closed", age: 119, culled: 100 }]);
 });
+
+// T64 acceptance (SPEC-m3 V7, P-Beldi): a band sold by the head offline, roosters and hens at their own price.
+test("a beldi band sold by the head: 6 roosters and 4 hens, 790,00 DH", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const e164 = await ownerWithFarm(page, "Élevage Vente à la Tête");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), run: crypto.randomUUID(), band: crypto.randomUUID() };
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Sidi Hajjaj", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.run, farmId: ids.farm, name: "Parcours", areaM2: 2000, capacity: 1000, type: "open" } },
+    {
+      type: "flock.placeBatch",
+      payload: { id: ids.band, houseId: ids.run, species: "beldi", strainId: "unspecified-beldi", placedOn: farmDaysAgo(3), chicksPlaced: 140, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: 154 },
+    },
+  ]);
+  await page.goto("/fr/batches");
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await referenceCached(page);
+  await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
+  await context.setOffline(true);
+  await context.route("**", (route) => route.abort("internetdisconnected"));
+  await page.getByRole("link", { name: "Saisir le jour" }).click();
+
+  await page.getByRole("button", { name: "Nouvelle vente" }).click();
+  await expect(page.getByLabel("À la tête")).toBeChecked(); // beldi: per head by default
+  await page.getByLabel("Nom de l’acheteur").fill("Client de passage");
+  await page.getByLabel("Coqs", { exact: true }).fill("6");
+  await page.getByLabel("Prix par tête · Coqs (DH)").fill("85,00");
+  await page.getByLabel("Poules", { exact: true }).fill("4");
+  await page.getByLabel("Prix par tête · Poules (DH)").fill("70,00");
+  await expect(page.getByText(/790,00.DH/)).toBeVisible();
+  await page.getByLabel("Montant reçu maintenant (DH)").fill("790");
+  await page.getByRole("button", { name: "Enregistrer la vente" }).click();
+  await expect(page.getByText(/Client de passage · 10 sujets à la tête/)).toBeVisible();
+  await expect(page.getByText(/Oiseaux présents : 130/).first()).toBeVisible();
+
+  await context.unroute("**");
+  await context.setOffline(false);
+  const sold = async () =>
+    await query<{ kind: string; amount: string; birds: number }>(
+      `SELECT s.kind, s."amountCentimes"::text AS amount, s.birds FROM "Sale" s JOIN "Membership" m ON m."organizationId" = s."organizationId"
+       JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
+      [e164],
+    );
+  await expect.poll(sold).toEqual([{ kind: "perHead", amount: "79000", birds: 10 }]);
+});

@@ -542,7 +542,19 @@
     "cancel": "Annuler",
     "line": "{date} · {buyer} · {birds} oiseaux · {kg}",
     "detail": "{amount} · {method} · reçu {paid}",
-    "origin": "Document d’origine ({language})"
+    "origin": "Document d’origine ({language})",
+    "pricing": "Prix",
+    "perKg": "Au kg",
+    "perHead": "À la tête",
+    "heads": {
+      "rooster": "Coqs",
+      "hen": "Poules",
+      "bird": "Sujets"
+    },
+    "pricePerHead": "Prix par tête · {what} (DH)",
+    "farmKgOptional": "Poids à la ferme (kg, facultatif)",
+    "headCount": "{birds} sujets",
+    "headLine": "{date} · {buyer} · {birds} sujets à la tête"
   },
   "Receivables": {
     "title": "Créances",

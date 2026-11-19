@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { checkEggSale, checkSale, eggLineAmount, saleAmount, weighingGap } from "@/modules/sales/domain/sale";
+import { checkEggSale, checkHeadSale, checkSale, eggLineAmount, saleAmount, weighingGap } from "@/modules/sales/domain/sale";
 
 describe("sale amount (SPEC V2)", () => {
   it("is weight × price per kg in integer centimes, rounded half up", () => {
@@ -72,5 +72,31 @@ describe("egg sales (SPEC-m3 V6)", () => {
     expect(checkEggSale({ ...sale, lines: [line(0, 3300n)] })).toEqual({ ok: false, error: "INVALID_QUANTITY" });
     expect(checkEggSale({ ...sale, paidCentimes: 226_001n })).toEqual({ ok: false, error: "PAID_MORE_THAN_AMOUNT" });
     expect(checkEggSale({ ...sale, paymentMethod: "cheque" })).toEqual({ ok: false, error: "INSTRUMENT_REQUIRED" });
+  });
+});
+
+describe("sale per head (SPEC-m3 V7)", () => {
+  // P-Beldi: 6 roosters at 85,00 and 4 hens at 70,00.
+  const sale = {
+    lines: [
+      { item: "rooster" as const, birds: 6, pricePerHeadCentimes: 8500n },
+      { item: "hen" as const, birds: 4, pricePerHeadCentimes: 7000n },
+    ],
+    farmWeightGrams: null,
+    paymentMethod: "cash" as const,
+    paidCentimes: 79_000n,
+    instrument: null,
+  };
+
+  it("sums birds × price per head, the farm weight optional", () => {
+    expect(checkHeadSale(sale, null)).toEqual({ ok: true, value: { amountCentimes: 79_000n, birds: 10 } });
+    expect(checkHeadSale({ ...sale, farmWeightGrams: 18_500 }, null).ok).toBe(true);
+    expect(checkHeadSale({ ...sale, farmWeightGrams: 0 }, null)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(checkHeadSale({ ...sale, lines: [{ item: "bird", birds: 0, pricePerHeadCentimes: 1n }] }, null)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(checkHeadSale({ ...sale, paidCentimes: 79_001n }, null)).toEqual({ ok: false, error: "PAID_MORE_THAN_AMOUNT" });
+  });
+
+  it("is blocked during a withdrawal, like a sale per kg (V3)", () => {
+    expect(checkHeadSale(sale, "2026-11-20" as FarmDay)).toEqual({ ok: false, error: "WITHDRAWAL_IN_PROGRESS" });
   });
 });

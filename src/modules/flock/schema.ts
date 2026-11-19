@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DEATH_CAUSES } from "@/modules/flock/domain/daily-entry";
+import { PRODUCTION_TYPES } from "@/modules/reference-data/shared";
 
 // SPEC B1–B6, the sync push's validation: the same schemas on every server path. The phone's screens import
 // ./shared.ts (no Zod, ADR-009), re-exported here so server code and tests keep one import.
@@ -10,6 +11,7 @@ const text = (max: number) => z.string().trim().min(1).max(max);
 export const PlaceBatch = z.object({
   id: z.uuid(),
   houseId: z.uuid(),
+  species: z.enum(PRODUCTION_TYPES).default("broiler"), // SPEC-m3 R5; a placement queued by an M1 phone has none
   strainId: z.string().min(1).max(60),
   placedOn: z.iso.date(), // farm day
   chicksPlaced: z.int32().positive(),

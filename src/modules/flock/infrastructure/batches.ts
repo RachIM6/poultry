@@ -4,6 +4,7 @@ import { houseOf } from "@/modules/farm-registry";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, type BatchStatus } from "@/modules/flock/domain/batch";
 import type { BatchCostDto, BatchDto } from "@/modules/flock/schema";
+import type { ProductionType } from "@/modules/reference-data/shared";
 
 // Batch repository (Prisma). Scoped to the caller's organisation.
 
@@ -26,7 +27,7 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Pr
     id: p.id,
     farmId: p.farmId,
     houseId: p.houseId,
-    species: "broiler",
+    species: p.species,
     strainId: p.strainId,
     placedOn: p.placedOn,
     chicksPlaced: p.chicksPlaced,
@@ -53,6 +54,7 @@ export async function loadBatch(tx: Tx, ctx: TenantContext, id: string): Promise
       id: r.id,
       farmId: r.farmId,
       houseId: r.houseId,
+      species: r.species as ProductionType,
       strainId: r.strainId,
       placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay,
       chicksPlaced: r.chicksPlaced,
@@ -94,7 +96,7 @@ export async function saveClosing(
     id: r.id,
     farmId: r.farmId,
     houseId: r.houseId,
-    species: "broiler",
+    species: r.species as ProductionType,
     strainId: r.strainId,
     placedOn: r.placedOn.toISOString().slice(0, 10),
     chicksPlaced: r.chicksPlaced,

@@ -7,6 +7,7 @@ const placement: Placement = {
   id: "b1",
   farmId: "f1",
   houseId: "h1",
+  species: "broiler",
   strainId: "ross-308",
   placedOn: day("2026-10-14"),
   chicksPlaced: 12_000,

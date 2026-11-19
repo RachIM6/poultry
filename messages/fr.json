@@ -305,7 +305,9 @@
       "closed": "Clôturée"
     },
     "protocol": "Programme de vaccination",
-    "noProtocol": "Aucun"
+    "noProtocol": "Aucun",
+    "type": "Production",
+    "unspecifiedStrain": "Souche non précisée"
   },
   "Day": {
     "title": "Saisie du jour",
@@ -730,6 +732,15 @@
     "total": "Total",
     "history": "Les 3 derniers exercices",
     "overShort": "au-dessus du seuil"
+  },
+  "Types": {
+    "broiler": "Poulet de chair",
+    "turkey": "Dinde",
+    "pullet": "Poulette",
+    "layer": "Pondeuse",
+    "beldi": "Beldi / plein air",
+    "duck": "Canard",
+    "quail": "Caille"
   },
   "Nav": {
     "label": "Navigation principale",

@@ -242,9 +242,10 @@ model Change {
 // Owner: reference-data (SPEC R1–R4). Global, not per organisation: read-only for farms, seeded from
 // prisma/seed/reference/*.json, cached offline through GET /api/reference.
 model Strain {
-  id     String          @id // "ross-308"
-  name   String
-  curves StandardCurve[]
+  id              String          @id // "ross-308"
+  name            String
+  productionTypes String[]        @default(["broiler"]) // SPEC-m3 R5
+  curves          StandardCurve[]
 }
 
 // One published performance-objectives table (R1). Each value keeps its source and version (OQ5).

@@ -1,5 +1,6 @@
 import { v5 as uuidv5 } from "uuid";
 import type { DayFields } from "@/modules/flock/domain/daily-entry";
+import type { ProductionType } from "@/modules/reference-data/shared";
 
 // What the phone's screens need from flock, without Zod (ADR-009): mutation names, plain DTO types and the domain
 // rules the phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
@@ -14,7 +15,7 @@ export type BatchDto = {
   id: string;
   farmId: string;
   houseId: string;
-  species: "broiler";
+  species: ProductionType;
   strainId: string;
   placedOn: string;
   chicksPlaced: number;

@@ -1,6 +1,10 @@
 // What the phone's screens need from reference-data, without Zod (ADR-009). Also imported by prisma/seed.ts under
 // plain Node (through ./schema.ts): no "@/" imports here.
 
+/** SPEC-m3 §2, R5: what a batch produces. Stored on the batch (`Batch.species`); every M1 batch is a broiler one. */
+export const PRODUCTION_TYPES = ["broiler", "turkey", "pullet", "layer", "beldi", "duck", "quail"] as const;
+export type ProductionType = (typeof PRODUCTION_TYPES)[number];
+
 export const PRODUCT_KINDS = ["feed", "vaccine", "medicine"] as const;
 export const VACCINATION_METHODS = ["drinkingWater", "spray", "eyeDrop", "injection"] as const;
 

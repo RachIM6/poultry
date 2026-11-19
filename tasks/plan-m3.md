@@ -23,8 +23,10 @@ T69 reserved for what the build turns up
 ### T50: Production types and strain catalogue (R5)
 **Description:** `PRODUCTION_TYPES` in `reference-data/shared.ts`; `Strain.productionTypes`; seed the "non précisée" strain per type and the strains named in the project docs (BUT 6, Lohmann Brown), no curves. `BatchDto.species` widens to every type; placement checks the strain serves the type.
 **AC:**
-- [ ] Existing Ross 308 / Cobb 500 rows become `broiler` strains; existing batches stay `broiler` (migration test).
-- [ ] Placing a batch with a strain of another type is refused (`INVALID_INPUT`).
+- [x] Existing Ross 308 / Cobb 500 rows become `broiler` strains; existing batches stay `broiler` (migration test). (`Strain.productionTypes` defaults to `{broiler}`; a placement queued by an M1 phone has no `species` and is a broiler: `flock/batches.int.test.ts`.)
+- [x] Placing a batch with a strain of another type is refused (`INVALID_INPUT`). (Same test; `reference-data.strainServes` replaces `isStrain`.)
+
+Done 2026-11-16 (branch `feat/t50-production-types`): the placement form asks the production type first and lists only its strains (`e2e/batches.spec.ts`); batch titles start with the type. "Non précisée" strains are translated on the phone (`Batches.unspecifiedStrain`), whatever their seeded name. Seeded strains: Ross 308, Cobb 500 (M1), BUT 6 and Lohmann Brown (named on the mockups), one "non précisée" per type (MQ10). No curve.
 **Files:** `prisma/schema.prisma`, `prisma/seed/reference/strains.json`, `src/modules/reference-data/*`, `src/modules/flock/application/place-batch.ts`
 **Size:** S
 

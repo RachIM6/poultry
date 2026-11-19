@@ -5,7 +5,7 @@ import { EMPTY_DAY, changedFields, mergeDay, type DayFields } from "./daily-entr
 
 const day = (d: string) => d as FarmDay;
 const placement: Placement = {
-  id: "b1", farmId: "f1", houseId: "h1", strainId: "ross-308", placedOn: day("2026-10-14"), chicksPlaced: 1_000, deadOnArrival: 10,
+  id: "b1", farmId: "f1", houseId: "h1", species: "broiler", strainId: "ross-308", placedOn: day("2026-10-14"), chicksPlaced: 1_000, deadOnArrival: 10,
   hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: 450n, dayOldWeightGrams: null,
 };
 const batch = Batch.rehydrate(placement, "open");

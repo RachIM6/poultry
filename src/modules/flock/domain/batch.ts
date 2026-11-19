@@ -2,6 +2,7 @@ import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { birdsOut, type DayFields } from "@/modules/flock/domain/daily-entry";
 import { checkSample, type Sample } from "@/modules/flock/domain/weighing";
+import type { ProductionType } from "@/modules/reference-data/shared";
 
 // SPEC B1 (placement); daily entries, weighings and closing join this aggregate in T16–T24. Pure and isomorphic: the
 // phone and the server run the same rules (poultry-ddd §3.1).
@@ -13,6 +14,7 @@ export type Placement = {
   id: string;
   farmId: string;
   houseId: string;
+  species: ProductionType; // SPEC-m3 R5
   strainId: string;
   placedOn: FarmDay;
   chicksPlaced: number;

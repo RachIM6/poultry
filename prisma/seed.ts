@@ -38,7 +38,9 @@ await db.connect();
 try {
   await db.query("BEGIN");
   for (const s of strains) {
-    await db.query(`INSERT INTO "Strain" (id, name) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`, [s.id, s.name]);
+    await db.query(`INSERT INTO "Strain" (id, name, "productionTypes") VALUES ($1, $2, $3)
+       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, "productionTypes" = EXCLUDED."productionTypes"`,
+      [s.id, s.name, s.productionTypes],);
   }
   for (const p of products) {
     await db.query(

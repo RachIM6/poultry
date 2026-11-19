@@ -34,6 +34,18 @@ test("auth endpoints refuse cross-site requests (CSRF)", async ({ request }) => 
   expect(res.status()).toBe(403);
 });
 
+// T25 S3: the Content-Security-Policy is sent, and the app itself never trips it.
+test("pages send a Content-Security-Policy that the app doesn't violate", async ({ page }) => {
+  const violations: string[] = [];
+  page.on("console", (m) => {
+    if (/Content Security Policy/i.test(m.text())) violations.push(m.text());
+  });
+  const res = await page.goto("/fr/login");
+  expect(res?.headers()["content-security-policy"]).toMatch(/object-src 'none'.*frame-ancestors 'none'/);
+  await expect(page.getByRole("button", { name: "Recevoir un code" })).toBeEnabled();
+  expect(violations).toEqual([]);
+});
+
 // T25 S2: a lost phone. "Déconnecter tous mes appareils" on one phone ends the other phone's session too.
 test("log out of all devices ends every session of the user", async ({ page, browser }) => {
   test.setTimeout(90_000);

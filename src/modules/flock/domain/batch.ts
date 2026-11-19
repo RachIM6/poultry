@@ -89,6 +89,24 @@ export class Batch {
     return ok(undefined);
   }
 
+  /** B6: another cost of the batch, while it is open. */
+  checkCost(day: FarmDay, amountCentimes: bigint, today: FarmDay): Result<void, DataDayError | "INVALID_QUANTITY"> {
+    const open = this.acceptsDataFor(day, today);
+    if (!open.ok) return open;
+    return amountCentimes > 0n ? ok(undefined) : fail("INVALID_QUANTITY");
+  }
+
+  /**
+   * B6: closed on `day`, by the last sale or by hand. Afterwards nothing changes (entries, weighings, sales, health):
+   * the final KPIs and the cost per kg are locked. No reopening in v1.
+   */
+  close(day: FarmDay, today: FarmDay): Result<void, DataDayError> {
+    const open = this.acceptsDataFor(day, today);
+    if (!open.ok) return open;
+    this._status = "closed";
+    return ok(undefined);
+  }
+
   /** B3: a weighing of this batch on this day. */
   checkWeighing(day: FarmDay, sample: Sample, today: FarmDay): Result<void, DataDayError | "INVALID_SAMPLE"> {
     const open = this.acceptsDataFor(day, today);

@@ -26,7 +26,7 @@ export function BatchDashboard({
 }) {
   const t = useTranslations();
   const placedOn = batch.placedOn as FarmDay;
-  const k = batchKpis({ placedOn, birdsStarted: batch.chicksPlaced - batch.deadOnArrival, dayOldWeightGrams: batch.dayOldWeightGrams }, entries, weighings, today(), sold);
+  const k = batchKpis({ placedOn, birdsStarted: batch.chicksPlaced - batch.deadOnArrival, dayOldWeightGrams: batch.dayOldWeightGrams }, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
   const w = k.weighed;
   const standard = w && curve ? standardAt(curve, w.ageDays) : null;
   const none = "—";

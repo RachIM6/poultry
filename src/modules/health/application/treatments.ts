@@ -29,6 +29,7 @@ export async function recordTreatment(tx: Tx, ctx: TenantContext, cmd: z.infer<t
 
   const consumed = await recordConsumption(tx, ctx, {
     id: cmd.id,
+    batchId: cmd.batchId,
     farmId: batch.farmId,
     stockItemId: cmd.stockItemId,
     quantity: cmd.quantity,

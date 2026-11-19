@@ -37,13 +37,33 @@ export type BatchDto = {
   dayOldWeightGrams: number | null;
   status: "open" | "closed";
   chickUnitPriceCentimes?: string; // money (SPEC I5): absent for workers
+  // B6, once closed: the locked figures (the cost ones are money).
+  closedOn?: string;
+  closeReason?: string | null; // null: closed by the sale of its last birds
+  soldGrams?: number;
+  costCentimes?: string;
+  costPerKgCentimes?: string | null;
 };
-export const BATCH_MONEY = ["chickUnitPriceCentimes"] as const;
+export const BATCH_MONEY = ["chickUnitPriceCentimes", "costCentimes", "costPerKgCentimes"] as const;
+export { batchCost } from "@/modules/flock/domain/closing";
+
+/** B6: by hand, with a reason (the last sale closes it by itself). */
+export const CloseBatch = z.object({ batchId: z.uuid(), day: z.iso.date(), reason: text(200) });
+
+/** B6: another cost of the batch (electricity, labour…), until finance arrives in M2. */
+export const RecordBatchCost = z.object({ id: z.uuid(), batchId: z.uuid(), day: z.iso.date(), label: text(120), amountCentimes: z.string().regex(/^\d{1,15}$/) });
+export type BatchCostDto = Omit<z.infer<typeof RecordBatchCost>, "amountCentimes"> & { amountCentimes?: string }; // money: absent for workers
 
 /** B5: birds that left alive, recorded by sales with the sale's id. No money: workers see birds on hand. */
 export type SoldBirdsDto = { id: string; batchId: string; day: string; birds: number; liveWeightGrams: number };
 
-export const FLOCK_MUTATIONS = { placeBatch: "flock.placeBatch", recordDay: "flock.recordDay", recordWeighing: "flock.recordWeighing" } as const;
+export const FLOCK_MUTATIONS = {
+  placeBatch: "flock.placeBatch",
+  recordDay: "flock.recordDay",
+  recordWeighing: "flock.recordWeighing",
+  closeBatch: "flock.closeBatch",
+  recordBatchCost: "flock.recordBatchCost",
+} as const;
 
 // SPEC B2: the daily entry.
 export { DEATH_CAUSES, EMPTY_DAY, changedFields, mergeDay } from "@/modules/flock/domain/daily-entry";

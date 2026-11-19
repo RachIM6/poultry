@@ -10,12 +10,13 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/schema";
+import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/schema";
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/schema";
 import type { StockItemDto } from "@/modules/inventory/schema";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
 import type { BuyerDto, SaleDto } from "@/modules/sales/schema";
 import { BatchDashboard } from "@/components/batch-dashboard";
+import { BatchCosts, CloseBatchForm, ClosedSummary } from "@/components/closing";
 import { DayForm, type Write } from "@/components/daily-entry";
 import { Sales } from "@/components/sales";
 import { Treatments, VetVisits, WithdrawalBanner } from "@/components/treatments";
@@ -59,7 +60,7 @@ function Batches(scope: Scope) {
   const t = useTranslations();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale", "batchCost").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -91,7 +92,27 @@ function Batches(scope: Scope) {
     }
   };
 
-  const open = batches.find((b) => b.id === openId && b.status === "open");
+  const shown = batches.find((b) => b.id === openId);
+  const title = (b: BatchDto) => t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strains.find((s) => s.id === b.strainId)?.name ?? b.strainId });
+  const costsOf = (batchId: string) => of<BatchCostDto>("batchCost").filter((c) => c.batchId === batchId);
+  const salesOf = (batchId: string) => of<SaleDto>("sale").filter((s) => s.batchId === batchId);
+  if (shown?.status === "closed") {
+    // B6: read-only, with the locked figures; its sales stay listed for their origin documents (V5).
+    const curve = strains.find((s) => s.id === shown.strainId)?.curves.at(-1)?.points ?? null;
+    return (
+      <>
+        <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
+        <h2 className="text-xl font-semibold">{title(shown)}</h2>
+        {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
+        <ClosedSummary batch={shown} />
+        <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curve={curve} />
+        <BatchCosts batch={shown} costs={costsOf(shown.id)} manage={can(scope, "flock.manage")} write={write} />
+        {can(scope, "sales.manage") && <Sales batch={shown} sales={salesOf(shown.id)} buyers={of<BuyerDto>("buyer")} treatments={[]} birdsOnHand={0} write={write} />}
+      </>
+    );
+  }
+
+  const open = shown;
   if (open) {
     const weighings = of<WeighingDto>("weighing").filter((w) => w.batchId === open.id);
     const curve = strains.find((s) => s.id === open.strainId)?.curves.at(-1)?.points ?? null; // latest version (OQ5)
@@ -99,7 +120,7 @@ function Batches(scope: Scope) {
     return (
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
-        <h2 className="text-xl font-semibold">{t("Batches.summary", { farm: farms.get(open.farmId)?.name ?? "", house: houseName(open.houseId), strain: strains.find((s) => s.id === open.strainId)?.name ?? open.strainId })}</h2>
+        <h2 className="text-xl font-semibold">{title(open)}</h2>
         <p>{t("Batches.age", { age: String(ageOn(open.placedOn as FarmDay, today())) })} · {t("Day.onHand", { birds: formatCount(onHand(open)) })}</p>
         <WithdrawalBanner treatments={treatments} />
         {message && <p role="status" className="rounded-lg bg-green-700/10 p-3">{t(message)}</p>}
@@ -137,13 +158,15 @@ function Batches(scope: Scope) {
         {can(scope, "sales.manage") && (
           <Sales
             batch={open}
-            sales={of<SaleDto>("sale").filter((s) => s.batchId === open.id)}
+            sales={salesOf(open.id)}
             buyers={of<BuyerDto>("buyer")}
             treatments={treatments}
             birdsOnHand={onHand(open)}
             write={write}
           />
         )}
+        <BatchCosts batch={open} costs={costsOf(open.id)} manage={can(scope, "flock.manage")} write={write} />
+        {can(scope, "flock.manage") && <CloseBatchForm batch={open} write={write} />}
       </>
     );
   }
@@ -182,8 +205,10 @@ function Batches(scope: Scope) {
               </span>
               <span className="text-sm opacity-75">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
               <span>{t("Day.onHand", { birds: formatCount(onHand(b)) })}</span>
-              {b.status === "open" && (
+              {b.status === "open" ? (
                 <a href={`#${b.id}`} className={`${primary} mt-2 text-center`}>{t("Day.open")}</a>
+              ) : (
+                <a href={`#${b.id}`} className="py-2 underline underline-offset-4">{t("Closing.open")}</a>
               )}
             </li>
           ))}

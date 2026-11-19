@@ -381,9 +381,11 @@ Decisions (2026-11-09, taken without asking): built from the phone's own records
 ### T24: Batch closing and cost per kg (B6)
 **Description:** Automatic close when birds on hand reach 0, or manual close with a reason. Lock the final KPIs. Cost per kg sold = (chicks + valued consumptions + other batch costs) ÷ kg sold. Add a simple "other cost" entry on the batch (electricity, labour…) until finance arrives in M2.
 **AC:**
-- [ ] The last sale closes the batch automatically. Afterwards, entries are read-only.
-- [ ] Cost per kg matches the reference fixture (unit test).
-- [ ] The house becomes free for a new batch.
+- [x] The last sale closes the batch automatically. Afterwards, entries are read-only. (Server: `src/modules/flock/closing.int.test.ts` and `src/modules/sales/sales.int.test.ts`; after closing, daily entries, other costs, sales and a second close are refused with `BATCH_CLOSED`, as are weighings and health records through the same status. Phone: `e2e/closing.spec.ts`, offline: the last sale closes it at once, every form disappears, its sales keep their origin documents.)
+- [x] Cost per kg matches the reference fixture (unit test). (`src/modules/flock/domain/closing.test.ts`, the reference batch of the KPI tests by hand; end to end 2,58 DH/kg in the integration test and the e2e.)
+- [x] The house becomes free for a new batch. (Same tests: a new batch is placed in the house right after.)
+
+Decisions (2026-11-09, taken without asking): only the sale of the last birds closes a batch by itself; deaths that bring birds on hand to 0 don't, because closing can't be undone and a mistyped daily entry would lock the batch: the owner or manager closes it by hand, with a reason (also with birds left, e.g. a sanitary cull). The server locks the figures on the batch when it closes: kg sold (farm weight), total cost and cost per kg, with every chick placed paid for (dead on arrival included), consumptions valued at each item's weighted average cost (each consumption movement now records its batch), and the other costs. A batch with nothing sold has a total cost but no cost per kg. Workers see the batch closed and kg sold, not the costs; other costs are entered by owners and managers. The phone shows the batch closed at once and the locked figures after the next sync; the final KPIs are those of the last records, unchanged since nothing can be added. One page again (`/batches#<id>` shows the closed batch's summary), not `batches/[id]/close`.
 
 **Verify:** `pnpm test -- src/modules/flock/closing`. e2e full lifecycle.
 **Dependencies:** T21, T14

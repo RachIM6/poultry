@@ -372,9 +372,11 @@ model StockMovement {
   day            DateTime @db.Date // farm day
   reason         String? // required for an adjustment
   purchaseId     String?  @db.Uuid
+  batchId        String?  @db.Uuid // a consumption: the batch it was used by, which is charged its cost (S5, B6)
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId, stockItemId])
+  @@index([batchId])
 }
 
 // S2: what was bought and paid; amount − paid is supplier credit.
@@ -412,6 +414,12 @@ model Batch {
   chickUnitPriceCentimes BigInt
   dayOldWeightGrams      Int?
   status                 String   @default("open") // open | closed
+  // B6, set when it closes and never changed afterwards: the locked figures.
+  closedOn               DateTime? @db.Date // farm day
+  closeReason            String? // null: closed by the sale of its last birds
+  soldGrams              Int? // farm weight of every bird sold
+  costCentimes           BigInt? // chicks + valued consumptions + other costs
+  costPerKgCentimes      BigInt? // null when nothing was sold
   createdAt              DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId])
@@ -521,6 +529,19 @@ model SoldBirds {
   birds           Int
   liveWeightGrams Int // at the farm's weighing, for the FCR
   createdAt       DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: flock (SPEC B6). Other costs of a batch (electricity, labour…) until finance arrives in M2.
+model BatchCost {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  batchId        String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  label          String
+  amountCentimes BigInt
+  createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId, batchId])
 }

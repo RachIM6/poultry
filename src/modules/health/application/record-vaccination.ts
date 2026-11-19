@@ -32,6 +32,7 @@ export async function recordVaccination(
 
   const consumed = await recordConsumption(tx, ctx, {
     id: vaccination.id,
+    batchId: vaccination.batchId,
     farmId: batch.farmId,
     stockItemId: cmd.stockItemId,
     quantity: cmd.doses,

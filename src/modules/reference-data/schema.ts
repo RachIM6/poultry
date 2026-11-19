@@ -2,14 +2,14 @@ import { z } from "zod";
 
 // SPEC R1–R4. Isomorphic, and also imported by prisma/seed.ts under plain Node: no "@/" imports here. The phone's
 // screens import ./shared.ts (no Zod, ADR-009), re-exported here.
-import { PRODUCT_KINDS, PRODUCTION_TYPES, VACCINATION_METHODS } from "./shared.ts";
+import { BIRD_SEXES, PRODUCT_KINDS, PRODUCTION_TYPES, VACCINATION_METHODS } from "./shared.ts";
 export * from "./shared.ts";
 
 const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).max(60);
 const text = (max: number) => z.string().trim().min(1).max(max);
 
 export const CurvePoint = z.object({
-  day: z.int32().min(0).max(120), // age in days, as-hatched
+  day: z.int32().min(0).max(600), // age in days, as-hatched; a weekly guide is imported as day = week x 7 (R6)
   bodyWeightGrams: z.int32().min(1),
   cumulativeFeedGrams: z.int32().min(0),
 });
@@ -20,12 +20,36 @@ export const CurveFile = z.object({
   strainId: slug,
   source: text(200), // document title and publisher
   version: text(40),
+  sex: z.enum(BIRD_SEXES).default("mixed"), // R6: turkeys are published per sex
   points: z
     .array(CurvePoint)
     .min(2)
     .refine((ps) => ps.every((p, i) => i === 0 || p.day > ps[i - 1].day), "days must increase"),
 });
 export type CurveFile = z.infer<typeof CurveFile>;
+
+const positiveOrNull = z.int32().min(1).nullable();
+export const LayingPoint = z.object({
+  week: z.int32().min(0).max(120),
+  layingRatePermille: z.int32().min(0).max(1000).nullable(), // hen-day
+  eggsPerHenHousedTenths: z.int32().min(0).nullable(), // cumulative
+  eggWeightDg: positiveOrNull,
+  feedGramsPerHenDay: positiveOrNull,
+  bodyWeightGrams: positiveOrNull,
+});
+export type LayingPoint = z.infer<typeof LayingPoint>;
+
+/** prisma/seed/reference/laying/<strain>-<version>.json: one breeder laying table, exactly as published (R7, MQ1). */
+export const LayingFile = z.object({
+  strainId: slug,
+  source: text(200),
+  version: text(40),
+  points: z
+    .array(LayingPoint)
+    .min(2)
+    .refine((ps) => ps.every((p, i) => i === 0 || p.week > ps[i - 1].week), "weeks must increase"),
+});
+export type LayingFile = z.infer<typeof LayingFile>;
 
 /** R5: a strain serves one or more production types (Lohmann Brown: pullet and layer). */
 export const Strain = z.object({ id: slug, name: text(80), productionTypes: z.array(z.enum(PRODUCTION_TYPES)).min(1) });
@@ -37,11 +61,12 @@ export const Product = z.object({
   nameFr: text(120),
   nameAr: text(120),
   withdrawalDays: z.int32().min(0).max(365).nullable(), // meat withdrawal (R3); null = not known yet
+  eggWithdrawalDays: z.int32().min(0).max(365).nullable().default(null), // SPEC-m3 R10
 });
 export type Product = z.infer<typeof Product>;
 
 export const ProtocolItem = z.object({
-  dayOfAge: z.int32().min(0).max(120),
+  dayOfAge: z.int32().min(0).max(600), // up to 85 weeks for layers (SPEC-m3 R9)
   productId: slug, // a vaccine of the catalogue
   method: z.enum(VACCINATION_METHODS),
 });
@@ -53,15 +78,23 @@ export const ProtocolTemplate = z.object({
   nameFr: text(120),
   nameAr: text(120),
   reviewedByVet: z.boolean(), // OQ4
+  productionType: z.enum(PRODUCTION_TYPES).default("broiler"), // SPEC-m3 R9
   items: ProtocolItems,
 });
 export type ProtocolTemplate = z.infer<typeof ProtocolTemplate>;
 
+/** SPEC-m3 R8: limits null until the Moroccan standard is supplied (MQ2). */
+export const EggGrade = z
+  .object({ id: slug, label: text(10), sortOrder: z.int32(), minGrams: z.int32().positive().nullable(), maxGrams: z.int32().positive().nullable() })
+  .refine((g) => g.minGrams === null || g.maxGrams === null || g.minGrams < g.maxGrams, "min below max");
+export type EggGrade = z.infer<typeof EggGrade>;
+
 /** GET /api/reference: everything the phone keeps offline (R4). */
 export type ReferenceData = {
-  strains: (Strain & { curves: Omit<CurveFile, "strainId">[] })[];
+  strains: (Strain & { curves: Omit<CurveFile, "strainId">[]; layingCurves: Omit<LayingFile, "strainId">[] })[];
   products: Product[];
   protocolTemplates: ProtocolTemplate[];
+  eggGrades: EggGrade[]; // ordered; absent from a phone's cache from before M3
 };
 
 // An organisation's own protocol, copied from a template and edited offline (R2). The template never changes.

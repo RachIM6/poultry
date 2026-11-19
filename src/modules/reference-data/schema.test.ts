@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CurveFile, standardAt, type CurvePoint } from "./schema";
+import { CurveFile, LayingFile, curveFor, layingStandardAt, standardAt, type CurvePoint } from "./schema";
 
 // A made-up weekly table, only to test the lookup. Real curves come from the breeders' documents (OQ5).
 const weekly: CurvePoint[] = [
@@ -39,5 +39,51 @@ describe("CurveFile", () => {
     expect(CurveFile.safeParse({ ...file, points: [weekly[0], weekly[0]] }).success).toBe(false);
     expect(CurveFile.safeParse({ ...file, points: [weekly[0], { ...weekly[1], bodyWeightGrams: 180.5 }] }).success).toBe(false);
     expect(CurveFile.safeParse({ ...file, source: "" }).success).toBe(false);
+  });
+});
+
+describe("curveFor (SPEC-m3 R6)", () => {
+  const c = (version: string, sex?: "mixed" | "female" | "male") => ({ version, sex, points: weekly });
+  it("takes the latest curve of the batch's sex, else the latest mixed one", () => {
+    const curves = [c("2019", "female"), c("2019"), c("2022", "female"), c("2022", "mixed")];
+    expect(curveFor(curves, "female")).toBe(curves[2]);
+    expect(curveFor(curves, "male")).toBe(curves[3]);
+    expect(curveFor(curves, "mixed")).toBe(curves[3]);
+    expect(curveFor([c("2019", "male")], "female")).toBeNull();
+    expect(curveFor([], "mixed")).toBeNull();
+  });
+});
+
+describe("layingStandardAt (SPEC-m3 R7)", () => {
+  // Made-up weeks, only to test the lookup. Real laying tables come from the breeders' guides (MQ1).
+  const p = (week: number, rate: number | null, weight: number | null) => ({
+    week,
+    layingRatePermille: rate,
+    eggsPerHenHousedTenths: null,
+    eggWeightDg: weight,
+    feedGramsPerHenDay: null,
+    bodyWeightGrams: null,
+  });
+  const table = [p(20, 100, 500), p(24, 900, 580), p(30, 940, null)];
+
+  it("returns a published week as is, interpolates between weeks and keeps a missing column null", () => {
+    expect(layingStandardAt(table, 24)).toMatchObject({ layingRatePermille: 900, eggWeightDg: 580 });
+    expect(layingStandardAt(table, 22)).toMatchObject({ layingRatePermille: 500, eggWeightDg: 540, feedGramsPerHenDay: null });
+    expect(layingStandardAt(table, 27)).toMatchObject({ layingRatePermille: 920, eggWeightDg: null });
+    expect(layingStandardAt(table, 20 + 3 / 7)).toMatchObject({ layingRatePermille: 186 }); // day 143: 100 + 800·(3/7)/4
+  });
+
+  it("never extrapolates", () => {
+    expect(layingStandardAt(table, 19)).toBeNull();
+    expect(layingStandardAt(table, 31)).toBeNull();
+    expect(layingStandardAt([], 25)).toBeNull();
+  });
+
+  it("validates a laying file: increasing weeks, per mille up to 1000", () => {
+    const file = { strainId: "lohmann-brown", source: "Guide, publisher", version: "2024", points: table };
+    expect(LayingFile.safeParse(file).success).toBe(true);
+    expect(LayingFile.safeParse({ ...file, points: [table[1], table[0]] }).success).toBe(false);
+    expect(LayingFile.safeParse({ ...file, points: [table[0], p(21, 1001, null)] }).success).toBe(false);
+    expect(CurveFile.parse({ strainId: "but-6", source: "S", version: "1", points: weekly }).sex).toBe("mixed");
   });
 });

@@ -8,6 +8,7 @@ One JSON file per published table, named `<strain>-<version>.json`, validated by
   "strainId": "ross-308",
   "source": "<document title>, <publisher>",
   "version": "<edition, e.g. 2022>",
+  "sex": "mixed",
   "points": [{ "day": 0, "bodyWeightGrams": 0, "cumulativeFeedGrams": 0 }]
 }
 ```
@@ -17,3 +18,5 @@ One JSON file per published table, named `<strain>-<version>.json`, validated by
 - No table is committed yet. OQ5 (source and licence of these documents) is open, and values must never be typed from
   memory. Once a file is added, run `pnpm db:seed`, then spot-check 5 values per strain against the document
   (T11 acceptance), including day 35.
+- `sex` (SPEC-m3 R6) is `mixed` (default), `female` or `male`: turkey guides publish one table per sex. A guide
+  published by week (pullets, turkeys) is imported as `day` = week × 7. Laying tables go in `../laying/`.

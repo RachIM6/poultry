@@ -14,7 +14,7 @@ import { Batch, FLOCK_MUTATIONS as M, ageOn, type BatchCostDto, type BatchDto, t
 import { HEALTH_MUTATIONS as H, planFor, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
-import { PRODUCTION_TYPES, type ProductionType } from "@/modules/reference-data/shared";
+import { PRODUCTION_TYPES, curveFor, type ProductionType } from "@/modules/reference-data/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import dynamic from "next/dynamic";
 import { DayForm, type Write } from "@/components/daily-entry";
@@ -106,7 +106,7 @@ function Batches(scope: Scope) {
   const salesOf = (batchId: string) => of<SaleDto>("sale").filter((s) => s.batchId === batchId);
   if (shown?.status === "closed") {
     // B6: read-only, with the locked figures; its sales stay listed for their origin documents (V5).
-    const curve = strains.find((s) => s.id === shown.strainId)?.curves.at(-1)?.points ?? null;
+    const curve = curveFor(strains.find((s) => s.id === shown.strainId)?.curves ?? [], "mixed")?.points ?? null;
     return (
       <>
         <a href="#" className="underline underline-offset-4">{t("Day.back")}</a>
@@ -123,7 +123,7 @@ function Batches(scope: Scope) {
   const open = shown;
   if (open) {
     const weighings = of<WeighingDto>("weighing").filter((w) => w.batchId === open.id);
-    const curve = strains.find((s) => s.id === open.strainId)?.curves.at(-1)?.points ?? null; // latest version (OQ5)
+    const curve = curveFor(strains.find((s) => s.id === open.strainId)?.curves ?? [], "mixed")?.points ?? null; // latest version (OQ5, R6)
     const treatments = of<TreatmentDto>("treatment").filter((x) => x.batchId === open.id);
     return (
       <>

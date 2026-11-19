@@ -1,5 +1,5 @@
 import { audit } from "@/lib/audit";
-import type { Tx } from "@/lib/db";
+import { areVaccines } from "@/modules/reference-data/service";
 import { fail, ok } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import {
@@ -15,11 +15,6 @@ import {
 type Row = { id: string; templateId: string | null; name: string; items: unknown };
 const dto = (r: Row): ProtocolDto => ({ id: r.id, templateId: r.templateId, name: r.name, items: r.items as ProtocolItem[] });
 
-/** Every item must name a vaccine of the catalogue. */
-async function vaccinesExist(tx: Tx, items: ProtocolItem[]) {
-  const ids = [...new Set(items.map((i) => i.productId))];
-  return (await tx.product.count({ where: { id: { in: ids }, kind: "vaccine" } })) === ids.length;
-}
 
 export const referenceDataSync: SyncRegistry = {
   mutations: {
@@ -45,7 +40,7 @@ export const referenceDataSync: SyncRegistry = {
       async apply(tx, ctx, { id, changes }, meta) {
         const row = await tx.vaccinationProtocol.findFirst({ where: { id, organizationId: ctx.organizationId } });
         if (!row) return fail("NOT_FOUND");
-        if (changes.items && !(await vaccinesExist(tx, changes.items))) return fail("INVALID_INPUT");
+        if (changes.items && !(await areVaccines(tx, changes.items.map((i) => i.productId)))) return fail("INVALID_INPUT");
         const updated = await tx.vaccinationProtocol.update({ where: { id }, data: changes });
         await recordChange(tx, ctx, "protocol", id, dto(updated));
         const before = Object.fromEntries(Object.keys(changes).map((k) => [k, dto(row)[k as keyof ProtocolDto]]));

@@ -177,6 +177,14 @@
       "lowStock": {
         "title": "Stock bas : {item}",
         "body": "Il reste {quantity} {unit, select, kg {kg} dose {doses} ml {ml} other {unités}} (seuil : {threshold})."
+      },
+      "vaccineTomorrow": {
+        "title": "Vaccination demain : {vaccineFr}",
+        "body": "{house}, jour {age} : {vaccineFr} ({method, select, drinkingWater {eau de boisson} spray {nébulisation} eyeDrop {goutte oculaire} injection {injection} other {}}) est prévu demain."
+      },
+      "vaccineToday": {
+        "title": "Vaccination aujourd’hui : {vaccineFr}",
+        "body": "{house}, jour {age} : {vaccineFr} ({method, select, drinkingWater {eau de boisson} spray {nébulisation} eyeDrop {goutte oculaire} injection {injection} other {}}) est prévu aujourd’hui."
       }
     }
   },
@@ -283,7 +291,9 @@
     "status": {
       "open": "En cours",
       "closed": "Clôturée"
-    }
+    },
+    "protocol": "Programme de vaccination",
+    "noProtocol": "Aucun"
   },
   "Day": {
     "title": "Saisie du jour",
@@ -337,7 +347,9 @@
     "DAY_BEFORE_PLACEMENT": "Ce jour est avant la mise en place de la bande.",
     "DAY_IN_FUTURE": "Ce jour n’est pas encore arrivé.",
     "MORE_DEAD_THAN_ON_HAND": "Plus de morts et de réformés que d’oiseaux dans la bande.",
-    "INVALID_SAMPLE": "Pesée invalide : vérifiez les poids (entre 1 g et 20 kg par oiseau, 1 000 oiseaux au plus)."
+    "INVALID_SAMPLE": "Pesée invalide : vérifiez les poids (entre 1 g et 20 kg par oiseau, 1 000 oiseaux au plus).",
+    "ALREADY_DONE": "Ce vaccin est déjà marqué comme fait.",
+    "WRONG_STOCK_ITEM": "Ce lot ne correspond pas à ce vaccin."
   },
   "Weighing": {
     "title": "Pesée",
@@ -372,5 +384,24 @@
     "standard": "Standard de la souche",
     "day": "J{age}",
     "chartLabel": "Poids moyen par âge : {points}"
+  },
+  "Vaccination": {
+    "title": "Vaccinations",
+    "none": "Pas de plan de vaccination pour cette bande.",
+    "line": "Jour {age} · {vaccine} · {method}",
+    "status": {
+      "today": "Aujourd’hui",
+      "late": "En retard, prévu le {date}",
+      "upcoming": "Prévu le {date}"
+    },
+    "done": "Fait le {date} · lot {lot} · {doses} doses",
+    "markDone": "Marquer comme fait",
+    "on": "Date de vaccination",
+    "lot": "Lot de vaccin",
+    "lotOption": "{lot} (périme le {date})",
+    "noLot": "Aucun lot valide de ce vaccin en stock : ajoutez-le dans Stock.",
+    "doses": "Doses",
+    "save": "Enregistrer la vaccination",
+    "cancel": "Annuler"
   }
 }

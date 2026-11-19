@@ -1,3 +1,4 @@
 // Public API of the `flock` module (see CAPABILITY-MAP.md). Other modules import only from here,
 // or from ./schema for what the offline client needs (ADR-008).
 export { flockSync } from "./sync";
+export { batchFacts } from "./infrastructure/batches";

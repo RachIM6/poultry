@@ -1,8 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
+import { sendVaccinationReminders } from "@/modules/health";
 import { dispatchDuePushes } from "@/modules/notifications";
 import { render } from "../render";
 
-// For the host's scheduler (every minute, T26): sends pushes held by quiet hours once they are due.
+// For the host's scheduler (every minute, T26): announces the day's vaccinations (H2), then sends the pushes that are
+// due, including those quiet hours held.
 // Without CRON_SECRET the route doesn't exist.
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -11,5 +13,6 @@ export async function POST(req: Request) {
   if (!secret || given.length !== expected.length || !timingSafeEqual(Buffer.from(given), Buffer.from(expected))) {
     return new Response(null, { status: 404 });
   }
-  return Response.json({ sent: await dispatchDuePushes(render) });
+  const reminded = await sendVaccinationReminders();
+  return Response.json({ reminded, sent: await dispatchDuePushes(render) });
 }

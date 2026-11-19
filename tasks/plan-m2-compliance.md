@@ -99,8 +99,13 @@ Done 2026-11-16 (branch `feat/t44-vault`), decisions taken without asking:
 ### T45: Expiry alerts (DC4)
 **Description:** `sendDocumentReminders` in `documents`, called by the dispatch route next to the vaccination and instrument reminders; templates `documentExpiring`, `documentExpired`; the farm's ONSSA authorization (F2) included.
 **AC:**
-- [ ] Owners and managers are notified once at `DOCUMENT_SOON_DAYS` before and once on the expiry day; a second run the same day sends nothing; workers get nothing.
-- [ ] A farm's ONSSA authorization expiring gets the same two alerts.
+- [x] Owners and managers are notified once at `DOCUMENT_SOON_DAYS` before and once on the expiry day; a second run the same day sends nothing; workers get nothing. (`documents/reminders.int.test.ts`.)
+- [x] A farm's ONSSA authorization expiring gets the same two alerts.
+
+Done 2026-11-16 (branch `feat/t45-expiry-alerts`), decisions taken without asking:
+- **"Soon" means from the day a document is within 60 days**, not only on day 60 exactly: a document added with 30 days left, or a scheduler that missed a day, still gets its reminder. "Expired" goes from the expiry day on.
+- **Once** = a claim row per (subject, expiry date, kind) in `DocumentReminder`; a renewed date is announced again.
+- Dates in the texts are `dd/mm/yyyy`, the same in both languages. No e2e: no screen; the inbox already renders any template (T12).
 **Size:** S
 
 ### T46: Register builder (RP1)

@@ -2,12 +2,15 @@ import { createHash } from "node:crypto";
 import { v7 as uuidv7 } from "uuid";
 import { audit } from "@/lib/audit";
 import { db, type Tx } from "@/lib/db";
+import { systemClock, type Clock } from "@/lib/kernel/clock";
+import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can, type Action } from "@/lib/permissions";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { CreateDocument, DOCUMENT_MUTATIONS as M, UpdateDocument, checkFile, type DocumentDto, type DocumentFields, type FilePurpose, type FileType } from "@/modules/documents/schema";
-import { farmBelongsTo } from "@/modules/farm-registry";
+import { CreateDocument, DOCUMENT_MUTATIONS as M, DOCUMENT_SOON_DAYS, UpdateDocument, checkFile, type DocumentDto, type DocumentFields, type FilePurpose, type FileType } from "@/modules/documents/schema";
+import { farmBelongsTo, onssaAuthorizationsDueBy } from "@/modules/farm-registry";
+import { notify } from "@/modules/notifications";
 
 // SPEC-m2-compliance DC2, ADR-011, light module: files in PostgreSQL. The route handlers are only HTTP around this.
 
@@ -106,4 +109,41 @@ export async function attachDocumentFile(ctx: TenantContext, documentId: string,
     await audit(tx, ctx, { entity: "Document", entityId: documentId, action: "update", before: { fileId: null }, after: { fileId } });
     return ok(undefined);
   });
+}
+
+// DC4: expiry reminders, from the host's scheduler (POST /api/push/dispatch), like the vaccination reminders.
+
+// Not a member: the scheduler acts for each organisation only to notify its members.
+const SCHEDULER = "00000000-0000-0000-0000-000000000000";
+const dmy = (day: string) => day.split("-").reverse().join("/"); // 30/11/2026: the same in Arabic and French (Western digits)
+
+/**
+ * Within DOCUMENT_SOON_DAYS of its expiry a document is announced once ("soon"), and once more from its expiry day
+ * ("expired"), to owners and managers. The claim row makes each announcement happen once, even with two schedulers.
+ * The farm's ONSSA authorization (SPEC F2) is announced the same way. Returns how many were announced.
+ */
+export async function sendDocumentReminders(clock: Clock = systemClock): Promise<number> {
+  const today = farmDayOf(clock.now());
+  const until = addFarmDays(today, DOCUMENT_SOON_DAYS);
+  const docs = await db.document.findMany({ where: { expiresOn: { lte: new Date(`${until}T00:00:00Z`) } }, select: { id: true, organizationId: true, title: true, expiresOn: true } });
+  const due = [
+    ...docs.map((d) => ({ subjectId: d.id, organizationId: d.organizationId, title: d.title, expiresOn: d.expiresOn!.toISOString().slice(0, 10) })),
+    ...(await onssaAuthorizationsDueBy(until)),
+  ];
+  let announced = 0;
+  for (const d of due) {
+    const kind = d.expiresOn <= today ? "expired" : "soon";
+    announced += await db.$transaction(async (tx) => {
+      const claimed = await tx.$executeRaw`
+        INSERT INTO "DocumentReminder" ("subjectId", "expiresOn", kind, "organizationId", "sentAt")
+        VALUES (${d.subjectId}::uuid, ${d.expiresOn}::date, ${kind}, ${d.organizationId}::uuid, ${clock.now()})
+        ON CONFLICT DO NOTHING`;
+      if (claimed === 0) return 0;
+      const ctx: TenantContext = { organizationId: d.organizationId, userId: SCHEDULER, role: "owner" };
+      const templateKey = kind === "soon" ? "documentExpiring" : "documentExpired";
+      await notify(tx, ctx, { roles: ["owner", "manager"], templateKey, params: { title: d.title, date: dmy(d.expiresOn as FarmDay) }, urgency: "normal" }, clock);
+      return 1;
+    });
+  }
+  return announced;
 }

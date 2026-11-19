@@ -4,4 +4,4 @@ export { accountingProfileOf, LEGAL_FORMS, parseOnboarding } from "./schema";
 export type { AccountingChoices, AccountingProfile, Books, LegalForm, OnboardingInput } from "./schema";
 export { createOrganization, getLegalEntity, legalEntityIn, listLegalEntities, saveAccountingChoices } from "./service";
 export type { LegalEntityDto } from "./service";
-export { farmBelongsTo, farmRegistrySync, houseOf } from "./sync";
+export { farmBelongsTo, farmRegistrySync, houseOf, onssaAuthorizationsDueBy } from "./sync";

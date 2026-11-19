@@ -197,6 +197,14 @@
       "creditApproval": {
         "title": "Crédit à approuver : {buyer}",
         "body": "Une vente à crédit de {amount} dépasse le plafond de {limit}."
+      },
+      "documentExpiring": {
+        "title": "À renouveler : {title}",
+        "body": "Échéance le {date}. Pensez au renouvellement."
+      },
+      "documentExpired": {
+        "title": "Échéance atteinte : {title}",
+        "body": "Arrivé à échéance le {date}. À renouveler."
       }
     }
   },

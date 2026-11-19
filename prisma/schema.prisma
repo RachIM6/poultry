@@ -959,3 +959,15 @@ model Document {
 
   @@index([organizationId, expiresOn])
 }
+
+// Owner: documents. SPEC-m2-compliance DC4: which expiry reminders went out, so each goes once per subject (a vault
+// document or a farm's ONSSA authorization), expiry date and kind ("soon" | "expired"). A new expiry date starts over.
+model DocumentReminder {
+  subjectId      String   @db.Uuid
+  expiresOn      DateTime @db.Date
+  kind           String
+  organizationId String   @db.Uuid
+  sentAt         DateTime @db.Timestamptz
+
+  @@id([subjectId, expiresOn, kind])
+}

@@ -1,5 +1,8 @@
 // What the phone's screens need from workforce, without Zod (ADR-009). The Zod schemas are in ./schema.ts.
 
+export { dayTasks, routineFalls, taskKey } from "@/modules/workforce/domain/tasks";
+export type { DayTask, OneOffTask, Routine, TaskInputs } from "@/modules/workforce/domain/tasks";
+
 export const JOBS = ["lead", "worker", "guard", "other"] as const;
 export type Job = (typeof JOBS)[number];
 

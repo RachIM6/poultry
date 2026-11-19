@@ -39,7 +39,14 @@ Done 2026-11-17 (branch `feat/t70-employees`), decisions taken without asking:
 ### T71: Day tasks (WF4, WF7 rule)
 **Description:** `workforce/domain/tasks.ts`: `dayTasks(day, records)` → tasks with key, kind, house, time, reason, assignees, done. Pure; reads the flock and health DTOs the phone already has.
 **AC:**
-- [ ] Unit tests: entry task per open batch, done once the entry exists; vaccine due and late, done once recorded; routine every *n* days from its start, not after it stops; one-off on its day; cancelled one-off gone; assignee rule (explicit → house → farm); an employee who left gets nothing.
+- [x] Unit tests: entry task per open batch, done once the entry exists; vaccine due and late, done once recorded; routine every *n* days from its start, not after it stops; one-off on its day; cancelled one-off gone; assignee rule (explicit → house → farm); an employee who left gets nothing. (`workforce/domain/tasks.test.ts`)
+
+Done 2026-11-17 (branch `feat/t71-day-tasks`), decisions taken without asking:
+- **`dayTasks(farmId, day, inputs)`** takes plain records (structural types), so it needs no flock or health import and the same records the phone already holds feed it.
+- **Two kinds of routine:** every *n* days from a calendar day, or from an age of the house's open batch (e.g. a weighing every 7 days from day 7). A batch routine without an open batch in its house generates nothing.
+- **Vaccines:** due that day or late (not yet done), and those done that day (shown done). The day before is the home's job (`Today`), not a task.
+- **Order:** untimed tasks first (entry, vaccines), then by time.
+- **Assignment** (WF7, the rule only): a reassignment that day (the last one), else the routine's or one-off's own assignee, else the active employees who look after the house, else every active employee of the farm. An assignee who left or hasn't started falls through to the next rule.
 **Size:** M
 
 ### T72: Routines and one-off tasks (WF5)

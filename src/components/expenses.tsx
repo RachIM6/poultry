@@ -13,7 +13,7 @@ import { EXPENSE_CATEGORIES, FINANCE_MUTATIONS as F, TREASURY_KINDS, type Expens
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { field, primary, secondary } from "@/components/ui";
+import { card, field, primary, secondary } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
 // crew) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts (FN3).
@@ -72,20 +72,20 @@ function Expenses(scope: Scope) {
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
       <ExpenseForm accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
 
-      <h2 className="text-lg font-semibold">{t("Expenses.recent")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.recent")}</h2>
       {recent.length === 0 ? (
         <p>{t("Expenses.none")}</p>
       ) : (
         <ul className="flex flex-col gap-2" aria-label={t("Expenses.recent")}>
           {recent.map((e) => (
-            <li key={e.id} className="rounded-lg border border-current/30 p-3">
+            <li key={e.id} className="rounded-2xl border border-line bg-card p-3">
               {t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) })}
             </li>
           ))}
         </ul>
       )}
 
-      <h2 className="text-lg font-semibold">{t("Expenses.accounts")}</h2>
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.accounts")}</h2>
       <ul className="flex flex-col gap-1">
         {accounts.map((a) => <li key={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</li>)}
       </ul>
@@ -148,7 +148,7 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
   };
 
   return (
-    <form key={key} onSubmit={submit} className="flex flex-col gap-3">
+    <form key={key} onSubmit={submit} className={card}>
       <Field label={t("Expenses.category")}>
         {(id) => (
           <select id={id} name="category" className={field}>
@@ -193,7 +193,7 @@ function AccountForm({ onSave, onCancel }: { onSave: (a: TreasuryAccountDto) => 
     await onSave({ id: uuidv7(), kind: String(data.get("kind")) as TreasuryAccountDto["kind"], name: String(data.get("name") ?? "").trim() });
   };
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
+    <form onSubmit={submit} className={card}>
       <Field label={t("Expenses.kind")}>
         {(id) => (
           <select id={id} name="kind" className={field}>

@@ -48,7 +48,7 @@ export function InstallGuide() {
       )}
       {(platform ? [platform] : (["android", "ios"] as const)).map((p) => (
         <section key={p} className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold">{t(`${p}.title`)}</h2>
+          <h2 className="text-[17px] font-semibold text-ink-2">{t(`${p}.title`)}</h2>
           <ol className="list-decimal space-y-1 ps-6">
             <li>{t(`${p}.step1`)}</li>
             <li>{t(`${p}.step2`)}</li>

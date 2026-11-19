@@ -40,7 +40,8 @@
     "codeSent": "Si ce numéro peut se connecter, un code à 6 chiffres vient de lui être envoyé.",
     "codeLabel": "Code reçu",
     "verify": "Se connecter",
-    "changeNumber": "Changer de numéro"
+    "changeNumber": "Changer de numéro",
+    "noPassword": "Pas de mot de passe. Un compte est créé à la première connexion."
   },
   "Account": {
     "logout": "Se déconnecter",
@@ -277,7 +278,9 @@
     "alertBelow": "Alerte sous {quantity}",
     "value": "Valeur : {amount}",
     "editThreshold": "Seuil d’alerte",
-    "thresholdHint": "Vide : pas d’alerte."
+    "thresholdHint": "Vide : pas d’alerte.",
+    "total": "Valeur du stock : {amount} (coût moyen pondéré)",
+    "enough": "Suffisant"
   },
   "Batches": {
     "title": "Bandes",
@@ -330,7 +333,8 @@
     "litterTemp": "Température litière (°C)",
     "density": "Densité : {density} sujets/m²",
     "claim": "Morts à l’arrivée au-dessus du seuil du contrat : réclamation au couvoir",
-    "run": "{house} · {bands} bandes · {birds} sujets"
+    "run": "{house} · {bands} bandes · {birds} sujets",
+    "nextVaccine": "Prochain vaccin : {vaccine}"
   },
   "Day": {
     "title": "Saisie du jour",
@@ -355,7 +359,11 @@
     "note": "Note (facultatif)",
     "save": "Enregistrer la journée",
     "nothing": "Rien n’a changé.",
-    "onHand": "Oiseaux présents : {birds}"
+    "onHand": "Oiseaux présents : {birds}",
+    "minus": "Moins {step}",
+    "plus": "Plus {step}",
+    "feedHint": "Déduit du stock à l’enregistrement.",
+    "offline": "Marche sans réseau · envoi automatique"
   },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
@@ -436,7 +444,9 @@
     "flock": "Bande",
     "standard": "Standard de la souche",
     "day": "J{age}",
-    "chartLabel": "Poids moyen par âge : {points}"
+    "chartLabel": "Poids moyen par âge : {points}",
+    "waterFeed": "Eau / aliment",
+    "waterFeedOn": "L par kg, jour {day}"
   },
   "Vaccination": {
     "title": "Vaccinations",
@@ -571,7 +581,8 @@
     "awaiting": "Crédits à approuver",
     "awaitingLine": "Vente à crédit de {amount} à {buyer} le {date} : dépasse le plafond, attend l’accord du propriétaire",
     "approve": "Approuver",
-    "saveLimit": "Enregistrer le plafond"
+    "saveLimit": "Enregistrer le plafond",
+    "totalLabel": "{count, plural, one {À encaisser · 1 acheteur} other {À encaisser · {n} acheteurs}}"
   },
   "Origin": {
     "title": "Document d’origine des volailles",
@@ -773,7 +784,8 @@
     "today": "Aujourd’hui",
     "batches": "Lots",
     "stock": "Stock",
-    "more": "Plus"
+    "more": "Plus",
+    "back": "Retour"
   },
   "More": {
     "farm": "Élevage",
@@ -793,7 +805,12 @@
     "entryHint": "Morts, aliment, eau : moins d’une minute",
     "entryDone": "Saisie du jour faite · {house}",
     "missing": "{count, plural, one {Saisie manquante · {date}} other {{n} saisies manquantes, dès le {date}}}",
-    "missingHint": "{house} · jour {day} : complétez-la"
+    "missingHint": "{house} · jour {day} : complétez-la",
+    "money": "Argent",
+    "cash": "Trésorerie disponible",
+    "lastBatch": "Dernière bande clôturée · {house}",
+    "margin": "Marge : {margin}",
+    "costPerKg": "{cost} / kg"
   },
   "Transfer": {
     "title": "Passage en ponte",
@@ -864,5 +881,26 @@
     "discardEggs": "Œufs écartés",
     "reason": "Raison",
     "saveDiscard": "Écarter ces œufs"
+  },
+  "Layers": {
+    "hens": "Poules présentes",
+    "mortality": "mortalité {percent} % depuis le logement",
+    "rate": "Taux de ponte",
+    "standard": "standard {value}",
+    "noStandard": "pas de standard chargé",
+    "perHenHoused": "Œufs par poule logée",
+    "eggWeight": "Poids moyen de l’œuf",
+    "feedPerEgg": "Aliment par œuf",
+    "downgraded": "Œufs déclassés",
+    "weeks": "Dernières semaines",
+    "cols": {
+      "week": "Semaine",
+      "hens": "Poules",
+      "rate": "Ponte",
+      "eggWeight": "Poids œuf",
+      "feedPerHen": "Aliment g/poule/j",
+      "waterFeed": "Eau / aliment",
+      "downgradedShort": "Déclassés"
+    }
   }
 }

@@ -12,7 +12,8 @@ import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { ageOn, birdsStarted, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
-import { cachedReference, localDb } from "@/offline/db";
+import { SyncBadge } from "@/components/sync-status";
+import { cachedReference, currentScope, localDb, scopeKey } from "@/offline/db";
 
 // tasks/plan-ui.md U3, Today.dc.html: the home screen. A dark header with each open batch's 42-day strip, then the
 // day's tasks: today's entry, vaccines due, missing days, a withdrawal in progress. Read from the phone's database.
@@ -30,7 +31,24 @@ const Icon = ({ d }: { d: string }) => (
   </svg>
 );
 
-export function Today({ title, userId, organizationId, sync, alert }: { title: string; userId: string; organizationId: string; sync: ReactNode; alert: ReactNode }) {
+/** The offline shell (/today): the scope remembered by the last online visit, like /batches. */
+export function TodayShell() {
+  const t = useTranslations("Sync");
+  const scope = useLiveQuery(() => currentScope().then((s) => s ?? null), [], undefined);
+  if (scope === undefined) return null; // reading the phone's storage
+  if (scope === null) {
+    return (
+      <main className="mx-auto w-full max-w-xl p-5">
+        <p>
+          {t("signedOut")} <Link href="/login" className="underline underline-offset-4">{t("login")}</Link>
+        </p>
+      </main>
+    );
+  }
+  return <Today key={scopeKey(scope)} userId={scope.userId} organizationId={scope.organizationId} sync={<SyncBadge {...scope} />} alert={null} />;
+}
+
+export function Today({ title, userId, organizationId, sync, alert, money = null }: { title?: string; userId: string; organizationId: string; sync: ReactNode; alert: ReactNode; money?: ReactNode }) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb({ userId, organizationId });
@@ -85,8 +103,8 @@ export function Today({ title, userId, organizationId, sync, alert }: { title: s
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm text-sand">{new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span>
-            <h1 className="text-[22px] font-semibold">{title}</h1>
-            {farm && farm.name !== title && <span className="text-sm text-sand">{farm.name}</span>}
+            <h1 className="text-[22px] font-semibold">{title ?? farm?.name ?? t("App.name")}</h1>
+            {title && farm && farm.name !== title && <span className="text-sm text-sand">{farm.name}</span>}
           </div>
           {sync}
         </div>
@@ -163,6 +181,7 @@ export function Today({ title, userId, organizationId, sync, alert }: { title: s
             )}
           </section>
         ))}
+        {money}
       </main>
     </>
   );

@@ -17,7 +17,7 @@ import { tenant, twoTenants } from "@/test/tenant";
 async function login(local: string) {
   await requestCode(local, {});
   const e164 = `+212${local.slice(1)}`;
-  const code = (await db.verification.findFirstOrThrow({ where: { identifier: e164 }, orderBy: { createdAt: "desc" } })).value.split(":")[0];
+  const code = (await db.verification.findFirstOrThrow({ where: { identifier: `phone-number-otp-${e164}` }, orderBy: { createdAt: "desc" } })).value.split(":")[0];
   const res = await verifyCode(local, code, "ar", {});
   if (!res.ok) throw new Error(res.error);
   return new Headers({ cookie: res.value.getSetCookie().map((c) => c.split(";")[0]).join("; ") });

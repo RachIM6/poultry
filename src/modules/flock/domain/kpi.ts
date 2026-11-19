@@ -91,3 +91,12 @@ export function batchKpis(
     weighed,
   };
 }
+
+/**
+ * SPEC-m3 B14: water drunk per gram of feed (ml/g, the same as L/kg) on the latest day where both were entered: a drop
+ * is an early sign of disease or a water problem. Null before such a day.
+ */
+export function waterPerFeed(entries: readonly { day: string; feed: { grams: number } | null; waterMl: number | null }[]): { day: string; ratio: number } | null {
+  const last = entries.filter((e) => e.feed && e.waterMl !== null).sort((a, b) => a.day.localeCompare(b.day)).at(-1);
+  return last ? { day: last.day, ratio: last.waterMl! / last.feed!.grams } : null;
+}

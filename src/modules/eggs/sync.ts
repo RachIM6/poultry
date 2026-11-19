@@ -8,6 +8,7 @@ import {
   RecordCollection,
   type EggCollectionDto,
   type EggDiscardDto,
+  type EggDrawDto,
   type EggGradingDto,
 } from "@/modules/eggs/schema";
 
@@ -23,5 +24,6 @@ export const eggsSync: SyncRegistry = {
     eggCollection: (_ctx, data: EggCollectionDto) => data, // no money in egg records
     eggGrading: (_ctx, data: EggGradingDto) => data,
     eggDiscard: (_ctx, data: EggDiscardDto) => data,
+    eggDraw: (_ctx, data: EggDrawDto) => data,
   },
 };

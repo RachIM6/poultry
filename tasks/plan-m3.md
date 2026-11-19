@@ -137,8 +137,15 @@ Done 2026-11-17 (branch `feat/t62-egg-withdrawal`): `Treatment.eggWithdrawalDays
 ### T63: Egg sales (V6)
 **Description:** `Sale.kind = eggs`, `SaleLine`, FIFO draw from the egg ledger, withdrawal block, receivables as V2.
 **AC:**
-- [ ] FIFO draw over two laying days (unit test); amount with 30 and 12 eggs per tray (unit test).
-- [ ] A sale drawing eggs laid during a withdrawal is refused with the days to discard (integration test).
+- [x] FIFO draw over two laying days (unit test); amount with 30 and 12 eggs per tray (unit test). (`eggs/domain/stock.test.ts`, `sales/domain/sale.test.ts`: P-EggStock's 1 080 trays × 33,00 = 35 640,00 DH.)
+- [x] A sale drawing eggs laid during a withdrawal is refused with the days to discard (integration test). (`sales/egg-sales.int.test.ts` → `EGGS_IN_WITHDRAWAL`, "écartez-les avant de vendre"; the message names no days: the lot list on /eggs shows them.)
+
+Done 2026-11-17 (branch `feat/t63-egg-sales`). Decisions:
+- An egg sale **is a `Sale`** with `kind = "eggs"` (birds, weights and price per kg at 0) and its `SaleLine`s, so receivables, cheques and bills, credit blocks and limits, and finance postings apply unchanged.
+- It names **one laying batch** and draws FIFO within it (SPEC said "across the farm's batches": per batch keeps the withdrawal check exact; a farm with two laying houses makes two sales).
+- The eggs it takes are `EggDraw` rows **owned by `eggs`** (`eggs.drawEggs` from the sale's transaction; sales passes health's windows, as eggs may not depend on health). Draw ids are UUIDv5 of the sale, the same on the phone.
+- `/eggs`: "Vendre des œufs" (owners, managers): buyer, lines (item, trays, eggs per tray 30 by default, price per tray), payment as V2; the phone runs the same checks and draw. Batch screens no longer list egg sales.
+- Until T65, finance posts an egg sale like a live sale.
 **Size:** M
 
 ### T64: Sale per head (V7)

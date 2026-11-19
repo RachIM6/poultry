@@ -4,7 +4,11 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
+import dynamic from "next/dynamic";
 import { card, field, primary, secondary } from "@/components/ui";
+import { can } from "@/lib/permissions";
+import type { TreatmentDto } from "@/modules/health/shared";
+import type { BuyerDto } from "@/modules/sales/shared";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -18,6 +22,7 @@ import {
   stockByItem,
   type EggCollectionDto,
   type EggDiscardDto,
+  type EggDrawDto,
   type EggGradingDto,
   type EggItem,
   type Lot,
@@ -31,6 +36,7 @@ import { startSync } from "@/offline/sync";
 // SPEC-m3 E2–E4 on the static /eggs shell (P-EggStock): the farm's eggs by item and by age, grading and discards,
 // computed on the phone from its records, offline.
 
+const EggSaleForm = dynamic(() => import("@/components/egg-sale").then((m) => m.EggSaleForm));
 const today = () => farmDayOf(new Date());
 const TRAY = 30; // display only (MQ8): eggs are counted one by one
 
@@ -53,10 +59,10 @@ function EggStock({ userId, organizationId, role }: Scope) {
   const locale = useLocale();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "eggCollection", "eggGrading", "eggDiscard").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "eggCollection", "eggGrading", "eggDiscard", "eggDraw", "buyer", "treatment").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [farmId, setFarmId] = useState<string>();
-  const [action, setAction] = useState<{ lot: string; kind: "grade" | "discard" } | null>(null); // the lot's key
+  const [action, setAction] = useState<{ lot: string; kind: "grade" | "discard" | "sell" } | null>(null); // the lot's key
   const [message, setMessage] = useState<string>();
   if (!records || reference === undefined) return null;
 
@@ -66,7 +72,13 @@ function EggStock({ userId, organizationId, role }: Scope) {
   const batches = of<BatchDto>("batch").filter((b) => b.farmId === farm?.id && b.species === "layer");
   const mine = (x: { batchId: string }) => batches.some((b) => b.id === x.batchId);
   const collections = of<EggCollectionDto>("eggCollection").filter(mine);
-  const lots = eggLots({ collections, gradings: of<EggGradingDto>("eggGrading").filter(mine), discards: of<EggDiscardDto>("eggDiscard").filter(mine) });
+  const lots = eggLots({
+    collections,
+    gradings: of<EggGradingDto>("eggGrading").filter(mine),
+    discards: of<EggDiscardDto>("eggDiscard").filter(mine),
+    drawn: of<EggDrawDto>("eggDraw").filter(mine), // V6: sold
+  });
+  const [selling, setSelling] = [action?.kind === "sell", (on: boolean) => setAction(on ? { lot: "", kind: "sell" } : null)];
   const grades = reference?.data.eggGrades ?? [];
   const byItem = stockByItem(lots);
   const total = lots.reduce((n, l) => n + l.eggs, 0);
@@ -76,9 +88,10 @@ function EggStock({ userId, organizationId, role }: Scope) {
   const house = (batchId: string) => houses.find((h) => h.id === batches.find((b) => b.id === batchId)?.houseId)?.name ?? "";
   const keyOf = (l: Lot) => `${l.batchId}|${l.laidOn}|${l.item}`;
 
-  const save = async (mutation: { type: string; payload: { id: string } }, entity: string, data: unknown) => {
+  const save = async (mutation: { type: string; payload: { id: string } }, entity: string, data: unknown) => saveAll(mutation, [{ entity, id: mutation.payload.id, data }]);
+  const saveAll = async (mutation: { type: string; payload: unknown }, recs: { entity: string; id: string; data: unknown }[]) => {
     try {
-      await writeLocal(db, mutation, [{ entity, id: mutation.payload.id, data }]);
+      await writeLocal(db, mutation, recs);
       setMessage("Farms.saved");
       setAction(null);
     } catch {
@@ -95,6 +108,20 @@ function EggStock({ userId, organizationId, role }: Scope) {
       )}
       {message && <p role="status" className="rounded-2xl bg-olive-soft p-3 text-olive">{t(message)}</p>}
       <p className="text-xl font-semibold">{t("EggStock.headline", { eggs: formatCount(total), trays: trays(total) })}</p>
+      {can({ userId, organizationId, role }, "sales.manage") &&
+        (selling ? (
+          <EggSaleForm
+            batches={batches}
+            lots={lots}
+            buyers={of<BuyerDto>("buyer")}
+            treatments={of<TreatmentDto>("treatment")}
+            itemName={itemName}
+            onSave={saveAll}
+            onCancel={() => setSelling(false)}
+          />
+        ) : (
+          total > 0 && <button type="button" className={primary} onClick={() => setSelling(true)}>{t("EggSale.open")}</button>
+        ))}
 
       <section className={card} aria-labelledby="by-item">
         <h2 id="by-item" className="text-lg font-semibold">{t("EggStock.byItem")}</h2>

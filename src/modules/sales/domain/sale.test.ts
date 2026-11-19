@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { checkSale, saleAmount, weighingGap } from "@/modules/sales/domain/sale";
+import { checkEggSale, checkSale, eggLineAmount, saleAmount, weighingGap } from "@/modules/sales/domain/sale";
 
 describe("sale amount (SPEC V2)", () => {
   it("is weight × price per kg in integer centimes, rounded half up", () => {
@@ -51,5 +51,26 @@ describe("checking a sale (SPEC V2, V3)", () => {
     expect(checkSale({ ...sale, paymentMethod: "cheque", paidCentimes: 0n }, null)).toEqual({ ok: false, error: "INSTRUMENT_REQUIRED" });
     expect(checkSale({ ...sale, paymentMethod: "bill", paidCentimes: 0n, instrument }, null).ok).toBe(true);
     expect(checkSale({ ...sale, instrument }, null)).toEqual({ ok: false, error: "INVALID_INPUT" });
+  });
+});
+
+describe("egg sales (SPEC-m3 V6)", () => {
+  const line = (eggs: number, unitPriceCentimes: bigint, eggsPerTray = 30) => ({ item: "grade:m", eggs, eggsPerTray, unitPriceCentimes });
+
+  it("prices eggs per tray, half up to the centime, with 30 or 12 eggs a tray", () => {
+    expect(eggLineAmount(line(1080 * 30, 3300n))).toBe(3_564_000n); // P-EggStock: 1 080 trays × 33,00 = 35 640,00 DH
+    expect(eggLineAmount(line(45, 3300n))).toBe(4950n); // 1,5 tray
+    expect(eggLineAmount(line(7, 1000n, 12))).toBe(583n); // 583,33… → 583
+    expect(eggLineAmount(line(1, 1000n, 12))).toBe(83n); // 83,33… → 83
+    expect(eggLineAmount(line(3, 5n, 2))).toBe(8n); // 7,5 → 8: half up
+  });
+
+  it("sums its lines and applies the payment rules", () => {
+    const sale = { lines: [line(1200, 3300n), line(1410, 2000n)], paymentMethod: "cash" as const, paidCentimes: 0n, instrument: null };
+    expect(checkEggSale(sale)).toEqual({ ok: true, value: { amountCentimes: 132_000n + 94_000n } });
+    expect(checkEggSale({ ...sale, lines: [] })).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(checkEggSale({ ...sale, lines: [line(0, 3300n)] })).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(checkEggSale({ ...sale, paidCentimes: 226_001n })).toEqual({ ok: false, error: "PAID_MORE_THAN_AMOUNT" });
+    expect(checkEggSale({ ...sale, paymentMethod: "cheque" })).toEqual({ ok: false, error: "INSTRUMENT_REQUIRED" });
   });
 });

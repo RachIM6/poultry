@@ -1,10 +1,11 @@
 import { can, withoutMoney } from "@/lib/permissions";
 import { defineMutation, type SyncRegistry } from "@/lib/sync/server";
-import { approveCredit, createBuyer, recordPayment, recordSale, setCreditLimit, setInstrumentState, unblockBuyer } from "@/modules/sales/application/sales";
+import { approveCredit, createBuyer, recordEggSale, recordPayment, recordSale, setCreditLimit, setInstrumentState, unblockBuyer } from "@/modules/sales/application/sales";
 import {
   CreateBuyer,
   RecordPayment,
   RecordSale,
+  RecordEggSale,
   SALE_MONEY,
   SALES_MUTATIONS as M,
   ApproveCredit,
@@ -23,6 +24,7 @@ export const salesSync: SyncRegistry = {
   mutations: {
     [M.createBuyer]: defineMutation({ schema: CreateBuyer, action: "sales.manage", apply: (tx, ctx, cmd, meta) => createBuyer(tx, ctx, cmd, meta) }),
     [M.recordSale]: defineMutation({ schema: RecordSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => recordSale(tx, ctx, cmd, meta) }),
+    [M.recordEggSale]: defineMutation({ schema: RecordEggSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => recordEggSale(tx, ctx, cmd, meta) }),
     [M.recordPayment]: defineMutation({ schema: RecordPayment, action: "sales.manage", apply: (tx, ctx, cmd, meta) => recordPayment(tx, ctx, cmd, meta) }),
     [M.setInstrumentState]: defineMutation({ schema: SetInstrumentState, action: "sales.manage", apply: (tx, ctx, cmd, meta) => setInstrumentState(tx, ctx, cmd, meta) }),
     // FN12: lifting a credit block is the owner's call.

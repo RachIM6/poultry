@@ -387,7 +387,8 @@
     "MEMBER_ALREADY_LINKED": "Ce numéro est déjà celui d’un autre ouvrier de la ferme.",
     "LEFT_BEFORE_START": "La date de départ est avant la date d’entrée.",
     "HOUSE_REQUIRED": "Choisissez un bâtiment : la tâche suit l’âge de son lot.",
-    "TASK_DAY_PAST": "Une tâche d’un jour passé reste comme elle a été notée."
+    "TASK_DAY_PAST": "Une tâche d’un jour passé reste comme elle a été notée.",
+    "EMPLOYEE_NOT_ACTIVE": "Cet ouvrier ne travaille pas à la ferme ce jour-là."
   },
   "Weighing": {
     "title": "Pesée",
@@ -850,6 +851,8 @@
     "notStaff": "Vous n’êtes pas encore dans le personnel de la ferme : le responsable peut vous y ajouter avec votre numéro. Voici les tâches de toute la ferme.",
     "progress": "Avancement du jour",
     "doneOf": "{done} faites sur {total}",
-    "tick": "Faite : {task}"
+    "tick": "Faite : {task}",
+    "assign": "Confier « {task} » à",
+    "assignTo": "Confier à…"
   }
 }

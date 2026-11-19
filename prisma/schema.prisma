@@ -889,3 +889,17 @@ model TaskDone {
 
   @@index([organizationId])
 }
+
+// Owner: workforce. SPEC-m4 WF7: one day's task given to another employee. id = UUIDv5 of key + day: one per task and
+// day, the last write wins.
+model TaskAssignment {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  key            String // entry:<batchId> | vaccine:<id> | routine:<id> | oneoff:<id>
+  day            DateTime @db.Date
+  employeeId     String   @db.Uuid
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId])
+}

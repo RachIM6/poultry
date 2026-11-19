@@ -12,7 +12,7 @@ import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto, DailyEntryDto } from "@/modules/flock/shared";
 import type { VaccinationDto } from "@/modules/health/shared";
-import { dayTasks, taskDoneId, tickable, WORKFORCE_MUTATIONS as W, type DayTask, type EmployeeDto, type OneOffTask, type Routine, type TaskDoneDto } from "@/modules/workforce/shared";
+import { dayTasks, taskAssignmentId, taskDoneId, tickable, WORKFORCE_MUTATIONS as W, type DayTask, type EmployeeDto, type OneOffTask, type Routine, type TaskAssignmentDto, type TaskDoneDto } from "@/modules/workforce/shared";
 import { cachedReference, localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -21,7 +21,7 @@ import { writeLocal } from "@/offline/outbox";
 
 export const TasksScreen = () => <Scoped>{(scope) => <Tasks {...scope} />}</Scoped>;
 
-const ENTITIES = ["farm", "house", "batch", "dailyEntry", "vaccination", "employee", "routine", "oneOffTask", "taskDone"];
+const ENTITIES = ["farm", "house", "batch", "dailyEntry", "vaccination", "employee", "routine", "oneOffTask", "taskDone", "taskAssignment"];
 
 function Tasks(scope: Scope) {
   const t = useTranslations();
@@ -50,12 +50,13 @@ function Tasks(scope: Scope) {
     routines,
     oneOffs: of<OneOffTask>("oneOffTask"),
     done: of<TaskDoneDto>("taskDone"),
-    assignments: [],
+    assignments: of<TaskAssignmentDto>("taskAssignment"),
   });
   // WF8: a worker sees their own tasks; owners and managers see the farm's, with who does each.
   const me = employees.find((e) => e.userId === scope.userId && e.farmId === farm.id && !e.leftOn);
   const shown = manage || !me ? tasks : tasks.filter((x) => x.assignees.includes(me.id));
   const doneCount = shown.filter((x) => x.done).length;
+  const staff = employees.filter((e) => e.farmId === farm.id && e.startedOn <= today && (!e.leftOn || today < e.leftOn));
 
   const house = (id: string | null) => (id === null ? t("Staff.wholeFarm") : (houses.find((h) => h.id === id)?.name ?? ""));
   const product = (id: string | null) => reference?.data.products.find((p) => p.id === id);
@@ -128,8 +129,13 @@ function Tasks(scope: Scope) {
                 ? write({ type: W.untickTask, payload: { id } }, "taskDone", id, null)
                 : write({ type: W.tickTask, payload: tick }, "taskDone", id, { ...tick, byUserId: scope.userId });
             // WF6: routines and one-off tasks are ticked here; an entry or a vaccine is done by recording it on its batch.
+            const assign = (employeeId: string) => {
+              const a: TaskAssignmentDto = { id: taskAssignmentId(scope.organizationId, task.key, today), farmId: farm.id, key: task.key, day: today, employeeId };
+              return write({ type: W.assignTask, payload: a }, "taskAssignment", a.id, a);
+            };
             return (
-              <li key={task.key} className="flex min-h-[62px] items-center gap-3 border-t border-line first:border-t-0">
+              <li key={task.key} className="flex flex-col border-t border-line py-1 first:border-t-0">
+                <span className="flex min-h-[62px] items-center gap-3">
                 {tickable(task.key) ? (
                   <>
                     <span className="flex flex-1 items-center gap-3">{body}</span>
@@ -142,6 +148,19 @@ function Tasks(scope: Scope) {
                     {body}
                     <span className={mark} aria-label={t(task.done ? "Tasks.done" : "Tasks.todo")}>{task.done ? "✓" : ""}</span>
                   </Link>
+                )}
+                </span>
+                {/* WF7: today's task given to someone else; the list below "Pour" follows. */}
+                {manage && staff.length > 0 && (
+                  <select
+                    aria-label={t("Tasks.assign", { task: label(task) })}
+                    value={task.assignees.length === 1 ? task.assignees[0] : ""}
+                    onChange={(e) => e.target.value && assign(e.target.value)}
+                    className={`${field} mb-2 min-h-11 text-base`}
+                  >
+                    <option value="">{t("Tasks.assignTo")}</option>
+                    {staff.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
                 )}
               </li>
             );

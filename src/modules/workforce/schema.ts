@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { JOBS, taskDoneId, tickable } from "@/modules/workforce/shared";
+import { isTaskKey, JOBS, taskDoneId, tickable } from "@/modules/workforce/shared";
 
 // SPEC-m4 §4, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009).
 export * from "@/modules/workforce/shared";
@@ -41,3 +41,7 @@ export const TickTask = z
   .object({ id: z.uuid(), farmId: z.uuid(), key: z.string().max(80), day: z.iso.date() })
   .refine((t) => tickable(t.key) && t.id === taskDoneId(t.key, t.day), "routine or one-off, id from key and day");
 export const UntickTask = z.object({ id: z.uuid() });
+
+export const AssignTask = z
+  .object({ id: z.uuid(), farmId: z.uuid(), key: z.string().max(80), day: z.iso.date(), employeeId: z.uuid() })
+  .refine((t) => isTaskKey(t.key), "a task key"); // the id is checked against the caller's organisation on apply

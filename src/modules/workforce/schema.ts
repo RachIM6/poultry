@@ -52,3 +52,7 @@ const attendanceDay = { id: z.uuid(), employeeId: z.uuid(), day: z.iso.date() };
 const idOk = (a: { id: string; employeeId: string; day: string }) => a.id === attendanceId(a.employeeId, a.day);
 export const CheckIn = z.object({ ...attendanceDay, time: hhmm }).refine(idOk, "id from employee and day");
 export const SetAttendance = z.object({ ...attendanceDay, status: z.enum(ATTENDANCE), arrivedAt: hhmm.nullable() }).refine(idOk, "id from employee and day");
+
+export const RecordAdvance = z
+  .object({ id: z.uuid(), employeeId: z.uuid(), day: z.iso.date(), amountCentimes: z.string().regex(/^[1-9]\d{0,11}$/), deductMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), note: optional(200) })
+  .refine((a) => a.deductMonth >= a.day.slice(0, 7), "deducted in the month it is given or later");

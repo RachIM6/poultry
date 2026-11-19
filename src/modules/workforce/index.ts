@@ -3,9 +3,10 @@
 import type { SyncRegistry } from "@/lib/sync/server";
 import { employeesSync } from "./sync";
 import { attendanceSync } from "./attendance-sync";
+import { paySync } from "./pay-sync";
 import { tasksSync } from "./tasks-sync";
 
 export const workforceSync: SyncRegistry = {
-  mutations: { ...employeesSync.mutations, ...tasksSync.mutations, ...attendanceSync.mutations },
-  entities: { ...employeesSync.entities, ...tasksSync.entities, ...attendanceSync.entities },
+  mutations: { ...employeesSync.mutations, ...tasksSync.mutations, ...attendanceSync.mutations, ...paySync.mutations },
+  entities: { ...employeesSync.entities, ...tasksSync.entities, ...attendanceSync.entities, ...paySync.entities },
 };

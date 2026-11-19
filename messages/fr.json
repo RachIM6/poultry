@@ -388,7 +388,8 @@
     "LEFT_BEFORE_START": "La date de départ est avant la date d’entrée.",
     "HOUSE_REQUIRED": "Choisissez un bâtiment : la tâche suit l’âge de son lot.",
     "TASK_DAY_PAST": "Une tâche d’un jour passé reste comme elle a été notée.",
-    "EMPLOYEE_NOT_ACTIVE": "Cet ouvrier ne travaille pas à la ferme ce jour-là."
+    "EMPLOYEE_NOT_ACTIVE": "Cet ouvrier ne travaille pas à la ferme ce jour-là.",
+    "DEDUCT_BEFORE_ADVANCE": "L’avance se retient sur la paie du mois où elle est donnée, ou d’un mois suivant."
   },
   "Weighing": {
     "title": "Pesée",
@@ -879,5 +880,15 @@
     "status": "Présence",
     "arrivedAtLabel": "Heure d’arrivée (facultatif)",
     "save": "Enregistrer la présence"
+  },
+  "Advances": {
+    "title": "Avances",
+    "pending": "Avances en cours",
+    "line": "{name} · {amount} le {date} · retenue sur la paie de {month}",
+    "add": "Enregistrer une avance",
+    "amount": "Montant (DH)",
+    "day": "Donnée le",
+    "deductMonth": "Retenue sur la paie de",
+    "save": "Enregistrer l’avance"
   }
 }

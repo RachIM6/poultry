@@ -920,3 +920,19 @@ model Attendance {
 
   @@index([organizationId, day])
 }
+
+// Owner: workforce. SPEC-m4 WF10: money given to an employee before pay day, deducted from one month's pay.
+model SalaryAdvance {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  employeeId     String   @db.Uuid
+  day            DateTime @db.Date
+  amountCentimes BigInt
+  deductMonth    String // YYYY-MM
+  note           String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}

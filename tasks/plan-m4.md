@@ -108,7 +108,13 @@ Done 2026-11-17 (branch `feat/t75-attendance`), decisions taken without asking:
 ### T76: Advances (WF10)
 **Description:** `SalaryAdvance` (employee, day, amount, month deducted), `workforce.recordAdvance`; card on `/staff`.
 **AC:**
-- [ ] Workers never pull advances; amount is integer centimes > 0 (integration).
+- [x] Workers never pull advances; amount is integer centimes > 0 (integration). (`workforce/advances.int.test.ts`; `e2e/advances.spec.ts` offline)
+
+Done 2026-11-17 (branch `feat/t76-advances`), decisions taken without asking:
+- **An advance is recorded once and never edited** (a correction is a new advance, or a different deduction month on the next one); deducted from the month the manager picks, the month it is given or later.
+- **Workers never receive any advance,** their own included (W-Staff "Droits"); `money.read` decides.
+- **Not posted to finance yet:** the accounts (advances to staff, cash) are for the accountant to confirm; see "Later".
+- `/staff` shows the advances still to deduct (this month or later) and the form.
 **Size:** S
 
 ### T77: Labour rules and monthly pay (WF11, WF12, §2)

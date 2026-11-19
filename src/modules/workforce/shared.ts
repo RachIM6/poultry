@@ -39,6 +39,7 @@ export const WORKFORCE_MUTATIONS = {
   recordAdvance: "workforce.recordAdvance",
   saveLabourRules: "workforce.saveLabourRules",
   validatePay: "workforce.validatePay",
+  addStaffRecord: "workforce.addStaffRecord",
 } as const;
 
 /** WF6: a routine or one-off task ticked done on a farm day. Its id is the same on every phone that ticks it. */
@@ -63,6 +64,10 @@ export const attendanceId = (employeeId: string, day: string) => uuidv5(`${emplo
 
 /** WF10: money given before pay day, deducted from one month's pay. Owners and managers only (never sent to workers). */
 export type AdvanceDto = { id: string; farmId: string; employeeId: string; day: string; amountCentimes: string; deductMonth: string; note: string | null };
+
+/** WF13: a training or a work accident, recorded once. Owners and managers only: an accident is health data. */
+export const TRAINING_TOPICS = ["biosecurity", "vaccination", "other"] as const; // SCOPE §16
+export type StaffRecordDto = { id: string; farmId: string; employeeId: string; day: string; kind: "training" | "accident"; topic: (typeof TRAINING_TOPICS)[number] | null; note: string | null; daysOff: number | null };
 
 // WF11, WF12, §2: pay. The labour figures are the owner's dated entries (none built in); a validated month is frozen.
 export { monthEnd, payFor, rulesOn } from "@/modules/workforce/domain/pay";

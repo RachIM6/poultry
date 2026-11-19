@@ -6,9 +6,9 @@ import { fail, ok } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import { farmBelongsTo } from "@/modules/farm-registry";
-import { monthEnd, payFor, payMonthId, RecordAdvance, rulesOn, SaveLabourRules, ValidatePay, WORKFORCE_MUTATIONS as M, type AdvanceDto, type LabourRules, type PayMonthDto } from "@/modules/workforce/schema";
+import { AddStaffRecord, monthEnd, payFor, payMonthId, RecordAdvance, rulesOn, SaveLabourRules, ValidatePay, WORKFORCE_MUTATIONS as M, type AdvanceDto, type LabourRules, type PayMonthDto, type StaffRecordDto } from "@/modules/workforce/schema";
 
-// SPEC-m4 WF10–WF12: advances and pay. Money: owners and managers only, never sent to workers (SPEC I5).
+// SPEC-m4 WF10–WF13: advances, pay, trainings and accidents. Money: owners and managers only, never sent to workers (SPEC I5).
 
 const clock: Clock = systemClock;
 const date = (d: string) => new Date(`${d}T00:00:00Z`); // a calendar date
@@ -44,6 +44,22 @@ export const paySync: SyncRegistry = {
         const dto: AdvanceDto = { ...a, farmId: employee.farmId };
         await recordChange(tx, ctx, "advance", a.id, dto);
         await audit(tx, ctx, { entity: "SalaryAdvance", entityId: a.id, action: "create", after: dto, ...meta });
+        return ok(undefined);
+      },
+    }),
+    // WF13: recorded once, never edited (MQ6: no declaration rule built in).
+    [M.addStaffRecord]: defineMutation({
+      schema: AddStaffRecord,
+      action: "workforce.manage",
+      async apply(tx, ctx, r, meta) {
+        const employee = await tx.employee.findFirst({ where: { id: r.employeeId, organizationId: ctx.organizationId }, select: { farmId: true } });
+        if (!employee) return fail("NOT_FOUND");
+        if (r.day > farmDayOf(clock.now())) return fail("DAY_IN_FUTURE");
+        if (await tx.staffRecord.findUnique({ where: { id: r.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
+        const dto: StaffRecordDto = { topic: null, daysOff: null, ...r, farmId: employee.farmId };
+        await tx.staffRecord.create({ data: { ...dto, day: date(dto.day), organizationId: ctx.organizationId, recordedBy: ctx.userId } });
+        await recordChange(tx, ctx, "staffRecord", dto.id, dto);
+        await audit(tx, ctx, { entity: "StaffRecord", entityId: dto.id, action: "create", after: dto, ...meta });
         return ok(undefined);
       },
     }),
@@ -98,5 +114,6 @@ export const paySync: SyncRegistry = {
     advance: (ctx, data: AdvanceDto) => (can(ctx, "money.read") ? data : undefined),
     payMonth: (ctx, data: PayMonthDto) => (can(ctx, "money.read") ? data : undefined),
     labourRules: (ctx, data: LabourRules) => (can(ctx, "money.read") ? data : undefined),
+    staffRecord: (ctx, data: StaffRecordDto) => (can(ctx, "workforce.manage") ? data : undefined), // a worker: not even their own
   },
 };

@@ -11,7 +11,7 @@ The farm's people and its houses' climate, on the phone, offline:
 
 **Users:** owner, manager, worker (SPEC I4). Workers never see wages, advances or pay (SPEC I5, `W-Staff` "Droits").
 
-**Out of scope in M4** (each in §8 or "Later" of the plan): sensors and controllers (`L-Sensors` says "Module futur": the `iot` module, post-MVP), alarm escalation by WhatsApp or phone call (needs OQ2), weather forecasts (an external service: "ask first"), energy costs (gas, diesel and electricity go through finance's quick expense), payslip PDFs, the CNSS declaration file (§8 MQ3), income tax, training records and work accidents.
+**Out of scope in M4** (each in §8 or "Later" of the plan): sensors and controllers (`L-Sensors` says "Module futur": the `iot` module, post-MVP), alarm escalation by WhatsApp or phone call (needs OQ2), weather forecasts (an external service: "ask first"), energy costs (gas, diesel and electricity go through finance's quick expense), payslip PDFs, the CNSS declaration file (§8 MQ3), and income tax. Training records and work accidents were added later as WF13 (T86).
 
 ## 2. Domain figures we do not invent
 
@@ -55,6 +55,9 @@ Climate targets per age and every labour-law figure come from a source the owner
 - **WF11.** **Monthly pay per employee** (owner, manager): paid days = present + leave days ⚠️ (MQ2); gross = daily wage × paid days; advances of the month deducted. With labour rules in force on the month's last day: employee and employer contributions, net, and a warning when the daily wage is below the SMAG. Integer centimes, rounded per line to the centime, half up ⚠️ (MQ2).
 - **WF12.** The owner validates a month's pay: the lines are frozen as computed; later attendance edits of that month are refused with `PAY_MONTH_VALIDATED`.
 
+### Trainings and accidents (SCOPE §16)
+- **WF13.** The owner or a manager records, offline on `/staff`, a **training** (employee, day, topic: biosecurity, vaccination technique or other, an optional note) or a **work accident** (employee, day, what happened, days off work if known). Recorded once, never edited. Workers never receive these records, their own included: an accident is health data. No legal step is built in: whether and how an accident is declared, to whom and by when is ⚠️ MQ6.
+
 ## 5. `climate` requirements
 
 - **CL1.** The owner enters a **climate target set** (§2): valid from, source, and age bands. Saving creates a new version; the set in force on a day is the latest with `validFrom` ≤ that day. Bands of one set may not overlap (`TARGET_BANDS_OVERLAP`). Screen reached from the climate page (`L-Sensors` "Régler les seuils d'alarme").
@@ -68,7 +71,7 @@ Climate targets per age and every labour-law figure come from a source the owner
 
 | Action | Roles | For |
 |---|---|---|
-| `workforce.manage` | owner, manager | employees, routines, one-off tasks, reassignment, attendance of others, advances, pay |
+| `workforce.manage` | owner, manager | employees, routines, one-off tasks, reassignment, attendance of others, advances, pay, trainings and accidents |
 | `workforce.record` | owner, manager, worker | ticking tasks, checking in (own employee only for a worker) |
 | `workforce.validatePay` | owner | WF12 |
 | `climate.record` | owner, manager, worker | readings, power cuts |
@@ -95,6 +98,7 @@ All four read IndexedDB, write through the outbox (ADR-003), and are linked from
 | MQ3 | **CNSS declaration file** (Damancom / BDS format) and payslip contents | CNSS export, payslips | Not built |
 | MQ4 | Income tax on wages (barème): computed by the app or by the accountant? | Net pay | Not computed; the accountant |
 | MQ5 | Escalation of unanswered alarms (WhatsApp, call), per `L-Sensors` | Escalation | In-app + push only (OQ2) |
+| MQ6 | **Work accidents**: must the farm declare them (to the insurer, CNSS or the labour inspectorate), by when, on which form? Which source (insurer, accountant)? | Reminders and declaration fields on WF13 | Records only, no deadline or reminder |
 
 Defaults decided without asking are listed with each task in the plan.
 

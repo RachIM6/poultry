@@ -23,3 +23,15 @@ export type EmployeeFields = z.infer<typeof EmployeeFields>;
 export const CreateEmployee = EmployeeFields.extend({ id: z.uuid(), farmId: z.uuid() });
 // Only the fields the user changed: concurrent edits of different fields both survive (ADR-003 §5).
 export const UpdateEmployee = z.object({ id: z.uuid(), changes: EmployeeFields.partial().refine((c) => Object.keys(c).length > 0, "no change") });
+
+// WF5: the manager's routines and one-off tasks.
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(); // "HH:MM" on the farm clock
+const place = { farmId: z.uuid(), houseId: z.uuid().nullable(), employeeId: z.uuid().nullable() };
+
+export const SaveRoutine = z
+  .object({ id: z.uuid(), ...place, title: text(120), time, everyDays: z.int32().min(1).max(365), startOn: z.iso.date().nullable(), fromAge: z.int32().min(0).max(800).nullable(), stopOn: z.iso.date().nullable() })
+  // Every n days from a calendar day, or from an age of the house's open batch: exactly one of the two.
+  .refine((r) => (r.startOn === null) !== (r.fromAge === null) && (r.fromAge === null || r.houseId !== null), "calendar or batch routine");
+
+export const AddTask = z.object({ id: z.uuid(), ...place, day: z.iso.date(), title: text(120), time });
+export const CancelTask = z.object({ id: z.uuid() });

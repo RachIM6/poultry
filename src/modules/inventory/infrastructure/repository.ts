@@ -26,6 +26,14 @@ export const idTaken = async (tx: Tx, table: "supplier" | "stockItem" | "stockMo
   return count > 0;
 };
 
+/** S3: stock on hand from the ledger, as this transaction sees it. */
+export const onHandOf = async (tx: Tx, ctx: TenantContext, stockItemId: string) =>
+  (await tx.stockMovement.aggregate({ where: { stockItemId, organizationId: ctx.organizationId }, _sum: { quantity: true } }))._sum.quantity ?? 0;
+
+export async function updateThreshold(tx: Tx, ctx: TenantContext, stockItemId: string, lowStockThreshold: number | null) {
+  return itemDto(await tx.stockItem.update({ where: { id: stockItemId, organizationId: ctx.organizationId }, data: { lowStockThreshold } }));
+}
+
 export async function insertSupplier(tx: Tx, ctx: TenantContext, s: SupplierDto): Promise<SupplierDto> {
   const row = await tx.supplier.create({ data: { ...s, organizationId: ctx.organizationId } });
   return { id: row.id, name: row.name, phone: row.phone };
@@ -67,6 +75,7 @@ function itemDto(r: {
   unit: string;
   lot: string | null;
   expiresOn: Date | null;
+  lowStockThreshold: number | null;
 }): StockItemDto {
   return {
     id: r.id,
@@ -77,5 +86,6 @@ function itemDto(r: {
     unit: r.unit as Unit,
     lot: r.lot,
     expiresOn: r.expiresOn ? dayOf(r.expiresOn) : null,
+    lowStockThreshold: r.lowStockThreshold,
   };
 }

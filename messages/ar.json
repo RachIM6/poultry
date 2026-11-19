@@ -173,6 +173,10 @@
       "test": {
         "title": "إشعار تجريبي",
         "body": "الإشعارات تصل إلى هذا الهاتف."
+      },
+      "lowStock": {
+        "title": "مخزون منخفض: {item}",
+        "body": "تبقى {quantity} {unit, select, kg {كلغ} dose {جرعات} ml {مل} other {وحدات}} (الحد الأدنى: {threshold})."
       }
     }
   },
@@ -246,7 +250,13 @@
     "owed": "الباقي المستحق: {amount}",
     "save": "حفظ",
     "cancel": "إلغاء",
-    "invalid": "تحقق من الحقول."
+    "invalid": "تحقق من الحقول.",
+    "threshold": "حد التنبيه (اختياري، {unit})",
+    "low": "مخزون منخفض",
+    "alertBelow": "تنبيه تحت {quantity}",
+    "value": "القيمة: {amount}",
+    "editThreshold": "حد التنبيه",
+    "thresholdHint": "فارغ: بدون تنبيه."
   },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "الرمز غير صحيح أو منتهي الصلاحية.",

@@ -4,6 +4,7 @@ import { ITEM_KINDS, UNITS, type ItemKind, type Unit } from "@/modules/inventory
 // SPEC S1–S3, written offline: the phone and the sync push validate with these same schemas (ADR-003).
 // The phone also computes stock and balances with the same domain rules as the server.
 export { ITEM_KINDS, UNITS, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "@/modules/inventory/domain/stock";
+export { valuate } from "@/modules/inventory/domain/valuation";
 export type { ItemKind, Unit } from "@/modules/inventory/domain/stock";
 
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -21,7 +22,9 @@ export const CreateStockItem = z.object({
   unit: z.enum(UNITS),
   lot: optionalText(60),
   expiresOn: day.nullable(),
+  lowStockThreshold: z.int().positive().nullable().default(null), // S6: base units; no alert when unset
 });
+export const SetThreshold = z.object({ stockItemId: z.uuid(), lowStockThreshold: z.int().positive().nullable() });
 // The purchase and its stock movement are created together; both ids come from the device.
 export const RecordPurchase = z.object({
   id: z.uuid(),
@@ -53,6 +56,7 @@ export type StockItemDto = {
   unit: Unit;
   lot: string | null;
   expiresOn: string | null;
+  lowStockThreshold: number | null;
 };
 export type MovementDto = {
   id: string;
@@ -84,4 +88,5 @@ export const INVENTORY_MUTATIONS = {
   createStockItem: "inventory.createStockItem",
   recordPurchase: "inventory.recordPurchase",
   adjustStock: "inventory.adjustStock",
+  setThreshold: "inventory.setThreshold",
 } as const;

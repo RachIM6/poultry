@@ -173,6 +173,10 @@
       "test": {
         "title": "Notification de test",
         "body": "Les notifications arrivent bien sur ce téléphone."
+      },
+      "lowStock": {
+        "title": "Stock bas : {item}",
+        "body": "Il reste {quantity} {unit, select, kg {kg} dose {doses} ml {ml} other {unités}} (seuil : {threshold})."
       }
     }
   },
@@ -246,7 +250,13 @@
     "owed": "Reste dû : {amount}",
     "save": "Enregistrer",
     "cancel": "Annuler",
-    "invalid": "Vérifiez les champs."
+    "invalid": "Vérifiez les champs.",
+    "threshold": "Seuil d’alerte (facultatif, {unit})",
+    "low": "Stock bas",
+    "alertBelow": "Alerte sous {quantity}",
+    "value": "Valeur : {amount}",
+    "editThreshold": "Seuil d’alerte",
+    "thresholdHint": "Vide : pas d’alerte."
   },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",

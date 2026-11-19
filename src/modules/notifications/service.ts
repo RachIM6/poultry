@@ -3,8 +3,8 @@ import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
-import type { TenantContext } from "@/lib/tenant";
-import { localesOf } from "@/modules/identity";
+import type { Role, TenantContext } from "@/lib/tenant";
+import { localesOf, membersWithRoles } from "@/modules/identity";
 import {
   MarkRead,
   NOTIFICATION_MUTATIONS,
@@ -34,12 +34,19 @@ const toDto = (r: Row): NotificationDto => ({
 export async function notify(
   tx: Tx,
   ctx: TenantContext,
-  n: { userIds: string[]; templateKey: TemplateKey; params?: Record<string, string>; urgency: "normal" | "urgent" },
+  n: {
+    userIds?: string[];
+    roles?: Role[]; // everyone in ctx's organisation with one of these roles, e.g. who manages stock
+    templateKey: TemplateKey;
+    params?: Record<string, string>;
+    urgency: "normal" | "urgent";
+  },
   clock: Clock = systemClock,
 ) {
   const urgent = n.urgency === "urgent";
-  const prefs = await tx.notificationPreference.findMany({ where: { userId: { in: n.userIds } } });
-  for (const userId of new Set(n.userIds)) {
+  const recipients = new Set([...(n.userIds ?? []), ...(n.roles ? await membersWithRoles(tx, ctx.organizationId, n.roles) : [])]);
+  const prefs = await tx.notificationPreference.findMany({ where: { userId: { in: [...recipients] } } });
+  for (const userId of recipients) {
     const pref = prefs.find((p) => p.userId === userId);
     const quiet: QuietHours = pref ? { start: pref.quietStart, end: pref.quietEnd } : DEFAULT_QUIET_HOURS;
     const row = await tx.notification.create({

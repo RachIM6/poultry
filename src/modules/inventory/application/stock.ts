@@ -5,6 +5,7 @@ import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { farmBelongsTo } from "@/modules/farm-registry";
+import { alertIfLow } from "@/modules/inventory/application/alerts";
 import { checkAdjustment, checkItem, checkPurchase } from "@/modules/inventory/domain/stock";
 import {
   findItem,
@@ -14,8 +15,9 @@ import {
   insertPurchase,
   insertSupplier,
   supplierExists,
+  updateThreshold,
 } from "@/modules/inventory/infrastructure/repository";
-import type { AdjustStock, CreateStockItem, CreateSupplier, RecordPurchase } from "@/modules/inventory/schema";
+import type { AdjustStock, CreateStockItem, CreateSupplier, RecordPurchase, SetThreshold } from "@/modules/inventory/schema";
 import { isCatalogueProduct } from "@/modules/reference-data";
 
 // Use cases, applied by POST /api/sync/push in one transaction each: load → domain rule → save + change log + audit.
@@ -88,5 +90,17 @@ export async function adjustStock(tx: Tx, ctx: TenantContext, cmd: z.infer<typeo
   });
   await recordChange(tx, ctx, "movement", movement.id, movement);
   await audit(tx, ctx, { entity: "StockMovement", entityId: movement.id, action: "create", after: movement, ...meta });
+  await alertIfLow(tx, ctx, item, movement.quantity);
+  return ok(undefined);
+}
+
+/** S6: the stock level under which owners and managers are alerted; null turns the alert off. */
+export async function setThreshold(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof SetThreshold>, meta: Meta) {
+  const item = await findItem(tx, ctx, cmd.stockItemId);
+  if (!item) return fail("NOT_FOUND");
+  const updated = await updateThreshold(tx, ctx, item.id, cmd.lowStockThreshold);
+  await recordChange(tx, ctx, "stockItem", updated.id, updated);
+  const [before, after] = [{ lowStockThreshold: item.lowStockThreshold }, { lowStockThreshold: updated.lowStockThreshold }];
+  await audit(tx, ctx, { entity: "StockItem", entityId: item.id, action: "update", before, after, ...meta });
   return ok(undefined);
 }

@@ -991,6 +991,11 @@
     "cutEnd": "Courant revenu",
     "generatorStarted": "Le groupe électrogène a démarré",
     "generatorSeconds": "Temps de démarrage du groupe (secondes, facultatif)",
-    "diesel": "Gasoil utilisé (litres, facultatif)"
+    "diesel": "Gasoil utilisé (litres, facultatif)",
+    "history": "Historique",
+    "lastReadings": "Derniers relevés",
+    "lastCuts": "Dernières coupures",
+    "cutMinutes": "{minutes} min",
+    "generatorLine": "groupe en {seconds} s · {litres} L de gasoil"
   }
 }

@@ -991,6 +991,11 @@
     "cutEnd": "عادت الكهرباء",
     "generatorStarted": "اشتغل مولد الكهرباء",
     "generatorSeconds": "مدة تشغيل المولد (ثوان، اختياري)",
-    "diesel": "الغازوال المستعمل (لترات، اختياري)"
+    "diesel": "الغازوال المستعمل (لترات، اختياري)",
+    "history": "السجل",
+    "lastReadings": "آخر القراءات",
+    "lastCuts": "آخر الانقطاعات",
+    "cutMinutes": "{minutes} دقيقة",
+    "generatorLine": "المولد في {seconds} ث · {litres} ل من الغازوال"
   }
 }

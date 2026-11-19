@@ -20,6 +20,8 @@ const ALLOWED = {
   "workforce.record": ["owner", "manager", "worker"], // ticking tasks, checking in (SPEC-m4 WF6, WF9)
   "workforce.validatePay": ["owner"], // freezes a month's pay (SPEC-m4 WF12)
   "labour.manage": ["owner"], // SMAG, contribution rates and cap, from the owner's source (SPEC-m4 §2)
+  "climate.record": ["owner", "manager", "worker"], // readings and power cuts (SPEC-m4 CL2, CL5)
+  "climate.manage": ["owner"], // climate targets from the owner's source (SPEC-m4 CL1)
 } satisfies Record<string, Role[]>;
 
 export type Action = keyof typeof ALLOWED;

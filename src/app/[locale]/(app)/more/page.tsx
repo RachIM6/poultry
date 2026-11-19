@@ -33,6 +33,7 @@ async function Content() {
         { href: "/farms", label: t("Farms.title") },
         { href: "/protocol", label: t("Protocol.open") },
         { href: "/tasks", label: t("Tasks.open") },
+        { href: "/climate/targets", label: t("Climate.targetsOpen") },
         can(ctx.value, "workforce.manage") && { href: "/staff", label: t("Staff.open") },
         { href: "/inbox", label: t("Inbox.open") },
         { href: "/sync", label: t("More.sync") },

@@ -970,3 +970,17 @@ model PayMonth {
   @@unique([farmId, month])
   @@index([organizationId])
 }
+
+// Owner: climate. SPEC-m4 CL1, §2: the farm's climate targets per batch age, typed by the owner from a source they name
+// (MQ1). Dated versions, never edited; none seeded. bands: Band[] (domain/targets.ts), temperatures in tenths of °C.
+model ClimateTargetSet {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  validFrom      DateTime @db.Date
+  source         String
+  bands          Json
+  createdBy      String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}

@@ -138,8 +138,15 @@ Not started until the file format is provided.
 ### T80: Climate targets (CL1)
 **Description:** `ClimateTargetSet` (dated, source, bands JSON) owned by climate, `climate.saveTargets` (owner), `domain/targets.ts` (`targetFor(sets, day, age)`, overlap check). `/climate/targets` shell.
 **AC:**
-- [ ] Unit: latest `validFrom` ≤ day wins; overlapping bands refused; age outside every band → no target.
-- [ ] Manager refused; a set without source refused (integration).
+- [x] Unit: latest `validFrom` ≤ day wins; overlapping bands refused; age outside every band → no target. (`climate/domain/targets.test.ts`, with the verdicts of T81 and the "out of range" rule of T82: they are the same small file.)
+- [x] Manager refused; a set without source refused (integration). (`climate/targets.int.test.ts`; `e2e/climate-targets.spec.ts` offline)
+
+Done 2026-11-17 (branch `feat/t80-climate-targets`), decisions taken without asking:
+- **New light module `climate`** (`shared.ts`, `schema.ts`, `sync.ts`, `domain/targets.ts`); registered in the sync registry.
+- **One target set = a dated version per organisation** with a required source and 1–30 age bands; each band may leave any bound empty (that side is never judged). Temperatures are tenths of °C, humidity whole %, ammonia whole ppm. Input bounds (−10 to 60 °C, 0–100 %, 0–500 ppm) only catch typos.
+- **Per organisation, not per farm, house type or production type:** the broiler case first; per production type once M3 merges ("Later").
+- **Permissions** `climate.manage` (owner: targets) and `climate.record` (everyone: readings, T81). Everyone pulls the targets, so a worker's phone judges a reading offline.
+- **`/climate/targets`** (static shell, "Plus" → "Cibles de climat"): the set in force with its source, or "Aucune cible saisie…"; the owner's form adds bands. No CO₂ (the manual mockup has none; sensors are `iot`).
 **Size:** M
 
 ### T81: Climate readings (CL2, CL3)

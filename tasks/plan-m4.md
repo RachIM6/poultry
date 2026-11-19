@@ -202,7 +202,7 @@ Done 2026-11-17 (branch `feat/t84-climate-history`), decisions taken without ask
 
 ### ✅ Checkpoint M4
 - [ ] The owner gave the sources for MQ1 and MQ2 and entered them; the pilot farm's manager used routines for a week.
-- [ ] SPEC-m4 §9 criteria met.
+- [ ] SPEC-m4 §9 criteria met. (§9.1 is `e2e/m4-journey.spec.ts`: one worker, offline, checks in, ticks a task, two readings, a power cut, synced once and not duplicated by a second sync. §9.2–9.4 are each task's tests.)
 
 ## Later
 

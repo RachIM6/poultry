@@ -55,6 +55,16 @@ describe("default posting rules (SPEC-finance FN6)", () => {
     expect(postingOf({ type: "receipt", id: "p", day, amount: 5n, method: "transfer" })).toMatchObject({ journal: "BQ", lines: [{ account: "5141", debit: 5n }, { account: "3421", credit: 5n }] });
   });
 
+  it("posts an egg sale to 71213, 7121 without the PCA; a per-head sale like a live one (SPEC-m3 V8)", () => {
+    const withEggs = chartOf([...all, acc("cgnc", "7", null), acc("cgnc", "71", "7"), acc("cgnc", "712", "71"), acc("cgnc", "7121", "712"), acc("pca", "71213", "7121", "7121"), acc("pca", "712121", "7121", "7121"), acc("cgnc", "3421", "4")], "cgnc", ["pca"]);
+    const plain = chartOf([...all, acc("cgnc", "7", null), acc("cgnc", "71", "7"), acc("cgnc", "712", "71"), acc("cgnc", "7121", "712"), acc("pca", "71213", "7121", "7121"), acc("cgnc", "3421", "4")], "cgnc", []);
+    const eggs = postingOf({ type: "sale", id: "s", day, amount: 49_500n, paid: 0n, method: "credit", kind: "eggs" })!;
+    expect(eggs).toMatchObject({ label: "Vente d’œufs", lines: [{ account: "3421", debit: 49_500n }, { account: "71213", credit: 49_500n }] });
+    expect(inChart(eggs, withEggs, withEggs)?.lines.map((l) => l.account)).toEqual(["3421", "71213"]);
+    expect(inChart(eggs, withEggs, plain)?.lines.map((l) => l.account)).toEqual(["3421", "7121"]);
+    expect(postingOf({ type: "sale", id: "s", day, amount: 79_000n, paid: 0n, method: "credit", kind: "perHead" })?.lines[1].account).toBe("712121");
+  });
+
   it("follows a received cheque or bill (FN11): cashed D 5141 / C 5111, unpaid D 3424, remitted bill D 5113 / C 3425", () => {
     const step = (kind: "cheque" | "bill", from: string, to: string) => postingOf({ type: "instrument", id: "i", day, amount: 600_000n, kind, from, to })?.lines.map((l) => [l.account, l.debit, l.credit]);
     expect(step("cheque", "in_portfolio", "cashed")).toEqual([["5141", 600_000n, 0n], ["5111", 0n, 600_000n]]);

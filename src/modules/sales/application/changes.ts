@@ -7,7 +7,7 @@ import type { InstrumentStatusDto, PaymentDto, SaleDto } from "@/modules/sales/s
 // For finance (SPEC-finance FN7): sales records changed after `after` (this organisation's change-log version), oldest
 // first, as the facts finance posts. Amounts in centimes.
 
-export type SaleChange = { version: bigint; id: string; day: FarmDay; amountCentimes: bigint; paidCentimes: bigint; method: string };
+export type SaleChange = { version: bigint; id: string; day: FarmDay; amountCentimes: bigint; paidCentimes: bigint; method: string; kind: "live" | "eggs" | "perHead" };
 export type PaymentChange = { version: bigint; id: string; day: FarmDay; amountCentimes: bigint; method: string };
 export type InstrumentStep = { version: bigint; id: string; day: FarmDay; kind: InstrumentKind; from: InstrumentState; to: InstrumentStatusDto["state"]; amountCentimes: bigint };
 
@@ -17,7 +17,7 @@ const changes = async (tx: Tx, ctx: TenantContext, entity: string, after: bigint
 export async function salesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<SaleChange[]> {
   return (await changes(tx, ctx, "sale", after, limit)).map((c) => {
     const s = c.data as unknown as Required<SaleDto>;
-    return { version: c.version, id: s.id, day: s.day as FarmDay, amountCentimes: BigInt(s.amountCentimes), paidCentimes: BigInt(s.paidCentimes), method: s.paymentMethod };
+    return { version: c.version, id: s.id, day: s.day as FarmDay, amountCentimes: BigInt(s.amountCentimes), paidCentimes: BigInt(s.paidCentimes), method: s.paymentMethod, kind: s.kind ?? "live" };
   });
 }
 

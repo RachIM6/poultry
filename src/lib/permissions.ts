@@ -8,6 +8,7 @@ const ALLOWED = {
   "farms.manage": ["owner", "manager"], // create and edit farms and houses; workers see them
   "protocols.manage": ["owner", "manager"], // copy and edit vaccination protocols; workers see them
   "stock.manage": ["owner", "manager"], // suppliers, purchases, corrections; workers see quantities (I5)
+  "flock.manage": ["owner", "manager"], // place batches (B1); workers see them and enter daily data (I5)
   "money.read": ["owner", "manager"], // prices, costs, sale amounts, supplier credit
 } satisfies Record<string, Role[]>;
 

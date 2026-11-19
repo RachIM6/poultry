@@ -241,8 +241,10 @@ Notes: valuation is computed from the ledger on demand (`valuate`), on the serve
 ### T15: Create batch, placement (B1)
 **Description:** Create a broiler batch in a house: strain, placement date, chicks placed, hatchery, delivery note n°, chick unit price, day-old weight, dead on arrival. One open batch per house: checked on the client, enforced on the server as a rejected mutation.
 **AC:**
-- [ ] Creating a batch offline works. Its age counts from the placement farm day.
-- [ ] A second open batch in the same house is rejected with a clear message, including when two devices create one offline at the same time.
+- [x] Creating a batch offline works. Its age counts from the placement farm day. (Placement day = day 0, as in the breeders' tables: `src/modules/flock/domain/batch.test.ts`; `e2e/batches.spec.ts` places offline and reloads.)
+- [x] A second open batch in the same house is rejected with a clear message, including when two devices create one offline at the same time. (Checked on the phone; on the server a per-house lock then a check, with a partial unique index as the last line: `src/modules/flock/batches.int.test.ts`, two simultaneous placements → one applied, one `HOUSE_HAS_OPEN_BATCH`; mutation-checked.)
+
+Notes: owners and managers place batches (`flock.manage`); workers see them without the chick price. The server accepts a placement date up to tomorrow's farm day, for phones whose clock runs ahead. One page (`/[locale]/batches`), not `batches/new`: the form opens in place so the page stays the precached shell.
 
 **Verify:** unit test on age computation. Integration test on the uniqueness conflict. e2e create flow.
 **Dependencies:** T11, T10

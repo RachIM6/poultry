@@ -39,6 +39,7 @@ async function Content() {
       </div>
       <SyncBadge userId={ctx.value.userId} organizationId={ctx.value.organizationId} role={ctx.value.role} />
       <FarmsLink userId={ctx.value.userId} organizationId={ctx.value.organizationId} />
+      <Link href="/batches" className="underline underline-offset-4">{t("Batches.open")}</Link>
       <Link href="/protocol" className="underline underline-offset-4">{t("Protocol.open")}</Link>
       <Link href="/stock" className="underline underline-offset-4">{t("Stock.open")}</Link>
       <Link href="/inbox" className="underline underline-offset-4">{t("Inbox.open")}</Link>

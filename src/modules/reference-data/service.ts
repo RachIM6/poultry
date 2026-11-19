@@ -34,3 +34,6 @@ export async function getReferenceData(): Promise<ReferenceData> {
 
 /** For other modules: is this id a product of the catalogue? Read inside their transaction. */
 export const isCatalogueProduct = async (tx: Tx, id: string) => (await tx.product.count({ where: { id } })) === 1;
+
+/** For other modules: is this a strain of the catalogue (R1)? */
+export const isStrain = async (tx: Tx, id: string) => (await tx.strain.count({ where: { id } })) === 1;

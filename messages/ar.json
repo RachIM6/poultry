@@ -258,6 +258,33 @@
     "editThreshold": "حد التنبيه",
     "thresholdHint": "فارغ: بدون تنبيه."
   },
+  "Batches": {
+    "title": "الدفعات",
+    "open": "الدفعات",
+    "none": "لا توجد أي دفعة بعد.",
+    "noHouse": "أضف أولا ضيعة ومبنى.",
+    "place": "وضع دفعة جديدة",
+    "house": "المبنى",
+    "houseBusy": "{house} (فيه دفعة جارية)",
+    "strain": "السلالة",
+    "placedOn": "تاريخ الوضع",
+    "chicksPlaced": "عدد الكتاكيت الموضوعة",
+    "deadOnArrival": "النافق عند الوصول",
+    "hatchery": "المفقس",
+    "deliveryNote": "رقم وصل التسليم",
+    "chickPrice": "ثمن الكتكوت (درهم)",
+    "dayOldWeight": "متوسط الوزن في اليوم الأول (غ، اختياري)",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "invalid": "تحقق من الحقول.",
+    "age": "اليوم {age}",
+    "summary": "{farm} · {house} · {strain}",
+    "chicks": "{chicks} كتكوتا موضوعا، {doa} نافقا عند الوصول",
+    "status": {
+      "open": "جارية",
+      "closed": "مغلقة"
+    }
+  },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "الرمز غير صحيح أو منتهي الصلاحية.",
     "TOO_MANY_REQUESTS": "محاولات كثيرة. أعد المحاولة لاحقًا.",
@@ -277,6 +304,9 @@
     "PAID_MORE_THAN_AMOUNT": "المبلغ المدفوع يتجاوز مبلغ الشراء.",
     "DUE_DATE_WITHOUT_CREDIT": "الأجل لا يفيد إلا إذا بقي مبلغ للأداء.",
     "INVALID_QUANTITY": "كمية غير صالحة.",
-    "REASON_REQUIRED": "اذكر سبب التصحيح."
+    "REASON_REQUIRED": "اذكر سبب التصحيح.",
+    "HOUSE_HAS_OPEN_BATCH": "هذا المبنى فيه دفعة جارية. أغلقها قبل وضع دفعة جديدة.",
+    "DEAD_ON_ARRIVAL_TOO_HIGH": "يجب أن يكون النافق عند الوصول أقل من عدد الكتاكيت الموضوعة.",
+    "PLACEMENT_IN_FUTURE": "لا يمكن أن يكون تاريخ الوضع في المستقبل."
   }
 }

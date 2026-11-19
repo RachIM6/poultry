@@ -258,6 +258,33 @@
     "editThreshold": "Seuil d’alerte",
     "thresholdHint": "Vide : pas d’alerte."
   },
+  "Batches": {
+    "title": "Bandes",
+    "open": "Bandes",
+    "none": "Aucune bande pour l’instant.",
+    "noHouse": "Ajoutez d’abord une ferme et un bâtiment.",
+    "place": "Mettre en place une bande",
+    "house": "Bâtiment",
+    "houseBusy": "{house} (bande en cours)",
+    "strain": "Souche",
+    "placedOn": "Date de mise en place",
+    "chicksPlaced": "Poussins placés",
+    "deadOnArrival": "Morts à l’arrivée",
+    "hatchery": "Couvoir",
+    "deliveryNote": "N° de bon de livraison",
+    "chickPrice": "Prix d’un poussin (DH)",
+    "dayOldWeight": "Poids moyen à 1 jour (g, facultatif)",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "invalid": "Vérifiez les champs.",
+    "age": "Jour {age}",
+    "summary": "{farm} · {house} · {strain}",
+    "chicks": "{chicks} poussins placés, {doa} morts à l’arrivée",
+    "status": {
+      "open": "En cours",
+      "closed": "Clôturée"
+    }
+  },
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
@@ -277,6 +304,9 @@
     "PAID_MORE_THAN_AMOUNT": "Le montant payé dépasse le montant de l’achat.",
     "DUE_DATE_WITHOUT_CREDIT": "Une échéance ne sert que s’il reste un montant à payer.",
     "INVALID_QUANTITY": "Quantité invalide.",
-    "REASON_REQUIRED": "Indiquez le motif de la correction."
+    "REASON_REQUIRED": "Indiquez le motif de la correction.",
+    "HOUSE_HAS_OPEN_BATCH": "Ce bâtiment a déjà une bande en cours. Clôturez-la avant d’en placer une nouvelle.",
+    "DEAD_ON_ARRIVAL_TOO_HIGH": "Les morts à l’arrivée doivent être moins nombreux que les poussins placés.",
+    "PLACEMENT_IN_FUTURE": "La date de mise en place ne peut pas être dans le futur."
   }
 }

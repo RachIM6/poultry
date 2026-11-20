@@ -15,6 +15,8 @@ test("prices noted offline show the latest with its change, survive a reload and
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   const form = page.getByRole("form", { name: "Noter un prix" });
+  const history = page.getByRole("list", { name: "Historique" }).getByRole("listitem");
+  let noted = 0;
   for (const [price, daysAgo, seenOn] of [["13,50", 2, "Souk du lundi"], ["14", 0, "Offre du chevillard"]] as const) {
     await form.getByLabel("Produit").selectOption({ label: "Poulet vif (par kg)" });
     await form.getByLabel("Prix (DH)").fill(price);
@@ -22,6 +24,7 @@ test("prices noted offline show the latest with its change, survive a reload and
     await form.getByLabel("Où ou sur quoi (facultatif)").fill(seenOn);
     await form.getByRole("button", { name: "Enregistrer le prix" }).click();
     await expect(page.getByRole("status")).toHaveText(/^Enregistré sur ce téléphone/);
+    await expect(history).toHaveCount(++noted); // the status reads the same after each save: wait for the price itself
   }
   const latest = page.getByRole("list", { name: "Derniers prix" }).getByRole("listitem");
   await expect(latest).toHaveCount(1);
@@ -29,7 +32,7 @@ test("prices noted offline show the latest with its change, survive a reload and
   await expect(latest).toContainText(/14,00\sDH \/ kg/);
   await expect(latest).toContainText(/\+0,50\sDH depuis le précédent/);
   await expect(latest).toContainText("Offre du chevillard");
-  await expect(page.getByRole("list", { name: "Historique" }).getByRole("listitem")).toHaveCount(2);
+  await expect(history).toHaveCount(2);
 
   const reload = await page.reload(); // still offline: kept on the phone
   expect(reload?.fromServiceWorker()).toBe(true);

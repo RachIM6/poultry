@@ -37,19 +37,21 @@ export function purchaseAmount(quantity: number, unit: Unit, unitPriceCentimes: 
   return (BigInt(quantity) * unitPriceCentimes * 2n + base) / (2n * base);
 }
 
-type PurchaseError = "INVALID_QUANTITY" | "PAID_MORE_THAN_AMOUNT" | "DUE_DATE_WITHOUT_CREDIT";
+type PurchaseError = "INVALID_QUANTITY" | "PAID_MORE_THAN_AMOUNT" | "DUE_DATE_WITHOUT_CREDIT" | "VAT_MORE_THAN_AMOUNT";
 
-/** S2: what is not paid now becomes supplier credit; a due date only makes sense for credit. */
+/** S2: what is not paid now becomes supplier credit; a due date only makes sense for credit. FN9: VAT is part of the total. */
 export function checkPurchase(p: {
   quantity: number;
   unit: Unit;
   unitPriceCentimes: bigint;
   paidCentimes: bigint;
   dueOn: string | null;
+  vatCentimes?: bigint;
 }): Result<{ amountCentimes: bigint; creditCentimes: bigint }, PurchaseError> {
   if (!Number.isSafeInteger(p.quantity) || p.quantity <= 0) return fail("INVALID_QUANTITY");
   const amountCentimes = purchaseAmount(p.quantity, p.unit, p.unitPriceCentimes);
   if (p.paidCentimes > amountCentimes) return fail("PAID_MORE_THAN_AMOUNT");
+  if ((p.vatCentimes ?? 0n) > amountCentimes) return fail("VAT_MORE_THAN_AMOUNT");
   const creditCentimes = amountCentimes - p.paidCentimes;
   if (p.dueOn && creditCentimes === 0n) return fail("DUE_DATE_WITHOUT_CREDIT");
   return ok({ amountCentimes, creditCentimes });

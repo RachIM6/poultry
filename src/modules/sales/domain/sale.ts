@@ -21,7 +21,10 @@ export function weighingGap(farmWeightGrams: number, buyerWeightGrams: number | 
 /** A cheque or a bill of exchange is a number and a due date (V2). */
 const needsInstrument = (m: PaymentMethod) => m === "cheque" || m === "bill";
 
-export type SaleError = "WITHDRAWAL_IN_PROGRESS" | "INVALID_QUANTITY" | "PAID_MORE_THAN_AMOUNT" | "INSTRUMENT_REQUIRED" | "INVALID_INPUT";
+export type SaleError = "WITHDRAWAL_IN_PROGRESS" | "INVALID_QUANTITY" | "PAID_MORE_THAN_AMOUNT" | "INSTRUMENT_REQUIRED" | "INVALID_INPUT" | "VAT_MORE_THAN_AMOUNT";
+
+/** SPEC-finance FN9: the invoice's VAT is part of its total. */
+const vatOver = (s: { vatCentimes?: bigint }, amountCentimes: bigint) => (s.vatCentimes ?? 0n) > amountCentimes;
 
 /**
  * V2, V3: may this sale be recorded? `withdrawalUntil` is the batch's withdrawal on the sale day (health's rule), null
@@ -35,6 +38,7 @@ export function checkSale(
     pricePerKgCentimes: bigint;
     paymentMethod: PaymentMethod;
     paidCentimes: bigint;
+    vatCentimes?: bigint;
     instrument: { number: string; dueOn: string } | null;
   },
   withdrawalUntil: FarmDay | null,
@@ -44,6 +48,7 @@ export function checkSale(
   if (weights.some((n) => !Number.isSafeInteger(n) || n <= 0) || s.pricePerKgCentimes <= 0n || s.paidCentimes < 0n) return fail("INVALID_QUANTITY");
   const amountCentimes = saleAmount(s.farmWeightGrams, s.pricePerKgCentimes);
   if (s.paidCentimes > amountCentimes) return fail("PAID_MORE_THAN_AMOUNT");
+  if (vatOver(s, amountCentimes)) return fail("VAT_MORE_THAN_AMOUNT");
   if (needsInstrument(s.paymentMethod) && !s.instrument) return fail("INSTRUMENT_REQUIRED");
   if (!needsInstrument(s.paymentMethod) && s.instrument) return fail("INVALID_INPUT");
   return ok({ amountCentimes });
@@ -61,6 +66,7 @@ export function checkEggSale(s: {
   lines: readonly EggLine[];
   paymentMethod: PaymentMethod;
   paidCentimes: bigint;
+  vatCentimes?: bigint;
   instrument: { number: string; dueOn: string } | null;
 }): Result<{ amountCentimes: bigint }, SaleError> {
   if (s.lines.length === 0 || s.paidCentimes < 0n) return fail("INVALID_QUANTITY");
@@ -69,6 +75,7 @@ export function checkEggSale(s: {
   }
   const amountCentimes = s.lines.reduce((a, l) => a + eggLineAmount(l), 0n);
   if (s.paidCentimes > amountCentimes) return fail("PAID_MORE_THAN_AMOUNT");
+  if (vatOver(s, amountCentimes)) return fail("VAT_MORE_THAN_AMOUNT");
   if (needsInstrument(s.paymentMethod) && !s.instrument) return fail("INSTRUMENT_REQUIRED");
   if (!needsInstrument(s.paymentMethod) && s.instrument) return fail("INVALID_INPUT");
   return ok({ amountCentimes });
@@ -88,6 +95,7 @@ export function checkHeadSale(
     farmWeightGrams: number | null;
     paymentMethod: PaymentMethod;
     paidCentimes: bigint;
+    vatCentimes?: bigint;
     instrument: { number: string; dueOn: string } | null;
   },
   withdrawalUntil: FarmDay | null,
@@ -97,6 +105,7 @@ export function checkHeadSale(
   if (s.lines.some((l) => !Number.isSafeInteger(l.birds) || l.birds <= 0 || l.pricePerHeadCentimes <= 0n)) return fail("INVALID_QUANTITY");
   const amountCentimes = s.lines.reduce((a, l) => a + BigInt(l.birds) * l.pricePerHeadCentimes, 0n);
   if (s.paidCentimes > amountCentimes) return fail("PAID_MORE_THAN_AMOUNT");
+  if (vatOver(s, amountCentimes)) return fail("VAT_MORE_THAN_AMOUNT");
   if (needsInstrument(s.paymentMethod) && !s.instrument) return fail("INSTRUMENT_REQUIRED");
   if (!needsInstrument(s.paymentMethod) && s.instrument) return fail("INVALID_INPUT");
   return ok({ amountCentimes, birds: s.lines.reduce((n, l) => n + l.birds, 0) });

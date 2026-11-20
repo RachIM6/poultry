@@ -42,6 +42,7 @@ export type SaleDto = {
   amountCentimes?: string;
   paymentMethod?: PaymentMethod;
   paidCentimes?: string;
+  vatCentimes?: string; // SPEC-finance FN9: part of amountCentimes; absent from a sale recorded before T39
   instrument?: { number: string; dueOn: string } | null; // cheque or bill of exchange
   creditApproval?: "pending" | "approved" | null; // FN12: beyond the buyer's credit limit, waits for the owner
   kind?: "live" | "eggs" | "perHead"; // SPEC-m3 V6, V7; absent = live
@@ -50,7 +51,7 @@ export type SaleDto = {
 /** SPEC-m3 V6, V7: a line of an egg sale, or of a per-head sale (then `eggs` counts birds and `eggsPerTray` is 1).
  * Money in centimes, as strings. */
 export type SaleLineDto = { item: string; eggs: number; eggsPerTray: number; unitPriceCentimes: string; amountCentimes: string };
-export const SALE_MONEY = ["pricePerKgCentimes", "amountCentimes", "paymentMethod", "paidCentimes", "instrument", "creditApproval", "lines"] as const;
+export const SALE_MONEY = ["pricePerKgCentimes", "amountCentimes", "paymentMethod", "paidCentimes", "vatCentimes", "instrument", "creditApproval", "lines"] as const;
 
 /** V4: a later payment. All money: owners and managers only (I5). */
 export type PaymentDto = { id: string; buyerId: string; day: string; amountCentimes: string; method: (typeof LATER_PAYMENT_METHODS)[number] };

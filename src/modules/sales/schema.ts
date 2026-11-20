@@ -28,6 +28,7 @@ export const RecordSale = z.object({
   pricePerKgCentimes: centimes,
   paymentMethod: z.enum(PAYMENT_METHODS),
   paidCentimes: centimes,
+  vatCentimes: centimes.default("0"), // SPEC-finance FN9: the invoice's VAT, part of the total
   instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(), // cheque or bill of exchange
 });
 
@@ -50,6 +51,7 @@ export const RecordEggSale = z.object({
     .max(20),
   paymentMethod: z.enum(PAYMENT_METHODS),
   paidCentimes: centimes,
+  vatCentimes: centimes.default("0"),
   instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(),
 });
 
@@ -63,6 +65,7 @@ export const RecordHeadSale = z.object({
   farmWeightGrams: z.int32().positive().nullable(),
   paymentMethod: z.enum(PAYMENT_METHODS),
   paidCentimes: centimes,
+  vatCentimes: centimes.default("0"),
   instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(),
 });
 

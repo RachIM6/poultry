@@ -152,7 +152,9 @@ function SaleForm({
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const day = (get("day") || today()) as FarmDay;
     const paid = parseCentimes(get("paid"));
-    if (perHead) return submitPerHead(day, paid, get);
+    const vat = parseCentimes(get("vat") || "0"); // SPEC-finance FN9: part of the total
+    if (vat === null) return setError("errors.INVALID_INPUT");
+    if (perHead) return submitPerHead(day, paid, vat, get);
     const birds = /^\d+$/.test(get("birds")) ? Number(get("birds")) : NaN;
     const newBuyer = buyerId === "new" ? { id: uuidv7(), name: get("buyerName"), phone: get("buyerPhone") || null, type: get("buyerType") as BuyerDto["type"] } : null;
     if (farmGrams === null || pricePerKg === null || paid === null || (buyerKg && buyerGrams === null) || (newBuyer && !newBuyer.name)) return setError("errors.INVALID_INPUT");
@@ -160,7 +162,7 @@ function SaleForm({
 
     // As the server: the withdrawal on the sale day (health's rule), the sale itself, then the birds on hand (flock).
     const checked = checkSale(
-      { birds, farmWeightGrams: farmGrams, buyerWeightGrams: buyerGrams, pricePerKgCentimes: pricePerKg, paymentMethod: method, paidCentimes: paid, instrument },
+      { birds, farmWeightGrams: farmGrams, buyerWeightGrams: buyerGrams, pricePerKgCentimes: pricePerKg, paymentMethod: method, paidCentimes: paid, vatCentimes: vat, instrument },
       withdrawalUntil(treatments.map((x) => ({ startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay, withdrawalDays: x.withdrawalDays })), day),
     );
     if (!checked.ok) return setError(`errors.${checked.error}`);
@@ -181,6 +183,7 @@ function SaleForm({
       pricePerKgCentimes: String(pricePerKg),
       paymentMethod: method,
       paidCentimes: String(paid),
+      vatCentimes: String(vat),
       instrument,
     };
     const sale: SaleDto = { ...payload, amountCentimes: String(checked.value.amountCentimes) };
@@ -194,13 +197,13 @@ function SaleForm({
   };
 
   // SPEC-m3 V7: the same checks as the server: withdrawal, lines, birds on hand.
-  const submitPerHead = async (day: FarmDay, paid: bigint | null, get: (k: string) => string) => {
+  const submitPerHead = async (day: FarmDay, paid: bigint | null, vat: bigint, get: (k: string) => string) => {
     const weighed = farmKg ? farmGrams : null;
     const newBuyer = buyerId === "new" ? { id: uuidv7(), name: get("buyerName"), phone: get("buyerPhone") || null, type: get("buyerType") as BuyerDto["type"] } : null;
     if (paid === null || (farmKg && weighed === null) || (newBuyer && !newBuyer.name)) return setError("errors.INVALID_INPUT");
     const instrument = withInstrument && get("instrumentNumber") && get("instrumentDueOn") ? { number: get("instrumentNumber"), dueOn: get("instrumentDueOn") } : null;
     const checked = checkHeadSale(
-      { lines: headLines, farmWeightGrams: weighed, paymentMethod: method, paidCentimes: paid, instrument },
+      { lines: headLines, farmWeightGrams: weighed, paymentMethod: method, paidCentimes: paid, vatCentimes: vat, instrument },
       withdrawalUntil(treatments.map((x) => ({ startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay, withdrawalDays: x.withdrawalDays })), day),
     );
     if (!checked.ok) return setError(`errors.${checked.error}`);
@@ -212,7 +215,7 @@ function SaleForm({
 
     if (newBuyer && !(await write({ type: S.createBuyer, payload: newBuyer }, [{ entity: "buyer", id: newBuyer.id, data: newBuyer }]))) return;
     const lines = headLines.map((l) => ({ item: l.item, birds: l.birds, pricePerHeadCentimes: String(l.pricePerHeadCentimes) }));
-    const payload = { id: uuidv7(), batchId: batch.id, buyerId: newBuyer?.id ?? buyerId, day, lines, farmWeightGrams: weighed, paymentMethod: method, paidCentimes: String(paid), instrument };
+    const payload = { id: uuidv7(), batchId: batch.id, buyerId: newBuyer?.id ?? buyerId, day, lines, farmWeightGrams: weighed, paymentMethod: method, paidCentimes: String(paid), vatCentimes: String(vat), instrument };
     const sale: SaleDto = {
       ...payload,
       birds,
@@ -297,6 +300,7 @@ function SaleForm({
         )}
       </Field>
       <Input label={t("Sale.paid")} name="paid" inputMode="decimal" required dir="ltr" />
+      <Input label={t("Sale.vat")} name="vat" inputMode="decimal" dir="ltr" />
       {withInstrument && (
         <>
           <Input label={t("Sale.instrumentNumber")} name="instrumentNumber" required maxLength={40} dir="ltr" />

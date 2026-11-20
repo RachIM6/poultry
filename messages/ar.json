@@ -305,7 +305,8 @@
     "editThreshold": "حد التنبيه",
     "thresholdHint": "فارغ: بدون تنبيه.",
     "total": "قيمة المخزون: {amount} (متوسط التكلفة المرجح)",
-    "enough": "كافٍ"
+    "enough": "كافٍ",
+    "vat": "منها الضريبة على القيمة المضافة (درهم، اختياري)"
   },
   "Batches": {
     "title": "الدفعات",
@@ -458,7 +459,8 @@
     "FILE_TOO_LARGE": "الملف كبير جداً: 5 ميغابايت كحد أقصى.",
     "FILE_TYPE_NOT_ALLOWED": "نوع الملف مرفوض: PDF أو JPEG أو PNG أو WebP فقط.",
     "PROOF_ALREADY_ATTACHED": "لهذه المراقبة صورتها من قبل.",
-    "FILE_ALREADY_ATTACHED": "لهذه الوثيقة ملفها من قبل."
+    "FILE_ALREADY_ATTACHED": "لهذه الوثيقة ملفها من قبل.",
+    "VAT_MORE_THAN_AMOUNT": "مبلغ الضريبة على القيمة المضافة يتجاوز المبلغ الإجمالي."
   },
   "Weighing": {
     "title": "الوزن",
@@ -601,7 +603,8 @@
     "pricePerHead": "الثمن للرأس · {what} (درهم)",
     "farmKgOptional": "الوزن في الضيعة (كغ، اختياري)",
     "headCount": "{birds} طائر",
-    "headLine": "{date} · {buyer} · {birds} طائر بالرأس"
+    "headLine": "{date} · {buyer} · {birds} طائر بالرأس",
+    "vat": "منها الضريبة على القيمة المضافة (درهم، اختياري)"
   },
   "Receivables": {
     "title": "الديون",

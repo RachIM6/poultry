@@ -347,8 +347,9 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
     e.preventDefault();
     const get = read(e.currentTarget);
     const paid = parseCentimes(get("paid") || "0");
+    const vat = parseCentimes(get("vat") || "0"); // SPEC-finance FN9: part of the total
     const newName = get("newSupplier");
-    if (parsed.quantity === null || parsed.price === null || paid === null || amount === null || paid > amount || (supplierId === "new" && !newName)) {
+    if (parsed.quantity === null || parsed.price === null || paid === null || vat === null || amount === null || paid > amount || vat > amount || (supplierId === "new" && !newName)) {
       return setInvalid(true);
     }
     setInvalid(false);
@@ -366,6 +367,7 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
       quantity: parsed.quantity,
       unitPriceCentimes: String(parsed.price),
       paidCentimes: String(paid),
+      vatCentimes: String(vat),
       dueOn: get("dueOn") || null,
     };
     const movementId = uuidv7();
@@ -392,6 +394,7 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
       <Field name="price" label={t("Stock.unitPrice", { unit: unitName })} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" required dir="ltr" />
       {amount !== null && <p>{t("Stock.amount", { amount: formatMoney(amount) })}</p>}
       <Field name="paid" label={t("Stock.paid")} defaultValue="0" inputMode="decimal" dir="ltr" />
+      <Field name="vat" label={t("Stock.vat")} inputMode="decimal" dir="ltr" />
       <Field name="dueOn" label={t("Stock.dueOn")} type="date" />
       {invalid && <p role="alert">{t("Stock.invalid")}</p>}
       <Buttons onCancel={onCancel} />

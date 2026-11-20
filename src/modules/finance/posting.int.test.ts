@@ -8,7 +8,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { changeAccountingChoices, postPending } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
-import { twoTenants } from "@/test/tenant";
+import { tenant, twoTenants } from "@/test/tenant";
 
 const m = (type: string, payload: unknown) => ({ id: uuidv7(), type, payload, createdAt: "2026-03-01T08:00:00+01:00" });
 const linesOf = async (where: object) =>
@@ -102,5 +102,37 @@ describe("posting pipeline (SPEC-finance FN6–FN7, T30)", () => {
     expect(await postPending(b)).toBe(1);
     expect(await linesOf({ sourceId: id })).toEqual([["4411", 0n, 450_000n], ["6121", 450_000n, 0n]]);
     expect(await db.journalEntry.count({ where: { organizationId: b.organizationId, sourceId: ids.purchase } })).toBe(0); // only its own
+  });
+
+  it("books the invoices' VAT apart for a VAT-registered entity (FN9, T39)", async () => {
+    const c = await tenant("+212600000003", "Ferme TVA");
+    const [entity] = await listLegalEntities(c);
+    expect(entity.vatRegistered).toBe(false); // the default until FQ4 is answered
+    expect(await changeAccountingChoices(c, entity.id, { books: null, pcaOverlay: null, fiscalYearStartMonth: 1, vatRegistered: true })).toMatchObject({ ok: true });
+    const [farm, house, supplier, feed, batch, buyer, purchaseId, saleId] = Array.from({ length: 8 }, () => uuidv7());
+    const pushed = await push(
+      c,
+      [
+        m("farm-registry.createFarm", { id: farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
+        m("farm-registry.createHouse", { id: house, farmId: farm, name: "B1", areaM2: 1000, capacity: 10000, type: "closed" }),
+        m("inventory.createSupplier", { id: supplier, name: "Alf", phone: null }),
+        m("inventory.createStockItem", { id: feed, farmId: farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null }),
+        // 1 200,00 DH, 200,00 of it VAT
+        m("inventory.recordPurchase", { id: purchaseId, movementId: uuidv7(), supplierId: supplier, stockItemId: feed, day: "2026-03-02", quantity: 1_000_000, unitPriceCentimes: "120", paidCentimes: "0", vatCentimes: "20000", dueOn: null }),
+        m("flock.placeBatch", { id: batch, houseId: house, strainId: "ross-308", placedOn: "2026-03-01", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null }),
+        m("sales.createBuyer", { id: buyer, name: "Hamid", phone: null, type: "trader" }),
+        // 200 kg × 15,00 = 3 000,00 DH, 500,00 of it VAT
+        m("sales.recordSale", { id: saleId, batchId: batch, buyerId: buyer, day: "2026-03-20", birds: 100, farmWeightGrams: 200_000, buyerWeightGrams: null, pricePerKgCentimes: "1500", paymentMethod: "credit", paidCentimes: "0", vatCentimes: "50000", instrument: null }),
+        // VAT above the total is refused
+        m("sales.recordSale", { id: uuidv7(), batchId: batch, buyerId: buyer, day: "2026-03-20", birds: 1, farmWeightGrams: 2_000, buyerWeightGrams: null, pricePerKgCentimes: "1500", paymentMethod: "cash", paidCentimes: "0", vatCentimes: "3001", instrument: null }),
+      ],
+      registry,
+    );
+    expect(pushed.results.map((r) => r.status)).toEqual([...Array(8).fill("applied"), "rejected"]);
+    expect(pushed.results.at(-1)).toMatchObject({ messageKey: "errors.VAT_MORE_THAN_AMOUNT" });
+
+    await postPending(c);
+    expect(await linesOf({ sourceId: purchaseId })).toEqual([["3455", 20_000n, 0n], ["4411", 0n, 120_000n], ["612122", 100_000n, 0n]]);
+    expect(await linesOf({ sourceId: saleId })).toEqual([["3421", 300_000n, 0n], ["4455", 0n, 50_000n], ["712121", 0n, 250_000n]]);
   });
 });

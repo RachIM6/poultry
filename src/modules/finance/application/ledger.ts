@@ -116,13 +116,13 @@ export async function openFiscalYear(ctx: TenantContext, legalEntityId: string, 
 }
 
 /**
- * FN1 (from T27): the owner changes the books, the PCA overlay or the fiscal-year start only while the current fiscal
- * year has no entry (CGNC "permanence des méthodes"). Saved and audited by farm-registry.
+ * FN1 (from T27): the owner changes the books, the PCA overlay, the fiscal-year start or VAT registration (FN9) only
+ * while the current fiscal year has no entry (CGNC "permanence des méthodes"). Saved and audited by farm-registry.
  */
 export async function changeAccountingChoices(
   ctx: TenantContext,
   legalEntityId: string,
-  choices: AccountingChoices & { fiscalYearStartMonth: number },
+  choices: AccountingChoices & { fiscalYearStartMonth: number; vatRegistered?: boolean },
   clock: Clock = systemClock,
 ): Promise<Result<void, "FORBIDDEN" | "NOT_FOUND" | "INVALID_INPUT" | "FISCAL_YEAR_HAS_ENTRIES">> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");

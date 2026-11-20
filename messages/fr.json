@@ -201,6 +201,10 @@
         "title": "Échéance aujourd’hui : {method, select, cheque {chèque} other {traite}} n° {number}",
         "body": "{buyer} : {amount} à encaisser aujourd’hui."
       },
+      "issuedDue": {
+        "title": "Échéance aujourd’hui : {method, select, cheque {chèque émis} other {effet accepté}} n° {number}",
+        "body": "{supplier} : {amount} sera débité de la banque."
+      },
       "creditApproval": {
         "title": "Crédit à approuver : {buyer}",
         "body": "Une vente à crédit de {amount} dépasse le plafond de {limit}."

@@ -7,7 +7,8 @@ import { recordChange, push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { changeAccountingChoices, postPending } from "@/modules/finance";
-import { issuedBillsDue } from "@/modules/inventory";
+import { issuedBillsDue, sendIssuedReminders } from "@/modules/inventory";
+import { fixedClock } from "@/lib/kernel/clock";
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant, twoTenants } from "@/test/tenant";
 
@@ -213,5 +214,32 @@ describe("posting pipeline (SPEC-finance FN6–FN7, T30)", () => {
     expect(await linesOf({ sourceModule: "inventory", sourceId: billDebitId })).toEqual([["4415", 600_000n, 0n], ["5141", 0n, 600_000n]]);
     expect((await db.journalEntry.findFirstOrThrow({ where: { sourceId: billDebitId } })).journal).toBe("BQ");
     expect(await db.journalEntry.count({ where: { organizationId: d.organizationId, label: "Effet payé à l’échéance" } })).toBe(1); // none for the cheque
+  });
+
+  it("announces an issued cheque or bill once on its agreed day, unless the bank already debited it (FN11)", async () => {
+    const d = await tenant("+212600000006", "Ferme Échéances");
+    const [farm, supplier, feed, bill, cheque] = Array.from({ length: 5 }, () => uuidv7());
+    const pay = (id: string, amountCentimes: string, method: string, number: string) =>
+      m("inventory.recordSupplierPayment", { id, supplierId: supplier, day: "2026-03-10", amountCentimes, method, instrument: { number, dueOn: "2026-12-01" } });
+    const pushed = await push(
+      d,
+      [
+        m("farm-registry.createFarm", { id: farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
+        m("inventory.createSupplier", { id: supplier, name: "Alf Sahel", phone: null }),
+        m("inventory.createStockItem", { id: feed, farmId: farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null }),
+        m("inventory.recordPurchase", { id: uuidv7(), movementId: uuidv7(), supplierId: supplier, stockItemId: feed, day: "2026-03-02", quantity: 2_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null }),
+        pay(bill, "200000", "bill", "LC-1"),
+        pay(cheque, "100000", "cheque", "C-2"),
+        m("inventory.debitIssued", { id: uuidv7(), instrumentId: cheque, day: "2026-03-12" }), // already debited: no reminder
+      ],
+      registry,
+    );
+    expect(pushed.results.map((r) => r.status)).toEqual(Array(7).fill("applied"));
+    expect(await sendIssuedReminders(fixedClock("2026-11-30T12:00:00Z"))).toBe(0); // the day before
+    expect(await sendIssuedReminders(fixedClock("2026-12-01T01:00:00Z"))).toBe(1);
+    expect(await sendIssuedReminders(fixedClock("2026-12-01T09:00:00Z"))).toBe(0); // once
+    const [n] = await db.notification.findMany({ where: { organizationId: d.organizationId, templateKey: "issuedDue" } });
+    expect(n).toMatchObject({ userId: d.userId, params: { method: "bill", number: "LC-1", supplier: "Alf Sahel" } });
+    expect((n.params as { amount: string }).amount).toMatch(/^2.000,00\sDH$/);
   });
 });

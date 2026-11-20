@@ -201,6 +201,10 @@
         "title": "استحقاق اليوم: {method, select, cheque {شيك} other {كمبيالة}} رقم {number}",
         "body": "{buyer}: {amount} للاستخلاص اليوم."
       },
+      "issuedDue": {
+        "title": "استحقاق اليوم: {method, select, cheque {شيك صادر} other {كمبيالة مقبولة}} رقم {number}",
+        "body": "{supplier}: {amount} سيُخصم من البنك."
+      },
       "creditApproval": {
         "title": "بيع بالأجل ينتظر موافقتك: {buyer}",
         "body": "بيع بالأجل بمبلغ {amount} يتجاوز السقف المحدد في {limit}."

@@ -21,7 +21,7 @@ test("an employee added offline survives a reload and syncs once", async ({ page
   await page.getByLabel("Nom", { exact: true }).fill("Said A.");
   await page.getByLabel("Salaire par jour (DH)").fill("138,46");
   await page.getByLabel("Logé sur la ferme").check();
-  await page.getByLabel("Bâtiment 1").check();
+  await page.getByRole("checkbox", { name: "Bâtiment 1" }).check(); // the dashboard's hidden "Bâtiment 1" section stays in the DOM
   await page.getByRole("button", { name: "Enregistrer" }).click();
   const list = page.getByRole("list", { name: "Ouvriers" }).getByRole("listitem");
   await expect(list).toHaveCount(1);

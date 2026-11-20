@@ -12,10 +12,17 @@ export async function query<T>(sql: string, params: unknown[]): Promise<T[]> {
   }
 }
 
-// Better Auth stores the pending code as "<code>:<attempts>".
-export const codeFor = async (e164: string) =>
-  (await query<{ value: string }>(`SELECT value FROM "Verification" WHERE identifier = $1 ORDER BY "createdAt" DESC LIMIT 1`, [`phone-number-otp-${e164}`]))[0]
-    .value.split(":")[0];
+// Better Auth stores the pending code as "<code>:<attempts>". Polled: under load the row lands after the form's status shows.
+export async function codeFor(e164: string) {
+  let value = "";
+  await expect
+    .poll(async () => {
+      const rows = await query<{ value: string }>(`SELECT value FROM "Verification" WHERE identifier = $1 ORDER BY "createdAt" DESC LIMIT 1`, [`phone-number-otp-${e164}`]);
+      return (value = rows[0]?.value ?? "");
+    })
+    .not.toBe("");
+  return value.split(":")[0];
+}
 
 // A fresh number per run: rate limits persist in the database between runs.
 export const randomMobile = () => `06${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;

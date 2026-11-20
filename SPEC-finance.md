@@ -1,6 +1,6 @@
 # Spec: `finance` module
 
-_v0.1, 3 Nov 2026. Status: **draft**, to be reviewed by a Moroccan expert-comptable (§9). Architecture: [ADR-010](docs/decisions/ADR-010-accounting-model.md). Screens: canvas "Dawra — maquettes", page 5 · Finance et comptabilité. Background for engineers: [Dawra Accounting Primer](https://claude.ai/artifact/ASycXSbhioZ73rQhs6Hiqx). Both are private claude.ai pages (ask the owner for access); everything needed to build is in this file. Conventions, stack and boundaries from [SPEC.md](SPEC.md) apply unchanged._
+_v0.1, 3 Nov 2026; §5 (M6) detailed 20 Nov 2026. Status: **draft**, to be reviewed by a Moroccan expert-comptable (§9). Architecture: [ADR-010](docs/decisions/ADR-010-accounting-model.md). Screens: canvas "Dawra — maquettes", page 5 · Finance et comptabilité. Background for engineers: [Dawra Accounting Primer](https://claude.ai/artifact/ASycXSbhioZ73rQhs6Hiqx). Both are private claude.ai pages (ask the owner for access); everything needed to build is in this file. Conventions, stack and boundaries from [SPEC.md](SPEC.md) apply unchanged._
 
 ## 1. Objective
 
@@ -18,7 +18,7 @@ Turn what the farm already records (purchases, consumption, sales, payments) int
 | Stage | Milestone | Requirements |
 |---|---|---|
 | Finance core | **M2** "Money & compliance" | §4 (FN1–FN18) |
-| Accounting close | **M6** (new, after M5) | §5 (FC1–FC10) |
+| Accounting close | **M6** (new, after M5) | §5 (FCX1–FCX6, FC1–FC10) |
 | Cooperative accounting | post-MVP `cooperative` module | §6 (CO1–CO5) |
 
 ## 3. Concepts (as built)
@@ -112,19 +112,160 @@ Turn what the farm already records (purchases, consumption, sales, payments) int
 - **FX4.** Quick expenses can be recorded offline on the phone (they are farm events); their entry is posted after sync.
 - **FX5.** All finance strings exist in `fr.json` and `ar.json`. Account labels are French in M2; Arabic labels are added with the official translation (FQ12).
 
-## 5. M6 requirements: accounting close (summary)
+## 5. M6 requirements: accounting close
 
-To be detailed when M6 starts.
-- **FC1. Fixed assets.** Register with account (231x–234x), date in service, cost, residual value, life; straight-line depreciation with prorata (FQ9); D 6193 / C 28xx each year.
-- **FC2. Loans and subsidies.** Schedule (equal capital repayments, quarterly or monthly), capital on 1481, interest on 6311. Investment subsidy on 1311, released to 7577 at the depreciation rate.
-- **FC3. Year-end count.** Printable count sheet; birds and stock counted on 31 Dec with the gap to the books.
-- **FC4. Batches in progress.** Consumable animals alive at year end valued at cost engaged (from FN13): D 31322 / C 7131. If current value < cost: provision D 6196 / C 3913. Opening values reversed on 1 Jan.
-- **FC5. Stocks.** Feed, vet products, consumables, packaging and eggs at weighted average cost: D 31x / C 6124 or 7132.
-- **FC6. Laying hens.** Per category, classic method (23711 / 28371, depreciation over the laying period, culled hens sold to 7187) or simplified method (715 inventory variation, no depreciation), chosen before the first entry of the year (FQ7, FQ8). Own pullets: D 23962 / C 71431.
-- **FC7. Home consumption.** Birds or eggs taken by the exploitant, partners or staff: D exploitant account / 4463 / 617x, C 7140.
-- **FC8. Statements.** Simplified CGNC model (revenue ≤ 10 M DH): bilan, CPC, ETIC including the PCA biological-asset tables; draft until the accountant signs off.
-- **FC9. Bank reconciliation.** Statement import (format per bank) and matching against 5141 lines.
-- **FC10. Accountant import format** for the firms' software (FQ10).
+M6 closes a fiscal year in Dawra: what the farm owns and owes at year end (fixed assets, loans, subsidies, stocks, animals), the year-end entries, and the statements the accountant signs. It builds on the M2 ledger as built: `postEntry`, reversals, locked months and `openFiscalYear` (T29), the posting pipeline and its source keys (T30), the batch cost (FN13, T34), the treasury accounts (T32) and the draft CPC (`/books`, U16). Plan: [tasks/plan-m6.md](tasks/plan-m6.md).
+
+**Accounts.** An account written *(to add)* is not yet in `prisma/seed/finance/accounts.json`. Its label is taken from the PCA text when it is seeded (plan T100, which waits for the official PCA PDF in the repository), never typed from memory. Where this section names a family (28xx, 31x), T100 reads the exact numbers from the PCA nomenclature. An account the PCA text doesn't have blocks its rule until the accountant answers; no number is invented (ADR-010 §2).
+
+**Candidates.** Where this section needs an account that is neither seeded nor in the original M6 summary, it states the account's role in words and gives the number only as *(candidate N, unverified)*. T100 confirms or replaces each candidate from the nomenclature, with its printed label, before any rule uses it.
+
+**Defaults.** Where an open question blocks a choice, the requirement states a **default, to confirm with the accountant**, and names the question. A requirement with no safe default is marked **blocked**.
+
+### Close rules (all FC)
+- **FCX1. Roles.**
+  - Owner (`finance.manage`): the asset, loan and subsidy registers, manual entries, the close run and the year close.
+  - Manager (`finance.record`): loan installments paid, the year-end count and bank matching. Sees every M6 screen.
+  - Accountant (`money.read`, SPEC-m5 PA5): reads every M6 screen and downloads; writes nothing (NQ7).
+  - Workers: nothing (FX2). The printed count sheet carries no amount, so the owner can hand it to a worker.
+- **FCX2. Online.** M6 screens are online office screens rendered on the server, like `/books`, linked from "Plus" › Argent. The one exception is FC7, which uses the sale forms and so works offline. The printed count sheet works on paper.
+- **FCX3. Manual entry.** The owner posts an `OD` entry by hand: day, label, piece reference, optional receipt (ADR-011), and lines on any posting account of the entity's chart. It goes through `postEntry`: FN4 checks, audited, never edited (FN5: reversal and a new entry).
+  - Used for the first year's opening balances (FN3, from the accountant's last balance sheet) and for what no rule covers (for example accrued interest, FQ16).
+  - Needs the whole nomenclature seeded (T100).
+  - A `cash_book` entity's opening bank and cash balances stay blocked by FQ11, as today.
+- **FCX4. Close run.** For a `ledger` entity, the owner runs "Préparer la clôture" for a fiscal year. Finance computes the year-end entries of FC1, FC2, FC4 and FC5 (FC6 once unblocked) and shows them before posting.
+  - Each entry is `OD`, dated the last day of the fiscal year, one per kind (depreciation, subsidy release, batches in progress, stocks, provisions). Source `(finance, close:<kind>:<legal entity>:<year>, version)`.
+  - Running again with the same figures posts nothing; with changed figures it posts a reversal and a new entry (FN7).
+  - Refused while the last month of the year is locked: year-end entries are never moved to another period, unlike FN5 corrections.
+  - Refused for a `cash_book` entity, which has no balance sheet: it keeps the registers and schedules only.
+- **FCX5. Reversal at opening.** The stock and batch-in-progress entries (FC4, FC5) and their provisions are reversed on the first day of the next fiscal year (`OD`), posted with that year's à-nouveaux. For a provision this has the same effect on the next year's result as a reversal at the next close.
+  - If a close entry changes after the next year was opened, its à-nouveaux and these reversals are posted again by reversal and new entry (FN7). The opening always equals the closing.
+- **FCX6. Year close.** After the close run and the accountant's approval (given outside the app: NQ7), the owner closes the year.
+  - Every month of the year is locked (FN5, audited), and the year is marked closed with who and when.
+  - The next year's à-nouveaux is posted (or posted again, FCX5).
+  - Statements say "Projet" before the close and "Exercice clôturé le …" after it.
+  - Reopening: owner only, audited. It unlocks the last month.
+
+### Requirements
+- **FC1. Fixed assets** (FQ9, FQ4).
+  - **Register,** per legal entity. An asset has:
+    - label, category, farm and house (optional);
+    - day acquired and day put into service;
+    - cost in centimes, and an optional VAT amount typed from the invoice (FN9: excluded from the cost when the entity is VAT-registered);
+    - residual value (0 when left empty);
+    - **useful life in months, required, typed by the user** from the accountant's or the tax rules. No life or rate is stored or suggested;
+    - how it was paid (cash, transfer, cheque issued, on credit) and an optional receipt;
+    - for an asset bought before Dawra, "in the opening balance" with its accumulated depreciation at the start.
+  - **Categories:**
+    - land (not depreciated);
+    - buildings, poultry houses included;
+    - technical installations, equipment and tools (SCOPE: feeders, drinkers, heaters, fans, cooling pads, generator, silos, scales, controllers);
+    - transport equipment;
+    - furniture and office equipment.
+
+    Land, buildings, technical installations and transport equipment map to their accounts in 231x–234x *(to add, numbers from the PCA nomenclature)*; furniture and office equipment to the class-2 account for furniture and office equipment *(candidate 235x, unverified: number and label from the nomenclature, T100)*. Each has its matching depreciation account in 28xx *(to add, numbers from the PCA nomenclature)*.
+  - **Acquisition posting:** D asset account (+ D 3455 for the VAT when registered, FN9) / C 5161 (`CA`), 5141 (`BQ`, an issued cheque on its issue day) or, on credit, the account for debts on fixed-asset acquisitions *(candidate 4481, unverified: number and label from the nomenclature, T100)* (`OD`). A later payment of an asset bought on credit: D that account / C 5161 or 5141. An asset in the opening balance posts nothing: its cost and accumulated depreciation come with the opening entry (FCX3).
+  - **Depreciation:** straight-line only. Depreciable base = cost − residual value.
+    - **Default prorata (FQ9), to confirm with the accountant: by whole months.** The month the asset is put into service counts in full; the month of its disposal doesn't.
+    - Months used in a fiscal year: from the in-service month (included) to the disposal month (excluded) or the year end, never beyond the life.
+    - The charge of a year is cumulative(end) − cumulative(start), with cumulative(m) = base × min(m, life) ÷ life, rounded half up to the centime. Rounded once per cumulative figure, so the charges always add up to the base exactly (§7.1 fixture A).
+    - An asset in the opening balance spreads what is left (base − accumulated depreciation entered) the same way over the life months left.
+  - **Year-end posting** (close run): D 6193 *(to add)* / C 28xx, one line per depreciation account.
+  - **Disposal** (sold or scrapped): day, price (0 when scrapped), received in cash or at the bank. On the disposal day (`OD`):
+    - the depreciation of the year up to the disposal month: D 6193 / C 28xx;
+    - the asset leaves: D 28xx (accumulated), D the non-current charge account for the net book value of tangible assets disposed of *(candidate 6513, unverified: number and label from the nomenclature, T100)*, C asset account (cost);
+    - the price: D 5161 / 5141 / C the non-current income account for proceeds of tangible-asset disposals *(candidate 7513, unverified: number and label from the nomenclature, T100)*.
+
+    The close run counts only the months not yet posted.
+  - **Screen** "Immobilisations": per asset, cost, accumulated depreciation and net book value; its schedule by year (charge, accumulated, net book value); forms to add and dispose.
+  - **Out of scope:**
+    - declining-balance depreciation, components, revaluation, intangible assets;
+    - an asset paid by bill, or sold on credit;
+    - depreciation in the batch cost (FN13 stays as built);
+    - a value threshold under which purchases are expensed: the user decides what to register.
+- **FC2. Loans and subsidies** (FQ16, FQ17).
+  - **Loan:** lender, the bank account it is paid into (T32), principal, disbursement day, **annual rate typed from the contract** as an integer in 1/100 000 (5,55 % → 5 550; no float, FX1), monthly or quarterly, number of capital installments n, deferral periods d (interest only, default 0), first due day.
+  - **Schedule:**
+    - Due days are the first due day + k periods, the day clamped to the month's end.
+    - During the deferral the capital is 0. Then capital = principal ÷ n rounded half up, and the last installment takes what is left.
+    - **Default (FQ16): interest per period** = outstanding × rate ÷ (100 000 × periods per year), rounded half up, not counted by days.
+    - Before confirming, the owner can change any row's capital and interest so the schedule matches the bank's table to the centime; the capital must add up to the principal. Confirmed rows are fixed (§7.1 fixture B).
+  - **Postings:**
+    - Disbursement: D 5141 (that bank account) / C 1481 *(to add)*, `BQ`.
+    - An installment marked paid by the owner or a manager (on or after its due day, as "Débité" in FN11): D 1481 capital, D 6311 *(to add)* interest / C 5141, `BQ`, on the day entered (default: the due day).
+  - **Reminders and cash:** a reminder to owners and managers on the due day, once (a money notification, as for issued cheques). The `/treasury` 4-week cash schedule counts unpaid installments as outflows on their due day.
+  - **Year end, default (FQ16):** no accrued interest. If the accountant wants it, it is a manual entry (FCX3).
+  - **Investment subsidy:** label, granting body (free text), amount, day received, bank account, and the depreciable assets of the register it finances (one or more).
+    - **Default (FQ17): posted when received,** D 5141 / C 1311 *(to add)*, `BQ`.
+    - **Release at the depreciation rate** (close run): released to date = subsidy × Σ cumulative depreciation of its assets ÷ Σ their depreciable bases, rounded half up; the year's release = that − what was released before. D the equity account that records the subsidy amounts taken to income, so that 1311 stays at the amount received *(candidate 1319, unverified: number and label from the nomenclature, T100; FQ17)* / C 7577 *(to add)*.
+    - A subsidy on land or on no depreciable asset is refused (FQ17).
+  - **Screen** "Emprunts et subventions": each loan's schedule with paid and due installments, and each subsidy with its release by year.
+  - **Out of scope:** variable rates, early repayment, a renegotiated schedule (a new loan), loan fees and insurance (quick expenses), the short- and long-term split of the outstanding capital (presentation, FC8), operating subsidies, a loan paid straight to a supplier, the investment project file (§1).
+- **FC3. Year-end count.**
+  - **Count day:** the last day of the fiscal year.
+  - **Count sheet,** printable from the browser (A4, in the user's locale), per farm. Each line has an empty "Compté" column, and the sheet carries no amount:
+    - each open batch: house, production type, birds on hand (`flock`);
+    - each stock item: kind, unit, lot and expiry, book quantity (`inventory`), expired lots flagged;
+    - the egg stock, once T113 is unblocked.
+  - **Entering the count:** owner or manager, online, a counted quantity per line. Saved by finance (`YearEndCount`: legal entity, fiscal year, lines), editable until the close run posts, audited.
+  - **Gap** = counted − book, shown per line. Finance never writes another module's data: the screen links to the stock adjustment (S3, reason "inventaire") and to the daily entry (mortality), so the user corrects the books where they are kept. FC4 and FC5 value the counted quantities.
+  - **Out of scope:** a count on another day, counting on a worker's phone, barcodes.
+- **FC4. Batches in progress** (FQ19, FQ20).
+  - **Scope:** batches of animals sold as meat (broiler, turkey, beldi, duck, quail, other) still open on the last day of the year. Pullets and layers are FC6.
+  - **Cost engaged:** the batch's FN13 cost (chicks + valued consumptions + direct charges + allocated shared charges), counting only facts dated on or before the last day.
+  - **Default (FQ19): no depreciation and no overheads in it, and a split by head.** The birds on hand carry cost engaged × birds on hand ÷ (birds on hand + birds sold before that day); the dead are carried by the survivors. Birds on hand come from the count (FC3) when entered, else from `flock` (§7.1 fixture C).
+  - **Current value:** the owner can enter one.
+    - **Default (FQ20), when none is entered:** birds on hand × the last average weighing (grams) × the farm's last sale price per kg for that production type (`sales`), or × the last price per head for a type sold by the head.
+    - Without a weighing or a sale, the owner must enter a value.
+  - **Posting** (close run):
+    - D 31322 *(to add)* / C 7131 *(to add)* at cost;
+    - when the current value is below cost, a provision for the difference: D 6196 *(to add)* / C 3913 *(to add)*;
+    - reversed on the next year's first day (FCX5): D 7131 / C 31322, and D 3913 / C the operating income account for reversals of current-asset provisions *(candidate 7196, unverified: number and label from the nomenclature, T100)*.
+- **FC5. Stocks** (FQ18, FQ20).
+  - **Bought stock** (feed, vaccines, medicines, litter, gas, other, packaging included):
+    - **Value:** counted quantity (else the book quantity) × the weighted average cost on the last day (S5, `inventory.valuate`), per item and farm.
+    - **Accounts:** by kind, the 31x sub-accounts of matières et fournitures in the PCA nomenclature *(to add, numbers from the PCA text)*. D 31x / C 6124 *(to add)*.
+    - **Current value, default (FQ20):** equal to cost, unless the owner enters a lower one for a damaged or expired lot (the count sheet flags expired lots). A provision for the difference: D 6196 / C the provision account for materials and supplies in stock *(candidate 3912, unverified: number and label from the nomenclature, T100)* (§7 `stockAtCloseValue`).
+    - Reversed on the next year's first day (FCX5): D 6124 / C 31x, and D that provision account / C the reversals account above.
+  - **Eggs, blocked** (T113): finance doesn't depend on `eggs` (CAPABILITY-MAP), and adding a dependency is "ask first" (SPEC §7). Once allowed:
+    - quantity from the egg stock (SPEC-m3 E2) or the count;
+    - **default (FQ18): value per egg typed by the owner**, no computed cost;
+    - D the 31x stock account for the farm's own products *(to add, number from the PCA nomenclature)* / C 7132 *(to add)*.
+  - **Out of scope:** any valuation method other than the weighted average cost (S5).
+- **FC6. Laying hens and pullets: blocked** (FQ7, FQ8; T114, T115).
+  - **Method, no default (FQ7):** one per production category, chosen by the owner for the fiscal year before its first entry ("permanence des méthodes", like FN1) and stored with the other accounting choices.
+  - **Until FQ7 is answered:** layer and pullet batches are posted by the FN6 rules as today (chicks expensed, eggs and culled hens sold on 71213 / 712121). The close run lists them as "non valorisés (FQ7)", and the accountant books them by manual entry (FCX3).
+  - **Classic method** (blocked by FQ7 and FQ8):
+    - own pullets' rearing cost (the pullet batch's FN13 cost): D 23962 / C 71431 *(both to add)*, at the transfer to lay (SPEC-m3 B13) and at year end for pullets still rearing. The move from 23962 to 23711 at the transfer is to confirm (FQ7);
+    - point-of-lay hens bought: D 23711 *(to add)* instead of 612121;
+    - hens depreciated straight-line over the laying period, in months, typed by the owner, with the expected cull value as residual value; prorata as FC1. D 6193 / C 28371 *(to add)* (§7 `straightLine`);
+    - culled hens sold: C 7187 *(to add)* instead of 712121;
+    - removing the remaining book value of culled hens: FQ8, no default.
+  - **Simplified method** (blocked by FQ7): no depreciation; the flock's value at year end and its variation through 715 *(to add)*. T100 reads the valuation basis and the balance-sheet account from the PCA text, and the accountant confirms them.
+- **FC7. Home consumption** (FQ21, FQ11).
+  - **Recording:** birds or eggs taken by the exploitant, an associate or an employee are recorded on the sale forms (V2, V6, V7) with the kind "Consommation" and who took them. Offline, like a sale. The withdrawal blocks (V3, V6) apply for food safety, and birds on hand and the FIFO egg draws move as for a sale. No buyer, payment or receivable.
+  - **Value:** quantity × a price, typed as on a sale. **Default (FQ21): prefilled with the farm's last sale price for the same product;** the owner can change it. Workers never see it (I5).
+  - **Batch result:** it counts with the batch's sales and kg sold at that value (FN13).
+  - **Posting** (`OD`), credit 7140 *(to add)*. The PCA text must confirm this number: 714 in the CGNC may be the account for fixed assets an entity produces for itself, unverified (T100, FQ21). Debit:
+    - 4463 for an associate of a company;
+    - **default (FQ21):** 6171 for an employee;
+    - the exploitant's account for an individual, **blocked by FQ11**. Until then the record is kept and listed as "non comptabilisé".
+  - **Out of scope:** the payroll side of a benefit in kind (CNSS, income tax).
+- **FC8. Statements** (FQ22).
+  - **Draft balance sheet** (buildable): from the trial balance on the last day, after the close run. Classes 1–5 by 3-digit account, debit balances as assets and credit balances as liabilities, and the net result of classes 6–7 as its own line. That result equals the draft CPC's net (U16). Labelled "Projet" until the year close (FCX6).
+  - **Official statements, blocked** (FQ22): the simplified CGNC model (revenue ≤ 10 M DH, to confirm): bilan, CPC and ETIC with the PCA's biological-asset tables. Each line is mapped to accounts from the official model, with a printable PDF.
+  - **Checks:** Σ assets = Σ liabilities, result included; the CPC's net equals the balance sheet's result.
+  - **Out of scope:** the tax return (liasse fiscale, IS / IR), the normal model, cooperative statements (§6).
+- **FC9. Bank reconciliation.**
+  - **Manual** (buildable now, except the bank-fees category, which waits for T100), per bank account (T32), by the owner or a manager:
+    - enter a statement: end day and closing balance as printed;
+    - tick each 5141 line of that account that is on it;
+    - book the lines on the statement but not in the books where they belong: bank fees through a new quick-expense category "Frais bancaires", D the external-charges account for bank services *(candidate 6147, unverified: number and label from the nomenclature, T100)* / C 5141, `BQ` (T119); the rest through its own form or a manual entry (FCX3).
+    - The screen shows the statement balance, the book balance on the end day, the unticked book lines and the difference. The account is "rapproché" when the difference is 0.
+    - A tick is audited, and can be undone until its month is locked.
+  - **Statement import, blocked:** no bank file format is assumed. It waits for real statement samples from the pilot's banks (T117).
+  - **Out of scope:** automatic matching rules, cash-box counts.
+- **FC10. Accountant import format, blocked** (FQ10; T118). Built per accounting software once a firm supplies its import format and a sample file. Until then the FN18 CSV and Excel export is the hand-off.
 
 ## 6. Cooperative accounting (post-MVP, summary)
 
@@ -148,17 +289,78 @@ Every formula is a pure function in `src/modules/finance/domain/`, in integer ce
 | `weightedAverageCost` | (value + cost in) ÷ (qty + qty in) | 9 200,00 for 2 000 kg + 36 950,00 for 8 000 kg → 4,615 DH/kg |
 | `ageingBucket` | today − due date | due 20 Aug, today 5 Nov → 77 days → 61–90 |
 | `thresholdUsage` | (booked + planned) ÷ threshold | 4 260 450 + 690 000 → 4 950 450; 99 % |
-| `straightLine` (M6) | (cost − residual) ÷ life × months ÷ 12 | hens 252 000 − 90 000, 14 months, 7 months → 81 000,00 |
-| `loanInstallment` (M6) | capital = principal ÷ n; interest = outstanding × rate ÷ periods | 900 000 / 28; 642 860 × 5,55 % ÷ 4 → 32 142,86 + 8 919,68 |
+| `straightLine` (M6) | cumulative(m) = (cost − residual) × min(m, life) ÷ life, half up; charge = cumulative(end) − cumulative(start) (FC1) | hens 252 000 − 90 000, life 14 months, 7 months → 81 000,00; generator: §7.1 A |
+| `loanSchedule` (M6) | capital = principal ÷ n half up, last = remainder; interest = outstanding × rate ÷ (100 000 × periods), half up (FC2) | 900 000 / 28 quarters → 32 142,86, last 32 142,78; 9th quarter: 642 857,12 × 5,55 % ÷ 4 → 8 919,64; short loan: §7.1 B |
+| `subsidyRelease` (M6) | subsidy × Σ cumulative depreciation ÷ Σ base, half up, minus what was released before (FC2) | 14 205,00 on §7.1 A's generator → 2026: 676,43; 2027: 2 029,29 |
+| `batchInProgressValue` (M6) | cost engaged × on hand ÷ (on hand + sold); provision = cost − current value when positive (FC4) | §7.1 C |
 | `stockAtCloseValue` (M6) | min(cost, current value), provision = difference | 98 400 vs 97 300 → 97 300, provision 1 100,00 |
 | `ristourne` (coop) | ops × voted ÷ total member ops | 412 000 × 220 000 ÷ 6 950 000 → 13 041,73 |
 
-## 8. Success criteria (finance core, end of M2)
+### 7.1 M6 worked fixtures
+
+Computed by hand in centimes, then checked with a bigint script. Lives, prices and amounts here are **test inputs**, not reference values: in the app the user types them (FC1, FC2). The 5,55 % rate is the demo farm's (canvas). "Half up" rounds a positive amount to the nearest centime, 0,5 going up.
+
+**A. Straight-line depreciation with the default prorata (FC1, FQ9).** Generator, put into service on 18 Sep 2026; cost 47 350,00, residual value 0, life 84 months (typed by the user); fiscal year January–December.
+1. Base = 4 735 000 centimes. Months used: 2026 = September to December = 4 (September counts in full); 2027–2032 = 12 each; 2033 = 84 − 4 − 6 × 12 = 8 (January to August).
+2. cumulative(m) = 4 735 000 × m ÷ 84, half up:
+
+| Year | m at year end | 4 735 000 × m ÷ 84, centimes | cumulative, centimes | Charge, DH (D 6193 / C 28xx) |
+|---|---|---|---|---|
+| 2026 | 4 | 225 476,19 | 225 476 | 2 254,76 |
+| 2027 | 16 | 901 904,76 | 901 905 | 6 764,29 |
+| 2028 | 28 | 1 578 333,33 | 1 578 333 | 6 764,28 |
+| 2029 | 40 | 2 254 761,90 | 2 254 762 | 6 764,29 |
+| 2030 | 52 | 2 931 190,48 | 2 931 190 | 6 764,28 |
+| 2031 | 64 | 3 607 619,05 | 3 607 619 | 6 764,29 |
+| 2032 | 76 | 4 284 047,62 | 4 284 048 | 6 764,29 |
+| 2033 | 84 | 4 735 000 | 4 735 000 | 4 509,52 |
+
+3. Check: 2 254,76 + 4 × 6 764,29 + 2 × 6 764,28 + 4 509,52 = 47 350,00, the base exactly. The net book value at the end of 2027 is 47 350,00 − 9 019,05 = 38 330,95.
+4. Subsidy on this asset (`subsidyRelease`): 14 205,00 → 2026: 1 420 500 × 225 476 ÷ 4 735 000 = 67 642,8 centimes → 676,43; 2027: 1 420 500 × 901 905 ÷ 4 735 000 = 270 571,5 centimes → 2 705,72 released to date, − 676,43 = 2 029,29.
+
+**B. Loan with equal capital repayments (FC2, FQ16).** Principal 100 000,00, disbursed 15 Jan 2027, 6 quarterly installments, no deferral, rate 5,55 % (5 550), first due day 31 Mar 2027.
+1. Due days: 31 Mar, 30 Jun, 30 Sep, 31 Dec 2027, 31 Mar, 30 Jun 2028 (the 31st clamped to the month's end).
+2. Capital = 10 000 000 ÷ 6 = 1 666 666,67 → 16 666,67; the last one = 100 000,00 − 5 × 16 666,67 = 16 666,65.
+3. Interest = outstanding × 5 550 ÷ (100 000 × 4) = outstanding × 0,013875, half up:
+
+| # | Due | Outstanding before | Interest | Capital | Installment | Outstanding after |
+|---|---|---|---|---|---|---|
+| 1 | 31/03/2027 | 100 000,00 | 1 387,50 | 16 666,67 | 18 054,17 | 83 333,33 |
+| 2 | 30/06/2027 | 83 333,33 | 1 156,25 (1 156,2499…) | 16 666,67 | 17 822,92 | 66 666,66 |
+| 3 | 30/09/2027 | 66 666,66 | 925,00 (924,9999…) | 16 666,67 | 17 591,67 | 49 999,99 |
+| 4 | 31/12/2027 | 49 999,99 | 693,75 (693,7498…) | 16 666,67 | 17 360,42 | 33 333,32 |
+| 5 | 31/03/2028 | 33 333,32 | 462,50 (462,4998…) | 16 666,67 | 17 129,17 | 16 666,65 |
+| 6 | 30/06/2028 | 16 666,65 | 231,25 (231,2497…) | 16 666,65 | 16 897,90 | 0,00 |
+
+4. Totals: capital 100 000,00; interest 4 856,25 (the same as 100 000,00 × 0,013875 × (6 + 5 + 4 + 3 + 2 + 1) ÷ 6); installments 104 856,25.
+5. Entries: disbursement D 5141 / C 1481 100 000,00 (`BQ`). Installment 1 paid: D 1481 16 666,67, D 6311 1 387,50 / C 5141 18 054,17 (`BQ`). At 31 Dec 2027: 1481 = 33 333,32 credit; 6311 for 2027 = 4 162,50; 2028 = 693,75.
+
+**C. A batch in progress at year end (FC4, defaults FQ19, FQ20).** Broiler batch open on 31 Dec: 10 000 chicks placed, 2 000 sold before 31 Dec, 400 dead, 7 600 on hand (counted). Cost engaged to 31 Dec 182 400,00; last average weighing 2 100 g; the farm's last sale price 8,50 DH/kg.
+1. At cost: 18 240 000 × 7 600 ÷ (7 600 + 2 000) = 14 440 000 → 144 400,00.
+2. Current value: 7 600 × 2 100 g = 15 960 kg; × 8,50 = 135 660,00.
+3. Provision = 144 400,00 − 135 660,00 = 8 740,00.
+4. Close run, 31 Dec (`OD`): D 31322 / C 7131 144 400,00; D 6196 / C 3913 8 740,00. Next 1 Jan (`OD`, FCX5): D 7131 / C 31322 144 400,00; D 3913 / C reversals of current-asset provisions (candidate 7196) 8 740,00.
+
+## 8. Success criteria
+
+### Finance core, end of M2
 
 1. All §7 M2 fixtures pass. A property test posts random sequences of M1 events and checks that the trial balance is always balanced and that replaying the same sync twice changes nothing.
 2. The pilot farm closes a batch and its margin and cost per kg match the owner's own calculation.
 3. An expert-comptable has reviewed the seeded charts and the FN6 posting rules, and imported one month of export into their software.
 4. Tenant isolation and the "worker never sees money" rule are covered by integration tests on every finance endpoint.
+
+### Accounting close, end of M6
+
+1. Every §7 M6 fixture and §7.1 A–C passes. Property tests:
+   - for any asset (cost, residual, life, in-service and disposal days), the yearly charges add up to the base;
+   - for any loan, the capital adds up to the principal;
+   - running the close twice with the same facts posts nothing;
+   - the trial balance stays balanced after the close run, the year close and the opening reversals.
+2. After the year close, the next year's à-nouveaux equals the closing balance sheet (classes 1–5) plus the year's result on 1191 / 1199. It stays equal when a close entry is changed later (FCX5).
+3. A pilot company closes a fiscal year in Dawra: the count, the close run, the draft balance sheet and CPC. An expert-comptable compares them with their own closing, and every difference is explained.
+4. An expert-comptable has reviewed the accounts added by T100 and the FC posting rules, and answered or accepted the defaults of FQ9 and FQ16–FQ21.
+5. Roles are covered by integration tests on every M6 endpoint: workers get nothing; the accountant reads and downloads, and every write is refused; owner-only actions are refused to managers.
 
 ## 9. Open questions for the expert-comptable
 
@@ -167,15 +369,22 @@ Every formula is a pure function in `src/modules/finance/domain/`, in integer ce
 | FQ1 | Is the PCA (CNC opinion n° 7, 2015) mandatory, or a recommended project? | Default overlay (FN1) |
 | FQ2 | Official account list of the cooperative chart (arrêté 441-01) | Cooperative ledger (FN1, CO1) |
 | FQ3 | Can a cooperative combine the cooperative chart with PCA accounts? | Cooperative profile |
-| FQ4 | VAT on feed, chicks, live birds, eggs; when is a farm VAT-registered? | FN9 |
+| FQ4 | VAT on feed, chicks, live birds, eggs; when is a farm VAT-registered? | FN9, FC1 (an asset's VAT) |
 | FQ5 | Exact conditions of the 5 M DH agricultural exemption (3-year rule) and the cooperative IS threshold | FN17 |
 | FQ6 | An individual taxed on real net income (RNR): ledger required? | FN1 |
-| FQ7 | Laying hens: classic or simplified method by default? | FC6 |
-| FQ8 | Culled hens under the classic method: how is the remaining book value removed next to 7187? | FC6 |
-| FQ9 | Depreciation prorata: by month or by day? | FC1 |
-| FQ10 | Import formats of the accounting software used by the firms | FN18, FC10 |
-| FQ11 | Account for the individual exploitant's contributions and withdrawals, and counter-account of a `cash_book` entity's opening bank and cash balances | FN3, FN6 |
+| FQ7 | Laying hens: classic or simplified method by default? For the simplified method, the valuation basis and the balance-sheet account next to 715; at the transfer to lay, does 23962 move to 23711? | FC6 (blocked, no default) |
+| FQ8 | Culled hens under the classic method: how is the remaining book value removed next to 7187? | FC6 (blocked, no default) |
+| FQ9 | Depreciation prorata: by month or by day? | FC1 (default in §5: by whole months) |
+| FQ10 | Import formats of the accounting software used by the firms | FN18, FC10 (blocked) |
+| FQ11 | Account for the individual exploitant's contributions and withdrawals, and counter-account of a `cash_book` entity's opening bank and cash balances | FN3, FN6, FCX3, FC7 (an individual's entry) |
 | FQ12 | Is there an official Arabic version of the CGNC and PCA account labels? | FX5 |
 | FQ13 | Journal for cheques and bills received (`EF` here): common practice? | FN6 |
 | FQ14 | Payroll postings: the validated month in OD on its last day (6171 / 6174 against 3431, 4441, 4432), wages paid D 4432; advances beyond a worker's pay left on 3431? | plan-m4 pay |
 | FQ15 | Cash book refused for companies and GIEs (law 9-88): right, and for which other forms? | FN1 |
+| FQ16 | Loans: interest per period as annual rate ÷ periods per year, or counted by days as some banks do? Interest accrued at year end (intérêts courus) booked by Dawra, and on which account? | FC2 (default in §5: per period, not accrued) |
+| FQ17 | Investment subsidies: booked when granted (a receivable) or when received? Released through an equity contra account (candidate 1319) / 7577? Treatment of a subsidy on land or on no depreciable asset? | FC2 (default in §5: when received, released to 7577, refused on land) |
+| FQ18 | Eggs in stock at year end: how is their production cost per egg computed? | FC5 (default in §5: value per egg typed by the owner) |
+| FQ19 | Cost of a meat batch in progress at year end: only FN13's costs, or also depreciation and overheads? Split between birds sold before the close and birds on hand: by head or by weight? | FC4 (default in §5: FN13 cost, by head) |
+| FQ20 | Current value for the provision test of batches in progress and stocks: what evidence is accepted (last sale price × last weighing, market price, the owner's estimate)? | FC4, FC5 (default in §5: last weighing × last sale price; stocks at cost unless lowered) |
+| FQ21 | Home consumption: is 7140 the PCA's account for it (714 in the CGNC may be fixed assets produced by the entity for itself)? Valued at cost or at selling price? An employee's share on 6171? | FC7 (default in §5: last sale price, 6171) |
+| FQ22 | The official simplified model (bilan, CPC, ETIC) and the PCA's biological-asset tables: the text, each line's accounts, and the revenue limit of the simplified model (10 M DH?) | FC8 official statements (blocked) |

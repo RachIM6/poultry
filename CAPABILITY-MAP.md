@@ -28,7 +28,7 @@ _Draft v0.2, 26 Oct 2026. Status: **approved** (27 Oct 2026). Derived from [SCOP
 | `health` | Vaccination plan per batch, treatments, withdrawal tracking, vet visits and prescriptions, post-mortems, lab results, notifiable-disease workflow, **ONSSA register data** | 9 | `flock`, `inventory`, `reference-data`, `partner-access`, `notifications` |
 | `climate` | Manual readings (temperature, humidity), heat-stress and power-cut log, alerts, energy use | 8 | `flock`, `notifications` |
 | `biosecurity` | Clean-out and disinfection checklist, downtime between batches, visitor log, rodent control proof, dead-bird and manure log | 4, 13 | `farm-registry`, `flock`, `notifications` |
-| `eggs` | Egg collection (normal / cracked / dirty…), grading, packing, egg stock and age | 11 | `flock`, `inventory` |
+| `eggs` | Egg collection (normal / cracked / dirty…), grading, packing, egg stock and age | 11 | `flock`, `inventory`, `reference-data` |
 | `planning` | Placement calendar across houses, chick booking, sale-date planning against seasonality and prices | 3 | `flock`, `market-prices`, `notifications` |
 | `workforce` | Workers, daily tasks generated from batch age and the health plan, attendance, pay (SMAG), advances, CNSS export | 16 | `identity`, `farm-registry`, `flock`, `health`, `notifications` |
 | `sales` | Buyers, sales of live birds / eggs / old hens / manure, weighing gap, **origin document**, receivables, cheques and bills of exchange, **withdrawal-period block** | 10, 11, 13 | `flock`, `health`, `eggs`, `notifications` |

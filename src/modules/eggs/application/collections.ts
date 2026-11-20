@@ -6,6 +6,7 @@ import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
+import { areEggGrades } from "@/modules/reference-data";
 import { checkCollection } from "@/modules/eggs/domain/collection";
 import { checkDiscard, checkGrading, eggLots } from "@/modules/eggs/domain/stock";
 import {
@@ -79,6 +80,7 @@ export async function gradeEggs(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof 
   const batch = await layerBatch(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");
   if (await gradingIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
+  if (!(await areEggGrades(tx, Object.keys(cmd.grades)))) return fail("INVALID_INPUT"); // a grade the reference data doesn't have
   await lockEggs(tx, cmd.batchId);
   const checked = checkGrading(eggLots(await eggFlowsOf(tx, ctx, cmd.batchId)), cmd);
   if (!checked.ok) return checked;

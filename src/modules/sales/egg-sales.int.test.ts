@@ -25,6 +25,7 @@ describe("egg sales (SPEC-m3 V6)", () => {
 
   beforeAll(async () => {
     [a, b] = await twoTenants();
+    await db.eggGrade.createMany({ data: ["s", "m", "l", "xl"].map((id, sortOrder) => ({ id, label: id.toUpperCase(), sortOrder })) }); // reference data (E3)
     await db.strain.create({ data: { id: "lohmann-brown", name: "Lohmann Brown", productionTypes: ["pullet", "layer"] } });
     expect(
       await statuses(

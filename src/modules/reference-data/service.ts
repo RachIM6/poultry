@@ -66,6 +66,12 @@ export async function areVaccines(tx: Tx, ids: string[]) {
   return (await tx.product.count({ where: { id: { in: unique }, kind: "vaccine" } })) === unique.length;
 }
 
+/** For eggs (SPEC-m3 E3): are these all grade classes of the reference data (S, M, L, XL…)? */
+export async function areEggGrades(tx: Tx, ids: string[]) {
+  const unique = [...new Set(ids)];
+  return (await tx.eggGrade.count({ where: { id: { in: unique } } })) === unique.length;
+}
+
 /** For other modules: is this protocol the caller's organisation's own (R2)? */
 export const ownProtocol = async (tx: Tx, ctx: TenantContext, id: string) =>
   (await tx.vaccinationProtocol.count({ where: { id, organizationId: ctx.organizationId } })) === 1;

@@ -21,6 +21,7 @@ describe("egg stock, grading and discards (SPEC-m3 E2, E3)", () => {
 
   beforeAll(async () => {
     [a, b] = await twoTenants();
+    await db.eggGrade.createMany({ data: ["s", "m", "l", "xl"].map((id, sortOrder) => ({ id, label: id.toUpperCase(), sortOrder })) }); // reference data (E3)
     await db.strain.create({ data: { id: "lohmann-brown", name: "Lohmann Brown", productionTypes: ["pullet", "layer"] } });
     expect(
       await statuses(
@@ -58,6 +59,7 @@ describe("egg stock, grading and discards (SPEC-m3 E2, E3)", () => {
 
   it("keeps a closed batch's eggs in stock: they can still be graded", async () => {
     await db.batch.update({ where: { id: ids.layers }, data: { status: "closed" } });
+    expect(await statuses(a, m(M.gradeEggs, { id: uuidv7(), batchId: ids.layers, laidOn: day, grades: { jumbo: 50 } }))).toEqual(["errors.INVALID_INPUT"]); // not a grade of the reference data
     expect(await statuses(a, m(M.gradeEggs, { id: uuidv7(), batchId: ids.layers, laidOn: day, grades: { s: 50 } }))).toEqual(["applied"]);
   });
 });

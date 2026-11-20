@@ -21,7 +21,7 @@ const moduleDeps = {
   planning: ["flock", "market-prices", "notifications"],
   workforce: ["identity", "farm-registry", "flock", "health", "notifications"],
   sales: ["flock", "health", "eggs", "notifications"],
-  finance: ["farm-registry", "inventory", "flock", "sales", "workforce"],
+  finance: ["farm-registry", "inventory", "flock", "sales", "workforce", "notifications"],
   reporting: ["flock", "health", "biosecurity", "documents", "sales", "finance"],
 };
 

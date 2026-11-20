@@ -7,6 +7,7 @@ import { placementsChangedSince } from "@/modules/flock";
 import { purchasesChangedSince, supplierPaymentsChangedSince } from "@/modules/inventory";
 import { instrumentStepsChangedSince, paymentsChangedSince, salesChangedSince } from "@/modules/sales";
 import { freezeClosedBatches } from "@/modules/finance/application/batch-results";
+import { alertThresholdOnce } from "@/modules/finance/application/threshold";
 import { postEntry } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
@@ -124,5 +125,6 @@ export async function postPending(pusher: TenantContext): Promise<number> {
     });
   }
   await freezeClosedBatches(ctx); // FN14: a batch that closed in this push gets its allocation frozen
+  if (posted > 0) await alertThresholdOnce(ctx); // FN17: the 90 % notification, once a fiscal year
   return posted;
 }

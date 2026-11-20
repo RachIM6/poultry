@@ -837,6 +837,16 @@ model JournalLine {
   @@index([organizationId, account])
 }
 
+// SPEC-finance FN17: the 90 % alert of a legal entity's fiscal year, sent once. The row is the claim.
+model ThresholdAlert {
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  fiscalYearFrom DateTime @db.Date
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@id([legalEntityId, fiscalYearFrom])
+}
+
 // A month of a legal entity's books that refuses new entries (FN5). Locking and unlocking: owner only, audited.
 model LockedPeriod {
   organizationId String   @db.Uuid

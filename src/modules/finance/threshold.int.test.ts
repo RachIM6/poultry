@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { fixedClock } from "@/lib/kernel/clock";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { postPending, saveBudget, thresholdTracker } from "@/modules/finance";
+import { alertThresholdOnce, postPending, saveBudget, thresholdTracker } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
 
@@ -64,5 +64,13 @@ describe("5 M DH tracker (SPEC-finance FN17, T37)", () => {
     expect(await thresholdTracker({ ...a, role: "worker" })).toEqual({ ok: false, error: "FORBIDDEN" });
     const other = await thresholdTracker(b, fixedClock("2026-11-20T10:00:00Z"));
     expect(other.ok && other.value?.bookedCentimes).toBe(0n);
+  });
+  it("notifies the owners and managers once a fiscal year when it reaches 90 % (FN17)", async () => {
+    const clock = fixedClock("2026-11-20T10:00:00Z");
+    expect(await alertThresholdOnce(a, clock)).toBe(true);
+    expect(await alertThresholdOnce(a, clock)).toBe(false); // the year is claimed
+    expect(await alertThresholdOnce(b, clock)).toBe(false); // no sales: no alert
+    const sent = await db.notification.findMany({ where: { organizationId: a.organizationId, templateKey: "thresholdNear" } });
+    expect(sent.map((n) => [n.userId, n.params])).toEqual([[a.userId, { percent: "99" }]]);
   });
 });

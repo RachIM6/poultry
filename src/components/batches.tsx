@@ -18,7 +18,6 @@ import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import dynamic from "next/dynamic";
 import { ageText as batchAge } from "@/components/batch-age";
 import { DayForm, type Write } from "@/components/daily-entry";
-import { RegisterLinks } from "@/components/register-links";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
@@ -44,6 +43,7 @@ const Weighings = dynamic(() => import("@/components/weighing").then((m) => m.We
 const BatchHeader = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchHeader));
 const BatchNotes = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchNotes));
 const OpenBatchCard = dynamic(() => import("@/components/batch-dashboard").then((m) => m.OpenBatchCard));
+const RegisterLinks = dynamic(() => import("@/components/register-links").then((m) => m.RegisterLinks));
 
 // SPEC B1 on the static /batches shell: from and to the phone's database (ADR-003). The one-open-batch rule is checked
 // here for a quick answer and enforced by the server, which rejects the second of two phones placing offline.

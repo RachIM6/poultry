@@ -58,12 +58,16 @@ for (const locale of ["fr", "ar"] as const) {
     await page.getByRole("button", { name: t("Batches", "save"), exact: true }).click();
     await page.getByRole("link", { name: t("Day", "open"), exact: true }).click();
 
+    // Each save lowers the birds on hand: wait for that, not the status (it reads the same after every save).
+    let alive = 1000;
     for (const [ago, dead, feedKg] of [[2, "2", "50"], [1, "1", "60"], [0, "1", "70"]] as const) {
       await label(page, "Day", "day").fill(farmDaysAgo(ago));
       await label(page, "Day", "dead").fill(dead);
       await label(page, "Day", "feedKg").fill(feedKg);
       await page.getByRole("button", { name: t("Day", "save"), exact: true }).click();
       await saved();
+      alive -= Number(dead);
+      await expect(page.getByText(t("Day", "onHand", { birds: String(alive) }))).toBeVisible();
     }
     const onHand = t("Day", "onHand", { birds: "996" }); // 1 000 − 4
     await expect(page.getByText(onHand)).toBeVisible();

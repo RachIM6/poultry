@@ -34,6 +34,14 @@ const registry: SyncRegistry = {
         return ok(undefined);
       },
     }),
+    "test.slow": defineMutation({
+      schema: z.object({}),
+      action: "organization.read",
+      async apply(tx) {
+        await tx.$executeRaw`SELECT pg_sleep(5.5)`; // past Prisma's 5 s default transaction timeout
+        return ok(undefined);
+      },
+    }),
   },
   entities: { note: (ctx, data: Note) => withoutMoney(ctx, data, ["priceCentimes"]) },
 };
@@ -91,6 +99,11 @@ describe("sync push (ADR-003)", () => {
     expect(await db.mutation.count({ where: { id: { in: [broken.id, after.id] } } })).toBe(0);
     expect((await push(a, [broken, after], registry)).results.map((r) => r.status)).toEqual(["applied", "applied"]);
   });
+
+  it("applies a mutation that runs longer than Prisma's default 5 s transaction timeout", async () => {
+    const m = mutation("test.slow", {});
+    expect(await push(a, [m], registry)).toEqual({ results: [{ id: m.id, status: "applied" }] });
+  }, 20_000);
 
   it("never replays or applies another organisation's mutation id", async () => {
     const m = save(uuid(), "a's note");

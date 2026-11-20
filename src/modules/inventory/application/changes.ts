@@ -2,7 +2,8 @@ import { db, type Tx } from "@/lib/db";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { supplierDues } from "@/modules/inventory/domain/suppliers";
-import type { PurchaseDto, SupplierPaymentDto } from "@/modules/inventory/shared";
+import { issuedOfOrg } from "@/modules/inventory/infrastructure/repository";
+import type { IssuedDebitDto, PurchaseDto, SupplierPaymentDto } from "@/modules/inventory/shared";
 
 export type PurchaseChange = { version: bigint; id: string; farmId: string; day: FarmDay; itemKind: string; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint; paidMethod: string };
 
@@ -60,12 +61,36 @@ export async function supplierDuesOf(ctx: TenantContext): Promise<{ dueOn: strin
 /** For finance's export (SPEC-finance FN18): each purchase's or supplier payment's supplier name and farm, by id. */
 export async function ledgerTagsOf(tx: Tx, ctx: TenantContext, ids: string[]) {
   const where = { organizationId: ctx.organizationId, id: { in: ids } };
+  const debits = await tx.issuedDebit.findMany({ where, select: { id: true, instrumentId: true } }); // FN11: a debit's supplier is its instrument's
+  const recordIds = { organizationId: ctx.organizationId, id: { in: [...ids, ...debits.map((d) => d.instrumentId)] } };
   const [purchases, payments] = await Promise.all([
-    tx.purchase.findMany({ where, select: { id: true, supplierId: true, farmId: true } }),
-    tx.supplierPayment.findMany({ where, select: { id: true, supplierId: true } }),
+    tx.purchase.findMany({ where: recordIds, select: { id: true, supplierId: true, farmId: true } }),
+    tx.supplierPayment.findMany({ where: recordIds, select: { id: true, supplierId: true } }),
   ]);
-  const rows = [...purchases, ...payments.map((p) => ({ ...p, farmId: null }))];
+  const records = [...purchases, ...payments.map((p) => ({ ...p, farmId: null }))];
+  const byId = new Map(records.map((r) => [r.id, r]));
+  const rows = [...records, ...debits.flatMap((d) => (byId.has(d.instrumentId) ? [{ ...byId.get(d.instrumentId)!, id: d.id }] : []))];
   const suppliers = await tx.supplier.findMany({ where: { organizationId: ctx.organizationId, id: { in: rows.map((r) => r.supplierId) } }, select: { id: true, name: true } });
   const name = new Map(suppliers.map((s) => [s.id, s.name]));
   return new Map(rows.map((r) => [r.id, { party: name.get(r.supplierId) ?? null, farmId: r.farmId, batchId: null }]));
+}
+
+/** For finance (SPEC-finance FN6, FN11): the issued cheques and bills debited after `after`, oldest first. */
+export async function issuedDebitsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500) {
+  const changes = await tx.change.findMany({
+    where: { organizationId: ctx.organizationId, entity: "issuedDebit", version: { gt: after } },
+    orderBy: { version: "asc" },
+    take: limit,
+  });
+  const debits = changes.filter((c) => c.data !== null).map((c) => ({ version: c.version, d: c.data as unknown as IssuedDebitDto }));
+  const issued = new Map((await issuedOfOrg(tx, ctx, debits.map((x) => x.d.instrumentId))).map((i) => [i.id, i]));
+  return debits.flatMap(({ version, d }) => {
+    const i = issued.get(d.instrumentId);
+    return i ? [{ version, id: d.id, day: d.day as FarmDay, kind: i.kind, amountCentimes: i.amountCentimes }] : [];
+  });
+}
+
+/** For finance's cash schedule (F-Effects): the issued bills the bank hasn't debited yet, by agreed date. */
+export async function issuedBillsDue(ctx: TenantContext): Promise<{ dueOn: string; amountCentimes: bigint }[]> {
+  return (await issuedOfOrg(db, ctx)).filter((i) => i.kind === "bill" && !i.debitedOn).map((i) => ({ dueOn: i.dueOn, amountCentimes: i.amountCentimes }));
 }

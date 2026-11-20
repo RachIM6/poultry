@@ -4,7 +4,7 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { placementsChangedSince } from "@/modules/flock";
-import { purchasesChangedSince, supplierPaymentsChangedSince } from "@/modules/inventory";
+import { issuedDebitsChangedSince, purchasesChangedSince, supplierPaymentsChangedSince } from "@/modules/inventory";
 import { instrumentStepsChangedSince, paymentsChangedSince, salesChangedSince } from "@/modules/sales";
 import { advancesChangedSince, payMonthsChangedSince, payPaymentsChangedSince } from "@/modules/workforce";
 import { monthPeriod } from "@/modules/finance/domain/batch";
@@ -37,6 +37,12 @@ const SOURCES: Source[] = [
         version: p.version,
         event: { type: "supplierPayment", id: p.id, day: p.day as FarmDay, amount: BigInt(p.amountCentimes), method: p.method },
       })),
+  },
+  {
+    name: "inventory.issuedDebit",
+    module: "inventory",
+    read: async (tx, ctx, after) =>
+      (await issuedDebitsChangedSince(tx, ctx, after)).map((d) => ({ version: d.version, event: { type: "issuedDebit", id: d.id, day: d.day, amount: d.amountCentimes, kind: d.kind } })),
   },
   {
     name: "flock.placement",

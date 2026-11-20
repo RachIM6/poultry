@@ -322,7 +322,12 @@
     },
     "dues": "Échéances de {supplier}",
     "dueLine": "{amount} à payer le {date}",
-    "dueLateLine": "{amount} en retard depuis le {date}"
+    "dueLateLine": "{amount} en retard depuis le {date}",
+    "issued": "Chèques et effets émis à {supplier}",
+    "issuedLine": "{kind} n° {number} : {amount}, échéance le {date}",
+    "debited": "Débité",
+    "instrumentNumber": "N° du chèque ou de l’effet (facultatif)",
+    "instrumentDueOn": "Date convenue"
   },
   "Batches": {
     "title": "Bandes",

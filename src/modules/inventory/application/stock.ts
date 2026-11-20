@@ -18,11 +18,13 @@ import {
   insertPurchase,
   insertSupplier,
   insertSupplierPayment,
+  issuedOfOrg,
   lockedSupplierBalance,
   supplierExists,
   updateThreshold,
 } from "@/modules/inventory/infrastructure/repository";
-import type { AdjustStock, CreateStockItem, CreateSupplier, RecordPurchase, RecordSupplierPayment, SetThreshold, SupplierPaymentDto } from "@/modules/inventory/schema";
+import type { AdjustStock, CreateStockItem, CreateSupplier, DebitIssued, IssuedDebitDto, RecordPurchase, RecordSupplierPayment, SetThreshold, SupplierPaymentDto } from "@/modules/inventory/schema";
+import { checkDebit } from "@/modules/inventory/domain/issued";
 import { isCatalogueProduct } from "@/modules/reference-data";
 
 // Use cases, applied by POST /api/sync/push in one transaction each: load → domain rule → save + change log + audit.
@@ -86,6 +88,7 @@ export async function recordSupplierPayment(tx: Tx, ctx: TenantContext, cmd: z.i
   if ((await tx.supplierPayment.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
   if (!(await supplierExists(tx, ctx, cmd.supplierId))) return fail("NOT_FOUND");
   if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE"); // a phone may run a little ahead
+  if (cmd.instrument && cmd.method !== "cheque" && cmd.method !== "bill") return fail("INVALID_INPUT"); // FN11: only those carry one
   const checked = checkSupplierPayment(BigInt(cmd.amountCentimes), await lockedSupplierBalance(tx, ctx, cmd.supplierId));
   if (!checked.ok) return checked;
   const payment: SupplierPaymentDto = cmd;
@@ -126,5 +129,24 @@ export async function setThreshold(tx: Tx, ctx: TenantContext, cmd: z.infer<type
   await recordChange(tx, ctx, "stockItem", updated.id, updated);
   const [before, after] = [{ lowStockThreshold: item.lowStockThreshold }, { lowStockThreshold: updated.lowStockThreshold }];
   await audit(tx, ctx, { entity: "StockItem", entityId: item.id, action: "update", before, after, ...meta });
+  return ok(undefined);
+}
+
+/**
+ * SPEC-finance FN11, applied by the sync push: the bank debited a cheque or bill issued to a supplier, once. Finance
+ * posts a bill's debit from the change log (D 4415 / C 5141); a cheque already left the bank on its issue day.
+ */
+export async function debitIssued(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof DebitIssued>, meta: Meta, clock: Clock = systemClock) {
+  if ((await tx.issuedDebit.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
+  if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
+  const [issued] = await issuedOfOrg(tx, ctx, [cmd.instrumentId]);
+  const checked = checkDebit(issued, cmd.day);
+  if (!checked.ok) return checked;
+  const debit: IssuedDebitDto = cmd;
+  // The unique instrumentId: a debit from another phone at the same time inserts nothing, and this one is refused.
+  const { count } = await tx.issuedDebit.createMany({ data: [{ ...debit, organizationId: ctx.organizationId, day: new Date(`${debit.day}T00:00:00Z`), recordedBy: ctx.userId }], skipDuplicates: true });
+  if (count === 0) return fail("INVALID_TRANSITION");
+  await recordChange(tx, ctx, "issuedDebit", debit.id, debit);
+  await audit(tx, ctx, { entity: "IssuedDebit", entityId: debit.id, action: "create", after: debit, ...meta });
   return ok(undefined);
 }

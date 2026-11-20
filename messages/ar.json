@@ -322,7 +322,12 @@
     },
     "dues": "آجال أداء {supplier}",
     "dueLine": "{amount} يُؤدى في {date}",
-    "dueLateLine": "{amount} متأخر منذ {date}"
+    "dueLateLine": "{amount} متأخر منذ {date}",
+    "issued": "الشيكات والكمبيالات الصادرة إلى {supplier}",
+    "issuedLine": "{kind} رقم {number}: {amount}، تاريخ الاستحقاق {date}",
+    "debited": "تم الخصم",
+    "instrumentNumber": "رقم الشيك أو الكمبيالة (اختياري)",
+    "instrumentDueOn": "التاريخ المتفق عليه"
   },
   "Batches": {
     "title": "الدفعات",

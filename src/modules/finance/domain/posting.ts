@@ -10,6 +10,7 @@ export type FarmEvent =
   | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead"; vat?: bigint } // SPEC V2, SPEC-m3 V6, V7
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
   | { type: "supplierPayment"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment to a supplier (S2)
+  | { type: "issuedDebit"; id: string; day: FarmDay; amount: bigint; kind: "cheque" | "bill" } // FN11: the bank debited what was issued
   | { type: "advance"; id: string; day: FarmDay; amount: bigint } // SPEC-m4 WF10: paid in cash
   | { type: "wagesPaid"; id: string; day: FarmDay; amount: bigint; from: "cash" | "bank" } // a validated month's net paid out
   // SPEC-m4 WF12: a validated pay month, all employees of a farm; contributions null until the CNSS rates are entered
@@ -130,6 +131,10 @@ export function postingOf(e: FarmEvent, vatRegistered = false): Posting | null {
   if (e.type === "supplierPayment") {
     const from = PAID_OUT[e.method];
     return from ? { journal: from.journal, label: "Paiement fournisseur", lines: [line(SUPPLIERS, e.amount, 0n), line(from.account, 0n, e.amount)] } : null;
+  }
+  if (e.type === "issuedDebit") {
+    // FN6: an accepted bill leaves the bank at its due date; an issued cheque already left it on its issue day
+    return e.kind === "bill" ? { journal: "BQ", label: "Effet payé à l’échéance", lines: [line(BILLS_PAYABLE, e.amount, 0n), line(BANK, 0n, e.amount)] } : null;
   }
   if (e.type === "receipt") {
     const received = RECEIVED[e.method];

@@ -319,7 +319,10 @@
       "transfer": "تحويل",
       "cheque": "شيك صادر",
       "bill": "كمبيالة مقبولة"
-    }
+    },
+    "dues": "آجال أداء {supplier}",
+    "dueLine": "{amount} يُؤدى في {date}",
+    "dueLateLine": "{amount} متأخر منذ {date}"
   },
   "Batches": {
     "title": "الدفعات",

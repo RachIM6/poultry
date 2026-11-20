@@ -63,24 +63,6 @@ export function checkAdjustment(a: { quantity: number; reason: string }): Result
   return a.reason.trim() ? ok(undefined) : fail("REASON_REQUIRED");
 }
 
-/** S2: balance owed to each supplier = purchases − what was paid with them − later payments. */
-export function supplierBalances(
-  purchases: readonly { supplierId: string; amountCentimes: bigint; paidCentimes: bigint }[],
-  payments: readonly { supplierId: string; amountCentimes: bigint }[] = [],
-) {
-  const balances = new Map<string, bigint>();
-  const add = (id: string, c: bigint) => balances.set(id, (balances.get(id) ?? 0n) + c);
-  for (const p of purchases) add(p.supplierId, p.amountCentimes - p.paidCentimes);
-  for (const p of payments) add(p.supplierId, -p.amountCentimes);
-  return balances;
-}
-
-/** S2, SPEC-finance FN6: a later payment to a supplier, up to what is owed. */
-export function checkSupplierPayment(amountCentimes: bigint, balanceCentimes: bigint): Result<void, "INVALID_QUANTITY" | "PAID_MORE_THAN_OWED"> {
-  if (amountCentimes <= 0n) return fail("INVALID_QUANTITY");
-  return amountCentimes > balanceCentimes ? fail("PAID_MORE_THAN_OWED") : ok(undefined);
-}
-
 /**
  * S6: alert once, when a movement takes stock from at or above the item's threshold to below it. Further movements
  * while it stays below don't alert again; a restock above the threshold re-arms it.

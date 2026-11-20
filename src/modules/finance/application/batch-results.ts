@@ -5,21 +5,27 @@ import type { TenantContext } from "@/lib/tenant";
 import { batchesForFinance, type BatchMoneyFacts } from "@/modules/flock";
 import { batchConsumptionCost } from "@/modules/inventory";
 import { salesByBatch } from "@/modules/sales";
-import { allocate, batchResult, birdDays, type BatchResult } from "@/modules/finance/domain/batch";
+import { payCosts } from "@/modules/workforce";
+import { allocate, batchResult, birdDays, monthPeriod, type BatchResult } from "@/modules/finance/domain/batch";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
-type SharedExpense = { id: string; amount: bigint; from: string; to: string };
+// farmId: a cost of one farm only (a pay month), shared over that farm's batches; absent, over all of them.
+type SharedExpense = { id: string; amount: bigint; from: string; to: string; farmId?: string };
 
-const sharedExpenses = async (tx: Tx, ctx: TenantContext): Promise<SharedExpense[]> =>
-  (await tx.expense.findMany({ where: { organizationId: ctx.organizationId, shared: true }, orderBy: { id: "asc" } })).map((e) => ({
+const sharedExpenses = async (tx: Tx, ctx: TenantContext): Promise<SharedExpense[]> => [
+  ...(await tx.expense.findMany({ where: { organizationId: ctx.organizationId, shared: true }, orderBy: { id: "asc" } })).map((e) => ({
     id: e.id,
     amount: e.amountCentimes,
     from: day(e.serviceFrom!),
     to: day(e.serviceTo!),
-  }));
+  })),
+  // plan-m4 "Later": a validated month's labour cost, shared by bird-days like any common charge of the month
+  ...(await payCosts(tx, ctx)).map((p) => ({ id: p.id, amount: p.costCentimes, ...monthPeriod(p.month), farmId: p.farmId })),
+];
 
-const weightOver = (b: BatchMoneyFacts, e: SharedExpense) => birdDays({ placedOn: b.placedOn, lastDay: b.closedOn, started: b.started, out: b.out, from: e.from, to: e.to });
+const weightOver = (b: BatchMoneyFacts, e: SharedExpense) =>
+  e.farmId && e.farmId !== b.farmId ? 0n : birdDays({ placedOn: b.placedOn, lastDay: b.closedOn, started: b.started, out: b.out, from: e.from, to: e.to });
 
 /**
  * FN14: each shared expense's parts for the batches not yet frozen: what's left of it after the frozen shares, split

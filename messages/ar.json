@@ -796,7 +796,7 @@
     "marginPerKg": "الهامش / كلغ",
     "costPerKg": "التكلفة / كلغ",
     "share": "% من المبيعات",
-    "costs": "الكتاكيت {chicks} · الاستهلاكات {consumption} · أخرى {other} · مباشرة {direct} · موزعة {allocated}",
+    "costs": "الكتاكيت {chicks} · الاستهلاكات {consumption} · أخرى {other} · مباشرة {direct} · موزعة (تكاليف مشتركة وأجور) {allocated}",
     "open_": "جارية",
     "closed": "مغلقة بتاريخ {date}"
   },

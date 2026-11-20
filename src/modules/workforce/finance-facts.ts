@@ -36,6 +36,20 @@ export async function payPaymentsChangedSince(tx: Tx, ctx: TenantContext, after:
   return (await changes(tx, ctx, "payPayment", after, limit)).map((c) => ({ version: c.version, ...(c.data as unknown as PayPaymentDto) }));
 }
 
+/**
+ * For finance's batch results (FN14, plan-m4 "Later"): each validated month's labour cost on its farm, gross pay plus
+ * the employer's CNSS share when its rate is entered, to share over that farm's batches of the month.
+ */
+export async function payCosts(tx: Tx, ctx: TenantContext): Promise<{ id: string; farmId: string; month: string; costCentimes: bigint }[]> {
+  const months = await tx.payMonth.findMany({ where: { organizationId: ctx.organizationId }, orderBy: { id: "asc" } });
+  return months.map((m) => ({
+    id: m.id,
+    farmId: m.farmId,
+    month: m.month,
+    costCentimes: (m.lines as unknown as PayMonthDto["lines"]).reduce((s, l) => s + BigInt(l.grossCentimes) + BigInt(l.employerContributionCentimes ?? 0), 0n),
+  }));
+}
+
 /** For finance's cash schedule: validated months whose wages aren't paid yet, due at the month's end. */
 export async function wagesDue(ctx: TenantContext): Promise<{ dueOn: string; amountCentimes: bigint }[]> {
   const where = { organizationId: ctx.organizationId };

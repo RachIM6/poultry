@@ -2,4 +2,4 @@
 // or from ./schema for what the offline client needs (ADR-008).
 export { salesSync } from "./sync";
 export { sendInstrumentReminders } from "./application/reminders";
-export { instrumentStepsChangedSince, instrumentsToCollect, paymentsChangedSince, salesByBatch, salesChangedSince, type InstrumentStep, type PaymentChange, type SaleChange } from "./application/changes";
+export { instrumentStepsChangedSince, instrumentsToCollect, ledgerTagsOf, paymentsChangedSince, salesByBatch, salesChangedSince, type InstrumentStep, type PaymentChange, type SaleChange } from "./application/changes";

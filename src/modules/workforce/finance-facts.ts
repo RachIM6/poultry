@@ -60,3 +60,19 @@ export async function wagesDue(ctx: TenantContext): Promise<{ dueOn: string; amo
     .map((m) => ({ dueOn: monthEnd(m.month), amountCentimes: (m.lines as unknown as PayMonthDto["lines"]).reduce((s, l) => s + (BigInt(l.netCentimes) > 0n ? BigInt(l.netCentimes) : 0n), 0n) }))
     .filter((d) => d.amountCentimes > 0n);
 }
+
+/** For finance's export (SPEC-finance FN18): an advance's employee and farm, a pay month's or wage payment's farm, by id. */
+export async function ledgerTagsOf(tx: Tx, ctx: TenantContext, ids: string[]) {
+  const where = { organizationId: ctx.organizationId, id: { in: ids } };
+  const [advances, months, paid] = await Promise.all([
+    tx.salaryAdvance.findMany({ where, select: { id: true, farmId: true, employeeId: true } }),
+    tx.payMonth.findMany({ where, select: { id: true, farmId: true } }),
+    tx.payPayment.findMany({ where, select: { id: true, farmId: true } }),
+  ]);
+  const employees = await tx.employee.findMany({ where: { organizationId: ctx.organizationId, id: { in: advances.map((a) => a.employeeId) } }, select: { id: true, name: true } });
+  const name = new Map(employees.map((e) => [e.id, e.name]));
+  return new Map([
+    ...advances.map((a) => [a.id, { party: name.get(a.employeeId) ?? null, farmId: a.farmId, batchId: null }] as const),
+    ...[...months, ...paid].map((p) => [p.id, { party: null, farmId: p.farmId, batchId: null }] as const),
+  ]);
+}

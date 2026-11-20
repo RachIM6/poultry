@@ -127,6 +127,13 @@ export const houseOf = async (tx: Tx, ctx: TenantContext, houseId: string) => {
   return house && { id: house.id, farmId: house.farmId, name: house.name };
 };
 
+/** For finance's export (SPEC-finance FN18): the names of the caller's organisation's farms and houses, by id. */
+export async function placeNames(tx: Tx, ctx: TenantContext, ids: string[]) {
+  const where = { organizationId: ctx.organizationId, id: { in: ids } };
+  const [farms, houses] = await Promise.all([tx.farm.findMany({ where, select: { id: true, name: true } }), tx.house.findMany({ where, select: { id: true, name: true } })]);
+  return new Map([...farms, ...houses].map((x) => [x.id, x.name]));
+}
+
 /**
  * For the scheduler (SPEC-m2-compliance DC4), across organisations: farms whose ONSSA authorization expires on or
  * before `day`. Read-only; callers notify each farm's own organisation.

@@ -11,14 +11,16 @@ type Books = {
   trialBalance?: { rows: TrialBalanceRow[]; debit: bigint; credit: bigint };
 };
 
+/** FN18's analytic columns of an entry: party, farm, house, batch (its placement day), read from the record it posts. */
+export type EntryTags = ReadonlyMap<string, readonly [party: string, farm: string, house: string, batch: string]>;
+
 /** The sheets of a period's export, each with the file name it gets as CSV. A `cash_book` entity only has its cash book. */
-export function exportSheets(books: Books): (Sheet & { file: string })[] {
+export function exportSheets(books: Books, tags: EntryTags = new Map()): (Sheet & { file: string })[] {
   const label = (account: string) => books.labels[account] ?? "";
   const sheets: (Sheet & { file: string })[] = [];
   if (books.journals) {
-    // Party, farm, house and batch stay empty: ledger lines carry no analytic tag yet (T34, T36).
     const rows: Cell[][] = books.journals.flatMap((j) =>
-      j.entries.flatMap((e) => e.lines.map((l) => [{ day: e.day }, j.journal, e.id, l.account, label(l.account), e.label, l.debit, l.credit, "", "", "", ""])),
+      j.entries.flatMap((e) => e.lines.map((l) => [{ day: e.day }, j.journal, e.id, l.account, label(l.account), e.label, l.debit, l.credit, ...(tags.get(e.id) ?? ["", "", "", ""])])),
     );
     sheets.push({ name: "Écritures", file: "ecritures", header: ["Date", "Journal", "Pièce", "Compte", "Libellé du compte", "Libellé", "Débit", "Crédit", "Tiers", "Ferme", "Bâtiment", "Lot"], rows });
   }

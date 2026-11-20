@@ -217,7 +217,9 @@ Done 2026-11-16 (branch `feat/t38-export`), decisions taken without asking:
 - **Headers in French** in both locales: the CGNC and the accountants work in French.
 - **Entry columns** are FN18's. "Pièce" is the entry id (stable, traces back to the app). Party, farm, house and batch are empty: ledger lines carry no analytic tag yet (see T34, T36).
 
-Not yet: the analytic columns; the accounting software's own import format (M6, FQ10).
+The analytic columns came on 2026-11-20 (branch `feat/export-analytics`): Tiers, Ferme, Bâtiment and Lot are read at export from the record each entry posts (its source), so entries posted earlier get them too, and a reversal its original's: a purchase's supplier and farm, a supplier payment's supplier, the chicks' batch, a sale's buyer and batch, a buyer payment's or cheque step's buyer, an expense's batch, an advance's employee and farm, a pay month's or wage payment's farm. Lot is the batch's placement day (dd/mm/yyyy), next to its house. Each module answers for its own records (`ledgerTagsOf` in inventory, sales and workforce; `batchPlaces` in flock; `placeNames` in farm-registry). Transfers and the opening entry have none.
+
+Not yet: the accounting software's own import format (M6, FQ10).
 
 **Size:** M
 

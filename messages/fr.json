@@ -224,6 +224,10 @@
       "documentExpired": {
         "title": "Échéance atteinte : {title}",
         "body": "Arrivé à échéance le {date}. À renouveler."
+      },
+      "thresholdNear": {
+        "title": "Seuil d’exonération : {percent} %",
+        "body": "Les ventes agricoles de l’exercice, réalisées et prévues, atteignent {percent} % du seuil. Voyez avec votre expert-comptable."
       }
     }
   },

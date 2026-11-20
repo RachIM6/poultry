@@ -5,6 +5,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
+import { notify } from "@/modules/notifications";
 import { listBudgets } from "@/modules/finance/application/budget";
 import { budgetOf } from "@/modules/finance/domain/budget";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
@@ -57,4 +58,22 @@ export async function thresholdTracker(ctx: TenantContext, clock: Clock = system
     history.push({ from: before.from, to: before.to, bookedCentimes: sales, over: sales >= threshold.centimes });
   }
   return ok({ threshold, fiscalYear: year, bookedCentimes: booked, plannedCentimes: planned, usage: thresholdUsage(booked, planned, threshold.centimes), history });
+}
+
+/**
+ * FN17: once this fiscal year's booked and planned sales reach 90 % of the threshold, the owners and managers get one
+ * notification for that year (not urgent: quiet hours hold it). Called after each posting run; the ThresholdAlert row
+ * claims the year, so a second run or a racing push sends nothing. Returns whether it notified.
+ */
+export async function alertThresholdOnce(ctx: TenantContext, clock: Clock = systemClock): Promise<boolean> {
+  const tracker = await thresholdTracker(ctx, clock);
+  if (!tracker.ok || !tracker.value?.usage.alert) return false;
+  const { fiscalYear, usage } = tracker.value;
+  const [entity] = await listLegalEntities(ctx);
+  return db.$transaction(async (tx) => {
+    const claim = { organizationId: ctx.organizationId, legalEntityId: entity.id, fiscalYearFrom: new Date(`${fiscalYear.from}T00:00:00Z`) };
+    if ((await tx.thresholdAlert.createMany({ data: [claim], skipDuplicates: true })).count === 0) return false;
+    await notify(tx, ctx, { roles: ["owner", "manager"], templateKey: "thresholdNear", params: { percent: String(usage.percent) }, urgency: "normal" }, clock);
+    return true;
+  });
 }

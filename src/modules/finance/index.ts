@@ -14,4 +14,4 @@ export { readBooks, type Books } from "./application/books";
 export type { IncomeStatement } from "./domain/statements";
 export { chartView } from "./application/chart";
 export { exportBooks } from "./application/export";
-export { thresholdTracker, type ThresholdTracker } from "./application/threshold";
+export { alertThresholdOnce, thresholdTracker, type ThresholdTracker } from "./application/threshold";

@@ -201,7 +201,7 @@ Done 2026-11-15 (branch `feat/t37-threshold`), decisions taken without asking:
 - **History:** the last 3 fiscal years, each marked when over the threshold (for the "3 years in a row" rule).
 - **Screens:** `/threshold` (online, owner and manager), and a warning at the top of the dashboard from 90 %.
 
-Not yet: a push notification when the year crosses 90 %; the dashboard warning only shows on an online visit.
+The push notification came on 2026-11-20 (branch `feat/threshold-push`): after each posting run, a fiscal year at 90 % or more notifies the owners and managers once (`ThresholdAlert` claims the year; not urgent, so quiet hours hold it). `finance` may now call `notifications` (CAPABILITY-MAP, lint rule), like every other module that alerts.
 
 **Size:** S
 

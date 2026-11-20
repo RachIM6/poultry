@@ -8,7 +8,8 @@ import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { farmBelongsTo } from "@/modules/farm-registry";
 import { alertIfLow } from "@/modules/inventory/application/alerts";
-import { checkAdjustment, checkItem, checkPurchase, checkSupplierPayment } from "@/modules/inventory/domain/stock";
+import { checkAdjustment, checkItem, checkPurchase } from "@/modules/inventory/domain/stock";
+import { checkSupplierPayment } from "@/modules/inventory/domain/suppliers";
 import {
   findItem,
   idTaken,

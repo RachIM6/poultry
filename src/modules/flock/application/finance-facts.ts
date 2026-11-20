@@ -18,6 +18,7 @@ export type BatchMoneyFacts = {
   chicksCentimes: bigint; // every chick placed, dead on arrival included (as the B6 cost)
   otherCentimes: bigint; // M1 T24's "other costs" (B6)
   soldGrams: number; // farm weight of every bird sold
+  lost: number; // dead and culled, from the daily entries (FN13's mortality)
   out: { day: string; birds: number }[]; // deaths, culls and sales, by day (for bird-days)
 };
 
@@ -47,6 +48,7 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext): Promise<Bat
     chicksCentimes: BigInt(b.chicksPlaced) * b.chickUnitPriceCentimes,
     otherCentimes: other.get(b.id) ?? 0n,
     soldGrams: sold.filter((s) => s.batchId === b.id).reduce((s, x) => s + x.liveWeightGrams, 0),
+    lost: entries.filter((e) => e.batchId === b.id).reduce((s, e) => s + e.dead + e.culled, 0),
     out: [
       ...entries.filter((e) => e.batchId === b.id).map((e) => ({ day: day(e.day), birds: e.dead + e.culled })),
       ...sold.filter((s) => s.batchId === b.id).map((s) => ({ day: day(s.day), birds: s.birds })),

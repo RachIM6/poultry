@@ -63,6 +63,8 @@ describe("batch result and shared-cost allocation (SPEC-finance FN13, FN14, T34)
       ),
     ).toEqual(["applied", "applied"]);
     expect((await result(a, ids.batchB)).costs.consumption).toBe(38_250n); // 85 kg × 4,50 DH, not the 4 500,00 bought
+    // FN13's comparison: the feed eaten at 4,50 DH/kg; nothing sold yet, so no FCR nor price
+    expect((await result(a, ids.batchB)).comparison).toEqual({ lostPermille: 0n, fcrMilli: null, feedPricePerKgCentimes: 450n, pricePerKgCentimes: null });
     expect(await statuses(a, expense("20000", null, ids.batchB, "vet_fees"))).toEqual(["applied"]); // a direct charge of B
     expect((await result(a, ids.batchB)).costs.direct).toBe(20_000n);
     expect(await statuses(b, expense("1", null, ids.batchB))).toEqual(["errors.NOT_FOUND"]); // a's batch
@@ -84,6 +86,8 @@ describe("batch result and shared-cost allocation (SPEC-finance FN13, FN14, T34)
 
     // FN13: A's result. Cost 5 500,00 of chicks + 3 100,00 allocated = 8 600,00; margin 21 400,00 on 2 000 kg.
     expect(await result(a, ids.batchA)).toMatchObject({ salesCentimes: 3_000_000n, costCentimes: 860_000n, marginCentimes: 2_140_000n, costPerKgCentimes: 430n, marginPerKgCentimes: 1070n, marginPermille: 713n });
+    expect((await result(a, ids.batchA)).comparison.pricePerKgCentimes).toBe(1500n); // 30 000,00 DH for 2 000 kg
+    expect((await result(a, ids.batchB)).comparison.lostPermille).toBe(200n); // 100 of 500 dead: 20 %
   });
 
   it("is for owners and managers only", async () => {

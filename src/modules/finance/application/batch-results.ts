@@ -3,10 +3,10 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { batchesForFinance, type BatchMoneyFacts } from "@/modules/flock";
-import { batchConsumptionCost } from "@/modules/inventory";
+import { batchConsumption } from "@/modules/inventory";
 import { salesByBatch } from "@/modules/sales";
 import { payCosts } from "@/modules/workforce";
-import { allocate, batchResult, birdDays, monthPeriod, type BatchResult } from "@/modules/finance/domain/batch";
+import { allocate, batchComparison, batchResult, birdDays, monthPeriod, type BatchComparison, type BatchResult } from "@/modules/finance/domain/batch";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -71,6 +71,7 @@ export type BatchResultRow = BatchResult & {
   salesCentimes: bigint;
   costs: { chicks: bigint; consumption: bigint; other: bigint; direct: bigint; allocated: bigint };
   costCentimes: bigint;
+  comparison: BatchComparison; // FN13: mortality, FCR, feed price and price per kg, next to the result
 };
 
 /**
@@ -97,7 +98,10 @@ export async function batchResults(ctx: TenantContext): Promise<Result<BatchResu
 
       const rows: BatchResultRow[] = [];
       for (const b of [...batches].reverse()) {
-        const costs = { chicks: b.chicksCentimes, consumption: await batchConsumptionCost(tx, ctx, b.id), other: b.otherCentimes, direct: direct.get(b.id) ?? 0n, allocated: allocatedTo(b.id) };
+        const consumed = await batchConsumption(tx, ctx, b.id);
+        const consumption = [...consumed.values()].reduce((s, k) => s + k.centimes, 0n);
+        const feed = consumed.get("feed") ?? { quantity: 0n, centimes: 0n };
+        const costs = { chicks: b.chicksCentimes, consumption, other: b.otherCentimes, direct: direct.get(b.id) ?? 0n, allocated: allocatedTo(b.id) };
         const costCentimes = costs.chicks + costs.consumption + costs.other + costs.direct + costs.allocated;
         const salesCentimes = sales.get(b.id) ?? 0n;
         rows.push({
@@ -111,6 +115,7 @@ export async function batchResults(ctx: TenantContext): Promise<Result<BatchResu
           costs,
           costCentimes,
           ...batchResult({ salesCentimes, costCentimes, soldGrams: BigInt(b.soldGrams) }),
+          comparison: batchComparison({ started: b.started, lost: b.lost, feedGrams: feed.quantity, feedCentimes: feed.centimes, soldGrams: BigInt(b.soldGrams), salesCentimes }),
         });
       }
       return rows;

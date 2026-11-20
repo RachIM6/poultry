@@ -38,6 +38,10 @@ describe("a farm day's tasks (SPEC-m4 WF4)", () => {
     expect(routineFalls(r, "2026-11-05", null)).toBe(false);
     expect(keys({ ...none, batches: [{ ...batch, placedOn: "2026-10-01" }], routines: [r] })).toEqual([["entry:b1", false], ["routine:r1", false]]); // J35
     expect(keys({ ...none, routines: [r] })).toEqual([]);
+    // SPEC-m3 B7: hens placed at 18 weeks (126 days) on 2026-11-01 are 130 days old on 2026-11-05
+    const hens = { ...batch, placedOn: "2026-11-01", ageAtPlacementDays: 126 };
+    const atAge = routine({ houseId: "h2", startOn: null, fromAge: 130, everyDays: 7, title: "Contrôle du poids" });
+    expect(dayTasks(F, "2026-11-05", { ...none, batches: [hens], routines: [atAge] }).map((t) => [t.key, t.age])).toEqual([["entry:b1", 130], ["routine:r1", 130]]);
   });
 
   it("one-off tasks on their day, not cancelled; routines and one-offs done once ticked that day", () => {

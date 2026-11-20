@@ -1,5 +1,5 @@
 import { v7 as uuidv7 } from "uuid";
-import { db, type Tx } from "@/lib/db";
+import { db, SYNC_TX, type Tx } from "@/lib/db";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
@@ -160,7 +160,7 @@ export async function postPending(pusher: TenantContext): Promise<number> {
       }
       await moveCursor(tx, ctx, source.name, changes.at(-1)!.version);
       return n;
-    });
+    }, SYNC_TX);
   }
   await freezeClosedBatches(ctx); // FN14: a batch that closed in this push gets its allocation frozen
   if (posted > 0) await alertThresholdOnce(ctx); // FN17: the 90 % notification, once a fiscal year

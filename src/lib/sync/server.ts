@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { db, type Tx } from "@/lib/db";
+import { db, SYNC_TX, type Tx } from "@/lib/db";
 import type { Result } from "@/lib/kernel/result";
 import { can, type Action } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -75,7 +75,7 @@ function applyOnce(ctx: TenantContext, m: PushedMutation, registry: SyncRegistry
     const result = await decide(tx, ctx, m, registry);
     await tx.mutation.update({ where: { id: m.id }, data: { result } });
     return result;
-  });
+  }, SYNC_TX);
 }
 
 async function decide(tx: Tx, ctx: TenantContext, m: PushedMutation, registry: SyncRegistry): Promise<MutationResult> {

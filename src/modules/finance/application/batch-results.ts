@@ -1,4 +1,4 @@
-import { db, type Tx } from "@/lib/db";
+import { db, SYNC_TX, type Tx } from "@/lib/db";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -58,7 +58,7 @@ export async function freezeClosedBatches(ctx: TenantContext): Promise<number> {
       frozen.add(b.id);
     }
     return closing.length;
-  });
+  }, SYNC_TX); // waiting for the organisation's lock counts too
 }
 
 export type BatchResultRow = BatchResult & {

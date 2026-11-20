@@ -1722,7 +1722,12 @@
       "billsRemitted": "Effets remis à l’encaissement",
       "vatRecoverable": "TVA récupérable",
       "vatCollected": "TVA facturée",
-      "billsPayable": "Effets à payer aux fournisseurs"
+      "billsPayable": "Effets à payer aux fournisseurs",
+      "salaries": "Salaires",
+      "socialCharges": "Charges sociales (CNSS employeur)",
+      "staffAdvances": "Avances sur salaire",
+      "wagesDue": "Salaires à payer",
+      "cnss": "CNSS à payer"
     }
   }
 }

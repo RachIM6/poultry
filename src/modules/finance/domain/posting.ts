@@ -10,6 +10,9 @@ export type FarmEvent =
   | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead"; vat?: bigint } // SPEC V2, SPEC-m3 V6, V7
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
   | { type: "supplierPayment"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment to a supplier (S2)
+  | { type: "advance"; id: string; day: FarmDay; amount: bigint } // SPEC-m4 WF10: paid in cash
+  // SPEC-m4 WF12: a validated pay month, all employees of a farm; contributions null until the CNSS rates are entered
+  | { type: "pay"; id: string; day: FarmDay; gross: bigint; advances: bigint; employeeContribution: bigint | null; employerContribution: bigint | null; net: bigint }
   | { type: "instrument"; id: string; day: FarmDay; amount: bigint; kind: "cheque" | "bill"; from: string; to: string }; // FN11
 
 export type Journal = "AC" | "VT" | "CA" | "BQ" | "EF" | "OD";
@@ -35,6 +38,12 @@ const EGGS_SOLD = "71213"; // Ventes de produits d'animaux (SPEC-m3 V8); 7121 wi
 const DOUBTFUL = "3424"; // Clients douteux ou litigieux: a cheque or bill that came back unpaid
 const BANK = "5141";
 const BILLS_PAYABLE = "4415"; // Fournisseurs - effets à payer
+// SPEC-m4 pay, ⚠️ to confirm with the accountant (plan-m4 "Later"): CGNC accounts from the PCA nomenclature.
+const STAFF_ADVANCES = "3431"; // Avances et acomptes au personnel
+const SALARIES = "6171"; // Rémunération du personnel
+const SOCIAL_CHARGES = "6174"; // Charges sociales
+const WAGES_DUE = "4432"; // Rémunérations dues au personnel
+const CNSS = "4441"; // Caisse Nationale de la Sécurité Sociale
 // FN6: where a later payment to a supplier comes from; an issued cheque leaves the bank on its issue date.
 const PAID_OUT: Record<string, { account: string; journal: Journal }> = {
   cash: { account: "5161", journal: "CA" },
@@ -70,6 +79,11 @@ export const POSTED_ACCOUNTS: readonly { op: string; account: string }[] = [
   { op: "doubtful", account: DOUBTFUL },
   { op: "suppliers", account: SUPPLIERS },
   { op: "billsPayable", account: BILLS_PAYABLE },
+  { op: "salaries", account: SALARIES },
+  { op: "socialCharges", account: SOCIAL_CHARGES },
+  { op: "staffAdvances", account: STAFF_ADVANCES },
+  { op: "wagesDue", account: WAGES_DUE },
+  { op: "cnss", account: CNSS },
   { op: "cash", account: PAID_AT_ONCE },
   { op: "bank", account: BANK },
   { op: "cheques", account: RECEIVED.cheque.account },
@@ -84,7 +98,7 @@ export const POSTED_ACCOUNTS: readonly { op: string; account: string }[] = [
  * VAT-registered entity books the invoice's VAT apart; otherwise the whole total stays on the charge or the sale.
  */
 export function postingOf(e: FarmEvent, vatRegistered = false): Posting | null {
-  if (e.amount <= 0n) return null;
+  if (e.type === "pay" ? e.gross <= 0n : e.amount <= 0n) return null;
   const vat = vatRegistered && (e.type === "purchase" || e.type === "sale") ? (e.vat ?? 0n) : 0n;
   if (e.type === "sale") {
     const eggs = e.kind === "eggs";
@@ -93,6 +107,18 @@ export function postingOf(e: FarmEvent, vatRegistered = false): Posting | null {
     const received = RECEIVED[e.method];
     if (received && e.paid > 0n) lines.push(line(received.account, e.paid, 0n), line(BUYERS, 0n, e.paid));
     return { journal: "VT", label: eggs ? "Vente d’œufs" : "Vente", lines };
+  }
+  if (e.type === "advance") {
+    // M4 records no payment method for an advance: from the cash box, as farms pay them (⚠️ like a purchase's paid part)
+    return { journal: "CA", label: "Avance sur salaire", lines: [line(STAFF_ADVANCES, e.amount, 0n), line(PAID_AT_ONCE, 0n, e.amount)] };
+  }
+  if (e.type === "pay") {
+    const lines = [line(SALARIES, e.gross, 0n)];
+    if (e.advances > 0n) lines.push(line(STAFF_ADVANCES, 0n, e.advances));
+    if (e.employeeContribution) lines.push(line(CNSS, 0n, e.employeeContribution));
+    if (e.net > 0n) lines.push(line(WAGES_DUE, 0n, e.net));
+    if (e.employerContribution) lines.push(line(SOCIAL_CHARGES, e.employerContribution, 0n), line(CNSS, 0n, e.employerContribution));
+    return { journal: "OD", label: "Paie du mois", lines };
   }
   if (e.type === "supplierPayment") {
     const from = PAID_OUT[e.method];

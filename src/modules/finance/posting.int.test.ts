@@ -141,4 +141,31 @@ describe("posting pipeline (SPEC-finance FN6–FN7, T30)", () => {
     expect(await linesOf({ sourceId: saleId })).toEqual([["3421", 300_000n, 0n], ["4455", 0n, 50_000n], ["712121", 0n, 250_000n]]);
     expect(await linesOf({ sourceId: expenseId })).toEqual([["3455", 20_000n, 0n], ["5161", 0n, 120_000n], ["612512", 100_000n, 0n]]);
   });
+  it("posts later supplier payments, never beyond what is owed (S2, FN6)", async () => {
+    const d = await tenant("+212600000004", "Ferme Fournisseurs");
+    const [farm, supplier, feed, bill, cash] = Array.from({ length: 5 }, () => uuidv7());
+    const pay = (id: string, amountCentimes: string, method: string) => m("inventory.recordSupplierPayment", { id, supplierId: supplier, day: "2026-03-10", amountCentimes, method });
+    const pushed = await push(
+      d,
+      [
+        m("farm-registry.createFarm", { id: farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
+        m("inventory.createSupplier", { id: supplier, name: "Alf", phone: null }),
+        m("inventory.createStockItem", { id: feed, farmId: farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null }),
+        // 9 000,00 DH on credit
+        m("inventory.recordPurchase", { id: uuidv7(), movementId: uuidv7(), supplierId: supplier, stockItemId: feed, day: "2026-03-02", quantity: 2_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null }),
+        pay(bill, "600000", "bill"),
+        pay(cash, "300000", "cash"),
+        pay(uuidv7(), "1", "cash"), // nothing left to pay
+      ],
+      registry,
+    );
+    expect(pushed.results.map((r) => r.status)).toEqual([...Array(6).fill("applied"), "rejected"]);
+    expect(pushed.results.at(-1)).toMatchObject({ messageKey: "errors.PAID_MORE_THAN_OWED" });
+    expect((await push({ ...d, role: "worker" }, [pay(uuidv7(), "1", "cash")], registry)).results[0].status).toBe("rejected");
+
+    await postPending(d);
+    expect(await linesOf({ sourceId: bill })).toEqual([["4411", 600_000n, 0n], ["4415", 0n, 600_000n]]);
+    expect(await linesOf({ sourceId: cash })).toEqual([["4411", 300_000n, 0n], ["5161", 0n, 300_000n]]);
+    expect((await db.journalEntry.findFirstOrThrow({ where: { sourceId: bill } })).journal).toBe("OD");
+  });
 });

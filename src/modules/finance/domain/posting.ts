@@ -8,9 +8,10 @@ export type FarmEvent =
   | { type: "chicks"; id: string; day: FarmDay; amount: bigint } // the chicks bought at placement (SPEC B1)
   | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead"; vat?: bigint } // SPEC V2, SPEC-m3 V6, V7
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
+  | { type: "supplierPayment"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment to a supplier (S2)
   | { type: "instrument"; id: string; day: FarmDay; amount: bigint; kind: "cheque" | "bill"; from: string; to: string }; // FN11
 
-export type Journal = "AC" | "VT" | "CA" | "BQ" | "EF";
+export type Journal = "AC" | "VT" | "CA" | "BQ" | "EF" | "OD";
 export type Posting = { journal: Journal; label: string; lines: Line[] };
 
 // FN6 default rules, with PCA accounts; postingAccount() maps them to the entity's chart (FN2 fallbacks).
@@ -32,6 +33,14 @@ const BIRDS_SOLD = "712121"; // Ventes d'animaux (per kg or per head: SPEC-m3 V8
 const EGGS_SOLD = "71213"; // Ventes de produits d'animaux (SPEC-m3 V8); 7121 without the PCA
 const DOUBTFUL = "3424"; // Clients douteux ou litigieux: a cheque or bill that came back unpaid
 const BANK = "5141";
+const BILLS_PAYABLE = "4415"; // Fournisseurs - effets à payer
+// FN6: where a later payment to a supplier comes from; an issued cheque leaves the bank on its issue date.
+const PAID_OUT: Record<string, { account: string; journal: Journal }> = {
+  cash: { account: "5161", journal: "CA" },
+  transfer: { account: BANK, journal: "BQ" },
+  cheque: { account: BANK, journal: "BQ" },
+  bill: { account: BILLS_PAYABLE, journal: "OD" },
+};
 // FN9: the PCA nomenclature lists 3455 "Etat - TVA récupérable" without the CGNC's 34552 split (FQ4 for the accountant).
 export const VAT_RECOVERABLE = "3455";
 const VAT_COLLECTED = "4455"; // Etat, TVA facturée
@@ -61,6 +70,7 @@ export const POSTED_ACCOUNTS: readonly { op: string; account: string }[] = [
   { op: "buyers", account: BUYERS },
   { op: "doubtful", account: DOUBTFUL },
   { op: "suppliers", account: SUPPLIERS },
+  { op: "billsPayable", account: BILLS_PAYABLE },
   { op: "cash", account: PAID_AT_ONCE },
   { op: "bank", account: BANK },
   { op: "cheques", account: RECEIVED.cheque.account },
@@ -84,6 +94,10 @@ export function postingOf(e: FarmEvent, vatRegistered = false): Posting | null {
     const received = RECEIVED[e.method];
     if (received && e.paid > 0n) lines.push(line(received.account, e.paid, 0n), line(BUYERS, 0n, e.paid));
     return { journal: "VT", label: eggs ? "Vente d’œufs" : "Vente", lines };
+  }
+  if (e.type === "supplierPayment") {
+    const from = PAID_OUT[e.method];
+    return from ? { journal: from.journal, label: "Paiement fournisseur", lines: [line(SUPPLIERS, e.amount, 0n), line(from.account, 0n, e.amount)] } : null;
   }
   if (e.type === "receipt") {
     const received = RECEIVED[e.method];

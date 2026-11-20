@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ITEM_KINDS, UNITS } from "@/modules/inventory/domain/stock";
+import { SUPPLIER_PAYMENT_METHODS } from "@/modules/inventory/shared";
 
 // SPEC S1–S3, written offline: the phone and the sync push validate with these same schemas (ADR-003). Screens that
 // don't validate import ./shared.ts (no Zod, ADR-009), re-exported here.
@@ -35,6 +36,13 @@ export const RecordPurchase = z.object({
   paidCentimes: centimes,
   vatCentimes: centimes.default("0"), // SPEC-finance FN9: the invoice's VAT, part of the total
   dueOn: day.nullable(),
+});
+export const RecordSupplierPayment = z.object({
+  id: z.uuid(),
+  supplierId: z.uuid(),
+  day,
+  amountCentimes: centimes,
+  method: z.enum(SUPPLIER_PAYMENT_METHODS),
 });
 export const AdjustStock = z.object({
   id: z.uuid(),

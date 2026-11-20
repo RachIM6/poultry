@@ -113,3 +113,15 @@ describe("VAT (SPEC-finance FN9)", () => {
     expect(postingOf({ ...sale, vat: 0n }, true)?.lines.map((l) => l.account)).toEqual(["3421", "712121"]);
   });
 });
+
+describe("supplier payments (SPEC-finance FN6)", () => {
+  const pay = (method: string) => postingOf({ type: "supplierPayment", id: "p", day, amount: 250_000n, method });
+  it.each([
+    ["cash", "CA", "5161"],
+    ["transfer", "BQ", "5141"],
+    ["cheque", "BQ", "5141"], // on the issue date
+    ["bill", "OD", "4415"], // the accepted bill replaces the supplier debt
+  ])("%s: D 4411 / C %s in %s", (method, journal, account) => {
+    expect(pay(method)).toEqual({ journal, label: "Paiement fournisseur", lines: [{ account: "4411", debit: 250_000n, credit: 0n }, { account, debit: 0n, credit: 250_000n }] });
+  });
+});

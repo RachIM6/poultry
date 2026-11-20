@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCentimes } from "@/lib/kernel/money";
-import { checkAdjustment, checkItem, checkPurchase, crossedBelow, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "./stock";
+import { checkAdjustment, checkItem, checkPurchase, checkSupplierPayment, crossedBelow, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "./stock";
 
 describe("stock on hand (SPEC S3)", () => {
   it("is the sum of each item's movements: in, out and corrections", () => {
@@ -57,6 +57,14 @@ describe("purchases and supplier credit (SPEC S2)", () => {
       { supplierId: "vet", amountCentimes: 60_000n, paidCentimes: 60_000n },
     ]);
     expect(Object.fromEntries(balances)).toEqual({ alf: 1_050_000n, vet: 0n });
+  });
+
+  it("takes later payments off the balance, never beyond it (S2, SPEC-finance FN6)", () => {
+    const balances = supplierBalances([{ supplierId: "alf", amountCentimes: 900_000n, paidCentimes: 300_000n }], [{ supplierId: "alf", amountCentimes: 250_000n }]);
+    expect(balances.get("alf")).toBe(350_000n);
+    expect(checkSupplierPayment(350_000n, 350_000n).ok).toBe(true);
+    expect(checkSupplierPayment(350_001n, 350_000n)).toEqual({ ok: false, error: "PAID_MORE_THAN_OWED" });
+    expect(checkSupplierPayment(0n, 350_000n)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
   });
 
   it("reads amounts typed in dirhams exactly", () => {

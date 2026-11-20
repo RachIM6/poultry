@@ -14,7 +14,9 @@ import {
   CreateStockItem,
   ITEM_KINDS,
   INVENTORY_MUTATIONS as M,
+  SUPPLIER_PAYMENT_METHODS,
   UNITS,
+  checkSupplierPayment,
   parseQuantity,
   purchaseAmount,
   stockOnHand,
@@ -26,6 +28,7 @@ import {
   type PurchaseDto,
   type StockItemDto,
   type SupplierDto,
+  type SupplierPaymentDto,
 } from "@/modules/inventory/schema";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
@@ -60,7 +63,7 @@ function Stock(scope: Scope) {
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(
-    () => db.records.where("entity").anyOf("farm", "stockItem", "movement", "purchase", "supplier").toArray(),
+    () => db.records.where("entity").anyOf("farm", "stockItem", "movement", "purchase", "supplier", "supplierPayment").toArray(),
     [userId, organizationId],
   );
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
@@ -149,7 +152,7 @@ function Stock(scope: Scope) {
               </div>
             </>
           )}
-          <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} />
+          <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} payments={of<SupplierPaymentDto>("supplierPayment")} write={write} />
         </section>
       )}
     </>
@@ -217,11 +220,13 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
   );
 }
 
-function Suppliers({ suppliers, purchases }: { suppliers: SupplierDto[]; purchases: PurchaseDto[] }) {
+function Suppliers({ suppliers, purchases, payments, write }: { suppliers: SupplierDto[]; purchases: PurchaseDto[]; payments: SupplierPaymentDto[]; write: Write }) {
   const t = useTranslations("Stock");
+  const [paying, setPaying] = useState<string>();
   if (suppliers.length === 0) return null;
   const balances = supplierBalances(
     purchases.map((p) => ({ supplierId: p.supplierId, amountCentimes: BigInt(p.amountCentimes ?? 0), paidCentimes: BigInt(p.paidCentimes ?? 0) })),
+    payments.map((p) => ({ supplierId: p.supplierId, amountCentimes: BigInt(p.amountCentimes) })),
   );
   return (
     <>
@@ -231,6 +236,11 @@ function Suppliers({ suppliers, purchases }: { suppliers: SupplierDto[]; purchas
           <li key={s.id} className={card}>
             <span className="font-semibold">{s.name}</span>
             <span>{t("owed", { amount: formatMoney(balances.get(s.id) ?? 0n) })}</span>
+            {paying === s.id ? (
+              <SupplierPaymentForm supplier={s} balance={balances.get(s.id) ?? 0n} write={write} onDone={() => setPaying(undefined)} />
+            ) : (
+              (balances.get(s.id) ?? 0n) > 0n && <button type="button" onClick={() => setPaying(s.id)} className={secondary}>{t("pay", { supplier: s.name })}</button>
+            )}
           </li>
         ))}
       </ul>
@@ -275,6 +285,33 @@ const read = (form: HTMLFormElement) => {
   return (k: string) => String(data.get(k) ?? "").trim();
 };
 const today = () => farmDayOf(new Date());
+
+/** S2, SPEC-finance FN6: paying a supplier later, up to what is owed, as the server checks it. */
+function SupplierPaymentForm({ supplier, balance, write, onDone }: { supplier: SupplierDto; balance: bigint; write: Write; onDone: () => void }) {
+  const t = useTranslations();
+  const [error, setError] = useState<string>();
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const get = read(e.currentTarget);
+    const amount = parseCentimes(get("amount"));
+    if (amount === null) return setError("errors.INVALID_INPUT");
+    const checked = checkSupplierPayment(amount, balance);
+    if (!checked.ok) return setError(`errors.${checked.error}`);
+    const payment: SupplierPaymentDto = { id: uuidv7(), supplierId: supplier.id, day: get("day") || today(), amountCentimes: String(amount), method: get("method") as SupplierPaymentDto["method"] };
+    if (await write({ type: M.recordSupplierPayment, payload: payment }, [{ entity: "supplierPayment", id: payment.id, data: payment }])) onDone();
+  };
+  return (
+    <form onSubmit={submit} aria-label={t("Stock.pay", { supplier: supplier.name })} className="flex flex-col gap-3">
+      <Field name="amount" label={t("Stock.payAmount")} inputMode="decimal" required dir="ltr" />
+      <Select name="method" label={t("Stock.payMethod")} defaultValue="cash">
+        {SUPPLIER_PAYMENT_METHODS.map((m) => <option key={m} value={m}>{t(`Stock.payMethods.${m}`)}</option>)}
+      </Select>
+      <Field name="day" label={t("Stock.day")} type="date" defaultValue={today()} max={today()} required />
+      {error && <p role="alert">{t(error)}</p>}
+      <Buttons onCancel={onDone} />
+    </form>
+  );
+}
 
 function ItemForm({ farmId, products, write, onCancel }: { farmId: string; products: { id: string; kind: string; nameFr: string; nameAr: string }[]; write: Write; onCancel: () => void }) {
   const t = useTranslations("Stock");

@@ -110,7 +110,7 @@ Done 2026-11-15 (branch `feat/t32-treasury-expenses`):
 Not yet:
 - The receipt photo.
 - Opening balances by hand: an OD entry through `postEntry` works, but there is no screen; FQ11 for cash_book entities.
-- Supplier payments.
+- ~~Supplier payments.~~ Done 2026-11-20 (branch `feat/supplier-payments`): on `/stock`, "Payer" under a supplier who is owed something records a later payment offline (cash, transfer, cheque issued, bill accepted), never above what is owed (`PAID_MORE_THAN_OWED`, under the supplier's row lock). Inventory owns `SupplierPayment` (S2: balance = purchases − paid at once − later payments); finance posts FN6's rows: D 4411 / C 5161 (CA), 5141 (BQ, the cheque on its issue date) or 4415 (OD). Hidden from vets, shown to accountants. Not yet: tracking the issued cheque or accepted bill until it is cashed, and supplier due dates (the supplier side of FN12).
 - The payment method on purchases: the part paid at once still goes to 5161.
 
 **Size:** M

@@ -1,7 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import type { ItemKind, Unit } from "@/modules/inventory/domain/stock";
-import type { MovementDto, PurchaseDto, StockItemDto, SupplierDto } from "@/modules/inventory/schema";
+import { supplierBalances, type ItemKind, type Unit } from "@/modules/inventory/domain/stock";
+import type { MovementDto, PurchaseDto, StockItemDto, SupplierDto, SupplierPaymentDto } from "@/modules/inventory/schema";
 
 // Prisma side of inventory. Every lookup is scoped to the caller's organisation: another organisation's id is not found.
 
@@ -25,6 +25,21 @@ export const idTaken = async (tx: Tx, table: "supplier" | "stockItem" | "stockMo
     : await tx.purchase.count(where);
   return count > 0;
 };
+
+/** S2: what is owed to a supplier, read under its row lock so two payments can't both pass the check. */
+export async function lockedSupplierBalance(tx: Tx, ctx: TenantContext, supplierId: string) {
+  await tx.$executeRaw`SELECT 1 FROM "Supplier" WHERE id = ${supplierId}::uuid AND "organizationId" = ${ctx.organizationId}::uuid FOR UPDATE`;
+  const where = { organizationId: ctx.organizationId, supplierId };
+  const [bought, paid] = await Promise.all([
+    tx.purchase.aggregate({ where, _sum: { amountCentimes: true, paidCentimes: true } }),
+    tx.supplierPayment.aggregate({ where, _sum: { amountCentimes: true } }),
+  ]);
+  const purchases = [{ supplierId, amountCentimes: bought._sum.amountCentimes ?? 0n, paidCentimes: bought._sum.paidCentimes ?? 0n }];
+  return supplierBalances(purchases, [{ supplierId, amountCentimes: paid._sum.amountCentimes ?? 0n }]).get(supplierId) ?? 0n;
+}
+
+export const insertSupplierPayment = (tx: Tx, ctx: TenantContext, p: SupplierPaymentDto) =>
+  tx.supplierPayment.create({ data: { ...p, organizationId: ctx.organizationId, day: date(p.day), amountCentimes: BigInt(p.amountCentimes), recordedBy: ctx.userId } });
 
 /** S3: stock on hand from the ledger, as this transaction sees it. */
 export const onHandOf = async (tx: Tx, ctx: TenantContext, stockItemId: string) =>

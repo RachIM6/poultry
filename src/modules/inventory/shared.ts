@@ -2,7 +2,7 @@ import type { ItemKind, Unit } from "@/modules/inventory/domain/stock";
 
 // What the phone's screens need from inventory, without Zod (ADR-009): stock and balances computed with the same domain
 // rules as the server, the DTOs and the mutation names. The Zod schemas are in ./schema.ts, which re-exports this file.
-export { ITEM_KINDS, UNITS, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "@/modules/inventory/domain/stock";
+export { ITEM_KINDS, UNITS, checkSupplierPayment, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "@/modules/inventory/domain/stock";
 export { valuate } from "@/modules/inventory/domain/valuation";
 export type { ItemKind, Unit } from "@/modules/inventory/domain/stock";
 
@@ -45,10 +45,16 @@ export type PurchaseDto = {
 };
 export const PURCHASE_MONEY = ["unitPriceCentimes", "amountCentimes", "paidCentimes", "vatCentimes", "dueOn"] as const;
 
+/** S2, SPEC-finance FN6: how a supplier is paid later. A cheque leaves the bank on its issue date; a bill is accepted. */
+export const SUPPLIER_PAYMENT_METHODS = ["cash", "transfer", "cheque", "bill"] as const;
+/** All money: owners and managers only (I5). */
+export type SupplierPaymentDto = { id: string; supplierId: string; day: string; amountCentimes: string; method: (typeof SUPPLIER_PAYMENT_METHODS)[number] };
+
 export const INVENTORY_MUTATIONS = {
   createSupplier: "inventory.createSupplier",
   createStockItem: "inventory.createStockItem",
   recordPurchase: "inventory.recordPurchase",
   adjustStock: "inventory.adjustStock",
   setThreshold: "inventory.setThreshold",
+  recordSupplierPayment: "inventory.recordSupplierPayment",
 } as const;

@@ -49,4 +49,9 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
       )
     ).map((l) => `${l.journal} ${l.account} ${l.debit} ${l.credit}`);
   await expect.poll(lines, { timeout: 20_000 }).toEqual(["BQ 4411 200000 0", "BQ 5141 0 200000"]);
+  // F-Effects: this week, 7 000,00 DH still due (overdue) against a bank already down by the cheque.
+  await page.goto("/fr/treasury");
+  const week = page.getByRole("table", { name: "Les 4 prochaines semaines" }).getByRole("row").nth(1);
+  await expect(week).toContainText(/7.000,00.DH/);
+  await expect(week).toContainText(/-9.000,00.DH/);
 });

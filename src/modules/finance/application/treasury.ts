@@ -10,9 +10,12 @@ import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { batchFacts } from "@/modules/flock";
+import { supplierDuesOf } from "@/modules/inventory";
+import { instrumentsToCollect } from "@/modules/sales";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
+import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
 import type { Posting } from "@/modules/finance/domain/posting";
 import { expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
 import { lockedMonths } from "@/modules/finance/infrastructure/ledger";
@@ -151,3 +154,19 @@ const nextMonth = (month: string) => {
   const [y, m] = month.split("-").map(Number);
   return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
 };
+
+/**
+ * F-Effects' schedule, the weekly cash need from facts: today's cash and bank (5161, 5141 in the ledger) run forward
+ * with the cheques and bills to collect and what is due to suppliers. Owners, managers and the accountant (a read).
+ */
+export async function cashForecast(ctx: TenantContext, clock: Clock = systemClock) {
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN");
+  const [cash, ins, outs] = await Promise.all([
+    db.journalLine.aggregate({ where: { organizationId: ctx.organizationId, account: { in: ["5141", "5161"] } }, _sum: { debitCentimes: true, creditCentimes: true } }),
+    instrumentsToCollect(ctx),
+    supplierDuesOf(ctx),
+  ]);
+  const start = (cash._sum.debitCentimes ?? 0n) - (cash._sum.creditCentimes ?? 0n);
+  const flows = [...ins.map((f) => ({ ...f, direction: "in" as const })), ...outs.map((f) => ({ ...f, direction: "out" as const }))];
+  return ok({ startCentimes: start, weeks: cashSchedule(farmDayOf(clock.now()), start, flows) });
+}

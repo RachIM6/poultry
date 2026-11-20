@@ -775,7 +775,14 @@
     "in": "Entrée",
     "out": "Sortie",
     "untagged": "Non précisé",
-    "unknown": "Autre"
+    "unknown": "Autre",
+    "schedule": "Les 4 prochaines semaines",
+    "scheduleStart": "Caisse et banque aujourd’hui : {amount}",
+    "weekOf": "Semaine du",
+    "inflow": "À encaisser",
+    "outflow": "À payer",
+    "cashAfter": "Trésorerie prévue",
+    "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur (les retards comptent cette semaine). Ventes et achats à venir non compris."
   },
   "Results": {
     "title": "Résultats des bandes",

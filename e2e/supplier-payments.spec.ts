@@ -18,6 +18,8 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
   await page.goto("/fr/stock");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await expect(page.getByText(/Reste dû : 9.000,00.DH/)).toBeVisible();
+  const dues = page.getByRole("list", { name: "Échéances de Alf Sahel" }).getByRole("listitem");
+  await expect(dues).toHaveText([/^9.000,00.DH en retard depuis le /]); // no due date: due on the purchase day (FN12)
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -30,6 +32,7 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
   await form.getByLabel("Montant payé (DH)").fill("2000");
   await form.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText(/Reste dû : 7.000,00.DH/)).toBeVisible();
+  await expect(dues).toHaveText([/^7.000,00.DH en retard depuis le /]);
 
   const reload = await page.reload(); // still offline: the shell and the payment come from the phone
   expect(reload?.fromServiceWorker()).toBe(true);

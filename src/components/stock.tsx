@@ -21,6 +21,7 @@ import {
   purchaseAmount,
   stockOnHand,
   supplierBalances,
+  supplierDues,
   valuate,
   type ItemKind,
   type Unit,
@@ -222,8 +223,15 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
 
 function Suppliers({ suppliers, purchases, payments, write }: { suppliers: SupplierDto[]; purchases: PurchaseDto[]; payments: SupplierPaymentDto[]; write: Write }) {
   const t = useTranslations("Stock");
+  const locale = useLocale();
   const [paying, setPaying] = useState<string>();
   if (suppliers.length === 0) return null;
+  // FN12, supplier side: what is still due to each, by due date
+  const duesOf = (id: string) =>
+    supplierDues(
+      purchases.filter((p) => p.supplierId === id).map((p) => ({ day: p.day, dueOn: p.dueOn ?? null, amountCentimes: BigInt(p.amountCentimes ?? 0), paidCentimes: BigInt(p.paidCentimes ?? 0) })),
+      payments.filter((p) => p.supplierId === id).reduce((a, p) => a + BigInt(p.amountCentimes), 0n),
+    );
   const balances = supplierBalances(
     purchases.map((p) => ({ supplierId: p.supplierId, amountCentimes: BigInt(p.amountCentimes ?? 0), paidCentimes: BigInt(p.paidCentimes ?? 0) })),
     payments.map((p) => ({ supplierId: p.supplierId, amountCentimes: BigInt(p.amountCentimes) })),
@@ -236,6 +244,15 @@ function Suppliers({ suppliers, purchases, payments, write }: { suppliers: Suppl
           <li key={s.id} className={card}>
             <span className="font-semibold">{s.name}</span>
             <span>{t("owed", { amount: formatMoney(balances.get(s.id) ?? 0n) })}</span>
+            {duesOf(s.id).length > 0 && (
+              <ul className="flex flex-col gap-1 text-sm" aria-label={t("dues", { supplier: s.name })}>
+                {duesOf(s.id).map((d) => (
+                  <li key={d.dueOn} className={d.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
+                    {t(d.dueOn < today() ? "dueLateLine" : "dueLine", { amount: formatMoney(d.amountCentimes), date: formatDay(d.dueOn as FarmDay, locale) })}
+                  </li>
+                ))}
+              </ul>
+            )}
             {paying === s.id ? (
               <SupplierPaymentForm supplier={s} balance={balances.get(s.id) ?? 0n} write={write} onDone={() => setPaying(undefined)} />
             ) : (

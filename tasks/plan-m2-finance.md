@@ -128,7 +128,7 @@ Done 2026-11-15 (branch `feat/t33-ageing-credit-limits`), decisions taken withou
 - **Receivables screen:** each owing buyer's debts by age and their limit, the credits waiting for approval, and the owner's list of limits.
 
 Not yet:
-- The supplier side of FN12 (amounts due by due date), which comes with supplier payments.
+- ~~The supplier side of FN12 (amounts due by due date).~~ Done 2026-11-20 (branch `feat/supplier-dues`): on `/stock`, each supplier lists what is still due by due date (a purchase without one is due on its day), later payments settling the oldest first as for buyers (`supplierDues`); overdue amounts in brick.
 - Refusing a pending credit: the owner can block the buyer (T31) instead.
 
 **Size:** S

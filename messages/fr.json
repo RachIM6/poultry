@@ -319,7 +319,10 @@
       "transfer": "Virement",
       "cheque": "Chèque émis",
       "bill": "Effet accepté"
-    }
+    },
+    "dues": "Échéances de {supplier}",
+    "dueLine": "{amount} à payer le {date}",
+    "dueLateLine": "{amount} en retard depuis le {date}"
   },
   "Batches": {
     "title": "Bandes",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseCentimes } from "@/lib/kernel/money";
-import { checkAdjustment, checkItem, checkPurchase, checkSupplierPayment, crossedBelow, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "./stock";
+import { checkAdjustment, checkItem, checkPurchase, checkSupplierPayment, crossedBelow, supplierDues, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "./stock";
 
 describe("stock on hand (SPEC S3)", () => {
   it("is the sum of each item's movements: in, out and corrections", () => {
@@ -65,6 +65,16 @@ describe("purchases and supplier credit (SPEC S2)", () => {
     expect(checkSupplierPayment(350_000n, 350_000n).ok).toBe(true);
     expect(checkSupplierPayment(350_001n, 350_000n)).toEqual({ ok: false, error: "PAID_MORE_THAN_OWED" });
     expect(checkSupplierPayment(0n, 350_000n)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+  });
+
+  it("lists what is still due to a supplier by due date, later payments settling the oldest first (FN12)", () => {
+    const purchases = [
+      { day: "2026-10-01", dueOn: "2026-12-15", amountCentimes: 500_000n, paidCentimes: 0n },
+      { day: "2026-09-01", dueOn: null, amountCentimes: 300_000n, paidCentimes: 100_000n }, // due on its day
+      { day: "2026-11-01", dueOn: "2026-11-30", amountCentimes: 200_000n, paidCentimes: 200_000n }, // paid at once
+    ];
+    expect(supplierDues(purchases, 250_000n)).toEqual([{ dueOn: "2026-12-15", amountCentimes: 450_000n }]);
+    expect(supplierDues(purchases, 0n)).toEqual([{ dueOn: "2026-09-01", amountCentimes: 200_000n }, { dueOn: "2026-12-15", amountCentimes: 500_000n }]);
   });
 
   it("reads amounts typed in dirhams exactly", () => {

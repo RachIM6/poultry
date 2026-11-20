@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AccountsFile } from "@/modules/finance/schema";
 import { chartOf, postingAccount, rollUp } from "@/modules/finance";
+import { operationAccounts } from "@/modules/finance/domain/operations";
 
 const seed = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
 const everything = chartOf(seed.accounts, "cgnc", ["pca"]);
@@ -54,5 +55,8 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
 
   it("has a fallback in the base chart for every overlay account", () => {
     for (const a of seed.accounts.filter((x) => x.chart !== "cgnc")) expect(cgncOnly.has(a.fallback ?? ""), a.number).toBe(true);
+  });
+  it("gives every operation of the chart screen an account in both charts (F-Chart)", () => {
+    for (const row of operationAccounts(seed.accounts)) expect([row.op, row.pca?.number, row.cgnc?.number].every(Boolean), row.op).toBe(true);
   });
 });

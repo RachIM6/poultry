@@ -22,7 +22,7 @@ export type Routine = {
 export type OneOffTask = { id: string; farmId: string; houseId: string | null; day: Day; title: string; time: string | null; employeeId: string | null; cancelled: boolean };
 
 export type TaskInputs = {
-  batches: { id: string; farmId: string; houseId: string; placedOn: Day; status: string }[];
+  batches: { id: string; farmId: string; houseId: string; placedOn: Day; status: string; ageAtPlacementDays?: number }[]; // SPEC-m3 B7
   entries: { batchId: string; day: Day }[];
   vaccinations: { id: string; batchId: string; dueOn: Day; productId: string; done: { on: Day } | null }[];
   employees: { id: string; farmId: string; houseIds: string[]; startedOn: Day; leftOn: Day | null }[];
@@ -69,15 +69,17 @@ const active = (e: TaskInputs["employees"][number], day: Day) => e.startedOn <= 
 /** The tasks of one farm on one day, untimed first (entry, vaccines), then by time. */
 export function dayTasks(farmId: string, day: Day, x: TaskInputs): DayTask[] {
   const open = x.batches.filter((b) => b.farmId === farmId && b.status === "open" && b.placedOn <= day);
+  // the birds' age: days since placement plus their age then (hens placed at 18 weeks, SPEC-m3 B7)
+  const ageOf = (b: TaskInputs["batches"][number]) => daysBetween(b.placedOn as FarmDay, day as FarmDay) + (b.ageAtPlacementDays ?? 0);
   const ageIn = (houseId: string | null) => {
     const b = houseId === null ? undefined : open.find((o) => o.houseId === houseId);
-    return b ? daysBetween(b.placedOn as FarmDay, day as FarmDay) : null;
+    return b ? ageOf(b) : null;
   };
   const ticked = new Set(x.done.filter((d) => d.day === day).map((d) => d.key));
   const tasks: Omit<DayTask, "assignees">[] = [];
 
   for (const b of open) {
-    const age = daysBetween(b.placedOn as FarmDay, day as FarmDay);
+    const age = ageOf(b);
     const at = { farmId, houseId: b.houseId, batchId: b.id, age };
     tasks.push({ ...blank, ...at, key: taskKey.entry(b.id), kind: "entry", done: x.entries.some((e) => e.batchId === b.id && e.day === day) });
     for (const v of x.vaccinations.filter((v) => v.batchId === b.id && (v.done ? v.done.on === day : v.dueOn <= day))) {

@@ -1,13 +1,13 @@
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { addFarmDays, daysBetween, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { addFarmDays, farmDayOf } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { farmBelongsTo, houseOf } from "@/modules/farm-registry";
-import { batchPlacedInHouseOn } from "@/modules/flock";
+import { batchInHouseOn } from "@/modules/flock";
 import { routineFalls } from "@/modules/workforce/domain/tasks";
 import { AddTask, AssignTask, CancelTask, taskAssignmentId, SaveRoutine, TickTask, UntickTask, WORKFORCE_MUTATIONS as M, type OneOffTask, type Routine, type TaskAssignmentDto, type TaskDoneDto } from "@/modules/workforce/schema";
 
@@ -50,8 +50,8 @@ async function dueOn(tx: Tx, ctx: TenantContext, farmId: string, key: string, on
   if (kind === "oneoff") return (await tx.oneOffTask.count({ where: { ...where, day: date(on)!, cancelled: false } })) > 0;
   const row = await tx.routine.findFirst({ where });
   if (!row) return false;
-  const placedOn = row.fromAge !== null && row.houseId ? await batchPlacedInHouseOn(tx, ctx, row.houseId, on) : null;
-  return routineFalls(routineDto(row), on, placedOn ? daysBetween(placedOn, on as FarmDay) : null);
+  const batch = row.fromAge !== null && row.houseId ? await batchInHouseOn(tx, ctx, row.houseId, on) : null;
+  return routineFalls(routineDto(row), on, batch ? batch.age : null); // the birds' age, as on the phone
 }
 const doneDto = (r: { id: string; farmId: string; key: string; day: Date; byUserId: string }): TaskDoneDto => ({ id: r.id, farmId: r.farmId, key: r.key, day: day(r.day)!, byUserId: r.byUserId });
 

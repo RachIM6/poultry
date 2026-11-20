@@ -893,6 +893,12 @@
     "cpcCurrent": "Résultat courant",
     "cpcBeforeTax": "Résultat avant impôts",
     "cpcNet": "Résultat net",
+    "bilan": "Bilan (projet)",
+    "bilanDraft": "Projet depuis le début de l’exercice, le {from}, jusqu’à la fin du mois : l’expert-comptable arrête l’exercice (stocks, amortissements).",
+    "bilanSides": {
+      "assets": "Actif",
+      "liabilities": "Passif"
+    },
     "batch": "Bande"
   },
   "Threshold": {

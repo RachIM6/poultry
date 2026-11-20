@@ -81,8 +81,8 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 ### T110: Draft balance sheet (FC8, draft part)
 **Description:** A "Bilan (projet)" view on `/books` for `ledger` entities. From the trial balance on the year's last day: classes 1–5 by 3-digit account, assets and liabilities, and the result line. Labelled "Projet"; T104 adds "Exercice clôturé le …". Same approach as the draft CPC (U16, `domain/statements.ts`). Uses only posted lines, no new account.
 **AC:**
-- [ ] Σ assets = Σ liabilities + result, and the result equals `incomeStatement(...).net` for the same rows (property over random entries).
-- [ ] Hidden for `cash_book` entities; read by the accountant (Playwright).
+- [x] Σ assets = Σ liabilities + result, and the result equals `incomeStatement(...).net` for the same rows (property over random entries). (`finance/domain/statements.test.ts`)
+- [x] Hidden for `cash_book` entities; read by the accountant (Playwright). (`e2e/books.spec.ts`)
 **Depends on:** nothing. **Blocked by:** none.
 **Size:** S
 

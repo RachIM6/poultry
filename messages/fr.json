@@ -305,7 +305,8 @@
     "editThreshold": "Seuil d’alerte",
     "thresholdHint": "Vide : pas d’alerte.",
     "total": "Valeur du stock : {amount} (coût moyen pondéré)",
-    "enough": "Suffisant"
+    "enough": "Suffisant",
+    "vat": "Dont TVA (DH, facultatif)"
   },
   "Batches": {
     "title": "Bandes",
@@ -458,7 +459,8 @@
     "FILE_TOO_LARGE": "Fichier trop lourd : 5 Mo au maximum.",
     "FILE_TYPE_NOT_ALLOWED": "Type de fichier refusé : PDF, JPEG, PNG ou WebP seulement.",
     "PROOF_ALREADY_ATTACHED": "Cette vérification a déjà sa photo.",
-    "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier."
+    "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier.",
+    "VAT_MORE_THAN_AMOUNT": "La TVA dépasse le montant total."
   },
   "Weighing": {
     "title": "Pesée",
@@ -601,7 +603,8 @@
     "pricePerHead": "Prix par tête · {what} (DH)",
     "farmKgOptional": "Poids à la ferme (kg, facultatif)",
     "headCount": "{birds} sujets",
-    "headLine": "{date} · {buyer} · {birds} sujets à la tête"
+    "headLine": "{date} · {buyer} · {birds} sujets à la tête",
+    "vat": "Dont TVA (DH, facultatif)"
   },
   "Receivables": {
     "title": "Créances",

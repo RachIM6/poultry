@@ -75,6 +75,7 @@ model LegalEntity {
   books                Books?
   pcaOverlay           Boolean?
   fiscalYearStartMonth Int          @default(1) // 1 = January: the fiscal year runs 1 Jan–31 Dec
+  vatRegistered        Boolean      @default(false) // SPEC-finance FN9: not registered until FQ4 is answered
   createdAt            DateTime     @default(now()) @db.Timestamptz
   organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -444,6 +445,7 @@ model Purchase {
   quantity          Int
   unitPriceCentimes BigInt // per displayed unit (per kg for feed)
   amountCentimes    BigInt
+  vatCentimes       BigInt    @default(0) // SPEC-finance FN9: the invoice's VAT, part of amountCentimes
   paidCentimes      BigInt
   dueOn             DateTime? @db.Date
   createdAt         DateTime  @default(now()) @db.Timestamptz
@@ -709,6 +711,7 @@ model Sale {
   buyerWeightGrams     Int?
   pricePerKgCentimes   BigInt
   amountCentimes       BigInt
+  vatCentimes          BigInt    @default(0) // SPEC-finance FN9: the invoice's VAT, part of amountCentimes
   paymentMethod        String // cash | cheque | bill | transfer | credit
   paidCentimes         BigInt
   instrumentNumber     String? // cheque or bill of exchange

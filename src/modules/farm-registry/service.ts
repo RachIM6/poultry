@@ -5,8 +5,8 @@ import type { TenantContext } from "@/lib/tenant";
 import { addOwner, lockForOnboarding } from "@/modules/identity";
 import { accountingProfileOf, type AccountingChoices, type AccountingProfile, type Books, type LegalForm, type OnboardingInput } from "@/modules/farm-registry/schema";
 
-/** `fiscalYearStartMonth`: 1–12, the month the fiscal year starts (ADR-010 §1, default January). */
-export type LegalEntityDto = { id: string; name: string; form: LegalForm; accountingProfile: AccountingProfile; fiscalYearStartMonth: number };
+/** `fiscalYearStartMonth`: 1–12, the month the fiscal year starts (ADR-010 §1, default January). `vatRegistered`: SPEC-finance FN9. */
+export type LegalEntityDto = { id: string; name: string; form: LegalForm; accountingProfile: AccountingProfile; fiscalYearStartMonth: number; vatRegistered: boolean };
 
 /** SPEC F1: first login → the organisation, its legal entity and the owner membership, in one transaction. */
 export async function createOrganization(userId: string, input: OnboardingInput): Promise<Result<TenantContext, "ALREADY_ONBOARDED">> {
@@ -49,15 +49,15 @@ export async function legalEntityIn(tx: Tx, ctx: TenantContext, id: string): Pro
 }
 
 /** ADR-010: the owner's accounting choices. Finance calls this after checking that the fiscal year has no entry. */
-export async function saveAccountingChoices(tx: Tx, ctx: TenantContext, id: string, choices: AccountingChoices & { fiscalYearStartMonth: number }) {
-  const before = await tx.legalEntity.findFirstOrThrow({ where: { id, organizationId: ctx.organizationId }, select: { books: true, pcaOverlay: true, fiscalYearStartMonth: true } });
+export async function saveAccountingChoices(tx: Tx, ctx: TenantContext, id: string, choices: AccountingChoices & { fiscalYearStartMonth: number; vatRegistered?: boolean }) {
+  const before = await tx.legalEntity.findFirstOrThrow({ where: { id, organizationId: ctx.organizationId }, select: { books: true, pcaOverlay: true, fiscalYearStartMonth: true, vatRegistered: true } });
   await tx.legalEntity.update({ where: { id }, data: choices });
   await tx.auditEvent.create({
     data: { organizationId: ctx.organizationId, userId: ctx.userId, entity: "LegalEntity", entityId: id, action: "update", before, after: choices },
   });
 }
 
-type Row = { id: string; name: string; form: LegalForm; books: Books | null; pcaOverlay: boolean | null; fiscalYearStartMonth: number };
+type Row = { id: string; name: string; form: LegalForm; books: Books | null; pcaOverlay: boolean | null; fiscalYearStartMonth: number; vatRegistered: boolean };
 
 const toDto = (row: Row): LegalEntityDto => ({
   id: row.id,
@@ -65,4 +65,5 @@ const toDto = (row: Row): LegalEntityDto => ({
   form: row.form,
   accountingProfile: accountingProfileOf(row.form, { books: row.books, pcaOverlay: row.pcaOverlay }),
   fiscalYearStartMonth: row.fiscalYearStartMonth,
+  vatRegistered: row.vatRegistered,
 });

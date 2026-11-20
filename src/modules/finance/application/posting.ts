@@ -23,7 +23,7 @@ const SOURCES: Source[] = [
     read: async (tx, ctx, after) =>
       (await purchasesChangedSince(tx, ctx, after)).map((p) => ({
         version: p.version,
-        event: { type: "purchase", id: p.id, day: p.day, itemKind: p.itemKind, amount: p.amountCentimes, paid: p.paidCentimes },
+        event: { type: "purchase", id: p.id, day: p.day, itemKind: p.itemKind, amount: p.amountCentimes, paid: p.paidCentimes, vat: p.vatCentimes },
       })),
   },
   {
@@ -41,7 +41,7 @@ const SOURCES: Source[] = [
     read: async (tx, ctx, after) =>
       (await salesChangedSince(tx, ctx, after)).map((s) => ({
         version: s.version,
-        event: { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method, kind: s.kind },
+        event: { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method, kind: s.kind, vat: s.vatCentimes },
       })),
   },
   {
@@ -96,7 +96,7 @@ export async function postPending(pusher: TenantContext): Promise<number> {
         n++;
       };
       for (const { version, event } of changes) {
-        const rule = postingOf(event);
+        const rule = postingOf(event, entity.vatRegistered);
         const posting = rule && inChart(rule, everything, chart);
         if (rule && !posting) throw new Error(`${source.name} ${event.id}: an account has no home in this chart`);
         const day = openDay(event.day);

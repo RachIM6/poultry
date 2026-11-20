@@ -88,7 +88,7 @@ Turn what the farm already records (purchases, consumption, sales, payments) int
   Daily feed consumption, mortality and stock adjustments create **no entry** (FN13 uses them).
 - **FN7. Posting pipeline.** After each sync push, and on demand, finance reads records changed since its cursor through `inventory`, `flock` and `sales` `index.ts` (`listChangedSince(cursor)`) and posts them. The unique key `(sourceModule, sourceId, sourceVersion)` makes a replay a no-op. A source record edited later gets a reversal and a new entry. Posting runs on the server only.
 - **FN8. Overrides.** The owner can override the account of a default rule for one entity (e.g. a specific expense category). The override applies to new entries only and is audited.
-- **FN9. VAT.** Purchases and sales store the invoice total and an optional VAT amount. If the entity is VAT-registered and the VAT is recoverable, the VAT goes to 34552 (purchases) and 4455 (sales); otherwise the full amount goes to the charge. Default: not registered, until FQ4 is answered.
+- **FN9. VAT.** Purchases and sales store the invoice total and an optional VAT amount. If the entity is VAT-registered and the VAT is recoverable, the VAT goes to 34552 (purchases; 3455 for now, the PCA nomenclature has no 34552, see plan T39) and 4455 (sales); otherwise the full amount goes to the charge. Default: not registered, until FQ4 is answered.
 
 ### Cash, portfolio, third parties
 - **FN10. Treasury screen.** Balance per bank account and cash box, movements of the month with journal, counter-account, batch and "receipt attached" flag. Total available = Σ 5141 + Σ 5161.

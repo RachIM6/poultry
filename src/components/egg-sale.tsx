@@ -58,9 +58,10 @@ export function EggSaleForm({
     const data = new FormData(e.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const paid = method === "credit" ? 0n : parseCentimes(get("paid") || "0");
+    const vat = parseCentimes(get("vat") || "0"); // SPEC-finance FN9: part of the total
     const instrument = method === "cheque" || method === "bill" ? { number: get("number"), dueOn: get("dueOn") } : null;
-    if (paid === null || (instrument && (!instrument.number || !instrument.dueOn))) return setError("errors.INVALID_INPUT");
-    const checked = checkEggSale({ lines: parsed, paymentMethod: method, paidCentimes: paid, instrument }); // as the server
+    if (paid === null || vat === null || (instrument && (!instrument.number || !instrument.dueOn))) return setError("errors.INVALID_INPUT");
+    const checked = checkEggSale({ lines: parsed, paymentMethod: method, paidCentimes: paid, vatCentimes: vat, instrument }); // as the server
     if (!checked.ok) return setError(`errors.${checked.error}`);
     const withheld = eggWithdrawalWindows(treatments.filter((x) => x.batchId === batchId).map((x) => ({ startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay, eggWithdrawalDays: x.eggWithdrawalDays ?? null })));
     const drawn = drawFifo(lots, batchId, parsed, withheld);
@@ -68,7 +69,7 @@ export function EggSaleForm({
     setError(undefined);
 
     const id = uuidv7();
-    const payload = { id, batchId, buyerId: get("buyerId"), day: get("day") || today(), lines: parsed.map((l) => ({ ...l, unitPriceCentimes: String(l.unitPriceCentimes) })), paymentMethod: method, paidCentimes: String(paid), instrument };
+    const payload = { id, batchId, buyerId: get("buyerId"), day: get("day") || today(), lines: parsed.map((l) => ({ ...l, unitPriceCentimes: String(l.unitPriceCentimes) })), paymentMethod: method, paidCentimes: String(paid), vatCentimes: String(vat), instrument };
     const sale: SaleDto = {
       ...payload,
       birds: 0,
@@ -145,6 +146,10 @@ export function EggSaleForm({
           <input name="paid" inputMode="decimal" defaultValue="" dir="ltr" className={field} />
         </label>
       )}
+      <label className="flex flex-col gap-1">
+        {t("Sale.vat")}
+        <input name="vat" inputMode="decimal" dir="ltr" className={field} />
+      </label>
       {(method === "cheque" || method === "bill") && (
         <>
           <label className="flex flex-col gap-1">

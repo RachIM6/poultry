@@ -70,7 +70,7 @@ export async function recordSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof
   if (await saleIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
   if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
   const checked = checkSale(
-    { ...cmd, pricePerKgCentimes: BigInt(cmd.pricePerKgCentimes), paidCentimes: BigInt(cmd.paidCentimes) },
+    { ...cmd, pricePerKgCentimes: BigInt(cmd.pricePerKgCentimes), paidCentimes: BigInt(cmd.paidCentimes), vatCentimes: BigInt(cmd.vatCentimes) },
     await withdrawalOn(tx, ctx, cmd.batchId, cmd.day as FarmDay),
   );
   if (!checked.ok) return checked;
@@ -123,7 +123,7 @@ export async function recordEggSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typ
   if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
   if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
   const lines = cmd.lines.map((l) => ({ ...l, unitPriceCentimes: BigInt(l.unitPriceCentimes) }));
-  const checked = checkEggSale({ ...cmd, lines, paidCentimes: BigInt(cmd.paidCentimes) });
+  const checked = checkEggSale({ ...cmd, lines, paidCentimes: BigInt(cmd.paidCentimes), vatCentimes: BigInt(cmd.vatCentimes) });
   if (!checked.ok) return checked;
   const credit = checked.value.amountCentimes - BigInt(cmd.paidCentimes);
   const decided = await creditDecision(tx, ctx, cmd.buyerId, credit);
@@ -145,6 +145,7 @@ export async function recordEggSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typ
     amountCentimes: String(checked.value.amountCentimes),
     paymentMethod: cmd.paymentMethod,
     paidCentimes: cmd.paidCentimes,
+    vatCentimes: cmd.vatCentimes,
     instrument: cmd.instrument,
     creditApproval: decided.value.creditApproval,
     kind: "eggs",
@@ -235,7 +236,7 @@ export async function recordHeadSale(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
   if (await saleIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
   if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
   const lines = cmd.lines.map((l) => ({ ...l, pricePerHeadCentimes: BigInt(l.pricePerHeadCentimes) }));
-  const checked = checkHeadSale({ ...cmd, lines, paidCentimes: BigInt(cmd.paidCentimes) }, await withdrawalOn(tx, ctx, cmd.batchId, cmd.day as FarmDay));
+  const checked = checkHeadSale({ ...cmd, lines, paidCentimes: BigInt(cmd.paidCentimes), vatCentimes: BigInt(cmd.vatCentimes) }, await withdrawalOn(tx, ctx, cmd.batchId, cmd.day as FarmDay));
   if (!checked.ok) return checked;
   const credit = checked.value.amountCentimes - BigInt(cmd.paidCentimes);
   const decided = await creditDecision(tx, ctx, cmd.buyerId, credit);
@@ -256,6 +257,7 @@ export async function recordHeadSale(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
     amountCentimes: String(checked.value.amountCentimes),
     paymentMethod: cmd.paymentMethod,
     paidCentimes: cmd.paidCentimes,
+    vatCentimes: cmd.vatCentimes,
     instrument: cmd.instrument,
     creditApproval: decided.value.creditApproval,
     kind: "perHead",

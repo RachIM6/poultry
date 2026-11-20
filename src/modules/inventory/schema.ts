@@ -33,6 +33,7 @@ export const RecordPurchase = z.object({
   quantity: z.int32().positive(), // base units (grams for kg)
   unitPriceCentimes: centimes, // per displayed unit
   paidCentimes: centimes,
+  vatCentimes: centimes.default("0"), // SPEC-finance FN9: the invoice's VAT, part of the total
   dueOn: day.nullable(),
 });
 export const AdjustStock = z.object({

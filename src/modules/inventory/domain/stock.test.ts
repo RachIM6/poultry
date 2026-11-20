@@ -45,6 +45,9 @@ describe("purchases and supplier credit (SPEC S2)", () => {
     expect(checkPurchase({ ...base, paidCentimes: 900_000n })).toEqual({ ok: false, error: "DUE_DATE_WITHOUT_CREDIT" });
     expect(checkPurchase({ ...base, paidCentimes: 900_000n, dueOn: null }).ok).toBe(true);
     expect(checkPurchase({ ...base, quantity: 0 })).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    // SPEC-finance FN9: the invoice's VAT is part of its total
+    expect(checkPurchase({ ...base, vatCentimes: 150_000n }).ok).toBe(true);
+    expect(checkPurchase({ ...base, vatCentimes: 900_001n })).toEqual({ ok: false, error: "VAT_MORE_THAN_AMOUNT" });
   });
 
   it("owes each supplier its purchases minus what was paid", () => {

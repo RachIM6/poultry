@@ -43,6 +43,8 @@ describe("checking a sale (SPEC V2, V3)", () => {
     expect(checkSale({ ...sale, buyerWeightGrams: 0 }, null)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
     expect(checkSale({ ...sale, pricePerKgCentimes: 0n }, null)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
     expect(checkSale({ ...sale, paidCentimes: 5_800_001n }, null)).toEqual({ ok: false, error: "PAID_MORE_THAN_AMOUNT" });
+    expect(checkSale({ ...sale, vatCentimes: 5_800_001n }, null)).toEqual({ ok: false, error: "VAT_MORE_THAN_AMOUNT" }); // FN9
+    expect(checkSale({ ...sale, vatCentimes: 5_800_000n }, null).ok).toBe(true);
     expect(checkSale({ ...sale, buyerWeightGrams: null, paymentMethod: "credit", paidCentimes: 0n }, null).ok).toBe(true);
   });
 
@@ -71,6 +73,7 @@ describe("egg sales (SPEC-m3 V6)", () => {
     expect(checkEggSale({ ...sale, lines: [] })).toEqual({ ok: false, error: "INVALID_QUANTITY" });
     expect(checkEggSale({ ...sale, lines: [line(0, 3300n)] })).toEqual({ ok: false, error: "INVALID_QUANTITY" });
     expect(checkEggSale({ ...sale, paidCentimes: 226_001n })).toEqual({ ok: false, error: "PAID_MORE_THAN_AMOUNT" });
+    expect(checkEggSale({ ...sale, vatCentimes: 226_001n })).toEqual({ ok: false, error: "VAT_MORE_THAN_AMOUNT" });
     expect(checkEggSale({ ...sale, paymentMethod: "cheque" })).toEqual({ ok: false, error: "INSTRUMENT_REQUIRED" });
   });
 });
@@ -94,6 +97,7 @@ describe("sale per head (SPEC-m3 V7)", () => {
     expect(checkHeadSale({ ...sale, farmWeightGrams: 0 }, null)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
     expect(checkHeadSale({ ...sale, lines: [{ item: "bird", birds: 0, pricePerHeadCentimes: 1n }] }, null)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
     expect(checkHeadSale({ ...sale, paidCentimes: 79_001n }, null)).toEqual({ ok: false, error: "PAID_MORE_THAN_AMOUNT" });
+    expect(checkHeadSale({ ...sale, vatCentimes: 79_001n }, null)).toEqual({ ok: false, error: "VAT_MORE_THAN_AMOUNT" });
   });
 
   it("is blocked during a withdrawal, like a sale per kg (V3)", () => {

@@ -63,17 +63,18 @@ export const deleteMovement = (tx: Tx, id: string) => tx.stockMovement.delete({ 
 export async function insertPurchase(
   tx: Tx,
   ctx: TenantContext,
-  p: Omit<PurchaseDto, "unitPriceCentimes" | "amountCentimes" | "paidCentimes" | "dueOn"> & {
+  p: Omit<PurchaseDto, "unitPriceCentimes" | "amountCentimes" | "paidCentimes" | "vatCentimes" | "dueOn"> & {
     unitPriceCentimes: bigint;
     amountCentimes: bigint;
     paidCentimes: bigint;
+    vatCentimes: bigint;
     dueOn: string | null;
   },
 ): Promise<Required<PurchaseDto>> {
   await tx.purchase.create({
     data: { ...p, organizationId: ctx.organizationId, day: date(p.day), dueOn: p.dueOn ? date(p.dueOn) : null },
   });
-  return { ...p, unitPriceCentimes: String(p.unitPriceCentimes), amountCentimes: String(p.amountCentimes), paidCentimes: String(p.paidCentimes) };
+  return { ...p, unitPriceCentimes: String(p.unitPriceCentimes), amountCentimes: String(p.amountCentimes), paidCentimes: String(p.paidCentimes), vatCentimes: String(p.vatCentimes) };
 }
 
 function itemDto(r: {

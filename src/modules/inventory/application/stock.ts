@@ -49,8 +49,8 @@ export async function createStockItem(tx: Tx, ctx: TenantContext, cmd: z.infer<t
 export async function recordPurchase(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof RecordPurchase>, meta: Meta) {
   const item = await findItem(tx, ctx, cmd.stockItemId);
   if (!item || !(await supplierExists(tx, ctx, cmd.supplierId))) return fail("NOT_FOUND");
-  const [unitPriceCentimes, paidCentimes] = [BigInt(cmd.unitPriceCentimes), BigInt(cmd.paidCentimes)];
-  const priced = checkPurchase({ quantity: cmd.quantity, unit: item.unit, unitPriceCentimes, paidCentimes, dueOn: cmd.dueOn });
+  const [unitPriceCentimes, paidCentimes, vatCentimes] = [BigInt(cmd.unitPriceCentimes), BigInt(cmd.paidCentimes), BigInt(cmd.vatCentimes)];
+  const priced = checkPurchase({ quantity: cmd.quantity, unit: item.unit, unitPriceCentimes, paidCentimes, vatCentimes, dueOn: cmd.dueOn });
   if (!priced.ok) return priced;
   if ((await idTaken(tx, "purchase", cmd.id)) || (await idTaken(tx, "stockMovement", cmd.movementId))) return fail("ALREADY_EXISTS");
 
@@ -62,6 +62,7 @@ export async function recordPurchase(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
     unitPriceCentimes,
     amountCentimes: priced.value.amountCentimes,
     paidCentimes,
+    vatCentimes,
     dueOn: cmd.dueOn,
   });
   const movement = await insertMovement(tx, ctx, { id: cmd.movementId, ...base, kind: "purchase", reason: null, purchaseId: purchase.id });

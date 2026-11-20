@@ -40,9 +40,10 @@ export type PurchaseDto = {
   unitPriceCentimes?: string;
   amountCentimes?: string;
   paidCentimes?: string;
+  vatCentimes?: string; // SPEC-finance FN9: part of amountCentimes; absent from a purchase recorded before T39
   dueOn?: string | null;
 };
-export const PURCHASE_MONEY = ["unitPriceCentimes", "amountCentimes", "paidCentimes", "dueOn"] as const;
+export const PURCHASE_MONEY = ["unitPriceCentimes", "amountCentimes", "paidCentimes", "vatCentimes", "dueOn"] as const;
 
 export const INVENTORY_MUTATIONS = {
   createSupplier: "inventory.createSupplier",

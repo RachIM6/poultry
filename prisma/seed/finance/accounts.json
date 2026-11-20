@@ -18,12 +18,16 @@
     { "chart": "cgnc", "number": "3425", "label": "Clients - effet à recevoir", "parent": "342" },
     { "chart": "cgnc", "number": "343", "label": "Personnel – débiteur", "parent": "34" },
     { "chart": "cgnc", "number": "3431", "label": "Avances et acomptes au personnel", "parent": "343" },
+    { "chart": "cgnc", "number": "345", "label": "État – débiteur", "parent": "34" },
+    { "chart": "cgnc", "number": "3455", "label": "État – TVA récupérable", "parent": "345" },
 
     { "chart": "cgnc", "number": "4", "label": "Comptes de passif circulant (hors trésorerie)", "parent": null },
     { "chart": "cgnc", "number": "44", "label": "Dettes du passif circulant", "parent": "4" },
     { "chart": "cgnc", "number": "441", "label": "Fournisseurs et comptes rattachés", "parent": "44" },
     { "chart": "cgnc", "number": "4411", "label": "Fournisseurs", "parent": "441" },
     { "chart": "cgnc", "number": "4415", "label": "Fournisseurs – effets à payer", "parent": "441" },
+    { "chart": "cgnc", "number": "445", "label": "État – créditeur", "parent": "44" },
+    { "chart": "cgnc", "number": "4455", "label": "État, TVA facturée", "parent": "445" },
     { "chart": "cgnc", "number": "446", "label": "Comptes d’associés – créditeurs", "parent": "44" },
     { "chart": "cgnc", "number": "4463", "label": "Comptes courants des associés créditeurs", "parent": "446" },
 

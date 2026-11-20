@@ -223,7 +223,14 @@ Not yet: receipts in the zip; the analytic columns; the accounting software's ow
 
 ### T39: VAT on purchases and sales (FN9), after FQ4
 **AC:**
-- [ ] VAT-registered entity: recoverable VAT on 34552, collected VAT on 4455; otherwise the total goes to the charge.
+- [x] VAT-registered entity: recoverable VAT on 34552, collected VAT on 4455; otherwise the total goes to the charge. (`finance/domain/posting.test.ts`; `finance/posting.int.test.ts`: a registered entity's purchase and sale through sync and the pipeline, VAT above the total refused; `e2e/vat.spec.ts`: the purchase form's VAT lands on 3455.)
+
+Done 2026-11-20 (branch `feat/t39-vat`), decisions taken without asking, FQ4 still open:
+- **Mechanism only, off by default:** `LegalEntity.vatRegistered` is false, as FN9 says until FQ4 is answered. It changes with the other accounting choices (`changeAccountingChoices`, only while the fiscal year has no entry); no screen yet (F-Profile).
+- **The VAT amount is typed from the invoice,** never computed: no rate is stored, so none is assumed. Optional "Dont TVA" on the purchase form and the three sale forms; it must not exceed the total (`VAT_MORE_THAN_AMOUNT`, client and server). Older queued writes without it count as 0.
+- **3455, not 34552:** the PCA nomenclature (our source for the chart) lists 3455 "Etat - TVA récupérable" without the CGNC's five-digit split, so recoverable VAT goes to 3455 until the accountant asks for 34552. 4455 "Etat, TVA facturée" is in it. Both added to `accounts.json`, labels from the PCA text; deploy runs `pnpm db:seed` (it upserts).
+
+Not yet: batch results, budgets and stock valuation still use the invoice totals (TTC), which is right for a non-registered farm; for a registered one they should exclude VAT (FQ4). Chicks bought at placement and quick expenses carry no VAT field. No VAT return (4456).
 **Size:** S
 
 ### ✅ Checkpoint M2-finance

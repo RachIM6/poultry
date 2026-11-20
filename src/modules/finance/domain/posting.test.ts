@@ -82,3 +82,34 @@ describe("default posting rules (SPEC-finance FN6)", () => {
     expect(samePosting({ day, lines }, { day, lines: [{ ...lines[0], debit: 6n }, { ...lines[1], credit: 6n }] })).toBe(false);
   });
 });
+
+describe("VAT (SPEC-finance FN9)", () => {
+  const purchase = { type: "purchase", id: "p", day, itemKind: "feed", amount: 1_200_000n, paid: 200_000n, vat: 200_000n } as const;
+  const sale = { type: "sale", id: "s", day, amount: 1_100_000n, paid: 0n, method: "credit", vat: 100_000n } as const;
+
+  it("puts a registered entity's recoverable VAT on 3455, the rest on the charge", () => {
+    expect(postingOf(purchase, true)?.lines).toEqual([
+      { account: "612122", debit: 1_000_000n, credit: 0n },
+      { account: "3455", debit: 200_000n, credit: 0n },
+      { account: "4411", debit: 0n, credit: 1_000_000n },
+      { account: "5161", debit: 0n, credit: 200_000n },
+    ]);
+  });
+
+  it("puts a registered entity's collected VAT on 4455, the rest on the sale", () => {
+    expect(postingOf(sale, true)?.lines).toEqual([
+      { account: "3421", debit: 1_100_000n, credit: 0n },
+      { account: "712121", debit: 0n, credit: 1_000_000n },
+      { account: "4455", debit: 0n, credit: 100_000n },
+    ]);
+  });
+
+  it("keeps the whole total on the charge or the sale when the entity is not registered (the default)", () => {
+    expect(postingOf(purchase)?.lines[0]).toEqual({ account: "612122", debit: 1_200_000n, credit: 0n });
+    expect(postingOf(sale)?.lines.map((l) => l.account)).toEqual(["3421", "712121"]);
+  });
+
+  it("posts no VAT line when the invoice has none", () => {
+    expect(postingOf({ ...sale, vat: 0n }, true)?.lines.map((l) => l.account)).toEqual(["3421", "712121"]);
+  });
+});

@@ -7,6 +7,7 @@ export { CHARTS, type AccountRow, type Chart } from "./schema";
 export { postPending } from "./application/posting";
 export { financeSync } from "./sync";
 export { attachExpenseReceipt, cashForecast, treasuryOverview, type TreasuryOverview } from "./application/treasury";
+export { addBankStatement, bankReconciliation, matchBankLine, type BankReconciliation } from "./application/bank";
 export { batchResults, freezeClosedBatches, type BatchResultRow } from "./application/batch-results";
 export { budgetBases, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";

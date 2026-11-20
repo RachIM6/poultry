@@ -854,6 +854,7 @@ model JournalLine {
   creditCentimes BigInt       @default(0)
   treasuryId     String?      @db.Uuid // FN3: the bank account or cash box of a 5141 / 5161 line
   entry          JournalEntry @relation(fields: [entryId], references: [id])
+  bankMatch      BankMatch?
 
   @@index([entryId])
   @@index([organizationId, account])
@@ -927,6 +928,36 @@ model TreasuryAccount {
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FC9: a bank statement as printed, for one bank account (a TreasuryAccount of kind bank):
+// its last day and closing balance (negative when overdrawn). Entered online by the owner or a manager.
+model BankStatement {
+  id              String      @id @db.Uuid
+  organizationId  String      @db.Uuid
+  treasuryId      String      @db.Uuid
+  endDay          DateTime    @db.Date // farm day
+  closingCentimes BigInt
+  createdBy       String      @db.Uuid
+  createdAt       DateTime    @default(now()) @db.Timestamptz
+  matches         BankMatch[]
+
+  @@unique([treasuryId, endDay])
+  @@index([organizationId])
+}
+
+// Owner: finance. FC9: a 5141 line ticked on a statement of its bank account. Keyed by the line, so a line is ticked
+// on one statement at most. Unticking deletes the row (audited), refused once the line's month is locked.
+model BankMatch {
+  journalLineId  String        @id @db.Uuid
+  organizationId String        @db.Uuid
+  statementId    String        @db.Uuid
+  tickedBy       String        @db.Uuid
+  tickedAt       DateTime      @default(now()) @db.Timestamptz
+  line           JournalLine   @relation(fields: [journalLineId], references: [id])
+  statement      BankStatement @relation(fields: [statementId], references: [id])
+
+  @@index([statementId])
 }
 
 // Owner: finance. SPEC-finance FN6, FX4: a quick expense recorded on the phone, offline; posted when it syncs.

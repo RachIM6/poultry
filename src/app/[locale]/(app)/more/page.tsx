@@ -48,6 +48,7 @@ async function Content() {
         can(ctx.value, "sales.manage") && { href: "/receivables", label: t("Receivables.open") },
         can(ctx.value, "finance.record") && { href: "/expenses", label: t("Expenses.open") },
         money && { href: "/treasury", label: t("Treasury.open") },
+        money && { href: "/treasury/bank", label: t("Bank.open") }, // SPEC-finance FC9, FCX2
         money && { href: "/prices", label: t("Prices.open") },
         money && { href: "/results", label: t("Results.open") },
         money && { href: "/budget", label: t("Budget.open") },

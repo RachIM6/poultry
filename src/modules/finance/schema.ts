@@ -44,5 +44,11 @@ export const RecordExpense = z.object({
   serviceMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().default(null),
 });
 
+/** FC9: a bank statement as printed: its account, last day and closing balance (integer centimes, negative when overdrawn). */
+export const AddBankStatement = z.object({ treasuryId: z.uuid(), endDay: z.iso.date(), closingCentimes: z.string().regex(/^-?\d{1,15}$/) });
+
+/** FC9: ticking (or unticking) a 5141 line on a statement. */
+export const BankMatchInput = z.object({ statementId: z.uuid(), lineId: z.uuid(), ticked: z.boolean() });
+
 /** FN6: money moved from one treasury account to another (cash deposited, cash withdrawn). */
 export const RecordTransfer = z.object({ id: z.uuid(), day: z.iso.date(), amountCentimes: positive, fromId: z.uuid(), toId: z.uuid() });

@@ -177,3 +177,5 @@ Every formula is a pure function in `src/modules/finance/domain/`, in integer ce
 | FQ11 | Account for the individual exploitant's contributions and withdrawals, and counter-account of a `cash_book` entity's opening bank and cash balances | FN3, FN6 |
 | FQ12 | Is there an official Arabic version of the CGNC and PCA account labels? | FX5 |
 | FQ13 | Journal for cheques and bills received (`EF` here): common practice? | FN6 |
+| FQ14 | Payroll postings: the validated month in OD on its last day (6171 / 6174 against 3431, 4441, 4432), wages paid D 4432; advances beyond a worker's pay left on 3431? | plan-m4 pay |
+| FQ15 | Cash book refused for companies and GIEs (law 9-88): right, and for which other forms? | FN1 |

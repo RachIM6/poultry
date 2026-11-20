@@ -94,6 +94,7 @@ async function Treasury() {
               <th className="p-2 text-start">{t("Treasury.account")}</th>
               <th className="p-2 text-end">{t("Treasury.in")}</th>
               <th className="p-2 text-end">{t("Treasury.out")}</th>
+              <th className="p-2 text-start">{t("Treasury.receipt")}</th>
             </tr>
           </thead>
           <tbody>
@@ -105,6 +106,14 @@ async function Treasury() {
                 <td className="p-2">{nameOf(m.treasuryId)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{m.debitCentimes > 0n ? formatMoney(m.debitCentimes) : ""}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{m.creditCentimes > 0n ? formatMoney(m.creditCentimes) : ""}</td>
+                {/* FN10: an expense's receipt; other movements have none to attach */}
+                <td className="p-2">
+                  {m.receipt ? (
+                    <a href={`/api/files/${m.receipt}`} className="underline underline-offset-4">{t("Treasury.receiptView")}</a>
+                  ) : m.receipt === null ? (
+                    <span className="text-brick-fg">{t("Treasury.receiptMissing")}</span>
+                  ) : null}
+                </td>
               </tr>
             ))}
           </tbody>

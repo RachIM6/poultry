@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
 
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+
 // T32 acceptance (browser part): a quick expense recorded offline on the phone is posted once after sync, and shows in
 // the treasury. Workers are refused on the server (src/modules/finance/treasury.int.test.ts).
 test("a quick expense recorded offline is posted once after sync, and shows in the treasury", async ({ page, context }) => {
@@ -43,8 +45,14 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
     );
   await expect.poll(server).toEqual([{ expenses: 1, entries: 1 }]);
 
+  // FN10: once the expense is on the server and the phone online, its receipt photo goes up.
+  await expect(recent.getByText("Ajouter le reçu")).toBeVisible({ timeout: 20_000 });
+  await recent.locator('input[type="file"]').setInputFiles({ name: "onee.png", mimeType: "image/png", buffer: PNG });
+  await expect(recent.getByRole("link", { name: "Voir le reçu" })).toBeVisible({ timeout: 20_000 });
+
   await page.goto("/fr/treasury");
   await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").first()).toContainText(/Caisse · Caisse ferme\s*-1.200,00\sDH/);
+  await expect(page.getByRole("row").filter({ hasText: "Dépense" }).getByRole("link", { name: "Voir", exact: true })).toBeVisible();
 
   // T34: shared across this month's batches (the default), it is all this batch's.
   await page.goto("/fr/results");

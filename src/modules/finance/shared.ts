@@ -19,6 +19,7 @@ export type ExpenseDto = {
   // FN13, FN14: one batch's direct charge, or shared over a month's batches by bird-days; neither: general.
   batchId?: string | null;
   serviceMonth?: string | null; // "2026-10": a shared expense's service period (default: the month of its day)
+  receiptFileId?: string | null; // FN10: the receipt photo, attached online once the expense is on the server
 };
 export type TransferDto = { id: string; day: string; amountCentimes: string; fromId: string; toId: string };
 

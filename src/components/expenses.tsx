@@ -13,6 +13,7 @@ import { EXPENSE_CATEGORIES, FINANCE_MUTATIONS as F, TREASURY_KINDS, type Expens
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
+import { FileUpload, useOnline } from "@/components/local-screen";
 import { card, field, primary, secondary } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
@@ -44,6 +45,10 @@ function Expenses(scope: Scope) {
   const records = useLiveQuery(() => db.records.where("entity").anyOf("treasuryAccount", "expense", "batch", "house").toArray(), [userId, organizationId]);
   const [message, setMessage] = useState<string>();
   const [adding, setAdding] = useState(false);
+  const [uploadError, setUploadError] = useState<string>();
+  const online = useOnline();
+  const queued = useLiveQuery(() => db.outbox.toArray(), [userId, organizationId]);
+  const unsent = new Set((queued ?? []).flatMap((e) => e.recordKeys ?? []));
   if (!can(scope, "finance.record")) return <p>{t("Expenses.forbidden")}</p>;
   if (!records) return null;
 
@@ -73,13 +78,22 @@ function Expenses(scope: Scope) {
       <ExpenseForm accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
 
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.recent")}</h2>
+      {uploadError && <p role="alert" className="text-brick-fg">{t(uploadError)}</p>}
       {recent.length === 0 ? (
         <p>{t("Expenses.none")}</p>
       ) : (
         <ul className="flex flex-col gap-2" aria-label={t("Expenses.recent")}>
           {recent.map((e) => (
-            <li key={e.id} className="rounded-2xl border border-line bg-card p-3">
-              {t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) })}
+            <li key={e.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
+              <span>{t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) })}</span>
+              {/* FN10: the receipt photo goes up once the expense is on the server and the phone is online (ADR-011) */}
+              {e.receiptFileId ? (
+                <a href={`/api/files/${e.receiptFileId}`} className="underline underline-offset-4">{t("Expenses.receipt")}</a>
+              ) : unsent.has(`expense:${e.id}`) || !online ? (
+                <span className="text-sm text-ink-2">{t("Expenses.receiptMissing")}</span>
+              ) : (
+                <FileUpload url={`/api/files?purpose=receipt&expense=${e.id}`} accept="image/jpeg,image/png,image/webp,application/pdf" camera label={t("Expenses.receiptAdd")} onError={setUploadError} />
+              )}
             </li>
           ))}
         </ul>

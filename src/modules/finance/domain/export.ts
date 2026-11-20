@@ -43,3 +43,8 @@ export function exportSheets(books: Books): (Sheet & { file: string })[] {
   });
   return sheets;
 }
+
+const EXTENSIONS: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+/** A receipt's place in the zip: sorted by day, and the entry's id is the "Pièce" of the entries sheet. */
+export const receiptName = (day: string, entryId: string, contentType: string) => `pieces/${day}_${entryId}.${EXTENSIONS[contentType] ?? "bin"}`;

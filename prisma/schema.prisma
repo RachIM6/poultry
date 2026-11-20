@@ -924,6 +924,7 @@ model Expense {
   shared         Boolean   @default(false)
   serviceFrom    DateTime? @db.Date
   serviceTo      DateTime? @db.Date
+  receiptFileId  String?   @db.Uuid // FN10, FN18: the receipt photo, a StoredFile attached online after the expense
   recordedBy     String    @db.Uuid
   createdAt      DateTime  @default(now()) @db.Timestamptz
 

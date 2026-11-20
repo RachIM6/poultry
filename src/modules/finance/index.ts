@@ -6,7 +6,7 @@ export type { EntryRow } from "./infrastructure/ledger";
 export { CHARTS, type AccountRow, type Chart } from "./schema";
 export { postPending } from "./application/posting";
 export { financeSync } from "./sync";
-export { cashForecast, treasuryOverview, type TreasuryOverview } from "./application/treasury";
+export { attachExpenseReceipt, cashForecast, treasuryOverview, type TreasuryOverview } from "./application/treasury";
 export { batchResults, freezeClosedBatches, type BatchResultRow } from "./application/batch-results";
 export { budgetBases, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";

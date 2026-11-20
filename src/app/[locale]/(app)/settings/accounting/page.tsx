@@ -46,6 +46,7 @@ async function Content() {
         vatRegistered={entity.vatRegistered}
         locked={locked}
       />
+      <Link href="/settings/chart" className="py-2 underline underline-offset-4">{t("Chart.open")}</Link>
       <Link href="/threshold" className="py-2 underline underline-offset-4">{t("Threshold.open")}</Link>
     </>
   );

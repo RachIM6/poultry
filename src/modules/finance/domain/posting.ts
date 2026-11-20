@@ -49,6 +49,27 @@ const HELD: Record<string, Record<string, string>> = {
 };
 const line = (account: string, debit: bigint, credit: bigint): Line => ({ account, debit, credit });
 
+/** F-Chart: each operation these rules post and its PCA account, for the chart screen (read from the rules, never copied). */
+export const POSTED_ACCOUNTS: readonly { op: string; account: string }[] = [
+  { op: "chicks", account: CHICKS },
+  { op: "feed", account: CHARGE_BY_ITEM.feed },
+  { op: "vetProducts", account: CHARGE_BY_ITEM.vaccine },
+  { op: "litter", account: CHARGE_BY_ITEM.litter },
+  { op: "gas", account: CHARGE_BY_ITEM.gas },
+  { op: "birdsSold", account: BIRDS_SOLD },
+  { op: "eggsSold", account: EGGS_SOLD },
+  { op: "buyers", account: BUYERS },
+  { op: "doubtful", account: DOUBTFUL },
+  { op: "suppliers", account: SUPPLIERS },
+  { op: "cash", account: PAID_AT_ONCE },
+  { op: "bank", account: BANK },
+  { op: "cheques", account: RECEIVED.cheque.account },
+  { op: "bills", account: RECEIVED.bill.account },
+  { op: "billsRemitted", account: HELD.bill.remitted },
+  { op: "vatRecoverable", account: VAT_RECOVERABLE },
+  { op: "vatCollected", account: VAT_COLLECTED },
+];
+
 /**
  * FN6: the entry a farm event makes, in PCA accounts, or null when there is nothing to post (zero amount). FN9: a
  * VAT-registered entity books the invoice's VAT apart; otherwise the whole total stays on the charge or the sale.

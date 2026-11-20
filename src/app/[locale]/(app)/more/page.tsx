@@ -54,6 +54,7 @@ async function Content() {
         money && { href: "/books", label: t("Books.open") },
         money && { href: "/threshold", label: t("Threshold.open") },
         can(ctx.value, "finance.manage") && { href: "/settings/accounting", label: t("Accounting.open") },
+        can(ctx.value, "finance.record") && { href: "/settings/chart", label: t("Chart.open") },
       ].filter((l) => l !== false),
     },
     // SPEC-m2-compliance: the logs and documents an inspection asks for.

@@ -48,3 +48,20 @@ test("the owner changes the accounting choices until the year has an entry", asy
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("الإعدادات المحاسبية");
   await expect(page.getByLabel("خاضع للضريبة على القيمة المضافة")).toBeChecked();
 });
+
+// U15 (mockup F-Chart, SPEC-finance FN2, FN6): what each operation is posted to, in both charts.
+test("the chart screen shows where each operation is posted", async ({ page }) => {
+  await ownerWithFarm(page, "Élevage du Plan");
+  await scopeRemembered(page);
+  await page.goto("/fr/more");
+  await page.getByRole("link", { name: "Plan de comptes" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Plan de comptes");
+  const feed = page.getByRole("listitem").filter({ hasText: "Achat d’aliment" });
+  await expect(feed).toContainText("612122");
+  await expect(feed).toContainText("6121");
+  await expect(page.getByText("Votre entité utilise le plan comptable agricole (en gras).")).toBeVisible();
+
+  await page.goto("/ar/settings/chart");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("مخطط الحسابات");
+  await expect(page.getByRole("listitem").filter({ hasText: "شراء الأعلاف" })).toContainText("612122");
+});

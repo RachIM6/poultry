@@ -491,7 +491,9 @@
     "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier.",
     "VAT_MORE_THAN_AMOUNT": "La TVA dépasse le montant total.",
     "PAID_MORE_THAN_OWED": "Ce paiement dépasse ce qui est dû au fournisseur.",
-    "PAY_MONTH_NOT_VALIDATED": "Validez d’abord la paie de ce mois."
+    "PAY_MONTH_NOT_VALIDATED": "Validez d’abord la paie de ce mois.",
+    "LINE_AFTER_STATEMENT": "Cette opération est datée après la fin du relevé.",
+    "LINE_ALREADY_TICKED": "Cette opération est déjà pointée sur un relevé."
   },
   "Weighing": {
     "title": "Pesée",
@@ -803,6 +805,35 @@
     "receipt": "Reçu",
     "receiptView": "Voir",
     "receiptMissing": "Manquant"
+  },
+  "Bank": {
+    "open": "Rapprochement bancaire",
+    "title": "Rapprochement bancaire",
+    "accounts": "Comptes bancaires",
+    "noAccount": "Aucun compte bancaire. Ajoutez-en un depuis « Dépense rapide ».",
+    "statements": "Relevés",
+    "statementOf": "Relevé au {day}",
+    "noStatement": "Aucun relevé pour ce compte.",
+    "add": "Ajouter un relevé",
+    "endDay": "Date de fin du relevé",
+    "closing": "Solde final du relevé (DH)",
+    "closingHint": "Tel qu’imprimé, précédé de « - » si le compte est à découvert.",
+    "save": "Enregistrer le relevé",
+    "saved": "Relevé enregistré.",
+    "statementBalance": "Solde du relevé",
+    "bookBalance": "Solde comptable au {day}",
+    "ticked": "Pointé sur ce relevé",
+    "difference": "Écart",
+    "reconciled": "Rapproché",
+    "notReconciled": "Non rapproché",
+    "differenceNote": "Une opération du relevé absente des livres reste dans l’écart jusqu’à ce qu’elle soit enregistrée.",
+    "lines": "Opérations du compte jusqu’au {day}",
+    "none": "Aucune opération.",
+    "tick": "Pointer",
+    "untick": "Dépointer",
+    "tickedOn": "Pointée au relevé du {day}",
+    "state": "Pointage",
+    "amount": "Montant"
   },
   "Results": {
     "title": "Résultats des bandes",

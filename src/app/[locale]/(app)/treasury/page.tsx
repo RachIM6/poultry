@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { redirect } from "@/i18n/navigation";
+import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { cashForecast, treasuryOverview } from "@/modules/finance";
@@ -81,6 +81,8 @@ async function Treasury() {
         </table>
         <p className="text-sm text-ink-2">{t("Treasury.scheduleNote")}</p>
       </section>
+      {/* SPEC-finance FC9: ticking each bank account's lines against its statements */}
+      <Link href="/treasury/bank" className="py-2 underline underline-offset-4">{t("Bank.open")}</Link>
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Treasury.movements")}</h2>
       {movements.length === 0 ? (
         <p>{t("Treasury.none")}</p>

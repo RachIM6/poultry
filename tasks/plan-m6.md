@@ -92,9 +92,9 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 - Screen on `/treasury`: unticked lines, book balance on the end day, difference, "rapproché" at 0.
 - Statement lines missing from the books show as the difference until they are booked through existing forms. The "Frais bancaires" category is T119.
 **AC:**
-- [ ] With a two-week fixture whose statement lines are all in the books, ticking them brings the difference to 0 (integration).
-- [ ] A line is ticked on one statement at most; unticking is refused once its month is locked; ticks are audited.
-- [ ] Owner and manager write; accountant reads; worker refused.
+- [x] With a two-week fixture whose statement lines are all in the books, ticking them brings the difference to 0 (integration). (`bank.int.test.ts` "two-week fixture: ticking the statement's lines, all in the books, brings the difference to 0"; domain: `domain/bank.test.ts` "two-week fixture: …"; browser: `e2e/bank.spec.ts`.)
+- [x] A line is ticked on one statement at most; unticking is refused once its month is locked; ticks are audited. (`bank.int.test.ts` "ticks a line on one statement at most, in the database too, and only up to the end day" and "refuses ticking and unticking once the line's month is locked, and audits every tick"; key on `BankMatch.journalLineId`.)
+- [x] Owner and manager write; accountant reads; worker refused. (`bank.int.test.ts` "lets the owner and a manager write, the accountant read, and refuses workers and other organisations".)
 **Depends on:** nothing. **Blocked by:** none.
 **Size:** M
 

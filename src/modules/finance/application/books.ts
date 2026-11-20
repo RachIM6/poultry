@@ -9,6 +9,8 @@ import { incomeStatement } from "@/modules/finance/domain/statements";
 import { fiscalYearOf, type Line } from "@/modules/finance/domain/entry";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { ledgerAccounts } from "@/modules/finance/infrastructure/ledger";
+import { entryTags } from "@/modules/finance/application/tags";
+import type { EntryTags } from "@/modules/finance/domain/export";
 
 type Entry = { id: string; day: string; journal: string; label: string; reversesId: string | null; lines: Line[] };
 
@@ -18,6 +20,7 @@ export type Books = {
   fiscalYear: { from: string; to: string };
   labels: Record<string, string>; // account number → its label in the chart
   cashBook: ReturnType<typeof cashBookOf>;
+  tags: EntryTags; // FN16, FN18: each entry's party, farm, house and batch, from the record it posts
   // `ledger` entities only:
   journals?: { journal: string; entries: Entry[] }[];
   generalLedger?: { account: string; lines: { day: string; journal: string; label: string; debit: bigint; credit: bigint; running: bigint }[] }[];
@@ -58,7 +61,7 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
   const year = fiscalYearOf(period.from as FarmDay, entity.fiscalYearStartMonth);
   const labels = Object.fromEntries((await ledgerAccounts(db)).map((a) => [a.number, a.label]));
   const inMonth = await entriesBetween(ctx, entity.id, period.from, period.to);
-  const books: Books = { books: entity.accountingProfile.books, month, fiscalYear: year, labels, cashBook: cashBookOf(inMonth) };
+  const books: Books = { books: entity.accountingProfile.books, month, fiscalYear: year, labels, cashBook: cashBookOf(inMonth), tags: await entryTags(ctx, month) };
   if (entity.accountingProfile.books !== "ledger") return ok(books);
 
   const journals = new Map<string, Entry[]>();

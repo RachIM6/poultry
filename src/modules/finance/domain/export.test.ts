@@ -29,8 +29,8 @@ describe("export to the accountant (FN18)", () => {
     ]);
     expect(balance.csv).toContain("\r\n5161;Caisses;3000,00;1234,56;1765,44\r\n");
     expect(balance.csv).toMatch(/\r\nTotal;;4234,56;4234,56;0,00\r\n$/);
-    expect(cash.csv).toContain("\r\n21/03/2026;\"Électricité; mars\";5161;Caisses;61251 Électricité;0,00;1234,56\r\n");
-    expect(cash.csv).toMatch(/\r\nTotal;;;;;3000,00;1234,56\r\n$/);
+    expect(cash.csv).toContain("\r\n21/03/2026;\"Électricité; mars\";5161;Caisses;61251 Électricité;;0,00;1234,56\r\n");
+    expect(cash.csv).toMatch(/\r\nTotal;;;;;;3000,00;1234,56\r\n$/);
   });
 
   it("gives a cash-book entity its cash book only", () => {
@@ -38,10 +38,11 @@ describe("export to the accountant (FN18)", () => {
   });
 
   it("fills the entries' party, farm, house and batch from their tags (FN18)", () => {
-    const [entries] = exportSheets(ledger, new Map([["e1", ["Hamid", "El Kheir", "B1", "01/03/2026"]]]));
+    const [entries, , cash] = exportSheets({ ...ledger, tags: new Map([["e1", ["Hamid", "El Kheir", "B1", "01/03/2026"]]]) });
     const rows = toCsv(entries).split("\r\n");
     expect(rows[1]).toBe("20/03/2026;CA;e1;5161;Caisses;'=Vente lot 1;3000,00;0,00;Hamid;El Kheir;B1;01/03/2026");
     expect(rows[3]).toMatch(/;;;;$/); // e2: no tag
+    expect(toCsv(cash)).toContain("\r\n20/03/2026;'=Vente lot 1;5161;Caisses;71211 Ventes de volailles;B1 · 01/03/2026;3000,00;0,00\r\n"); // FN16: its batch
   });
 
   it("names each receipt after its entry's day and id, the entries sheet's Pièce", () => {

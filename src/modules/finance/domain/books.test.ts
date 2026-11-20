@@ -48,9 +48,9 @@ describe("trial balance (SPEC-finance FN16)", () => {
 describe("cash book (FN16)", () => {
   it("lists the money in and out of the treasury accounts, with what each was against", () => {
     const book = cashBookOf([
-      { day: "2026-03-05", label: "Dépense", lines: [line("612512", 120_000n, 0n), line("5161", 0n, 120_000n)] },
-      { day: "2026-03-02", label: "Vente", lines: [line("3421", 800_000n, 0n), line("712121", 0n, 800_000n), line("5161", 800_000n, 0n), line("3421", 0n, 800_000n)] },
-      { day: "2026-03-01", label: "Achat", lines: [line("612122", 100n, 0n), line("4411", 0n, 100n)] }, // on credit: no money moved
+      { id: "e1", day: "2026-03-05", label: "Dépense", lines: [line("612512", 120_000n, 0n), line("5161", 0n, 120_000n)] },
+      { id: "e2", day: "2026-03-02", label: "Vente", lines: [line("3421", 800_000n, 0n), line("712121", 0n, 800_000n), line("5161", 800_000n, 0n), line("3421", 0n, 800_000n)] },
+      { id: "e3", day: "2026-03-01", label: "Achat", lines: [line("612122", 100n, 0n), line("4411", 0n, 100n)] }, // on credit: no money moved
     ]);
     expect(book.rows.map((r) => [r.day, r.label, r.account, r.receipt, r.expense])).toEqual([
       ["2026-03-02", "Vente", "5161", 800_000n, 0n],

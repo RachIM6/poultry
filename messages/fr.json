@@ -887,7 +887,8 @@
     },
     "cpcCurrent": "Résultat courant",
     "cpcBeforeTax": "Résultat avant impôts",
-    "cpcNet": "Résultat net"
+    "cpcNet": "Résultat net",
+    "batch": "Bande"
   },
   "Threshold": {
     "open": "Seuil des 5 M DH",

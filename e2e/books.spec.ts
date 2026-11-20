@@ -33,7 +33,7 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   expect(download.suggestedFilename()).toBe(`comptabilite-${month}.zip`);
   const files = unzip(await readFile(await download.path()));
   expect([...files.keys()]).toEqual([`recettes-depenses-${month}.csv`, `livres-${month}.xlsx`]);
-  expect(files.get(`recettes-depenses-${month}.csv`)).toMatch(/;5161;Caisses;[^;]+;0,00;450,00\r\nTotal;;;;;0,00;450,00\r\n$/);
+  expect(files.get(`recettes-depenses-${month}.csv`)).toMatch(/;5161;Caisses;[^;]+;;0,00;450,00\r\nTotal;;;;;;0,00;450,00\r\n$/); // no batch: a general expense
 });
 
 // U16 (mockup F-Statements): a full-books entity's draft income statement, from its trial balance.

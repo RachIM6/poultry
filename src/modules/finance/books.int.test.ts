@@ -100,6 +100,10 @@ describe("books (SPEC-finance FN16, T36)", () => {
     const cash = await exportBooks(cashBook, "2026-03");
     if (!cash.ok) throw new Error(cash.error);
     expect([...unzip(cash.value.zip).keys()]).toEqual(["recettes-depenses-2026-03.csv", "livres-2026-03.xlsx"]);
+    // FN16: a cash-book entity's receipts and expenses with their batch (the sale's), none for the electricity bill
+    const cashCsv = unzip(cash.value.zip).get("recettes-depenses-2026-03.csv")!;
+    expect(cashCsv).toMatch(/\r\n20\/03\/2026;Vente;5161;[^;]+;3421 [^;]+;B1 · 01\/03\/2026;3000,00;0,00\r\n/);
+    expect(cashCsv).toMatch(/\r\n21\/03\/2026;Dépense;5161;[^;]+;[^;]+;;0,00;1200,00\r\n/);
     expect(await exportBooks({ ...ledger, role: "worker" }, "2026-03")).toEqual({ ok: false, error: "FORBIDDEN" });
   });
 

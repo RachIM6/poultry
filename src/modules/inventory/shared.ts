@@ -50,7 +50,17 @@ export const PURCHASE_MONEY = ["unitPriceCentimes", "amountCentimes", "paidCenti
 /** S2, SPEC-finance FN6: how a supplier is paid later. A cheque leaves the bank on its issue date; a bill is accepted. */
 export const SUPPLIER_PAYMENT_METHODS = ["cash", "transfer", "cheque", "bill"] as const;
 /** All money: owners and managers only (I5). */
-export type SupplierPaymentDto = { id: string; supplierId: string; day: string; amountCentimes: string; method: (typeof SUPPLIER_PAYMENT_METHODS)[number] };
+export type SupplierPaymentDto = {
+  id: string;
+  supplierId: string;
+  day: string;
+  amountCentimes: string;
+  method: (typeof SUPPLIER_PAYMENT_METHODS)[number];
+  instrument?: { number: string | null; dueOn: string } | null; // FN11: an issued cheque's or bill's, when given
+};
+/** FN11: the bank debited an issued cheque or bill (its id: the purchase's or the later payment's). */
+export type IssuedDebitDto = { id: string; instrumentId: string; day: string };
+export { checkDebit, issuedOf, type Issued } from "@/modules/inventory/domain/issued";
 
 export const INVENTORY_MUTATIONS = {
   createSupplier: "inventory.createSupplier",
@@ -59,4 +69,5 @@ export const INVENTORY_MUTATIONS = {
   adjustStock: "inventory.adjustStock",
   setThreshold: "inventory.setThreshold",
   recordSupplierPayment: "inventory.recordSupplierPayment",
+  debitIssued: "inventory.debitIssued",
 } as const;

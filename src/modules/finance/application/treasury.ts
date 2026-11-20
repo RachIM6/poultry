@@ -10,7 +10,7 @@ import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { batchFacts } from "@/modules/flock";
-import { supplierDuesOf } from "@/modules/inventory";
+import { issuedBillsDue, supplierDuesOf } from "@/modules/inventory";
 import { instrumentsToCollect } from "@/modules/sales";
 import { wagesDue } from "@/modules/workforce";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
@@ -194,17 +194,18 @@ const nextMonth = (month: string) => {
 
 /**
  * F-Effects' schedule, the weekly cash need from facts: today's cash and bank (5161, 5141 in the ledger) run forward
- * with the cheques and bills to collect, what is due to suppliers and the validated wages not yet paid. Owners, managers and the accountant (a read).
+ * with the cheques and bills to collect, what is due to suppliers, the bills accepted and not yet debited, and the validated wages not yet paid. Owners, managers and the accountant (a read).
  */
 export async function cashForecast(ctx: TenantContext, clock: Clock = systemClock) {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN");
-  const [cash, ins, outs, wages] = await Promise.all([
+  const [cash, ins, outs, wages, bills] = await Promise.all([
     db.journalLine.aggregate({ where: { organizationId: ctx.organizationId, account: { in: ["5141", "5161"] } }, _sum: { debitCentimes: true, creditCentimes: true } }),
     instrumentsToCollect(ctx),
     supplierDuesOf(ctx),
     wagesDue(ctx),
+    issuedBillsDue(ctx), // FN11: accepted bills leave the bank at their agreed date
   ]);
   const start = (cash._sum.debitCentimes ?? 0n) - (cash._sum.creditCentimes ?? 0n);
-  const flows = [...ins.map((f) => ({ ...f, direction: "in" as const })), ...[...outs, ...wages].map((f) => ({ ...f, direction: "out" as const }))];
+  const flows = [...ins.map((f) => ({ ...f, direction: "in" as const })), ...[...outs, ...wages, ...bills].map((f) => ({ ...f, direction: "out" as const }))];
   return ok({ startCentimes: start, weeks: cashSchedule(farmDayOf(clock.now()), start, flows) });
 }

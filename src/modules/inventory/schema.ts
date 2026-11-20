@@ -44,7 +44,9 @@ export const RecordSupplierPayment = z.object({
   day,
   amountCentimes: centimes,
   method: z.enum(SUPPLIER_PAYMENT_METHODS),
+  instrument: z.object({ number: optionalText(40), dueOn: day }).nullable().default(null), // FN11: cheque or bill only
 });
+export const DebitIssued = z.object({ id: z.uuidv7(), instrumentId: z.uuid(), day }); // FN11: issued → debited
 export const AdjustStock = z.object({
   id: z.uuid(),
   stockItemId: z.uuid(),

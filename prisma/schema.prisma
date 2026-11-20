@@ -407,10 +407,26 @@ model SupplierPayment {
   day            DateTime @db.Date // farm day
   amountCentimes BigInt
   method         String // cash | transfer | cheque | bill
+  // SPEC-finance FN11: an issued cheque's or bill's number and agreed date, when given
+  instrumentNumber String?
+  instrumentDueOn  DateTime? @db.Date
   recordedBy     String   @db.Uuid
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId, supplierId])
+}
+
+// Owner: inventory. SPEC-finance FN11, issued side: the bank debited a cheque or bill given to a supplier (a purchase's
+// paid part or a later payment, by its id). Once per instrument.
+model IssuedDebit {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  instrumentId   String   @unique @db.Uuid
+  day            DateTime @db.Date // farm day
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
 }
 
 // S1: one per farm and product (and lot, for vaccines and medicines).

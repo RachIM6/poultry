@@ -16,7 +16,9 @@ import {
   INVENTORY_MUTATIONS as M,
   SUPPLIER_PAYMENT_METHODS,
   UNITS,
+  checkDebit,
   checkSupplierPayment,
+  issuedOf,
   parseQuantity,
   purchaseAmount,
   stockOnHand,
@@ -30,6 +32,7 @@ import {
   type StockItemDto,
   type SupplierDto,
   type SupplierPaymentDto,
+  type IssuedDebitDto,
 } from "@/modules/inventory/schema";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
@@ -64,7 +67,7 @@ function Stock(scope: Scope) {
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(
-    () => db.records.where("entity").anyOf("farm", "stockItem", "movement", "purchase", "supplier", "supplierPayment").toArray(),
+    () => db.records.where("entity").anyOf("farm", "stockItem", "movement", "purchase", "supplier", "supplierPayment", "issuedDebit").toArray(),
     [userId, organizationId],
   );
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
@@ -153,7 +156,7 @@ function Stock(scope: Scope) {
               </div>
             </>
           )}
-          <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} payments={of<SupplierPaymentDto>("supplierPayment")} write={write} />
+          <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} payments={of<SupplierPaymentDto>("supplierPayment")} debits={of<IssuedDebitDto>("issuedDebit")} write={write} />
         </section>
       )}
     </>
@@ -221,11 +224,29 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
   );
 }
 
-function Suppliers({ suppliers, purchases, payments, write }: { suppliers: SupplierDto[]; purchases: PurchaseDto[]; payments: SupplierPaymentDto[]; write: Write }) {
+function Suppliers({ suppliers, purchases, payments, debits, write }: { suppliers: SupplierDto[]; purchases: PurchaseDto[]; payments: SupplierPaymentDto[]; debits: IssuedDebitDto[]; write: Write }) {
   const t = useTranslations("Stock");
   const locale = useLocale();
   const [paying, setPaying] = useState<string>();
+  const [error, setError] = useState<string>();
+  const tAll = useTranslations();
   if (suppliers.length === 0) return null;
+  // FN11, issued side: cheques and bills given to suppliers that the bank hasn't debited yet
+  const issued = issuedOf(
+    purchases.map((p) => ({ id: p.id, supplierId: p.supplierId, day: p.day, paidCentimes: BigInt(p.paidCentimes ?? 0), paidMethod: p.paidMethod })),
+    payments.map((p) => ({ ...p, amountCentimes: BigInt(p.amountCentimes) })),
+    debits,
+  )
+    .filter((i) => !i.debitedOn)
+    .sort((x, y) => x.dueOn.localeCompare(y.dueOn));
+  const debit = async (instrumentId: string) => {
+    const day = today();
+    const checked = checkDebit(issued.find((i) => i.id === instrumentId), day);
+    if (!checked.ok) return setError(`errors.${checked.error}`);
+    setError(undefined);
+    const d: IssuedDebitDto = { id: uuidv7(), instrumentId, day };
+    await write({ type: M.debitIssued, payload: d }, [{ entity: "issuedDebit", id: d.id, data: d }]);
+  };
   // FN12, supplier side: what is still due to each, by due date
   const duesOf = (id: string) =>
     supplierDues(
@@ -253,6 +274,21 @@ function Suppliers({ suppliers, purchases, payments, write }: { suppliers: Suppl
                 ))}
               </ul>
             )}
+            {issued.some((i) => i.supplierId === s.id) && (
+              <ul className="flex flex-col gap-2 text-sm" aria-label={t("issued", { supplier: s.name })}>
+                {issued
+                  .filter((i) => i.supplierId === s.id)
+                  .map((i) => (
+                    <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
+                      <span className={i.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
+                        {t("issuedLine", { kind: t(`payMethods.${i.kind}`), number: i.number ?? "—", amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
+                      </span>
+                      <button type="button" onClick={() => debit(i.id)} className={`${secondary} text-sm`}>{t("debited")}</button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            {error && <p role="alert">{tAll(error)}</p>}
             {paying === s.id ? (
               <SupplierPaymentForm supplier={s} balance={balances.get(s.id) ?? 0n} write={write} onDone={() => setPaying(undefined)} />
             ) : (
@@ -307,6 +343,7 @@ const today = () => farmDayOf(new Date());
 function SupplierPaymentForm({ supplier, balance, write, onDone }: { supplier: SupplierDto; balance: bigint; write: Write; onDone: () => void }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
+  const [method, setMethod] = useState<SupplierPaymentDto["method"]>("cash");
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const get = read(e.currentTarget);
@@ -314,16 +351,26 @@ function SupplierPaymentForm({ supplier, balance, write, onDone }: { supplier: S
     if (amount === null) return setError("errors.INVALID_INPUT");
     const checked = checkSupplierPayment(amount, balance);
     if (!checked.ok) return setError(`errors.${checked.error}`);
-    const payment: SupplierPaymentDto = { id: uuidv7(), supplierId: supplier.id, day: get("day") || today(), amountCentimes: String(amount), method: get("method") as SupplierPaymentDto["method"] };
+    const method = get("method") as SupplierPaymentDto["method"];
+    const day = get("day") || today();
+    // FN11: an issued cheque's or bill's number and agreed date (a cheque is payable on sight: its date is a reminder)
+    const instrument = method === "cheque" || method === "bill" ? { number: get("number") || null, dueOn: get("dueOn") || day } : null;
+    const payment: SupplierPaymentDto = { id: uuidv7(), supplierId: supplier.id, day, amountCentimes: String(amount), method, instrument };
     if (await write({ type: M.recordSupplierPayment, payload: payment }, [{ entity: "supplierPayment", id: payment.id, data: payment }])) onDone();
   };
   return (
     <form onSubmit={submit} aria-label={t("Stock.pay", { supplier: supplier.name })} className="flex flex-col gap-3">
       <Field name="amount" label={t("Stock.payAmount")} inputMode="decimal" required dir="ltr" />
-      <Select name="method" label={t("Stock.payMethod")} defaultValue="cash">
+      <Select name="method" label={t("Stock.payMethod")} value={method} onChange={(v) => setMethod(v as SupplierPaymentDto["method"])}>
         {SUPPLIER_PAYMENT_METHODS.map((m) => <option key={m} value={m}>{t(`Stock.payMethods.${m}`)}</option>)}
       </Select>
       <Field name="day" label={t("Stock.day")} type="date" defaultValue={today()} max={today()} required />
+      {(method === "cheque" || method === "bill") && (
+        <>
+          <Field name="number" label={t("Stock.instrumentNumber")} maxLength={40} dir="ltr" />
+          <Field name="dueOn" label={t("Stock.instrumentDueOn")} type="date" defaultValue={today()} />
+        </>
+      )}
       {error && <p role="alert">{t(error)}</p>}
       <Buttons onCancel={onDone} />
     </form>

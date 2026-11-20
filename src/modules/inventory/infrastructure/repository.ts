@@ -1,6 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
 import type { ItemKind, Unit } from "@/modules/inventory/domain/stock";
+import { issuedOf } from "@/modules/inventory/domain/issued";
 import { supplierBalances } from "@/modules/inventory/domain/suppliers";
 import type { MovementDto, PurchaseDto, StockItemDto, SupplierDto, SupplierPaymentDto } from "@/modules/inventory/schema";
 
@@ -39,8 +40,34 @@ export async function lockedSupplierBalance(tx: Tx, ctx: TenantContext, supplier
   return supplierBalances(purchases, [{ supplierId, amountCentimes: paid._sum.amountCentimes ?? 0n }]).get(supplierId) ?? 0n;
 }
 
-export const insertSupplierPayment = (tx: Tx, ctx: TenantContext, p: SupplierPaymentDto) =>
-  tx.supplierPayment.create({ data: { ...p, organizationId: ctx.organizationId, day: date(p.day), amountCentimes: BigInt(p.amountCentimes), recordedBy: ctx.userId } });
+export const insertSupplierPayment = (tx: Tx, ctx: TenantContext, { instrument, ...p }: SupplierPaymentDto) =>
+  tx.supplierPayment.create({
+    data: {
+      ...p,
+      organizationId: ctx.organizationId,
+      day: date(p.day),
+      amountCentimes: BigInt(p.amountCentimes),
+      instrumentNumber: instrument?.number ?? null,
+      instrumentDueOn: instrument ? date(instrument.dueOn) : null,
+      recordedBy: ctx.userId,
+    },
+  });
+
+/** FN11: this organisation's cheques and bills issued to suppliers (or the ones with these ids), with their debits. */
+export async function issuedOfOrg(tx: Tx, ctx: TenantContext, ids?: string[]) {
+  const where = { organizationId: ctx.organizationId, ...(ids && { id: { in: ids } }) };
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  const [purchases, payments, debits] = await Promise.all([
+    tx.purchase.findMany({ where: { ...where, paidMethod: { in: ["cheque", "bill"] }, paidCentimes: { gt: 0 } }, select: { id: true, supplierId: true, day: true, paidCentimes: true, paidMethod: true } }),
+    tx.supplierPayment.findMany({ where: { ...where, method: { in: ["cheque", "bill"] } } }),
+    tx.issuedDebit.findMany({ where: { organizationId: ctx.organizationId, ...(ids && { instrumentId: { in: ids } }) }, select: { instrumentId: true, day: true } }),
+  ]);
+  return issuedOf(
+    purchases.map((p) => ({ ...p, day: day(p.day) })),
+    payments.map((p) => ({ ...p, day: day(p.day), instrument: p.instrumentDueOn ? { number: p.instrumentNumber, dueOn: day(p.instrumentDueOn) } : null })),
+    debits.map((d) => ({ ...d, day: day(d.day) })),
+  );
+}
 
 /** S3: stock on hand from the ledger, as this transaction sees it. */
 export const onHandOf = async (tx: Tx, ctx: TenantContext, stockItemId: string) =>

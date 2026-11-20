@@ -27,6 +27,7 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
   const form = page.getByRole("form", { name: "Payer Alf Sahel" });
   await form.getByLabel("Montant payé (DH)").fill("9000,01");
   await form.getByLabel("Payé par").selectOption({ label: "Chèque émis" });
+  await form.getByLabel("N° du chèque ou de l’effet (facultatif)").fill("0012345"); // FN11
   await form.getByRole("button", { name: "Enregistrer" }).click();
   await expect(form.getByRole("alert")).toHaveText("Ce paiement dépasse ce qui est dû au fournisseur.");
   await form.getByLabel("Montant payé (DH)").fill("2000");
@@ -37,6 +38,8 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
   const reload = await page.reload(); // still offline: the shell and the payment come from the phone
   expect(reload?.fromServiceWorker()).toBe(true);
   await expect(page.getByText(/Reste dû : 7.000,00.DH/)).toBeVisible();
+  const issued = page.getByRole("list", { name: "Chèques et effets émis à Alf Sahel" }).getByRole("listitem");
+  await expect(issued).toHaveText([/^Chèque émis n° 0012345 : 2.000,00.DH, échéance le .*Débité$/]);
 
   await context.unroute("**");
   await context.setOffline(false);
@@ -49,6 +52,12 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
       )
     ).map((l) => `${l.journal} ${l.account} ${l.debit} ${l.credit}`);
   await expect.poll(lines, { timeout: 20_000 }).toEqual(["BQ 4411 200000 0", "BQ 5141 0 200000"]);
+  // FN11: the bank statement shows the cheque debited; it leaves the list, and posts nothing more (it left the bank when issued).
+  await issued.getByRole("button", { name: "Débité" }).click();
+  await expect(issued).toHaveCount(0);
+  const debits = async () =>
+    (await query<{ n: number }>(`SELECT count(*)::int AS n FROM "IssuedDebit" d JOIN "Membership" m ON m."organizationId" = d."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`, [e164]))[0].n;
+  await expect.poll(debits, { timeout: 20_000 }).toBe(1);
   // F-Effects: this week, 7 000,00 DH still due (overdue) against a bank already down by the cheque.
   await page.goto("/fr/treasury");
   const week = page.getByRole("table", { name: "Les 4 prochaines semaines" }).getByRole("row").nth(1);

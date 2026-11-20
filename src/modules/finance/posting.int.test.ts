@@ -7,6 +7,7 @@ import { recordChange, push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { changeAccountingChoices, postPending } from "@/modules/finance";
+import { issuedBillsDue } from "@/modules/inventory";
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant, twoTenants } from "@/test/tenant";
 
@@ -176,5 +177,41 @@ describe("posting pipeline (SPEC-finance FN6–FN7, T30)", () => {
     expect(await linesOf({ sourceId: bill })).toEqual([["4411", 600_000n, 0n], ["4415", 0n, 600_000n]]);
     expect(await linesOf({ sourceId: cash })).toEqual([["4411", 300_000n, 0n], ["5161", 0n, 300_000n]]);
     expect((await db.journalEntry.findFirstOrThrow({ where: { sourceId: bill } })).journal).toBe("OD");
+  });
+
+  it("debits an issued bill at its due date (D 4415 / C 5141) and an issued cheque without a new entry (FN11)", async () => {
+    const d = await tenant("+212600000005", "Ferme Effets");
+    const [farm, supplier, feed, bill, cheque, cash] = Array.from({ length: 6 }, () => uuidv7());
+    const pay = (id: string, amountCentimes: string, method: string, instrument: object | null) =>
+      m("inventory.recordSupplierPayment", { id, supplierId: supplier, day: "2026-03-10", amountCentimes, method, instrument });
+    const debit = (instrumentId: string, day = "2026-04-10", id = uuidv7()) => m("inventory.debitIssued", { id, instrumentId, day });
+    const statuses = async (ctx: TenantContext, ...ms: ReturnType<typeof m>[]) =>
+      (await push(ctx, ms, registry)).results.map((r) => (r.status === "rejected" ? r.messageKey : r.status));
+    expect(
+      await statuses(
+        d,
+        m("farm-registry.createFarm", { id: farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
+        m("inventory.createSupplier", { id: supplier, name: "Alf", phone: null }),
+        m("inventory.createStockItem", { id: feed, farmId: farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null }),
+        m("inventory.recordPurchase", { id: uuidv7(), movementId: uuidv7(), supplierId: supplier, stockItemId: feed, day: "2026-03-02", quantity: 2_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null }),
+        pay(bill, "600000", "bill", { number: "LC-77", dueOn: "2026-04-10" }),
+        pay(cheque, "100000", "cheque", { number: "0012345", dueOn: "2026-03-10" }),
+        pay(cash, "100000", "cash", null),
+        pay(uuidv7(), "1", "cash", { number: null, dueOn: "2026-03-10" }), // cash carries no instrument
+      ),
+    ).toEqual([...Array(7).fill("applied"), "errors.INVALID_INPUT"]);
+    expect(await issuedBillsDue(d)).toEqual([{ dueOn: "2026-04-10", amountCentimes: 600_000n }]); // the cash schedule's outflow
+
+    const billDebitId = uuidv7();
+    const billDebit = debit(bill, "2026-04-10", billDebitId);
+    expect(await statuses({ ...d, role: "worker" }, debit(bill))).toEqual(["errors.FORBIDDEN"]);
+    expect(await statuses(d, debit(bill, "2026-03-09"))).toEqual(["errors.INVALID_INPUT"]); // before it was issued
+    expect(await statuses(d, billDebit, debit(cheque), debit(bill), debit(cash))).toEqual(["applied", "applied", "errors.INVALID_TRANSITION", "errors.NOT_FOUND"]);
+    expect(await issuedBillsDue(d)).toEqual([]);
+
+    await postPending(d);
+    expect(await linesOf({ sourceModule: "inventory", sourceId: billDebitId })).toEqual([["4415", 600_000n, 0n], ["5141", 0n, 600_000n]]);
+    expect((await db.journalEntry.findFirstOrThrow({ where: { sourceId: billDebitId } })).journal).toBe("BQ");
+    expect(await db.journalEntry.count({ where: { organizationId: d.organizationId, label: "Effet payé à l’échéance" } })).toBe(1); // none for the cheque
   });
 });

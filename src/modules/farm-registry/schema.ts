@@ -29,6 +29,9 @@ const DEFAULTS: Record<LegalForm, Omit<AccountingProfile, "coOwnerShares">> = {
   association: { books: "cash_book", base: "cgnc", overlays: [] }, // no associations chart decided yet
 };
 
+/** FN1: the books the owner may pick. Companies and GIEs keep full double-entry books (law 9-88). */
+export const booksAllowed = (form: LegalForm): Books[] => (DEFAULTS[form].books === "ledger" ? ["ledger"] : ["cash_book", "ledger"]);
+
 export const accountingProfileOf = (form: LegalForm, choices: AccountingChoices = { books: null, pcaOverlay: null }): AccountingProfile => {
   const d = DEFAULTS[form];
   const pca = choices.pcaOverlay ?? d.overlays.includes("pca");

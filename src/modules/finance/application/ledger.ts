@@ -5,7 +5,8 @@ import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { legalEntityIn, saveAccountingChoices, type AccountingChoices } from "@/modules/farm-registry";
+import { booksAllowed, legalEntityIn, listLegalEntities, saveAccountingChoices } from "@/modules/farm-registry";
+import { AccountingChoicesInput } from "@/modules/finance/schema";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { checkEntry, firstOpenMonth, fiscalYearOf, monthOf, openingLines, reversalOf, type EntryError } from "@/modules/finance/domain/entry";
 import {
@@ -122,17 +123,35 @@ export async function openFiscalYear(ctx: TenantContext, legalEntityId: string, 
 export async function changeAccountingChoices(
   ctx: TenantContext,
   legalEntityId: string,
-  choices: AccountingChoices & { fiscalYearStartMonth: number; vatRegistered?: boolean },
+  input: unknown,
   clock: Clock = systemClock,
 ): Promise<Result<void, "FORBIDDEN" | "NOT_FOUND" | "INVALID_INPUT" | "FISCAL_YEAR_HAS_ENTRIES">> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
-  if (!Number.isInteger(choices.fiscalYearStartMonth) || choices.fiscalYearStartMonth < 1 || choices.fiscalYearStartMonth > 12) return fail("INVALID_INPUT");
+  const parsed = AccountingChoicesInput.safeParse(input);
+  if (!parsed.success) return fail("INVALID_INPUT");
+  const choices = parsed.data;
   return db.$transaction(async (tx) => {
     const entity = await legalEntityIn(tx, ctx, legalEntityId); // row-locked: no entry can land while we decide
     if (!entity) return fail("NOT_FOUND");
-    const year = fiscalYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth);
-    if ((await entriesBetween(tx, ctx, legalEntityId, year.from, year.to)) > 0) return fail("FISCAL_YEAR_HAS_ENTRIES");
+    if (choices.books && !booksAllowed(entity.form).includes(choices.books)) return fail("INVALID_INPUT");
+    if (await yearHasEntries(tx, ctx, entity, clock)) return fail("FISCAL_YEAR_HAS_ENTRIES");
     await saveAccountingChoices(tx, ctx, legalEntityId, choices);
     return ok(undefined);
+  });
+}
+
+const yearHasEntries = async (tx: Tx, ctx: TenantContext, entity: { id: string; fiscalYearStartMonth: number }, clock: Clock) => {
+  const year = fiscalYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth);
+  return (await entriesBetween(tx, ctx, entity.id, year.from, year.to)) > 0;
+};
+
+/** The profile screen: the entity, the books its form allows, and whether this fiscal year still lets them change. */
+export async function accountingSettings(ctx: TenantContext, clock: Clock = systemClock) {
+  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  const [first] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation (see postPending)
+  if (!first) return ok(null);
+  return db.$transaction(async (tx) => {
+    const entity = (await legalEntityIn(tx, ctx, first.id))!;
+    return ok({ entity, books: booksAllowed(entity.form), locked: await yearHasEntries(tx, ctx, entity, clock) });
   });
 }

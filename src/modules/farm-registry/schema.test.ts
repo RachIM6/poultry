@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accountingProfileOf, LEGAL_FORMS, parseOnboarding } from "./schema";
+import { accountingProfileOf, booksAllowed, LEGAL_FORMS, parseOnboarding } from "./schema";
 
 describe("accountingProfileOf (SPEC F1, SPEC-finance FN1, ADR-010 §2)", () => {
   it.each([
@@ -17,6 +17,12 @@ describe("accountingProfileOf (SPEC F1, SPEC-finance FN1, ADR-010 §2)", () => {
     expect(accountingProfileOf("individual", { books: "ledger", pcaOverlay: null })).toMatchObject({ books: "ledger", overlays: ["pca"] }); // FQ6
     expect(accountingProfileOf("company", { books: null, pcaOverlay: false })).toMatchObject({ books: "ledger", overlays: [] });
     expect(accountingProfileOf("association", { books: null, pcaOverlay: true })).toMatchObject({ overlays: ["pca"] });
+  });
+
+  it("keeps companies and GIEs on full books (law 9-88); the other forms may choose", () => {
+    expect(booksAllowed("company")).toEqual(["ledger"]);
+    expect(booksAllowed("gie")).toEqual(["ledger"]);
+    for (const form of ["individual", "indivision", "cooperative", "association"] as const) expect(booksAllowed(form)).toEqual(["cash_book", "ledger"]);
   });
 
   it("covers the 6 forms of the spec", () => {

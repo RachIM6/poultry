@@ -6,9 +6,9 @@ import { fixedClock } from "@/lib/kernel/clock";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { changeAccountingChoices, openFiscalYear, postEntry, reverseEntry, setPeriodLocked, type EntryRow, type Line } from "@/modules/finance";
+import { accountingSettings, changeAccountingChoices, openFiscalYear, postEntry, reverseEntry, setPeriodLocked, type EntryRow, type Line } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
-import { twoTenants } from "@/test/tenant";
+import { tenant, twoTenants } from "@/test/tenant";
 
 const d = (s: string) => s as FarmDay;
 const line = (account: string, debit: bigint, credit: bigint): Line => ({ account, debit, credit });
@@ -110,6 +110,8 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
     const today = fixedClock("2027-02-01T10:00:00Z"); // entity A has no 2027 entry yet
     const choices = { books: "ledger" as const, pcaOverlay: false, fiscalYearStartMonth: 1 };
     expect(await changeAccountingChoices({ ...a, role: "manager" }, entityA, choices, today)).toEqual({ ok: false, error: "FORBIDDEN" });
+    expect(await changeAccountingChoices(a, entityA, { ...choices, fiscalYearStartMonth: 13 }, today)).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await accountingSettings(a, today)).toMatchObject({ ok: true, value: { books: ["cash_book", "ledger"], locked: false } }); // an individual
     expect(await changeAccountingChoices(a, entityA, choices, today)).toEqual({ ok: true, value: undefined });
     expect((await listLegalEntities(a))[0].accountingProfile).toMatchObject({ books: "ledger", overlays: [] });
 
@@ -117,6 +119,17 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
     expect(await post(a, { day: d("2027-02-02") })).toEqual({ ok: false, error: "UNKNOWN_ACCOUNT" });
     expect(await post(a, { day: d("2027-02-02"), lines: [line("6121", 100n, 0n), line("4411", 0n, 100n)] })).toMatchObject({ ok: true });
     expect(await changeAccountingChoices(a, entityA, { ...choices, pcaOverlay: true }, today)).toEqual({ ok: false, error: "FISCAL_YEAR_HAS_ENTRIES" });
+    expect(await accountingSettings(a, today)).toMatchObject({ ok: true, value: { locked: true } });
+  });
+
+  it("keeps a company on full books (law 9-88)", async () => {
+    const c = await tenant("+212600000009", "SARL C");
+    await db.legalEntity.updateMany({ where: { organizationId: c.organizationId }, data: { form: "company" } });
+    const [entity] = await listLegalEntities(c);
+    const choices = { books: "cash_book" as const, pcaOverlay: null, fiscalYearStartMonth: 1 };
+    expect(await changeAccountingChoices(c, entity.id, choices)).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await changeAccountingChoices(c, entity.id, { ...choices, books: null, vatRegistered: true })).toEqual({ ok: true, value: undefined });
+    expect((await listLegalEntities(c))[0].vatRegistered).toBe(true);
   });
 
   it("keeps each organisation's books apart, and workers out", async () => {

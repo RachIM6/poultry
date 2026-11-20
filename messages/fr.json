@@ -1610,5 +1610,40 @@
     "noAuthorization": "Autorisation sanitaire : non renseignée",
     "expires": "Échéance",
     "rodents": "Dératisation"
+  },
+  "Accounting": {
+    "open": "Paramètres comptables",
+    "title": "Paramètres comptables",
+    "none": "Aucune entité juridique.",
+    "books": "Tenue des livres",
+    "booksOptions": {
+      "ledger": {
+        "title": "Comptabilité en partie double",
+        "desc": "Journaux, grand livre et balance."
+      },
+      "cash_book": {
+        "title": "Livre de recettes et de dépenses",
+        "desc": "Pour qui ne tient pas de comptabilité en partie double."
+      }
+    },
+    "ledgerRequired": "Une société ou un GIE tient une comptabilité en partie double (loi 9-88).",
+    "chart": "Plan comptable",
+    "charts": {
+      "pca": {
+        "title": "Plan comptable agricole",
+        "desc": "Avis du CNC n° 7 du 22 décembre 2015, conforme au CGNC. Ajoute les comptes d’animaux, d’aliments et de produits vétérinaires."
+      },
+      "cgnc": {
+        "title": "Plan comptable général des entreprises (PCGE)",
+        "desc": "CGNC, loi 9-88. Comptes généraux sans détail agricole : les achats d’aliments vont en 6121."
+      }
+    },
+    "coop": "Le plan comptable des coopératives (arrêté n° 441-01) n’est pas encore disponible : votre comptable tient les livres légaux à partir de l’export.",
+    "yearStart": "Début d’exercice",
+    "vat": "TVA",
+    "vatRegistered": "Assujetti à la TVA",
+    "vatHint": "La TVA saisie sur les achats et les ventes est alors comptée à part (3455, 4455). Régime à confirmer avec votre expert-comptable.",
+    "save": "Enregistrer",
+    "saved": "Paramètres enregistrés."
   }
 }

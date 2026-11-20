@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BOOKS } from "@/modules/farm-registry/schema";
 import { EXPENSE_CATEGORIES, PAID_FROM, TREASURY_KINDS } from "./shared.ts";
 
 export * from "./shared.ts";
@@ -28,6 +29,14 @@ const positive = centimes.refine((c) => BigInt(c) > 0n, "must be above zero");
 const note = z.string().trim().max(200).transform((x) => x || null).nullable();
 
 /** FN3: a bank account or cash box of the organisation. */
+/** FN1, FN9: the owner's accounting choices; null keeps the legal form's default, an absent vatRegistered keeps it as is. */
+export const AccountingChoicesInput = z.object({
+  books: z.enum(BOOKS).nullable(),
+  pcaOverlay: z.boolean().nullable(),
+  fiscalYearStartMonth: z.int32().min(1).max(12),
+  vatRegistered: z.boolean().optional(),
+});
+
 export const CreateTreasuryAccount = z.object({ id: z.uuid(), kind: z.enum(TREASURY_KINDS), name: z.string().trim().min(1).max(80) });
 
 /** FX4: a quick expense from the phone. `treasuryId`: the bank account or cash box it was paid from, if known. */

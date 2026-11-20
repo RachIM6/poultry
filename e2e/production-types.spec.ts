@@ -18,6 +18,7 @@ test("hens placed at 18 weeks show their age in weeks, and beldi bands share a r
   await page.goto("/fr/batches");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await referenceCached(page);
+  await expect(page.getByRole("button", { name: "Mettre en place une bande" })).toBeVisible(); // the houses reached the phone
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
 

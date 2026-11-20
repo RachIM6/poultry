@@ -19,6 +19,7 @@ export async function saveTreatment(tx: Tx, ctx: TenantContext, t: TreatmentDto)
       startOn: date(t.startOn),
       endOn: date(t.endOn),
       withdrawalEndsOn: date(t.withdrawalEndsOn),
+      eggWithdrawalEndsOn: t.eggWithdrawalEndsOn ? date(t.eggWithdrawalEndsOn) : null,
       recordedBy: byUserId,
     },
   });
@@ -26,9 +27,9 @@ export async function saveTreatment(tx: Tx, ctx: TenantContext, t: TreatmentDto)
 
 /** What the withdrawal rule needs of the batch's treatments. */
 export async function treatmentsOf(tx: Tx, ctx: TenantContext, batchId: string) {
-  const rows = await tx.treatment.findMany({ where: { organizationId: ctx.organizationId, batchId }, select: { startOn: true, endOn: true, withdrawalDays: true } });
+  const rows = await tx.treatment.findMany({ where: { organizationId: ctx.organizationId, batchId }, select: { startOn: true, endOn: true, withdrawalDays: true, eggWithdrawalDays: true } });
   const day = (d: Date) => d.toISOString().slice(0, 10) as FarmDay;
-  return rows.map((r) => ({ startOn: day(r.startOn), endOn: day(r.endOn), withdrawalDays: r.withdrawalDays }));
+  return rows.map((r) => ({ startOn: day(r.startOn), endOn: day(r.endOn), withdrawalDays: r.withdrawalDays, eggWithdrawalDays: r.eggWithdrawalDays }));
 }
 
 export async function saveVisit(tx: Tx, ctx: TenantContext, v: VetVisitDto) {

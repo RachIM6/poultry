@@ -31,6 +31,8 @@ async function Content() {
       title: t("More.farm"),
       links: [
         { href: "/farms", label: t("Farms.title") },
+        { href: "/eggs", label: t("EggStock.title") }, // SPEC-m3 E4
+        { href: "/compare", label: t("Compare.title") }, // SPEC-m3 D2
         { href: "/protocol", label: t("Protocol.open") },
         { href: "/tasks", label: t("Tasks.open") },
         { href: "/climate", label: t("Climate.open") },
@@ -53,6 +55,8 @@ async function Content() {
         money && { href: "/threshold", label: t("Threshold.open") },
       ].filter((l) => l !== false),
     },
+    // SPEC-m2-compliance: the logs and documents an inspection asks for.
+    { title: t("More.compliance"), links: [{ href: "/visitors", label: t("Visitors.open") }, { href: "/disposal", label: t("Disposal.open") }, { href: "/cleanout", label: t("Cleanout.open") }, can(ctx.value, "documents.manage") && { href: "/documents", label: t("Documents.open") }, can(ctx.value, "documents.manage") && { href: "/inspection", label: t("Inspection.open") }].filter((l) => l !== false) },
     {
       title: t("More.account"),
       links: [

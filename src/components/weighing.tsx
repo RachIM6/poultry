@@ -6,10 +6,12 @@ import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
 import { formatCount, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { Batch, FLOCK_MUTATIONS as M, ageOn, sampleStats, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/shared";
+import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, sampleStats, uniformityPercent, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import type { CurvePoint } from "@/modules/reference-data/schema";
-import { standardAt } from "@/modules/reference-data/shared";
+import type { ReferenceData } from "@/modules/reference-data/schema";
+import { curveFor, standardAt } from "@/modules/reference-data/shared";
+
+type StrainCurves = ReferenceData["strains"][number]["curves"];
 import { field, primary } from "@/components/ui";
 
 // SPEC B3 on the phone: type the sample, see the average, uniformity (CV%) and the gap to the strain standard at once.
@@ -29,7 +31,8 @@ function readSample(group: boolean, weights: string, total: string, count: strin
 
 const asSample = (w: WeighingDto): Sample => (w.weightsGrams.length ? { weightsGrams: w.weightsGrams } : { totalGrams: w.totalGrams, count: w.count });
 
-export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto; weighings: WeighingDto[]; curve: readonly CurvePoint[] | null; write: Write }) {
+export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto; weighings: WeighingDto[]; curves: StrainCurves; write: Write }) {
+  const curve = curveFor(curves, batch.sex ?? "mixed")?.points ?? null; // R6: its sex's, else mixed
   const t = useTranslations();
   const [day, setDay] = useState<string>(today());
   const [group, setGroup] = useState(false);
@@ -42,10 +45,12 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
 
   const describe = (s: Sample, onDay: string) => {
     const stats = sampleStats(s);
-    const standard = curve && standardAt(curve, ageOn(batch.placedOn as FarmDay, onDay as FarmDay));
+    const standard = curve && standardAt(curve, ageOfBatch(batch, onDay as FarmDay));
     return [
       t("Weighing.average", { average: formatKg(stats.averageGrams), count: formatCount(stats.count) }),
       stats.cvPercent === null ? null : t("Weighing.cv", { cv: formatPercent(stats.cvPercent) }),
+      // SPEC-m3 B12: the guides' uniformity, for the types weighed weekly against a target (pullets above all)
+      batch.species === "broiler" || uniformityPercent(s) === null ? null : t("Weighing.uniformity", { percent: formatPercent(uniformityPercent(s)!) }),
       standard
         ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(stats.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) })
         : t("Weighing.noStandard"),
@@ -110,7 +115,7 @@ export function Weighings({ batch, weighings, curve, write }: { batch: BatchDto;
         <ul className="flex flex-col gap-2" aria-label={t("Weighing.past")}>
           {past.map((w) => (
             <li key={w.id} className="rounded-lg border border-line p-3">
-              <span className="font-semibold">{t("Batches.age", { age: String(ageOn(batch.placedOn as FarmDay, w.day as FarmDay)) })}</span> · {describe(asSample(w), w.day)}
+              <span className="font-semibold">{t("Batches.age", { age: String(ageOfBatch(batch, w.day as FarmDay)) })}</span> · {describe(asSample(w), w.day)}
             </li>
           ))}
         </ul>

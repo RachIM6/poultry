@@ -150,7 +150,8 @@
     },
     "houseSummary": "{area} m² · {capacity} oiseaux · {type}",
     "farmSummary": "{commune}, {province} · bâtiments : {count}",
-    "onssaUntil": "Autorisation ONSSA {number}, valable jusqu’au {date}"
+    "onssaUntil": "Autorisation ONSSA {number}, valable jusqu’au {date}",
+    "doaClaim": "Seuil de réclamation au couvoir (% de morts à l’arrivée, facultatif)"
   },
   "Protocol": {
     "title": "Programme de vaccination",
@@ -215,6 +216,14 @@
       "placementTomorrow": {
         "title": "Mise en place prévue demain",
         "body": "{house} : {chicks} poussins, couvoir {hatchery}. Vérifiez le bâtiment, l’eau et le chauffage."
+      },
+      "documentExpiring": {
+        "title": "À renouveler : {title}",
+        "body": "Échéance le {date}. Pensez au renouvellement."
+      },
+      "documentExpired": {
+        "title": "Échéance atteinte : {title}",
+        "body": "Arrivé à échéance le {date}. À renouveler."
       }
     }
   },
@@ -326,7 +335,32 @@
     },
     "protocol": "Programme de vaccination",
     "noProtocol": "Aucun",
-    "nextVaccine": "Prochain vaccin : {vaccine}"
+    "type": "Production",
+    "unspecifiedStrain": "Souche non précisée",
+    "ageWeeks": "{weeks} sem.",
+    "ageWeeksDays": "{weeks} sem. {days} j",
+    "ageAtPlacement": "Âge à la mise en place (semaines)",
+    "bySex": "Sexes séparés",
+    "females": "Femelles placées",
+    "femaleDoa": "Femelles mortes à l’arrivée",
+    "males": "Mâles placés",
+    "maleDoa": "Mâles morts à l’arrivée",
+    "sexes": {
+      "mixed": "Mixte",
+      "female": "femelles",
+      "male": "mâles"
+    },
+    "otherSex": "Même lot, {sex} : {birds} sujets",
+    "freeChicks": "Supplément gratuit (facultatif)",
+    "arrival": "Qualité à l’arrivée (facultatif)",
+    "parentFlock": "Lot reproducteur",
+    "weakChicks": "Poussins faibles",
+    "litterTemp": "Température litière (°C)",
+    "density": "Densité : {density} sujets/m²",
+    "claim": "Morts à l’arrivée au-dessus du seuil du contrat : réclamation au couvoir",
+    "run": "{house} · {bands} bandes · {birds} sujets",
+    "nextVaccine": "Prochain vaccin : {vaccine}",
+    "downtimeWarning": "Attention : vide sanitaire de {elapsed} jours dans ce bâtiment, le minimum de la ferme est {min} jours."
   },
   "Day": {
     "title": "Saisie du jour",
@@ -411,7 +445,20 @@
     "INVALID_BAND": "Une tranche est incomplète ou à l’envers (de ≤ à, min ≤ max).",
     "TARGET_BANDS_OVERLAP": "Deux tranches d’âge se chevauchent.",
     "POWER_CUT_OPEN": "Une coupure de courant est déjà en cours sur cette ferme.",
-    "CUT_END_BEFORE_START": "Le courant ne peut pas revenir avant la coupure."
+    "CUT_END_BEFORE_START": "Le courant ne peut pas revenir avant la coupure.",
+    "NOT_ENOUGH_EGGS": "Pas assez d’œufs dans ce lot.",
+    "EGG_WITHDRAWAL_REQUIRED": "Indiquez le délai d’attente des œufs : c’est un lot de pondeuses.",
+    "EGGS_IN_WITHDRAWAL": "Des œufs pondus pendant un délai d’attente sont encore dans ce stock : écartez-les avant de vendre.",
+    "VISIT_DIRTY_ZONE_ONLY": "Ce visiteur est passé par un autre élevage : zone sale uniquement.",
+    "DISPOSAL_METHOD_NOTE_REQUIRED": "Décrivez la méthode d’élimination.",
+    "STEP_ALREADY_DONE": "Cette étape est déjà notée.",
+    "DISINFECTANT_REQUIRED": "Indiquez le produit désinfectant.",
+    "BATCH_NOT_CLOSED": "La bande de ce bâtiment n’est pas encore clôturée.",
+    "CLEANOUT_ALREADY_STARTED": "Le nettoyage après cette bande est déjà commencé.",
+    "FILE_TOO_LARGE": "Fichier trop lourd : 5 Mo au maximum.",
+    "FILE_TYPE_NOT_ALLOWED": "Type de fichier refusé : PDF, JPEG, PNG ou WebP seulement.",
+    "PROOF_ALREADY_ATTACHED": "Cette vérification a déjà sa photo.",
+    "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier."
   },
   "Weighing": {
     "title": "Pesée",
@@ -427,7 +474,8 @@
     "versusStandard": "{gap} % par rapport au standard ({standard})",
     "noStandard": "Pas de standard publié pour cette souche à cet âge",
     "save": "Enregistrer la pesée",
-    "past": "Pesées précédentes"
+    "past": "Pesées précédentes",
+    "uniformity": "Homogénéité {percent} %"
   },
   "Kpi": {
     "title": "Indicateurs",
@@ -445,7 +493,9 @@
     "flock": "Bande",
     "standard": "Standard de la souche",
     "day": "J{age}",
-    "chartLabel": "Poids moyen par âge : {points}"
+    "chartLabel": "Poids moyen par âge : {points}",
+    "waterFeed": "Eau / aliment",
+    "waterFeedOn": "L par kg, jour {day}"
   },
   "Vaccination": {
     "title": "Vaccinations",
@@ -486,7 +536,10 @@
     "cancel": "Annuler",
     "line": "{medicine} · du {start} au {end}",
     "detail": "{dose} · {reason} · prescrit par {prescriber}",
-    "withdrawalLine": "Délai d’attente {days} j : jusqu’au {date} inclus"
+    "withdrawalLine": "Délai d’attente {days} j : jusqu’au {date} inclus",
+    "eggWithdrawal": "Œufs à retirer de la vente jusqu’au {date} inclus",
+    "eggWithdrawalDays": "Délai d’attente œufs (jours)",
+    "eggWithdrawalLine": "Œufs retirés {days} jours, jusqu’au {date}"
   },
   "VetVisit": {
     "title": "Visites vétérinaires",
@@ -536,7 +589,19 @@
     "cancel": "Annuler",
     "line": "{date} · {buyer} · {birds} oiseaux · {kg}",
     "detail": "{amount} · {method} · reçu {paid}",
-    "origin": "Document d’origine ({language})"
+    "origin": "Document d’origine ({language})",
+    "pricing": "Prix",
+    "perKg": "Au kg",
+    "perHead": "À la tête",
+    "heads": {
+      "rooster": "Coqs",
+      "hen": "Poules",
+      "bird": "Sujets"
+    },
+    "pricePerHead": "Prix par tête · {what} (DH)",
+    "farmKgOptional": "Poids à la ferme (kg, facultatif)",
+    "headCount": "{birds} sujets",
+    "headLine": "{date} · {buyer} · {birds} sujets à la tête"
   },
   "Receivables": {
     "title": "Créances",
@@ -637,7 +702,8 @@
     "warning": "Une bande clôturée ne peut plus être modifiée. Les ventes la clôturent d’elles-mêmes quand tous les oiseaux sont vendus.",
     "reason": "Motif de la clôture",
     "confirm": "Clôturer",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "transferred": "Passée en ponte"
   },
   "Expenses": {
     "title": "Dépense rapide",
@@ -783,7 +849,8 @@
     "farm": "Élevage",
     "money": "Argent",
     "account": "Compte",
-    "sync": "Synchronisation"
+    "sync": "Synchronisation",
+    "compliance": "Conformité"
   },
   "Today": {
     "birds": "{count} sujets",
@@ -802,7 +869,9 @@
     "cash": "Trésorerie disponible",
     "lastBatch": "Dernière bande clôturée · {house}",
     "margin": "Marge : {margin}",
-    "costPerKg": "{cost} / kg"
+    "costPerKg": "{cost} / kg",
+    "laying": "Ponte {rate} % · {eggs} œufs le dernier jour ramassé",
+    "eggsYesterday": "Œufs ramassés hier"
   },
   "Staff": {
     "title": "Personnel",
@@ -1107,5 +1176,436 @@
     "saveDowntime": "Enregistrer le minimum",
     "place": "Mettre en place le lot prévu le {date}",
     "placeSave": "Mettre en place"
+  },
+  "Types": {
+    "broiler": "Poulet de chair",
+    "turkey": "Dinde",
+    "pullet": "Poulette",
+    "layer": "Pondeuse",
+    "beldi": "Beldi / plein air",
+    "duck": "Canard",
+    "quail": "Caille"
+  },
+  "Transfer": {
+    "title": "Passage en ponte",
+    "day": "Date du transfert",
+    "house": "Bâtiment de ponte",
+    "hens": "Poules transférées",
+    "left": "{birds} non transférées seront réformées ce jour-là.",
+    "save": "Transférer",
+    "noHouse": "Aucun bâtiment libre pour la ponte."
+  },
+  "Eggs": {
+    "title": "Ramassage des œufs",
+    "day": "Date",
+    "ofDay": "Ramassages du jour",
+    "collection": "Ramassage {n}",
+    "line": "Ramassage {n} · {eggs} œufs · {down} déclassés",
+    "categories": {
+      "normal": "Normaux",
+      "cracked": "Fêlés",
+      "dirty": "Sales",
+      "doubleYolk": "Double jaune",
+      "floor": "Œufs de sol",
+      "broken": "Cassés"
+    },
+    "hints": {
+      "normal": "propres, entiers",
+      "cracked": "coquille fendue",
+      "dirty": "fientes, sang",
+      "doubleYolk": "gros calibre",
+      "floor": "hors des nids",
+      "broken": "perdus"
+    },
+    "add": "Ajouter {step} · {label}",
+    "remove": "Retirer {step} · {label}",
+    "sample": "Œufs pesés pour le poids moyen (facultatif)",
+    "sampleCount": "Nombre d’œufs",
+    "sampleGrams": "Poids total (g)",
+    "total": "Ce ramassage : {eggs} œufs",
+    "downgraded": "déclassés {percent} %",
+    "save": "Enregistrer le ramassage",
+    "correct": "Corriger",
+    "saveCorrection": "Enregistrer la correction"
+  },
+  "EggStock": {
+    "title": "Stock d’œufs",
+    "farm": "Ferme",
+    "headline": "{eggs} œufs en stock · {trays} plateaux",
+    "byItem": "Par calibre",
+    "eggsTrays": "{eggs} œufs · {trays} plateaux",
+    "items": {
+      "ungraded": "Non calibrés",
+      "downgraded": "Déclassés"
+    },
+    "limitsPending": "Limites de poids des calibres à confirmer selon la norme marocaine.",
+    "byAge": "Âge des œufs · premier pondu, premier vendu",
+    "ages": {
+      "0-2": "Pondus il y a 0 à 2 jours",
+      "3-5": "Pondus il y a 3 à 5 jours",
+      "6+": "Pondus il y a 6 jours ou plus"
+    },
+    "lots": "Lots",
+    "none": "Aucun œuf en stock.",
+    "lot": "{day} · {house} · {item} : {eggs} œufs",
+    "grade": "Calibrer",
+    "discard": "Écarter",
+    "gradeCount": "Calibre {grade}",
+    "saveGrading": "Enregistrer le calibrage",
+    "discardEggs": "Œufs écartés",
+    "reason": "Raison",
+    "saveDiscard": "Écarter ces œufs"
+  },
+  "Layers": {
+    "hens": "Poules présentes",
+    "mortality": "mortalité {percent} % depuis le logement",
+    "rate": "Taux de ponte",
+    "standard": "standard {value}",
+    "noStandard": "pas de standard chargé",
+    "perHenHoused": "Œufs par poule logée",
+    "eggWeight": "Poids moyen de l’œuf",
+    "feedPerEgg": "Aliment par œuf",
+    "downgraded": "Œufs déclassés",
+    "weeks": "Dernières semaines",
+    "cols": {
+      "week": "Semaine",
+      "hens": "Poules",
+      "rate": "Ponte",
+      "eggWeight": "Poids œuf",
+      "feedPerHen": "Aliment g/poule/j",
+      "waterFeed": "Eau / aliment",
+      "downgradedShort": "Déclassés"
+    }
+  },
+  "EggSale": {
+    "open": "Vendre des œufs",
+    "title": "Vente d’œufs",
+    "noBuyer": "Ajoutez d’abord un acheteur, depuis la vente d’une bande.",
+    "buyer": "Acheteur",
+    "batch": "Lot de ponte (mis en place le)",
+    "day": "Date",
+    "line": "Ligne {n}",
+    "item": "Produit",
+    "trays": "Plateaux",
+    "eggsPerTray": "Œufs par plateau",
+    "price": "Prix d’un plateau (DH)",
+    "addLine": "Ajouter une ligne",
+    "amount": "Montant : {amount}",
+    "save": "Enregistrer la vente"
+  },
+  "Compare": {
+    "title": "Comparer les lots",
+    "none": "Aucun lot clôturé de ce type.",
+    "caption": "Indicateurs par lot clôturé",
+    "days": "{days} j",
+    "cols": {
+      "batch": "Lot",
+      "hatchery": "Couvoir",
+      "livability": "Viabilité",
+      "weight": "Poids",
+      "age": "Âge",
+      "fcr": "IC",
+      "epef": "IEP (EPEF)",
+      "costPerKg": "Coût / kg",
+      "dayOld": "Poids J1",
+      "day7": "Mortalité J7"
+    },
+    "epef": "IEP = viabilité (%) × poids moyen (kg) ÷ (âge (j) × IC) × 100."
+  },
+  "Biosecurity": {
+    "forbidden": "Ce registre n’est pas disponible pour votre rôle.",
+    "farm": "Ferme"
+  },
+  "Visitors": {
+    "title": "Entrée d’un visiteur",
+    "open": "Registre des visiteurs",
+    "noFarm": "Créez d’abord une ferme.",
+    "visitor": "Nom et société",
+    "vehicle": "Véhicule (immatriculation, facultatif)",
+    "purpose": "Motif",
+    "purposes": {
+      "feedDelivery": "Livraison d’aliment",
+      "gas": "Livraison de gaz",
+      "chickDelivery": "Livraison de poussins",
+      "vet": "Vétérinaire",
+      "buyer": "Acheteur ou équipe d’enlèvement",
+      "technician": "Technicien ou réparation",
+      "other": "Autre"
+    },
+    "recentTitle": "Dans les {hours} dernières heures",
+    "recentFarm": "A visité un autre élevage avicole",
+    "dirtyOnly": "Accès limité à la zone sale, sans entrer dans les bâtiments.",
+    "checks": "À l’entrée",
+    "wheels": "Roues du véhicule désinfectées",
+    "footbath": "Pédiluve et surbottes",
+    "clothing": "Tenue de la ferme fournie",
+    "zone": "Zone",
+    "zones": {
+      "clean": "Zone propre",
+      "dirty": "Zone sale"
+    },
+    "save": "Enregistrer l’entrée",
+    "today": "Déjà venus aujourd’hui",
+    "none": "Aucun visiteur aujourd’hui.",
+    "line": "{visitor} · {time} · {zone}"
+  },
+  "Disposal": {
+    "title": "Sorties de la ferme",
+    "open": "Cadavres et fumier",
+    "noFarm": "Créez d’abord une ferme.",
+    "tabs": "Registre",
+    "tab": {
+      "dead": "Cadavres",
+      "manure": "Fumier",
+      "rodents": "Nuisibles"
+    },
+    "batch": "Bande {house} du {date}",
+    "day": "Date",
+    "batchField": "Bande",
+    "noBatch": "Aucune bande précise",
+    "birds": "Nombre de sujets",
+    "weight": "Poids total (kg, facultatif)",
+    "method": "Méthode d’élimination",
+    "methods": {
+      "incineration": "Incinération",
+      "authorizedSite": "Site ou collecteur autorisé",
+      "other": "Autre (à décrire)"
+    },
+    "methodNote": "Méthode utilisée",
+    "toConfirm": "Méthodes autorisées et distances à confirmer avec l’ONSSA (loi 49-99, art. 12).",
+    "save": "Enregistrer l’élimination",
+    "gaps": "Morts et éliminés, {days} derniers jours",
+    "noGaps": "Aucune mortalité ni élimination sur cette période.",
+    "dead": "Morts",
+    "disposed": "Éliminés",
+    "gap": "Écart",
+    "recent": "Dernières éliminations",
+    "line": "{date} : {birds} sujets, {method}",
+    "house": "Bâtiment",
+    "noHouse": "Plusieurs ou aucun",
+    "quantity": "Quantité (kg)",
+    "destination": "Destination",
+    "destinations": {
+      "stored": "Stocké sur la ferme",
+      "spread": "Épandu",
+      "sold": "Vendu",
+      "given": "Donné"
+    },
+    "recipient": "Destinataire (facultatif)",
+    "saveManure": "Enregistrer la sortie de fumier",
+    "recentManure": "Dernières sorties de fumier",
+    "manureLine": "{date} : {kg} kg, {destination}",
+    "rodentAction": "Action",
+    "rodentActions": {
+      "baitPlaced": "Appâts posés",
+      "baitChecked": "Appâts contrôlés"
+    },
+    "product": "Produit (facultatif)",
+    "saveRodent": "Enregistrer la dératisation",
+    "recentRodents": "Dernières dératisations",
+    "rodentLine": "{date} : {action}",
+    "proof": "Voir la photo",
+    "proofMissing": "Preuve à ajouter (après envoi, avec du réseau)",
+    "proofAdd": "Ajouter la photo"
+  },
+  "Cleanout": {
+    "title": "Nettoyage et vide sanitaire",
+    "open": "Nettoyage et vide sanitaire",
+    "noFarm": "Créez d’abord une ferme.",
+    "busy": "Bande en cours, placée le {date}.",
+    "after": "Bande placée le {date}, clôturée.",
+    "start": "Commencer le nettoyage",
+    "notDisinfected": "Vide sanitaire : commence le jour de la désinfection.",
+    "downtime": "Vide sanitaire : jour {day}",
+    "downtimeOf": "Vide sanitaire : jour {day} sur {min} · fin le {end}",
+    "steps": {
+      "manureOut": "Sortie du fumier",
+      "equipmentWashed": "Matériel démonté et lavé",
+      "pressureWash": "Lavage haute pression",
+      "disinfection": "Désinfection",
+      "rodentControl": "Dératisation",
+      "waterFlush": "Contrôle de l’eau et rinçage des canalisations",
+      "litterPreheat": "Litière et préchauffage"
+    },
+    "mark": "Noter",
+    "markNamed": "Noter : {step}",
+    "day": "Date",
+    "product": "Produit",
+    "dose": "Dose (facultatif)",
+    "productLot": "N° de lot du produit (facultatif)",
+    "lot": "lot {lot}",
+    "note": "Note (facultatif)",
+    "save": "Enregistrer l’étape",
+    "minDays": "Vide sanitaire minimal de la ferme (jours, facultatif)",
+    "saveMin": "Enregistrer"
+  },
+  "Files": {
+    "sending": "Envoi du fichier…",
+    "failed": "Le fichier n’a pas pu être envoyé. Réessayez avec du réseau."
+  },
+  "Documents": {
+    "titlePage": "Documents",
+    "open": "Documents et échéances",
+    "forbidden": "Les documents sont réservés au propriétaire et au gérant.",
+    "add": "Ajouter un document",
+    "none": "Aucun document pour l’instant.",
+    "list": "Coffre-fort, par date d’échéance",
+    "title": "Intitulé",
+    "category": "Catégorie",
+    "categories": {
+      "authorization": "Autorisation sanitaire",
+      "vetContract": "Contrat du vétérinaire",
+      "labReport": "Analyse de laboratoire",
+      "insurance": "Assurance",
+      "land": "Foncier, bail",
+      "company": "Documents de la société",
+      "tax": "Fiscal et social",
+      "equipment": "Équipement, contrôle",
+      "other": "Autre"
+    },
+    "farm": "Ferme",
+    "wholeOrganization": "Toute l’exploitation",
+    "issuedOn": "Date de délivrance (facultatif)",
+    "expiresOnField": "Date d’échéance (facultatif)",
+    "expiresOn": "Échéance : {date}",
+    "notes": "Note (facultatif)",
+    "save": "Enregistrer le document",
+    "cancel": "Annuler",
+    "states": {
+      "expired": "expiré",
+      "soon": "à renouveler bientôt",
+      "valid": "valide",
+      "none": "sans échéance"
+    },
+    "file": "Voir le fichier",
+    "fileAdd": "Ajouter le fichier (PDF ou photo)",
+    "fileLater": "Fichier à ajouter (après envoi, avec du réseau)"
+  },
+  "Register": {
+    "link": "Registre d’élevage ({language})",
+    "title": "Registre d’élevage",
+    "law": "Registre sanitaire de suivi du lot · loi n° 49-99, article 3",
+    "notFound": "Bande introuvable sur ce téléphone.",
+    "farm": "Exploitation",
+    "address": "Adresse",
+    "onssa": "Autorisation sanitaire",
+    "onssaValue": "n° <code>{number}</code>, valable jusqu’au {date}",
+    "onssaNone": "Non renseignée",
+    "house": "Bâtiment",
+    "strain": "Espèce et souche",
+    "origin": "Couvoir · bon de livraison",
+    "placement": "Mise en place",
+    "deadOnArrival": "Morts à l’arrivée",
+    "closedOn": "Clôture",
+    "open": "bande en cours",
+    "daily": "Suivi journalier",
+    "date": "Date",
+    "age": "Âge (j)",
+    "onHand": "Effectif",
+    "dead": "Morts",
+    "culled": "Éliminés",
+    "cause": "Cause",
+    "feedKg": "Aliment kg",
+    "waterL": "Eau L",
+    "treatment": "Traitement",
+    "inWithdrawal": "délai d’attente",
+    "out": "sortie de {birds}",
+    "vaccinations": "Vaccinations",
+    "product": "Produit",
+    "lot": "N° de lot",
+    "method": "Voie",
+    "doneOn": "Fait le",
+    "notDone": "non fait (prévu le {date})",
+    "treatments": "Traitements et ordonnances",
+    "dose": "Dose",
+    "reason": "Motif",
+    "prescriber": "Prescripteur",
+    "withdrawalEnd": "Fin du délai d’attente",
+    "vetVisits": "Visites du vétérinaire",
+    "vet": "Vétérinaire",
+    "notes": "Observations",
+    "birdsOut": "Sorties d’animaux",
+    "buyer": "Destinataire",
+    "birds": "Sujets",
+    "weightKg": "Poids kg",
+    "originDocument": "Document d’origine",
+    "disposals": "Cadavres éliminés",
+    "disposalMethod": "Méthode",
+    "labReports": "Analyses de laboratoire",
+    "labReport": "Analyse",
+    "none": "Rien d’enregistré.",
+    "signFarmer": "Signature de l’éleveur",
+    "signVet": "Visa du vétérinaire sanitaire",
+    "provisional": "Présentation provisoire, à valider avec l’ONSSA. Établie à partir des saisies de l’application.",
+    "editedWith": "Édité avec {app}",
+    "print": "Imprimer ou enregistrer en PDF"
+  },
+  "Report": {
+    "link": "Rapport de bande",
+    "forbidden": "Le rapport de bande est réservé au propriétaire et au gérant.",
+    "notFound": "Bande introuvable sur ce téléphone.",
+    "title": "Rapport de bande",
+    "subtitle": "{house} · mise en place le {date}",
+    "closed": "Clôturée le {date}",
+    "open": "Bande en cours : chiffres à ce jour",
+    "production": "Production",
+    "age": "Âge",
+    "days": "{days} jours",
+    "placed": "Poussins placés",
+    "dead": "Morts et éliminés",
+    "sold": "Vendus",
+    "feed": "Aliment consommé",
+    "fcr": "Indice de consommation",
+    "weight": "Poids moyen (dernière pesée)",
+    "epef": "EPEF",
+    "health": "Santé",
+    "vaccines": "Vaccins faits : {done} sur {planned}",
+    "treatments": "{count, plural, =0 {aucun traitement} one {1 traitement} other {# traitements}}",
+    "withdrawalEnd": "fin du dernier délai d’attente le {date}",
+    "money": "Résultat",
+    "sales": "Ventes",
+    "cost": "Coût",
+    "margin": "Marge",
+    "costPerKg": "Coût par kg",
+    "marginPerKg": "Marge par kg",
+    "share": "Marge sur ventes",
+    "noResult": "Pas encore de résultat pour cette bande.",
+    "comparison": "Comparaison avec les bandes précédentes de la ferme",
+    "batch": "Bande du",
+    "mortality": "Mortalité",
+    "print": "Imprimer ou enregistrer en PDF"
+  },
+  "Inspection": {
+    "open": "Dossier d’inspection",
+    "forbidden": "Le dossier d’inspection est réservé au propriétaire et au gérant.",
+    "noFarm": "Créez d’abord une ferme.",
+    "title": "Dossier d’inspection · {farm}",
+    "period": "Période : du {from} au {to}",
+    "authorization": "Autorisation sanitaire n° {number}, valable jusqu’au {date}",
+    "batch": "bande {house} du {date}",
+    "checklist": "À compléter",
+    "complete": "Toutes les pièces suivies sont présentes.",
+    "provisional": "Liste des pièces provisoire, à valider avec l’ONSSA.",
+    "missing": {
+      "authorization": "Autorisation sanitaire non renseignée",
+      "authorizationExpired": "Autorisation sanitaire expirée",
+      "vetContract": "Contrat du vétérinaire sanitaire absent ou expiré",
+      "documentExpired": "Document expiré : {title}",
+      "noDisinfection": "Désinfection non notée après la {batch}",
+      "rodentProof": "Dératisation du {date} sans photo"
+    },
+    "documents": "Documents",
+    "state": "État",
+    "file": "Fichier",
+    "noFile": "aucun fichier",
+    "after": "Après",
+    "steps": "Étapes faites",
+    "recentFarm": "Autre élevage récemment",
+    "yes": "oui",
+    "no": "non",
+    "proof": "Preuve",
+    "noAuthorization": "Autorisation sanitaire : non renseignée",
+    "expires": "Échéance",
+    "rodents": "Dératisation"
   }
 }

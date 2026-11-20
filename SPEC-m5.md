@@ -1,6 +1,6 @@
 # Spec: M5 "Network" (`partner-access`, `market-prices`, `planning`)
 
-_v0.1, 18 Nov 2026. Status: **draft**, written without the owner (they asked for work to continue while away); every choice made without them is marked ⚠️ or listed in §8. Milestone M5 of [CAPABILITY-MAP.md](CAPABILITY-MAP.md): `partner-access` depends on `identity`, `farm-registry`; `market-prices` on `identity`, `reference-data`; `planning` on `flock`, `market-prices`, `notifications`. Background: [SCOPE.md](SCOPE.md) §3, §10, §19, §20 and [NEEDS-ANALYSIS.md](NEEDS-ANALYSIS.md). Conventions, stack and boundaries from [SPEC.md](SPEC.md) apply unchanged. Plan: [tasks/plan-m5.md](tasks/plan-m5.md). Decision: [ADR-011](docs/decisions/ADR-011-partner-access.md)._
+_v0.1, 18 Nov 2026. Status: **draft**, written without the owner (they asked for work to continue while away); every choice made without them is marked ⚠️ or listed in §8. Milestone M5 of [CAPABILITY-MAP.md](CAPABILITY-MAP.md): `partner-access` depends on `identity`, `farm-registry`; `market-prices` on `identity`, `reference-data`; `planning` on `flock`, `market-prices`, `notifications`. Background: [SCOPE.md](SCOPE.md) §3, §10, §19, §20 and [NEEDS-ANALYSIS.md](NEEDS-ANALYSIS.md). Conventions, stack and boundaries from [SPEC.md](SPEC.md) apply unchanged. Plan: [tasks/plan-m5.md](tasks/plan-m5.md). Decision: [ADR-013](docs/decisions/ADR-013-partner-access.md)._
 
 ## 1. Objective
 

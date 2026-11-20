@@ -1,0 +1,54 @@
+import { describe, expect, it } from "vitest";
+import type { FarmDay } from "@/lib/kernel/farm-day";
+import type { BatchDto, DailyEntryDto, SoldBirdsDto } from "@/modules/flock/shared";
+import { buildBatchReport, type ResultRow } from "./report";
+
+// SPEC-m2-compliance RP3, §8: the closing report of a batch and its comparison with the farm's previous batches.
+const batch = (id: string, placedOn: string, over: Partial<BatchDto> = {}): BatchDto => ({
+  id, farmId: "farm", houseId: "h1", species: "broiler", strainId: "ross-308", placedOn, chicksPlaced: 1000, deadOnArrival: 0,
+  hatchery: "H", deliveryNote: "BL", dayOldWeightGrams: 40, status: "closed", ...over,
+});
+const day = (batchId: string, d: string, dead: number, feedKg: number): DailyEntryDto => ({ id: `${batchId}${d}`, batchId, day: d, dead, deathCause: null, culled: 0, feed: { stockItemId: "f", grams: feedKg * 1000 }, waterMl: null, note: null });
+const sold = (batchId: string, d: string, birds: number, kg: number): SoldBirdsDto => ({ id: `s${batchId}`, batchId, day: d, birds, liveWeightGrams: kg * 1000 });
+const result = (id: string, sales: number, cost: number, kg: number): ResultRow => ({
+  id, salesCentimes: String(sales * 100), costCentimes: String(cost * 100), marginCentimes: String((sales - cost) * 100), soldGrams: kg * 1000,
+  costPerKgCentimes: String(Math.round((cost * 100 * 1000) / (kg * 1000))), marginPerKgCentimes: String(Math.round(((sales - cost) * 100 * 1000) / (kg * 1000))), marginPermille: String(Math.floor(((sales - cost) * 1000) / sales)),
+});
+
+const b13 = batch("b13", "2026-09-21", { closedOn: "2026-11-03" });
+const b11 = batch("b11", "2026-07-01", { closedOn: "2026-08-12" });
+const other = batch("x", "2026-08-01", { farmId: "other-farm", closedOn: "2026-09-10" });
+const input = {
+  batch: b13,
+  today: "2026-11-16" as FarmDay,
+  batches: [b13, b11, other],
+  entries: [day("b13", "2026-10-01", 20, 2000), day("b13", "2026-11-01", 20, 2000), day("b11", "2026-07-10", 60, 4200)],
+  weighings: [],
+  sold: [sold("b13", "2026-11-03", 960, 2370), sold("b11", "2026-08-12", 940, 2200)],
+  vaccinations: [
+    { id: "v1", batchId: "b13", dayOfAge: 14, dueOn: "2026-10-05", productId: "g", method: "drinkingWater" as const, done: { on: "2026-10-05", stockItemId: "s", doses: 1000, method: "drinkingWater" as const, byUserId: "u" } },
+    { id: "v2", batchId: "b13", dayOfAge: 18, dueOn: "2026-10-09", productId: "n", method: "drinkingWater" as const, done: null },
+  ],
+  treatments: [{ id: "t", batchId: "b13", stockItemId: "s", quantity: 1, dose: "d", startOn: "2026-10-22", endOn: "2026-10-26", reason: "r", prescriber: "p", withdrawalDays: 5, withdrawalEndsOn: "2026-10-31", byUserId: "u" }],
+  results: [result("b13", 31501, 27080, 2370), result("b11", 28000, 26000, 2200)],
+};
+
+describe("buildBatchReport", () => {
+  it("final figures of a closed batch: mortality, feed conversion on the kg sold, health summary", () => {
+    const r = buildBatchReport(input);
+    expect(r.kpis).toMatchObject({ placed: 1000, dead: 40, sold: 960, soldGrams: 2_370_000, feedGrams: 4_000_000, mortalityPercent: 4, fcr: 4000 / 2370 });
+    expect(r.health).toEqual({ vaccinesDone: 1, vaccinesPlanned: 2, treatments: 1, lastWithdrawalEnd: "2026-10-31" });
+  });
+
+  it("takes the money from finance's own result for the batch, untouched", () => {
+    expect(buildBatchReport(input).money).toEqual(input.results[0]);
+    expect(buildBatchReport({ ...input, results: null }).money).toBeNull(); // no money on the page without the right
+  });
+
+  it("compares with the same farm's earlier closed batches, newest first", () => {
+    expect(buildBatchReport(input).comparison).toEqual([
+      { id: "b13", placedOn: "2026-09-21", mortalityPercent: 4, fcr: 4000 / 2370, costPerKgCentimes: "1143", marginPerKgCentimes: "187" },
+      { id: "b11", placedOn: "2026-07-01", mortalityPercent: 6, fcr: 4200 / 2200, costPerKgCentimes: "1182", marginPerKgCentimes: "91" },
+    ]);
+  });
+});

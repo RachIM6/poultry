@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { INSTRUMENT_STATES } from "@/modules/sales/domain/instruments";
-import { BUYER_TYPES, PAYMENT_METHODS } from "@/modules/sales/domain/sale";
+import { BUYER_TYPES, HEAD_KINDS, PAYMENT_METHODS } from "@/modules/sales/domain/sale";
 import { LATER_PAYMENT_METHODS } from "@/modules/sales/shared";
 
 // SPEC V1–V4, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009), re-exported here so
@@ -29,6 +29,41 @@ export const RecordSale = z.object({
   paymentMethod: z.enum(PAYMENT_METHODS),
   paidCentimes: centimes,
   instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(), // cheque or bill of exchange
+});
+
+/** SPEC-m3 V6: eggs of a layer batch, by item, priced per tray. */
+export const RecordEggSale = z.object({
+  id: z.uuid(),
+  batchId: z.uuid(),
+  buyerId: z.uuid(),
+  day: z.iso.date(),
+  lines: z
+    .array(
+      z.object({
+        item: z.union([z.literal("ungraded"), z.literal("downgraded"), z.string().regex(/^grade:[a-z0-9]+(-[a-z0-9]+)*$/).max(26)]),
+        eggs: z.int32().positive(),
+        eggsPerTray: z.int32().positive().max(1000).default(30), // MQ8
+        unitPriceCentimes: centimes,
+      }),
+    )
+    .min(1)
+    .max(20),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+  paidCentimes: centimes,
+  instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(),
+});
+
+/** SPEC-m3 V7: live birds sold by the head, by line; the farm weight is optional. */
+export const RecordHeadSale = z.object({
+  id: z.uuid(),
+  batchId: z.uuid(),
+  buyerId: z.uuid(),
+  day: z.iso.date(),
+  lines: z.array(z.object({ item: z.enum(HEAD_KINDS), birds: z.int32().positive(), pricePerHeadCentimes: centimes })).min(1).max(3),
+  farmWeightGrams: z.int32().positive().nullable(),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+  paidCentimes: centimes,
+  instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(),
 });
 
 /** V4: a later payment from a buyer, against what they owe. */

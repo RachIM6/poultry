@@ -1,5 +1,5 @@
 import { audit } from "@/lib/audit";
-import type { Tx } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import { fail, ok } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
@@ -26,6 +26,7 @@ type FarmRow = {
   longitude: number | null;
   onssaNumber: string | null;
   onssaExpiresOn: Date | null;
+  doaClaimThresholdPermille: number | null;
 };
 
 const farmDto = (r: FarmRow): FarmDto => ({
@@ -36,6 +37,7 @@ const farmDto = (r: FarmRow): FarmDto => ({
   commune: r.commune,
   gps: r.latitude === null || r.longitude === null ? null : { lat: r.latitude, lng: r.longitude },
   onssa: r.onssaNumber && r.onssaExpiresOn ? { number: r.onssaNumber, expiresOn: r.onssaExpiresOn.toISOString().slice(0, 10) } : null,
+  doaClaimThresholdPermille: r.doaClaimThresholdPermille,
 });
 
 // gps and onssa are one field each on the wire, two columns each in the table.
@@ -124,3 +126,15 @@ export const houseOf = async (tx: Tx, ctx: TenantContext, houseId: string) => {
   const house = await ownHouse(tx, ctx, houseId);
   return house && { id: house.id, farmId: house.farmId, name: house.name };
 };
+
+/**
+ * For the scheduler (SPEC-m2-compliance DC4), across organisations: farms whose ONSSA authorization expires on or
+ * before `day`. Read-only; callers notify each farm's own organisation.
+ */
+export async function onssaAuthorizationsDueBy(day: string) {
+  const rows = await db.farm.findMany({
+    where: { onssaNumber: { not: null }, onssaExpiresOn: { lte: new Date(`${day}T00:00:00Z`) } },
+    select: { id: true, organizationId: true, onssaNumber: true, onssaExpiresOn: true },
+  });
+  return rows.map((r) => ({ subjectId: r.id, organizationId: r.organizationId, title: r.onssaNumber!, expiresOn: r.onssaExpiresOn!.toISOString().slice(0, 10) }));
+}

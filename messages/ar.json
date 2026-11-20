@@ -150,7 +150,8 @@
     },
     "houseSummary": "{area} م² · {capacity} طير · {type}",
     "farmSummary": "{commune}، {province} · المباني: {count}",
-    "onssaUntil": "ترخيص ONSSA {number}، صالح إلى غاية {date}"
+    "onssaUntil": "ترخيص ONSSA {number}، صالح إلى غاية {date}",
+    "doaClaim": "عتبة الشكاية إلى المفقس (% النفوق عند الوصول، اختياري)"
   },
   "Protocol": {
     "title": "برنامج التلقيح",
@@ -215,6 +216,14 @@
       "placementTomorrow": {
         "title": "وضع فوج مبرمج غدا",
         "body": "{house}: {chicks} كتكوت، المفقس {hatchery}. تحقق من المبنى والماء والتدفئة."
+      },
+      "documentExpiring": {
+        "title": "للتجديد: {title}",
+        "body": "الأجل في {date}. فكّر في التجديد."
+      },
+      "documentExpired": {
+        "title": "حلّ الأجل: {title}",
+        "body": "انتهى الأجل في {date}. يجب التجديد."
       }
     }
   },
@@ -326,7 +335,32 @@
     },
     "protocol": "برنامج التلقيح",
     "noProtocol": "بدون",
-    "nextVaccine": "التلقيح القادم: {vaccine}"
+    "type": "نوع الإنتاج",
+    "unspecifiedStrain": "سلالة غير محددة",
+    "ageWeeks": "{weeks} أسبوع",
+    "ageWeeksDays": "{weeks} أسبوع و{days} يوم",
+    "ageAtPlacement": "العمر عند الإيواء (بالأسابيع)",
+    "bySex": "الجنسان منفصلان",
+    "females": "الإناث الموضوعة",
+    "femaleDoa": "الإناث النافقة عند الوصول",
+    "males": "الذكور الموضوعة",
+    "maleDoa": "الذكور النافقة عند الوصول",
+    "sexes": {
+      "mixed": "مختلط",
+      "female": "إناث",
+      "male": "ذكور"
+    },
+    "otherSex": "نفس الدفعة، {sex}: {birds} طائر",
+    "freeChicks": "الزيادة المجانية (اختياري)",
+    "arrival": "الجودة عند الوصول (اختياري)",
+    "parentFlock": "قطيع الأمهات",
+    "weakChicks": "الكتاكيت الضعيفة",
+    "litterTemp": "حرارة الفرشة (°م)",
+    "density": "الكثافة: {density} طائر/م²",
+    "claim": "النفوق عند الوصول فوق عتبة العقد: شكاية إلى المفقس",
+    "run": "{house} · {bands} أفواج · {birds} طائر",
+    "nextVaccine": "التلقيح القادم: {vaccine}",
+    "downtimeWarning": "تنبيه: فراغ صحي من {elapsed} يوماً في هذا المبنى، والحد الأدنى للضيعة {min} يوماً."
   },
   "Day": {
     "title": "تسجيل اليوم",
@@ -411,7 +445,20 @@
     "INVALID_BAND": "شريحة ناقصة أو مقلوبة (من ≤ إلى، الأدنى ≤ الأقصى).",
     "TARGET_BANDS_OVERLAP": "شريحتا عمر متداخلتان.",
     "POWER_CUT_OPEN": "انقطاع الكهرباء مسجل حاليا في هذه الضيعة.",
-    "CUT_END_BEFORE_START": "لا يمكن أن تعود الكهرباء قبل انقطاعها."
+    "CUT_END_BEFORE_START": "لا يمكن أن تعود الكهرباء قبل انقطاعها.",
+    "NOT_ENOUGH_EGGS": "لا يوجد ما يكفي من البيض في هذه الدفعة.",
+    "EGG_WITHDRAWAL_REQUIRED": "أدخل مدة سحب البيض: هذه دفعة دجاج بيّاض.",
+    "EGGS_IN_WITHDRAWAL": "ما زال في هذا المخزون بيض وُضع خلال مدة السحب: استبعده قبل البيع.",
+    "VISIT_DIRTY_ZONE_ONLY": "مرّ هذا الزائر بضيعة دواجن أخرى: المنطقة غير النظيفة فقط.",
+    "DISPOSAL_METHOD_NOTE_REQUIRED": "صف طريقة التخلص.",
+    "STEP_ALREADY_DONE": "هذه المرحلة مسجّلة من قبل.",
+    "DISINFECTANT_REQUIRED": "اذكر مادة التعقيم.",
+    "BATCH_NOT_CLOSED": "دفعة هذا المبنى لم تُغلق بعد.",
+    "CLEANOUT_ALREADY_STARTED": "التنظيف بعد هذه الدفعة بدأ من قبل.",
+    "FILE_TOO_LARGE": "الملف كبير جداً: 5 ميغابايت كحد أقصى.",
+    "FILE_TYPE_NOT_ALLOWED": "نوع الملف مرفوض: PDF أو JPEG أو PNG أو WebP فقط.",
+    "PROOF_ALREADY_ATTACHED": "لهذه المراقبة صورتها من قبل.",
+    "FILE_ALREADY_ATTACHED": "لهذه الوثيقة ملفها من قبل."
   },
   "Weighing": {
     "title": "الوزن",
@@ -427,7 +474,8 @@
     "versusStandard": "{gap} % مقارنة بالمعيار ({standard})",
     "noStandard": "لا يوجد معيار منشور لهذه السلالة في هذا العمر",
     "save": "حفظ الوزن",
-    "past": "الأوزان السابقة"
+    "past": "الأوزان السابقة",
+    "uniformity": "التجانس {percent} %"
   },
   "Kpi": {
     "title": "المؤشرات",
@@ -445,7 +493,9 @@
     "flock": "الدفعة",
     "standard": "معيار السلالة",
     "day": "ي{age}",
-    "chartLabel": "متوسط الوزن حسب العمر: {points}"
+    "chartLabel": "متوسط الوزن حسب العمر: {points}",
+    "waterFeed": "الماء / العلف",
+    "waterFeedOn": "لتر لكل كغ، اليوم {day}"
   },
   "Vaccination": {
     "title": "التلقيحات",
@@ -486,7 +536,10 @@
     "cancel": "إلغاء",
     "line": "{medicine} · من {start} إلى {end}",
     "detail": "{dose} · {reason} · وصفه {prescriber}",
-    "withdrawalLine": "مدة الانتظار {days} يوم: حتى {date} (ضمنه)"
+    "withdrawalLine": "مدة الانتظار {days} يوم: حتى {date} (ضمنه)",
+    "eggWithdrawal": "البيض ممنوع من البيع حتى {date} ضمناً",
+    "eggWithdrawalDays": "مدة سحب البيض (أيام)",
+    "eggWithdrawalLine": "سحب البيض {days} أيام، حتى {date}"
   },
   "VetVisit": {
     "title": "زيارات الطبيب البيطري",
@@ -536,7 +589,19 @@
     "cancel": "إلغاء",
     "line": "{date} · {buyer} · {birds} طائر · {kg}",
     "detail": "{amount} · {method} · المقبوض {paid}",
-    "origin": "وثيقة المصدر ({language})"
+    "origin": "وثيقة المصدر ({language})",
+    "pricing": "الثمن",
+    "perKg": "بالكيلو",
+    "perHead": "بالرأس",
+    "heads": {
+      "rooster": "ديوك",
+      "hen": "دجاجات",
+      "bird": "طيور"
+    },
+    "pricePerHead": "الثمن للرأس · {what} (درهم)",
+    "farmKgOptional": "الوزن في الضيعة (كغ، اختياري)",
+    "headCount": "{birds} طائر",
+    "headLine": "{date} · {buyer} · {birds} طائر بالرأس"
   },
   "Receivables": {
     "title": "الديون",
@@ -637,7 +702,8 @@
     "warning": "لا يمكن تعديل دفعة مغلقة. تُغلق المبيعات الدفعة تلقائيًا عند بيع كل الطيور.",
     "reason": "سبب الإغلاق",
     "confirm": "إغلاق",
-    "cancel": "إلغاء"
+    "cancel": "إلغاء",
+    "transferred": "انتقلت إلى البيض"
   },
   "Expenses": {
     "title": "مصروف سريع",
@@ -783,7 +849,8 @@
     "farm": "التربية",
     "money": "المال",
     "account": "الحساب",
-    "sync": "المزامنة"
+    "sync": "المزامنة",
+    "compliance": "المطابقة"
   },
   "Today": {
     "birds": "{count} طائر",
@@ -802,7 +869,9 @@
     "cash": "السيولة المتوفرة",
     "lastBatch": "آخر دفعة مغلقة · {house}",
     "margin": "الهامش: {margin}",
-    "costPerKg": "{cost} / كغ"
+    "costPerKg": "{cost} / كغ",
+    "laying": "الوضع {rate} % · {eggs} بيضة في آخر يوم جمع",
+    "eggsYesterday": "البيض المجموع أمس"
   },
   "Staff": {
     "title": "العمال",
@@ -1107,5 +1176,436 @@
     "saveDowntime": "حفظ الحد الأدنى",
     "place": "وضع الفوج المبرمج في {date}",
     "placeSave": "وضع الفوج"
+  },
+  "Types": {
+    "broiler": "دجاج اللحم",
+    "turkey": "الديك الرومي",
+    "pullet": "فراخ بيّاضة",
+    "layer": "دجاج بيّاض",
+    "beldi": "دجاج بلدي",
+    "duck": "بط",
+    "quail": "سمان"
+  },
+  "Transfer": {
+    "title": "الانتقال إلى البيض",
+    "day": "تاريخ النقل",
+    "house": "مبنى البيض",
+    "hens": "الدجاجات المنقولة",
+    "left": "{birds} غير منقولة ستُستبعد في ذلك اليوم.",
+    "save": "نقل",
+    "noHouse": "لا يوجد مبنى فارغ للبيض."
+  },
+  "Eggs": {
+    "title": "جمع البيض",
+    "day": "التاريخ",
+    "ofDay": "جمعات اليوم",
+    "collection": "الجمعة {n}",
+    "line": "الجمعة {n} · {eggs} بيضة · {down} مستبعدة",
+    "categories": {
+      "normal": "عادية",
+      "cracked": "مشروخة",
+      "dirty": "متسخة",
+      "doubleYolk": "بصفارين",
+      "floor": "بيض الأرض",
+      "broken": "مكسورة"
+    },
+    "hints": {
+      "normal": "نظيفة وسليمة",
+      "cracked": "قشرة مشقوقة",
+      "dirty": "فضلات، دم",
+      "doubleYolk": "حجم كبير",
+      "floor": "خارج الأعشاش",
+      "broken": "ضائعة"
+    },
+    "add": "إضافة {step} · {label}",
+    "remove": "إنقاص {step} · {label}",
+    "sample": "بيض موزون للوزن المتوسط (اختياري)",
+    "sampleCount": "عدد البيض",
+    "sampleGrams": "الوزن الإجمالي (غ)",
+    "total": "هذه الجمعة: {eggs} بيضة",
+    "downgraded": "المستبعد {percent} %",
+    "save": "تسجيل الجمعة",
+    "correct": "تصحيح",
+    "saveCorrection": "تسجيل التصحيح"
+  },
+  "EggStock": {
+    "title": "مخزون البيض",
+    "farm": "الضيعة",
+    "headline": "{eggs} بيضة في المخزون · {trays} صينية",
+    "byItem": "حسب العيار",
+    "eggsTrays": "{eggs} بيضة · {trays} صينية",
+    "items": {
+      "ungraded": "غير معايَرة",
+      "downgraded": "مستبعدة"
+    },
+    "limitsPending": "حدود وزن العيارات في انتظار تأكيدها حسب المعيار المغربي.",
+    "byAge": "عمر البيض · الأقدم يُباع أولاً",
+    "ages": {
+      "0-2": "وُضعت منذ 0 إلى 2 أيام",
+      "3-5": "وُضعت منذ 3 إلى 5 أيام",
+      "6+": "وُضعت منذ 6 أيام أو أكثر"
+    },
+    "lots": "الدفعات",
+    "none": "لا يوجد بيض في المخزون.",
+    "lot": "{day} · {house} · {item}: {eggs} بيضة",
+    "grade": "معايرة",
+    "discard": "استبعاد",
+    "gradeCount": "العيار {grade}",
+    "saveGrading": "تسجيل المعايرة",
+    "discardEggs": "البيض المستبعد",
+    "reason": "السبب",
+    "saveDiscard": "استبعاد هذا البيض"
+  },
+  "Layers": {
+    "hens": "الدجاجات الحاضرة",
+    "mortality": "النفوق {percent} % منذ الإيواء",
+    "rate": "نسبة الوضع",
+    "standard": "المعيار {value}",
+    "noStandard": "لم يُحمَّل أي معيار",
+    "perHenHoused": "البيض لكل دجاجة مُأواة",
+    "eggWeight": "متوسط وزن البيضة",
+    "feedPerEgg": "العلف لكل بيضة",
+    "downgraded": "البيض المستبعد",
+    "weeks": "الأسابيع الأخيرة",
+    "cols": {
+      "week": "الأسبوع",
+      "hens": "الدجاجات",
+      "rate": "الوضع",
+      "eggWeight": "وزن البيضة",
+      "feedPerHen": "العلف غ/دجاجة/يوم",
+      "waterFeed": "الماء / العلف",
+      "downgradedShort": "المستبعد"
+    }
+  },
+  "EggSale": {
+    "open": "بيع البيض",
+    "title": "بيع البيض",
+    "noBuyer": "أضف أولاً مشترياً من بيع إحدى الدفعات.",
+    "buyer": "المشتري",
+    "batch": "دفعة البيض (تاريخ الإيواء)",
+    "day": "التاريخ",
+    "line": "السطر {n}",
+    "item": "المنتوج",
+    "trays": "الصواني",
+    "eggsPerTray": "بيض لكل صينية",
+    "price": "ثمن الصينية (درهم)",
+    "addLine": "إضافة سطر",
+    "amount": "المبلغ: {amount}",
+    "save": "تسجيل البيع"
+  },
+  "Compare": {
+    "title": "مقارنة الدفعات",
+    "none": "لا توجد دفعة مغلقة من هذا النوع.",
+    "caption": "المؤشرات لكل دفعة مغلقة",
+    "days": "{days} ي",
+    "cols": {
+      "batch": "الدفعة",
+      "hatchery": "المفقس",
+      "livability": "نسبة البقاء",
+      "weight": "الوزن",
+      "age": "العمر",
+      "fcr": "معامل التحويل",
+      "epef": "مؤشر الكفاءة (EPEF)",
+      "costPerKg": "التكلفة / كغ",
+      "dayOld": "وزن اليوم 1",
+      "day7": "النفوق في 7 أيام"
+    },
+    "epef": "مؤشر الكفاءة = نسبة البقاء (%) × متوسط الوزن (كغ) ÷ (العمر (يوم) × معامل التحويل) × 100."
+  },
+  "Biosecurity": {
+    "forbidden": "هذا السجل غير متاح لدورك.",
+    "farm": "الضيعة"
+  },
+  "Visitors": {
+    "title": "دخول زائر",
+    "open": "سجل الزوار",
+    "noFarm": "أنشئ ضيعة أولاً.",
+    "visitor": "الاسم والشركة",
+    "vehicle": "المركبة (رقم التسجيل، اختياري)",
+    "purpose": "سبب الزيارة",
+    "purposes": {
+      "feedDelivery": "توصيل العلف",
+      "gas": "توصيل الغاز",
+      "chickDelivery": "توصيل الكتاكيت",
+      "vet": "طبيب بيطري",
+      "buyer": "مشترٍ أو فريق الجمع",
+      "technician": "تقني أو إصلاح",
+      "other": "آخر"
+    },
+    "recentTitle": "خلال آخر {hours} ساعة",
+    "recentFarm": "زار ضيعة دواجن أخرى",
+    "dirtyOnly": "الدخول مقتصر على المنطقة غير النظيفة، دون دخول المباني.",
+    "checks": "عند الدخول",
+    "wheels": "تعقيم عجلات المركبة",
+    "footbath": "مغطس الأقدام وأغطية الأحذية",
+    "clothing": "تم توفير لباس الضيعة",
+    "zone": "المنطقة",
+    "zones": {
+      "clean": "المنطقة النظيفة",
+      "dirty": "المنطقة غير النظيفة"
+    },
+    "save": "تسجيل الدخول",
+    "today": "زوار اليوم",
+    "none": "لا زوار اليوم.",
+    "line": "{visitor} · {time} · {zone}"
+  },
+  "Disposal": {
+    "title": "ما يخرج من الضيعة",
+    "open": "الجثث والسماد",
+    "noFarm": "أنشئ ضيعة أولاً.",
+    "tabs": "السجل",
+    "tab": {
+      "dead": "الجثث",
+      "manure": "السماد",
+      "rodents": "الآفات"
+    },
+    "batch": "دفعة {house} بتاريخ {date}",
+    "day": "التاريخ",
+    "batchField": "الدفعة",
+    "noBatch": "بدون دفعة محددة",
+    "birds": "عدد الطيور",
+    "weight": "الوزن الإجمالي (كلغ، اختياري)",
+    "method": "طريقة التخلص",
+    "methods": {
+      "incineration": "الحرق",
+      "authorizedSite": "موقع أو جامع مرخّص",
+      "other": "أخرى (يجب وصفها)"
+    },
+    "methodNote": "الطريقة المستعملة",
+    "toConfirm": "الطرق المرخّصة والمسافات يجب تأكيدها مع أونسا (القانون 49-99، المادة 12).",
+    "save": "تسجيل التخلص",
+    "gaps": "النافق والمتخلّص منه، آخر {days} يوماً",
+    "noGaps": "لا نفوق ولا تخلص خلال هذه المدة.",
+    "dead": "النافق",
+    "disposed": "المتخلّص منه",
+    "gap": "الفرق",
+    "recent": "آخر عمليات التخلص",
+    "line": "{date}: {birds} طائر، {method}",
+    "house": "المبنى",
+    "noHouse": "عدة مبانٍ أو لا شيء",
+    "quantity": "الكمية (كلغ)",
+    "destination": "الوجهة",
+    "destinations": {
+      "stored": "مخزّن في الضيعة",
+      "spread": "منثور في الحقول",
+      "sold": "مبيع",
+      "given": "ممنوح"
+    },
+    "recipient": "المستلم (اختياري)",
+    "saveManure": "تسجيل خروج السماد",
+    "recentManure": "آخر عمليات إخراج السماد",
+    "manureLine": "{date}: {kg} كلغ، {destination}",
+    "rodentAction": "الإجراء",
+    "rodentActions": {
+      "baitPlaced": "وضع الطُّعوم",
+      "baitChecked": "مراقبة الطُّعوم"
+    },
+    "product": "المادة (اختياري)",
+    "saveRodent": "تسجيل مكافحة القوارض",
+    "recentRodents": "آخر عمليات مكافحة القوارض",
+    "rodentLine": "{date}: {action}",
+    "proof": "عرض الصورة",
+    "proofMissing": "الدليل ينتظر الإضافة (بعد الإرسال، مع الشبكة)",
+    "proofAdd": "إضافة الصورة"
+  },
+  "Cleanout": {
+    "title": "التنظيف والفراغ الصحي",
+    "open": "التنظيف والفراغ الصحي",
+    "noFarm": "أنشئ ضيعة أولاً.",
+    "busy": "دفعة جارية، وُضعت بتاريخ {date}.",
+    "after": "دفعة وُضعت بتاريخ {date}، مغلقة.",
+    "start": "بدء التنظيف",
+    "notDisinfected": "الفراغ الصحي: يبدأ يوم التعقيم.",
+    "downtime": "الفراغ الصحي: اليوم {day}",
+    "downtimeOf": "الفراغ الصحي: اليوم {day} من {min} · ينتهي في {end}",
+    "steps": {
+      "manureOut": "إخراج السماد",
+      "equipmentWashed": "فك المعدات وغسلها",
+      "pressureWash": "الغسل بالضغط العالي",
+      "disinfection": "التعقيم",
+      "rodentControl": "مكافحة القوارض",
+      "waterFlush": "مراقبة الماء وتنظيف القنوات",
+      "litterPreheat": "الفرشة والتسخين المسبق"
+    },
+    "mark": "تسجيل",
+    "markNamed": "تسجيل: {step}",
+    "day": "التاريخ",
+    "product": "المادة",
+    "dose": "الجرعة (اختياري)",
+    "productLot": "رقم حصة المادة (اختياري)",
+    "lot": "الحصة {lot}",
+    "note": "ملاحظة (اختياري)",
+    "save": "تسجيل المرحلة",
+    "minDays": "الحد الأدنى للفراغ الصحي في الضيعة (أيام، اختياري)",
+    "saveMin": "حفظ"
+  },
+  "Files": {
+    "sending": "جارٍ إرسال الملف…",
+    "failed": "تعذّر إرسال الملف. أعد المحاولة مع الشبكة."
+  },
+  "Documents": {
+    "titlePage": "الوثائق",
+    "open": "الوثائق والآجال",
+    "forbidden": "الوثائق خاصة بالمالك والمسيّر.",
+    "add": "إضافة وثيقة",
+    "none": "لا وثائق حالياً.",
+    "list": "الخزنة، حسب تاريخ الانتهاء",
+    "title": "العنوان",
+    "category": "الصنف",
+    "categories": {
+      "authorization": "الترخيص الصحي",
+      "vetContract": "عقد الطبيب البيطري",
+      "labReport": "تحليل مخبري",
+      "insurance": "التأمين",
+      "land": "العقار، الكراء",
+      "company": "وثائق الشركة",
+      "tax": "جبائي واجتماعي",
+      "equipment": "المعدات، المراقبة",
+      "other": "أخرى"
+    },
+    "farm": "الضيعة",
+    "wholeOrganization": "الاستغلالية كلها",
+    "issuedOn": "تاريخ التسليم (اختياري)",
+    "expiresOnField": "تاريخ الانتهاء (اختياري)",
+    "expiresOn": "الأجل: {date}",
+    "notes": "ملاحظة (اختياري)",
+    "save": "حفظ الوثيقة",
+    "cancel": "إلغاء",
+    "states": {
+      "expired": "منتهية",
+      "soon": "تجدَّد قريباً",
+      "valid": "صالحة",
+      "none": "بدون أجل"
+    },
+    "file": "عرض الملف",
+    "fileAdd": "إضافة الملف (PDF أو صورة)",
+    "fileLater": "الملف ينتظر الإضافة (بعد الإرسال، مع الشبكة)"
+  },
+  "Register": {
+    "link": "سجل التربية ({language})",
+    "title": "سجل التربية",
+    "law": "السجل الصحي لتتبع الدفعة · القانون رقم 49-99، المادة 3",
+    "notFound": "الدفعة غير موجودة على هذا الهاتف.",
+    "farm": "الاستغلالية",
+    "address": "العنوان",
+    "onssa": "الترخيص الصحي",
+    "onssaValue": "رقم <code>{number}</code>، صالح إلى غاية {date}",
+    "onssaNone": "غير مذكور",
+    "house": "المبنى",
+    "strain": "النوع والسلالة",
+    "origin": "المفقس · وصل التسليم",
+    "placement": "الإيواء",
+    "deadOnArrival": "النافق عند الوصول",
+    "closedOn": "الإغلاق",
+    "open": "دفعة جارية",
+    "daily": "التتبع اليومي",
+    "date": "التاريخ",
+    "age": "العمر (يوم)",
+    "onHand": "العدد",
+    "dead": "النافق",
+    "culled": "المستبعد",
+    "cause": "السبب",
+    "feedKg": "العلف كلغ",
+    "waterL": "الماء ل",
+    "treatment": "العلاج",
+    "inWithdrawal": "فترة الانتظار",
+    "out": "خروج {birds}",
+    "vaccinations": "التلقيحات",
+    "product": "المنتج",
+    "lot": "رقم الحصة",
+    "method": "الطريقة",
+    "doneOn": "أُنجز في",
+    "notDone": "لم يُنجز (مقرر في {date})",
+    "treatments": "العلاجات والوصفات",
+    "dose": "الجرعة",
+    "reason": "السبب",
+    "prescriber": "الواصف",
+    "withdrawalEnd": "نهاية فترة الانتظار",
+    "vetVisits": "زيارات الطبيب البيطري",
+    "vet": "الطبيب البيطري",
+    "notes": "الملاحظات",
+    "birdsOut": "خروج الطيور",
+    "buyer": "المستلم",
+    "birds": "الطيور",
+    "weightKg": "الوزن كلغ",
+    "originDocument": "وثيقة المصدر",
+    "disposals": "الجثث المتخلّص منها",
+    "disposalMethod": "الطريقة",
+    "labReports": "التحاليل المخبرية",
+    "labReport": "التحليل",
+    "none": "لا شيء مسجّل.",
+    "signFarmer": "توقيع المربي",
+    "signVet": "تأشيرة الطبيب البيطري الصحي",
+    "provisional": "عرض مؤقت، يجب التحقق منه مع أونسا. مُعدّ انطلاقاً من إدخالات التطبيق.",
+    "editedWith": "أُعدّ بواسطة {app}",
+    "print": "طباعة أو حفظ PDF"
+  },
+  "Report": {
+    "link": "تقرير الدفعة",
+    "forbidden": "تقرير الدفعة خاص بالمالك والمسيّر.",
+    "notFound": "الدفعة غير موجودة على هذا الهاتف.",
+    "title": "تقرير الدفعة",
+    "subtitle": "{house} · الإيواء في {date}",
+    "closed": "أُغلقت في {date}",
+    "open": "دفعة جارية: الأرقام إلى اليوم",
+    "production": "الإنتاج",
+    "age": "العمر",
+    "days": "{days} يوماً",
+    "placed": "الكتاكيت المودعة",
+    "dead": "النافق والمستبعد",
+    "sold": "المبيع",
+    "feed": "العلف المستهلك",
+    "fcr": "مؤشر الاستهلاك",
+    "weight": "متوسط الوزن (آخر وزن)",
+    "epef": "EPEF",
+    "health": "الصحة",
+    "vaccines": "التلقيحات المنجزة: {done} من {planned}",
+    "treatments": "{count, plural, =0 {لا علاج} one {علاج واحد} other {# علاجات}}",
+    "withdrawalEnd": "نهاية آخر فترة انتظار في {date}",
+    "money": "النتيجة",
+    "sales": "المبيعات",
+    "cost": "التكلفة",
+    "margin": "الهامش",
+    "costPerKg": "التكلفة للكيلوغرام",
+    "marginPerKg": "الهامش للكيلوغرام",
+    "share": "الهامش من المبيعات",
+    "noResult": "لا نتيجة بعد لهذه الدفعة.",
+    "comparison": "مقارنة مع الدفعات السابقة للضيعة",
+    "batch": "دفعة",
+    "mortality": "النفوق",
+    "print": "طباعة أو حفظ PDF"
+  },
+  "Inspection": {
+    "open": "ملف التفتيش",
+    "forbidden": "ملف التفتيش خاص بالمالك والمسيّر.",
+    "noFarm": "أنشئ ضيعة أولاً.",
+    "title": "ملف التفتيش · {farm}",
+    "period": "المدة: من {from} إلى {to}",
+    "authorization": "الترخيص الصحي رقم {number}، صالح إلى غاية {date}",
+    "batch": "دفعة {house} بتاريخ {date}",
+    "checklist": "للإتمام",
+    "complete": "كل الوثائق المتتبعة موجودة.",
+    "provisional": "لائحة الوثائق مؤقتة، يجب التحقق منها مع أونسا.",
+    "missing": {
+      "authorization": "الترخيص الصحي غير مذكور",
+      "authorizationExpired": "الترخيص الصحي منتهي الصلاحية",
+      "vetContract": "عقد الطبيب البيطري الصحي غائب أو منتهٍ",
+      "documentExpired": "وثيقة منتهية: {title}",
+      "noDisinfection": "التعقيم غير مسجّل بعد {batch}",
+      "rodentProof": "مكافحة القوارض بتاريخ {date} بدون صورة"
+    },
+    "documents": "الوثائق",
+    "state": "الحالة",
+    "file": "الملف",
+    "noFile": "لا ملف",
+    "after": "بعد",
+    "steps": "المراحل المنجزة",
+    "recentFarm": "ضيعة أخرى مؤخراً",
+    "yes": "نعم",
+    "no": "لا",
+    "proof": "الدليل",
+    "noAuthorization": "الترخيص الصحي: غير مذكور",
+    "expires": "الأجل",
+    "rodents": "مكافحة القوارض"
   }
 }

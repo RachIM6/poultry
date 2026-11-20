@@ -7,8 +7,8 @@ import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ageOn, type BatchDto } from "@/modules/flock/shared";
-import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
+import { ageOfBatch, type BatchDto } from "@/modules/flock/shared";
+import { originNumber, type BuyerDto, type SaleDto } from "@/modules/sales/shared";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
 import { primary } from "@/components/ui";
@@ -77,7 +77,7 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
       <header className="flex flex-col gap-1 text-center">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-muted">{t("law")}</p>
-        <p>{t("number", { number: sale.id.slice(0, 8).toUpperCase() })}</p>
+        <p>{t("number", { number: originNumber(sale.id) })}</p>
       </header>
       <Part title={t("farm")}>
         <Row label={t("farmName")}>{farm.name}</Row>
@@ -90,7 +90,7 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
         <Row label={t("house")}>{house?.name ?? "—"}</Row>
         <Row label={t("strain")}>{strain}</Row>
         <Row label={t("placedOn")}>{day(batch.placedOn)}</Row>
-        <Row label={t("age")}>{t("days", { age: String(ageOn(batch.placedOn as FarmDay, sale.day as FarmDay)) })}</Row>
+        <Row label={t("age")}>{t("days", { age: String(ageOfBatch(batch, sale.day as FarmDay)) })}</Row>
       </Part>
       <Part title={t("sale")}>
         <Row label={t("day")}>{day(sale.day)}</Row>

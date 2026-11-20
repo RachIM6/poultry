@@ -11,8 +11,12 @@ export type PlannedVaccination<M extends string = string> = ProtocolLine<M> & { 
  * H1: the batch's plan, in the order it is given. Due day = placement day + day of age (the placement day is day 0, as
  * for the batch's age). Lines on the same day keep the protocol's order, so every phone numbers them the same way.
  */
-export function planVaccinations<M extends string>(placedOn: FarmDay, protocol: readonly ProtocolLine<M>[]): PlannedVaccination<M>[] {
-  return [...protocol].sort((a, b) => a.dayOfAge - b.dayOfAge).map((line) => ({ ...line, dueOn: addFarmDays(placedOn, line.dayOfAge) }));
+export function planVaccinations<M extends string>(placedOn: FarmDay, protocol: readonly ProtocolLine<M>[], ageAtPlacementDays = 0): PlannedVaccination<M>[] {
+  // SPEC-m3 B7: birds placed older (started pullets) skip the lines due before they arrived: the rearing farm gave them.
+  return [...protocol]
+    .sort((a, b) => a.dayOfAge - b.dayOfAge)
+    .filter((line) => line.dayOfAge >= ageAtPlacementDays)
+    .map((line) => ({ ...line, dueOn: addFarmDays(placedOn, line.dayOfAge - ageAtPlacementDays) }));
 }
 
 export type DoneError = "ALREADY_DONE" | "BATCH_CLOSED" | "DAY_BEFORE_PLACEMENT" | "DAY_IN_FUTURE" | "INVALID_QUANTITY";

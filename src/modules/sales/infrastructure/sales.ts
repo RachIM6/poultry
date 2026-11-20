@@ -87,6 +87,7 @@ export async function approveSaleCredit(tx: Tx, ctx: TenantContext, saleId: stri
   const { count } = await tx.sale.updateMany({ where: { id: saleId, organizationId: ctx.organizationId, creditApproval: "pending" }, data: { creditApproval: "approved" } });
   if (count === 0) return null;
   const s = await tx.sale.findUniqueOrThrow({ where: { id: saleId } });
+  const lines = await tx.saleLine.findMany({ where: { saleId }, orderBy: { n: "asc" } });
   const day = (d: Date) => d.toISOString().slice(0, 10);
   return {
     id: s.id,
@@ -102,6 +103,8 @@ export async function approveSaleCredit(tx: Tx, ctx: TenantContext, saleId: stri
     paidCentimes: String(s.paidCentimes),
     instrument: s.instrumentNumber && s.instrumentDueOn ? { number: s.instrumentNumber, dueOn: day(s.instrumentDueOn) } : null,
     creditApproval: "approved",
+    kind: s.kind as "live" | "eggs" | "perHead",
+    lines: lines.map((l) => ({ item: l.item, eggs: l.eggs, eggsPerTray: l.eggsPerTray, unitPriceCentimes: String(l.unitPriceCentimes), amountCentimes: String(l.amountCentimes) })),
   };
 }
 
@@ -125,7 +128,7 @@ export const claimDueInstruments = (tx: Tx, day: string, now: Date) => tx.$query
   RETURNING s."organizationId", s."paymentMethod" AS method, s."instrumentNumber" AS number, s."amountCentimes", b.name AS buyer`;
 
 export async function saveSale(tx: Tx, ctx: TenantContext, s: Required<SaleDto>) {
-  const { instrument, ...rest } = s;
+  const { instrument, lines, ...rest } = s;
   await tx.sale.create({
     data: {
       ...rest,
@@ -139,4 +142,16 @@ export async function saveSale(tx: Tx, ctx: TenantContext, s: Required<SaleDto>)
       recordedBy: ctx.userId,
     },
   });
+  if (lines.length > 0) {
+    await tx.saleLine.createMany({
+      data: lines.map((l, n) => ({
+        ...l,
+        saleId: s.id,
+        n,
+        organizationId: ctx.organizationId,
+        unitPriceCentimes: BigInt(l.unitPriceCentimes),
+        amountCentimes: BigInt(l.amountCentimes),
+      })),
+    });
+  }
 }

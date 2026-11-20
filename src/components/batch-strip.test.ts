@@ -24,4 +24,13 @@ describe("stripDays", () => {
     expect(late).toHaveLength(47);
     expect(late.filter((x) => x.withdrawal).map((x) => x.age)).toEqual([46, 47]);
   });
+
+  it("shows a rolling window for the long cycles (SPEC-m3): the last 35 days and the coming 7", () => {
+    const layers = stripDays({ placedOn, today: d("2027-01-05"), age: 92, entered, vaccineDays: [], withdrawal: null, rolling: true });
+    expect(layers).toHaveLength(42);
+    expect([layers[0].age, layers[34].age, layers[41].age]).toEqual([58, 92, 99]);
+    expect(layers[34].state).toBe("today");
+    const young = stripDays({ placedOn, today: d("2026-10-15"), age: 10, entered, vaccineDays: [], withdrawal: null, rolling: true });
+    expect([young[0].age, young.length]).toEqual([1, 42]);
+  });
 });

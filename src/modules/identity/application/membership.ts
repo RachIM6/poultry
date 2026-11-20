@@ -5,7 +5,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Role, TenantContext } from "@/lib/tenant";
 import { getSession } from "@/modules/identity/application/login";
 
-/** SPEC-m5 PA2 (ADR-011): the organisation the user chose. Only a hint: it opens nothing unless it is a live membership. */
+/** SPEC-m5 PA2 (ADR-013): the organisation the user chose. Only a hint: it opens nothing unless it is a live membership. */
 export const ORG_COOKIE = "__Host-org";
 const chosenOrganization = (headers: Headers) =>
   headers.get("cookie")?.split(";").map((c) => c.trim().split("=")).find(([k]) => k === ORG_COOKIE)?.[1];

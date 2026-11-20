@@ -24,7 +24,7 @@ describe("can (SPEC I5)", () => {
   });
 });
 
-describe("partners (SPEC-m5 §5, ADR-011)", () => {
+describe("partners (SPEC-m5 §5, ADR-013)", () => {
   const ACTIONS: Action[] = [
     "organization.read", "organization.manage", "members.manage", "farms.manage", "protocols.manage", "stock.manage", "flock.manage", "flock.record",
     "health.manage", "health.record", "sales.manage", "money.read", "finance.record", "finance.manage", "workforce.manage", "workforce.record",

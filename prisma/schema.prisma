@@ -33,6 +33,7 @@ model Farm {
   longitude      Float?
   onssaNumber    String? // ONSSA authorization
   onssaExpiresOn DateTime?    @db.Date
+  doaClaimThresholdPermille Int? // SPEC-m3 B10: dead on arrival above it = a claim to the hatchery; null = no alert (MQ6)
   createdAt      DateTime     @default(now()) @db.Timestamptz
   updatedAt      DateTime     @updatedAt @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -246,9 +247,11 @@ model Change {
 // Owner: reference-data (SPEC R1–R4). Global, not per organisation: read-only for farms, seeded from
 // prisma/seed/reference/*.json, cached offline through GET /api/reference.
 model Strain {
-  id     String          @id // "ross-308"
-  name   String
-  curves StandardCurve[]
+  id              String          @id // "ross-308"
+  name            String
+  productionTypes String[]        @default(["broiler"]) // SPEC-m3 R5
+  curves          StandardCurve[]
+  layingCurves    LayingCurve[]
 }
 
 // One published performance-objectives table (R1). Each value keeps its source and version (OQ5).
@@ -257,10 +260,11 @@ model StandardCurve {
   strainId String
   source   String // document title + publisher
   version  String // e.g. "2022"
+  sex      String          @default("mixed") // SPEC-m3 R6: mixed | female | male
   points   StandardPoint[]
   strain   Strain          @relation(fields: [strainId], references: [id], onDelete: Cascade)
 
-  @@unique([strainId, version])
+  @@unique([strainId, version, sex])
 }
 
 model StandardPoint {
@@ -271,6 +275,31 @@ model StandardPoint {
   curve               StandardCurve @relation(fields: [curveId], references: [id], onDelete: Cascade)
 
   @@id([curveId, day])
+}
+
+// SPEC-m3 R7: one published laying table, by week of age, exactly as published. A column the guide doesn't give is null.
+model LayingCurve {
+  id       String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  strainId String
+  source   String
+  version  String
+  points   LayingPoint[]
+  strain   Strain        @relation(fields: [strainId], references: [id], onDelete: Cascade)
+
+  @@unique([strainId, version])
+}
+
+model LayingPoint {
+  curveId                String      @db.Uuid
+  week                   Int // week of age
+  layingRatePermille     Int? // hen-day, per mille
+  eggsPerHenHousedTenths Int? // cumulative, tenths of an egg
+  eggWeightDg            Int? // average egg weight, decigrams
+  feedGramsPerHenDay     Int?
+  bodyWeightGrams        Int?
+  curve                  LayingCurve @relation(fields: [curveId], references: [id], onDelete: Cascade)
+
+  @@id([curveId, week])
 }
 
 enum ProductKind {
@@ -286,6 +315,16 @@ model Product {
   nameFr         String
   nameAr         String
   withdrawalDays Int?
+  eggWithdrawalDays Int? // SPEC-m3 R10: eggs, for layers; null = not known yet, never a default
+}
+
+// SPEC-m3 R8. Egg grade classes; the weight limits stay null until the Moroccan standard is supplied (MQ2).
+model EggGrade {
+  id        String @id // "m"
+  label     String // as printed on trays: "M"
+  sortOrder Int
+  minGrams  Int?
+  maxGrams  Int?
 }
 
 // R2. The global template is read-only; farms copy it into VaccinationProtocol and edit the copy.
@@ -294,6 +333,7 @@ model ProtocolTemplate {
   nameFr        String
   nameAr        String
   reviewedByVet Boolean @default(false) // OQ4: false until a vet signs it off
+  productionType String @default("broiler") // SPEC-m3 R9
   items         Json // [{ dayOfAge, productId, method }]
 }
 
@@ -412,7 +452,8 @@ model Purchase {
 }
 
 // Owner: flock (SPEC B1). Created offline: the id comes from the device. One open batch per house is enforced by the
-// partial unique index "Batch_one_open_per_house" (raw SQL in the migration: Prisma can't declare it).
+// partial unique index "Batch_one_open_per_house" (raw SQL in the migration: Prisma can't declare it); beldi bands share
+// a run (SPEC-m3 B8).
 model Batch {
   id                     String    @id @db.Uuid
   organizationId         String    @db.Uuid
@@ -427,6 +468,14 @@ model Batch {
   deliveryNote           String
   chickUnitPriceCentimes BigInt
   dayOldWeightGrams      Int?
+  ageAtPlacementDays     Int       @default(0) // SPEC-m3 B7: started pullets or point-of-lay hens arrive older
+  sex                    String    @default("mixed") // SPEC-m3 B9: mixed | female | male (turkeys raised apart)
+  // SPEC-m3 B10, chick arrival quality, all optional: free extra chicks are placed but not billed.
+  freeChicks             Int       @default(0)
+  parentFlock            String?
+  weakChicks             Int?
+  litterTempTenths       Int? // °C × 10
+  fromBatchId            String?   @db.Uuid // SPEC-m3 B13: the pullet batch these hens were transferred from
   status                 String    @default("open") // open | closed
   // B6, set when it closes and never changed afterwards: the locked figures.
   closedOn               DateTime? @db.Date // farm day
@@ -514,6 +563,9 @@ model Treatment {
   prescriber       String
   withdrawalDays   Int // from the label or the prescription, as entered
   withdrawalEndsOn DateTime @db.Date // endOn + withdrawalDays (H3): what the sale block reads (T21)
+  // SPEC-m3 H7: eggs, for layer batches (required there, as entered, never a default); null elsewhere.
+  eggWithdrawalDays   Int?
+  eggWithdrawalEndsOn DateTime? @db.Date
   recordedBy       String   @db.Uuid
   createdAt        DateTime @default(now()) @db.Timestamptz
 
@@ -560,6 +612,74 @@ model BatchCost {
   @@index([organizationId, batchId])
 }
 
+// Owner: eggs (SPEC-m3 E1). Several per layer batch and farm day, each with the phone's id; corrected in place while the
+// batch is open (the replaced counts are in the audit log).
+model EggCollection {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  normal         Int
+  cracked        Int
+  dirty          Int
+  doubleYolk     Int
+  floor          Int
+  broken         Int
+  sampleCount    Int? // eggs weighed together, for the average egg weight
+  sampleGrams    Int?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId, batchId, day])
+}
+
+// Owner: eggs (SPEC-m3 E3). A batch's eggs of one laying day sorted into grade classes: { gradeId: eggs }. Never edited.
+model EggGrading {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  laidOn         DateTime @db.Date
+  grades         Json
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: eggs (SPEC-m3 E3). Eggs thrown away from a lot, with the reason. Never edited.
+model EggDiscard {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  laidOn         DateTime @db.Date
+  item           String // ungraded | downgraded | grade:<id>
+  eggs           Int
+  reason         String
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: eggs (SPEC-m3 V6). The eggs a sale took from a batch's lots, oldest laying day first; written with the sale.
+model EggDraw {
+  id             String   @id @db.Uuid // UUIDv5 of the sale and the line of the draw
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  saleId         String   @db.Uuid
+  laidOn         DateTime @db.Date
+  item           String
+  eggs           Int
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
 // Owner: sales (SPEC V1).
 model Buyer {
   id                  String   @id @db.Uuid
@@ -595,10 +715,26 @@ model Sale {
   instrumentDueOn      DateTime? @db.Date
   instrumentRemindedAt DateTime? @db.Timestamptz // V4: claimed by the reminder job, so it goes out once
   creditApproval       String? // FN12: "pending" when it took the buyer past their credit limit, "approved" by the owner
+  kind                 String    @default("live") // SPEC-m3: live (per kg) | eggs (birds, weights and price per kg are 0)
   recordedBy           String    @db.Uuid
   createdAt            DateTime  @default(now()) @db.Timestamptz
 
   @@index([organizationId, batchId])
+}
+
+// Owner: sales (SPEC-m3 V6). The lines of an egg sale. Money in centimes; never edited.
+model SaleLine {
+  saleId            String @db.Uuid
+  n                 Int // order in the sale
+  organizationId    String @db.Uuid
+  item              String // ungraded | downgraded | grade:<id>
+  eggs              Int
+  eggsPerTray       Int
+  unitPriceCentimes BigInt // per tray
+  amountCentimes    BigInt
+
+  @@id([saleId, n])
+  @@index([organizationId])
 }
 
 // Owner: sales (SPEC V4). A buyer paying later what their sales left unpaid. Money in centimes.
@@ -1090,4 +1226,159 @@ model DowntimeRule {
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS1–BS2: one entry of the visitor and vehicle register, recorded on the phone.
+model Visit {
+  id                String   @id @db.Uuid
+  organizationId    String   @db.Uuid
+  farmId            String   @db.Uuid
+  enteredAt         DateTime @db.Timestamptz
+  visitor           String // name and company
+  vehicle           String? // plate
+  purpose           String // feedDelivery | gas | chickDelivery | vet | buyer | technician | other
+  recentFarm        Boolean // on another poultry farm recently (VISITOR_RECENT_FARM_HOURS)
+  wheelsDisinfected Boolean
+  footbath          Boolean
+  farmClothing      Boolean
+  zone              String // clean | dirty
+  recordedBy        String   @db.Uuid
+  createdAt         DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, enteredAt])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS6: dead birds disposed of (law 49-99 art. 12).
+model Disposal {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  batchId        String?  @db.Uuid
+  birds          Int
+  weightGrams    Int?
+  method         String // incineration | authorizedSite | other (CQ4)
+  methodNote     String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS7: manure taken out (art. 13). Kilograms, no money.
+model ManureRemoval {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  day            DateTime @db.Date
+  houseId        String?  @db.Uuid
+  batchId        String?  @db.Uuid
+  quantityKg     Int
+  destination    String // stored | spread | sold | given
+  recipient      String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS4: the clean-out of a house after one batch, once per batch.
+model Cleanout {
+  id             String         @id @db.Uuid
+  organizationId String         @db.Uuid
+  farmId         String         @db.Uuid
+  houseId        String         @db.Uuid
+  afterBatchId   String         @unique @db.Uuid
+  startedOn      DateTime       @db.Date
+  startedBy      String         @db.Uuid
+  createdAt      DateTime       @default(now()) @db.Timestamptz
+  steps          CleanoutStep[]
+
+  @@index([organizationId, houseId])
+}
+
+// Owner: biosecurity. BS4: one step of SCOPE §4's checklist, each once per clean-out. Ids are UUIDv7: they sort by time.
+model CleanoutStep {
+  id         String   @id @db.Uuid
+  cleanoutId String   @db.Uuid
+  step       String // manureOut | equipmentWashed | pressureWash | disinfection | rodentControl | waterFlush | litterPreheat
+  day        DateTime @db.Date
+  product    String?
+  dose       String?
+  productLot String?
+  note       String?
+  recordedBy String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  cleanout   Cleanout @relation(fields: [cleanoutId], references: [id], onDelete: Cascade)
+
+  @@unique([cleanoutId, step])
+}
+
+// Owner: biosecurity. BS5: the farm's own minimum downtime between batches, set by the owner or manager (CQ3).
+model DowntimeSetting {
+  farmId         String @id @db.Uuid
+  organizationId String @db.Uuid
+  minDays        Int?
+}
+
+// Owner: documents. SPEC-m2-compliance DC2, ADR-011: an uploaded file, kept in the database until hosting is chosen
+// (OQ1). `purpose`: "proof" (a biosecurity photo, every member) or "document" (the vault, owners and managers).
+model StoredFile {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  purpose        String // proof | document
+  contentType    String // from the file's own bytes
+  sizeBytes      Int
+  sha256         String
+  bytes          Bytes
+  uploadedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS8: rodent control with physical proof (law 49-99 art. 15). The photo is a
+// StoredFile, attached online after the check was recorded.
+model RodentCheck {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  houseId        String?  @db.Uuid
+  day            DateTime @db.Date
+  action         String // baitPlaced | baitChecked
+  product        String?
+  proofFileId    String?  @db.Uuid
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: documents. SPEC-m2-compliance DC1: a document of the vault. farmId null: the organisation as a whole.
+model Document {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  title          String
+  category       String // authorization | vetContract | labReport | insurance | land | company | tax | equipment | other
+  farmId         String?   @db.Uuid
+  issuedOn       DateTime? @db.Date
+  expiresOn      DateTime? @db.Date
+  notes          String?
+  fileId         String?   @db.Uuid // a StoredFile, attached online
+  createdBy      String    @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, expiresOn])
+}
+
+// Owner: documents. SPEC-m2-compliance DC4: which expiry reminders went out, so each goes once per subject (a vault
+// document or a farm's ONSSA authorization), expiry date and kind ("soon" | "expired"). A new expiry date starts over.
+model DocumentReminder {
+  subjectId      String   @db.Uuid
+  expiresOn      DateTime @db.Date
+  kind           String
+  organizationId String   @db.Uuid
+  sentAt         DateTime @db.Timestamptz
+
+  @@id([subjectId, expiresOn, kind])
 }

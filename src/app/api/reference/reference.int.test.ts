@@ -20,7 +20,7 @@ describe("GET /api/reference (SPEC R4)", () => {
     const first = await GET(new Request(`${origin}/api/reference`, { headers: { cookie } }));
     expect(first.status).toBe(200);
     expect(first.headers.get("cache-control")).toBe("no-store");
-    expect(await first.json()).toEqual({ strains: [], products: [], protocolTemplates: [] });
+    expect(await first.json()).toEqual({ strains: [], products: [], protocolTemplates: [], eggGrades: [] });
     const etag = first.headers.get("etag")!;
 
     expect((await GET(new Request(`${origin}/api/reference`, { headers: { cookie, "if-none-match": etag } }))).status).toBe(304);

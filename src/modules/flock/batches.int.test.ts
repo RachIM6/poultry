@@ -35,7 +35,8 @@ describe("batch placement (SPEC B1)", () => {
 
   beforeAll(async () => {
     [a, b] = await twoTenants();
-    await db.strain.create({ data: { id: "ross-308", name: "Ross 308" } });
+    await db.strain.create({ data: { id: "ross-308", name: "Ross 308" } }); // an M1 row: broiler by default
+    await db.strain.create({ data: { id: "lohmann-brown", name: "Lohmann Brown", productionTypes: ["pullet", "layer"] } });
     const farm = (id: string) => m(FARM_MUTATIONS.createFarm, { id, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null });
     const house = (id: string, farmId: string) => m(FARM_MUTATIONS.createHouse, { id, farmId, name: "B", areaM2: 1200, capacity: 12000, type: "closed" });
     await push(a, [farm(farmA), house(houses.a1, farmA), house(houses.a2, farmA), house(houses.a3, farmA)], farmRegistrySync);
@@ -75,6 +76,60 @@ describe("batch placement (SPEC B1)", () => {
     expect(seen.length).toBeGreaterThan(0);
     expect(JSON.stringify(seen)).not.toMatch(/chickUnitPrice/);
     expect((await pull(b, 0, registry)).changes).toEqual([]); // nothing of a's
+  });
+
+  it("places every production type with one of its strains, and an M1 placement as a broiler (SPEC-m3 R5)", async () => {
+    const [layer, legacy] = [placement(houses.b1, { species: "layer", strainId: "lohmann-brown" }), placement(houses.a2)];
+    expect(await statuses(b, [m(M.placeBatch, placement(houses.b1, { species: "turkey" })), m(M.placeBatch, layer)])).toEqual(["errors.INVALID_INPUT", "applied"]);
+    expect(await statuses(b, [m(M.placeBatch, placement(houses.b1, { species: "goose", strainId: "lohmann-brown" }))])).toEqual(["errors.INVALID_INPUT"]);
+    await db.batch.updateMany({ where: { houseId: houses.a2 }, data: { status: "closed" } });
+    expect(await statuses(a, [m(M.placeBatch, legacy)])).toEqual(["applied"]); // queued by an M1 phone: no species
+    const pulled = (await pull(b, 0, registry)).changes.map((c) => c.data as BatchDto);
+    expect(pulled.find((d) => d.id === layer.id)?.species).toBe("layer");
+    expect((await db.batch.findUnique({ where: { id: legacy.id } }))?.species).toBe("broiler");
+    await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
+  });
+
+  it("lets beldi bands share a run, never with another type (SPEC-m3 B8)", async () => {
+    await db.strain.create({ data: { id: "unspecified-beldi", name: "Beldi", productionTypes: ["beldi"] } });
+    const band = () => placement(houses.b1, { species: "beldi", strainId: "unspecified-beldi" });
+    expect(await statuses(b, [m(M.placeBatch, band()), m(M.placeBatch, band()), m(M.placeBatch, placement(houses.b1))])).toEqual([
+      "applied",
+      "applied",
+      "errors.HOUSE_HAS_OPEN_BATCH",
+    ]);
+    // The index still holds for every other type, even if a use case forgot to check.
+    await expect(db.batch.create({ data: { ...placement(houses.a1), organizationId: a.organizationId, farmId: farmA, chickUnitPriceCentimes: 450n, placedOn: new Date("2026-10-14") } })).rejects.toThrow();
+    await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
+  });
+
+  it("raises turkeys by sex: two batches in one house, each closing on its own (SPEC-m3 B9)", async () => {
+    await db.strain.create({ data: { id: "but-6", name: "BUT 6", productionTypes: ["turkey"] } });
+    const turkeys = (sex: string) => placement(houses.b1, { species: "turkey", strainId: "but-6", sex, chicksPlaced: 1500, deadOnArrival: 0 });
+    const [hens, toms] = [turkeys("female"), turkeys("male")];
+    expect(await statuses(b, [m(M.placeBatch, hens), m(M.placeBatch, toms), m(M.placeBatch, turkeys("male")), m(M.placeBatch, turkeys("mixed"))])).toEqual([
+      "applied",
+      "applied",
+      "errors.HOUSE_HAS_OPEN_BATCH",
+      "errors.HOUSE_HAS_OPEN_BATCH",
+    ]);
+    expect(await statuses(b, [m(M.closeBatch, { batchId: toms.id, day: farmDayOf(new Date()), reason: "Mâles vendus" })])).toEqual(["applied"]);
+    const status = async (id: string) => (await db.batch.findUniqueOrThrow({ where: { id } })).status;
+    expect([await status(hens.id), await status(toms.id)]).toEqual(["open", "closed"]);
+    const pulled = (await pull(b, 0, registry)).changes.map((c) => c.data as BatchDto).find((d) => d.id === hens.id);
+    expect(pulled?.sex).toBe("female");
+    await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
+  });
+
+  it("keeps the chick arrival quality, and the farm's claim threshold (SPEC-m3 B10)", async () => {
+    const arrival = placement(houses.b1, { chicksPlaced: 10_000, freeChicks: 200, deadOnArrival: 14, parentFlock: "PS-12", weakChicks: 22, litterTempTenths: 310 });
+    expect(await statuses(b, [m(M.placeBatch, arrival)])).toEqual(["applied"]);
+    const pulled = (await pull(b, 0, registry)).changes.map((c) => c.data as BatchDto).find((d) => d.id === arrival.id);
+    expect(pulled).toMatchObject({ freeChicks: 200, parentFlock: "PS-12", weakChicks: 22, litterTempTenths: 310 });
+    await push(b, [m(FARM_MUTATIONS.updateFarm, { id: farmB, changes: { doaClaimThresholdPermille: 5 } })], farmRegistrySync);
+    const farm = (await pull(b, 0, farmRegistrySync)).changes.findLast((c) => c.id === farmB)?.data;
+    expect(farm).toMatchObject({ doaClaimThresholdPermille: 5, name: "F" });
+    await db.batch.updateMany({ where: { houseId: houses.b1 }, data: { status: "closed" } });
   });
 
   it("refuses a number too big for its column instead of failing the push (T25 S4)", async () => {

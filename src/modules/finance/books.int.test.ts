@@ -91,6 +91,11 @@ describe("books (SPEC-finance FN16, T36)", () => {
     // The electricity expense, both lines, with the chart's labels.
     expect(files.get("ecritures-2026-03.csv")).toMatch(/\r\n21\/03\/2026;CA;[0-9a-f-]{36};5161;Caisses;[^;]+;0,00;1200,00;;;;\r\n/);
     expect(files.get("balance-2026-03.csv")).toMatch(/\r\nTotal;;(\d+,\d\d);\1;0,00\r\n$/);
+    // FN18's analytic columns, from each entry's source: the supplier and farm, the chicks' batch, the buyer and batch.
+    const entries = files.get("ecritures-2026-03.csv")!;
+    expect(entries).toMatch(/;612122;[^;]+;Achat;9000,00;0,00;Alf;F;;\r\n/);
+    expect(entries).toMatch(/;612121;[^;]+;Achat de poussins;5500,00;0,00;;F;B1;01\/03\/2026\r\n/);
+    expect(entries).toMatch(/;3421;[^;]+;Vente;3000,00;0,00;Hamid;F;B1;01\/03\/2026\r\n/);
 
     const cash = await exportBooks(cashBook, "2026-03");
     if (!cash.ok) throw new Error(cash.error);

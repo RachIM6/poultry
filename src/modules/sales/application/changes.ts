@@ -64,3 +64,25 @@ export async function instrumentsToCollect(ctx: TenantContext): Promise<{ dueOn:
     .filter((i) => i.state === "in_portfolio" || i.state === "remitted")
     .map((i) => ({ dueOn: i.dueOn, amountCentimes: i.amountCentimes }));
 }
+
+/**
+ * For finance's export (SPEC-finance FN18): each sale's, payment's or instrument step's buyer name, and a sale's
+ * batch, by id. A step (cheque remitted, cashed, unpaid) belongs to its sale or payment.
+ */
+export async function ledgerTagsOf(tx: Tx, ctx: TenantContext, ids: string[]) {
+  const org = { organizationId: ctx.organizationId };
+  const steps = await tx.instrumentStatus.findMany({ where: { ...org, id: { in: ids } }, select: { id: true, instrumentId: true } });
+  const recordIds = [...ids, ...steps.map((s) => s.instrumentId)];
+  const [sales, payments] = await Promise.all([
+    tx.sale.findMany({ where: { ...org, id: { in: recordIds } }, select: { id: true, buyerId: true, batchId: true } }),
+    tx.buyerPayment.findMany({ where: { ...org, id: { in: recordIds } }, select: { id: true, buyerId: true } }),
+  ]);
+  const records = new Map([...sales, ...payments.map((p) => ({ ...p, batchId: null }))].map((r) => [r.id, r]));
+  const buyers = await tx.buyer.findMany({ where: { ...org, id: { in: [...records.values()].map((r) => r.buyerId) } }, select: { id: true, name: true } });
+  const name = new Map(buyers.map((b) => [b.id, b.name]));
+  const tag = (r: { buyerId: string; batchId: string | null }) => ({ party: name.get(r.buyerId) ?? null, farmId: null, batchId: r.batchId });
+  return new Map([
+    ...[...records.values()].map((r) => [r.id, tag(r)] as const),
+    ...steps.flatMap((s) => (records.has(s.instrumentId) ? [[s.id, tag(records.get(s.instrumentId)!)] as const] : [])),
+  ]);
+}

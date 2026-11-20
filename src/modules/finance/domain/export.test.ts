@@ -37,6 +37,13 @@ describe("export to the accountant (FN18)", () => {
     expect(exportSheets({ labels, cashBook: ledger.cashBook }).map((s) => s.name)).toEqual(["Recettes et dépenses"]);
   });
 
+  it("fills the entries' party, farm, house and batch from their tags (FN18)", () => {
+    const [entries] = exportSheets(ledger, new Map([["e1", ["Hamid", "El Kheir", "B1", "01/03/2026"]]]));
+    const rows = toCsv(entries).split("\r\n");
+    expect(rows[1]).toBe("20/03/2026;CA;e1;5161;Caisses;'=Vente lot 1;3000,00;0,00;Hamid;El Kheir;B1;01/03/2026");
+    expect(rows[3]).toMatch(/;;;;$/); // e2: no tag
+  });
+
   it("names each receipt after its entry's day and id, the entries sheet's Pièce", () => {
     expect(receiptName("2026-03-21", "e2", "image/jpeg")).toBe("pieces/2026-03-21_e2.jpg");
     expect(receiptName("2026-03-21", "e2", "application/pdf")).toBe("pieces/2026-03-21_e2.pdf");

@@ -56,3 +56,16 @@ export async function supplierDuesOf(ctx: TenantContext): Promise<{ dueOn: strin
     supplierDues(ps.map((p) => ({ day: day(p.day), dueOn: p.dueOn && day(p.dueOn), amountCentimes: p.amountCentimes, paidCentimes: p.paidCentimes })), paid.get(supplierId) ?? 0n),
   );
 }
+
+/** For finance's export (SPEC-finance FN18): each purchase's or supplier payment's supplier name and farm, by id. */
+export async function ledgerTagsOf(tx: Tx, ctx: TenantContext, ids: string[]) {
+  const where = { organizationId: ctx.organizationId, id: { in: ids } };
+  const [purchases, payments] = await Promise.all([
+    tx.purchase.findMany({ where, select: { id: true, supplierId: true, farmId: true } }),
+    tx.supplierPayment.findMany({ where, select: { id: true, supplierId: true } }),
+  ]);
+  const rows = [...purchases, ...payments.map((p) => ({ ...p, farmId: null }))];
+  const suppliers = await tx.supplier.findMany({ where: { organizationId: ctx.organizationId, id: { in: rows.map((r) => r.supplierId) } }, select: { id: true, name: true } });
+  const name = new Map(suppliers.map((s) => [s.id, s.name]));
+  return new Map(rows.map((r) => [r.id, { party: name.get(r.supplierId) ?? null, farmId: r.farmId, batchId: null }]));
+}

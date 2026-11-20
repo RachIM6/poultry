@@ -80,4 +80,5 @@ export type WeighingDto = { id: string; batchId: string; day: string; count: num
 
 // SPEC B4: live KPIs, computed on the phone from its local data.
 export { batchKpis, closedBatchFigures, waterPerFeed } from "@/modules/flock/domain/kpi";
+export { hatcheryFigures } from "@/modules/flock/domain/hatcheries";
 export type { BatchKpis } from "@/modules/flock/domain/kpi";

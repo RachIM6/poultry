@@ -7,8 +7,8 @@ import { field } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatDecimal, formatKg, formatMoney, formatPercent } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import type { HouseDto } from "@/modules/farm-registry/schema";
-import { birdsStarted, closedBatchFigures, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
+import { birdsStarted, closedBatchFigures, doaClaim, hatcheryFigures, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { PRODUCTION_TYPES, type ProductionType } from "@/modules/reference-data/shared";
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
@@ -37,7 +37,7 @@ function Compare({ userId, organizationId, role }: Scope) {
   const locale = useLocale();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("house", "batch", "dailyEntry", "soldBirds").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "soldBirds").toArray(), [userId, organizationId]);
   const [type, setType] = useState<ProductionType>("broiler");
   if (!records) return null;
 
@@ -62,8 +62,13 @@ function Compare({ userId, organizationId, role }: Scope) {
       dayOld: b.dayOldWeightGrams === null ? none : `${b.dayOldWeightGrams} g`,
       day7: `${formatPercent(f.day7MortalityPercent)} %`,
     };
-    return { b, cells, house: houses.find((h) => h.id === b.houseId)?.name ?? "" };
+    return { b, f, cells, house: houses.find((h) => h.id === b.houseId)?.name ?? "" };
   });
+  // P-Compare "Couvoirs": the chicks' quality by hatchery; a claim is a batch whose dead on arrival passed the farm's threshold
+  const farms = of<FarmDto>("farm");
+  const hatcheries = hatcheryFigures(
+    rows.map(({ b, f }) => ({ hatchery: b.hatchery, birdsStarted: birdsStarted(b), day7Dead: f.day7Dead, dayOldWeightGrams: b.dayOldWeightGrams, claim: doaClaim(b, farms.find((x) => x.id === b.farmId)?.doaClaimThresholdPermille) })),
+  );
 
   return (
     <>
@@ -95,6 +100,30 @@ function Compare({ userId, organizationId, role }: Scope) {
             </tbody>
           </table>
           <p className="mt-2 text-sm text-muted">{t("Compare.epef")}</p>
+        </div>
+      )}
+      {hatcheries.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm tabular-nums">
+            <caption className="mb-2 text-start font-semibold">{t("Compare.hatcheries")}</caption>
+            <thead>
+              <tr className="text-muted">
+                {(["hatchery", "batches", "dayOld", "day7", "claims"] as const).map((c) => <th key={c} scope="col" className="p-2 text-start font-medium">{t(`Compare.hatcheryCols.${c}`)}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {hatcheries.map((h) => (
+                <tr key={h.hatchery} className="border-t border-line">
+                  <th scope="row" className="p-2 text-start font-semibold">{h.hatchery}</th>
+                  <td className="p-2">{h.batches}</td>
+                  <td className="p-2">{h.dayOldWeightGrams === null ? none : `${h.dayOldWeightGrams} g`}</td>
+                  <td className="p-2">{formatPercent(h.day7MortalityPercent)} %</td>
+                  <td className="p-2">{h.claims}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-sm text-muted">{t("Compare.hatcheriesNote")}</p>
         </div>
       )}
     </>

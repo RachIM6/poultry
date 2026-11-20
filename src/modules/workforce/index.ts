@@ -10,4 +10,4 @@ export const workforceSync: SyncRegistry = {
   mutations: { ...employeesSync.mutations, ...tasksSync.mutations, ...attendanceSync.mutations, ...paySync.mutations },
   entities: { ...employeesSync.entities, ...tasksSync.entities, ...attendanceSync.entities, ...paySync.entities },
 };
-export { advancesChangedSince, payMonthsChangedSince } from "./finance-facts";
+export { advancesChangedSince, payMonthsChangedSince, payPaymentsChangedSince, wagesDue } from "./finance-facts";

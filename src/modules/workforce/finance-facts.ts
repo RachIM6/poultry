@@ -1,6 +1,7 @@
-import type { Tx } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import type { AdvanceDto, PayMonthDto } from "@/modules/workforce/shared";
+import { monthEnd } from "@/modules/workforce/domain/pay";
+import type { AdvanceDto, PayMonthDto, PayPaymentDto } from "@/modules/workforce/shared";
 
 // For finance (SPEC-finance FN7): the pay facts recorded after `after` (this organisation's change-log version),
 // oldest first. Advances are paid when recorded; a pay month is posted once validated.
@@ -22,10 +23,26 @@ export async function payMonthsChangedSince(tx: Tx, ctx: TenantContext, after: b
       id: p.id,
       month: p.month,
       grossCentimes: sum((l) => l.grossCentimes),
-      advancesCentimes: sum((l) => l.advancesCentimes),
+      // per worker: advances beyond their pay stay owed (finance takes back only what the pay covers)
+      advancesCentimes: p.lines.reduce((s, l) => s + BigInt(l.advancesCentimes) + (BigInt(l.netCentimes) < 0n ? BigInt(l.netCentimes) : 0n), 0n),
       employeeContributionCentimes: known((l) => l.employeeContributionCentimes),
       employerContributionCentimes: known((l) => l.employerContributionCentimes),
-      netCentimes: sum((l) => l.netCentimes),
+      netCentimes: p.lines.reduce((s, l) => s + (BigInt(l.netCentimes) > 0n ? BigInt(l.netCentimes) : 0n), 0n), // what is owed to them
     };
   });
+}
+
+export async function payPaymentsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500) {
+  return (await changes(tx, ctx, "payPayment", after, limit)).map((c) => ({ version: c.version, ...(c.data as unknown as PayPaymentDto) }));
+}
+
+/** For finance's cash schedule: validated months whose wages aren't paid yet, due at the month's end. */
+export async function wagesDue(ctx: TenantContext): Promise<{ dueOn: string; amountCentimes: bigint }[]> {
+  const where = { organizationId: ctx.organizationId };
+  const [months, paid] = await Promise.all([db.payMonth.findMany({ where }), db.payPayment.findMany({ where, select: { farmId: true, month: true } })]);
+  const done = new Set(paid.map((p) => `${p.farmId}:${p.month}`));
+  return months
+    .filter((m) => !done.has(`${m.farmId}:${m.month}`))
+    .map((m) => ({ dueOn: monthEnd(m.month), amountCentimes: (m.lines as unknown as PayMonthDto["lines"]).reduce((s, l) => s + (BigInt(l.netCentimes) > 0n ? BigInt(l.netCentimes) : 0n), 0n) }))
+    .filter((d) => d.amountCentimes > 0n);
 }

@@ -39,6 +39,7 @@ export const WORKFORCE_MUTATIONS = {
   recordAdvance: "workforce.recordAdvance",
   saveLabourRules: "workforce.saveLabourRules",
   validatePay: "workforce.validatePay",
+  payWages: "workforce.payWages",
   addStaffRecord: "workforce.addStaffRecord",
 } as const;
 
@@ -75,3 +76,7 @@ export type { LabourRules, PayLine } from "@/modules/workforce/domain/pay";
 export type PayMonthDto = { id: string; farmId: string; month: string; lines: PayLine[]; rulesId: string | null; validatedOn: string; validatedBy: string };
 const PAY_MONTH_NAMESPACE = "beca2c54-80ae-4319-a653-6a222a01a863";
 export const payMonthId = (farmId: string, month: string) => uuidv5(`${farmId}:${month}`, PAY_MONTH_NAMESPACE);
+/** A validated month's wages paid out, once per farm and month (its id from the month's, so two phones can't both pay). */
+export const PAY_FROM = ["cash", "bank"] as const;
+export type PayPaymentDto = { id: string; farmId: string; month: string; day: string; paidFrom: (typeof PAY_FROM)[number]; netCentimes: string };
+export const payPaymentId = (farmId: string, month: string) => uuidv5(`${farmId}:${month}:paid`, PAY_MONTH_NAMESPACE);

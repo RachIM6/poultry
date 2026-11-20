@@ -6,7 +6,7 @@ import { fail, ok } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import { farmBelongsTo } from "@/modules/farm-registry";
-import { AddStaffRecord, monthEnd, payFor, payMonthId, RecordAdvance, rulesOn, SaveLabourRules, ValidatePay, WORKFORCE_MUTATIONS as M, type AdvanceDto, type LabourRules, type PayMonthDto, type StaffRecordDto } from "@/modules/workforce/schema";
+import { AddStaffRecord, monthEnd, payFor, payMonthId, payPaymentId, PayWages, RecordAdvance, rulesOn, SaveLabourRules, ValidatePay, WORKFORCE_MUTATIONS as M, type AdvanceDto, type LabourRules, type PayMonthDto, type PayPaymentDto, type StaffRecordDto } from "@/modules/workforce/schema";
 
 // SPEC-m4 WF10–WF13: advances, pay, trainings and accidents. Money: owners and managers only, never sent to workers (SPEC I5).
 
@@ -108,9 +108,29 @@ export const paySync: SyncRegistry = {
         return ok(undefined);
       },
     }),
+    // WF12 follow-up: the validated month's net wages paid out, once, from the cash box or the bank. Finance posts it.
+    [M.payWages]: defineMutation({
+      schema: PayWages,
+      action: "workforce.validatePay",
+      async apply(tx, ctx, { farmId, month, day, paidFrom }, meta) {
+        if (!(await farmBelongsTo(tx, ctx, farmId))) return fail("NOT_FOUND");
+        const frozen = await tx.payMonth.findUnique({ where: { farmId_month: { farmId, month } } });
+        if (!frozen) return fail("PAY_MONTH_NOT_VALIDATED");
+        if (day > farmDayOf(clock.now()) || day < `${month}-01`) return fail("INVALID_INPUT");
+        const id = payPaymentId(farmId, month);
+        if ((await tx.payPayment.count({ where: { id } })) > 0) return fail("ALREADY_DONE");
+        const net = (frozen.lines as unknown as PayMonthDto["lines"]).reduce((s, l) => s + (BigInt(l.netCentimes) > 0n ? BigInt(l.netCentimes) : 0n), 0n); // a negative net pays nothing
+        const dto: PayPaymentDto = { id, farmId, month, day, paidFrom, netCentimes: String(net) };
+        await tx.payPayment.create({ data: { ...dto, day: date(day), netCentimes: net, organizationId: ctx.organizationId, recordedBy: ctx.userId } });
+        await recordChange(tx, ctx, "payPayment", id, dto);
+        await audit(tx, ctx, { entity: "PayPayment", entityId: id, action: "create", after: dto, ...meta });
+        return ok(undefined);
+      },
+    }),
   },
   // A worker's phone receives no advance at all, theirs included (W-Staff "Droits").
   entities: {
+    payPayment: (ctx, data: PayPaymentDto) => (can(ctx, "money.read") ? data : undefined),
     advance: (ctx, data: AdvanceDto) => (can(ctx, "money.read") ? data : undefined),
     payMonth: (ctx, data: PayMonthDto) => (can(ctx, "money.read") ? data : undefined),
     labourRules: (ctx, data: LabourRules) => (can(ctx, "money.read") ? data : undefined),

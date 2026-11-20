@@ -139,6 +139,19 @@ describe("pay (SPEC-m4 WF10, WF12; accounts to confirm with the accountant)", ()
     });
   });
 
+  it("pays the month's net from the cash box or the bank: D 4432 / C 5161 or 5141", () => {
+    expect(postingOf({ type: "wagesPaid", id: "w", day, amount: 350_000n, from: "cash" })).toMatchObject({ journal: "CA", lines: [{ account: "4432", debit: 350_000n }, { account: "5161", credit: 350_000n }] });
+    expect(postingOf({ type: "wagesPaid", id: "w", day, amount: 350_000n, from: "bank" })).toMatchObject({ journal: "BQ", lines: [{ account: "4432" }, { account: "5141" }] });
+  });
+
+  it("takes back only the advances the pay covers when they exceed it: the rest stays owed on 3431, the entry balances", () => {
+    // 100,00 earned, 150,00 advanced: net −50,00 (payFor), nothing owed to the worker
+    expect(postingOf({ type: "pay", id: "p", day, gross: 10_000n, advances: 15_000n, employeeContribution: null, employerContribution: null, net: -5_000n })?.lines).toEqual([
+      { account: "6171", debit: 10_000n, credit: 0n },
+      { account: "3431", debit: 0n, credit: 10_000n },
+    ]);
+  });
+
   it("adds the CNSS contributions once the rates are entered: employee's off the net, employer's on 6174", () => {
     expect(postingOf({ type: "pay", id: "p", day, gross: 400_000n, advances: 0n, employeeContribution: 18_000n, employerContribution: 85_000n, net: 382_000n })?.lines).toEqual([
       { account: "6171", debit: 400_000n, credit: 0n },

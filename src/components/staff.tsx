@@ -11,7 +11,7 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ATTENDANCE, attendanceId, JOBS, monthEnd, payFor, payMonthId, rulesOn, TRAINING_TOPICS, WORKFORCE_MUTATIONS as W, type AdvanceDto, type AttendanceDto, type EmployeeDto, type LabourRules, type PayLine, type PayMonthDto, type StaffRecordDto } from "@/modules/workforce/shared";
+import { ATTENDANCE, attendanceId, JOBS, monthEnd, payFor, payMonthId, rulesOn, TRAINING_TOPICS, WORKFORCE_MUTATIONS as W, type AdvanceDto, type AttendanceDto, type EmployeeDto, type LabourRules, type PayLine, type PayMonthDto, type PayPaymentDto, type StaffRecordDto, PAY_FROM, payPaymentId } from "@/modules/workforce/shared";
 import { localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -26,7 +26,7 @@ function Staff(scope: Scope) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb(scope);
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance", "labourRules", "payMonth", "staffRecord").toArray(), [scope.userId, scope.organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance", "labourRules", "payMonth", "payPayment", "staffRecord").toArray(), [scope.userId, scope.organizationId]);
   const [editing, setEditing] = useState<EmployeeDto | "new" | null>(null);
   const [message, setMessage] = useState<string>();
   if (!can(scope, "workforce.manage")) return <p>{t("Staff.forbidden")}</p>;
@@ -87,7 +87,7 @@ function Staff(scope: Scope) {
       <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
       <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={(a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
       <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
-      <Pay scope={scope} farms={farms} employees={employees} attendance={of<AttendanceDto>("attendance")} advances={of<AdvanceDto>("advance")} rules={of<LabourRules>("labourRules")} months={of<PayMonthDto>("payMonth")} write={(type, entity, data) => writeLocal(db, { type, payload: data }, { entity, id: data.id, data }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
+      <Pay scope={scope} farms={farms} employees={employees} attendance={of<AttendanceDto>("attendance")} advances={of<AdvanceDto>("advance")} rules={of<LabourRules>("labourRules")} months={of<PayMonthDto>("payMonth")} payments={of<PayPaymentDto>("payPayment")} write={(type, entity, data) => writeLocal(db, { type, payload: data }, { entity, id: data.id, data }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
     </>
   );
 }
@@ -415,11 +415,12 @@ type PayProps = {
   advances: AdvanceDto[];
   rules: LabourRules[];
   months: PayMonthDto[];
+  payments: PayPaymentDto[];
   write: <T extends { id: string }>(type: string, entity: string, data: T) => Promise<void>;
 };
 
 /** WF11, WF12 (W-Staff "Paie"): the month's pay as computed now, or as the owner froze it. No figure built in (§2). */
-function Pay({ scope, farms, employees, attendance, advances, rules, months, write }: PayProps) {
+function Pay({ scope, farms, employees, attendance, advances, rules, months, payments, write }: PayProps) {
   const t = useTranslations();
   const locale = useLocale();
   const today = farmDayOf(new Date());
@@ -502,6 +503,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, wri
           {t("Pay.validate", { month })}
         </button>
       )}
+      {owner && frozen && <WagesPaid farmId={farmId} month={month} net={sum((l) => (BigInt(l.netCentimes) > 0n ? l.netCentimes : "0")) ?? "0"} paid={payments.find((p) => p.id === payPaymentId(farmId, month))} today={today} write={write} />}
       {owner &&
         (editingRules ? (
           <RulesForm onCancel={() => setEditingRules(false)} onSave={(r) => write(W.saveLabourRules, "labourRules", r).then(() => setEditingRules(false))} />
@@ -509,6 +511,33 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, wri
           <button type="button" onClick={() => setEditingRules(true)} className={secondary}>{t("Pay.enterRules")}</button>
         ))}
     </section>
+  );
+}
+
+/** WF12 follow-up: the validated month's wages paid out once, from the cash box or the bank (finance: D 4432 / C 5161 or 5141). */
+function WagesPaid({ farmId, month, net, paid, today, write }: { farmId: string; month: string; net: string; paid?: PayPaymentDto; today: string; write: PayProps["write"] }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  if (paid) return <p className="font-medium">{t("Pay.paid", { amount: formatMoney(BigInt(paid.netCentimes)), date: formatDay(paid.day as FarmDay, locale), from: t(`Pay.from.${paid.paidFrom}`) })}</p>;
+  if (net === "0") return null;
+  const submit = (ev: FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
+    const data = new FormData(ev.currentTarget);
+    const p: PayPaymentDto = { id: payPaymentId(farmId, month), farmId, month, day: String(data.get("day") || today), paidFrom: String(data.get("from")) as PayPaymentDto["paidFrom"], netCentimes: net };
+    void write(W.payWages, "payPayment", p);
+  };
+  return (
+    <form onSubmit={submit} aria-label={t("Pay.pay", { amount: formatMoney(BigInt(net)) })} className={`${card} gap-3`}>
+      <Field label={t("Pay.payFrom")}>
+        {(id) => (
+          <select id={id} name="from" className={field}>
+            {PAY_FROM.map((f) => <option key={f} value={f}>{t(`Pay.from.${f}`)}</option>)}
+          </select>
+        )}
+      </Field>
+      <Field label={t("Pay.payDay")}>{(id) => <input id={id} name="day" type="date" defaultValue={today} min={`${month}-01`} max={today} required className={field} />}</Field>
+      <button type="submit" className={primary}>{t("Pay.pay", { amount: formatMoney(BigInt(net)) })}</button>
+    </form>
   );
 }
 

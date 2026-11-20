@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { fail, ok, type Result } from "@/lib/kernel/result";
+import { verifyCaptcha } from "@/lib/security/captcha";
 import { consume } from "@/lib/security/rate-limit";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
 import { acceptInvitations } from "@/modules/identity/application/members";
@@ -12,14 +13,21 @@ type LoginError = "INVALID_OR_EXPIRED_CODE" | "TOO_MANY_REQUESTS";
 /**
  * Sends a code if the number is eligible. The answer never says whether a code went out (poultry-auth §0.9):
  * an invalid number, a per-number or a global block all look like success. Only an IP/subnet flood gets 429.
+ * Order: IP/subnet limits, then the captcha, then the number, prefix and SMS-cost limits. So a request without a
+ * solved captcha never spends a farmer's per-number budget or the global SMS cap.
  */
-export async function requestCode(rawPhone: string, net: Net): Promise<"sent_if_eligible" | "TOO_MANY_REQUESTS"> {
-  const phone = PhoneNumber.create(rawPhone);
-  const target = phone.ok ? { phone: phone.value.e164, prefix: phone.value.e164.slice(0, 7), global: "sms" } : {};
-  const blocked = await consume("requestCode", { ...net, ...target });
+export async function requestCode(
+  rawPhone: string,
+  net: Net,
+  captcha?: unknown,
+): Promise<"sent_if_eligible" | "TOO_MANY_REQUESTS" | "CAPTCHA_REQUIRED"> {
+  if ((await consume("requestCode", net)).length > 0) return "TOO_MANY_REQUESTS";
+  if (!(await verifyCaptcha(captcha))) return "CAPTCHA_REQUIRED";
 
-  if (blocked.includes("ip") || blocked.includes("subnet")) return "TOO_MANY_REQUESTS";
-  if (phone.ok && blocked.length === 0) await auth.api.sendPhoneNumberOTP({ body: { phoneNumber: phone.value.e164 } });
+  const phone = PhoneNumber.create(rawPhone);
+  if (!phone.ok) return "sent_if_eligible";
+  const blocked = await consume("requestCode", { phone: phone.value.e164, prefix: phone.value.e164.slice(0, 7), global: "sms" });
+  if (blocked.length === 0) await auth.api.sendPhoneNumberOTP({ body: { phoneNumber: phone.value.e164 } });
   return "sent_if_eligible";
 }
 

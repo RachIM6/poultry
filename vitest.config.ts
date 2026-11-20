@@ -24,7 +24,8 @@ export default defineConfig({
           globalSetup: "src/test/global-setup.ts",
           setupFiles: "src/test/db.ts",
           fileParallelism: false,
-          env: { DATABASE_URL: process.env.TEST_DATABASE_URL },
+          // Login helpers skip the captcha; src/lib/security/captcha.int.test.ts turns it back on.
+          env: { DATABASE_URL: process.env.TEST_DATABASE_URL, CAPTCHA_DISABLED: "true" },
         },
       },
     ],

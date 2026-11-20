@@ -169,6 +169,14 @@ model RateLimitHit {
   @@index([key, at])
 }
 
+// Owner: src/lib/security/captcha.ts. Captcha challenges already used, kept until they expire (single use).
+model CaptchaUse {
+  id        String   @id // SHA-256 of the challenge's HMAC signature
+  expiresAt DateTime @db.Timestamptz
+
+  @@index([expiresAt])
+}
+
 enum Locale {
   ar
   fr

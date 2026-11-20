@@ -34,6 +34,19 @@ test("auth endpoints refuse cross-site requests (CSRF)", async ({ request }) => 
   expect(res.status()).toBe(403);
 });
 
+// T26: the production build checks the captcha for real (the form above solved one); a bare request is refused.
+test("a code request without a solved captcha is refused", async ({ page }) => {
+  await page.goto("/fr/login");
+  const status = await page.evaluate(() =>
+    fetch("/api/auth/request-code", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-requested-with": "poultry" },
+      body: JSON.stringify({ phone: "0612345678" }),
+    }).then((r) => r.status),
+  );
+  expect(status).toBe(400);
+});
+
 // T25 S3: the Content-Security-Policy is sent, and the app itself never trips it.
 test("pages send a Content-Security-Policy that the app doesn't violate", async ({ page }) => {
   const violations: string[] = [];

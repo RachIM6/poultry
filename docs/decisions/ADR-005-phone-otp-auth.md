@@ -1,7 +1,7 @@
 # ADR-005: Phone number + one-time code, database sessions
 
 ## Status
-Accepted (2026-10-28, task T5): **Better Auth 1.7.14** behind our own route handlers. The SMS / WhatsApp provider is still open (SPEC OQ2), and so is the captcha (deferred to before the pilot).
+Accepted (2026-10-28, task T5): **Better Auth 1.7.14** behind our own route handlers. The SMS / WhatsApp provider is still open (SPEC OQ2). The captcha, deferred in T5, was added on 2026-11-20 (see "Not done in T5").
 
 ## Date
 2026-10-27
@@ -50,7 +50,7 @@ Accepted differences from `poultry-auth` (consequences of using the library as i
 - **Sliding refresh extends the database row, but not the cookie, when the session is read from a page.** Route handlers that forward Better Auth's headers refresh both (the sync endpoints in T8 will).
 
 Not done in T5:
-- the captcha on code requests (ALTCHA candidate): before the pilot, with T26. **Until it exists, and until `TRUSTED_PROXY_HOPS` makes the IP limits apply, the per-number limits can be used against a farmer:** anyone who knows the number can use up its verify budget (10 / h) and block that farmer's login. The global and prefix caps can also be spent cheaply. This is acceptable in development only; T26 lists both as blockers;
+- the captcha on code requests (ALTCHA candidate): before the pilot, with T26. **Done on 2026-11-20** (branch `feat/login-captcha`): self-hosted ALTCHA proof of work, `altcha-lib` 2.9.0 (exact pin), behind `verifyCaptcha()` in `src/lib/security/captcha.ts`, single use (`CaptchaUse` table). `POST /api/auth/request-code` checks the IP and subnet limits, then the captcha, and only then counts the number, prefix and global limits, so a request without a solved captcha spends neither a farmer's code budget nor the SMS cap. **Still open:** `TRUSTED_PROXY_HOPS` for the chosen host (without it the IP and subnet limits don't apply), and the adaptive captcha on `verify-code`: until then anyone who knows a number can still use up its verify budget (10 / h) and block that farmer's login. Acceptable in development only; T26 lists both as blockers;
 - auth audit events: `AuditEvent` requires an `organizationId`, so they come with the tenant context (T6);
 - logout refusing while unsynced changes exist: with the outbox (T9).
 

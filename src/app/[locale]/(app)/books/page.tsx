@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { readBooks, type IncomeStatement } from "@/modules/finance";
+import { batchOf, readBooks, type IncomeStatement } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { table } from "@/components/ui";
@@ -76,6 +76,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
               <th className="p-2 text-start">{t("Books.day")}</th>
               <th className="p-2 text-start">{t("Books.label")}</th>
               <th className="p-2 text-start">{t("Books.account")}</th>
+              <th className="p-2 text-start">{t("Books.batch")}</th>
               <th className="p-2 text-end">{t("Books.receipt")}</th>
               <th className="p-2 text-end">{t("Books.expense")}</th>
             </tr>
@@ -86,12 +87,13 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
                 <td className="p-2">{day(r.day)}</td>
                 <td className="p-2">{r.label}{r.counterAccounts.length > 0 && <span className="text-muted"> · {r.counterAccounts.map((a) => books.labels[a] ?? a).join(", ")}</span>}</td>
                 <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
+                <td className="p-2">{batchOf(books.tags, r.entryId)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.receipt)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.expense)}</td>
               </tr>
             ))}
             <tr className="border-t-2 border-line font-semibold">
-              <td className="p-2" colSpan={3}>{t("Books.total")}</td>
+              <td className="p-2" colSpan={4}>{t("Books.total")}</td>
               <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.receipts)}</td>
               <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.expenses)}</td>
             </tr>

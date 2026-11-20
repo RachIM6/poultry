@@ -9,13 +9,21 @@ type Books = {
   cashBook: { rows: CashBookRow[]; receipts: bigint; expenses: bigint };
   journals?: { journal: string; entries: { id: string; day: string; label: string; lines: Line[] }[] }[];
   trialBalance?: { rows: TrialBalanceRow[]; debit: bigint; credit: bigint };
+  tags?: EntryTags; // FN16, FN18: each entry's party, farm, house and batch
 };
 
 /** FN18's analytic columns of an entry: party, farm, house, batch (its placement day), read from the record it posts. */
 export type EntryTags = ReadonlyMap<string, readonly [party: string, farm: string, house: string, batch: string]>;
 
+/** FN16's batch of an entry, as the books show it: its house and placement day ("B1 · 01/03/2026"), or nothing. */
+export function batchOf(tags: EntryTags, entryId: string) {
+  const [, , house, day] = tags.get(entryId) ?? [];
+  return day ? `${house} · ${day}` : "";
+}
+
 /** The sheets of a period's export, each with the file name it gets as CSV. A `cash_book` entity only has its cash book. */
-export function exportSheets(books: Books, tags: EntryTags = new Map()): (Sheet & { file: string })[] {
+export function exportSheets(books: Books): (Sheet & { file: string })[] {
+  const tags = books.tags ?? new Map();
   const label = (account: string) => books.labels[account] ?? "";
   const sheets: (Sheet & { file: string })[] = [];
   if (books.journals) {
@@ -37,10 +45,10 @@ export function exportSheets(books: Books, tags: EntryTags = new Map()): (Sheet 
   sheets.push({
     name: "Recettes et dépenses",
     file: "recettes-depenses",
-    header: ["Date", "Libellé", "Compte", "Libellé du compte", "Contrepartie", "Recette", "Dépense"],
+    header: ["Date", "Libellé", "Compte", "Libellé du compte", "Contrepartie", "Lot", "Recette", "Dépense"],
     rows: [
-      ...c.rows.map((r) => [{ day: r.day }, r.label, r.account, label(r.account), r.counterAccounts.map((a) => `${a} ${label(a)}`).join(", "), r.receipt, r.expense]),
-      ["Total", "", "", "", "", c.receipts, c.expenses],
+      ...c.rows.map((r) => [{ day: r.day }, r.label, r.account, label(r.account), r.counterAccounts.map((a) => `${a} ${label(a)}`).join(", "), batchOf(tags, r.entryId), r.receipt, r.expense]),
+      ["Total", "", "", "", "", "", c.receipts, c.expenses],
     ],
   });
   return sheets;

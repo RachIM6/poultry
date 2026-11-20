@@ -185,7 +185,7 @@ Done 2026-11-15 (branch `feat/t36-books`):
 - **Cash book scope:** the lines on 51xx, without 5115 (a transfer only passes through it; its two legs show on the accounts it moves money between).
 - `/books` is online (owner, manager): month navigation, and only the views the profile keeps.
 
-Not yet: the batch column in the cash book (FN16 "with category and batch"). Ledger lines carry no batch tag; T34 computes results from facts.
+The batch column came on 2026-11-20 (branch `feat/cash-book-batch`): `readBooks` returns each entry's tags (the export's, read from its source record, `application/tags.ts`), and the cash book shows and exports the batch of each line ("B1 · 01/03/2026": house and placement day), blank for a general expense or a transfer.
 
 **Size:** M
 

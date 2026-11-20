@@ -15,6 +15,8 @@ import { notify } from "@/modules/notifications";
 // SPEC-m2-compliance DC2, ADR-011, light module: files in PostgreSQL. The route handlers are only HTTP around this.
 
 const WHO: Record<FilePurpose, Action> = { proof: "biosecurity.record", document: "documents.manage", receipt: "finance.record" };
+// Reading may be wider than uploading: the accountant partner reads the books and their export (SPEC-m5 PA5), receipts included.
+const READERS: Record<FilePurpose, Action> = { ...WHO, receipt: "money.read" };
 
 export async function storeFile(ctx: TenantContext, purpose: FilePurpose, bytes: Uint8Array): Promise<Result<{ id: string }, "FORBIDDEN" | "FILE_TOO_LARGE" | "FILE_TYPE_NOT_ALLOWED">> {
   if (!can(ctx, WHO[purpose])) return fail("FORBIDDEN");
@@ -34,7 +36,7 @@ export async function storeFile(ctx: TenantContext, purpose: FilePurpose, bytes:
 /** The caller's organisation's file, if their role may see it. Anything else is NOT_FOUND: never say it exists. */
 export async function readFile(ctx: TenantContext, id: string): Promise<Result<{ bytes: Uint8Array; contentType: FileType; sha256: string }, "NOT_FOUND">> {
   const f = await db.storedFile.findFirst({ where: { id, organizationId: ctx.organizationId } });
-  if (!f || !can(ctx, WHO[f.purpose as FilePurpose])) return fail("NOT_FOUND");
+  if (!f || !can(ctx, READERS[f.purpose as FilePurpose])) return fail("NOT_FOUND");
   return ok({ bytes: f.bytes, contentType: f.contentType as FileType, sha256: f.sha256 });
 }
 

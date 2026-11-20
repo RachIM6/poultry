@@ -17,7 +17,7 @@ import { exportSheets, receiptName, type EntryTags } from "@/modules/finance/dom
 /**
  * FN18: a month of books for the accountant, as one .zip: one CSV per sheet, the same sheets in one .xlsx, and the
  * month's expense receipts in `pieces/`, each named after its entry's day and id (the "Pièce" column).
- * Owners and managers only, like /books.
+ * Owners, managers and the accountant partner (`money.read`), like /books.
  */
 export async function exportBooks(ctx: TenantContext, month: string): Promise<Result<{ file: string; zip: Buffer }, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND">> {
   const books = await readBooks(ctx, month);

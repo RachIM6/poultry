@@ -125,3 +125,27 @@ describe("supplier payments (SPEC-finance FN6)", () => {
     expect(pay(method)).toEqual({ journal, label: "Paiement fournisseur", lines: [{ account: "4411", debit: 250_000n, credit: 0n }, { account, debit: 0n, credit: 250_000n }] });
   });
 });
+
+describe("pay (SPEC-m4 WF10, WF12; accounts to confirm with the accountant)", () => {
+  it("pays an advance from the cash box: D 3431 / C 5161", () => {
+    expect(postingOf({ type: "advance", id: "a", day, amount: 50_000n })).toEqual({ journal: "CA", label: "Avance sur salaire", lines: [{ account: "3431", debit: 50_000n, credit: 0n }, { account: "5161", debit: 0n, credit: 50_000n }] });
+  });
+
+  it("books a validated month: gross on 6171, advances back off 3431, the net owed on 4432", () => {
+    expect(postingOf({ type: "pay", id: "p", day, gross: 400_000n, advances: 50_000n, employeeContribution: null, employerContribution: null, net: 350_000n })).toEqual({
+      journal: "OD",
+      label: "Paie du mois",
+      lines: [{ account: "6171", debit: 400_000n, credit: 0n }, { account: "3431", debit: 0n, credit: 50_000n }, { account: "4432", debit: 0n, credit: 350_000n }],
+    });
+  });
+
+  it("adds the CNSS contributions once the rates are entered: employee's off the net, employer's on 6174", () => {
+    expect(postingOf({ type: "pay", id: "p", day, gross: 400_000n, advances: 0n, employeeContribution: 18_000n, employerContribution: 85_000n, net: 382_000n })?.lines).toEqual([
+      { account: "6171", debit: 400_000n, credit: 0n },
+      { account: "4441", debit: 0n, credit: 18_000n },
+      { account: "4432", debit: 0n, credit: 382_000n },
+      { account: "6174", debit: 85_000n, credit: 0n },
+      { account: "4441", debit: 0n, credit: 85_000n },
+    ]);
+  });
+});

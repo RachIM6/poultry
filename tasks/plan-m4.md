@@ -225,5 +225,5 @@ Done 2026-11-17 (branch `feat/t84-climate-history`), decisions taken without ask
 - T78 CNSS export and payslips (MQ3), income tax (MQ4).
 - Work accident declarations and their deadlines (MQ6).
 - Targets per production type (after M3 merges), sensors and controllers (`iot`), escalation chain (MQ5, OQ2), weather alerts (external service: ask first).
-- Pay posted to finance (6171 / 4441 / 4432 in the mockup, to confirm with the accountant).
+- ~~Pay posted to finance.~~ Done 2026-11-20 (branch `feat/pay-postings`), accounts still to confirm with the accountant: an advance posts D 3431 / C 5161 (CA: M4 records no payment method, so the cash box); a validated pay month posts on its last day in OD: D 6171 gross, C 3431 the advances taken back, C 4441 the employee's CNSS share and D 6174 / C 4441 the employer's (only once the rates are entered, MQ3), C 4432 the net. Labels from the PCA text. Not yet: recording the wages paid (D 4432 / C cash), so the net stays owed on 4432 and the treasury schedule doesn't count it; pay shared over batches in the results.
 - Workforce tasks on the "Aujourd'hui" home itself (UI session).

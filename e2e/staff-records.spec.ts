@@ -28,12 +28,13 @@ for (const locale of ["fr", "ar"] as const) {
     await context.route("**", (route) => route.abort("internetdisconnected"));
     await form.getByLabel(t("Records.topic")).selectOption({ label: t("Records.topics.vaccination") });
     await form.getByRole("button", { name: t("Records.save"), exact: true }).click();
+    const list = page.getByRole("list", { name: t("Records.list") }).getByRole("listitem");
+    await expect(list).toHaveCount(1); // saved and the form reset: filling it earlier loses what is typed
     await form.getByLabel(t("Records.kind")).selectOption({ label: t("Records.kinds.accident") });
     await form.getByLabel(t("Records.what")).fill("Coupure à la main en réparant une mangeoire");
     await form.getByLabel(t("Records.daysOff")).fill("2");
     await form.getByRole("button", { name: t("Records.save"), exact: true }).click();
 
-    const list = page.getByRole("list", { name: t("Records.list") }).getByRole("listitem");
     await expect(list).toHaveCount(2);
     const accident = list.filter({ hasText: "Coupure à la main" });
     await expect(accident).toContainText(t("Records.daysOffLine").replace("{days}", "2"));

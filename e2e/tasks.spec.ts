@@ -25,7 +25,8 @@ test("a routine and a one-off task added offline join today's tasks, survive a r
   await routine.getByLabel("Heure (facultatif)").fill("07:30");
   await routine.getByRole("button", { name: "Enregistrer la tâche régulière" }).click();
 
-  const oneOff = page.getByRole("form", { name: "Ajouter une tâche" });
+  // exact: "Ajouter une tâche régulière" contains it, and that form may still be closing
+  const oneOff = page.getByRole("form", { name: "Ajouter une tâche", exact: true });
   await oneOff.getByLabel("Tâche").fill("Recevoir le camion d’aliment");
   await oneOff.getByLabel("Heure (facultatif)").fill("09:00");
   await oneOff.getByRole("button", { name: "Ajouter la tâche" }).click();

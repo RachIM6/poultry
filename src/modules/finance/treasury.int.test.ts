@@ -70,6 +70,10 @@ describe("treasury and quick expenses (SPEC-finance FN3, FN6, FX2, FX4, T32)", (
     expect(await attachExpenseReceipt(a, e.payload.id, file.value.id)).toEqual({ ok: true, value: undefined });
     expect(await attachExpenseReceipt(a, e.payload.id, file.value.id)).toEqual({ ok: false, error: "FILE_ALREADY_ATTACHED" });
     expect(await readFile({ ...a, role: "worker" }, file.value.id)).toEqual({ ok: false, error: "NOT_FOUND" });
+    const accountant = { ...a, role: "accountant" as const }; // SPEC-m5 PA5: reads the books, so their receipts, but adds none
+    expect((await readFile(accountant, file.value.id)).ok).toBe(true);
+    expect(await storeFile(accountant, "receipt", png)).toEqual({ ok: false, error: "FORBIDDEN" });
+    expect(await attachExpenseReceipt(accountant, e.payload.id, file.value.id)).toEqual({ ok: false, error: "FORBIDDEN" });
 
     const pulled = (await pull(a, 0, registry)).changes.filter((c) => c.entity === "expense" && c.id === e.payload.id).map((c) => c.data);
     expect(pulled.at(-1)).toEqual({ ...(pulled[0] as object), receiptFileId: file.value.id }); // the phone gets the same expense, with its receipt
@@ -82,6 +86,8 @@ describe("treasury and quick expenses (SPEC-finance FN3, FN6, FX2, FX4, T32)", (
     const zipped = await exportBooks(a, "2026-03");
     if (!zipped.ok) throw new Error(zipped.error);
     expect(zipped.value.zip.includes(`pieces/2026-03-12_${entry.id}.png`)).toBe(true);
+    const accountantZip = await exportBooks(accountant, "2026-03");
+    expect(accountantZip.ok && accountantZip.value.zip.includes(`pieces/2026-03-12_${entry.id}.png`)).toBe(true);
     const april = await exportBooks(a, "2026-04");
     if (!april.ok) throw new Error(april.error);
     expect(april.value.zip.includes("pieces/")).toBe(false); // only the month's entries bring their receipts

@@ -155,7 +155,7 @@ Done 2026-11-15 (branch `feat/t34-batch-result`), decisions taken without asking
   - `/results` is online (owner, manager): each batch's sales, cost, margin, margin and cost per kg, % of sales, and the cost breakdown, newest first, which serves as FN13's comparison with past batches.
 
 Not yet:
-- The comparison of mortality, FCR, feed price and price per kg next to the result (the M1 KPIs are on the phone).
+- ~~The comparison of mortality, FCR, feed price and price per kg next to the result.~~ Done 2026-11-20 (branch `feat/results-kpis`): under each batch on `/results`, "Mortalité · IC · aliment DH/kg · vendu DH/kg" (`batchComparison`, integers: ‰ dead and culled per started bird, feed grams × 1000 ÷ grams sold, the feed consumed's cost per kg from `batchConsumption`, sales ÷ kg sold). "—" where nothing was eaten or sold.
 - The ledger's analytic tags (batch on 712x lines).
 
 **Size:** L

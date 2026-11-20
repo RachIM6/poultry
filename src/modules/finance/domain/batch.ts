@@ -46,6 +46,19 @@ export function batchResult(r: { salesCentimes: bigint; costCentimes: bigint; so
   };
 }
 
+/** FN13's comparison with the farm's last batches, in integers: ‰ lost, FCR × 1000, DH/kg of feed and of sales. */
+export type BatchComparison = { lostPermille: bigint | null; fcrMilli: bigint | null; feedPricePerKgCentimes: bigint | null; pricePerKgCentimes: bigint | null };
+
+/** FN13: dead and culled per started bird, feed ÷ kg sold (farm weight), the feed's cost per kg and the sales' price per kg. */
+export function batchComparison(r: { started: number; lost: number; feedGrams: bigint; feedCentimes: bigint; soldGrams: bigint; salesCentimes: bigint }): BatchComparison {
+  return {
+    lostPermille: r.started > 0 ? divRound(BigInt(r.lost) * 1000n, BigInt(r.started)) : null,
+    fcrMilli: r.soldGrams > 0n && r.feedGrams > 0n ? divRound(r.feedGrams * 1000n, r.soldGrams) : null,
+    feedPricePerKgCentimes: r.feedGrams > 0n ? divRound(r.feedCentimes * 1000n, r.feedGrams) : null,
+    pricePerKgCentimes: r.soldGrams > 0n ? divRound(r.salesCentimes * 1000n, r.soldGrams) : null,
+  };
+}
+
 /**
  * FN14: the bird-days of a batch over [from, to] (farm days, inclusive): the birds on hand at the start of each day it
  * was present. `losses` and `sold` are what left on each day (it counts from the next day).

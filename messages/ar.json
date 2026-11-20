@@ -804,7 +804,8 @@
     "share": "% من المبيعات",
     "costs": "الكتاكيت {chicks} · الاستهلاكات {consumption} · أخرى {other} · مباشرة {direct} · موزعة (تكاليف مشتركة وأجور) {allocated}",
     "open_": "جارية",
-    "closed": "مغلقة بتاريخ {date}"
+    "closed": "مغلقة بتاريخ {date}",
+    "kpis": "النفوق {lost} · مؤشر التحويل {fcr} · العلف {feed}/كغ · البيع {price}/كغ"
   },
   "Budget": {
     "title": "ميزانية دفعة",

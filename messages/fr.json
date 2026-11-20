@@ -804,7 +804,8 @@
     "share": "% des ventes",
     "costs": "Poussins {chicks} · consommations {consumption} · autres {other} · direct {direct} · réparti (charges communes et salaires) {allocated}",
     "open_": "en cours",
-    "closed": "clôturée le {date}"
+    "closed": "clôturée le {date}",
+    "kpis": "Mortalité {lost} · IC {fcr} · aliment {feed}/kg · vendu {price}/kg"
   },
   "Budget": {
     "title": "Budget d’une bande",

@@ -35,6 +35,14 @@ async function Results() {
   const results = await batchResults(ctx.value);
   if (!results.ok) return <p>{t("Expenses.forbidden")}</p>;
   const money = (c: bigint | null) => (c === null ? "—" : formatMoney(c));
+  // FN13: the comparison with the farm's last batches, under each batch
+  const kpis = (c: (typeof results.value)[number]["comparison"]) =>
+    t("Results.kpis", {
+      lost: c.lostPermille === null ? "—" : permille(c.lostPermille),
+      fcr: c.fcrMilli === null ? "—" : `${c.fcrMilli / 1000n},${String(c.fcrMilli % 1000n).padStart(3, "0").slice(0, 2)}`,
+      feed: money(c.feedPricePerKgCentimes),
+      price: money(c.pricePerKgCentimes),
+    });
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Results.title")}</h1>
@@ -60,6 +68,7 @@ async function Results() {
                   <td className="p-2">
                     <div className="font-semibold">{r.houseName} · {formatDay(r.placedOn as FarmDay, lang)}</div>
                     <div className="text-muted">{r.closedOn ? t("Results.closed", { date: formatDay(r.closedOn as FarmDay, lang) }) : t("Results.open_")}</div>
+                    <div>{kpis(r.comparison)}</div>
                     <div className="text-muted">
                       {t("Results.costs", { chicks: money(r.costs.chicks), consumption: money(r.costs.consumption), other: money(r.costs.other), direct: money(r.costs.direct), allocated: money(r.costs.allocated) })}
                     </div>

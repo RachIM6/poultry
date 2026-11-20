@@ -461,6 +461,7 @@ model Purchase {
   amountCentimes    BigInt
   vatCentimes       BigInt    @default(0) // SPEC-finance FN9: the invoice's VAT, part of amountCentimes
   paidCentimes      BigInt
+  paidMethod        String    @default("cash") // SPEC-finance FN6: how the part paid at once was paid: cash | transfer | cheque | bill
   dueOn             DateTime? @db.Date
   createdAt         DateTime  @default(now()) @db.Timestamptz
 

@@ -4,7 +4,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { supplierDues } from "@/modules/inventory/domain/suppliers";
 import type { PurchaseDto, SupplierPaymentDto } from "@/modules/inventory/shared";
 
-export type PurchaseChange = { version: bigint; id: string; farmId: string; day: FarmDay; itemKind: string; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint };
+export type PurchaseChange = { version: bigint; id: string; farmId: string; day: FarmDay; itemKind: string; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint; paidMethod: string };
 
 /**
  * For finance (SPEC-finance FN7): purchases recorded or changed after `after` (this organisation's change-log
@@ -16,7 +16,7 @@ export async function purchasesChangedSince(tx: Tx, ctx: TenantContext, after: b
     orderBy: { version: "asc" },
     take: limit,
   });
-  const purchases = changes.filter((c) => c.data !== null).map((c) => ({ version: c.version, p: c.data as unknown as PurchaseDto & Required<Omit<PurchaseDto, "vatCentimes">> }));
+  const purchases = changes.filter((c) => c.data !== null).map((c) => ({ version: c.version, p: c.data as unknown as PurchaseDto & Required<Omit<PurchaseDto, "vatCentimes" | "paidMethod">> }));
   const items = await tx.stockItem.findMany({ where: { organizationId: ctx.organizationId, id: { in: purchases.map((x) => x.p.stockItemId) } } });
   const kindOf = new Map(items.map((i) => [i.id, i.kind]));
   return purchases.map(({ version, p }) => ({
@@ -28,6 +28,7 @@ export async function purchasesChangedSince(tx: Tx, ctx: TenantContext, after: b
     amountCentimes: BigInt(p.amountCentimes),
     paidCentimes: BigInt(p.paidCentimes),
     vatCentimes: BigInt(p.vatCentimes ?? 0), // absent before T39
+    paidMethod: p.paidMethod ?? "cash", // absent before purchases had one: cash, as they were posted
   }));
 }
 

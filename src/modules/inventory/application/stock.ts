@@ -68,6 +68,7 @@ export async function recordPurchase(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
     amountCentimes: priced.value.amountCentimes,
     paidCentimes,
     vatCentimes,
+    paidMethod: cmd.paidMethod,
     dueOn: cmd.dueOn,
   });
   const movement = await insertMovement(tx, ctx, { id: cmd.movementId, ...base, kind: "purchase", reason: null, purchaseId: purchase.id });

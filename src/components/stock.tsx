@@ -422,6 +422,7 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
       unitPriceCentimes: String(parsed.price),
       paidCentimes: String(paid),
       vatCentimes: String(vat),
+      paidMethod: get("paidMethod") as NonNullable<PurchaseDto["paidMethod"]>,
       dueOn: get("dueOn") || null,
     };
     const movementId = uuidv7();
@@ -448,6 +449,9 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
       <Field name="price" label={t("Stock.unitPrice", { unit: unitName })} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" required dir="ltr" />
       {amount !== null && <p>{t("Stock.amount", { amount: formatMoney(amount) })}</p>}
       <Field name="paid" label={t("Stock.paid")} defaultValue="0" inputMode="decimal" dir="ltr" />
+      <Select name="paidMethod" label={t("Stock.payMethod")} defaultValue="cash">
+        {SUPPLIER_PAYMENT_METHODS.map((m) => <option key={m} value={m}>{t(`Stock.payMethods.${m}`)}</option>)}
+      </Select>
       <Field name="vat" label={t("Stock.vat")} inputMode="decimal" dir="ltr" />
       <Field name="dueOn" label={t("Stock.dueOn")} type="date" />
       {invalid && <p role="alert">{t("Stock.invalid")}</p>}

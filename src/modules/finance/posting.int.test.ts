@@ -21,8 +21,8 @@ const linesOf = async (where: object) =>
 describe("posting pipeline (SPEC-finance FN6–FN7, T30)", () => {
   let a: TenantContext, b: TenantContext;
   const ids = { farm: uuidv7(), house: uuidv7(), supplier: uuidv7(), feed: uuidv7(), batch: uuidv7(), purchase: uuidv7() };
-  const purchase = (id: string, paid: string) =>
-    m("inventory.recordPurchase", { id, movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: "2026-03-02", quantity: 2_000_000, unitPriceCentimes: "450", paidCentimes: paid, dueOn: null });
+  const purchase = (id: string, paid: string, paidMethod?: string) =>
+    m("inventory.recordPurchase", { id, movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: "2026-03-02", quantity: 2_000_000, unitPriceCentimes: "450", paidCentimes: paid, paidMethod, dueOn: null });
 
   beforeAll(async () => {
     const { accounts } = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
@@ -83,6 +83,15 @@ describe("posting pipeline (SPEC-finance FN6–FN7, T30)", () => {
     expect(entries.find((e) => e.id === reversal.reversesId)?.sourceId).toBe(ids.purchase);
     expect((await linesOf({ id: entries.at(-1)!.id }))).toEqual([["5161", 0n, 900_000n], ["612122", 900_000n, 0n]]);
     expect(await db.journalEntry.count({ where: { sourceId: ids.batch } })).toBe(1);
+  });
+
+  it("takes a purchase's paid part from the bank when it was paid by cheque (FN6); without a method, the cash box", async () => {
+    const id = uuidv7();
+    const pushed = await push(a, [purchase(id, "100000", "cheque")], registry);
+    expect(pushed.results.map((r) => r.status)).toEqual(["applied"]);
+    await postPending(a);
+    expect(await linesOf({ sourceModule: "inventory", sourceId: id })).toEqual([["4411", 0n, 800_000n], ["5141", 0n, 100_000n], ["612122", 900_000n, 0n]]);
+    expect((await db.purchase.findUniqueOrThrow({ where: { id } })).paidMethod).toBe("cheque");
   });
 
   it("posts to the CGNC account (6121) when the PCA is off", async () => {

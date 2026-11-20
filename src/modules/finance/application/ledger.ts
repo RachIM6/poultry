@@ -5,8 +5,8 @@ import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { booksAllowed, legalEntityIn, listLegalEntities, saveAccountingChoices } from "@/modules/farm-registry";
-import { AccountingChoicesInput } from "@/modules/finance/schema";
+import { z } from "zod";
+import { BOOKS, booksAllowed, legalEntityIn, listLegalEntities, saveAccountingChoices } from "@/modules/farm-registry";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { checkEntry, firstOpenMonth, fiscalYearOf, monthOf, openingLines, reversalOf, type EntryError } from "@/modules/finance/domain/entry";
 import {
@@ -115,6 +115,14 @@ export async function openFiscalYear(ctx: TenantContext, legalEntityId: string, 
     return posted.ok ? ok(id) : posted;
   });
 }
+
+/** FN1, FN9: the owner's accounting choices; null keeps the legal form's default, an absent vatRegistered keeps it. */
+const AccountingChoicesInput = z.object({
+  books: z.enum(BOOKS).nullable(),
+  pcaOverlay: z.boolean().nullable(),
+  fiscalYearStartMonth: z.int32().min(1).max(12),
+  vatRegistered: z.boolean().optional(),
+});
 
 /**
  * FN1 (from T27): the owner changes the books, the PCA overlay, the fiscal-year start or VAT registration (FN9) only

@@ -35,3 +35,24 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   expect([...files.keys()]).toEqual([`recettes-depenses-${month}.csv`, `livres-${month}.xlsx`]);
   expect(files.get(`recettes-depenses-${month}.csv`)).toMatch(/;5161;Caisses;[^;]+;0,00;450,00\r\nTotal;;;;;0,00;450,00\r\n$/);
 });
+
+// U16 (mockup F-Statements): a full-books entity's draft income statement, from its trial balance.
+test("a full-books entity sees its draft income statement", async ({ page }) => {
+  test.setTimeout(90_000);
+  const e164 = await ownerWithFarm(page, "Élevage du CPC");
+  await scopeRemembered(page);
+  await query(`UPDATE "LegalEntity" SET books = 'ledger' WHERE "organizationId" = (SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`, [e164]);
+  const box = crypto.randomUUID();
+  const expense = (category: string, amountCentimes: string) => ({ type: "finance.recordExpense", payload: { id: crypto.randomUUID(), day: farmDaysAgo(0), category, amountCentimes, paidFrom: "cash", treasuryId: box, note: null, batchId: null, serviceMonth: null } });
+  await pushAs(page, [{ type: "finance.createTreasuryAccount", payload: { id: box, kind: "cash", name: "Caisse" } }, expense("water", "45000"), expense("vet_fees", "20000")]);
+  await expect
+    .poll(async () => (await query<{ n: number }>(`SELECT count(*)::int AS n FROM "JournalEntry" j JOIN "Membership" m ON m."organizationId" = j."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`, [e164]))[0].n)
+    .toBe(2);
+
+  await page.goto("/fr/books");
+  await page.getByRole("link", { name: "Produits et charges" }).click();
+  const cpc = page.getByRole("table", { name: "Produits et charges" });
+  await expect(cpc.getByRole("row").filter({ hasText: "Charges d’exploitation" })).toContainText(/650,00/);
+  await expect(cpc.getByRole("row").filter({ hasText: /^612 / })).toContainText(/450,00/);
+  await expect(cpc.getByRole("row").filter({ hasText: "Résultat net" })).toContainText(/-650,00/);
+});

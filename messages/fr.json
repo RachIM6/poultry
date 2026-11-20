@@ -760,7 +760,10 @@
     "shared": "Partagée entre les bandes présentes ce mois-là",
     "general": "Frais généraux (aucune bande)",
     "month": "Mois concerné (si partagée)",
-    "batch": "Bande {house} du {date}"
+    "batch": "Bande {house} du {date}",
+    "receipt": "Voir le reçu",
+    "receiptMissing": "Reçu à ajouter (après envoi, avec du réseau)",
+    "receiptAdd": "Ajouter le reçu"
   },
   "Treasury": {
     "title": "Trésorerie",
@@ -783,7 +786,10 @@
     "inflow": "À encaisser",
     "outflow": "À payer",
     "cashAfter": "Trésorerie prévue",
-    "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur (les retards comptent cette semaine). Ventes et achats à venir non compris."
+    "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur (les retards comptent cette semaine). Ventes et achats à venir non compris.",
+    "receipt": "Reçu",
+    "receiptView": "Voir",
+    "receiptMissing": "Manquant"
   },
   "Results": {
     "title": "Résultats des bandes",

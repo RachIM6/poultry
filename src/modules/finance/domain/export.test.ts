@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toCsv } from "@/lib/kernel/sheet";
 import { cashBookOf, trialBalance } from "@/modules/finance/domain/books";
-import { exportSheets } from "@/modules/finance/domain/export";
+import { exportSheets, receiptName } from "@/modules/finance/domain/export";
 
 // SPEC-finance FN18 (T38): the accountant's export of a period.
 const sale = { id: "e1", day: "2026-03-20", label: "=Vente lot 1", lines: [{ account: "5161", debit: 300_000n, credit: 0n }, { account: "71211", debit: 0n, credit: 300_000n }] };
@@ -35,5 +35,10 @@ describe("export to the accountant (FN18)", () => {
 
   it("gives a cash-book entity its cash book only", () => {
     expect(exportSheets({ labels, cashBook: ledger.cashBook }).map((s) => s.name)).toEqual(["Recettes et dépenses"]);
+  });
+
+  it("names each receipt after its entry's day and id, the entries sheet's Pièce", () => {
+    expect(receiptName("2026-03-21", "e2", "image/jpeg")).toBe("pieces/2026-03-21_e2.jpg");
+    expect(receiptName("2026-03-21", "e2", "application/pdf")).toBe("pieces/2026-03-21_e2.pdf");
   });
 });

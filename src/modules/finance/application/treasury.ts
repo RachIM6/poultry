@@ -101,6 +101,37 @@ export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<ty
   return ok(undefined);
 }
 
+/**
+ * FN10: attaches the receipt photo the upload route has just stored for this organisation, once (ADR-011, like the
+ * rodent check's proof). Owners and managers, like the expense itself.
+ */
+export async function attachExpenseReceipt(ctx: TenantContext, expenseId: string, fileId: string): Promise<Result<void>> {
+  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  return db.$transaction(async (tx) => {
+    // Conditional update: of two uploads at once, only the first attaches.
+    const { count } = await tx.expense.updateMany({ where: { id: expenseId, organizationId: ctx.organizationId, receiptFileId: null }, data: { receiptFileId: fileId } });
+    const row = await tx.expense.findFirst({ where: { id: expenseId, organizationId: ctx.organizationId } });
+    if (!row) return fail("NOT_FOUND");
+    if (count === 0) return fail("FILE_ALREADY_ATTACHED");
+    const dto: ExpenseDto = {
+      id: row.id,
+      day: row.day.toISOString().slice(0, 10),
+      category: row.category as ExpenseDto["category"],
+      amountCentimes: String(row.amountCentimes),
+      vatCentimes: String(row.vatCentimes),
+      paidFrom: row.paidFrom as ExpenseDto["paidFrom"],
+      treasuryId: row.treasuryId,
+      note: row.note,
+      batchId: row.batchId,
+      serviceMonth: row.shared && row.serviceFrom ? row.serviceFrom.toISOString().slice(0, 7) : null,
+      receiptFileId: fileId,
+    };
+    await recordChange(tx, ctx, "expense", expenseId, dto);
+    await audit(tx, ctx, { entity: "Expense", entityId: expenseId, action: "update", before: { receiptFileId: null }, after: { receiptFileId: fileId } });
+    return ok(undefined);
+  });
+}
+
 /** FN6, applied by the sync push: cash deposited in the bank, cash withdrawn, or between two accounts, through 5115. */
 export async function recordTransfer(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordTransfer>, meta: Meta, clock: Clock = systemClock) {
   if ((await tx.treasuryTransfer.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
@@ -119,7 +150,8 @@ export async function recordTransfer(tx: Tx, ctx: TenantContext, cmd: z.output<t
 
 export type TreasuryOverview = {
   accounts: { id: string; kind: TreasuryKind; name: string; balanceCentimes: bigint }[];
-  movements: { day: string; journal: string; label: string; account: string; treasuryId: string | null; debitCentimes: bigint; creditCentimes: bigint }[];
+  // receipt: an expense's photo id, null when it has none yet; undefined for a movement that isn't an expense
+  movements: { day: string; journal: string; label: string; account: string; treasuryId: string | null; debitCentimes: bigint; creditCentimes: bigint; receipt?: string | null }[];
 };
 
 /** FN10: each bank account's and cash box's balance, and this month's movements on 5141 / 5161 (owner, manager). */
@@ -132,11 +164,14 @@ export async function treasuryOverview(ctx: TenantContext, month: string): Promi
     db.journalLine.groupBy({ by: ["treasuryId"], where: { ...org, treasuryId: { not: null } }, _sum: { debitCentimes: true, creditCentimes: true } }),
     db.journalLine.findMany({
       where: { ...org, account: { in: ["5141", "5161"] }, entry: { day: { gte: date(`${month}-01`), lt: date(nextMonth(month)) } } },
-      include: { entry: { select: { day: true, journal: true, label: true } } },
+      include: { entry: { select: { day: true, journal: true, label: true, sourceModule: true, sourceId: true } } },
       orderBy: [{ entry: { day: "asc" } }, { entry: { createdAt: "asc" } }],
     }),
   ]);
   const balance = new Map(balances.map((x) => [x.treasuryId, (x._sum.debitCentimes ?? 0n) - (x._sum.creditCentimes ?? 0n)]));
+  const sourceIds = lines.flatMap((l) => (l.entry.sourceModule === "finance" && l.entry.sourceId ? [l.entry.sourceId] : []));
+  const expenses = await db.expense.findMany({ where: { ...org, id: { in: sourceIds } }, select: { id: true, receiptFileId: true } });
+  const receipt = new Map(expenses.map((e) => [e.id, e.receiptFileId]));
   return ok({
     accounts: accounts.map((x) => ({ id: x.id, kind: x.kind as TreasuryKind, name: x.name, balanceCentimes: balance.get(x.id) ?? 0n })),
     movements: lines.map((l) => ({
@@ -147,6 +182,7 @@ export async function treasuryOverview(ctx: TenantContext, month: string): Promi
       treasuryId: l.treasuryId,
       debitCentimes: l.debitCentimes,
       creditCentimes: l.creditCentimes,
+      receipt: l.entry.sourceId ? receipt.get(l.entry.sourceId) : undefined,
     })),
   });
 }

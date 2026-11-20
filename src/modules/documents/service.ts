@@ -14,7 +14,7 @@ import { notify } from "@/modules/notifications";
 
 // SPEC-m2-compliance DC2, ADR-011, light module: files in PostgreSQL. The route handlers are only HTTP around this.
 
-const WHO: Record<FilePurpose, Action> = { proof: "biosecurity.record", document: "documents.manage" };
+const WHO: Record<FilePurpose, Action> = { proof: "biosecurity.record", document: "documents.manage", receipt: "finance.record" };
 
 export async function storeFile(ctx: TenantContext, purpose: FilePurpose, bytes: Uint8Array): Promise<Result<{ id: string }, "FORBIDDEN" | "FILE_TOO_LARGE" | "FILE_TYPE_NOT_ALLOWED">> {
   if (!can(ctx, WHO[purpose])) return fail("FORBIDDEN");

@@ -108,7 +108,7 @@ Done 2026-11-15 (branch `feat/t32-treasury-expenses`):
   - `/treasury` is online, owner and manager: the balances and this month's movements.
 
 Not yet:
-- The receipt photo.
+- ~~The receipt photo.~~ Done 2026-11-20 (branch `feat/expense-receipts`): once an expense is on the server and the phone online, "Ajouter le reçu" on `/expenses` uploads a photo or PDF (ADR-011: `POST /api/files?purpose=receipt&expense=<id>`, owners and managers, attached once, `Expense.receiptFileId`). `/treasury` gets a "Reçu" column (FN10): Voir, or Manquant for an expense without one. Not yet: queuing the photo while offline (ADR-011), the accountant downloading receipts (the file read follows `finance.record`, like the upload).
 - Opening balances by hand: an OD entry through `postEntry` works, but there is no screen; FQ11 for cash_book entities.
 - ~~Supplier payments.~~ Done 2026-11-20 (branch `feat/supplier-payments`): on `/stock`, "Payer" under a supplier who is owed something records a later payment offline (cash, transfer, cheque issued, bill accepted), never above what is owed (`PAID_MORE_THAN_OWED`, under the supplier's row lock). Inventory owns `SupplierPayment` (S2: balance = purchases − paid at once − later payments); finance posts FN6's rows: D 4411 / C 5161 (CA), 5141 (BQ, the cheque on its issue date) or 4415 (OD). Hidden from vets, shown to accountants. Not yet: tracking the issued cheque or accepted bill until it is cashed, and supplier due dates (the supplier side of FN12).
 - The payment method on purchases: the part paid at once still goes to 5161.
@@ -208,7 +208,7 @@ The push notification came on 2026-11-20 (branch `feat/threshold-push`): after e
 ### T38: Export to the accountant (FN18)
 **AC:**
 - [x] CSV and Excel per period open in Excel with French formatting. (`finance/domain/export.test.ts`, `lib/xlsx.test.ts`, `finance/books.int.test.ts`, `e2e/books.spec.ts`: the link on `/books` downloads the zip. Opened by hand in Excel 16: the .xlsx opens without repair, with numbers and dates; the CSV, read with French separators, gives numbers and keeps accents.)
-- [ ] Zip with receipts: no receipt is recorded yet (receipt photos are deferred). The zip gets a `pieces/` folder when they are.
+- [x] Zip with receipts: `pieces/<day>_<entry id>.<ext>`, the receipts of the expenses whose entry falls in the month, named after the entries sheet's "Pièce" (2026-11-20, branch `feat/expense-receipts`; `finance/treasury.int.test.ts`, `finance/domain/export.test.ts`). `finance` now depends on `documents` to read them (CAPABILITY-MAP, lint rule).
 
 Done 2026-11-16 (branch `feat/t38-export`), decisions taken without asking:
 - **One download per month:** `GET /api/finance/export?month=YYYY-MM` (owner, manager) gives `comptabilite-YYYY-MM.zip` with one CSV per sheet and the same sheets in `livres-YYYY-MM.xlsx`. It reuses `readBooks`, so it holds what `/books` shows: a `ledger` entity gets the entries, the trial balance (from the fiscal year's first day) and the cash book; a `cash_book` entity gets the cash book only.
@@ -217,7 +217,7 @@ Done 2026-11-16 (branch `feat/t38-export`), decisions taken without asking:
 - **Headers in French** in both locales: the CGNC and the accountants work in French.
 - **Entry columns** are FN18's. "Pièce" is the entry id (stable, traces back to the app). Party, farm, house and batch are empty: ledger lines carry no analytic tag yet (see T34, T36).
 
-Not yet: receipts in the zip; the analytic columns; the accounting software's own import format (M6, FQ10).
+Not yet: the analytic columns; the accounting software's own import format (M6, FQ10).
 
 **Size:** M
 

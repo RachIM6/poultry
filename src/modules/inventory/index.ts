@@ -5,4 +5,4 @@ export { stockOnHand, supplierBalances } from "./domain/stock";
 export { valuate } from "./domain/valuation";
 export { recordConsumption, removeConsumption } from "./application/consumption";
 export { batchConsumption, batchConsumptionCost } from "./application/batch-cost";
-export { purchasesChangedSince, supplierPaymentsChangedSince, type PurchaseChange } from "./application/changes";
+export { purchasesChangedSince, supplierDuesOf, supplierPaymentsChangedSince, type PurchaseChange } from "./application/changes";

@@ -50,3 +50,8 @@ export const formatPercent = (n: number, signed = false) => (signed ? signedPerc
 /** A ratio or rate with fixed decimals: FCR "1,49" (2), EPEF "429" (0). */
 export const formatDecimal = (n: number, decimals: number) =>
   new Intl.NumberFormat("fr", { numberingSystem: "latn", minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(n);
+
+/** A day within the next weeks, where the year goes without saying: "20 nov." */
+export function formatDayMonth(day: FarmDay, locale: string): string {
+  return new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
+}

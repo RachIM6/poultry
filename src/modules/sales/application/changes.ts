@@ -1,7 +1,8 @@
-import type { Tx } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import type { InstrumentKind, InstrumentState } from "@/modules/sales/domain/instruments";
+import { instrumentsWhere } from "@/modules/sales/infrastructure/sales";
 import type { InstrumentStatusDto, PaymentDto, SaleDto } from "@/modules/sales/shared";
 
 // For finance (SPEC-finance FN7): sales records changed after `after` (this organisation's change-log version), oldest
@@ -55,4 +56,11 @@ export async function instrumentStepsChangedSince(tx: Tx, ctx: TenantContext, af
 export async function salesByBatch(tx: Tx, ctx: TenantContext): Promise<Map<string, bigint>> {
   const rows = await tx.sale.groupBy({ by: ["batchId"], where: { organizationId: ctx.organizationId }, _sum: { amountCentimes: true } });
   return new Map(rows.map((r) => [r.batchId, r._sum.amountCentimes ?? 0n]));
+}
+
+/** For finance's cash schedule (F-Effects): the cheques and bills received and not yet cashed or returned, by due date. */
+export async function instrumentsToCollect(ctx: TenantContext): Promise<{ dueOn: string; amountCentimes: bigint }[]> {
+  return (await instrumentsWhere(db, ctx, {}))
+    .filter((i) => i.state === "in_portfolio" || i.state === "remitted")
+    .map((i) => ({ dueOn: i.dueOn, amountCentimes: i.amountCentimes }));
 }

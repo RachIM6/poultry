@@ -3,9 +3,9 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { redirect } from "@/i18n/navigation";
-import { formatDay, formatMoney } from "@/lib/format";
+import { formatDay, formatDayMonth, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { treasuryOverview } from "@/modules/finance";
+import { cashForecast, treasuryOverview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { table } from "@/components/ui";
@@ -31,8 +31,8 @@ async function Treasury() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const month = farmDayOf(new Date()).slice(0, 7);
-  const overview = await treasuryOverview(ctx.value, month);
-  if (!overview.ok) return <p>{t("Expenses.forbidden")}</p>;
+  const [overview, forecast] = await Promise.all([treasuryOverview(ctx.value, month), cashForecast(ctx.value)]);
+  if (!overview.ok || !forecast.ok) return <p>{t("Expenses.forbidden")}</p>;
   const { accounts, movements } = overview.value;
   const nameOf = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? t(id === null ? "Treasury.untagged" : "Treasury.unknown");
   const total = accounts.reduce((s, a) => s + a.balanceCentimes, 0n);
@@ -51,6 +51,32 @@ async function Treasury() {
           <span dir="ltr" className="tabular-nums">{formatMoney(total)}</span>
         </li>
       </ul>
+      {/* F-Effects: the next weeks' cash, from today's cash and bank and what falls due */}
+      <section className="flex flex-col gap-2" aria-labelledby="schedule">
+        <h2 id="schedule" className="text-[17px] font-semibold text-ink-2">{t("Treasury.schedule")}</h2>
+        <p className="text-sm text-ink-2">{t("Treasury.scheduleStart", { amount: formatMoney(forecast.value.startCentimes) })}</p>
+        <table className={table} aria-label={t("Treasury.schedule")}>
+          <thead>
+            <tr>
+              <th className="p-2 text-start">{t("Treasury.weekOf")}</th>
+              <th className="p-2 text-end">{t("Treasury.inflow")}</th>
+              <th className="p-2 text-end">{t("Treasury.outflow")}</th>
+              <th className="p-2 text-end">{t("Treasury.cashAfter")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {forecast.value.weeks.map((w) => (
+              <tr key={w.from} className={`border-t border-line ${w.afterCentimes < 0n ? "font-semibold text-brick-fg" : ""}`}>
+                <td className="whitespace-nowrap p-2">{formatDayMonth(w.from as FarmDay, lang)}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(w.afterCentimes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-sm text-ink-2">{t("Treasury.scheduleNote")}</p>
+      </section>
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Treasury.movements")}</h2>
       {movements.length === 0 ? (
         <p>{t("Treasury.none")}</p>

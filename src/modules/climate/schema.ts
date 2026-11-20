@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PRODUCTION_TYPES } from "@/modules/flock/schema";
 
 // SPEC-m4 §5, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009).
 export * from "@/modules/climate/shared";
@@ -17,7 +18,8 @@ export const BandInput = z.object({
 });
 
 /** A new version of the farm's targets: never edited in place, so past readings keep their verdict. */
-export const SaveTargets = z.object({ id: z.uuid(), validFrom: z.iso.date(), source: z.string().trim().min(3).max(300), bands: z.array(BandInput).min(1).max(30) });
+// productionType: null = every type without a set of its own (the M4 sets); one type once M3 batches need their own.
+export const SaveTargets = z.object({ id: z.uuid(), validFrom: z.iso.date(), source: z.string().trim().min(3).max(300), bands: z.array(BandInput).min(1).max(30), productionType: z.enum(PRODUCTION_TYPES).nullable().default(null) });
 
 // CL2: input bounds only (typos), not targets.
 export const RecordReading = z.object({

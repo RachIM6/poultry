@@ -51,4 +51,18 @@ describe("climate alerts (SPEC-m4 CL4)", () => {
     await push(a, [m(M.recordReading, reading({ houseId: empty, temperatureTenths: 450 }))], registry);
     expect(await alerts()).toHaveLength(before);
   });
+  it("judges hens by their own set and their age, placed at 18 weeks (SPEC-m3)", async () => {
+    const layers = uuidv7();
+    await push(a, [m("farm-registry.createHouse", { id: layers, farmId: farm, name: "Ponte", areaM2: 1000, capacity: 10000, type: "closed" })], registry);
+    // placed 4 days ago at 126 days old: 130 days today, outside every broiler band
+    await db.batch.create({ data: { id: uuidv7(), organizationId: a.organizationId, farmId: farm, houseId: layers, strainId: "ross-308", species: "layer", ageAtPlacementDays: 126, placedOn: new Date(`${addFarmDays(today, -4)}T00:00:00Z`), chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: 0n } });
+    const before = (await alerts()).length;
+    const warm = () => m(M.recordReading, reading({ houseId: layers, temperatureTenths: 260 }));
+    await push(a, [warm()], registry); // no layer set yet, and the general one has no band at 130 days
+    expect((await alerts()).length).toBe(before);
+    await push(a, [m(M.saveTargets, { id: uuidv7(), validFrom: "2026-01-01", source: "Test", productionType: "layer", bands: [{ fromAge: 120, toAge: 600, temperatureMinTenths: 150, temperatureMaxTenths: 250, humidityMin: null, humidityMax: null, ammoniaMax: null }] })], registry);
+    await push(a, [warm()], registry);
+    const sent = (await alerts()).slice(before);
+    expect(sent[0]).toMatchObject({ params: { house: "Ponte", age: "130" } });
+  });
 });

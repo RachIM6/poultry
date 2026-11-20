@@ -1138,7 +1138,9 @@
     "lastReadings": "Derniers relevés",
     "lastCuts": "Dernières coupures",
     "cutMinutes": "{minutes} min",
-    "generatorLine": "groupe en {seconds} s · {litres} L de gasoil"
+    "generatorLine": "groupe en {seconds} s · {litres} L de gasoil",
+    "allTypes": "Toutes les productions sans cibles propres",
+    "productionType": "Production"
   },
   "Records": {
     "title": "Formations et accidents",

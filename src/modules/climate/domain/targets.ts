@@ -15,14 +15,22 @@ export type Band = {
   humidityMax: number | null;
   ammoniaMax: number | null; // ppm
 };
-export type TargetSet = { id: string; validFrom: Day; source: string; bands: Band[] };
+/** `productionType`: the batches it is for (SPEC-m3); absent or null, every type without a set of its own. */
+export type TargetSet = { id: string; validFrom: Day; source: string; bands: Band[]; productionType?: string | null };
 
-/** The set in force on a day: the latest `validFrom` on or before it (a later save of the same day wins: UUIDv7 ids). */
-export const setOn = (sets: TargetSet[], day: Day): TargetSet | null =>
+const latest = (sets: TargetSet[], day: Day) =>
   sets.filter((s) => s.validFrom <= day).sort((a, b) => a.validFrom.localeCompare(b.validFrom) || a.id.localeCompare(b.id)).at(-1) ?? null;
 
-/** The band for a batch of this age on that day, or null (no set, or no band covers the age). */
-export const targetFor = (sets: TargetSet[], day: Day, age: number): Band | null => setOn(sets, day)?.bands.find((b) => b.fromAge <= age && age <= b.toAge) ?? null;
+/**
+ * The set in force on a day: the latest `validFrom` on or before it (a later save of the same day wins: UUIDv7 ids),
+ * among the sets for this production type, else among those for every type.
+ */
+export const setOn = (sets: TargetSet[], day: Day, productionType?: string): TargetSet | null =>
+  (productionType ? latest(sets.filter((s) => s.productionType === productionType), day) : null) ?? latest(sets.filter((s) => !s.productionType), day);
+
+/** The band for a batch of this type and age on that day, or null (no set, or no band covers the age). */
+export const targetFor = (sets: TargetSet[], day: Day, age: number, productionType?: string): Band | null =>
+  setOn(sets, day, productionType)?.bands.find((b) => b.fromAge <= age && age <= b.toAge) ?? null;
 
 export type BandError = "INVALID_BAND" | "TARGET_BANDS_OVERLAP";
 

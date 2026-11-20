@@ -1180,6 +1180,7 @@ model ClimateTargetSet {
   validFrom      DateTime @db.Date
   source         String
   bands          Json
+  productionType String? // SPEC-m3 type the set is for; null: every type without a set of its own
   createdBy      String   @db.Uuid
   createdAt      DateTime @default(now()) @db.Timestamptz
 

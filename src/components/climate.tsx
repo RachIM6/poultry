@@ -9,10 +9,10 @@ import { Scoped } from "@/components/scoped";
 import { card, danger, done, field, primary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDay } from "@/lib/format";
-import { daysBetween, farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { CLIMATE_MUTATIONS as C, outOfRange, targetFor, verdicts, type Band, type PowerCutDto, type ReadingDto, type TargetSet, type Verdict } from "@/modules/climate/shared";
 import type { HouseDto } from "@/modules/farm-registry/schema";
-import type { BatchDto } from "@/modules/flock/shared";
+import { ageOfBatch, type BatchDto } from "@/modules/flock/shared";
 import { localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -44,9 +44,9 @@ function Climate(scope: Scope) {
   const house = houses.find((h) => h.id === houseId) ?? houses[0];
   const today = farmDayOf(new Date());
   const batch = of<BatchDto>("batch").find((b) => b.houseId === house.id && b.status === "open" && b.placedOn <= today);
-  const age = batch ? daysBetween(batch.placedOn as FarmDay, today) : null;
+  const age = batch ? ageOfBatch(batch, today) : null; // the birds' age: hens placed at 18 weeks included (SPEC-m3 B7)
   const sets = of<TargetSet>("climateTargets");
-  const band = age === null ? null : targetFor(sets, today, age);
+  const band = age === null ? null : targetFor(sets, today, age, batch?.species);
   const reading = { temperatureTenths: parseTenths(values.temperature) ?? null, humidity: whole(values.humidity), ammonia: whole(values.ammonia) };
   const live = verdicts({ temperatureTenths: reading.temperatureTenths ?? 0, humidity: reading.humidity ?? 0, ammonia: reading.ammonia }, band);
 
@@ -180,7 +180,7 @@ function History({ house, readings, cuts, batches, sets }: { house: HouseDto; re
   // The batch that was in the house on the reading's day: its age then picks the band, as on the server.
   const ageOn = (d: string) => {
     const b = batches.find((x) => x.houseId === house.id && x.placedOn <= d && (x.status === "open" || (x.closedOn ?? "") >= d));
-    return b ? daysBetween(b.placedOn as FarmDay, d as FarmDay) : null;
+    return b ? { age: ageOfBatch(b, d as FarmDay), type: b.species } : null;
   };
   if (last.length === 0 && lastCuts.length === 0) return null;
   return (
@@ -189,8 +189,8 @@ function History({ house, readings, cuts, batches, sets }: { house: HouseDto; re
       {last.length > 0 && (
         <ul aria-label={t("Climate.lastReadings")} className={card}>
           {last.map((r) => {
-            const age = ageOn(r.day);
-            const v = verdicts(r, age === null ? null : targetFor(sets, r.day, age));
+            const on = ageOn(r.day);
+            const v = verdicts(r, on === null ? null : targetFor(sets, r.day, on.age, on.type));
             const off = (["temperature", "humidity", "ammonia"] as const).filter((k) => v[k] === "below" || v[k] === "above");
             return (
               <li key={r.id} className="flex justify-between gap-3 border-t border-line py-2 first:border-t-0">

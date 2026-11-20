@@ -477,7 +477,8 @@
     "PROOF_ALREADY_ATTACHED": "Cette vérification a déjà sa photo.",
     "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier.",
     "VAT_MORE_THAN_AMOUNT": "La TVA dépasse le montant total.",
-    "PAID_MORE_THAN_OWED": "Ce paiement dépasse ce qui est dû au fournisseur."
+    "PAID_MORE_THAN_OWED": "Ce paiement dépasse ce qui est dû au fournisseur.",
+    "PAY_MONTH_NOT_VALIDATED": "Validez d’abord la paie de ce mois."
   },
   "Weighing": {
     "title": "Pesée",
@@ -1061,7 +1062,15 @@
     "employerCapped": "Taux patronal sur la part plafonnée (%)",
     "employerUncapped": "Taux patronal sur tout le brut (%)",
     "cap": "Plafond mensuel (DH)",
-    "saveRules": "Enregistrer les taux"
+    "saveRules": "Enregistrer les taux",
+    "paid": "Salaires payés : {amount} le {date} ({from})",
+    "pay": "Payer les salaires : {amount}",
+    "payFrom": "Payé depuis",
+    "payDay": "Date du paiement",
+    "from": {
+      "cash": "la caisse",
+      "bank": "la banque"
+    }
   },
   "Climate": {
     "targetsTitle": "Cibles de climat",

@@ -1156,6 +1156,22 @@ model PayMonth {
   @@index([organizationId])
 }
 
+// Owner: workforce. A validated month's wages paid out (D 4432 / C cash or bank in finance); one per farm and month.
+model PayPayment {
+  id             String   @id @db.Uuid // UUIDv5 of farm + month + "paid"
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  month          String // YYYY-MM
+  day            DateTime @db.Date
+  paidFrom       String // cash | bank
+  netCentimes    BigInt // the validated month's net, as paid
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@unique([farmId, month])
+  @@index([organizationId])
+}
+
 // Owner: climate. SPEC-m4 CL1, §2: the farm's climate targets per batch age, typed by the owner from a source they name
 // (MQ1). Dated versions, never edited; none seeded. bands: Band[] (domain/targets.ts), temperatures in tenths of °C.
 model ClimateTargetSet {

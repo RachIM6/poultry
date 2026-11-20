@@ -31,4 +31,19 @@ test("pay without labour figures shows gross only, says so, and is validated by 
     );
   await expect.poll(server).toEqual([{ month: today.slice(0, 7) }]);
   await expect(pay).toContainText("Paie validée le");
+
+  // The month's wages paid from the cash box: once, and in the books (D 4432 / C 5161).
+  const wages = pay.getByRole("form", { name: "Payer les salaires : 150,00 DH" });
+  await wages.getByLabel("Payé depuis").selectOption({ label: "la caisse" });
+  await wages.getByRole("button", { name: "Payer les salaires : 150,00 DH" }).click();
+  await expect(pay).toContainText(/Salaires payés : 150,00.DH le .* \(la caisse\)/);
+  const booked = async () =>
+    (
+      await query<{ account: string; debit: string; credit: string }>(
+        `SELECT l.account, l."debitCentimes"::text AS debit, l."creditCentimes"::text AS credit FROM "JournalLine" l JOIN "JournalEntry" j ON j.id = l."entryId"
+         JOIN "Membership" m ON m."organizationId" = j."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1 AND j.label = 'Salaires payés' ORDER BY l.account`,
+        [e164],
+      )
+    ).map((l) => `${l.account} ${l.debit} ${l.credit}`);
+  await expect.poll(booked, { timeout: 20_000 }).toEqual(["4432 15000 0", "5161 0 15000"]);
 });

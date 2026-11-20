@@ -6,7 +6,7 @@ import { listLegalEntities } from "@/modules/farm-registry";
 import { placementsChangedSince } from "@/modules/flock";
 import { purchasesChangedSince, supplierPaymentsChangedSince } from "@/modules/inventory";
 import { instrumentStepsChangedSince, paymentsChangedSince, salesChangedSince } from "@/modules/sales";
-import { advancesChangedSince, payMonthsChangedSince } from "@/modules/workforce";
+import { advancesChangedSince, payMonthsChangedSince, payPaymentsChangedSince } from "@/modules/workforce";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { freezeClosedBatches } from "@/modules/finance/application/batch-results";
 import { alertThresholdOnce } from "@/modules/finance/application/threshold";
@@ -79,6 +79,12 @@ const SOURCES: Source[] = [
     module: "workforce",
     read: async (tx, ctx, after) =>
       (await advancesChangedSince(tx, ctx, after)).map((a) => ({ version: a.version, event: { type: "advance", id: a.id, day: a.day as FarmDay, amount: BigInt(a.amountCentimes) } })),
+  },
+  {
+    name: "workforce.payPayment",
+    module: "workforce",
+    read: async (tx, ctx, after) =>
+      (await payPaymentsChangedSince(tx, ctx, after)).map((p) => ({ version: p.version, event: { type: "wagesPaid", id: p.id, day: p.day as FarmDay, amount: BigInt(p.netCentimes), from: p.paidFrom } })),
   },
   {
     name: "workforce.payMonth",

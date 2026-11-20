@@ -477,7 +477,8 @@
     "PROOF_ALREADY_ATTACHED": "لهذه المراقبة صورتها من قبل.",
     "FILE_ALREADY_ATTACHED": "لهذه الوثيقة ملفها من قبل.",
     "VAT_MORE_THAN_AMOUNT": "مبلغ الضريبة على القيمة المضافة يتجاوز المبلغ الإجمالي.",
-    "PAID_MORE_THAN_OWED": "هذا الأداء يتجاوز المبلغ المستحق للمورد."
+    "PAID_MORE_THAN_OWED": "هذا الأداء يتجاوز المبلغ المستحق للمورد.",
+    "PAY_MONTH_NOT_VALIDATED": "صادقوا أولًا على أجور هذا الشهر."
   },
   "Weighing": {
     "title": "الوزن",
@@ -1061,7 +1062,15 @@
     "employerCapped": "نسبة المشغل على الجزء المسقف (%)",
     "employerUncapped": "نسبة المشغل على كل الإجمالي (%)",
     "cap": "السقف الشهري (درهم)",
-    "saveRules": "حفظ النسب"
+    "saveRules": "حفظ النسب",
+    "paid": "الأجور مؤداة: {amount} في {date} ({from})",
+    "pay": "أداء الأجور: {amount}",
+    "payFrom": "أُدّيت من",
+    "payDay": "تاريخ الأداء",
+    "from": {
+      "cash": "الصندوق",
+      "bank": "البنك"
+    }
   },
   "Climate": {
     "targetsTitle": "أهداف المناخ",

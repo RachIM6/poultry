@@ -11,6 +11,7 @@ export type FarmEvent =
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
   | { type: "supplierPayment"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment to a supplier (S2)
   | { type: "advance"; id: string; day: FarmDay; amount: bigint } // SPEC-m4 WF10: paid in cash
+  | { type: "wagesPaid"; id: string; day: FarmDay; amount: bigint; from: "cash" | "bank" } // a validated month's net paid out
   // SPEC-m4 WF12: a validated pay month, all employees of a farm; contributions null until the CNSS rates are entered
   | { type: "pay"; id: string; day: FarmDay; gross: bigint; advances: bigint; employeeContribution: bigint | null; employerContribution: bigint | null; net: bigint }
   | { type: "instrument"; id: string; day: FarmDay; amount: bigint; kind: "cheque" | "bill"; from: string; to: string }; // FN11
@@ -112,9 +113,16 @@ export function postingOf(e: FarmEvent, vatRegistered = false): Posting | null {
     // M4 records no payment method for an advance: from the cash box, as farms pay them (⚠️ like a purchase's paid part)
     return { journal: "CA", label: "Avance sur salaire", lines: [line(STAFF_ADVANCES, e.amount, 0n), line(PAID_AT_ONCE, 0n, e.amount)] };
   }
+  if (e.type === "wagesPaid") {
+    const from = e.from === "bank" ? { account: BANK, journal: "BQ" as const } : { account: PAID_AT_ONCE, journal: "CA" as const };
+    return { journal: from.journal, label: "Salaires payés", lines: [line(WAGES_DUE, e.amount, 0n), line(from.account, 0n, e.amount)] };
+  }
   if (e.type === "pay") {
+    // Advances beyond the pay (net < 0) stay owed by the worker on 3431: only what the pay covers is taken back, so
+    // the entry always balances (a lopsided one would block the posting pipeline at every push).
+    const taken = e.net < 0n ? e.advances + e.net : e.advances;
     const lines = [line(SALARIES, e.gross, 0n)];
-    if (e.advances > 0n) lines.push(line(STAFF_ADVANCES, 0n, e.advances));
+    if (taken > 0n) lines.push(line(STAFF_ADVANCES, 0n, taken));
     if (e.employeeContribution) lines.push(line(CNSS, 0n, e.employeeContribution));
     if (e.net > 0n) lines.push(line(WAGES_DUE, 0n, e.net));
     if (e.employerContribution) lines.push(line(SOCIAL_CHARGES, e.employerContribution, 0n), line(CNSS, 0n, e.employerContribution));

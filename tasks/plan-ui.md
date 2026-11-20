@@ -70,4 +70,8 @@ Still open after U8: the sidebar's longer owner list on wide screens (role-depen
 ### U13: The owner's sidebar
 - [x] On wide screens the sidebar also lists Ventes, Comptabilité and Membres (`WebOverview`), each only when the role signed in on this phone may use it (`can()`, the role read from the phone's database so the shell stays static; the server still checks every page). The phone's tab bar is unchanged. (`e2e/expenses.spec.ts`.) Full browser suite: 45 passed; `/fr/batches` still under the 200 KB budget.
 
+### U14: Accounting settings (F-Profile)
+- [x] `/settings/accounting` (owner, linked from "Plus" › Argent): the books, the chart (PCA or PCGE), the fiscal-year start and VAT registration (SPEC-finance FN1, FN9), saved through `finance.changeAccountingChoices`, now Zod-validated. Only the books the legal form allows are offered: companies and GIEs keep double-entry books (law 9-88), refused by the server too. Once the fiscal year has an entry the form is locked, with the reason shown. A cooperative sees that its chart isn't available yet (FQ2). (`e2e/accounting-settings.spec.ts`, fr and ar; `finance/ledger.int.test.ts`.)
+- Not built from the mockup, since nothing stores them yet: ICE, IF, RC and CNSS numbers, associates and shares, the statements model, the stock valuation method, the layers method. The 5 M DH block links to `/threshold` instead of repeating it.
+
 ### Later:, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

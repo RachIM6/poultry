@@ -1373,7 +1373,16 @@
       "dayOld": "Poids J1",
       "day7": "Mortalité J7"
     },
-    "epef": "IEP = viabilité (%) × poids moyen (kg) ÷ (âge (j) × IC) × 100."
+    "epef": "IEP = viabilité (%) × poids moyen (kg) ÷ (âge (j) × IC) × 100.",
+    "hatcheries": "Couvoirs · qualité du poussin",
+    "hatcheryCols": {
+      "hatchery": "Couvoir",
+      "batches": "Lots",
+      "dayOld": "Poids J1",
+      "day7": "Mortalité J7",
+      "claims": "Réclamations"
+    },
+    "hatcheriesNote": "Mortalité J7 sur l’ensemble des poussins. Réclamation : morts à l’arrivée au-delà du seuil de la ferme."
   },
   "Biosecurity": {
     "forbidden": "Ce registre n’est pas disponible pour votre rôle.",

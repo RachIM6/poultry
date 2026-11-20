@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { hatcheryFigures } from "./hatcheries";
 import { batchKpis, closedBatchFigures, epef, feedConversionRatio, waterPerFeed } from "./kpi";
 
 // Reference batch, computed by hand. 10 050 chicks placed on 1 Oct 2026, 50 dead on arrival → 10 000 started; day-old
@@ -143,5 +144,19 @@ describe("closed batch figures (SPEC-m3 D2)", () => {
     expect(f.fcr).toBeCloseTo(1.732, 3); // 4 200 ÷ 2 425
     expect(f.epef).toBeCloseTo((97 * 2.5) / (42 * (4200 / 2425)) * 100, 6); // ≈ 333
     expect(f.day7MortalityPercent).toBe(1);
+  });
+});
+
+describe("hatcheries compared (SPEC-m3 D2, P-Compare)", () => {
+  it("pools each hatchery's day-7 deaths, averages the recorded day-old weights and counts the claims", () => {
+    const rows = hatcheryFigures([
+      { hatchery: "Couvoir Chaouia", birdsStarted: 1000, day7Dead: 10, dayOldWeightGrams: 42, claim: false },
+      { hatchery: " couvoir chaouia ", birdsStarted: 3000, day7Dead: 20, dayOldWeightGrams: null, claim: true }, // same name, typed apart
+      { hatchery: "Couvoir B", birdsStarted: 1000, day7Dead: 16, dayOldWeightGrams: 39, claim: false },
+    ]);
+    expect(rows).toEqual([
+      { hatchery: "Couvoir Chaouia", batches: 2, dayOldWeightGrams: 42, day7MortalityPercent: 0.75, claims: 1 },
+      { hatchery: "Couvoir B", batches: 1, dayOldWeightGrams: 39, day7MortalityPercent: 1.6, claims: 0 },
+    ]);
   });
 });

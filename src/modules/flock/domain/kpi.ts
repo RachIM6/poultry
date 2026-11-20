@@ -122,5 +122,6 @@ export function closedBatchFigures(
     fcr: feedConversionRatio(totals),
     epef: birdsSold > 0 ? epef(totals) : null,
     day7MortalityPercent: (out(firstWeek) / b.birdsStarted) * 100,
+    day7Dead: out(firstWeek),
   };
 }

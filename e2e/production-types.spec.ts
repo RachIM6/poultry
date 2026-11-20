@@ -345,4 +345,8 @@ test("closed broiler batches compared side by side", async ({ page, context }) =
   await expect(rows.nth(2)).toContainText("Couvoir Chaouia");
   await expect(rows.nth(2)).toContainText("1,71");
   await expect(rows.nth(2)).toContainText("42 j");
+  // P-Compare "Couvoirs": day-7 deaths over the chicks, day-old weight, no claim without a farm threshold
+  const hatcheries = page.getByRole("table", { name: "Couvoirs · qualité du poussin" }).getByRole("row");
+  await expect(hatcheries.filter({ hasText: "Couvoir B" })).toContainText(/1\s*42 g\s*4,0 %\s*0/);
+  await expect(hatcheries.filter({ hasText: "Couvoir Chaouia" })).toContainText(/1\s*42 g\s*2,0 %\s*0/);
 });

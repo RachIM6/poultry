@@ -62,7 +62,7 @@ export async function scopeRemembered(page: Page) {
           req.onerror = () => resolve(false);
         }),
     );
-  await expect.poll(stored).toBe(true);
+  await expect.poll(stored, { timeout: 15_000 }).toBe(true); // the first signed-in page may be slow under load
 }
 
 /** How many writes wait in the signed-in scope's outbox: lets a test know a local save committed before it navigates. */

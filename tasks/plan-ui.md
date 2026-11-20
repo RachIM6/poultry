@@ -78,4 +78,8 @@ Still open after U8: the sidebar's longer owner list on wide screens (role-depen
 - [x] `/settings/chart` (owner and manager, linked from "Plus" and from the accounting settings): each operation the app posts and its account in the agricultural chart and in the PCGE, the entity's own in bold. The rows come from the posting rules themselves (`POSTED_ACCOUNTS`, `EXPENSE_ACCOUNTS`), so the screen can't drift from what is posted; a test checks each has an account in both seeded charts. Account labels stay in French in both locales, as in the export. (`finance/domain/operations.test.ts`, `finance/accounts.test.ts`, `e2e/accounting-settings.spec.ts`.)
 - Not built: the accountant editing a mapping (rules are code, ADR-010), the cooperative column (FQ2), analytic accounts, the Excel export of the plan; and the mockup's rows for operations the app doesn't post yet (salaries, egg trays).
 
+### U16: Draft income statement (F-Statements, CPC)
+- [x] `/books` gets a "Produits et charges" view for full-books entities: from the fiscal year's first day to the month shown, the CGNC sections 61/71 exploitation, 63/73 financier, 65/75 non courant and 67 impôts, each by 3-digit account, then the current, before-tax and net results. Computed from the trial balance (`finance/domain/statements.ts`), labelled a draft: the accountant closes the year. Account cells on `/books` now stay left to right in Arabic. (`finance/domain/statements.test.ts`, `e2e/books.spec.ts`.)
+- Not built: the balance sheet and the ETIC (they need the CGNC's statement mapping, to take from the official model with the accountant), year-end inventories and depreciation, the PDF.
+
 ### Later:, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

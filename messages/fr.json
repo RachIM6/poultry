@@ -822,7 +822,32 @@
     "since": "Depuis le début de l’exercice, le {from}",
     "balanced": "Balance équilibrée",
     "unbalanced": "Balance déséquilibrée",
-    "export": "Exporter pour le comptable (CSV, Excel)"
+    "export": "Exporter pour le comptable (CSV, Excel)",
+    "cpc": "Produits et charges",
+    "cpcDraft": "Brouillon depuis le début de l’exercice, le {from} : l’expert-comptable arrête l’exercice (stocks, amortissements).",
+    "cpcSections": {
+      "operating": {
+        "income": "Produits d’exploitation",
+        "charges": "Charges d’exploitation",
+        "result": "Résultat d’exploitation"
+      },
+      "financial": {
+        "income": "Produits financiers",
+        "charges": "Charges financières",
+        "result": "Résultat financier"
+      },
+      "nonCurrent": {
+        "income": "Produits non courants",
+        "charges": "Charges non courantes",
+        "result": "Résultat non courant"
+      },
+      "tax": {
+        "charges": "Impôts sur les résultats"
+      }
+    },
+    "cpcCurrent": "Résultat courant",
+    "cpcBeforeTax": "Résultat avant impôts",
+    "cpcNet": "Résultat net"
   },
   "Threshold": {
     "open": "Seuil des 5 M DH",

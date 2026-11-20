@@ -5,14 +5,14 @@ import { Suspense } from "react";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { readBooks } from "@/modules/finance";
+import { readBooks, type IncomeStatement } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { table } from "@/components/ui";
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
-const VIEWS = ["cash", "journals", "ledger", "trial"] as const;
+const VIEWS = ["cash", "journals", "ledger", "trial", "cpc"] as const;
 
 export default function BooksPage({ searchParams }: { searchParams: Search }) {
   return (
@@ -85,7 +85,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
               <tr key={i} className="border-t border-line">
                 <td className="p-2">{day(r.day)}</td>
                 <td className="p-2">{r.label}{r.counterAccounts.length > 0 && <span className="text-muted"> · {r.counterAccounts.map((a) => books.labels[a] ?? a).join(", ")}</span>}</td>
-                <td className="p-2">{account(r.account)}</td>
+                <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.receipt)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.expense)}</td>
               </tr>
@@ -109,7 +109,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
                 <tbody>
                   {e.lines.map((l, i) => (
                     <tr key={i} className="border-t border-line">
-                      <td className="p-2">{account(l.account)}</td>
+                      <td className="p-2"><bdi dir="ltr">{account(l.account)}</bdi></td>
                       <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
                       <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
                     </tr>
@@ -123,7 +123,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       {view === "ledger" &&
         books.generalLedger?.map((a) => (
           <table key={a.account} className={table}>
-            <caption className="text-start font-semibold">{account(a.account)}</caption>
+            <caption className="text-start font-semibold"><bdi dir="ltr">{account(a.account)}</bdi></caption>
             <tbody>
               {a.lines.map((l, i) => (
                 <tr key={i} className="border-t border-line">
@@ -152,7 +152,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           <tbody>
             {books.trialBalance.rows.map((r) => (
               <tr key={r.account} className="border-t border-line">
-                <td className="p-2">{account(r.account)}</td>
+                <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.debit)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.credit)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.balance)}</td>
@@ -167,6 +167,39 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           </tbody>
         </table>
       )}
+      {view === "cpc" && books.incomeStatement && (
+        <table className={table} aria-label={t("Books.cpc")}>
+          <caption className="text-start">{t("Books.cpcDraft", { from: day(books.fiscalYear.from) })}</caption>
+          <tbody>
+            {cpcRows(books.incomeStatement).map((r) => (
+              <tr key={r.key} className={`border-t border-line ${r.kind === "line" ? "" : "font-semibold"} ${r.kind === "head" ? "bg-shell" : ""} ${r.kind === "total" ? "border-t-2" : ""}`}>
+                <td className={`p-2 ${r.kind === "line" ? "ps-6" : ""}`}>{r.kind === "line" ? <bdi dir="ltr">{account(r.label)}</bdi> : t(r.label)}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </>
   );
+}
+
+type CpcRow = { key: string; kind: "head" | "line" | "result" | "total"; label: string; amount: bigint };
+
+/** F-Statements: the CPC's rows in reading order (a message key, or an account for a line). */
+function cpcRows(cpc: IncomeStatement): CpcRow[] {
+  const rows: CpcRow[] = [];
+  const block = (key: string, label: string, lines: readonly { account: string; amount: bigint }[]) => {
+    rows.push({ key, kind: "head", label, amount: lines.reduce((a, l) => a + l.amount, 0n) });
+    for (const l of lines) rows.push({ key: `${key}-${l.account}`, kind: "line", label: l.account, amount: l.amount });
+  };
+  for (const s of cpc.sections) {
+    if (s.key !== "tax") block(`${s.key}-income`, `Books.cpcSections.${s.key}.income`, s.income);
+    block(`${s.key}-charges`, `Books.cpcSections.${s.key}.charges`, s.charges);
+    if (s.key !== "tax") rows.push({ key: `${s.key}-result`, kind: "result", label: `Books.cpcSections.${s.key}.result`, amount: s.result });
+    if (s.key === "financial") rows.push({ key: "current", kind: "total", label: "Books.cpcCurrent", amount: cpc.current });
+    if (s.key === "nonCurrent") rows.push({ key: "beforeTax", kind: "total", label: "Books.cpcBeforeTax", amount: cpc.beforeTax });
+  }
+  rows.push({ key: "net", kind: "total", label: "Books.cpcNet", amount: cpc.net });
+  return rows;
 }

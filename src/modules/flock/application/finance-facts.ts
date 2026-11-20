@@ -6,6 +6,7 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 
 export type BatchMoneyFacts = {
   id: string;
+  farmId: string;
   houseId: string;
   houseName: string;
   placedOn: string;
@@ -34,6 +35,7 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext): Promise<Bat
   for (const id of new Set(batches.map((b) => b.houseId))) houses.set(id, (await houseOf(tx, ctx, id))?.name ?? "");
   return batches.map((b) => ({
     id: b.id,
+    farmId: b.farmId,
     houseId: b.houseId,
     houseName: houses.get(b.houseId) ?? "",
     placedOn: day(b.placedOn),

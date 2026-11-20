@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import type { PushedMutation } from "@/lib/sync/protocol";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { postPending } from "@/modules/finance";
+import { batchResults, postPending } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { wagesDue } from "@/modules/workforce";
 import { attendanceId, payMonthId, payPaymentId, WORKFORCE_MUTATIONS as M } from "@/modules/workforce/schema";
@@ -20,16 +20,24 @@ const linesOf = async (where: object) =>
 describe("pay postings", () => {
   let a: TenantContext;
   const [farm, said, omar, advance] = [uuidv7(), uuidv7(), uuidv7(), uuidv7()];
+  const [house, batch, otherFarm, otherHouse, otherBatch] = [uuidv7(), uuidv7(), uuidv7(), uuidv7(), uuidv7()];
   const day = (d: string, status = "present") => m(M.setAttendance, { id: attendanceId(said, d), employeeId: said, day: d, status, arrivedAt: null });
 
   beforeAll(async () => {
     const { accounts } = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
     await db.ledgerAccount.createMany({ data: accounts.map((x) => ({ chart: x.chart, number: x.number, label: x.label, parentNumber: x.parent, fallback: x.fallback })) });
+    await db.strain.create({ data: { id: "ross-308", name: "Ross 308" } });
     [a] = await twoTenants();
     const pushed = await push(
       a,
       [
         m("farm-registry.createFarm", { id: farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
+        // a batch on this farm through September, and one on another farm that pays no one
+        m("farm-registry.createHouse", { id: house, farmId: farm, name: "B1", areaM2: 1000, capacity: 10000, type: "closed" }),
+        m("flock.placeBatch", { id: batch, houseId: house, strainId: "ross-308", placedOn: "2026-08-25", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null }),
+        m("farm-registry.createFarm", { id: otherFarm, name: "G", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
+        m("farm-registry.createHouse", { id: otherHouse, farmId: otherFarm, name: "B1", areaM2: 1000, capacity: 10000, type: "closed" }),
+        m("flock.placeBatch", { id: otherBatch, houseId: otherHouse, strainId: "ross-308", placedOn: "2026-08-25", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null }),
         // 150,00 DH a day; 2 days present + 1 on leave = 3 paid days (⚠️ MQ2) = 450,00 DH gross
         m(M.createEmployee, { id: said, farmId: farm, name: "Said A.", job: "worker", phone: null, housedOnFarm: true, startedOn: "2026-01-01", leftOn: null, dailyWageCentimes: "15000", cnssNumber: null, houseIds: [] }),
         day("2026-09-01"), day("2026-09-02"), day("2026-09-03", "leave"),
@@ -57,6 +65,13 @@ describe("pay postings", () => {
     expect([entry.journal, entry.day.toISOString().slice(0, 10)]).toEqual(["OD", "2026-09-30"]);
     // gross 450,00 + 150,00; advances taken back 50,00 + 150,00 (Omar's other 150,00 stays on 3431); owed 400,00
     expect(await linesOf({ sourceId: id })).toEqual([["3431", 0n, 20_000n], ["4432", 0n, 40_000n], ["6171", 60_000n, 0n]]);
+  });
+
+  it("shares the month's labour cost over that farm's batches only (FN14)", async () => {
+    const results = await batchResults(a);
+    if (!results.ok) throw new Error(results.error);
+    const allocated = (id: string) => results.value.find((r) => r.id === id)?.costs.allocated;
+    expect([allocated(batch), allocated(otherBatch)]).toEqual([60_000n, 0n]); // gross 600,00, no CNSS rate entered
   });
 
   it("pays the month's net once, from the bank, and it leaves the unpaid wages", async () => {

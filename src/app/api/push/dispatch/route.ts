@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { sendDocumentReminders } from "@/modules/documents";
+import { sendIssuedReminders } from "@/modules/inventory";
 import { sendVaccinationReminders } from "@/modules/health";
 import { dispatchDuePushes } from "@/modules/notifications";
 import { sendPlacementReminders } from "@/modules/planning";
@@ -18,6 +19,6 @@ export async function POST(req: Request) {
     return new Response(null, { status: 404 });
   }
   const reminded =
-    (await sendVaccinationReminders()) + (await sendInstrumentReminders()) + (await sendPlacementReminders()) + (await sendDocumentReminders());
+    (await sendVaccinationReminders()) + (await sendInstrumentReminders()) + (await sendIssuedReminders()) + (await sendPlacementReminders()) + (await sendDocumentReminders());
   return Response.json({ reminded, sent: await dispatchDuePushes(render) });
 }

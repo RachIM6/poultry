@@ -144,3 +144,16 @@ function itemDto(r: {
     lowStockThreshold: r.lowStockThreshold,
   };
 }
+
+export type IssuedDueRow = { organizationId: string; method: string; number: string | null; amountCentimes: bigint; supplier: string };
+
+/**
+ * FN11, for the reminder job, across organisations: marks the cheques and bills issued to suppliers whose agreed date
+ * is `day`, not yet announced nor debited, and returns them with their supplier. A second job waits on the row lock.
+ */
+export const claimDueIssued = (tx: Tx, day: string, now: Date) => tx.$queryRaw<IssuedDueRow[]>`
+  UPDATE "SupplierPayment" p SET "instrumentRemindedAt" = ${now}
+  FROM "Supplier" s
+  WHERE s.id = p."supplierId" AND p."instrumentDueOn" = ${day}::date AND p."instrumentRemindedAt" IS NULL
+    AND NOT EXISTS (SELECT 1 FROM "IssuedDebit" d WHERE d."instrumentId" = p.id)
+  RETURNING p."organizationId", p.method, p."instrumentNumber" AS number, p."amountCentimes", s.name AS supplier`;

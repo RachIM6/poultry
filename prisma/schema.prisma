@@ -410,6 +410,7 @@ model SupplierPayment {
   // SPEC-finance FN11: an issued cheque's or bill's number and agreed date, when given
   instrumentNumber String?
   instrumentDueOn  DateTime? @db.Date
+  instrumentRemindedAt DateTime? @db.Timestamptz // FN11: claimed by the reminder job, so it goes out once
   recordedBy     String   @db.Uuid
   createdAt      DateTime @default(now()) @db.Timestamptz
 

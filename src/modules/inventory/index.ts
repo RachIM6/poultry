@@ -7,3 +7,4 @@ export { valuate } from "./domain/valuation";
 export { recordConsumption, removeConsumption } from "./application/consumption";
 export { batchConsumption, batchConsumptionCost } from "./application/batch-cost";
 export { issuedBillsDue, issuedDebitsChangedSince, ledgerTagsOf, purchasesChangedSince, supplierDuesOf, supplierPaymentsChangedSince, type PurchaseChange } from "./application/changes";
+export { sendIssuedReminders } from "./application/reminders";

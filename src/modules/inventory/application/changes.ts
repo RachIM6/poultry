@@ -1,7 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
-import type { PurchaseDto } from "@/modules/inventory/shared";
+import type { PurchaseDto, SupplierPaymentDto } from "@/modules/inventory/shared";
 
 export type PurchaseChange = { version: bigint; id: string; farmId: string; day: FarmDay; itemKind: string; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint };
 
@@ -28,4 +28,14 @@ export async function purchasesChangedSince(tx: Tx, ctx: TenantContext, after: b
     paidCentimes: BigInt(p.paidCentimes),
     vatCentimes: BigInt(p.vatCentimes ?? 0), // absent before T39
   }));
+}
+
+/** For finance (SPEC-finance FN6, FN7): later supplier payments recorded after `after`, oldest first. */
+export async function supplierPaymentsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500) {
+  const changes = await tx.change.findMany({
+    where: { organizationId: ctx.organizationId, entity: "supplierPayment", version: { gt: after } },
+    orderBy: { version: "asc" },
+    take: limit,
+  });
+  return changes.filter((c) => c.data !== null).map((c) => ({ version: c.version, ...(c.data as unknown as SupplierPaymentDto) }));
 }

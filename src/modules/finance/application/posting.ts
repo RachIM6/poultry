@@ -4,7 +4,7 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { placementsChangedSince } from "@/modules/flock";
-import { purchasesChangedSince } from "@/modules/inventory";
+import { purchasesChangedSince, supplierPaymentsChangedSince } from "@/modules/inventory";
 import { instrumentStepsChangedSince, paymentsChangedSince, salesChangedSince } from "@/modules/sales";
 import { freezeClosedBatches } from "@/modules/finance/application/batch-results";
 import { postEntry } from "@/modules/finance/application/ledger";
@@ -24,6 +24,15 @@ const SOURCES: Source[] = [
       (await purchasesChangedSince(tx, ctx, after)).map((p) => ({
         version: p.version,
         event: { type: "purchase", id: p.id, day: p.day, itemKind: p.itemKind, amount: p.amountCentimes, paid: p.paidCentimes, vat: p.vatCentimes },
+      })),
+  },
+  {
+    name: "inventory.supplierPayment",
+    module: "inventory",
+    read: async (tx, ctx, after) =>
+      (await supplierPaymentsChangedSince(tx, ctx, after)).map((p) => ({
+        version: p.version,
+        event: { type: "supplierPayment", id: p.id, day: p.day as FarmDay, amount: BigInt(p.amountCentimes), method: p.method },
       })),
   },
   {

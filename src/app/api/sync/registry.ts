@@ -25,7 +25,7 @@ export const registry: SyncRegistry = {
   views: {
     vet: ["farm", "house", "batch", "dailyEntry", "weighing", "soldBirds", "protocol", "vaccination", "treatment", "vetVisit", "stockItem", "movement", "notification"],
     accountant: [
-      "farm", "house", "batch", "soldBirds", "batchCost", "supplier", "stockItem", "movement", "purchase", "buyer", "sale", "buyerPayment", "instrumentStatus",
+      "farm", "house", "batch", "soldBirds", "batchCost", "supplier", "stockItem", "movement", "purchase", "supplierPayment", "buyer", "sale", "buyerPayment", "instrumentStatus",
       "treasuryAccount", "expense", "transfer", "employee", "advance", "payMonth", "labourRules", "price", "notification",
     ],
   },

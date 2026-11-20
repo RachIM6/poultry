@@ -399,6 +399,20 @@ model Supplier {
   @@index([organizationId])
 }
 
+// S2, SPEC-finance FN6: a later payment to a supplier, against what is owed. Finance posts it.
+model SupplierPayment {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  supplierId     String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  amountCentimes BigInt
+  method         String // cash | transfer | cheque | bill
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, supplierId])
+}
+
 // S1: one per farm and product (and lot, for vaccines and medicines).
 model StockItem {
   id                String    @id @db.Uuid

@@ -1,12 +1,14 @@
 import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
+import { systemClock, type Clock } from "@/lib/kernel/clock";
+import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { farmBelongsTo } from "@/modules/farm-registry";
 import { alertIfLow } from "@/modules/inventory/application/alerts";
-import { checkAdjustment, checkItem, checkPurchase } from "@/modules/inventory/domain/stock";
+import { checkAdjustment, checkItem, checkPurchase, checkSupplierPayment } from "@/modules/inventory/domain/stock";
 import {
   findItem,
   idTaken,
@@ -14,10 +16,12 @@ import {
   insertMovement,
   insertPurchase,
   insertSupplier,
+  insertSupplierPayment,
+  lockedSupplierBalance,
   supplierExists,
   updateThreshold,
 } from "@/modules/inventory/infrastructure/repository";
-import type { AdjustStock, CreateStockItem, CreateSupplier, RecordPurchase, SetThreshold } from "@/modules/inventory/schema";
+import type { AdjustStock, CreateStockItem, CreateSupplier, RecordPurchase, RecordSupplierPayment, SetThreshold, SupplierPaymentDto } from "@/modules/inventory/schema";
 import { isCatalogueProduct } from "@/modules/reference-data";
 
 // Use cases, applied by POST /api/sync/push in one transaction each: load → domain rule → save + change log + audit.
@@ -69,6 +73,23 @@ export async function recordPurchase(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
   await recordChange(tx, ctx, "purchase", purchase.id, purchase);
   await recordChange(tx, ctx, "movement", movement.id, movement);
   await audit(tx, ctx, { entity: "Purchase", entityId: purchase.id, action: "create", after: purchase, ...meta });
+  return ok(undefined);
+}
+
+/**
+ * S2, SPEC-finance FN6, applied by the sync push: a later payment to a supplier, up to what is owed, under the
+ * supplier's lock. Finance posts it from the change log (D 4411 / C cash, bank or bill payable).
+ */
+export async function recordSupplierPayment(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof RecordSupplierPayment>, meta: Meta, clock: Clock = systemClock) {
+  if ((await tx.supplierPayment.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
+  if (!(await supplierExists(tx, ctx, cmd.supplierId))) return fail("NOT_FOUND");
+  if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE"); // a phone may run a little ahead
+  const checked = checkSupplierPayment(BigInt(cmd.amountCentimes), await lockedSupplierBalance(tx, ctx, cmd.supplierId));
+  if (!checked.ok) return checked;
+  const payment: SupplierPaymentDto = cmd;
+  await insertSupplierPayment(tx, ctx, payment);
+  await recordChange(tx, ctx, "supplierPayment", payment.id, payment);
+  await audit(tx, ctx, { entity: "SupplierPayment", entityId: payment.id, action: "create", after: payment, ...meta });
   return ok(undefined);
 }
 

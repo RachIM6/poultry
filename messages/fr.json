@@ -306,7 +306,16 @@
     "thresholdHint": "Vide : pas d’alerte.",
     "total": "Valeur du stock : {amount} (coût moyen pondéré)",
     "enough": "Suffisant",
-    "vat": "Dont TVA (DH, facultatif)"
+    "vat": "Dont TVA (DH, facultatif)",
+    "pay": "Payer {supplier}",
+    "payAmount": "Montant payé (DH)",
+    "payMethod": "Payé par",
+    "payMethods": {
+      "cash": "Espèces",
+      "transfer": "Virement",
+      "cheque": "Chèque émis",
+      "bill": "Effet accepté"
+    }
   },
   "Batches": {
     "title": "Bandes",
@@ -460,7 +469,8 @@
     "FILE_TYPE_NOT_ALLOWED": "Type de fichier refusé : PDF, JPEG, PNG ou WebP seulement.",
     "PROOF_ALREADY_ATTACHED": "Cette vérification a déjà sa photo.",
     "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier.",
-    "VAT_MORE_THAN_AMOUNT": "La TVA dépasse le montant total."
+    "VAT_MORE_THAN_AMOUNT": "La TVA dépasse le montant total.",
+    "PAID_MORE_THAN_OWED": "Ce paiement dépasse ce qui est dû au fournisseur."
   },
   "Weighing": {
     "title": "Pesée",
@@ -1697,7 +1707,8 @@
       "bills": "Effets reçus",
       "billsRemitted": "Effets remis à l’encaissement",
       "vatRecoverable": "TVA récupérable",
-      "vatCollected": "TVA facturée"
+      "vatCollected": "TVA facturée",
+      "billsPayable": "Effets à payer aux fournisseurs"
     }
   }
 }

@@ -24,7 +24,9 @@ export default defineConfig({
   webServer: {
     command: `pnpm build && pnpm start --port ${port}`,
     // OTP_CONSOLE_SINK lets the production build "send" codes without an SMS provider (tests read them from the DB).
-    env: { APP_ORIGIN: origin, OTP_CONSOLE_SINK: "1" },
+    // The real captcha runs (CAPTCHA_DISABLED is refused in production; CAPTCHA_HMAC_KEY comes from .env or CI),
+    // made easy so ~100 logins stay fast.
+    env: { APP_ORIGIN: origin, OTP_CONSOLE_SINK: "1", CAPTCHA_MAX_NUMBER: "4" },
     url: origin,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

@@ -19,6 +19,7 @@
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "@serwist/turbopack": "9.5.13",
+    "altcha-lib": "2.9.0",
     "better-auth": "1.7.25",
     "dexie": "4.4.7",
     "dexie-react-hooks": "4.4.0",

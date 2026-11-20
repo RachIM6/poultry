@@ -15,6 +15,12 @@ export const POLICIES = {
     { dim: "prefix", limit: 30, windowSec: HOUR },
     { dim: "global", limit: 300, windowSec: HOUR }, // SMS cost cap; warns at 50 %
   ],
+  // GET /api/captcha/challenge: one PBKDF2 derivation per call. 1.5x requestCode's IP and subnet limits: every code
+  // request needs one challenge, and a failed solve, a refused request or "change number" fetches another.
+  captchaChallenge: [
+    { dim: "ip", limit: 30, windowSec: 15 * MIN },
+    { dim: "subnet", limit: 150, windowSec: HOUR },
+  ],
   verifyCode: [
     { dim: "ip", limit: 60, windowSec: HOUR },
     { dim: "subnet", limit: 200, windowSec: HOUR },

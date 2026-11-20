@@ -41,7 +41,10 @@
     "codeLabel": "Code reçu",
     "verify": "Se connecter",
     "changeNumber": "Changer de numéro",
-    "noPassword": "Pas de mot de passe. Un compte est créé à la première connexion."
+    "noPassword": "Pas de mot de passe. Un compte est créé à la première connexion.",
+    "captchaChecking": "Vérification de sécurité…",
+    "captchaDone": "Vérification de sécurité terminée.",
+    "captchaRetry": "Réessayer"
   },
   "Account": {
     "logout": "Se déconnecter",
@@ -420,6 +423,7 @@
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
+    "CAPTCHA_REQUIRED": "La vérification de sécurité a échoué. Réessayez.",
     "FORBIDDEN": "Action refusée.",
     "NETWORK": "Pas de connexion. Réessayez.",
     "UNAUTHENTICATED": "Session expirée. Reconnectez-vous.",

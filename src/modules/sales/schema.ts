@@ -76,6 +76,7 @@ export const RecordPayment = z.object({
   day: z.iso.date(), // farm day
   amountCentimes: centimes,
   method: z.enum(LATER_PAYMENT_METHODS),
+  instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable().default(null), // FN11: cheque or bill only
 });
 
 /** SPEC-finance FN11: a received cheque or bill remitted, cashed or unpaid. The id is a UUIDv7: statuses sort by it. */

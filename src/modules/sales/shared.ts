@@ -54,7 +54,14 @@ export type SaleLineDto = { item: string; eggs: number; eggsPerTray: number; uni
 export const SALE_MONEY = ["pricePerKgCentimes", "amountCentimes", "paymentMethod", "paidCentimes", "vatCentimes", "instrument", "creditApproval", "lines"] as const;
 
 /** V4: a later payment. All money: owners and managers only (I5). */
-export type PaymentDto = { id: string; buyerId: string; day: string; amountCentimes: string; method: (typeof LATER_PAYMENT_METHODS)[number] };
+export type PaymentDto = {
+  id: string;
+  buyerId: string;
+  day: string;
+  amountCentimes: string;
+  method: (typeof LATER_PAYMENT_METHODS)[number];
+  instrument?: { number: string; dueOn: string } | null; // FN11: a cheque's or bill's, when given
+};
 
 export const SALES_MUTATIONS = {
   createBuyer: "sales.createBuyer",

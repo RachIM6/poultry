@@ -38,7 +38,7 @@ export const salesSync: SyncRegistry = {
   entities: {
     buyer: (ctx, data: BuyerDto) => withoutMoney(ctx, data, ["creditLimitCentimes"]),
     sale: (ctx, data: SaleDto) => withoutMoney(ctx, data, SALE_MONEY),
-    buyerPayment: (ctx, data: PaymentDto) => withoutMoney(ctx, data, ["amountCentimes", "method"]),
+    buyerPayment: (ctx, data: PaymentDto) => withoutMoney(ctx, data, ["amountCentimes", "method", "instrument"]),
     instrumentStatus: (ctx, data: InstrumentStatusDto) => (can(ctx, "money.read") ? data : undefined),
   },
 };

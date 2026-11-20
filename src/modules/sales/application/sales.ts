@@ -168,6 +168,7 @@ export async function recordPayment(tx: Tx, ctx: TenantContext, cmd: z.infer<typ
   const checked = checkPayment(BigInt(cmd.amountCentimes), buyerBalances(sales, payments, unpaid).get(cmd.buyerId) ?? 0n);
   if (!checked.ok) return checked;
 
+  if (cmd.instrument && cmd.method !== "cheque" && cmd.method !== "bill") return fail("INVALID_INPUT"); // FN11: only those carry one
   const payment: PaymentDto = cmd;
   await savePayment(tx, ctx, payment);
   await recordChange(tx, ctx, "buyerPayment", payment.id, payment);

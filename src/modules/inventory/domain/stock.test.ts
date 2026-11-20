@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseCentimes } from "@/lib/kernel/money";
-import { checkAdjustment, checkItem, checkPurchase, checkSupplierPayment, crossedBelow, supplierDues, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "./stock";
+import { checkAdjustment, checkItem, checkPurchase, crossedBelow, parseQuantity, purchaseAmount, stockOnHand } from "./stock";
+import { checkSupplierPayment, supplierDues, supplierBalances } from "./suppliers";
 
 describe("stock on hand (SPEC S3)", () => {
   it("is the sum of each item's movements: in, out and corrections", () => {

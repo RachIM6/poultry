@@ -3,7 +3,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { redirect } from "@/i18n/navigation";
-import { formatDay, formatDayMonth, formatMoney } from "@/lib/format";
+import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { cashForecast, treasuryOverview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
@@ -26,6 +26,10 @@ export default function TreasuryPage() {
     </>
   );
 }
+
+// The schedule's weeks: the year goes without saying ("20 nov."). Here, not in lib/format: /batches ships that file.
+const dayMonth = (day: string, lang: string) =>
+  new Intl.DateTimeFormat(lang === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
 
 async function Treasury() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
@@ -67,7 +71,7 @@ async function Treasury() {
           <tbody>
             {forecast.value.weeks.map((w) => (
               <tr key={w.from} className={`border-t border-line ${w.afterCentimes < 0n ? "font-semibold text-brick-fg" : ""}`}>
-                <td className="whitespace-nowrap p-2">{formatDayMonth(w.from as FarmDay, lang)}</td>
+                <td className="whitespace-nowrap p-2">{dayMonth(w.from, lang)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(w.afterCentimes)}</td>

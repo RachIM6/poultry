@@ -1,7 +1,7 @@
 import { db, type Tx } from "@/lib/db";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
-import { supplierDues } from "@/modules/inventory/domain/stock";
+import { supplierDues } from "@/modules/inventory/domain/suppliers";
 import type { PurchaseDto, SupplierPaymentDto } from "@/modules/inventory/shared";
 
 export type PurchaseChange = { version: bigint; id: string; farmId: string; day: FarmDay; itemKind: string; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint };

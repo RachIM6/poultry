@@ -1,6 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import { supplierBalances, type ItemKind, type Unit } from "@/modules/inventory/domain/stock";
+import type { ItemKind, Unit } from "@/modules/inventory/domain/stock";
+import { supplierBalances } from "@/modules/inventory/domain/suppliers";
 import type { MovementDto, PurchaseDto, StockItemDto, SupplierDto, SupplierPaymentDto } from "@/modules/inventory/schema";
 
 // Prisma side of inventory. Every lookup is scoped to the caller's organisation: another organisation's id is not found.

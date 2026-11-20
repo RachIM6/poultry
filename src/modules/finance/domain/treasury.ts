@@ -29,14 +29,23 @@ const SOURCE: Record<PaidFrom, { account: string; journal: Posting["journal"] }>
 
 export type TaggedLine = Line;
 
-/** FN6: a quick expense, D its charge / C the cash box, the bank or the supplier. */
-export function expensePosting(e: { category: ExpenseCategory; amount: bigint; paidFrom: PaidFrom; treasuryId: string | null }): Posting & { lines: TaggedLine[] } {
+// FN9: the PCA nomenclature lists 3455 "Etat - TVA récupérable" without the CGNC's 34552 split (FQ4). Defined here, not
+// in posting.ts: prisma/seed.ts loads this file under plain node, where only type imports of other files work.
+export const VAT_RECOVERABLE = "3455";
+
+/** FN6: a quick expense, D its charge / C the cash box, the bank or the supplier. FN9: a registered entity's VAT apart. */
+export function expensePosting(
+  e: { category: ExpenseCategory; amount: bigint; paidFrom: PaidFrom; treasuryId: string | null; vat?: bigint },
+  vatRegistered = false,
+): Posting & { lines: TaggedLine[] } {
   const from = SOURCE[e.paidFrom];
+  const vat = vatRegistered ? (e.vat ?? 0n) : 0n;
   return {
     journal: from.journal,
     label: "Dépense",
     lines: [
-      { account: EXPENSE_ACCOUNTS[e.category], debit: e.amount, credit: 0n },
+      { account: EXPENSE_ACCOUNTS[e.category], debit: e.amount - vat, credit: 0n },
+      ...(vat > 0n ? [{ account: VAT_RECOVERABLE, debit: vat, credit: 0n }] : []),
       { account: from.account, debit: 0n, credit: e.amount, treasuryId: e.paidFrom === "credit" ? null : e.treasuryId },
     ],
   };

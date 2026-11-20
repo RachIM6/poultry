@@ -1,6 +1,7 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { postingAccount, type ChartOfAccounts } from "@/modules/finance/domain/chart";
 import type { Line } from "@/modules/finance/domain/entry";
+import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 
 /** A farm event finance posts (SPEC-finance FN6), read from a module's change log (FN7). Amounts in centimes. */
 export type FarmEvent =
@@ -32,8 +33,6 @@ const BIRDS_SOLD = "712121"; // Ventes d'animaux (per kg or per head: SPEC-m3 V8
 const EGGS_SOLD = "71213"; // Ventes de produits d'animaux (SPEC-m3 V8); 7121 without the PCA
 const DOUBTFUL = "3424"; // Clients douteux ou litigieux: a cheque or bill that came back unpaid
 const BANK = "5141";
-// FN9: the PCA nomenclature lists 3455 "Etat - TVA récupérable" without the CGNC's 34552 split (FQ4 for the accountant).
-const VAT_RECOVERABLE = "3455";
 const VAT_COLLECTED = "4455"; // Etat, TVA facturée
 // FN6: where money received from a buyer lands, and in which journal.
 const RECEIVED: Record<string, { account: string; journal: Journal }> = {

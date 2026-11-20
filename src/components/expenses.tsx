@@ -124,6 +124,9 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const amount = parseCentimes(get("amount"));
     if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY");
+    const vat = parseCentimes(get("vat") || "0"); // SPEC-finance FN9: part of the total
+    if (vat === null) return setError("errors.INVALID_INPUT");
+    if (vat > amount) return setError("errors.VAT_MORE_THAN_AMOUNT");
     if (get("day") > today()) return setError("errors.DAY_IN_FUTURE");
     // "from" is "credit", "cash", "bank", or a treasury account's id
     const from = get("from");
@@ -138,6 +141,7 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
       day,
       category: get("category") as ExpenseDto["category"],
       amountCentimes: String(amount),
+      vatCentimes: String(vat),
       paidFrom,
       treasuryId: account?.id ?? null,
       note: get("note") || null,
@@ -157,6 +161,7 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
         )}
       </Field>
       <Field label={t("Expenses.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" required dir="ltr" className={field} />}</Field>
+      <Field label={t("Sale.vat")}>{(id) => <input id={id} name="vat" inputMode="decimal" dir="ltr" className={field} />}</Field>
       <Field label={t("Expenses.from")}>
         {(id) => (
           <select id={id} name="from" className={field}>

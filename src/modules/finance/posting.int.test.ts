@@ -109,7 +109,7 @@ describe("posting pipeline (SPEC-finance FN6–FN7, T30)", () => {
     const [entity] = await listLegalEntities(c);
     expect(entity.vatRegistered).toBe(false); // the default until FQ4 is answered
     expect(await changeAccountingChoices(c, entity.id, { books: null, pcaOverlay: null, fiscalYearStartMonth: 1, vatRegistered: true })).toMatchObject({ ok: true });
-    const [farm, house, supplier, feed, batch, buyer, purchaseId, saleId] = Array.from({ length: 8 }, () => uuidv7());
+    const [farm, house, supplier, feed, batch, buyer, purchaseId, saleId, box, expenseId] = Array.from({ length: 10 }, () => uuidv7());
     const pushed = await push(
       c,
       [
@@ -123,16 +123,22 @@ describe("posting pipeline (SPEC-finance FN6–FN7, T30)", () => {
         m("sales.createBuyer", { id: buyer, name: "Hamid", phone: null, type: "trader" }),
         // 200 kg × 15,00 = 3 000,00 DH, 500,00 of it VAT
         m("sales.recordSale", { id: saleId, batchId: batch, buyerId: buyer, day: "2026-03-20", birds: 100, farmWeightGrams: 200_000, buyerWeightGrams: null, pricePerKgCentimes: "1500", paymentMethod: "credit", paidCentimes: "0", vatCentimes: "50000", instrument: null }),
+        // a quick expense: 1 200,00 DH of electricity, 200,00 of it VAT
+        m("finance.createTreasuryAccount", { id: box, kind: "cash", name: "Caisse" }),
+        m("finance.recordExpense", { id: expenseId, day: "2026-03-21", category: "electricity", amountCentimes: "120000", vatCentimes: "20000", paidFrom: "cash", treasuryId: box, note: null }),
+        m("finance.recordExpense", { id: uuidv7(), day: "2026-03-21", category: "water", amountCentimes: "100", vatCentimes: "101", paidFrom: "cash", treasuryId: box, note: null }),
         // VAT above the total is refused
         m("sales.recordSale", { id: uuidv7(), batchId: batch, buyerId: buyer, day: "2026-03-20", birds: 1, farmWeightGrams: 2_000, buyerWeightGrams: null, pricePerKgCentimes: "1500", paymentMethod: "cash", paidCentimes: "0", vatCentimes: "3001", instrument: null }),
       ],
       registry,
     );
-    expect(pushed.results.map((r) => r.status)).toEqual([...Array(8).fill("applied"), "rejected"]);
+    expect(pushed.results.map((r) => r.status)).toEqual([...Array(10).fill("applied"), "rejected", "rejected"]);
+    expect(pushed.results[10]).toMatchObject({ messageKey: "errors.VAT_MORE_THAN_AMOUNT" });
     expect(pushed.results.at(-1)).toMatchObject({ messageKey: "errors.VAT_MORE_THAN_AMOUNT" });
 
     await postPending(c);
     expect(await linesOf({ sourceId: purchaseId })).toEqual([["3455", 20_000n, 0n], ["4411", 0n, 120_000n], ["612122", 100_000n, 0n]]);
     expect(await linesOf({ sourceId: saleId })).toEqual([["3421", 300_000n, 0n], ["4455", 0n, 50_000n], ["712121", 0n, 250_000n]]);
+    expect(await linesOf({ sourceId: expenseId })).toEqual([["3455", 20_000n, 0n], ["5161", 0n, 120_000n], ["612512", 100_000n, 0n]]);
   });
 });

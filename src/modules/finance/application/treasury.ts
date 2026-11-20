@@ -36,9 +36,10 @@ const treasuryOf = (tx: Tx, ctx: TenantContext, id: string) =>
   tx.treasuryAccount.findFirst({ where: { id, organizationId: ctx.organizationId } }).then((a) => a && { id: a.id, kind: a.kind as TreasuryKind });
 
 /** Posts a farm-side record's entries in the same transaction, into the first open month when its month is locked. */
-async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string, postings: Posting[]): Promise<Result<void, PostError>> {
+async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string, build: (entity: { vatRegistered: boolean }) => Posting[]): Promise<Result<void, PostError>> {
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
+  const postings = build(entity);
   const locked = await lockedMonths(tx, ctx, entity.id);
   const onDay = (locked.has(monthOf(day as FarmDay)) ? `${firstOpenMonth(monthOf(day as FarmDay), locked)}-01` : day) as FarmDay;
   for (const [i, p] of postings.entries()) {
@@ -61,6 +62,7 @@ export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<ty
     if (t.kind !== cmd.paidFrom) return fail("INVALID_INPUT"); // a cash box for cash, a bank account for the bank
   }
   if (cmd.batchId && !(await batchFacts(tx, ctx, cmd.batchId))) return fail("NOT_FOUND"); // another organisation's batch
+  if (BigInt(cmd.vatCentimes) > BigInt(cmd.amountCentimes)) return fail("VAT_MORE_THAN_AMOUNT");
   const expense: ExpenseDto = {
     ...cmd,
     category: cmd.category as ExpenseDto["category"],
@@ -75,6 +77,7 @@ export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<ty
       day: date(expense.day),
       category: expense.category,
       amountCentimes: BigInt(expense.amountCentimes),
+      vatCentimes: BigInt(cmd.vatCentimes),
       paidFrom: expense.paidFrom,
       treasuryId: expense.treasuryId,
       note: expense.note,
@@ -85,8 +88,8 @@ export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<ty
       recordedBy: ctx.userId,
     },
   });
-  const posted = await postNow(tx, ctx, expense.id, expense.day, [
-    expensePosting({ category: expense.category as ExpenseCategory, amount: BigInt(expense.amountCentimes), paidFrom: expense.paidFrom, treasuryId: expense.treasuryId }),
+  const posted = await postNow(tx, ctx, expense.id, expense.day, (entity) => [
+    expensePosting({ category: expense.category as ExpenseCategory, amount: BigInt(expense.amountCentimes), paidFrom: expense.paidFrom, treasuryId: expense.treasuryId, vat: BigInt(cmd.vatCentimes) }, entity.vatRegistered),
   ]);
   if (!posted.ok) return posted; // the push rolls the expense back with it
   await recordChange(tx, ctx, "expense", expense.id, expense);
@@ -103,7 +106,7 @@ export async function recordTransfer(tx: Tx, ctx: TenantContext, cmd: z.output<t
   if (!from || !to) return fail("NOT_FOUND");
   const transfer: TransferDto = cmd;
   await tx.treasuryTransfer.create({ data: { ...transfer, organizationId: ctx.organizationId, day: date(transfer.day), amountCentimes: BigInt(transfer.amountCentimes), recordedBy: ctx.userId } });
-  const posted = await postNow(tx, ctx, transfer.id, transfer.day, transferPostings({ amount: BigInt(transfer.amountCentimes), from, to }));
+  const posted = await postNow(tx, ctx, transfer.id, transfer.day, () => transferPostings({ amount: BigInt(transfer.amountCentimes), from, to }));
   if (!posted.ok) return posted;
   await recordChange(tx, ctx, "transfer", transfer.id, transfer);
   await audit(tx, ctx, { entity: "TreasuryTransfer", entityId: transfer.id, action: "create", after: transfer, ...meta });

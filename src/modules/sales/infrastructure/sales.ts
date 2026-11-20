@@ -48,7 +48,7 @@ export async function instrumentsWhere(tx: Tx, ctx: TenantContext, where: { buye
       day: dayOf(s.day),
       instrument: s.instrumentNumber && s.instrumentDueOn ? { number: s.instrumentNumber, dueOn: dayOf(s.instrumentDueOn) } : null,
     })),
-    payments.map((p) => ({ ...p, day: dayOf(p.day) })),
+    payments.map((p) => ({ ...p, day: dayOf(p.day), instrument: p.instrumentNumber && p.instrumentDueOn ? { number: p.instrumentNumber, dueOn: dayOf(p.instrumentDueOn) } : null })),
     statuses.map((s) => ({ ...s, state: s.state as InstrumentStatusDto["state"] })),
   );
 }
@@ -112,8 +112,18 @@ export async function approveSaleCredit(tx: Tx, ctx: TenantContext, saleId: stri
 export const creditBlocked = async (tx: Tx, ctx: TenantContext, buyerId: string) =>
   (await tx.buyer.findFirst({ where: { id: buyerId, organizationId: ctx.organizationId }, select: { creditBlocked: true } }))?.creditBlocked ?? false;
 
-export async function savePayment(tx: Tx, ctx: TenantContext, p: PaymentDto) {
-  await tx.buyerPayment.create({ data: { ...p, organizationId: ctx.organizationId, day: date(p.day), amountCentimes: BigInt(p.amountCentimes), recordedBy: ctx.userId } });
+export async function savePayment(tx: Tx, ctx: TenantContext, { instrument, ...p }: PaymentDto) {
+  await tx.buyerPayment.create({
+    data: {
+      ...p,
+      organizationId: ctx.organizationId,
+      day: date(p.day),
+      amountCentimes: BigInt(p.amountCentimes),
+      instrumentNumber: instrument?.number ?? null,
+      instrumentDueOn: instrument ? date(instrument.dueOn) : null,
+      recordedBy: ctx.userId,
+    },
+  });
 }
 
 export type InstrumentRow = { organizationId: string; method: string; number: string; amountCentimes: bigint; buyer: string };
@@ -122,11 +132,19 @@ export type InstrumentRow = { organizationId: string; method: string; number: st
  * V4, for the reminder job, across organisations: marks the cheques and bills due on `day` not yet announced, and
  * returns them with their buyer. A second job at the same moment waits on the row lock, then skips them.
  */
-export const claimDueInstruments = (tx: Tx, day: string, now: Date) => tx.$queryRaw<InstrumentRow[]>`
-  UPDATE "Sale" s SET "instrumentRemindedAt" = ${now}
-  FROM "Buyer" b
-  WHERE b.id = s."buyerId" AND s."instrumentDueOn" = ${day}::date AND s."instrumentRemindedAt" IS NULL
-  RETURNING s."organizationId", s."paymentMethod" AS method, s."instrumentNumber" AS number, s."amountCentimes", b.name AS buyer`;
+export const claimDueInstruments = async (tx: Tx, day: string, now: Date) => [
+  ...(await tx.$queryRaw<InstrumentRow[]>`
+    UPDATE "Sale" s SET "instrumentRemindedAt" = ${now}
+    FROM "Buyer" b
+    WHERE b.id = s."buyerId" AND s."instrumentDueOn" = ${day}::date AND s."instrumentRemindedAt" IS NULL
+    RETURNING s."organizationId", s."paymentMethod" AS method, s."instrumentNumber" AS number, s."amountCentimes", b.name AS buyer`),
+  // FN11: a later payment's cheque or bill, when its number and agreed date were given
+  ...(await tx.$queryRaw<InstrumentRow[]>`
+    UPDATE "BuyerPayment" p SET "instrumentRemindedAt" = ${now}
+    FROM "Buyer" b
+    WHERE b.id = p."buyerId" AND p."instrumentDueOn" = ${day}::date AND p."instrumentRemindedAt" IS NULL
+    RETURNING p."organizationId", p.method, p."instrumentNumber" AS number, p."amountCentimes", b.name AS buyer`),
+];
 
 export async function saveSale(tx: Tx, ctx: TenantContext, s: Required<SaleDto>) {
   const { instrument, lines, ...rest } = s;

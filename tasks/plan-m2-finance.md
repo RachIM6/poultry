@@ -87,7 +87,7 @@ Done 2026-11-14 (branch `feat/t31-instruments`):
 - **Screen:** the receivables screen lists the pending cheques and bills, with buttons for the allowed moves, and the blocked buyers, with "Lever le blocage" for the owner.
 
 Not yet:
-- A later payment's cheque number and due date (M1 doesn't ask for them).
+- ~~A later payment's cheque number and due date.~~ Done 2026-11-20 (branch `feat/payment-instruments`): on the receivables screen, a later payment by cheque or bill asks for its number and agreed date, as a sale does (`BuyerPayment.instrumentNumber`, `instrumentDueOn`). The portfolio shows them, the cash schedule collects it on that date instead of the payment day, and the reminder job (V4) announces it once on that day, like a sale's. Open question: a sale's reminder announces the sale's amount, the portfolio its paid part; they differ for a cheque covering part of a sale.
 - Issued cheques and bills (supplier side, with T32's payments).
 
 **Size:** M

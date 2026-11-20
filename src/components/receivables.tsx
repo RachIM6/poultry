@@ -272,6 +272,7 @@ function Field({ label, children }: { label: string; children: (id: string) => R
 function PaymentForm({ buyerId, balance, onSave, onCancel }: { buyerId: string; balance: bigint; onSave: (p: PaymentDto) => Promise<void>; onCancel: () => void }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
+  const [method, setMethod] = useState<PaymentDto["method"]>(METHODS[0]);
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -283,7 +284,9 @@ function PaymentForm({ buyerId, balance, onSave, onCancel }: { buyerId: string; 
     if (!checked.ok) return setError(`errors.${checked.error}`);
     if (get("day") > today()) return setError("errors.DAY_IN_FUTURE");
     setError(undefined);
-    await onSave({ id: uuidv7(), buyerId, day: get("day") || today(), amountCentimes: String(amount), method: get("method") as PaymentDto["method"] });
+    // FN11: a cheque's or bill's number and agreed date, as for a sale; reminded on that day
+    const instrument = method === "cheque" || method === "bill" ? { number: get("instrumentNumber"), dueOn: get("instrumentDueOn") } : null;
+    await onSave({ id: uuidv7(), buyerId, day: get("day") || today(), amountCentimes: String(amount), method, instrument });
   };
 
   return (
@@ -292,11 +295,17 @@ function PaymentForm({ buyerId, balance, onSave, onCancel }: { buyerId: string; 
       <Field label={t("Receivables.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" required dir="ltr" className={field} />}</Field>
       <Field label={t("Receivables.method")}>
         {(id) => (
-          <select id={id} name="method" className={field}>
+          <select id={id} name="method" value={method} onChange={(e) => setMethod(e.target.value as PaymentDto["method"])} className={field}>
             {METHODS.map((m) => <option key={m} value={m}>{t(`Sale.methods.${m}`)}</option>)}
           </select>
         )}
       </Field>
+      {(method === "cheque" || method === "bill") && (
+        <>
+          <Field label={t("Sale.instrumentNumber")}>{(id) => <input id={id} name="instrumentNumber" required maxLength={40} dir="ltr" className={field} />}</Field>
+          <Field label={t("Sale.instrumentDueOn")}>{(id) => <input id={id} name="instrumentDueOn" type="date" required defaultValue={today()} className={field} />}</Field>
+        </>
+      )}
       {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Receivables.save")}</button>

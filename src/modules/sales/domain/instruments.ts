@@ -12,14 +12,14 @@ export type Instrument = {
   id: string;
   buyerId: string;
   kind: InstrumentKind;
-  number: string | null; // a later payment's cheque has no number recorded in M1
+  number: string | null; // a later payment's, when given
   amountCentimes: bigint;
   dueOn: string; // farm day: the agreed date (a post-dated cheque stays payable on sight, FN11)
   state: InstrumentState;
 };
 
 type SaleRow = { id: string; buyerId: string; paymentMethod: string; paidCentimes: bigint; instrument: { number: string; dueOn: string } | null; day: string };
-type PaymentRow = { id: string; buyerId: string; method: string; amountCentimes: bigint; day: string };
+type PaymentRow = { id: string; buyerId: string; method: string; amountCentimes: bigint; day: string; instrument?: { number: string; dueOn: string } | null };
 type StatusRow = { instrumentId: string; state: (typeof INSTRUMENT_STATES)[number]; id: string }; // ids are UUIDv7: later = newer
 
 const isInstrument = (method: string): method is InstrumentKind => method === "cheque" || method === "bill";
@@ -35,7 +35,7 @@ export function instrumentsOf(sales: readonly SaleRow[], payments: readonly Paym
       .map((s) => ({ id: s.id, buyerId: s.buyerId, kind: s.paymentMethod as InstrumentKind, number: s.instrument?.number ?? null, amountCentimes: s.paidCentimes, dueOn: s.instrument?.dueOn ?? s.day, state: stateOf(s.id) })),
     ...payments
       .filter((p) => isInstrument(p.method))
-      .map((p) => ({ id: p.id, buyerId: p.buyerId, kind: p.method as InstrumentKind, number: null, amountCentimes: p.amountCentimes, dueOn: p.day, state: stateOf(p.id) })),
+      .map((p) => ({ id: p.id, buyerId: p.buyerId, kind: p.method as InstrumentKind, number: p.instrument?.number ?? null, amountCentimes: p.amountCentimes, dueOn: p.instrument?.dueOn ?? p.day, state: stateOf(p.id) })),
   ];
 }
 

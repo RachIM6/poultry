@@ -763,6 +763,10 @@ model BuyerPayment {
   day            DateTime @db.Date // farm day
   amountCentimes BigInt
   method         String // cash | cheque | bill | transfer
+  // SPEC-finance FN11: a cheque's or bill's number and agreed date, when given; reminded once on that day (V4)
+  instrumentNumber     String?
+  instrumentDueOn      DateTime? @db.Date
+  instrumentRemindedAt DateTime? @db.Timestamptz
   recordedBy     String   @db.Uuid
   createdAt      DateTime @default(now()) @db.Timestamptz
 

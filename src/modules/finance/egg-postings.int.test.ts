@@ -23,6 +23,7 @@ describe("egg sales in the books (SPEC-m3 V8)", () => {
     const { accounts } = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
     await db.ledgerAccount.createMany({ data: accounts.map((x) => ({ chart: x.chart, number: x.number, label: x.label, parentNumber: x.parent, fallback: x.fallback })) });
     await db.strain.create({ data: { id: "lohmann-brown", name: "Lohmann Brown", productionTypes: ["pullet", "layer"] } });
+    await db.eggGrade.createMany({ data: ["s", "m", "l", "xl"].map((id, sortOrder) => ({ id, label: id.toUpperCase(), sortOrder })) }); // reference data (E3)
     [a] = await twoTenants();
     const laidOn = addFarmDays(today, -1);
     expect(

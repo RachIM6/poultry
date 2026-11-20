@@ -190,7 +190,7 @@ SPEC-m3 §6 success criteria: 1 ✔ (this journey), 2 ✔ (`e2e/production-types
 
 ### T69: Reserved
 
-Left for later (from the build, none blocking): a "laying below standard" alert (needs a threshold and a loaded curve), P-Compare's feed-supplier table (a feed item mixes suppliers' deliveries, so a batch's feed can't be traced to one supplier without lots by supplier), ~~the hatchery table~~ (done 2026-11-20, branch `feat/hatchery-compare`: batches, day-old weight, pooled day-7 mortality and claims, a claim being dead on arrival above the farm's threshold), per-house weight vs standard on the home, the grade ids checked against reference data (needs `eggs` → `reference-data` in CAPABILITY-MAP), renaming `SaleLine.eggs` to a neutral name (an "ask first" migration).
+Left for later (from the build, none blocking): a "laying below standard" alert (needs a threshold and a loaded curve), P-Compare's feed-supplier table (a feed item mixes suppliers' deliveries, so a batch's feed can't be traced to one supplier without lots by supplier), ~~the hatchery table~~ (done 2026-11-20, branch `feat/hatchery-compare`: batches, day-old weight, pooled day-7 mortality and claims, a claim being dead on arrival above the farm's threshold), per-house weight vs standard on the home, ~~the grade ids checked against reference data~~ (done 2026-11-20, branch `fix/egg-grade-ids`: `gradeEggs` refuses a grade the reference data doesn't have, `INVALID_INPUT`; `eggs` → `reference-data` in CAPABILITY-MAP and the lint rule), renaming `SaleLine.eggs` to a neutral name (an "ask first" migration).
 
 ## Source documents needed (SPEC-m3 §5)
 

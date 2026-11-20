@@ -1016,6 +1016,24 @@ model Budget {
   @@index([organizationId])
 }
 
+// Owner: finance. SPEC-finance FC3: a line of the year-end count, the quantity counted on the fiscal year's last day.
+// `subjectId`: the open batch (birds) or the stock item (its base unit: grams, doses, ml, units). Changed until the close
+// run posts (T103 freezes it); the inventory and flock books are corrected in their own screens, never from here.
+model YearEndCount {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  day            DateTime @db.Date // the count day: the fiscal year's last day
+  kind           String // batch | stock
+  subjectId      String   @db.Uuid
+  quantity       Int
+  updatedBy      String   @db.Uuid
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@unique([legalEntityId, day, subjectId])
+  @@index([organizationId])
+}
+
 // Owner: workforce. SPEC-m4 WF1–WF3: a person working on a farm. Not every employee has a phone, so not every one is a
 // member; `userId` is the member signing in with `phone`, set by the server when the employee is saved.
 model Employee {

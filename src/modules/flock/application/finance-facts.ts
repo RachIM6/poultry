@@ -1,6 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
 import { houseOf } from "@/modules/farm-registry";
+import type { ProductionType } from "@/modules/reference-data/shared";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -9,6 +10,7 @@ export type BatchMoneyFacts = {
   farmId: string;
   houseId: string;
   houseName: string;
+  species: ProductionType; // SPEC-finance FC3: the count sheet shows the production type
   placedOn: string;
   closedOn: string | null;
   status: string;
@@ -39,6 +41,7 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext): Promise<Bat
     farmId: b.farmId,
     houseId: b.houseId,
     houseName: houses.get(b.houseId) ?? "",
+    species: b.species as ProductionType,
     placedOn: day(b.placedOn),
     closedOn: b.closedOn ? day(b.closedOn) : null,
     status: b.status,

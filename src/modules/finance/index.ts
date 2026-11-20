@@ -16,3 +16,5 @@ export { chartView } from "./application/chart";
 export { exportBooks } from "./application/export";
 export { batchOf } from "./domain/export";
 export { alertThresholdOnce, thresholdTracker, type ThresholdTracker } from "./application/threshold";
+export { saveYearEndCount, yearEndCount, type CountSheet } from "./application/count";
+export type { CountBatchLine, CountLine, CountStockLine } from "./domain/count";

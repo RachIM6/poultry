@@ -72,9 +72,9 @@ T118 accountant import       ← FQ10
 
 It posts nothing. Freezing the count once the close run posts is T103's AC.
 **AC:**
-- [ ] The sheet lists every open batch and stock item of the farm on the last day; no price or value appears in its HTML (Playwright, print media).
-- [ ] Counted quantities save once and can be changed, audited; workers and the accountant can't write them (integration).
-- [ ] Finance writes nothing into `inventory` or `flock` (the count only reads their `index.ts`; lint boundary rule green).
+- [x] The sheet lists every open batch and stock item of the farm on the last day; no price or value appears in its HTML (Playwright, print media). _`e2e/count.spec.ts` "the year-end count sheet lists every open batch and stock item, prints without an amount, and shows the gaps"; the day rules in `finance/domain/count.test.ts`._
+- [x] Counted quantities save once and can be changed, audited; workers and the accountant can't write them (integration). _`finance/count.int.test.ts` "saves the counted quantities once, changes them, audited; owner and manager only, each organisation its own"._
+- [x] Finance writes nothing into `inventory` or `flock` (the count only reads their `index.ts`; lint boundary rule green). _Reads `flock.batchesForFinance` (now with the production type) and the new `inventory.stockOnDay`; the same integration test checks their row counts are unchanged; `pnpm lint` green._
 **Depends on:** nothing. **Blocked by:** none.
 **Size:** M
 

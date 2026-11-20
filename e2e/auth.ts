@@ -125,7 +125,14 @@ export async function pushAs(page: Page, mutations: { type: string; payload: unk
 
 /** A farm with a house, a feed item with 1 000 kg bought, and a batch of 1 000 chicks placed today. */
 /** The farm day (Africa/Casablanca) `n` days ago, as YYYY-MM-DD. */
-export const farmDaysAgo = (n: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablanca" }).format(new Date(Date.now() - n * 86_400_000));
+// Calendar days back from today's farm day: n × 24 h from "now" lands on the wrong day near midnight when Morocco's UTC
+// offset differs between the two dates (seen at 23:27 UTC: a 42-day batch came out 41 days old).
+export const farmDaysAgo = (n: number) => {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablanca" }).format(new Date());
+  const day = new Date(`${today}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() - n);
+  return day.toISOString().slice(0, 10);
+};
 
 export async function farmWithBatch(page: Page, strainId = "ross-308", placedOn = farmDaysAgo(0)) {
   const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), supplier: crypto.randomUUID(), feed: crypto.randomUUID(), batch: crypto.randomUUID() };

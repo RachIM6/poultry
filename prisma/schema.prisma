@@ -890,6 +890,7 @@ model Expense {
   day            DateTime  @db.Date // farm day
   category       String // electricity | water | vet_fees | insurance | catching
   amountCentimes BigInt
+  vatCentimes    BigInt   @default(0) // SPEC-finance FN9: the bill's VAT, part of amountCentimes
   paidFrom       String // cash | bank | credit
   treasuryId     String?   @db.Uuid
   note           String?

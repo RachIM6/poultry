@@ -230,7 +230,7 @@ Done 2026-11-20 (branch `feat/t39-vat`), decisions taken without asking, FQ4 sti
 - **The VAT amount is typed from the invoice,** never computed: no rate is stored, so none is assumed. Optional "Dont TVA" on the purchase form and the three sale forms; it must not exceed the total (`VAT_MORE_THAN_AMOUNT`, client and server). Older queued writes without it count as 0.
 - **3455, not 34552:** the PCA nomenclature (our source for the chart) lists 3455 "Etat - TVA récupérable" without the CGNC's five-digit split, so recoverable VAT goes to 3455 until the accountant asks for 34552. 4455 "Etat, TVA facturée" is in it. Both added to `accounts.json`, labels from the PCA text; deploy runs `pnpm db:seed` (it upserts).
 
-Not yet: batch results, budgets and stock valuation still use the invoice totals (TTC), which is right for a non-registered farm; for a registered one they should exclude VAT (FQ4). Chicks bought at placement and quick expenses carry no VAT field. No VAT return (4456).
+Not yet: batch results, budgets and stock valuation still use the invoice totals (TTC), which is right for a non-registered farm; for a registered one they should exclude VAT (FQ4). Chicks bought at placement carry no VAT field; quick expenses got theirs on 2026-11-20 (branch `feat/t39b-expense-vat`: same optional "Dont TVA", 3455 for a registered entity). No VAT return (4456).
 **Size:** S
 
 ### ✅ Checkpoint M2-finance

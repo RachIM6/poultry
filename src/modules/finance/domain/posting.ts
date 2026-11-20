@@ -33,7 +33,7 @@ const EGGS_SOLD = "71213"; // Ventes de produits d'animaux (SPEC-m3 V8); 7121 wi
 const DOUBTFUL = "3424"; // Clients douteux ou litigieux: a cheque or bill that came back unpaid
 const BANK = "5141";
 // FN9: the PCA nomenclature lists 3455 "Etat - TVA récupérable" without the CGNC's 34552 split (FQ4 for the accountant).
-const VAT_RECOVERABLE = "3455";
+export const VAT_RECOVERABLE = "3455";
 const VAT_COLLECTED = "4455"; // Etat, TVA facturée
 // FN6: where money received from a buyer lands, and in which journal.
 const RECEIVED: Record<string, { account: string; journal: Journal }> = {

@@ -1,5 +1,5 @@
 import type { Line } from "@/modules/finance/domain/entry";
-import type { Posting } from "@/modules/finance/domain/posting";
+import { VAT_RECOVERABLE, type Posting } from "@/modules/finance/domain/posting";
 
 // SPEC-finance FN3, FN6, FX4. Pure: the phone checks an expense with the same code as the server.
 
@@ -29,14 +29,19 @@ const SOURCE: Record<PaidFrom, { account: string; journal: Posting["journal"] }>
 
 export type TaggedLine = Line;
 
-/** FN6: a quick expense, D its charge / C the cash box, the bank or the supplier. */
-export function expensePosting(e: { category: ExpenseCategory; amount: bigint; paidFrom: PaidFrom; treasuryId: string | null }): Posting & { lines: TaggedLine[] } {
+/** FN6: a quick expense, D its charge / C the cash box, the bank or the supplier. FN9: a registered entity's VAT apart. */
+export function expensePosting(
+  e: { category: ExpenseCategory; amount: bigint; paidFrom: PaidFrom; treasuryId: string | null; vat?: bigint },
+  vatRegistered = false,
+): Posting & { lines: TaggedLine[] } {
   const from = SOURCE[e.paidFrom];
+  const vat = vatRegistered ? (e.vat ?? 0n) : 0n;
   return {
     journal: from.journal,
     label: "Dépense",
     lines: [
-      { account: EXPENSE_ACCOUNTS[e.category], debit: e.amount, credit: 0n },
+      { account: EXPENSE_ACCOUNTS[e.category], debit: e.amount - vat, credit: 0n },
+      ...(vat > 0n ? [{ account: VAT_RECOVERABLE, debit: vat, credit: 0n }] : []),
       { account: from.account, debit: 0n, credit: e.amount, treasuryId: e.paidFrom === "credit" ? null : e.treasuryId },
     ],
   };

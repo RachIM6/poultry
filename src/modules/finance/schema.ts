@@ -36,6 +36,7 @@ export const RecordExpense = z.object({
   day: z.iso.date(),
   category: z.enum(EXPENSE_CATEGORIES as [string, ...string[]]),
   amountCentimes: positive,
+  vatCentimes: centimes.default("0"), // SPEC-finance FN9: the bill's VAT, part of the total
   paidFrom: z.enum(PAID_FROM),
   treasuryId: z.uuid().nullable(),
   note,

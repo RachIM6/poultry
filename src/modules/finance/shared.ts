@@ -12,6 +12,7 @@ export type ExpenseDto = {
   day: string; // farm day
   category: "electricity" | "water" | "vet_fees" | "insurance" | "catching";
   amountCentimes: string;
+  vatCentimes?: string; // SPEC-finance FN9: part of amountCentimes; absent before it was asked
   paidFrom: "cash" | "bank" | "credit";
   treasuryId: string | null;
   note: string | null;

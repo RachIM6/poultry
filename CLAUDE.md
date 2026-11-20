@@ -5,7 +5,7 @@
 
 ## Project docs (read before building)
 - `SPEC.md`: stack, commands, structure, conventions (integer money/grams, UUIDv7, Africa/Casablanca farm days), boundaries, M1 requirements.
-- `SPEC-finance.md`: finance module (CGNC + Plan Comptable Agricole + cooperative chart), M2 and M6 requirements, calculation fixtures. Plan in `tasks/plan-m2-finance.md`.
+- `SPEC-finance.md`: finance module (CGNC + Plan Comptable Agricole + cooperative chart), M2 and M6 requirements, calculation fixtures. Plans in `tasks/plan-m2-finance.md` (M2) and `tasks/plan-m6.md` (M6).
 - `SPEC-m2-compliance.md`: biosecurity, documents, reporting (ONSSA register PDF, batch report, inspection pack), M2. Plan in `tasks/plan-m2-compliance.md`.
 - `CAPABILITY-MAP.md`: module ids and allowed dependencies. Never import across modules except via `src/modules/<id>/index.ts` of a declared dependency.
 - `docs/decisions/`: ADRs. Don't re-decide an accepted ADR; write a superseding one.

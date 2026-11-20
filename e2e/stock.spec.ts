@@ -62,10 +62,14 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
       )
     )[0] ?? null;
   await expect.poll(purchase).toEqual({ amount: "900000", paid: "300000", quantity: 2_000_000 });
-  const [item] = await query<{ threshold: number }>(
-    `SELECT s."lowStockThreshold" AS threshold FROM "StockItem" s JOIN "Membership" m ON m."organizationId" = s."organizationId"
-     JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
-    [e164],
-  );
-  expect(item.threshold).toBe(2_500_000);
+  // The threshold is its own write, which may reach the server after the purchase: wait for it too.
+  const threshold = async () =>
+    (
+      await query<{ threshold: number | null }>(
+        `SELECT s."lowStockThreshold" AS threshold FROM "StockItem" s JOIN "Membership" m ON m."organizationId" = s."organizationId"
+         JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
+        [e164],
+      )
+    )[0]?.threshold;
+  await expect.poll(threshold).toBe(2_500_000);
 });

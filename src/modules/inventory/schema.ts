@@ -35,6 +35,7 @@ export const RecordPurchase = z.object({
   unitPriceCentimes: centimes, // per displayed unit
   paidCentimes: centimes,
   vatCentimes: centimes.default("0"), // SPEC-finance FN9: the invoice's VAT, part of the total
+  paidMethod: z.enum(SUPPLIER_PAYMENT_METHODS).default("cash"), // FN6; older queued writes without it were paid in cash
   dueOn: day.nullable(),
 });
 export const RecordSupplierPayment = z.object({

@@ -5,7 +5,7 @@ import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 
 /** A farm event finance posts (SPEC-finance FN6), read from a module's change log (FN7). Amounts in centimes. */
 export type FarmEvent =
-  | { type: "purchase"; id: string; day: FarmDay; itemKind: string; amount: bigint; paid: bigint; vat?: bigint } // vat: part of amount (FN9)
+  | { type: "purchase"; id: string; day: FarmDay; itemKind: string; amount: bigint; paid: bigint; vat?: bigint; method?: string } // vat: part of amount (FN9); method: of the paid part, cash when absent
   | { type: "chicks"; id: string; day: FarmDay; amount: bigint } // the chicks bought at placement (SPEC B1)
   | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead"; vat?: bigint } // SPEC V2, SPEC-m3 V6, V7
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
@@ -31,8 +31,7 @@ const CHARGE_BY_ITEM: Record<string, string> = {
 };
 const CHICKS = "612121"; // Achats d'animaux
 const SUPPLIERS = "4411";
-// M1 doesn't record how a purchase was paid at once: cash (5161) until purchases carry a payment method (T32).
-const PAID_AT_ONCE = "5161";
+const PAID_AT_ONCE = "5161"; // the cash box: advances, and a purchase's paid part without a method
 const BUYERS = "3421"; // Clients
 const BIRDS_SOLD = "712121"; // Ventes d'animaux (per kg or per head: SPEC-m3 V8)
 const EGGS_SOLD = "71213"; // Ventes de produits d'animaux (SPEC-m3 V8); 7121 without the PCA
@@ -149,7 +148,8 @@ export function postingOf(e: FarmEvent, vatRegistered = false): Posting | null {
   const lines: Line[] = [{ account: CHARGE_BY_ITEM[e.itemKind] ?? CHARGE_BY_ITEM.other, debit: e.amount - vat, credit: 0n }];
   if (vat > 0n) lines.push(line(VAT_RECOVERABLE, vat, 0n));
   if (e.amount > e.paid) lines.push({ account: SUPPLIERS, debit: 0n, credit: e.amount - e.paid });
-  if (e.paid > 0n) lines.push({ account: PAID_AT_ONCE, debit: 0n, credit: e.paid });
+  // FN6: the part paid at once leaves where a later supplier payment would (an issued cheque: the bank, on its day)
+  if (e.paid > 0n) lines.push({ account: (PAID_OUT[e.method ?? "cash"] ?? PAID_OUT.cash).account, debit: 0n, credit: e.paid });
   return { journal: "AC", label: "Achat", lines };
 }
 

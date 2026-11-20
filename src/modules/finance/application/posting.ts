@@ -26,7 +26,7 @@ const SOURCES: Source[] = [
     read: async (tx, ctx, after) =>
       (await purchasesChangedSince(tx, ctx, after)).map((p) => ({
         version: p.version,
-        event: { type: "purchase", id: p.id, day: p.day, itemKind: p.itemKind, amount: p.amountCentimes, paid: p.paidCentimes, vat: p.vatCentimes },
+        event: { type: "purchase", id: p.id, day: p.day, itemKind: p.itemKind, amount: p.amountCentimes, paid: p.paidCentimes, vat: p.vatCentimes, method: p.paidMethod },
       })),
   },
   {

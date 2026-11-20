@@ -42,9 +42,10 @@ export type PurchaseDto = {
   amountCentimes?: string;
   paidCentimes?: string;
   vatCentimes?: string; // SPEC-finance FN9: part of amountCentimes; absent from a purchase recorded before T39
+  paidMethod?: (typeof SUPPLIER_PAYMENT_METHODS)[number]; // SPEC-finance FN6: how the part paid at once was paid; absent: cash
   dueOn?: string | null;
 };
-export const PURCHASE_MONEY = ["unitPriceCentimes", "amountCentimes", "paidCentimes", "vatCentimes", "dueOn"] as const;
+export const PURCHASE_MONEY = ["unitPriceCentimes", "amountCentimes", "paidCentimes", "vatCentimes", "paidMethod", "dueOn"] as const;
 
 /** S2, SPEC-finance FN6: how a supplier is paid later. A cheque leaves the bank on its issue date; a bill is accepted. */
 export const SUPPLIER_PAYMENT_METHODS = ["cash", "transfer", "cheque", "bill"] as const;

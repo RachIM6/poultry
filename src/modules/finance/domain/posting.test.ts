@@ -30,6 +30,14 @@ describe("default posting rules (SPEC-finance FN6)", () => {
     ]);
   });
 
+  it("takes the paid part from where it was paid: bank for a transfer or an issued cheque, 4415 for a bill", () => {
+    const paidFrom = (method: string) => postingOf({ type: "purchase", id: "p", day, itemKind: "feed", amount: 900_000n, paid: 300_000n, method })?.lines.at(-1);
+    expect(paidFrom("transfer")).toEqual({ account: "5141", debit: 0n, credit: 300_000n });
+    expect(paidFrom("cheque")?.account).toBe("5141");
+    expect(paidFrom("bill")?.account).toBe("4415");
+    expect(paidFrom("cash")?.account).toBe("5161");
+  });
+
   it("posts the chicks bought at placement: D 612121 / C 4411", () => {
     expect(postingOf({ type: "chicks", id: "b", day, amount: 4_400_000n })?.lines.map((l) => l.account)).toEqual(["612121", "4411"]);
   });

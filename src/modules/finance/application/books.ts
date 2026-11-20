@@ -5,7 +5,7 @@ import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { cashBookOf, trialBalance } from "@/modules/finance/domain/books";
-import { incomeStatement } from "@/modules/finance/domain/statements";
+import { balanceSheet, incomeStatement } from "@/modules/finance/domain/statements";
 import { fiscalYearOf, type Line } from "@/modules/finance/domain/entry";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { ledgerAccounts } from "@/modules/finance/infrastructure/ledger";
@@ -26,6 +26,7 @@ export type Books = {
   generalLedger?: { account: string; lines: { day: string; journal: string; label: string; debit: bigint; credit: bigint; running: bigint }[] }[];
   trialBalance?: ReturnType<typeof trialBalance>; // from the fiscal year's first day to the month's last
   incomeStatement?: ReturnType<typeof incomeStatement>; // F-Statements: a draft CPC over the same period
+  balanceSheet?: ReturnType<typeof balanceSheet>; // FC8: the draft bilan on the month's last day, its result the CPC's net
 };
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
@@ -83,5 +84,6 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
     generalLedger: [...byAccount].sort(([a], [b]) => a.localeCompare(b)).map(([account, lines]) => ({ account, lines })),
     trialBalance: balance,
     incomeStatement: incomeStatement(balance.rows),
+    balanceSheet: balanceSheet(balance.rows),
   });
 }

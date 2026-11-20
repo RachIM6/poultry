@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
+import { Fragment, Suspense } from "react";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -12,7 +12,7 @@ import { table } from "@/components/ui";
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
-const VIEWS = ["cash", "journals", "ledger", "trial", "cpc"] as const;
+const VIEWS = ["cash", "journals", "ledger", "trial", "cpc", "bilan"] as const;
 
 export default function BooksPage({ searchParams }: { searchParams: Search }) {
   return (
@@ -42,6 +42,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
   const result = await readBooks(ctx.value, month);
   if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
   const books = result.value;
+  const bilan = books.balanceSheet;
   const views = books.books === "ledger" ? VIEWS : (["cash"] as const);
   const view = views.find((v) => v === search.view) ?? views[0];
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));
@@ -179,6 +180,31 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
                 <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.amount)}</td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      )}
+      {view === "bilan" && bilan && (
+        <table className={table} aria-label={t("Books.bilan")}>
+          <caption className="text-start">{t("Books.bilanDraft", { from: day(books.fiscalYear.from) })}</caption>
+          <tbody>
+            {([["assets", bilan.totalAssets], ["liabilities", bilan.totalLiabilities]] as const).map(([side, total]) => (
+              <Fragment key={side}>
+                <tr className="border-t-2 border-line bg-shell font-semibold">
+                  <td className="p-2">{t(`Books.bilanSides.${side}`)}</td>
+                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(total)}</td>
+                </tr>
+                {bilan[side].map((l) => (
+                  <tr key={l.account} className="border-t border-line">
+                    <td className="p-2 ps-6"><bdi dir="ltr">{account(l.account)}</bdi></td>
+                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.amount)}</td>
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+            <tr className="border-t border-line">
+              <td className="p-2 ps-6">{t("Books.cpcNet")}</td>
+              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(bilan.result)}</td>
+            </tr>
           </tbody>
         </table>
       )}

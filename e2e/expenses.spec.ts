@@ -68,3 +68,33 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
   await page.setViewportSize({ width: 1280, height: 800 });
   for (const name of ["Ventes", "Comptabilité", "Membres"]) await expect(nav.getByRole("link", { name })).toBeVisible();
 });
+
+// T119 (FC9): bank fees are paid from a bank account only; with none yet, the form says to add one first.
+test("bank fees offer only bank accounts, and ask for one when there is none", async ({ page }) => {
+  test.setTimeout(90_000);
+  await ownerWithFarm(page, "Élevage des Frais");
+  await scopeRemembered(page);
+  await page.goto("/fr/expenses");
+  const addAccount = async (kind: string, name: string) => {
+    await page.getByRole("button", { name: "Ajouter une caisse ou un compte" }).click();
+    await page.getByLabel("Type").selectOption({ label: kind });
+    await page.getByLabel("Nom").fill(name);
+    await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: `${kind} · ${name}` })).toBeVisible();
+  };
+  const paidWith = page.getByLabel("Payé avec").locator("option");
+  await addAccount("Caisse", "Caisse ferme");
+  await expect(paidWith).toHaveText(["Caisse · Caisse ferme", "À payer plus tard (fournisseur)"]);
+
+  await page.getByLabel("Nature").selectOption({ label: "Frais bancaires" });
+  await expect(paidWith).toHaveCount(0); // neither the cash box nor credit
+  await page.getByLabel("Montant (DH)").fill("45");
+  await page.getByRole("button", { name: "Enregistrer la dépense" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord." })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Dernières dépenses" }).getByRole("listitem")).toHaveCount(0);
+
+  await addAccount("Banque", "Banque Populaire");
+  await expect(paidWith).toHaveText(["Banque · Banque Populaire"]);
+  await page.getByLabel("Nature").selectOption({ label: "Électricité" });
+  await expect(paidWith).toHaveText(["Banque · Banque Populaire", "Caisse · Caisse ferme", "À payer plus tard (fournisseur)"]);
+});

@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
@@ -28,14 +29,19 @@ export async function postManualEntry(ctx: TenantContext, input: unknown, clock:
   if (!entity) return fail("NOT_FOUND");
   if (entity.accountingProfile.books !== "ledger") return fail("CASH_BOOK_NO_MANUAL_ENTRY");
   const lines = e.lines.map((l) => ({ account: l.account, debit: BigInt(l.debit), credit: BigInt(l.credit) }));
+  const retry = (prior: { organizationId: string } | null) => (prior?.organizationId === ctx.organizationId ? ok(undefined) : fail("ALREADY_EXISTS"));
   return db.$transaction(async (tx) => {
     const prior = await tx.manualEntry.findUnique({ where: { id: e.id }, select: { organizationId: true } });
-    if (prior) return prior.organizationId === ctx.organizationId ? ok(undefined) : fail("ALREADY_EXISTS"); // a retry
+    if (prior) return retry(prior); // a retry
     const posted = await postEntry(tx, ctx, { id: e.id, legalEntityId: entity.id, journal: "OD", day, label: e.label, reversesId: null, lines, source: { module: "finance", id: e.id, version: 1 } });
     if (!posted.ok) return posted;
     await tx.manualEntry.create({ data: { id: e.id, organizationId: ctx.organizationId, piece: e.piece, createdBy: ctx.userId } });
     await audit(tx, ctx, { entity: "ManualEntry", entityId: e.id, action: "create", after: { piece: e.piece } }); // the lines: postEntry's audit
     return ok(undefined);
+  }).catch(async (err) => {
+    // Two submits of the same form at once: the second's insert hits the first's key once it commits. A retry too.
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) throw err;
+    return retry(await db.manualEntry.findUnique({ where: { id: e.id }, select: { organizationId: true } }));
   });
 }
 

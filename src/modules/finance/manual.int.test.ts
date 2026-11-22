@@ -5,9 +5,10 @@ import { db } from "@/lib/db";
 import { fixedClock } from "@/lib/kernel/clock";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { attachManualEntryReceipt, changeAccountingChoices, postManualEntry, readBooks, setPeriodLocked } from "@/modules/finance";
+import { attachManualEntryReceipt, changeAccountingChoices, exportBooks, postManualEntry, readBooks, setPeriodLocked } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
+import { unzip } from "@/test/unzip";
 
 const clock = fixedClock("2026-06-15T10:00:00Z");
 const line = (account: string, debit: string, credit: string) => ({ account, debit, credit });
@@ -101,5 +102,29 @@ describe("manual entries (SPEC-finance FCX3, FN3, T101)", () => {
     const books = await readBooks(owner, "2026-03");
     if (!books.ok) throw new Error(books.error);
     expect(books.value.journals?.find((j) => j.journal === "OD")?.entries.map((x) => [x.piece, x.receipt])).toEqual([[null, file]]);
+  });
+
+  it("answers two submits of the same form at once as a retry: one entry, no error", async () => {
+    const e = entry({ day: "2026-05-04", label: "Frais de dossier", piece: null, lines: [line("6311", "1000", "0"), line("4493", "0", "1000")] });
+    expect(await Promise.all([postManualEntry(owner, e, clock), postManualEntry(owner, e, clock)])).toEqual([
+      { ok: true, value: undefined },
+      { ok: true, value: undefined },
+    ]);
+    expect(await posted(e.id)).toBe(1);
+    expect(await db.manualEntry.count({ where: { id: e.id } })).toBe(1);
+  });
+
+  it("puts a manual entry's typed piece in the export's Pièce column, its id when it has none (FN18)", async () => {
+    const lines = [line("6311", "5000", "0"), line("4493", "0", "5000")];
+    const typed = entry({ day: "2026-04-02", label: "Régularisation", piece: "FAC-2026-117", lines });
+    const untyped = entry({ day: "2026-04-03", label: "Intérêts courus", piece: null, lines });
+    for (const e of [typed, untyped]) expect(await postManualEntry(owner, e, clock)).toEqual({ ok: true, value: undefined });
+    const exported = await exportBooks(owner, "2026-04");
+    if (!exported.ok) throw new Error(exported.error);
+    const csv = unzip(exported.value.zip).get("ecritures-2026-04.csv")!;
+    expect(csv).toMatch(/\r\n02\/04\/2026;OD;FAC-2026-117;6311;/);
+    expect(csv).toMatch(/\r\n02\/04\/2026;OD;FAC-2026-117;4493;/);
+    expect(csv).not.toContain(typed.id);
+    expect(csv).toContain(`\r\n03/04/2026;OD;${untyped.id};6311;`);
   });
 });

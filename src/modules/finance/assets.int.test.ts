@@ -11,6 +11,7 @@ import {
   changeAccountingChoices,
   createFixedAsset,
   disposeFixedAsset,
+  exportBooks,
   payFixedAsset,
   readBooks,
   setPeriodLocked,
@@ -19,6 +20,7 @@ import {
 } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant, twoTenants } from "@/test/tenant";
+import { unzip } from "@/test/unzip";
 
 const clock = fixedClock("2028-06-15T10:00:00Z");
 // SPEC-finance §7.1 A: the generator, 47 350,00, in service on 18 Sep 2026, 84 months typed by the owner.
@@ -208,6 +210,29 @@ describe("fixed assets (SPEC-finance FC1, T102)", () => {
     const treasury = await treasuryOverview(owner, "2026-09");
     if (!treasury.ok) throw new Error(treasury.error);
     expect(treasury.value.movements.find((m) => m.label === "Acquisition : Groupe électrogène" && m.treasuryId === box)).toMatchObject({ creditCentimes: 4_735_000n, receipt: undefined });
+  });
+
+  it("tags its acquisition, payment and disposal entries with its farm and house in the accountant's export (FN18)", async () => {
+    const day = { acquiredOn: "2026-11-02", inServiceOn: "2026-11-02" };
+    const inHouse = generator({ ...day, label: "Pondoir", paidWith: "credit", amountCentimes: "1000000", houseId: house });
+    const onFarm = generator({ ...day, label: "Citerne", farmId: farm });
+    for (const a of [inHouse, onFarm]) expect(await createFixedAsset(owner, a, clock)).toEqual({ ok: true, value: undefined });
+    expect(await payFixedAsset(owner, { id: uuidv7(), assetId: inHouse.id, day: "2026-11-05", amountCentimes: "400000", paidWith: "cash", treasuryId: box }, clock)).toEqual({ ok: true, value: undefined });
+    expect(await disposeFixedAsset(owner, { assetId: inHouse.id, day: "2026-11-20", priceCentimes: "500000", receivedIn: "cash", treasuryId: box }, clock)).toEqual({ ok: true, value: undefined });
+
+    const exported = await exportBooks(owner, "2026-11");
+    if (!exported.ok) throw new Error(exported.error);
+    const rows = unzip(exported.value.zip).get("ecritures-2026-11.csv")!.split("\r\n");
+    const rowsOf = async (id: string) => {
+      const entries = await db.journalEntry.findMany({ where: { sourceModule: "finance", sourceId: { startsWith: `asset:${id}:` } }, select: { id: true } });
+      return rows.filter((r) => entries.some((e) => r.includes(`;${e.id};`)));
+    };
+    const inHouseRows = await rowsOf(inHouse.id);
+    expect(inHouseRows.length).toBeGreaterThanOrEqual(2 + 2 + 2); // acquisition, payment, disposal: two lines each at least
+    expect(inHouseRows.every((r) => r.endsWith(";;Ferme Sud;Bâtiment 1;"))).toBe(true); // no party, no batch
+    const onFarmRows = await rowsOf(onFarm.id);
+    expect(onFarmRows).toHaveLength(2);
+    expect(onFarmRows.every((r) => r.endsWith(";;Ferme Sud;;"))).toBe(true);
   });
 
   it("keeps a cash_book entity's register and schedules only: nothing posted, no debt to pay (FCX4, FQ27)", async () => {

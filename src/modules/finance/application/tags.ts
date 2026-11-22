@@ -8,7 +8,7 @@ import { ledgerTagsOf as workforceTags } from "@/modules/workforce";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import type { EntryTags } from "@/modules/finance/domain/export";
 
-type Tag = { party: string | null; farmId: string | null; batchId: string | null };
+type Tag = { party: string | null; farmId: string | null; batchId: string | null; houseId?: string | null }; // houseId: without a batch (a fixed asset)
 const dmy = (day: string) => day.split("-").reverse().join("/");
 
 /**
@@ -25,29 +25,36 @@ export async function entryTags(ctx: TenantContext, month: string): Promise<Entr
     select: { id: true, sourceModule: true, sourceId: true },
   });
   const idsOf = (module: string) => entries.filter((e) => e.sourceModule === module).map((e) => e.sourceId!);
-  const [inventory, sales, workforce, expenses] = await Promise.all([
+  const assetSources = idsOf("finance").flatMap((source) => (source.startsWith("asset:") ? [[source, source.split(":")[1]] as const] : [])); // asset:<id>:acq|pay:<id>|disposal (FC1)
+  const [inventory, sales, workforce, expenses, assets] = await Promise.all([
     inventoryTags(db, ctx, idsOf("inventory")),
     salesTags(db, ctx, idsOf("sales")),
     workforceTags(db, ctx, idsOf("workforce")),
     // A finance source is a record's id (an expense, a transfer) or a rule's key (asset:<id>:acq, FC1): uuids only here.
     db.expense.findMany({ where: { organizationId: ctx.organizationId, id: { in: idsOf("finance").filter((id) => UUID.test(id)) } }, select: { id: true, batchId: true } }),
+    db.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, id: { in: assetSources.map(([, id]) => id).filter((id) => UUID.test(id)) } }, select: { id: true, farmId: true, houseId: true } }),
   ]);
+  const assetOf = new Map(assets.map((a) => [a.id, a]));
   const tagOf = new Map<string, Tag>([
     ...inventory,
     ...sales,
     ...workforce,
     ...expenses.map((x) => [x.id, { party: null, farmId: null, batchId: x.batchId }] as const),
     ...idsOf("flock").map((id) => [id, { party: null, farmId: null, batchId: id }] as const), // the chicks of a placement
+    ...assetSources.flatMap(([source, id]) => {
+      const a = assetOf.get(id);
+      return a ? [[source, { party: null, farmId: a.farmId, batchId: null, houseId: a.houseId }] as const] : [];
+    }),
   ]);
   const batches = await batchPlaces(db, ctx, [...tagOf.values()].flatMap((t) => (t.batchId ? [t.batchId] : [])));
-  const names = await placeNames(db, ctx, [...[...tagOf.values()].flatMap((t) => (t.farmId ? [t.farmId] : [])), ...[...batches.values()].flatMap((b) => [b.farmId, b.houseId])]);
+  const names = await placeNames(db, ctx, [...[...tagOf.values()].flatMap((t) => [t.farmId, t.houseId].filter((id) => id != null)), ...[...batches.values()].flatMap((b) => [b.farmId, b.houseId])]);
   const tags = new Map<string, [string, string, string, string]>();
   for (const e of entries) {
     const t = tagOf.get(e.sourceId!);
     if (!t) continue;
     const batch = t.batchId ? batches.get(t.batchId) : undefined;
     const farmId = batch?.farmId ?? t.farmId;
-    tags.set(e.id, [t.party ?? "", (farmId && names.get(farmId)) ?? "", (batch && names.get(batch.houseId)) ?? "", batch ? dmy(batch.placedOn) : ""]);
+    tags.set(e.id, [t.party ?? "", (farmId && names.get(farmId)) ?? "", names.get(batch?.houseId ?? t.houseId ?? "") ?? "", batch ? dmy(batch.placedOn) : ""]);
   }
   return tags;
 }

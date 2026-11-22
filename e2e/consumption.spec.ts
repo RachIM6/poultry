@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, login, ownerWithFarm, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // T112 acceptance (browser part, SPEC-finance FC7): offline, a home consumption on the sale form is prefilled with the
 // last sale's price, refused during a withdrawal, then recorded for a day before it, lowering birds on hand; it syncs
@@ -65,4 +65,66 @@ test("an offline home consumption is refused during a withdrawal, then recorded 
   const unposted = page.getByRole("region", { name: "Consommations non comptabilisées" });
   await expect(unposted.getByRole("listitem")).toHaveCount(1);
   await expect(unposted).toContainText(/L’exploitant · 2 oiseaux · 58,00\sDH\s:\snon comptabilisé \(FQ11\)/); // 4 kg × 14,50
+});
+
+// T112, I5: a worker records a consumption with no price field and no value, sees none of the farm's sales to buyers,
+// and the server prices it from the last sale.
+test("a worker records a consumption without seeing a price, an amount or the buyers' sales; the server prices it", async ({ page, browser }) => {
+  test.setTimeout(150_000);
+  await ownerWithFarm(page, "Élevage du Gardien");
+  await scopeRemembered(page);
+  const ids = await farmWithBatch(page, "ross-308", farmDaysAgo(20));
+  const buyer = uuidv7();
+  await pushAs(page, [
+    { type: "sales.createBuyer", payload: { id: buyer, name: "Abattoir Atlas", phone: null, type: "abattoir" } },
+    { type: "sales.recordSale", payload: { id: uuidv7(), batchId: ids.batch, buyerId: buyer, day: farmDaysAgo(5), birds: 100, farmWeightGrams: 200_000, buyerWeightGrams: null, pricePerKgCentimes: "1450", paymentMethod: "cash", paidCentimes: "290000", instrument: null } },
+  ]);
+
+  // The owner invites the worker, who signs in once (the invitation becomes a membership).
+  const phone = randomMobile();
+  await page.goto("/fr/settings/members");
+  await page.getByLabel("Numéro de téléphone").fill(phone);
+  await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
+  await page.getByRole("button", { name: "Inviter" }).click();
+  await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
+  const workerContext = await browser.newContext({ ...test.info().project.use });
+  const worker = await workerContext.newPage();
+  const e164 = await login(worker, "fr", phone);
+  await expect(worker).toHaveURL(/\/fr\/dashboard$/);
+  await scopeRemembered(worker);
+
+  await worker.goto(`/fr/batches#${ids.batch}`);
+  await expect(worker.getByText("Oiseaux présents : 900")).toBeVisible();
+  await expect(worker.getByText("Aucune vente.")).toBeVisible(); // the sale to Abattoir Atlas isn't the worker's
+  await expect(worker.getByRole("button", { name: "Nouvelle vente" })).toHaveCount(0);
+  await worker.getByRole("button", { name: "Nouvelle consommation" }).click();
+  await expect(worker.getByRole("radio", { name: "Consommation" })).toHaveCount(0); // a consumption, nothing else
+  await expect(worker.getByLabel("Prix au kg (DH)")).toHaveCount(0);
+  await expect(worker.getByLabel("Montant reçu maintenant (DH)")).toHaveCount(0);
+  await worker.getByLabel("Pris par").selectOption({ label: "Un employé" });
+  await worker.getByLabel("Nombre d’oiseaux").fill("5");
+  await worker.getByLabel("Poids à la ferme (kg)").fill("10");
+  await expect(worker.getByText(/^Valeur\s:/)).toHaveCount(0);
+  await worker.getByRole("button", { name: "Enregistrer la consommation" }).click();
+
+  const sales = worker.getByRole("list", { name: "Ventes" }).getByRole("listitem");
+  await expect(sales).toHaveCount(1);
+  await expect(sales).toContainText("Consommation · Un employé · 5 oiseaux");
+  await expect(worker.getByText("Oiseaux présents : 895")).toBeVisible();
+
+  // On the server, priced from the last sale: 10 kg × 14,50 DH.
+  const server = async () =>
+    await query<{ takenBy: string; amount: string; recordedBy: string }>(
+      `SELECT s."takenBy", s."amountCentimes"::text AS amount, u."phoneNumber" AS "recordedBy"
+       FROM "Sale" s JOIN "User" u ON u.id = s."recordedBy" WHERE u."phoneNumber" = $1 AND s."takenBy" IS NOT NULL`,
+      [e164],
+    );
+  await expect.poll(server).toEqual([{ takenBy: "employee", amount: "14500", recordedBy: e164 }]);
+
+  // Once the phone has pulled it back, still no value nor the buyers' sale.
+  await worker.reload();
+  await expect(sales).toHaveCount(1);
+  await expect(sales).toContainText("Consommation · Un employé · 5 oiseaux");
+  await expect(worker.getByText(/Valeur\s:|Abattoir Atlas/)).toHaveCount(0);
+  await workerContext.close();
 });

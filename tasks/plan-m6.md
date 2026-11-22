@@ -4,7 +4,7 @@ _v0.1, 20 Nov 2026. Status: **draft**. Implements [SPEC-finance.md](../SPEC-fina
 
 Definition of done, file layout and verification commands are the same as [todo.md](todo.md). Every money function gets its SPEC-finance §7 or §7.1 fixture as its first test. Each task goes domain test → integration test (tenant isolation, roles: worker nothing, accountant read-only, owner-only actions) → screen → Playwright spec, then lint, typecheck, `pnpm test` and the spec. M6 screens are online, server-rendered like `/books`, and linked from "Plus" › Argent. Nothing new goes on `/batches` (JS budget). All strings go in `fr.json` and `ar.json` (FX5).
 
-**Most of M6 waits for T100.** Almost every FC rule posts to an account that isn't seeded yet. T100 seeds those accounts from the official PCA PDF, which isn't in the repository. Until the owner provides it or allows the download, only T107, T110 and T111 can be built: they post nothing, or only to accounts already seeded.
+**Most of M6 waits for T100.** Almost every FC rule posts to an account that wasn't seeded. T100 seeds the PCA nomenclature from the official text, now in `docs/sources/plan-comptable-agricole-2015.pdf`. Before it, only T107, T110 and T111 could be built: they post nothing, or only to accounts already seeded.
 
 ## Defaults taken without asking (SPEC-finance §5, to confirm with the accountant)
 
@@ -12,7 +12,7 @@ Definition of done, file layout and verification commands are the same as [todo.
 |---|---|---|
 | FQ9 prorata | By whole months: the in-service month counts in full, the disposal month doesn't; cumulative rounding | FC1, T102 |
 | FQ16 loans | Interest per period = annual rate ÷ periods per year; no accrued interest at year end (manual entry if wanted) | FC2, T105 |
-| FQ17 subsidies | Booked when received (D 5141 / C 1311); released to 7577 in proportion to the assets' depreciation, through the equity contra account (candidate 1319, unverified: T100); refused on land | FC2, T106 |
+| FQ17 subsidies | Booked when received (D 5141 / C 1311); released to 7577 in proportion to the assets' depreciation, through 1319 Subventions d’investissement inscrites au compte de produits et charges (confirmed by T100); refused on land | FC2, T106 |
 | FQ18 eggs | Value per egg typed by the owner | FC5, T113 |
 | FQ19 batch in progress | FN13's cost only, split by head between birds on hand and birds sold | FC4, T109 |
 | FQ20 current value | Last weighing × last sale price for a batch; cost for a stock unless the owner lowers it | FC4, FC5, T108, T109 |
@@ -22,20 +22,20 @@ Definition of done, file layout and verification commands are the same as [todo.
 
 No life, rate, tax rate, price or bank file format is stored or suggested anywhere: the user types lives and rates from the contract or the accountant.
 
-**Candidate accounts** (SPEC-finance §5 "Candidates"): numbers that are neither seeded nor in the original M6 summary. They are written as candidates, never as fact:
+**Candidate accounts** (SPEC-finance §5 "Candidates"): numbers that were neither seeded nor in the original M6 summary. T100 confirmed each from the PCA nomenclature:
 
-| Role | Candidate |
-|---|---|
-| Debts on fixed-asset acquisitions | 4481 |
-| Net book value of tangible assets disposed of | 6513 |
-| Proceeds of tangible-asset disposals | 7513 |
-| Subsidy amounts taken to income | 1319 |
-| Provision on materials and supplies | 3912 |
-| Reversals of current-asset provisions | 7196 |
-| Bank services | 6147 |
-| Furniture and office equipment | 235x |
+| Role | Candidate | Confirmed, printed label |
+|---|---|---|
+| Debts on fixed-asset acquisitions | 4481 | 4481 Dettes sur acquisition d’immobilisations (1486 vs 4481: FQ23) |
+| Net book value of tangible assets disposed of | 6513 | 6513 VNA des immobilisations corporelles cédées |
+| Proceeds of tangible-asset disposals | 7513 | 7513 Produits des cessions des immobilisations corporelles |
+| Subsidy amounts taken to income | 1319 | 1319 Subventions d’investissement inscrites au compte de produits et charges |
+| Provision on materials and supplies | 3912 | 3912 Provisions pour dépréciation des matières et fournitures |
+| Reversals of current-asset provisions | 7196 | 7196 Reprises sur provisions pour dépréciation de l’actif circulant |
+| Bank services | 6147 | 6147 Services bancaires |
+| Furniture and office equipment | 235x | 2351 Mobilier de bureau, 2352 Matériel de bureau, 2355 Matériel informatique, 2358 Autres mobilier, matériel de bureau et aménagements divers; depreciation 2835 |
 
-T100 confirms or replaces each from the text before any rule uses it.
+The asset, stock and hens families are in SPEC-finance §5 "Accounts from the PCA nomenclature".
 
 ## Dependency graph
 
@@ -46,7 +46,7 @@ T110 draft balance sheet
 T111 bank reconciliation, manual matching
 
 Blocked
-T100 close accounts         ← the PCA PDF in the repository (owner's OK to download it, or the owner provides it)
+T100 close accounts         ← the PCA PDF, now in docs/sources/
  ├── T101 manual entry + opening balances
  ├── T102 assets + depreciation ── T103 close run ── T104 year close + opening reversals
  │                                   ├── T106 subsidies (screen with T105)
@@ -101,17 +101,17 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 ## Blocked
 
 ### T100: Close accounts from the PCA nomenclature (FCX3, FC1–FC9)
-**Blocked by:** the PCA PDF in the repository: the owner's OK to download it, or the owner provides it. It is the official text that `accounts.json` cites: finances.gov.ma/Publication/depp/2017/Plan Comptable Agricole -vf-dec2015.pdf. Telling CGNC accounts from PCA additions also needs the CGNC nomenclature, under the same condition.
+**Blocked by:** nothing now. The official text that `accounts.json` cites (finances.gov.ma/Publication/depp/2017/Plan Comptable Agricole -vf-dec2015.pdf) is in `docs/sources/plan-comptable-agricole-2015.pdf`. No CGNC nomenclature is available: `pca` tags come from the PCA text and the accounts' agricultural nature, and the doubtful ones are listed in SPEC-finance §9 "Found for the accountant (T100)".
 **Description:** Seed the whole nomenclature of the PCA text (classes 1–8, labels as printed) into `prisma/seed/finance/accounts.json`, so manual entries and opening balances can use any account.
 - **Charts:** accounts the PCA adds to the CGNC are tagged `pca`, with their CGNC `fallback` (FN2, FQ1).
 - **Families:** resolve the numbers §5 leaves open: the asset accounts in 231x–234x and their 28xx; the 31x accounts by stock kind and for the farm's own products; and, for T114, what the text says about the simplified hens method (715).
 - **Candidates:** confirm or replace each candidate in the table above.
 **AC:**
-- [ ] Every account SPEC-finance §5 names exists in the seed with its printed label (unit test listing them). An account the text lacks is listed under "Found for the accountant", and its rule stays out: no number invented.
-- [ ] Each candidate (4481, 6513, 7513, 1319, 3912, 7196, 6147, 235x) is confirmed or replaced from the text, with its printed label, and SPEC-finance §5 is updated to the confirmed number before any rule using it is coded.
-- [ ] Every account a posting rule uses (`POSTED_ACCOUNTS`, `EXPENSE_ACCOUNTS`) is still a posting account (no sub-account under it) in both charts (`chart.test.ts`, `operations.test.ts` green). If the import gives one of them children, stop and report.
-- [ ] `pnpm db:seed` upserts over a database with posted entries; their lines keep their accounts (integration).
-- [ ] Roll-up of each new PCA account reaches its class through `parentNumber`.
+- [x] Every account SPEC-finance §5 names exists in the seed with its printed label (unit test listing them). An account the text lacks is listed under "Found for the accountant", and its rule stays out: no number invented. _`finance/accounts.test.ts` "has every account SPEC-finance §5 names, with its printed label (T100)"; every §5 account is in the text. **In part for "the whole nomenclature":** 762 accounts seeded (692 new), minus 14 printed rows left out (the sub-accounts of 3421, 3424, 4411 and 6136, two of them misprints), listed in SPEC-finance §9 with FQ24._
+- [x] Each candidate (4481, 6513, 7513, 1319, 3912, 7196, 6147, 235x) is confirmed or replaced from the text, with its printed label, and SPEC-finance §5 is updated to the confirmed number before any rule using it is coded. _All confirmed (table above); 235x is 2351–2358._
+- [x] Every account a posting rule uses (`POSTED_ACCOUNTS`, `EXPENSE_ACCOUNTS`) is still a posting account (no sub-account under it) in both charts (`chart.test.ts`, `operations.test.ts` green). If the import gives one of them children, stop and report. _The import gave 3421, 3424, 4411 and 6136 children: reported, and their sub-accounts left out. `finance/accounts.test.ts` (the chart tests) "keeps every account a posting rule uses a posting account, in both charts"; `domain/operations.test.ts` green._
+- [x] `pnpm db:seed` upserts over a database with posted entries; their lines keep their accounts (integration). _`finance/seed.int.test.ts` runs the seed script twice over posted entries, then reverses each one (FN4 re-checks the lines)._
+- [x] Roll-up of each new PCA account reaches its class through `parentNumber`. _`finance/accounts.test.ts` "is a tree: every parent exists in the same charts, every account reaches its class", over every seeded account._
 **Depends on:** nothing.
 **Size:** L (data from a PDF)
 
@@ -128,13 +128,13 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** M
 
 ### T102: Fixed-asset register and depreciation schedule (FC1)
-**Blocked by:** T100 (asset accounts 231x–234x, 28xx, 6193, and the candidates for debts on asset acquisitions, disposed net book value, disposal proceeds and furniture).
+**Blocked by:** T100 (asset accounts 231x–235x, 2832–2835, 6193, 4481, 6513, 7513).
 **Description:**
 - `FixedAsset`, finance's own table: legal entity, label, category, farm and house, acquired and in-service days, cost, VAT, residual value, life in months, payment method, `inOpeningBalance` and its accumulated depreciation, disposal day and price, receipt.
 - Pure `straightLine`: cumulative rounding, default prorata FQ9.
 - "Immobilisations" screen: each asset's schedule by year. The owner writes; the manager and the accountant read.
 - **Postings:**
-  - acquisition: D asset account (+ 3455 when VAT-registered) / C 5161, 5141, or the account for debts on fixed-asset acquisitions (candidate 4481, unverified);
+  - acquisition: D asset account (+ 3455 when VAT-registered) / C 5161, 5141, or 4481 Dettes sur acquisition d’immobilisations;
   - a later payment of an asset bought on credit: D that account / C 5161 or 5141;
   - disposal (§5 FC1), with the year's depreciation up to it.
 - **Category → account:** a map in `domain/`, like `EXPENSE_ACCOUNTS`, filled from T100's confirmed numbers.
@@ -144,18 +144,18 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 - [ ] Each acquisition method posts the FC1 entry; an asset in the opening balance posts nothing (domain + integration).
 - [ ] The life is required and > 0; no life is prefilled. Land has no life and is never depreciated.
 - [ ] Disposing of §7.1 A's generator on 15 Mar 2028 (2 months used in 2028):
-  - posts the 2028 depreciation, cumulative(18) − cumulative(16) = 1 014 643 − 901 905 centimes = 1 127,38 (D 6193 / C 28xx);
-  - then D 28xx 10 146,43, D the disposed net book value account (candidate 6513) 37 203,57 / C asset account 47 350,00;
-  - and the price on the disposal proceeds account (candidate 7513).
+  - posts the 2028 depreciation, cumulative(18) − cumulative(16) = 1 014 643 − 901 905 centimes = 1 127,38 (D 6193 / C 2833);
+  - then D 2833 10 146,43, D 6513 37 203,57 / C asset account 47 350,00;
+  - and the price on 7513.
 - [ ] Owner only for writes; tenant isolation (integration).
 **Depends on:** T100.
 **Size:** M
 
 ### T103: The close run, depreciation first (FCX4, FC1)
 **Blocked by:** T100, through T102.
-**Description:** "Préparer la clôture" (`/closing`, owner): computes the year-end entries, shows them, then posts them (OD, the year's last day, source `close:<kind>:<entity>:<year>`, FN7 versions). Depreciation is its first kind: D 6193 / C 28xx per account, without the months a disposal already posted. Later tasks add their kinds to the same run.
+**Description:** "Préparer la clôture" (`/closing`, owner): computes the year-end entries, shows them, then posts them (OD, the year's last day, source `close:<kind>:<entity>:<year>`, FN7 versions). Depreciation is its first kind: D 6193 / C 2832–2835 per account, without the months a disposal already posted. Later tasks add their kinds to the same run.
 **AC:**
-- [ ] §7.1 A's 2026 run posts D 6193 / C 28xx 2 254,76 on 31 Dec 2026.
+- [ ] §7.1 A's 2026 run posts D 6193 / C 2833 2 254,76 on 31 Dec 2026.
 - [ ] A second run with the same facts posts nothing; a changed life posts a reversal and a new entry (integration).
 - [ ] The run is refused while the year's last month is locked, and for a `cash_book` entity.
 - [ ] Once the run has posted, the year's count (T107) can no longer be changed (integration).
@@ -197,8 +197,8 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** M
 
 ### T106: Investment subsidies (FC2)
-**Blocked by:** T100 (1311, 7577, the subsidy contra-account candidate), through T103.
-**Description:** `Subsidy` (amount, day received, bank account, financed assets). Posted when received, D 5141 / C 1311 (default FQ17). The close run releases it to C 7577, debiting the equity contra account confirmed by T100 (candidate 1319), in proportion to the cumulative depreciation of its assets (cumulative rounding). Shown with the loans.
+**Blocked by:** T100 (1311, 7577, 1319), through T103.
+**Description:** `Subsidy` (amount, day received, bank account, financed assets). Posted when received, D 5141 / C 1311 (default FQ17). The close run releases it to C 7577, debiting 1319, in proportion to the cumulative depreciation of its assets (cumulative rounding). Shown with the loans.
 **AC:**
 - [ ] §7.1 A subsidy: 676,43 in 2026, 2 029,29 in 2027; the releases over the assets' life sum to the subsidy (property).
 - [ ] A subsidy on land only, or on no asset, is refused (FQ17).
@@ -207,8 +207,8 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** S
 
 ### T108: Stocks at close (FC5, bought stock)
-**Blocked by:** T100 (31x by kind, 6124, 6196, and the provision and reversal candidates).
-**Description:** The close run's "stocks" kind: per item and farm, counted (else book) quantity × weighted average cost on the last day (`inventory.valuate`), D 31x / C 6124 by kind. An optional lower current value per line (default FQ20: cost), with a provision D 6196 / C the materials-and-supplies provision account (candidate 3912). Both reversed by T104.
+**Blocked by:** T100 (31x by kind, the 6124 leaves, 6196, 3912, 7196).
+**Description:** The close run's "stocks" kind: per item and farm, counted (else book) quantity × weighted average cost on the last day (`inventory.valuate`), D 31x / C the matching 6124 leaf by kind (612412, 61242 or 61243, never 6124 itself, which has sub-accounts: SPEC-finance §5 "Bought stock by kind"). An optional lower current value per line (default FQ20: cost), with a provision D 6196 / C 3912. Both reversed by T104.
 **AC:**
 - [ ] §7 `stockAtCloseValue`: 98 400 vs 97 300 → 97 300, provision 1 100,00.
 - [ ] Valued at the cost on the last day: a purchase on the 2nd of January doesn't change it (integration).
@@ -217,7 +217,7 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** M
 
 ### T109: Batches in progress (FC4)
-**Blocked by:** T100 (31322, 7131, 6196, 3913, and the reversal candidate).
+**Blocked by:** T100 (31322, 7131, 6196, 3913, 7196).
 **Description:** The close run's "batches in progress" kind for meat batches open on the last day.
 - Cost engaged from FN13 as of the last day: `batchResults` gains an as-of day, and only facts dated on or before it count.
 - Split by head (default FQ19).
@@ -232,7 +232,7 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** M
 
 ### T112: Home consumption (FC7)
-**Blocked by:** T100 (7140 must be confirmed in the PCA text; if it isn't there, FQ21). An individual's entry also waits for FQ11.
+**Blocked by:** T100 (7140 Production Autoconsommée, confirmed in the PCA text; with the PCA off it lands on 714, which has sub-accounts: FQ21, FQ25). An individual's entry also waits for FQ11.
 **Description:** The three sale forms (V2, V6, V7) get the kind "Consommation", with who took the birds or eggs (exploitant, associate, employee).
 - It has no buyer and no payment. The withdrawal blocks, birds on hand and the FIFO egg draws apply as for a sale.
 - The price is prefilled from the last sale of the same product (default FQ21).
@@ -246,7 +246,7 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** M
 
 ### T119: Bank fees category (FC9)
-**Blocked by:** T100 (the bank services account, candidate 6147).
+**Blocked by:** T100 (6147 Services bancaires).
 **Description:** New quick-expense category "Frais bancaires" in `EXPENSE_ACCOUNTS`, paid from the bank: D bank services account / C 5141, `BQ`. It lets a statement with fees reach "rapproché" on T111's screen.
 **AC:**
 - [ ] "Frais bancaires" posts on the confirmed account and shows on `/settings/chart` (operations test).
@@ -255,15 +255,15 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** S
 
 ### T113: Eggs at close (FC5, eggs)
-**Blocked by:** the owner's OK to add `eggs` to finance's dependencies (CAPABILITY-MAP; "ask first", SPEC §7), and T100 (the own-products 31x account, 7132). Default FQ18 decided (value per egg typed by the owner).
-**Description:** Egg stock (SPEC-m3 E2) on the count sheet with its book quantity. The close run values counted eggs × the typed value: D own-products 31x / C 7132, reversed by T104.
+**Blocked by:** the owner's OK to add `eggs` to finance's dependencies (CAPABILITY-MAP; "ask first", SPEC §7), and T100 (3152 Produits finis (d’animaux), 7132; with the PCA off, FQ25). Default FQ18 decided (value per egg typed by the owner).
+**Description:** Egg stock (SPEC-m3 E2) on the count sheet with its book quantity. The close run values counted eggs × the typed value: D 3152 / C 7132, reversed by T104.
 **AC (when unblocked):**
 - [ ] Eggs on the count sheet match `eggs` stock on the last day; the value is required before the run posts.
 **Depends on:** T108. **Size:** S
 
 ### T114: Laying hens, simplified method (FC6)
-**Blocked by:** FQ7 (no safe default: choosing the method is the accountant's), and T100 (715 and the valuation basis, read from the PCA text).
-**Description:** The method choice per category in the accounting settings (locked once the year has an entry, like FN1). The close run values the laying flock per the PCA text, through 715.
+**Blocked by:** FQ7 (no safe default: choosing the method is the accountant's), and T100 (715 and the valuation basis, read from the PCA text: SPEC-finance §5 "Laying hens, what the text says"; 23711 / 23712 against the text's 2371 / 2372 is part of FQ7).
+**Description:** The method choice per category in the accounting settings (locked once the year has an entry, like FN1). The close run values the laying flock per the PCA text, through 7151 / 7152.
 **Size:** M
 
 ### T115: Laying hens and pullets, classic method (FC6)
@@ -292,7 +292,7 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** M per format
 
 ## ✅ Checkpoint M6
-- [ ] The PCA PDF is in the repository (or its download is allowed) and T100 is done: every candidate account is confirmed or replaced.
+- [x] The PCA PDF is in the repository (or its download is allowed) and T100 is done: every candidate account is confirmed or replaced. _`docs/sources/plan-comptable-agricole-2015.pdf`; all eight candidates confirmed._
 - [ ] An expert-comptable has reviewed the T100 accounts and the FC posting rules, and answered or accepted the defaults above (FQ9, FQ16–FQ21).
 - [ ] A pilot company closes a fiscal year in Dawra (count, close run, draft statements) and the accountant explains every difference with their own closing.
 - [ ] SPEC-finance §8 "Accounting close, end of M6" criteria met.

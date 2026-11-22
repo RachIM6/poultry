@@ -5,13 +5,16 @@ import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
+import { legalEntityIn, listLegalEntities, placeNames, type LegalEntityDto } from "@/modules/farm-registry";
 import { closeDepreciation } from "@/modules/finance/application/assets";
+import { closePosted } from "@/modules/finance/application/count";
+import { closeProvision, closeStock, stockLinesAtClose } from "@/modules/finance/application/stocks";
 import { closeSubsidies } from "@/modules/finance/application/subsidies";
 import { lockMonth, postOpening, postVersion, type PostError } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { CLOSE_KINDS, closeAction, closeSource, type CloseAction, type CloseKind } from "@/modules/finance/domain/close";
 import { countDay, countYearOf } from "@/modules/finance/domain/count";
+import type { StockAtClose } from "@/modules/finance/domain/stocks";
 import { fiscalYearOf, monthOf, monthsBetween } from "@/modules/finance/domain/entry";
 import { inChart, type Posting } from "@/modules/finance/domain/posting";
 import { entriesBetween, ledgerAccounts, lockedMonths, standingEntryFor, yearClose } from "@/modules/finance/infrastructure/ledger";
@@ -21,10 +24,12 @@ import { entriesBetween, ledgerAccounts, lockedMonths, standingEntryFor, yearClo
 
 type FiscalYear = { from: FarmDay; to: FarmDay };
 
-/** Each kind's rule entry for the fiscal year, or null when it has nothing to post. T108 and T109 add theirs. */
+/** Each kind's rule entry for the fiscal year, or null when it has nothing to post. T109 adds batches in progress. */
 const KINDS: Record<CloseKind, (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, year: FiscalYear) => Promise<Posting | null>> = {
   depreciation: (tx, ctx, entity, year) => closeDepreciation(tx, ctx, entity.id, year.from, entity.fiscalYearStartMonth),
   subsidy: (tx, ctx, entity, year) => closeSubsidies(tx, ctx, entity.id, year, entity.fiscalYearStartMonth),
+  stock: (tx, ctx, entity, year) => closeStock(tx, ctx, entity, year.to),
+  provision: (tx, ctx, entity, year) => closeProvision(tx, ctx, entity, year.to),
 };
 
 /** The fiscal year that ends in calendar year `year`, as the count sheet's (T107). */
@@ -54,7 +59,10 @@ const pending = (a: CloseAction) => a === "post" || a === "repost" || a === "rev
 const yearIn = (y: number) => Number.isInteger(y) && y >= 2000 && y <= 2100;
 
 export type CloseEntryView = { kind: CloseKind; action: CloseAction; lines: { account: string; label: string; debit: bigint; credit: bigint }[] };
-export type ClosePreview = { year: number; day: FarmDay; books: "cash_book" | "ledger"; locked: boolean; closedOn: FarmDay | null; entries: CloseEntryView[] };
+/** FC5: a stock line as the run values it; `cost` null: not valued (nothing left, or no purchase cost). */
+export type CloseStockView = StockAtClose & { farm: string };
+/** `frozen`: the run has posted, so the count and the current values no longer change (FCX4). */
+export type ClosePreview = { year: number; day: FarmDay; books: "cash_book" | "ledger"; locked: boolean; closedOn: FarmDay | null; frozen: boolean; entries: CloseEntryView[]; stocks: CloseStockView[] };
 
 /**
  * FCX4: the year-end entries of a fiscal year (by the calendar year it ends in; the current one by default), as the
@@ -69,15 +77,23 @@ export async function closePreview(ctx: TenantContext, year: number | null, cloc
   if (!yearIn(y)) return fail("INVALID_INPUT");
   const { to: day } = fiscalYear(y, entity.fiscalYearStartMonth);
   const books = entity.accountingProfile.books;
-  if (books !== "ledger") return ok({ year: y, day, books, locked: false, closedOn: null, entries: [] });
-  const [locked, closed, { chart, kinds }] = await Promise.all([lockedMonths(db, ctx, entity.id), yearClose(db, ctx, entity.id, day), plan(db, ctx, entity, y)]);
+  if (books !== "ledger") return ok({ year: y, day, books, locked: false, closedOn: null, frozen: false, entries: [], stocks: [] });
+  const [locked, closed, frozen, stock, { chart, kinds }] = await Promise.all([
+    lockedMonths(db, ctx, entity.id),
+    yearClose(db, ctx, entity.id, day),
+    closePosted(db, ctx, entity.id, y),
+    stockLinesAtClose(db, ctx, entity, day),
+    plan(db, ctx, entity, y),
+  ]);
+  const farms = await placeNames(db, ctx, [...new Set(stock.map((l) => l.farmId))]);
+  const stocks = stock.map((l) => ({ ...l, farm: farms.get(l.farmId) ?? "" }));
   const entries = kinds.map(({ kind, action, posting, standing }) => ({
     kind,
     action,
     // What the run posts, or for a reversal alone what it cancels.
     lines: (posting?.lines ?? standing?.lines ?? []).map((l) => ({ account: l.account, label: chart.get(l.account)?.label ?? "", debit: l.debit, credit: l.credit })),
   }));
-  return ok({ year: y, day, books, locked: locked.has(monthOf(day)), closedOn: closed && farmDayOf(closed.closedAt), entries });
+  return ok({ year: y, day, books, locked: locked.has(monthOf(day)), closedOn: closed && farmDayOf(closed.closedAt), frozen, entries, stocks });
 }
 
 const CloseRun = z.object({ year: z.number().int() });

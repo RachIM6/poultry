@@ -29,7 +29,7 @@ async function sheet(tx: Tx, ctx: TenantContext, entityId: string, day: FarmDay)
 }
 
 /** FCX4 (T103): once the year's close run has posted, its count is frozen. */
-const closePosted = async (tx: Tx, ctx: TenantContext, entityId: string, year: number) =>
+export const closePosted = async (tx: Tx, ctx: TenantContext, entityId: string, year: number) =>
   (await tx.journalEntry.count({ where: { organizationId: ctx.organizationId, sourceModule: "finance", sourceId: { in: CLOSE_KINDS.map((k) => closeSource(k, entityId, year)) } } })) > 0;
 
 const yearIn = (y: number) => Number.isInteger(y) && y >= 2000 && y <= 2100;

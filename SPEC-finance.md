@@ -454,6 +454,8 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ26 | Packaging in stock: 31231 Emballages perdus, 31232 Emballages récupérables non identifiables or 31233 Emballages à usage mixte (egg trays, sacks)? | FC5 |
 | FQ27 | A `cash_book` entity's cash or bank payment for a fixed asset: which category or line in the cash book (FN16)? | FC1 (until then a `cash_book` entity keeps the register and the schedules only, and posts nothing) |
 | FQ28 | An asset financed by an investment subsidy is sold or scrapped before the end of its life: is the part of the subsidy not yet released taken to income on the disposal day (on 7577 or another account), and is 1311 then cleared against 1319? | FC2 (until then the release stops with the asset's depreciation and the rest stays on 1311 / 1319) |
+| FQ29 | Bought stock with the PCA off: vaccines and medicines are bought on 6122 (612123's CGNC fallback). Are they in stock on 3121 / 61241 like feed, or on 31221 / 61242 like the other supplies? §5's "Bought stock by kind" covers only the PCA case. | FC5 (until then they follow their purchase family: 31221 / 61242) |
+| FQ30 | Bought stock of a VAT-registered entity: valued net of the purchases' VAT (as the charges were booked, FN9)? The batch cost (FN13) still uses amounts including VAT. | FC5 (until then net of VAT) |
 
 ### Found for the accountant (T100)
 

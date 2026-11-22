@@ -13,6 +13,8 @@ import { tenant, twoTenants } from "@/test/tenant";
 
 const clock = fixedClock("2028-06-15T10:00:00Z");
 const NO_SUBSIDY = { kind: "subsidy", action: "none", lines: [] }; // T106: no subsidy in this file
+// T108: no stock in this file either, so no stock entry and no provision.
+const NOTHING_ELSE = [NO_SUBSIDY, { kind: "stock", action: "none", lines: [] }, { kind: "provision", action: "none", lines: [] }];
 // SPEC-finance §7.1 A: the generator, 47 350,00, in service on 18 Sep 2026, 84 months typed by the owner.
 const generator = (more: object = {}) => ({
   id: uuidv7(),
@@ -67,6 +69,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
         books: "ledger",
         locked: false,
         closedOn: null,
+        frozen: false,
         entries: [
           {
             kind: "depreciation",
@@ -76,8 +79,9 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
               { account: "2833", label: "Amortissements des installations techniques, matériel et outillage", debit: 0n, credit: 225_476n },
             ],
           },
-          NO_SUBSIDY,
+          ...NOTHING_ELSE,
         ],
+        stocks: [],
       },
     });
     expect(await db.journalEntry.count({ where: { sourceId: { startsWith: "close:" } } })).toBe(0); // the preview posts nothing
@@ -94,11 +98,11 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
 
   it("posts nothing for the same facts; a changed life posts a reversal and a new version; figures now zero, the reversal alone", async () => {
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
-    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "unchanged" }, NO_SUBSIDY] } });
+    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "unchanged" }, ...NOTHING_ELSE] } });
 
     const asset = await db.fixedAsset.findFirstOrThrow({ where: { organizationId: owner.organizationId } });
     expect(await updateFixedAsset(owner, { assetId: asset.id, lifeMonths: 60, residualCentimes: "0" })).toEqual({ ok: true, value: undefined });
-    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "repost", lines: [{ debit: 315_667n }, { credit: 315_667n }] }, NO_SUBSIDY] } });
+    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "repost", lines: [{ debit: 315_667n }, { credit: 315_667n }] }, ...NOTHING_ELSE] } });
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 2 }); // 4 735 000 × 4 ÷ 60 = 315 666,67
     expect(await closeLines(entity, 2026)).toEqual([
       [1, "OD", "2026-12-31", "6193", 225_476n, 0n, null],
@@ -112,7 +116,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
 
     // Disposed of in 2026: the disposal posts its months, so the close has nothing left for 2026.
     expect(await disposeFixedAsset(owner, { assetId: asset.id, day: "2026-11-15", priceCentimes: "0", receivedIn: "cash", treasuryId: null }, clock)).toEqual({ ok: true, value: undefined });
-    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "reverse", lines: [{ debit: 315_667n }, { credit: 315_667n }] }, NO_SUBSIDY] } });
+    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "reverse", lines: [{ debit: 315_667n }, { credit: 315_667n }] }, ...NOTHING_ELSE] } });
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 1 });
     expect((await closeLines(entity, 2026)).slice(6)).toEqual([
       [null, "OD", "2026-12-31", "2833", 315_667n, 0n, 2],
@@ -120,7 +124,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     ]);
     expect(await db.journalEntry.count({ where: { sourceId: `close:depreciation:${entity}:2026` } })).toBe(2); // no third version
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
-    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "none", lines: [] }, NO_SUBSIDY] } });
+    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "none", lines: [] }, ...NOTHING_ELSE] } });
   });
 
   it("posts one credit per depreciation account with the PCA off; land and assets disposed of in the year stay out", async () => {
@@ -144,7 +148,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
   it("is refused while the year's last month is locked, and for a cash_book entity", async () => {
     expect(await createFixedAsset(owner, generator({ acquiredOn: "2027-03-01", inServiceOn: "2027-03-01" }), clock)).toEqual({ ok: true, value: undefined });
     expect(await setPeriodLocked(owner, entity, "2027-12", true)).toEqual({ ok: true, value: undefined });
-    expect(await closePreview(owner, 2027, clock)).toMatchObject({ ok: true, value: { locked: true, entries: [{ action: "post" }, NO_SUBSIDY] } });
+    expect(await closePreview(owner, 2027, clock)).toMatchObject({ ok: true, value: { locked: true, entries: [{ action: "post" }, ...NOTHING_ELSE] } });
     expect(await runClose(owner, { year: 2027 }, clock)).toEqual({ ok: false, error: "PERIOD_LOCKED" });
     expect(await db.journalEntry.count({ where: { sourceId: `close:depreciation:${entity}:2027` } })).toBe(0); // not moved to another month
     expect(await setPeriodLocked(owner, entity, "2027-12", false)).toEqual({ ok: true, value: undefined });
@@ -153,7 +157,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     // An individual farmer keeps the receipts-and-expenses book: no balance sheet, no close entries.
     expect(await createFixedAsset(cashBook, generator(), clock)).toEqual({ ok: true, value: undefined });
     expect(await runClose(cashBook, { year: 2026 }, clock)).toEqual({ ok: false, error: "CASH_BOOK_NO_CLOSE" });
-    expect(await closePreview(cashBook, 2026, clock)).toEqual({ ok: true, value: { year: 2026, day: "2026-12-31", books: "cash_book", locked: false, closedOn: null, entries: [] } });
+    expect(await closePreview(cashBook, 2026, clock)).toEqual({ ok: true, value: { year: 2026, day: "2026-12-31", books: "cash_book", locked: false, closedOn: null, frozen: false, entries: [], stocks: [] } });
     const cashEntity = (await listLegalEntities(cashBook))[0].id;
     expect(await db.journalEntry.count({ where: { legalEntityId: cashEntity } })).toBe(0);
   });
@@ -175,7 +179,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     // 2027: counted before the run, frozen after it, for the owner and the manager alike.
     expect(await saveYearEndCount({ ...owner, role: "manager" }, { year: 2027, counts: { [ids.feed]: "3 990" } })).toEqual({ ok: true, value: 1 });
     expect(await yearEndCount(owner, 2027, clock)).toMatchObject({ ok: true, value: { frozen: false } });
-    expect(await runClose(owner, { year: 2027 }, clock)).toEqual({ ok: true, value: 1 });
+    expect(await runClose(owner, { year: 2027 }, clock)).toEqual({ ok: true, value: 2 }); // the 2027 depreciation and the feed in stock (T108)
     expect(await yearEndCount(owner, 2027, clock)).toMatchObject({ ok: true, value: { frozen: true } });
     for (const ctx of [owner, { ...owner, role: "manager" as const }]) {
       expect(await saveYearEndCount(ctx, { year: 2027, counts: { [ids.feed]: "3 980" } }), ctx.role).toEqual({ ok: false, error: "COUNT_FROZEN" });
@@ -190,7 +194,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
   it("is the owner's to run; the manager and the accountant see the preview; workers get nothing", async () => {
     for (const role of ["manager", "accountant"] as const) {
       const ctx = { ...other, role };
-      expect(await closePreview(ctx, 2026, clock), role).toMatchObject({ ok: true, value: { entries: [{ kind: "depreciation", action: "unchanged", lines: [{ account: "6193", debit: 465_476n }, {}, {}] }, NO_SUBSIDY] } });
+      expect(await closePreview(ctx, 2026, clock), role).toMatchObject({ ok: true, value: { entries: [{ kind: "depreciation", action: "unchanged", lines: [{ account: "6193", debit: 465_476n }, {}, {}] }, ...NOTHING_ELSE] } });
       expect(await runClose(ctx, { year: 2026 }, clock), role).toEqual({ ok: false, error: "FORBIDDEN" });
     }
     expect(await closePreview({ ...other, role: "worker" }, 2026, clock)).toEqual({ ok: false, error: "FORBIDDEN" });

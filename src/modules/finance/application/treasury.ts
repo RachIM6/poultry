@@ -19,7 +19,7 @@ import { monthPeriod } from "@/modules/finance/domain/batch";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
 import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
 import type { Posting } from "@/modules/finance/domain/posting";
-import { expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
+import { bankOnly, expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
 import { lockedMonths } from "@/modules/finance/infrastructure/ledger";
 import type { CreateTreasuryAccount, ExpenseDto, RecordExpense, RecordTransfer, TransferDto, TreasuryAccountDto } from "@/modules/finance/schema";
 
@@ -62,6 +62,7 @@ async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string
 export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordExpense>, meta: Meta, clock: Clock = systemClock) {
   if ((await tx.expense.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
   if (inFuture(cmd.day, clock)) return fail("DAY_IN_FUTURE");
+  if (bankOnly(cmd.category) && (cmd.paidFrom !== "bank" || !cmd.treasuryId)) return fail("INVALID_INPUT"); // FC9: on the bank account it reconciles
   if (cmd.treasuryId) {
     const t = await treasuryOf(tx, ctx, cmd.treasuryId);
     if (!t) return fail("NOT_FOUND");

@@ -1103,7 +1103,7 @@ model Expense {
   id             String    @id @db.Uuid
   organizationId String    @db.Uuid
   day            DateTime  @db.Date // farm day
-  category       String // electricity | water | vet_fees | insurance | catching
+  category       String // electricity | water | vet_fees | insurance | catching | bank_fees
   amountCentimes BigInt
   vatCentimes    BigInt   @default(0) // SPEC-finance FN9: the bill's VAT, part of amountCentimes
   paidFrom       String // cash | bank | credit

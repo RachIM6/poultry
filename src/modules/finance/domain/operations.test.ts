@@ -6,7 +6,7 @@ const acc = (chart: "cgnc" | "pca", number: string, parent: string | null, fallb
 const all = [
   acc("cgnc", "6", null), acc("cgnc", "61", "6"), acc("cgnc", "612", "61"), acc("cgnc", "6121", "612"),
   acc("pca", "61212", "6121", "6121"), acc("pca", "612122", "61212", "6121"),
-  acc("cgnc", "3", null), acc("cgnc", "3421", "3"),
+  acc("cgnc", "3", null), acc("cgnc", "3421", "3"), acc("cgnc", "614", "61"), acc("cgnc", "6147", "614"),
 ];
 
 describe("operationAccounts (F-Chart)", () => {
@@ -23,5 +23,9 @@ describe("operationAccounts (F-Chart)", () => {
   it("lists every posting rule and quick-expense category, unknown accounts as null", () => {
     expect(rows.map((r) => r.op)).toEqual(expect.arrayContaining(["chicks", "birdsSold", "vatCollected", "expense.electricity"]));
     expect(rows.find((r) => r.op === "vatCollected")).toMatchObject({ pca: null, cgnc: null });
+  });
+
+  it("shows bank fees on 6147 Services bancaires in both charts (FC9, T119)", () => {
+    expect(rows.find((r) => r.op === "expense.bank_fees")).toMatchObject({ pca: { number: "6147" }, cgnc: { number: "6147", label: "L6147" } });
   });
 });

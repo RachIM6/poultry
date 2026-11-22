@@ -261,8 +261,8 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Blocked by:** T100 (6147 Services bancaires).
 **Description:** New quick-expense category "Frais bancaires" in `EXPENSE_ACCOUNTS`, paid from the bank: D bank services account / C 5141, `BQ`. It lets a statement with fees reach "rapproché" on T111's screen.
 **AC:**
-- [ ] "Frais bancaires" posts on the confirmed account and shows on `/settings/chart` (operations test).
-- [ ] A statement with a fee line reaches difference 0 once the fee is booked (integration, T111's fixture plus a fee).
+- [x] "Frais bancaires" posts on the confirmed account and shows on `/settings/chart` (operations test). _`bank_fees: "6147"` in `EXPENSE_ACCOUNTS`; `domain/treasury.test.ts`: D 6147 / C 5141 with the bank account, `BQ`; `domain/operations.test.ts` "shows bank fees on 6147 Services bancaires in both charts"; `accounts.test.ts`: 6147 is a leaf with and without the PCA (a CGNC account, so the same in both columns). Paid from a bank account only: `bankOnly` refuses cash, credit and a bank with no account (`INVALID_INPUT`), and the form lists only bank accounts for it._
+- [x] A statement with a fee line reaches difference 0 once the fee is booked (integration, T111's fixture plus a fee). _`finance/bank.int.test.ts` "T119: a statement with a fee line reaches 0…": the two-week fixture on a second account, printed 43 455,00 (45,00 of fees); the four lines ticked leave −45,00; the three wrong payment sources are refused; once booked (D 6147 / C 5141 on that account, `BQ`) and ticked, the difference is 0 and the account "rapproché"._
 **Depends on:** T100, T111.
 **Size:** S
 

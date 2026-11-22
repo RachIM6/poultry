@@ -9,7 +9,7 @@ import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
-import { EXPENSE_CATEGORIES, FINANCE_MUTATIONS as F, TREASURY_KINDS, type ExpenseDto, type TreasuryAccountDto } from "@/modules/finance/shared";
+import { bankOnly, EXPENSE_CATEGORIES, FINANCE_MUTATIONS as F, TREASURY_KINDS, type ExpenseDto, type TreasuryAccountDto } from "@/modules/finance/shared";
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
@@ -17,8 +17,8 @@ import { FileUpload, useOnline } from "@/components/local-screen";
 import { card, field, primary, secondary } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
-// crew) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts (FN3).
-// Posted by the server once it syncs. Owners and managers only (FX2).
+// crew, bank fees) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts
+// (FN3). Bank fees: from a bank account only (FC9). Posted by the server once it syncs. Owners and managers only (FX2).
 
 const today = () => farmDayOf(new Date());
 
@@ -131,6 +131,8 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
   const t = useTranslations();
   const [error, setError] = useState<string>();
   const [key, setKey] = useState(0); // a new key empties the form after a save
+  const [bank, setBank] = useState(false); // FC9 (T119): bank fees are paid from a bank account only
+  const sources = bank ? accounts.filter((a) => a.kind === "bank") : accounts;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -149,6 +151,7 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
     const to = get("allocation");
     const day = get("day") || today();
     const paidFrom = (account ? account.kind : from) as ExpenseDto["paidFrom"];
+    if (bank && account?.kind !== "bank") return setError("Expenses.bankFeesAccount");
     setError(undefined);
     const saved = await onSave({
       id: uuidv7(),
@@ -162,14 +165,17 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
       batchId: to !== "shared" && to !== "general" ? to : null,
       serviceMonth: to === "shared" ? get("month") || day.slice(0, 7) : null,
     });
-    if (saved) setKey((k) => k + 1);
+    if (saved) {
+      setKey((k) => k + 1);
+      setBank(false);
+    }
   };
 
   return (
     <form key={key} onSubmit={submit} className={card}>
       <Field label={t("Expenses.category")}>
         {(id) => (
-          <select id={id} name="category" className={field}>
+          <select id={id} name="category" onChange={(e) => setBank(bankOnly(e.target.value))} className={field}>
             {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{t(`Expenses.categories.${c}`)}</option>)}
           </select>
         )}
@@ -179,10 +185,10 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
       <Field label={t("Expenses.from")}>
         {(id) => (
           <select id={id} name="from" className={field}>
-            {accounts.length === 0 && <option value="cash">{t("Expenses.kinds.cash")}</option>}
-            {accounts.map((a) => <option key={a.id} value={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</option>)}
-            {accounts.length === 0 && <option value="bank">{t("Expenses.kinds.bank")}</option>}
-            <option value="credit">{t("Expenses.credit")}</option>
+            {!bank && accounts.length === 0 && <option value="cash">{t("Expenses.kinds.cash")}</option>}
+            {sources.map((a) => <option key={a.id} value={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</option>)}
+            {!bank && accounts.length === 0 && <option value="bank">{t("Expenses.kinds.bank")}</option>}
+            {!bank && <option value="credit">{t("Expenses.credit")}</option>}
           </select>
         )}
       </Field>

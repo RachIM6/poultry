@@ -1,6 +1,6 @@
 // What the phone's screens need from finance, without Zod (ADR-009). Relative imports only: prisma/seed.ts loads
 // ./schema.ts, which re-exports this file, under plain Node.
-export { EXPENSE_ACCOUNTS, EXPENSE_CATEGORIES, PAID_FROM, TREASURY_KINDS } from "./domain/treasury.ts";
+export { bankOnly, EXPENSE_ACCOUNTS, EXPENSE_CATEGORIES, PAID_FROM, TREASURY_KINDS } from "./domain/treasury.ts";
 export type { ExpenseCategory, PaidFrom, TreasuryKind } from "./domain/treasury.ts";
 export { breakEvenPrice, budgetOf } from "./domain/budget.ts";
 export type { Budget, BudgetInputs } from "./domain/budget.ts";
@@ -10,7 +10,7 @@ export type TreasuryAccountDto = { id: string; kind: "bank" | "cash"; name: stri
 export type ExpenseDto = {
   id: string;
   day: string; // farm day
-  category: "electricity" | "water" | "vet_fees" | "insurance" | "catching";
+  category: "electricity" | "water" | "vet_fees" | "insurance" | "catching" | "bank_fees";
   amountCentimes: string;
   vatCentimes?: string; // SPEC-finance FN9: part of amountCentimes; absent before it was asked
   paidFrom: "cash" | "bank" | "credit";

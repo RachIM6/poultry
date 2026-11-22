@@ -11,6 +11,7 @@ Definition of done, file layout and verification commands are the same as [todo.
 | Question | Default | Where |
 |---|---|---|
 | FQ9 prorata | By whole months: the in-service month counts in full, the disposal month doesn't; cumulative rounding | FC1, T102 |
+| FQ27 `cash_book` assets | The register and the schedules only (FCX4): nothing posted, no payment of a debt | FC1, T102 |
 | FQ16 loans | Interest per period = annual rate ÷ periods per year; no accrued interest at year end (manual entry if wanted) | FC2, T105 |
 | FQ17 subsidies | Booked when received (D 5141 / C 1311); released to 7577 in proportion to the assets' depreciation, through 1319 Subventions d’investissement inscrites au compte de produits et charges (confirmed by T100); refused on land | FC2, T106 |
 | FQ18 eggs | Value per egg typed by the owner | FC5, T113 |
@@ -138,16 +139,19 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
   - a later payment of an asset bought on credit: D that account / C 5161 or 5141;
   - disposal (§5 FC1), with the year's depreciation up to it.
 - **Category → account:** a map in `domain/`, like `EXPENSE_ACCOUNTS`, filled from T100's confirmed numbers.
+- **`cash_book` entity** (FCX4): the register and the schedules only, nothing posted and no payment of a debt; where its cash or bank payment for an asset goes in the cash book is FQ27 (SPEC-finance §9).
 **AC:**
-- [ ] §7.1 A: 2 254,76 / 6 764,29 / 6 764,28 / 6 764,29 / 6 764,28 / 6 764,29 / 6 764,29 / 4 509,52, summing to 47 350,00. §7 hens fixture: 81 000,00.
-- [ ] Property: for any asset (random cost, residual, life, in-service and disposal days), the charges sum to the base, and none is negative. An asset in the opening balance spreads what is left over the months left.
-- [ ] Each acquisition method posts the FC1 entry; an asset in the opening balance posts nothing (domain + integration).
-- [ ] The life is required and > 0; no life is prefilled. Land has no life and is never depreciated.
-- [ ] Disposing of §7.1 A's generator on 15 Mar 2028 (2 months used in 2028):
+- [x] §7.1 A: 2 254,76 / 6 764,29 / 6 764,28 / 6 764,29 / 6 764,28 / 6 764,29 / 6 764,29 / 4 509,52, summing to 47 350,00. §7 hens fixture: 81 000,00. _`finance/domain/assets.test.ts` "§7.1 A: whole months from September, rounded once per cumulative figure, adding up to 47 350,00" and "§7: hens 252 000 − 90 000 over 14 months, 7 months in the year → 81 000,00" (`straightLine`, bigint, half up once per cumulative figure). The same schedule on the "Immobilisations" screen: `e2e/assets.spec.ts`._
+- [x] Property: for any asset (random cost, residual, life, in-service and disposal days), the charges sum to the base, and none is negative. An asset in the opening balance spreads what is left over the months left. _`finance/domain/assets.test.ts` "adds up to the base for any cost, residual, life, in-service and disposal days, opening balance or not": 2 000 seeded runs (fast-check isn't a devDependency, so no new one), any fiscal-year start; with a disposal, the charges sum to cumulative(months to the disposal) and the exit entry removes the asset at cost. "spreads what an asset in the opening balance has left over the months left": the remainder over the life left, the accumulated depreciation as typed._
+- [x] Each acquisition method posts the FC1 entry; an asset in the opening balance posts nothing (domain + integration). _Domain: "posts each acquisition method's entry" (cash CA 5161, transfer and cheque BQ 5141, credit OD 4481) and the VAT on 3455. Integration `finance/assets.int.test.ts` "posts each acquisition method's FC1 entry once, on its day; an asset in the opening balance posts nothing" (source `finance` / `asset:<id>:acq`, the same form twice posts once) and "keeps a VAT-registered entity's VAT on 3455 and lands PCA accounts on their CGNC account with the PCA off". `FixedAsset` is finance's own table (migration `fixed_asset`); the map is `ASSET_ACCOUNTS` in `finance/domain/assets.ts`, and `accounts.test.ts` checks each of its accounts, and 4481, 6193, 6513, 7513, is a leaf in both charts. A `cash_book` entity keeps the register and the schedules only and posts nothing (one branch in `post`), and can't pay a debt (`CASH_BOOK_NO_PAYMENT`): "keeps a cash_book entity's register and schedules only: nothing posted, no debt to pay (FCX4, FQ27)", same schedule as a ledger entity's._
+- [x] The life is required and > 0; no life is prefilled. Land has no life and is never depreciated. _`checkAsset` (`LIFE_REQUIRED`, `LAND_NOT_DEPRECIATED`): domain "requires a life above zero, typed; land has none", integration "requires a life above zero, never prefilled; land has none and no schedule". The form's life field starts empty and is hidden for land (`e2e/assets.spec.ts`)._
+- [x] Disposing of §7.1 A's generator on 15 Mar 2028 (2 months used in 2028):
   - posts the 2028 depreciation, cumulative(18) − cumulative(16) = 1 014 643 − 901 905 centimes = 1 127,38 (D 6193 / C 2833);
   - then D 2833 10 146,43, D 6513 37 203,57 / C asset account 47 350,00;
   - and the price on 7513.
-- [ ] Owner only for writes; tenant isolation (integration).
+
+  _Domain "§7.1 A disposed of on 15 Mar 2028: …" and integration "disposes of §7.1 A's generator on 15 Mar 2028: the 2028 depreciation, the exit at cost and the price on 7513": three OD entries on the disposal day, source `asset:<id>:disposal` versions 1–3. The schedule marks the disposal year (`ScheduleYear.toDisposal`): its charge is the disposal's, so T103 leaves it out. A locked month refuses the disposal and nothing is posted._
+- [x] Owner only for writes; tenant isolation (integration). _`finance/assets.int.test.ts` "is the owner's to write; the manager and the accountant read; workers and other organisations get nothing" (register, change, payment, disposal, invoice; another organisation's asset, house and bank account are `NOT_FOUND`). `e2e/assets.spec.ts`: the accountant reads without the forms, a worker is refused._
 **Depends on:** T100.
 **Size:** M
 

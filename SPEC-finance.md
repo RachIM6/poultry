@@ -204,7 +204,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
   - Reopening: owner only, audited. It unlocks the last month.
 
 ### Requirements
-- **FC1. Fixed assets** (FQ9, FQ4).
+- **FC1. Fixed assets** (FQ9, FQ4, FQ27).
   - **Register,** per legal entity. An asset has:
     - label, category, farm and house (optional);
     - day acquired and day put into service;
@@ -213,6 +213,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - **useful life in months, required, typed by the user** from the accountant's or the tax rules. No life or rate is stored or suggested;
     - how it was paid (cash, transfer, cheque issued, on credit) and an optional receipt;
     - for an asset bought before Dawra, "in the opening balance" with its accumulated depreciation at the start.
+  - **`cash_book` entity** (FCX4): the register and the schedules only. Nothing is posted (acquisition, payment, disposal), and there is no later payment of a debt without 4481. Where its cash or bank payment for an asset goes in the cash book: FQ27.
   - **Categories:**
     - land (not depreciated);
     - buildings, poultry houses included;
@@ -449,6 +450,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ24 | The PCA subdivides four accounts the M2 rules post to: 3421 (34211, 34212, 34217, 34218), 3424, 4411 (44111, 44117, 44118) and 6136 (61361, 61365 → 613651 Honoraires des vétérinaires, 613657, 61367). Which leaf should each rule use, and do the Agrégés / Agrégateur sub-ledgers matter for the pilot? | FN6 rules (T100 left these sub-accounts out) |
 | FQ25 | With the PCA off, these PCA accounts land on a CGNC account that has sub-accounts, so no line can go there: 3152 → 315, 7140 → 714, 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71. Which CGNC account for each? | FC5 eggs, FC6, FC7 with the PCA off |
 | FQ26 | Packaging in stock: 31231 Emballages perdus, 31232 Emballages récupérables non identifiables or 31233 Emballages à usage mixte (egg trays, sacks)? | FC5 |
+| FQ27 | A `cash_book` entity's cash or bank payment for a fixed asset: which category or line in the cash book (FN16)? | FC1 (until then a `cash_book` entity keeps the register and the schedules only, and posts nothing) |
 
 ### Found for the accountant (T100)
 

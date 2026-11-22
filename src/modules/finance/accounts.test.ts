@@ -5,6 +5,7 @@ import { chartOf, postingAccount, rollUp } from "@/modules/finance";
 import { operationAccounts } from "@/modules/finance/domain/operations";
 import { POSTED_ACCOUNTS } from "@/modules/finance/domain/posting";
 import { EXPENSE_ACCOUNTS } from "@/modules/finance/domain/treasury";
+import { ASSET_ACCOUNTS, ASSET_DEBTS, DEPRECIATION_CHARGE, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
 
 const seed = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
 const everything = chartOf(seed.accounts, "cgnc", ["pca"]);
@@ -103,9 +104,12 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
   // T100 left out the PCA sub-accounts of 3421, 3424, 4411 and 6136 for this reason (SPEC-finance §9).
   it("keeps every account a posting rule uses a posting account, in both charts", () => {
     const parents = (chart: typeof withPca) => new Set([...chart.values()].map((a) => a.parent));
-    const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS)];
-    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136"]));
+    // T102 (FC1): every asset and depreciation account of the categories, and the acquisition and disposal accounts.
+    const assets = [...Object.values(ASSET_ACCOUNTS).flatMap((a) => [a.asset, a.depreciation ?? []].flat()), ASSET_DEBTS, DEPRECIATION_CHARGE, NET_BOOK_VALUE_DISPOSED, DISPOSAL_PROCEEDS];
+    const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets];
+    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "6193", "6513", "7513"]));
     for (const account of rules) {
+      expect(withPca.has(account), account).toBe(true);
       expect(parents(withPca).has(account), account).toBe(false);
       expect(parents(cgncOnly).has(postingAccount(account, everything, cgncOnly)), account).toBe(false);
     }

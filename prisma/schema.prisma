@@ -981,6 +981,36 @@ model ManualEntry {
   @@index([organizationId])
 }
 
+// Owner: finance. SPEC-finance FC1 (T102): the fixed-asset register, per legal entity, typed online by the owner. Its
+// entries carry the source (finance, asset:<id>:acq | asset:<id>:pay:<payment id> | asset:<id>:disposal, version);
+// the yearly depreciation is the close run's (T103), which leaves out the disposal year: the disposal posted it.
+model FixedAsset {
+  id                         String    @id @db.Uuid
+  organizationId             String    @db.Uuid
+  legalEntityId              String    @db.Uuid // whose books it is in (FC1: per legal entity)
+  label                      String
+  category                   String // finance/domain/assets.ts ASSET_ACCOUNTS: its asset and depreciation accounts
+  farmId                     String?   @db.Uuid // where it is, through farm-registry (optional)
+  houseId                    String?   @db.Uuid
+  acquiredOn                 DateTime  @db.Date // farm day; the acquisition entry's day
+  inServiceOn                DateTime  @db.Date // farm day; its month is the first month depreciated (FQ9)
+  amountCentimes             BigInt // the invoice total, VAT included: what was paid or is owed (4481)
+  vatCentimes                BigInt    @default(0) // FN9: the invoice's VAT, part of amountCentimes, as typed
+  costCentimes               BigInt // on the asset account: amount − VAT when the entity was VAT-registered, frozen
+  residualCentimes           BigInt    @default(0) // depreciable base = cost − residual
+  lifeMonths                 Int? // typed by the owner, never prefilled; null for land, never depreciated
+  paidWith                   String? // cash | transfer | cheque | credit; null for an asset in the opening balance
+  openingOn                  DateTime? @db.Date // in the opening balance (FCX3): the day its accumulated depreciation is at
+  openingAccumulatedCentimes BigInt    @default(0) // the accumulated depreciation on openingOn
+  disposedOn                 DateTime? @db.Date // sold or scrapped: the disposal entries' day
+  disposalPriceCentimes      BigInt? // 0 when scrapped
+  receiptFileId              String?   @db.Uuid // ADR-011: the invoice, a StoredFile attached after the asset
+  createdBy                  String    @db.Uuid
+  createdAt                  DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
 // Owner: finance. SPEC-finance FN6, FX4: a quick expense recorded on the phone, offline; posted when it syncs.
 model Expense {
   id             String    @id @db.Uuid

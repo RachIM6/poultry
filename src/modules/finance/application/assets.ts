@@ -18,6 +18,7 @@ import {
   disposalPostings,
   straightLine,
   treasuryKindOf,
+  yearEndDepreciation,
   type AssetCategory,
   type AssetError,
   type AssetPaidWith,
@@ -273,6 +274,12 @@ export async function disposeFixedAsset(ctx: TenantContext, input: unknown, cloc
     await audit(tx, ctx, { entity: "FixedAsset", entityId: row.id, action: "dispose", after: { day, priceCentimes: d.priceCentimes, receivedIn: d.receivedIn, treasuryId } });
     return ok(undefined);
   });
+}
+
+/** FC1, FCX4: the close run's depreciation kind for the fiscal year starting on `yearFrom` (T103), in the rule's accounts. */
+export async function closeDepreciation(tx: Tx, ctx: TenantContext, legalEntityId: string, yearFrom: FarmDay, fiscalYearStartMonth: number): Promise<Posting | null> {
+  const rows = await tx.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, legalEntityId } });
+  return yearEndDepreciation(rows.map((r) => ({ ...facts(r), category: r.category as AssetCategory })), yearFrom, fiscalYearStartMonth);
 }
 
 /** ADR-011: the invoice the upload route has just stored, attached once to the owner's asset. */

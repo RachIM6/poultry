@@ -7,14 +7,15 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { listLegalEntities, placeNames } from "@/modules/farm-registry";
+import { legalEntityIn, listLegalEntities, placeNames } from "@/modules/farm-registry";
 import { batchesForFinance } from "@/modules/flock";
 import { stockOnDay } from "@/modules/inventory";
+import { CLOSE_KINDS, closeSource } from "@/modules/finance/domain/close";
 import { countDay, countLines, countYearOf, parseCounted, type CountLine } from "@/modules/finance/domain/count";
 
 // SPEC-finance FC3: the year-end count. Reads flock and inventory through their index; writes only YearEndCount.
 
-export type CountSheet = { year: number; day: FarmDay; farms: { id: string; name: string; lines: CountLine[] }[] };
+export type CountSheet = { year: number; day: FarmDay; frozen: boolean; farms: { id: string; name: string; lines: CountLine[] }[] };
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
 
@@ -26,6 +27,10 @@ async function sheet(tx: Tx, ctx: TenantContext, entityId: string, day: FarmDay)
   ]);
   return { lines: countLines(day, batches, items, new Map(saved.map((s) => [s.subjectId, s.quantity]))), saved: new Map(saved.map((s) => [s.subjectId, s])) };
 }
+
+/** FCX4 (T103): once the year's close run has posted, its count is frozen. */
+const closePosted = async (tx: Tx, ctx: TenantContext, entityId: string, year: number) =>
+  (await tx.journalEntry.count({ where: { organizationId: ctx.organizationId, sourceModule: "finance", sourceId: { in: CLOSE_KINDS.map((k) => closeSource(k, entityId, year)) } } })) > 0;
 
 const yearIn = (y: number) => Number.isInteger(y) && y >= 2000 && y <= 2100;
 
@@ -40,9 +45,10 @@ export async function yearEndCount(ctx: TenantContext, year: number | null, cloc
   return ok(
     await db.$transaction(async (tx) => {
       const { lines } = await sheet(tx, ctx, entity.id, day);
+      const frozen = await closePosted(tx, ctx, entity.id, y);
       const names = await placeNames(tx, ctx, [...new Set(lines.map((l) => l.farmId))]);
       const farms = [...new Set(lines.map((l) => l.farmId))].map((id) => ({ id, name: names.get(id) ?? "", lines: lines.filter((l) => l.farmId === id) }));
-      return { year: y, day, farms: farms.sort((a, b) => a.name.localeCompare(b.name)) };
+      return { year: y, day, frozen, farms: farms.sort((a, b) => a.name.localeCompare(b.name)) };
     }),
   );
 }
@@ -51,17 +57,18 @@ export const SaveCount = z.object({ year: z.number().int(), counts: z.record(z.s
 
 /**
  * FC3: saves the quantities counted, typed in each line's unit; an empty one removes that line's count. Owner and
- * manager (FCX1), audited per line. Returns how many lines changed.
+ * manager (FCX1), audited per line. Refused once the year's close run has posted (FCX4). Returns how many lines changed.
  */
-export async function saveYearEndCount(ctx: TenantContext, input: unknown): Promise<Result<number, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND">> {
+export async function saveYearEndCount(ctx: TenantContext, input: unknown): Promise<Result<number, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "COUNT_FROZEN">> {
   if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
   const parsed = SaveCount.safeParse(input);
   if (!parsed.success || !yearIn(parsed.data.year)) return fail("INVALID_INPUT");
   const [entity] = await listLegalEntities(ctx);
   if (!entity) return fail("NOT_FOUND");
   const day = countDay(parsed.data.year, entity.fiscalYearStartMonth);
-  // TODO(T103): refuse once the year's close run has posted: the count is then frozen.
-  return db.$transaction(async (tx): Promise<Result<number, "INVALID_INPUT">> => {
+  return db.$transaction(async (tx): Promise<Result<number, "INVALID_INPUT" | "COUNT_FROZEN">> => {
+    await legalEntityIn(tx, ctx, entity.id); // row-locked, as the close run: no run posts while the count is saved
+    if (await closePosted(tx, ctx, entity.id, parsed.data.year)) return fail("COUNT_FROZEN");
     const { lines, saved } = await sheet(tx, ctx, entity.id, day);
     const byId = new Map(lines.map((l) => [l.id, l]));
     const changes: { line: CountLine; quantity: number | null }[] = [];

@@ -40,8 +40,8 @@ async function CountView({ searchParams }: { searchParams: Search }) {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await yearEndCount(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
   if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
-  const { year, day, farms } = result.value;
-  const write = can(ctx.value, "finance.record"); // the accountant reads (FCX1)
+  const { year, day, frozen, farms } = result.value;
+  const write = can(ctx.value, "finance.record") && !frozen; // the accountant reads (FCX1); frozen once the close posted (FCX4)
 
   const kg = (l: CountLine) => l.kind === "stock" && l.unit === "kg";
   const unit = (l: CountLine) => (l.kind === "batch" ? t("Count.birdUnit") : t(`Stock.units.${l.unit}`));
@@ -97,6 +97,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
         {farms.length > 0 && <span className="ms-auto"><PrintButton /></span>}
       </nav>
       <p className="text-sm text-ink-2 print:hidden">{t("Count.hint")}</p>
+      {frozen && <p className="text-sm font-semibold print:hidden">{t("Count.frozen")}</p>}
       {farms.length === 0 ? (
         <p>{t("Count.none")}</p>
       ) : (

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { acquisitionPosting, assetCost, assetPaymentPosting, checkAsset, disposalPostings, straightLine, type DepreciableAsset } from "@/modules/finance/domain/assets";
+import { acquisitionPosting, assetCost, assetPaymentPosting, checkAsset, disposalPostings, straightLine, yearEndDepreciation, type DepreciableAsset } from "@/modules/finance/domain/assets";
 import type { Posting } from "@/modules/finance/domain/posting";
 
 const day = (d: string) => d as FarmDay;
@@ -168,5 +168,28 @@ describe("the asset postings (SPEC-finance FC1, FN9)", () => {
   it("disposes of land at its cost, without depreciation; scrapping posts no price", () => {
     const land = { ...registered, category: "land" as const, lifeMonths: null, residual: 0n, inServiceOn: day("2020-01-01"), disposedOn: day("2027-05-02"), opening: null };
     expect(disposalPostings(land, 0n, "cash", null, 1).map((p) => [p.version, lines(p.posting)])).toEqual([[2, [["6513", 4_735_000n, 0n], ["23111", 0n, 4_735_000n]]]]);
+  });
+});
+
+describe("the close run's depreciation (SPEC-finance FC1, FCX4, T103)", () => {
+  const equipment = { ...generator, category: "equipment" as const };
+
+  it("§7.1 A's 2026 run: D 6193 / C 2833 2 254,76", () => {
+    const posting = yearEndDepreciation([equipment], day("2026-01-01"), 1);
+    expect(posting && [posting.journal, lines(posting)]).toEqual(["OD", [["6193", 225_476n, 0n], ["2833", 0n, 225_476n]]]);
+    expect(yearEndDepreciation([equipment], day("2034-01-01"), 1)).toBeNull(); // the life is over
+  });
+
+  it("posts one credit line per depreciation account, the total on 6193; land and the disposal year stay out", () => {
+    const truck = { cost: 1_200_000n, residual: 0n, lifeMonths: 60, inServiceOn: day("2026-01-10"), disposedOn: null, opening: null, category: "transport" as const };
+    const land = { ...generator, lifeMonths: null, category: "land" as const };
+    const sold = { ...equipment, disposedOn: day("2026-11-15") }; // its September and October: the disposal's
+    const scale = { ...generator, cost: 840_000n, category: "installation" as const }; // 8 400,00 × 4 ÷ 84 = 400,00
+    const posting = yearEndDepreciation([sold, truck, land, equipment, scale], day("2026-01-01"), 1);
+    expect(posting && lines(posting)).toEqual([
+      ["6193", 505_476n, 0n],
+      ["2833", 0n, 265_476n], // the generator's 2 254,76 and the scale's 400,00
+      ["2834", 0n, 240_000n], // 12 months of 60: 2 400,00
+    ]);
   });
 });

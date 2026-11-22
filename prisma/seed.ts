@@ -98,6 +98,8 @@ try {
       [rows[0].id, col("week"), col("layingRatePermille"), col("eggsPerHenHousedTenths"), col("eggWeightDg"), col("feedGramsPerHenDay"), col("bodyWeightGrams")],
     );
   }
+  // An account retagged in the file (cgnc → pca, SPEC-finance §9) leaves its old chart; no table references these rows.
+  await db.query(`DELETE FROM "LedgerAccount" WHERE (chart, number) NOT IN (SELECT * FROM unnest($1::text[], $2::text[]))`, [accounts.map((a) => a.chart), accounts.map((a) => a.number)]);
   for (const a of accounts) {
     await db.query(
       `INSERT INTO "LedgerAccount" (chart, number, label, "parentNumber", fallback) VALUES ($1, $2, $3, $4, $5)

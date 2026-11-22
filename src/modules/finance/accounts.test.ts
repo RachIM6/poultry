@@ -62,6 +62,15 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
   it("has a fallback in the base chart for every overlay account", () => {
     for (const a of seed.accounts.filter((x) => x.chart !== "cgnc")) expect(cgncOnly.has(a.fallback ?? ""), a.number).toBe(true);
   });
+  // Checked against the CGNC Tome I (docs/sources, SPEC-finance §9): numbers it doesn't have are PCA additions,
+  // except 3132, kept in the base chart for 31322's fallback until FQ25 is answered.
+  it("tags as PCA the numbers the CGNC doesn't have, with their CGNC parent as fallback", () => {
+    for (const [number, parent] of [["1136", "113"], ["1353", "135"], ["1602", "160"], ["2317", "231"], ["3153", "315"], ["3917", "391"], ["6187", "618"], ["7162", "716"], ["7164", "716"], ["7187", "718"]]) {
+      expect(cgncOnly.has(number), number).toBe(false);
+      expect(withPca.get(number)?.fallback, number).toBe(parent);
+    }
+    expect(cgncOnly.has("7385")).toBe(true); // printed p. 308, read "1385" by the OCR
+  });
   it("gives every operation of the chart screen an account in both charts (F-Chart)", () => {
     for (const row of operationAccounts(seed.accounts)) expect([row.op, row.pca?.number, row.cgnc?.number].every(Boolean), row.op).toBe(true);
   });

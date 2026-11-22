@@ -233,5 +233,5 @@ describe("the year close and the opening (SPEC-finance FCX5, FCX6, T104)", () =>
       const all = await balances(id, "2000-01-01", "2100-12-31");
       expect([...all.values()].reduce((s, b) => s + b, 0n), String(run)).toBe(0n);
     }
-  });
+  }, 120_000); // 8 organisations closed over two years: about 55 s on a loaded Windows Docker, above the 30 s default
 });

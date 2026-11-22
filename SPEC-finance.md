@@ -118,7 +118,7 @@ M6 closes a fiscal year in Dawra: what the farm owns and owes at year end (fixed
 
 **Accounts.** T100 seeded the PCA nomenclature (chapter 5 of the text, classes 1–8; copy in `docs/sources/plan-comptable-agricole-2015.pdf`) into `prisma/seed/finance/accounts.json`, labels as printed. Every account this section names is in the seed with its printed label (`accounts.test.ts`). An account the PCA text doesn't have blocks its rule until the accountant answers; no number is invented (ADR-010 §2). Fourteen printed rows are left out (§9 "Found for the accountant").
 - **Posting accounts only (FN4).** A line can't go on an account with sub-accounts. Where the nomenclature subdivides an account, a rule posts to a leaf: for example 6124 has 61241 (→ 612411–612413), 61242 and 61243, so FC5 posts to those, never to 6124.
-- **PCA off.** A PCA account posts to its `fallback`, the nearest CGNC ancestor (FN2). Where that ancestor has sub-accounts in the CGNC chart, it can't take the line either: 3152 → 315, 7140 → 714, and the hens accounts 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71. A rule using them with the PCA off needs a CGNC account from the accountant (§9).
+- **PCA off.** A PCA account posts to its `fallback`, the nearest CGNC ancestor (FN2). Where that ancestor has sub-accounts in the CGNC chart, it can't take the line either: 3152 → 315, 7140 → 714, and the hens accounts 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71, 7187 → 718. A rule using them with the PCA off needs a CGNC account from the accountant (§9).
 
 **Candidates (confirmed by T100).** The numbers this section first gave as candidates are all in the nomenclature with the role assumed: 4481, 6513, 7513, 1319, 3912, 7196, 6147, and 2351–2358 for furniture and office equipment (labels in "Accounts from the PCA nomenclature" below).
 
@@ -451,7 +451,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ22 | The official simplified model (bilan, CPC, ETIC) and the PCA's biological-asset tables: the text, each line's accounts, and the revenue limit of the simplified model (10 M DH?) | FC8 official statements (blocked) |
 | FQ23 | An asset bought on credit: 4481 Dettes sur acquisition d’immobilisations (passif circulant) or 1486 Fournisseurs d’immobilisations (dettes de financement), and from what term? | FC1 (default in §5: 4481) |
 | FQ24 | The PCA subdivides four accounts the M2 rules post to: 3421 (34211, 34212, 34217, 34218), 3424, 4411 (44111, 44117, 44118) and 6136 (61361, 61365 → 613651 Honoraires des vétérinaires, 613657, 61367). Which leaf should each rule use, and do the Agrégés / Agrégateur sub-ledgers matter for the pilot? | FN6 rules (T100 left these sub-accounts out) |
-| FQ25 | With the PCA off, these PCA accounts land on a CGNC account that has sub-accounts, so no line can go there: 3152 → 315, 7140 → 714, 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71. Which CGNC account for each? | FC5 eggs, FC6, FC7 with the PCA off |
+| FQ25 | With the PCA off, these PCA accounts land on a CGNC account that has sub-accounts, so no line can go there: 3152 → 315, 7140 → 714, 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71, and 7187 → 718 (culled hens, FC6; not in the CGNC, §9). Also 31322 (batches in progress) → 3132, which the seed keeps `cgnc` though the CGNC has no 3132 (§9). Which CGNC account for each? | FC5 eggs, FC6, FC7 with the PCA off |
 | FQ26 | Packaging in stock: 31231 Emballages perdus, 31232 Emballages récupérables non identifiables or 31233 Emballages à usage mixte (egg trays, sacks)? | FC5 |
 | FQ27 | A `cash_book` entity's cash or bank payment for a fixed asset: which category or line in the cash book (FN16)? | FC1 (until then a `cash_book` entity keeps the register and the schedules only, and posts nothing) |
 | FQ28 | An asset financed by an investment subsidy is sold or scrapped before the end of its life: is the part of the subsidy not yet released taken to income on the disposal day (on 7577 or another account), and is 1311 then cleared against 1319? | FC2 (until then the release stops with the asset's depreciation and the rest stays on 1311 / 1319) |
@@ -462,6 +462,8 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 ### Found for the accountant (T100)
 
 From reading the PCA text (`docs/sources/plan-comptable-agricole-2015.pdf`; line numbers of a `pdftotext -layout` extract, page numbers as printed).
+
+The CGNC is checked against the Code Général de la Normalisation Comptable, Tome I (CNC), "Cadre comptable et plan de comptes": linked as "Code Général de la Normalisation Comptable : TOME I et TOME II" from the CNC standards page of finances.gov.ma. The scan is image-only and not in the repository; the OCR of scan pages 250–340 is in `docs/sources/cgnc-tome-I-p250-340.ocr.txt` (`docs/sources/README.md`). Pages cited below are scan pages: the normal model is pp. 256–315, the simplified model pp. 316–339. A number the OCR misses was checked on the page image.
 
 - **Left out of the seed: 14 printed rows.** FN4 refuses a line on an account with sub-accounts, so the accounts the M2 rules post to must stay leaves (checked by `accounts.test.ts`). Moving those rules to a leaf is its own task once the accountant answers FQ24. The rows left out:
   - under 3421 Clients: 34211 Clients – catégorie A, 34212 Clients – catégorie B, 34217 Clients Agrégés, 34218 Client Agrégateur;
@@ -477,24 +479,37 @@ From reading the PCA text (`docs/sources/plan-comptable-agricole-2015.pdf`; line
 - **Labels.**
   - The 70 accounts seeded before T100 keep their labels. Where they differ from the print, the difference is typographic only: case of the class and two-digit headings (for example "COMPTE DE FINANCEMENT PERMANENT" seeded as "Comptes de financement permanent"), "État" for the printed "Etat" (345, 3455, 445, 4455), and dashes.
   - New accounts use the printed label, with broken line wraps joined. The all-caps headings are in sentence case with their accents ("ECARTS" → "Écarts"). The text has no mojibake.
-- **Which accounts are `pca`.** There is no CGNC nomenclature in the repository. The intro says the PCA adapts the CGNC to agriculture (p. 4) but doesn't list the adaptations. T100 tags an account `pca` when:
+- **Which accounts are `pca`.** The PCA intro says it adapts the CGNC to agriculture (p. 4) but doesn't list the adaptations. T100, without the CGNC text, tagged an account `pca` when:
   - its label is agricultural (agricole, agrégés / agrégateur, animaux, végétaux, plantations, cultures, irrigation, autoconsommation, variation d’inventaire);
   - it sits under such an account;
   - it is part of a split with such an account;
   - or it must be `pca` so that a CGNC account a rule posts to stays a leaf.
 
-  All other new accounts are `cgnc` (153 `pca`, 609 `cgnc`). A new `pca` account's `fallback` is its nearest CGNC ancestor. **Doubtful:**
-  - **`pca` by structure only, which may be in the CGNC:**
-    - 61213, 61222, 61224–61228, 61252–61254, 61262 and 61268 (`pca` so that 6121, 6122, 6125 and 6126 stay leaves without the PCA);
-    - the generic member of an Agrégés split: 34111, 34131, 34171, 34271, 44211;
-    - the "autres" member of an agricultural split: 25812, 25882, 31323, 612413, 613112, 71214, 71224;
-    - the "d’exploitation / hors exploitation" splits 23111–23232 (chapter 6, p. 84).
-  - **`pca` with an agricultural label on what may be a CGNC number:** 3111, 3151, 3152, 6111, 7111, 7112. A chart without the PCA has no account with these numbers.
-  - **`cgnc`, though possibly PCA additions:**
-    - 714 (its printed label includes "Production Autoconsommée");
-    - 3132 Encours de Production; 317 and 3917 Stocks provenant d’immobilisations; 3153 Produits finis transformés;
-    - 2317 Amélioration du fonds;
-    - 1602 Compte de liaisons des exploitations autonomes;
-    - 6177 Rémunération de l’exploitant;
-    - 716 Indemnités et Subventions d’exploitation and 7162 Indemnités reçues de l’exercice.
+  All other accounts were `cgnc`. A `pca` account's `fallback` is its nearest CGNC ancestor. The tags were then checked against the CGNC Tome I (above): 163 `pca`, 599 `cgnc`.
+  - **Retagged `pca`: not in the CGNC.** Each number is absent from the page image of its class in the normal model, and from the OCR of the simplified model: 1136 (p. 258), 1353 (p. 259), 1602 (p. 261), 2317 (p. 265), 3153 (p. 277), 3917 (p. 281), 6187 (p. 295), 7162 and 7164 (p. 306), 7187 (pp. 306–307). Their fallbacks are 113, 135, 160, 231, 315, 391, 618, 716, 716 and 718. No rule posts to them. 7187 (culled hens, FC6) lands on 718 with the PCA off, which has sub-accounts (FQ25).
+    - 1353 / 1354: the CGNC has 1354 Provisions pour investissements and 1355 Provisions pour reconstitution des gisements (p. 259), and so does PCA chapter 6. The PCA nomenclature prints 1353 / 1354 for them, so the seeded 1354 (`cgnc`) carries the label of CGNC 1355, and 1355 isn't seeded. Probably a misprint in the PCA nomenclature: which numbers should the seed use?
+    - 7162 / 7164: the CGNC has 7161 and 7168 Subventions d’exploitation reçues des exercices antérieurs (p. 306), and PCA chapter 6 cites 7168. 7168 isn't seeded.
+  - **Still `cgnc`, though not in the CGNC: 3132 Encours de Production.** CGNC 313 has 3131 Biens en cours, 3134 and 3138 (p. 276), no 3132. Retagged, 3132 would leave the chart without the PCA, and 31322 (batches in progress, FC4) would land on 313, which has sub-accounts there. So the tag stays until the accountant names the CGNC account for batches in progress with the PCA off (FQ25).
+  - **Only in the CGNC's simplified model:** 317 "Stocks divers" (p. 324; seeded with the PCA's label "Stocks provenant d’immobilisations") and 3468 Autres comptes d’associés débiteurs (p. 325). The normal model has neither. Their tags stay `cgnc`. 237, 2837, 3171 and 7140 below are in the same case.
+  - **Settled as CGNC:** 714 Immobilisations produites par l’entreprise pour elle-même, with 7141–7148 (p. 306), 716 Subventions d’exploitation (p. 306), 6177 Rémunération de l’exploitant (p. 295), and 7385 (p. 308, read "1385" by the OCR).
+  - **Settled as PCA additions:** 61213, 61228, 61268, 34111, 34131, 34171, 44211, 25812, 25882, 31323, 612413, 613112, 71214, 71224, 7112, and the "d’exploitation / hors exploitation" splits 23111, 23112, 23121, 23122, 23212, 23231 and 23232 (23211 is in the CGNC, below). These are absent from the OCR text; their page images weren't checked one by one.
+  - **CGNC numbers the PCA relabels.** The CGNC has these numbers with a generic label. They keep T100's `pca` tag and the PCA label. For most of them this keeps their CGNC parent a leaf without the PCA, where a rule falls back: 2321, 3427, 6121, 6122, 6125, 6126, 7121, 7122, 7124, 7125 and 317. The list is CGNC label (scan page) → PCA label:
+    - 23211 Bâtiments industriels (A,B…) (p. 265) → Bâtiments d’exploitation;
+    - 3111 Marchandises (groupe A) (p. 275) → Marchandises agricoles;
+    - 3131 Biens en cours, 31311 Biens produits en cours, 31312 Biens intermédiaires en cours (p. 276) → Avances aux cultures, … cycle long, … cycle court;
+    - 3151 / 3152 Produits finis (groupe A / B) (p. 277) → Produits finis (Végétaux) / (d’animaux);
+    - 34271 Clients – factures à établir (p. 278) → Clients factures à établir et créances sur travaux non encore facturables;
+    - 6111 Achats de marchandises « groupe A » (p. 288) → Achats de marchandises agricoles;
+    - 61211 / 61212 Achats de matières premières A / B (p. 289) → Achats de matières premières agricoles – Végétaux / – Animaux;
+    - 61221 / 61222 Achats de matières et fournitures A / B (p. 289) → Achats de matières et fournitures / Denrées et Fournitures pour le personnel;
+    - 61223 Achats de combustibles (p. 289) → Combustibles;
+    - 61224–61227 and 61251–61254 (p. 289): the same label in both texts;
+    - 61261 Achats des travaux, 61262 Achats des études (p. 290) → Travaux et façons pour les productions agricoles, Etudes;
+    - 7111 Ventes de marchandises au Maroc (p. 303) → Ventes de marchandises agricoles au Maroc;
+    - 71211 / 71221 Ventes de produits finis and 71212 / 71222 Ventes de produits intermédiaires (pp. 303–304) → Ventes de produits végétaux, Ventes d’animaux;
+    - 71241 / 71251 Travaux and 71242 / 71252 Etudes (p. 304) → Ventes de services agricoles / non agricoles, au Maroc / à l’étranger;
+    - simplified model only: 237 Immobilisations corporelles diverses (p. 321) → Animaux; 2837 Amortissements des immobilisations corporelles diverses (p. 322) → Amortissements des Animaux; 3171 Matières premières (p. 324) → Stocks d’animaux provenant d’immobilisations; 7140 Immobilisations produites par l’entreprise pour elle-même (p. 336) → Production Autoconsommée.
+
+    Rule accounts among them: 23211 (buildings, FC1), 61221 (litter and "other"), 61223 (gas) and 7140 (home consumption, FC7). Without the PCA they post to 2321, 6122, 6122 and 714. Parents of rule accounts: 61212 (612121–612123), 61251 (612511, 612512), 61261 (612612) and 71212 (712121).
+  - **The chart without the PCA is the seed's `cgnc` accounts, not the whole CGNC.** CGNC sub-accounts the PCA reuses (above) or doesn't print (23214, 23218, 1355, 7168) aren't in it, so 2321, 6121, 6122, 6125 and 6126 stay leaves there. A `cgnc` account's label is the PCA's, and some differ from the CGNC's: 1354, 317, 716, and 7113 (CGNC "Ventes de marchandises à l’étranger", p. 303; seeded "Ventes des autres marchandises"). The labels weren't compared one by one.
 - **Laying hens.** The chapter 6 text for 715 names 2371 and 2372 as adults and young stock, while the nomenclature has 23711 / 23712 for them and 2372 for service animals (§5 "Laying hens, what the text says", FQ7).

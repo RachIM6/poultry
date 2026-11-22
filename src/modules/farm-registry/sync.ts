@@ -134,6 +134,14 @@ export async function placeNames(tx: Tx, ctx: TenantContext, ids: string[]) {
   return new Map([...farms, ...houses].map((x) => [x.id, x.name]));
 }
 
+/** For finance's asset register (SPEC-finance FC1): the caller's organisation's farms, each with its houses, by name. */
+export const farmsWithHouses = (ctx: TenantContext) =>
+  db.farm.findMany({
+    where: { organizationId: ctx.organizationId },
+    select: { id: true, name: true, houses: { select: { id: true, name: true }, orderBy: { name: "asc" } } },
+    orderBy: { name: "asc" },
+  });
+
 /**
  * For the scheduler (SPEC-m2-compliance DC4), across organisations: farms whose ONSSA authorization expires on or
  * before `day`. Read-only; callers notify each farm's own organisation.

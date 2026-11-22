@@ -23,6 +23,7 @@ import { lockedMonths } from "@/modules/finance/infrastructure/ledger";
 import type { CreateTreasuryAccount, ExpenseDto, RecordExpense, RecordTransfer, TransferDto, TreasuryAccountDto } from "@/modules/finance/schema";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
 const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0; // a phone may run a little ahead
 
@@ -169,7 +170,8 @@ export async function treasuryOverview(ctx: TenantContext, month: string): Promi
     }),
   ]);
   const balance = new Map(balances.map((x) => [x.treasuryId, (x._sum.debitCentimes ?? 0n) - (x._sum.creditCentimes ?? 0n)]));
-  const sourceIds = lines.flatMap((l) => (l.entry.sourceModule === "finance" && l.entry.sourceId ? [l.entry.sourceId] : []));
+  // An expense's entries carry its id; a rule's key (asset:<id>:acq, FC1) isn't a uuid and has no receipt here.
+  const sourceIds = lines.flatMap((l) => (l.entry.sourceModule === "finance" && l.entry.sourceId && UUID.test(l.entry.sourceId) ? [l.entry.sourceId] : []));
   const expenses = await db.expense.findMany({ where: { ...org, id: { in: sourceIds } }, select: { id: true, receiptFileId: true } });
   const receipt = new Map(expenses.map((e) => [e.id, e.receiptFileId]));
   return ok({

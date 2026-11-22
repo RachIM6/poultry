@@ -20,3 +20,5 @@ export { batchOf } from "./domain/export";
 export { alertThresholdOnce, thresholdTracker, type ThresholdTracker } from "./application/threshold";
 export { saveYearEndCount, yearEndCount, type CountSheet } from "./application/count";
 export type { CountBatchLine, CountLine, CountStockLine } from "./domain/count";
+export { assetRegister, attachFixedAssetReceipt, createFixedAsset, disposeFixedAsset, payFixedAsset, updateFixedAsset, type AssetRegister, type AssetView, type AssetWriteError } from "./application/assets";
+export { ASSET_CATEGORIES, ASSET_ACCOUNTS, type AssetCategory, type ScheduleYear } from "./domain/assets";

@@ -61,3 +61,35 @@ export const ManualEntryInput = z.object({
   piece: z.string().trim().max(40).transform((x) => x || null).nullable().default(null),
   lines: z.array(z.object({ account: z.string().trim().regex(/^[1-8]\d{0,7}$/), debit: centimes, credit: centimes })).max(200),
 });
+
+// FC1 (T102), the owner's asset register. The category and the rules between fields are checked by
+// domain/assets.ts (not imported here: prisma/seed.ts loads this file under plain Node).
+const lifeMonths = z.int().min(0).max(1200).nullable(); // 0 or none: LIFE_REQUIRED, unless land
+const treasuryId = z.uuid().nullable().default(null);
+
+/** FC1: an asset acquired, or in the opening balance (`opening`, then no payment). Its id comes from the form. */
+export const FixedAssetInput = z.object({
+  id: z.uuid(),
+  label: z.string().trim().min(1).max(120),
+  category: z.string().max(40),
+  farmId: z.uuid().nullable().default(null),
+  houseId: z.uuid().nullable().default(null),
+  acquiredOn: z.iso.date(),
+  inServiceOn: z.iso.date(),
+  amountCentimes: positive, // the invoice total
+  vatCentimes: centimes.default("0"), // FN9: part of the total
+  residualCentimes: centimes.default("0"),
+  lifeMonths,
+  paidWith: z.enum(["cash", "transfer", "cheque", "credit"]).nullable(),
+  treasuryId,
+  opening: z.object({ on: z.iso.date(), accumulatedCentimes: centimes }).nullable().default(null),
+});
+
+/** FC1: what may change once the acquisition is posted: the depreciation isn't posted before the close run (T103). */
+export const FixedAssetUpdate = z.object({ assetId: z.uuid(), lifeMonths, residualCentimes: centimes });
+
+/** FC1: a later payment of an asset bought on credit. Its id comes from the form, so a retry posts once. */
+export const FixedAssetPayment = z.object({ id: z.uuid(), assetId: z.uuid(), day: z.iso.date(), amountCentimes: positive, paidWith: z.enum(["cash", "transfer", "cheque"]), treasuryId });
+
+/** FC1: sold or scrapped (price 0), the price received in cash or at the bank. */
+export const FixedAssetDisposal = z.object({ assetId: z.uuid(), day: z.iso.date(), priceCentimes: centimes, receivedIn: z.enum(["cash", "bank"]), treasuryId });

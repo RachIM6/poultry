@@ -16,6 +16,8 @@ const dmy = (day: string) => day.split("-").reverse().join("/");
  * before the columns existed get them too: the supplier, buyer or employee, the farm, and a batch's house and
  * placement day. A reversal has its original's source, so its tags.
  */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function entryTags(ctx: TenantContext, month: string): Promise<EntryTags> {
   const { from, to } = monthPeriod(month);
   const entries = await db.journalEntry.findMany({
@@ -27,7 +29,8 @@ export async function entryTags(ctx: TenantContext, month: string): Promise<Entr
     inventoryTags(db, ctx, idsOf("inventory")),
     salesTags(db, ctx, idsOf("sales")),
     workforceTags(db, ctx, idsOf("workforce")),
-    db.expense.findMany({ where: { organizationId: ctx.organizationId, id: { in: idsOf("finance") } }, select: { id: true, batchId: true } }),
+    // A finance source is a record's id (an expense, a transfer) or a rule's key (asset:<id>:acq, FC1): uuids only here.
+    db.expense.findMany({ where: { organizationId: ctx.organizationId, id: { in: idsOf("finance").filter((id) => UUID.test(id)) } }, select: { id: true, batchId: true } }),
   ]);
   const tagOf = new Map<string, Tag>([
     ...inventory,

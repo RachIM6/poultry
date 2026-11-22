@@ -1,5 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { postingAccount, type ChartOfAccounts } from "@/modules/finance/domain/chart";
+import { leafAccounts, postingAccount, type ChartOfAccounts } from "@/modules/finance/domain/chart";
 import type { Line } from "@/modules/finance/domain/entry";
 import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 
@@ -9,6 +9,7 @@ export type FarmEvent =
   | { type: "chicks"; id: string; day: FarmDay; amount: bigint } // the chicks bought at placement (SPEC B1)
   | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead"; vat?: bigint } // SPEC V2, SPEC-m3 V6, V7
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
+  | { type: "consumption"; id: string; day: FarmDay; amount: bigint; takenBy: "exploitant" | "associate" | "employee" } // FC7, at its value
   | { type: "supplierPayment"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment to a supplier (S2)
   | { type: "issuedDebit"; id: string; day: FarmDay; amount: bigint; kind: "cheque" | "bill" } // FN11: the bank debited what was issued
   | { type: "advance"; id: string; day: FarmDay; amount: bigint } // SPEC-m4 WF10: paid in cash
@@ -45,6 +46,10 @@ const SALARIES = "6171"; // Rémunération du personnel
 const SOCIAL_CHARGES = "6174"; // Charges sociales
 const WAGES_DUE = "4432"; // Rémunérations dues au personnel
 const CNSS = "4441"; // Caisse Nationale de la Sécurité Sociale
+// SPEC-finance FC7: home consumption, credited to 7140 Production Autoconsommée (714 with the PCA off, FQ25), debited to
+// the associate's current account or, FQ21's default, the employee's pay; the exploitant's account waits for FQ11.
+const SELF_CONSUMED = "7140";
+const TAKEN_BY: Partial<Record<string, string>> = { associate: "4463", employee: SALARIES }; // 4463 Comptes courants des associés créditeurs
 // FN6: where a later payment to a supplier comes from; an issued cheque leaves the bank on its issue date.
 const PAID_OUT: Record<string, { account: string; journal: Journal }> = {
   cash: { account: "5161", journal: "CA" },
@@ -109,6 +114,10 @@ export function postingOf(e: FarmEvent, vatRegistered = false): Posting | null {
     if (received && e.paid > 0n) lines.push(line(received.account, e.paid, 0n), line(BUYERS, 0n, e.paid));
     return { journal: "VT", label: eggs ? "Vente d’œufs" : "Vente", lines };
   }
+  if (e.type === "consumption") {
+    const debit = TAKEN_BY[e.takenBy];
+    return debit ? { journal: "OD", label: "Autoconsommation", lines: [line(debit, e.amount, 0n), line(SELF_CONSUMED, 0n, e.amount)] } : null;
+  }
   if (e.type === "advance") {
     // M4 records no payment method for an advance: from the cash box, as farms pay them (⚠️ like a purchase's paid part)
     return { journal: "CA", label: "Avance sur salaire", lines: [line(STAFF_ADVANCES, e.amount, 0n), line(PAID_AT_ONCE, 0n, e.amount)] };
@@ -162,6 +171,18 @@ export function postingOf(e: FarmEvent, vatRegistered = false): Posting | null {
 export function inChart(p: Posting, everything: ChartOfAccounts, chart: ChartOfAccounts): Posting | null {
   const lines = p.lines.map((l) => ({ ...l, account: postingAccount(l.account, everything, chart) ?? "" }));
   return lines.every((l) => l.account) ? { ...p, lines } : null;
+}
+
+/**
+ * FC7: why a home consumption posts nothing, or null when it posts. "noValue": the farm never sold the product, so it
+ * is worth 0 (FQ21); "FQ11": the exploitant's account isn't known yet; "FQ25": without the PCA, 7140 lands on 714, which
+ * has sub-accounts, so no line can go there and no account is invented (FN4).
+ */
+export function unpostedConsumption(e: Extract<FarmEvent, { type: "consumption" }>, everything: ChartOfAccounts, chart: ChartOfAccounts): "noValue" | "FQ11" | "FQ25" | null {
+  const rule = postingOf(e);
+  if (!rule) return e.amount > 0n ? "FQ11" : "noValue";
+  const leaves = new Set(leafAccounts(chart).map((a) => a.number));
+  return inChart(rule, everything, chart)?.lines.every((l) => leaves.has(l.account)) ? null : "FQ25";
 }
 
 /** Same day and same lines, in any order: a newer version of the source that changes nothing for the books. */

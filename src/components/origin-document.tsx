@@ -68,7 +68,7 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
   const farm = find<FarmDto>("farm", batch?.farmId);
   if (!sale || !batch || !farm) return <p>{t("notFound")}</p>;
   const house = find<HouseDto>("house", batch.houseId);
-  const buyer = find<BuyerDto>("buyer", sale.buyerId);
+  const buyer = find<BuyerDto>("buyer", sale.buyerId ?? undefined);
   const strain = reference?.data.strains.find((s) => s.id === batch.strainId)?.name ?? batch.strainId;
   const day = (d: string) => formatDay(d as FarmDay, locale);
 

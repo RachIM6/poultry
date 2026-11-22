@@ -7,13 +7,13 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
  * back unpaid (SPEC-finance FN11: the claim is theirs again).
  */
 export function buyerBalances(
-  sales: readonly { buyerId: string; amountCentimes: bigint; paidCentimes: bigint }[],
+  sales: readonly { buyerId: string | null; amountCentimes: bigint; paidCentimes: bigint }[], // null: a consumption (FC7), owed by no one
   payments: readonly { buyerId: string; amountCentimes: bigint }[],
   unpaid: readonly { buyerId: string; amountCentimes: bigint }[] = [],
 ): Map<string, bigint> {
   const balances = new Map<string, bigint>();
   const add = (buyerId: string, n: bigint) => balances.set(buyerId, (balances.get(buyerId) ?? 0n) + n);
-  for (const s of sales) add(s.buyerId, s.amountCentimes - s.paidCentimes);
+  for (const s of sales) if (s.buyerId) add(s.buyerId, s.amountCentimes - s.paidCentimes);
   for (const p of payments) add(p.buyerId, -p.amountCentimes);
   for (const u of unpaid) add(u.buyerId, u.amountCentimes);
   return balances;

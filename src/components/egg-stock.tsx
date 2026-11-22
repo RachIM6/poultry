@@ -8,7 +8,7 @@ import dynamic from "next/dynamic";
 import { card, field, primary, secondary } from "@/components/ui";
 import { can } from "@/lib/permissions";
 import type { TreatmentDto } from "@/modules/health/shared";
-import type { BuyerDto } from "@/modules/sales/shared";
+import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -59,7 +59,7 @@ function EggStock({ userId, organizationId, role }: Scope) {
   const locale = useLocale();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "eggCollection", "eggGrading", "eggDiscard", "eggDraw", "buyer", "treatment").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "eggCollection", "eggGrading", "eggDiscard", "eggDraw", "buyer", "sale", "treatment").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [farmId, setFarmId] = useState<string>();
   const [action, setAction] = useState<{ lot: string; kind: "grade" | "discard" | "sell" } | null>(null); // the lot's key
@@ -108,19 +108,22 @@ function EggStock({ userId, organizationId, role }: Scope) {
       )}
       {message && <p role="status" className="rounded-2xl bg-olive-soft p-3 text-olive">{t(message)}</p>}
       <p className="text-xl font-semibold">{t("EggStock.headline", { eggs: formatCount(total), trays: trays(total) })}</p>
-      {can({ userId, organizationId, role }, "sales.manage") &&
+      {/* SPEC-m3 V6; SPEC-finance FC7: workers record the eggs taken home, without a price (I5) */}
+      {can({ userId, organizationId, role }, "eggs.record") &&
         (selling ? (
           <EggSaleForm
             batches={batches}
             lots={lots}
             buyers={of<BuyerDto>("buyer")}
+            sales={of<SaleDto>("sale")}
+            seller={can({ userId, organizationId, role }, "sales.manage")}
             treatments={of<TreatmentDto>("treatment")}
             itemName={itemName}
             onSave={saveAll}
             onCancel={() => setSelling(false)}
           />
         ) : (
-          total > 0 && <button type="button" className={primary} onClick={() => setSelling(true)}>{t("EggSale.open")}</button>
+          total > 0 && <button type="button" className={primary} onClick={() => setSelling(true)}>{t(can({ userId, organizationId, role }, "sales.manage") ? "EggSale.open" : "EggSale.consume")}</button>
         ))}
 
       <section className={card} aria-labelledby="by-item">

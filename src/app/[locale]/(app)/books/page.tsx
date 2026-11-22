@@ -3,7 +3,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Fragment, Suspense } from "react";
 import { Link, redirect } from "@/i18n/navigation";
-import { formatDay, formatMoney } from "@/lib/format";
+import { formatCount, formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import { batchOf, readBooks, type IncomeStatement } from "@/modules/finance";
@@ -15,6 +15,7 @@ import { ManualEntryForm } from "./form";
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
 // FCX3: the owner's manual entry form; a cash_book entity sees it disabled (FQ11).
 // FCX6: the CPC and the bilan are a "Projet" until the year is closed, then "Exercice clôturé le …".
+// FC7: the month's home consumptions that post nothing (FQ11, FQ25, no value) are listed, whatever the view.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 const VIEWS = ["cash", "journals", "ledger", "trial", "cpc", "bilan"] as const;
 
@@ -79,6 +80,24 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           </datalist>
           <ManualEntryForm today={today} accounts="ledger-accounts" blocked={books.books !== "ledger"} />
         </details>
+      )}
+      {books.unposted.length > 0 && (
+        <section className={card} aria-labelledby="unposted-title">
+          <h2 id="unposted-title" className="font-semibold">{t("Books.unposted")}</h2>
+          <ul className="flex flex-col gap-1">
+            {books.unposted.map((u) => (
+              <li key={u.id}>
+                {t("Books.unpostedLine", {
+                  date: day(u.day),
+                  who: t(`Sale.takers.${u.takenBy}`),
+                  quantity: t(u.kind === "eggs" ? "Books.unpostedEggs" : "Books.unpostedBirds", { n: formatCount(u.kind === "eggs" ? u.eggs : u.birds) }),
+                  amount: formatMoney(u.amountCentimes),
+                  reason: t(`Books.unpostedReason.${u.reason}`),
+                })}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {views.length > 1 && (
         <nav className="flex flex-wrap gap-3" aria-label={t("Books.views")}>

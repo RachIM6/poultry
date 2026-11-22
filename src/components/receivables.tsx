@@ -75,7 +75,7 @@ function Receivables(scope: Scope) {
     payments.map((p) => ({ buyerId: p.buyerId, amountCentimes: BigInt(p.amountCentimes) })),
     instruments.filter((i) => i.state === "unpaid"),
   );
-  const nameOf = (id: string) => buyers.find((b) => b.id === id)?.name ?? "—";
+  const nameOf = (id: string | null) => buyers.find((b) => b.id === id)?.name ?? "—";
   const owing = buyers
     .filter((b) => (balances.get(b.id) ?? 0n) > 0n)
     .sort((x, y) => x.name.localeCompare(y.name));

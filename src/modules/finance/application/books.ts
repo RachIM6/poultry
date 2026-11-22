@@ -4,6 +4,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
+import { consumptionsBetween, type Consumption } from "@/modules/sales";
 import { cashBookOf, trialBalance } from "@/modules/finance/domain/books";
 import { balanceSheet, incomeStatement } from "@/modules/finance/domain/statements";
 import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
@@ -12,6 +13,7 @@ import { monthPeriod } from "@/modules/finance/domain/batch";
 import { ledgerAccounts, yearClose } from "@/modules/finance/infrastructure/ledger";
 import { entryTags } from "@/modules/finance/application/tags";
 import type { EntryTags } from "@/modules/finance/domain/export";
+import { unpostedConsumption } from "@/modules/finance/domain/posting";
 
 // piece, receipt: a manual entry's (FCX3), from its ManualEntry row
 type Entry = { id: string; day: string; journal: string; label: string; reversesId: string | null; lines: Line[]; piece?: string | null; receipt?: string | null };
@@ -23,6 +25,7 @@ export type Books = {
   labels: Record<string, string>; // account number → its label in the chart
   cashBook: ReturnType<typeof cashBookOf>;
   tags: EntryTags; // FN16, FN18: each entry's party, farm, house and batch, from the record it posts
+  unposted: (Consumption & { reason: NonNullable<ReturnType<typeof unpostedConsumption>> })[]; // FC7: the month's home consumptions that post nothing, and why
   // `ledger` entities only:
   journals?: { journal: string; entries: Entry[] }[];
   generalLedger?: { account: string; lines: { day: string; journal: string; label: string; debit: bigint; credit: bigint; running: bigint }[] }[];
@@ -67,7 +70,13 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
   const accounts = await ledgerAccounts(db);
   const labels = Object.fromEntries(accounts.map((a) => [a.number, a.label]));
   const inMonth = await entriesBetween(ctx, entity.id, period.from, period.to);
-  const books: Books = { books: entity.accountingProfile.books, month, fiscalYear: year, labels, cashBook: cashBookOf(inMonth), tags: await entryTags(ctx, month) };
+  const chart = chartOf(accounts, entity.accountingProfile.base, entity.accountingProfile.overlays);
+  const everything = chartOf(accounts, "cgnc", ["pca"]);
+  const unposted = (await consumptionsBetween(db, ctx, period.from, period.to)).flatMap((c) => {
+    const reason = unpostedConsumption({ type: "consumption", id: c.id, day: c.day as FarmDay, amount: c.amountCentimes, takenBy: c.takenBy }, everything, chart);
+    return reason ? [{ ...c, reason }] : [];
+  });
+  const books: Books = { books: entity.accountingProfile.books, month, fiscalYear: year, labels, cashBook: cashBookOf(inMonth), tags: await entryTags(ctx, month), unposted };
   if (entity.accountingProfile.books !== "ledger") return ok(books);
 
   const manual = new Map((await db.manualEntry.findMany({ where: { organizationId: ctx.organizationId, id: { in: inMonth.map((e) => e.id) } } })).map((m) => [m.id, m]));
@@ -97,7 +106,7 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
     balanceSheet: balanceSheet(balance.rows),
     closedOn: closed && farmDayOf(closed.closedAt),
     ...(can(ctx, "finance.manage") && {
-      postingAccounts: leafAccounts(chartOf(accounts, entity.accountingProfile.base, entity.accountingProfile.overlays))
+      postingAccounts: leafAccounts(chart)
         .map((a) => ({ number: a.number, label: a.label }))
         .sort((a, b) => a.number.localeCompare(b.number)),
     }),

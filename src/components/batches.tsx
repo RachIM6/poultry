@@ -149,7 +149,6 @@ function Batches(scope: Scope) {
     return `${p ? (locale === "ar" ? p.nameAr : p.nameFr) : v.productId} · ${t("Batches.age", { age: String(v.dayOfAge) })}`;
   };
   const costsOf = (batchId: string) => of<BatchCostDto>("batchCost").filter((c) => c.batchId === batchId);
-  const salesOf = (batchId: string) => of<SaleDto>("sale").filter((s) => s.batchId === batchId && s.kind !== "eggs"); // egg sales: /eggs
   if (shown?.status === "closed") {
     // B6: read-only, with the locked figures; its sales stay listed for their origin documents (V5).
     const curves = strains.find((s) => s.id === shown.strainId)?.curves ?? [];
@@ -165,7 +164,7 @@ function Batches(scope: Scope) {
           <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curves={curves} />
         )}
         <BatchCosts batch={shown} costs={costsOf(shown.id)} manage={can(scope, "flock.manage")} write={write} />
-        {can(scope, "sales.manage") && <Sales batch={shown} sales={salesOf(shown.id)} buyers={of<BuyerDto>("buyer")} treatments={[]} birdsOnHand={0} write={write} />}
+        {can(scope, "sales.manage") && <Sales batch={shown} sales={of<SaleDto>("sale")} buyers={of<BuyerDto>("buyer")} treatments={[]} birdsOnHand={0} write={write} />}
       </>
     );
   }
@@ -231,13 +230,14 @@ function Batches(scope: Scope) {
           write={write}
         />
         <VetVisits batch={open} visits={of<VetVisitDto>("vetVisit").filter((v) => v.batchId === open.id)} userId={userId} write={write} />
-        {can(scope, "sales.manage") && (
+        {can(scope, "flock.record") && (
           <Sales
             batch={open}
-            sales={salesOf(open.id)}
+            sales={of<SaleDto>("sale")}
             buyers={of<BuyerDto>("buyer")}
             treatments={treatments}
             birdsOnHand={onHand(open)}
+            seller={can(scope, "sales.manage")}
             write={write}
           />
         )}

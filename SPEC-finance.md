@@ -304,12 +304,13 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
   - **Simplified method** (blocked by FQ7): no depreciation; the flock's value at year end and its variation through 7151 / 7152. The valuation basis and the balance-sheet account the text gives are in "Laying hens, what the text says" above; the accountant confirms them, including 23711 / 23712 against the text's 2371 / 2372 (FQ7).
 - **FC7. Home consumption** (FQ21, FQ11).
   - **Recording:** birds or eggs taken by the exploitant, an associate or an employee are recorded on the sale forms (V2, V6, V7) with the kind "Consommation" and who took them. Offline, like a sale. The withdrawal blocks (V3, V6) apply for food safety, and birds on hand and the FIFO egg draws move as for a sale. No buyer, payment or receivable.
-  - **Value:** quantity × a price, typed as on a sale. **Default (FQ21): prefilled with the farm's last sale price for the same product;** the owner can change it. Workers never see it (I5).
+  - **Value:** quantity × a price, typed as on a sale. **Default (FQ21): prefilled with the farm's last sale price for the same product;** the owner can change it. Workers never see it (I5): they record the quantities, and the server values their entry at that last sale price. A product never sold yet has no price: FQ31.
   - **Batch result:** it counts with the batch's sales and kg sold at that value (FN13).
   - **Posting** (`OD`), credit 7140 Production Autoconsommée, under 714 Production Autoconsommée et Immobilisations produites par l’entreprise pour elle-même (confirmed by T100). With the PCA off, 7140 lands on 714, which has sub-accounts: §9. Debit:
     - 4463 for an associate of a company;
     - **default (FQ21):** 6171 for an employee;
-    - the exploitant's account for an individual, **blocked by FQ11**. Until then the record is kept and listed as "non comptabilisé".
+    - the exploitant's account for an individual, **blocked by FQ11**. Until then the record is kept and listed as "non comptabilisé (FQ11)" on `/books`, for the month of its day.
+  - **With the PCA off** no line goes on 714 (FN4) and no account is invented: the record is listed as "non comptabilisé (FQ25)" the same way. The debit follows who took it, whatever the legal form; a `cash_book` entity posts it too, as its sales.
   - **Out of scope:** the payroll side of a benefit in kind (CNSS, income tax).
 - **FC8. Statements** (FQ22).
   - **Draft balance sheet** (buildable): from the trial balance on the last day, after the close run. Classes 1–5 by 3-digit account, debit balances as assets and credit balances as liabilities, and the net result of classes 6–7 as its own line. That result equals the draft CPC's net (U16). Labelled "Projet" until the year close (FCX6).
@@ -456,6 +457,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ28 | An asset financed by an investment subsidy is sold or scrapped before the end of its life: is the part of the subsidy not yet released taken to income on the disposal day (on 7577 or another account), and is 1311 then cleared against 1319? | FC2 (until then the release stops with the asset's depreciation and the rest stays on 1311 / 1319) |
 | FQ29 | Bought stock with the PCA off: vaccines and medicines are bought on 6122 (612123's CGNC fallback). Are they in stock on 3121 / 61241 like feed, or on 31221 / 61242 like the other supplies? §5's "Bought stock by kind" covers only the PCA case. | FC5 (until then they follow their purchase family: 31221 / 61242) |
 | FQ30 | Bought stock of a VAT-registered entity: valued net of the purchases' VAT (as the charges were booked, FN9)? The batch cost (FN13) still uses amounts including VAT. | FC5 (until then net of VAT) |
+| FQ31 | Home consumption of a product the farm has not sold yet (first eggs of a grade, first birds by the head): FQ21's last sale price doesn't exist. Which value? | FC7 (until then such an entry, a worker's or one whose price was left empty, is valued 0: it counts in the batch's kg sold, posts nothing and is listed "non comptabilisé" on `/books`) |
 
 ### Found for the accountant (T100)
 

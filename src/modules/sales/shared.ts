@@ -9,6 +9,9 @@ export { AGEING_BUCKETS, ageing, ageingBucket, buyerBalances, checkPayment } fro
 export type { AgeingBucket } from "@/modules/sales/domain/receivables";
 export { INSTRUMENT_STATES, checkTransition, instrumentsOf } from "@/modules/sales/domain/instruments";
 export type { Instrument, InstrumentKind, InstrumentState } from "@/modules/sales/domain/instruments";
+export { TAKERS, lastPrices, typedPrice } from "@/modules/sales/domain/consumption";
+export type { Taker } from "@/modules/sales/domain/consumption";
+import type { Taker } from "@/modules/sales/domain/consumption";
 
 /** V4: how a buyer pays later (credit is not a payment). */
 export const LATER_PAYMENT_METHODS = ["cash", "cheque", "bill", "transfer"] as const;
@@ -29,24 +32,29 @@ export type InstrumentStatusDto = { id: string; instrumentId: string; state: "re
 /** V5: the origin document's number, from the sale's id (also the id of the birds it took out). */
 export const originNumber = (saleId: string) => saleId.slice(0, 8).toUpperCase();
 
-/** What pull returns and the phone stores. Workers never record or receive sales (I5); the money is stripped anyway. */
+/**
+ * What pull returns and the phone stores. Workers never record sales (I5) and receive them without money. A home
+ * consumption (SPEC-finance FC7) is a sale with `takenBy`, no buyer and no payment (method "none"); workers record
+ * those, quantities only.
+ */
 export type SaleDto = {
   id: string;
   batchId: string;
-  buyerId: string;
+  buyerId: string | null; // null: a home consumption
   day: string; // farm day
   birds: number;
   farmWeightGrams: number;
   buyerWeightGrams: number | null;
   pricePerKgCentimes?: string;
   amountCentimes?: string;
-  paymentMethod?: PaymentMethod;
+  paymentMethod?: PaymentMethod | "none";
   paidCentimes?: string;
   vatCentimes?: string; // SPEC-finance FN9: part of amountCentimes; absent from a sale recorded before T39
   instrument?: { number: string; dueOn: string } | null; // cheque or bill of exchange
   creditApproval?: "pending" | "approved" | null; // FN12: beyond the buyer's credit limit, waits for the owner
   kind?: "live" | "eggs" | "perHead"; // SPEC-m3 V6, V7; absent = live
   lines?: SaleLineDto[]; // an egg sale's
+  takenBy?: Taker | null; // FC7: who took the birds or eggs home; absent or null = a sale
 };
 /** SPEC-m3 V6, V7: a line of an egg sale, or of a per-head sale (then `eggs` counts birds and `eggsPerTray` is 1).
  * Money in centimes, as strings. */
@@ -68,6 +76,7 @@ export const SALES_MUTATIONS = {
   recordSale: "sales.recordSale",
   recordEggSale: "sales.recordEggSale",
   recordHeadSale: "sales.recordHeadSale",
+  recordConsumption: "sales.recordConsumption",
   recordPayment: "sales.recordPayment",
   setInstrumentState: "sales.setInstrumentState",
   unblockBuyer: "sales.unblockBuyer",

@@ -518,6 +518,8 @@
     "FIRST_DUE_BEFORE_DISBURSEMENT": "La première échéance doit venir après le déblocage.",
     "CAPITAL_NOT_PRINCIPAL": "Le capital des échéances ne totalise pas le capital emprunté : corrigez les lignes, puis confirmez.",
     "LOAN_CONFIRMED": "Cet échéancier est confirmé : ses lignes ne changent plus.",
+    "SUBSIDY_ON_LAND": "Une subvention sur un terrain n’est pas acceptée : le terrain n’est pas amorti, la subvention ne serait jamais reprise.",
+    "SUBSIDY_NO_ASSET": "Choisissez au moins une immobilisation amortissable financée par la subvention.",
     "LOAN_NOT_CONFIRMED": "Confirmez d’abord l’échéancier de cet emprunt.",
     "BEFORE_DUE_DAY": "Une échéance se marque payée à partir de sa date."
   },
@@ -1024,7 +1026,8 @@
     "cashBook": "Livre des recettes et dépenses : pas de bilan, donc pas d’écritures de clôture. Le registre des immobilisations et les plans d’amortissement restent consultables.",
     "locked": "Le dernier mois de l’exercice est clôturé : les écritures de clôture ne peuvent pas y être passées.",
     "kinds": {
-      "depreciation": "Dotations aux amortissements"
+      "depreciation": "Dotations aux amortissements",
+      "subsidy": "Quote-part des subventions d’investissement"
     },
     "actions": {
       "none": "Rien à passer pour cet exercice.",
@@ -1188,6 +1191,29 @@
     "confirmed": "Échéancier confirmé.",
     "discard": "Supprimer le brouillon",
     "discarded": "Brouillon supprimé."
+  },
+  "Subsidies": {
+    "title": "Subventions d’investissement",
+    "hint": "La subvention est comptabilisée à sa réception (5141 / 1311). À chaque clôture, la part de l’exercice est reprise en produit au rythme de l’amortissement des immobilisations qu’elle finance (1319 / 7577). Une subvention sur un terrain n’est pas acceptée.",
+    "cashBook": "Livre des recettes et dépenses : la subvention apparaît à sa réception, sur le compte bancaire. Sa reprise par exercice est indiquée sans écriture : il n’y a pas de clôture.",
+    "add": "Ajouter une subvention",
+    "label": "Objet de la subvention",
+    "grantor": "Organisme qui l’accorde",
+    "amount": "Montant reçu",
+    "receivedOn": "Date de réception",
+    "bank": "Compte bancaire de réception",
+    "assets": "Immobilisations financées",
+    "noAsset": "Enregistrez d’abord l’immobilisation financée :",
+    "save": "Enregistrer la subvention",
+    "created": "Subvention enregistrée.",
+    "none": "Aucune subvention.",
+    "terms": "{grantor} · {amount} · reçue le {day} · {bank}",
+    "financed": "Immobilisations financées : {assets}",
+    "releaseOf": "Reprise par exercice · {label}",
+    "year": "Exercice",
+    "release": "Reprise de l’exercice",
+    "released": "Cumul repris",
+    "left": "Reste à reprendre"
   },
   "Nav": {
     "label": "Navigation principale",

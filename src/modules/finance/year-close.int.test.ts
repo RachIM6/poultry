@@ -20,6 +20,7 @@ import { AccountsFile } from "@/modules/finance/schema";
 import { tenant, twoTenants } from "@/test/tenant";
 
 const clock = fixedClock("2028-06-15T10:00:00Z");
+const NO_SUBSIDY = { kind: "subsidy", action: "none", lines: [] }; // T106: no subsidy in this file
 // SPEC-finance §7.1 A: the generator, 47 350,00, in service on 18 Sep 2026, 84 months typed by the owner.
 const generator = (more: object = {}) => ({
   id: uuidv7(),
@@ -105,13 +106,13 @@ describe("the year close and the opening (SPEC-finance FCX5, FCX6, T104)", () =>
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
     expect(await db.auditEvent.count({ where: { entity: "LockedPeriod", entityId: entity, action: "lock" } })).toBe(12);
     expect(await db.journalEntry.count({ where: { legalEntityId: entity, day: new Date("2027-01-01T00:00:00Z") } })).toBe(1);
-    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { locked: true, closedOn: "2028-06-15", entries: [{ action: "unchanged" }] } });
+    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { locked: true, closedOn: "2028-06-15", entries: [{ action: "unchanged" }, NO_SUBSIDY] } });
   });
 
   it("after a later change to a close entry (reopen, run, close again), posts the à-nouveaux again by reversal and new version: still equal to the closing", async () => {
     const asset = await db.fixedAsset.findFirstOrThrow({ where: { organizationId: owner.organizationId } });
     expect(await updateFixedAsset(owner, { assetId: asset.id, lifeMonths: 60, residualCentimes: "0" })).toEqual({ ok: true, value: undefined });
-    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "repost" }] } });
+    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "repost" }, NO_SUBSIDY] } });
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: false, error: "PERIOD_LOCKED" }); // the year is closed
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: false, error: "CLOSE_RUN_PENDING" });
 

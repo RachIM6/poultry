@@ -122,3 +122,15 @@ export const LoanRef = z.object({ loanId: z.uuid() });
 
 /** FC2: an installment the bank debited, on its day (default: the due day). */
 export const LoanPayment = z.object({ loanId: z.uuid(), number: z.int().min(1), day: z.iso.date() });
+
+// FC2 (T106), the owner's investment subsidies. The rules between fields are checked by domain/subsidies.ts.
+/** FC2: a subsidy as received (default FQ17), on a bank account, and the register's assets it finances. Its id comes from the form. */
+export const SubsidyInput = z.object({
+  id: z.uuid(),
+  label: z.string().trim().min(1).max(120),
+  grantor: z.string().trim().min(1).max(120),
+  amountCentimes: positive,
+  receivedOn: z.iso.date(),
+  treasuryId: z.uuid(),
+  assetIds: z.array(z.uuid()).max(50).refine((ids) => new Set(ids).size === ids.length),
+});

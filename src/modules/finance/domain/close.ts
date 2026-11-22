@@ -3,8 +3,8 @@ import { samePosting } from "@/modules/finance/domain/posting";
 
 // SPEC-finance FCX4: the close run. One OD entry per kind, on the fiscal year's last day.
 
-/** The run's kinds, in posting order. T106 adds the subsidy release, T108 stocks, T109 batches in progress. */
-export const CLOSE_KINDS = ["depreciation"] as const;
+/** The run's kinds, in posting order: depreciation, the subsidy release (T106); T108 adds stocks, T109 batches in progress. */
+export const CLOSE_KINDS = ["depreciation", "subsidy"] as const;
 export type CloseKind = (typeof CLOSE_KINDS)[number];
 
 /** FCX4: the entry's source id, `close:<kind>:<legal entity>:<year>` (the calendar year the fiscal year ends in). */
@@ -12,9 +12,9 @@ export const closeSource = (kind: CloseKind, legalEntityId: string, year: number
 
 /**
  * FCX5: the kinds whose close entry is reversed on the next fiscal year's first day, with its à-nouveaux. T108 (stocks)
- * and T109 (batches in progress) set theirs, provisions included. Depreciation is never reversed.
+ * and T109 (batches in progress) set theirs, provisions included. Depreciation and the subsidy release are never reversed.
  */
-export const REVERSED_AT_OPENING: Record<CloseKind, boolean> = { depreciation: false };
+export const REVERSED_AT_OPENING: Record<CloseKind, boolean> = { depreciation: false, subsidy: false };
 
 /** FN3, FCX6: the à-nouveaux's source id, by the first day of the fiscal year it opens (FN7 versions). */
 export const openingSource = (legalEntityId: string, firstDay: string) => `opening:${legalEntityId}:${firstDay}`;

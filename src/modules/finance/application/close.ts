@@ -7,6 +7,7 @@ import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
 import { closeDepreciation } from "@/modules/finance/application/assets";
+import { closeSubsidies } from "@/modules/finance/application/subsidies";
 import { lockMonth, postOpening, postVersion, type PostError } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { CLOSE_KINDS, closeAction, closeSource, type CloseAction, type CloseKind } from "@/modules/finance/domain/close";
@@ -20,9 +21,10 @@ import { entriesBetween, ledgerAccounts, lockedMonths, standingEntryFor, yearClo
 
 type FiscalYear = { from: FarmDay; to: FarmDay };
 
-/** Each kind's rule entry for the fiscal year, or null when it has nothing to post. T106, T108 and T109 add theirs. */
+/** Each kind's rule entry for the fiscal year, or null when it has nothing to post. T108 and T109 add theirs. */
 const KINDS: Record<CloseKind, (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, year: FiscalYear) => Promise<Posting | null>> = {
   depreciation: (tx, ctx, entity, year) => closeDepreciation(tx, ctx, entity.id, year.from, entity.fiscalYearStartMonth),
+  subsidy: (tx, ctx, entity, year) => closeSubsidies(tx, ctx, entity.id, year, entity.fiscalYearStartMonth),
 };
 
 /** The fiscal year that ends in calendar year `year`, as the count sheet's (T107). */

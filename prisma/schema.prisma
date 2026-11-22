@@ -1019,6 +1019,7 @@ model FixedAsset {
   receiptFileId              String?   @db.Uuid // ADR-011: the invoice, a StoredFile attached after the asset
   createdBy                  String    @db.Uuid
   createdAt                  DateTime  @default(now()) @db.Timestamptz
+  subsidies                  SubsidyAsset[]
 
   @@index([organizationId])
 }
@@ -1062,6 +1063,38 @@ model LoanInstallment {
   @@id([loanId, number])
   @@index([organizationId])
   @@index([dueOn])
+}
+
+// Owner: finance. SPEC-finance FC2 (T106): an investment subsidy, per legal entity, typed online by the owner. Default
+// FQ17: posted when received (finance, subsidy:<id>:receipt, 1), D 5141 / C 1311; released by the close run's subsidy
+// kind (T103) to 7577 through 1319, at the depreciation rate of the assets it finances.
+model Subsidy {
+  id             String         @id @db.Uuid
+  organizationId String         @db.Uuid
+  legalEntityId  String         @db.Uuid // whose books it is in
+  label          String
+  grantor        String // the granting body, free text
+  amountCentimes BigInt // received, on 1311
+  receivedOn     DateTime       @db.Date // farm day, the receipt entry's
+  treasuryId     String         @db.Uuid // the bank account (FN3) it was paid into: the 5141 line's
+  createdBy      String         @db.Uuid
+  createdAt      DateTime       @default(now()) @db.Timestamptz
+  assets         SubsidyAsset[]
+
+  @@index([organizationId])
+}
+
+// Owner: finance. FC2: the register's depreciable assets a subsidy finances (one or more, never land: FQ17).
+model SubsidyAsset {
+  subsidyId      String     @db.Uuid
+  assetId        String     @db.Uuid
+  organizationId String     @db.Uuid
+  subsidy        Subsidy    @relation(fields: [subsidyId], references: [id], onDelete: Cascade)
+  asset          FixedAsset @relation(fields: [assetId], references: [id])
+
+  @@id([subsidyId, assetId])
+  @@index([organizationId])
+  @@index([assetId])
 }
 
 // Owner: finance. SPEC-finance FN6, FX4: a quick expense recorded on the phone, offline; posted when it syncs.

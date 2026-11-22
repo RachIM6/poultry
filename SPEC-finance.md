@@ -257,6 +257,8 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - **Default (FQ17): posted when received,** D 5141 / C 1311, `BQ`.
     - **Release at the depreciation rate** (close run): released to date = subsidy × Σ cumulative depreciation of its assets ÷ Σ their depreciable bases, rounded half up; the year's release = that − what was released before. D 1319 Subventions d’investissement inscrites au compte de produits et charges, so that 1311 stays at the amount received (FQ17) / C 7577.
     - A subsidy on land or on no depreciable asset is refused (FQ17).
+    - An asset disposed of before the end of its life: its depreciation stops at the disposal, and so does the release. What is not yet released stays on 1311 / 1319 (FQ28).
+    - **`cash_book` entity:** the receipt is posted, as a loan's disbursement (the money comes in on its bank account, so it shows in the cash book); no release, since it has no close run (FCX4).
   - **Screen** "Emprunts et subventions": each loan's schedule with paid and due installments, and each subsidy with its release by year.
   - **Out of scope:** variable rates, early repayment, a renegotiated schedule (a new loan), loan fees and insurance (quick expenses), the short- and long-term split of the outstanding capital (presentation, FC8), operating subsidies, a loan paid straight to a supplier, the investment project file (§1).
 - **FC3. Year-end count.**
@@ -451,6 +453,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ25 | With the PCA off, these PCA accounts land on a CGNC account that has sub-accounts, so no line can go there: 3152 → 315, 7140 → 714, 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71. Which CGNC account for each? | FC5 eggs, FC6, FC7 with the PCA off |
 | FQ26 | Packaging in stock: 31231 Emballages perdus, 31232 Emballages récupérables non identifiables or 31233 Emballages à usage mixte (egg trays, sacks)? | FC5 |
 | FQ27 | A `cash_book` entity's cash or bank payment for a fixed asset: which category or line in the cash book (FN16)? | FC1 (until then a `cash_book` entity keeps the register and the schedules only, and posts nothing) |
+| FQ28 | An asset financed by an investment subsidy is sold or scrapped before the end of its life: is the part of the subsidy not yet released taken to income on the disposal day (on 7577 or another account), and is 1311 then cleared against 1319? | FC2 (until then the release stops with the asset's depreciation and the rest stays on 1311 / 1319) |
 
 ### Found for the accountant (T100)
 

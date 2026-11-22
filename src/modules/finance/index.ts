@@ -23,3 +23,4 @@ export type { CountBatchLine, CountLine, CountStockLine } from "./domain/count";
 export { assetRegister, attachFixedAssetReceipt, createFixedAsset, disposeFixedAsset, payFixedAsset, updateFixedAsset, type AssetRegister, type AssetView, type AssetWriteError } from "./application/assets";
 export { ASSET_CATEGORIES, ASSET_ACCOUNTS, type AssetCategory, type ScheduleYear } from "./domain/assets";
 export { closeFiscalYear, closePreview, reopenFiscalYear, runClose, type CloseEntryView, type ClosePreview, type YearCloseError } from "./application/close";
+export { confirmLoan, createLoan, discardLoan, loanRegister, payLoanInstallment, saveLoanSchedule, sendLoanReminders, type LoanRegister, type LoanRowView, type LoanView, type LoanWriteError } from "./application/loans";

@@ -166,4 +166,4 @@ export const notificationsSync: SyncRegistry = {
   },
 };
 
-const MONEY_TEMPLATES = new Set<TemplateKey>(["instrumentDue", "issuedDue", "creditApproval"]);
+const MONEY_TEMPLATES = new Set<TemplateKey>(["instrumentDue", "issuedDue", "creditApproval", "loanDue"]);

@@ -235,6 +235,10 @@
       "thresholdNear": {
         "title": "Seuil d’exonération : {percent} %",
         "body": "Les ventes agricoles de l’exercice, réalisées et prévues, atteignent {percent} % du seuil. Voyez avec votre expert-comptable."
+      },
+      "loanDue": {
+        "title": "Échéance d’emprunt aujourd’hui : {lender}",
+        "body": "Échéance n° {number} : {amount} sera débité de la banque."
       }
     }
   },
@@ -510,7 +514,12 @@
     "PREVIOUS_YEAR_OPEN": "Clôturez d’abord l’exercice précédent : ses soldes ouvrent celui-ci.",
     "CLOSE_RUN_PENDING": "Comptabilisez d’abord les écritures de clôture : l’aperçu en montre encore à passer.",
     "YEAR_NOT_CLOSED": "Cet exercice n’est pas clôturé.",
-    "NEXT_YEAR_CLOSED": "L’exercice suivant est clôturé : rouvrez-le d’abord."
+    "NEXT_YEAR_CLOSED": "L’exercice suivant est clôturé : rouvrez-le d’abord.",
+    "FIRST_DUE_BEFORE_DISBURSEMENT": "La première échéance doit venir après le déblocage.",
+    "CAPITAL_NOT_PRINCIPAL": "Le capital des échéances ne totalise pas le capital emprunté : corrigez les lignes, puis confirmez.",
+    "LOAN_CONFIRMED": "Cet échéancier est confirmé : ses lignes ne changent plus.",
+    "LOAN_NOT_CONFIRMED": "Confirmez d’abord l’échéancier de cet emprunt.",
+    "BEFORE_DUE_DAY": "Une échéance se marque payée à partir de sa date."
   },
   "Weighing": {
     "title": "Pesée",
@@ -1126,6 +1135,59 @@
     "disposeSave": "Enregistrer la cession",
     "disposedSaved": "Cession enregistrée.",
     "cashBook": "Livre des recettes et dépenses : le registre et les plans d’amortissement seulement. Rien n’est comptabilisé, et la sortie de caisse ou de banque de l’achat n’apparaît pas dans le livre (question posée à l’expert-comptable)."
+  },
+  "Loans": {
+    "open": "Emprunts et subventions",
+    "title": "Emprunts et subventions",
+    "hint": "Saisissez l’emprunt depuis le contrat : l’échéancier est calculé, les intérêts d’une période étant le taux annuel divisé par le nombre de périodes de l’année, sans compter les jours. Ajustez chaque ligne au tableau de la banque, au centime, puis confirmez : les lignes ne changent plus. Pas d’intérêts courus à la clôture : une écriture manuelle si l’expert-comptable le demande.",
+    "add": "Ajouter un emprunt",
+    "lender": "Prêteur",
+    "bank": "Compte bancaire du déblocage et des échéances",
+    "noBank": "Ajoutez d’abord un compte bancaire :",
+    "opening": "Emprunt antérieur à Dawra, repris dans les soldes d’ouverture : aucun déblocage n’est comptabilisé",
+    "principal": "Capital emprunté",
+    "principalOpening": "Capital restant dû à l’ouverture",
+    "rate": "Taux annuel du contrat, en %",
+    "frequency": "Périodicité",
+    "frequencies": {
+      "monthly": "Mensuelle",
+      "quarterly": "Trimestrielle"
+    },
+    "installments": "Nombre d’échéances de capital",
+    "deferral": "Périodes de différé (intérêts seuls)",
+    "disbursedOn": "Date de déblocage",
+    "firstDueOn": "Date de la première échéance",
+    "save": "Calculer l’échéancier",
+    "created": "Échéancier calculé : ajustez-le au tableau de la banque, puis confirmez-le.",
+    "none": "Aucun emprunt.",
+    "terms": "{bank} · {principal} · {rate} % · {frequency, select, monthly {mensuel} other {trimestriel}} · {installments} échéances{deferral, plural, =0 {, sans différé} one {, # période de différé} other {, # périodes de différé}}",
+    "disbursed": "débloqué le {day}",
+    "inOpening": "repris dans les soldes d’ouverture",
+    "owed": "Capital restant dû :",
+    "draft": "Brouillon : ajustez les lignes au tableau de la banque, puis confirmez. Le capital doit totaliser {principal}.",
+    "schedule": "Échéancier · {lender}",
+    "number": "N°",
+    "dueOn": "Échéance",
+    "outstanding": "Capital restant dû",
+    "interest": "Intérêts",
+    "capital": "Capital",
+    "total": "Montant",
+    "state": "État",
+    "interestOf": "Intérêts de l’échéance {number}",
+    "capitalOf": "Capital de l’échéance {number}",
+    "payDay": "Date de débit de l’échéance {number}",
+    "pay": "Marquer payée",
+    "paid": "Échéance payée.",
+    "paidOn": "Payée le {day}",
+    "due": "À payer",
+    "upcoming": "À venir",
+    "totals": "Total",
+    "saveRows": "Enregistrer les lignes",
+    "rowsSaved": "Lignes enregistrées.",
+    "confirm": "Confirmer l’échéancier",
+    "confirmed": "Échéancier confirmé.",
+    "discard": "Supprimer le brouillon",
+    "discarded": "Brouillon supprimé."
   },
   "Nav": {
     "label": "Navigation principale",

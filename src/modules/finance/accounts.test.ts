@@ -6,6 +6,7 @@ import { operationAccounts } from "@/modules/finance/domain/operations";
 import { POSTED_ACCOUNTS } from "@/modules/finance/domain/posting";
 import { EXPENSE_ACCOUNTS } from "@/modules/finance/domain/treasury";
 import { ASSET_ACCOUNTS, ASSET_DEBTS, DEPRECIATION_CHARGE, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
+import { LOAN_INTEREST, LOANS } from "@/modules/finance/domain/loans";
 
 const seed = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
 const everything = chartOf(seed.accounts, "cgnc", ["pca"]);
@@ -106,8 +107,8 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
     const parents = (chart: typeof withPca) => new Set([...chart.values()].map((a) => a.parent));
     // T102 (FC1): every asset and depreciation account of the categories, and the acquisition and disposal accounts.
     const assets = [...Object.values(ASSET_ACCOUNTS).flatMap((a) => [a.asset, a.depreciation ?? []].flat()), ASSET_DEBTS, DEPRECIATION_CHARGE, NET_BOOK_VALUE_DISPOSED, DISPOSAL_PROCEEDS];
-    const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets];
-    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "6193", "6513", "7513"]));
+    const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets, LOANS, LOAN_INTEREST]; // T105 (FC2): the loans'
+    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "6193", "6513", "7513", "1481", "6311"]));
     for (const account of rules) {
       expect(withPca.has(account), account).toBe(true);
       expect(parents(withPca).has(account), account).toBe(false);

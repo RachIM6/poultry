@@ -1023,6 +1023,47 @@ model FixedAsset {
   @@index([organizationId])
 }
 
+// Owner: finance. SPEC-finance FC2 (T105): a loan, per legal entity, typed online by the owner from the contract. A
+// draft until the owner confirms its schedule, adjusted to the bank's table; then its rows are fixed. Its entries carry
+// the source (finance, loan:<id>:disbursement | loan:<id>:installment:<number>, 1).
+model Loan {
+  id                String            @id @db.Uuid
+  organizationId    String            @db.Uuid
+  legalEntityId     String            @db.Uuid // whose books it is in
+  lender            String
+  treasuryId        String            @db.Uuid // the bank account (FN3) it is paid into and the installments leave
+  principalCentimes BigInt // borrowed; in the opening balance, the capital still owed when Dawra starts
+  disbursedOn       DateTime?         @db.Date // farm day, the disbursement entry's; null: in the opening balance (FCX3), not posted
+  rate              Int // annual, typed from the contract, in 1/100 000 (5,55 % → 5 550; FX1: no float)
+  frequency         String // monthly | quarterly
+  installments      Int // n, the capital installments
+  deferral          Int               @default(0) // d periods of interest only, before them
+  firstDueOn        DateTime          @db.Date
+  confirmedAt       DateTime?         @db.Timestamptz // null: a draft, whose rows the owner may still change
+  createdBy         String            @db.Uuid
+  createdAt         DateTime          @default(now()) @db.Timestamptz
+  rows              LoanInstallment[]
+
+  @@index([organizationId])
+}
+
+// Owner: finance. FC2: one row of a loan's schedule, from loanSchedule, then as the owner adjusted it before confirming.
+model LoanInstallment {
+  loanId           String    @db.Uuid
+  number           Int // 1 to deferral + installments
+  organizationId   String    @db.Uuid
+  dueOn            DateTime  @db.Date // first due day + (number − 1) periods, clamped to the month's end
+  capitalCentimes  BigInt // on 1481; 0 during the deferral
+  interestCentimes BigInt // on 6311
+  paidOn           DateTime? @db.Date // marked paid: the day the bank debited it, the entry's day
+  remindedAt       DateTime? @db.Timestamptz // announced once, on its due day
+  loan             Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@id([loanId, number])
+  @@index([organizationId])
+  @@index([dueOn])
+}
+
 // Owner: finance. SPEC-finance FN6, FX4: a quick expense recorded on the phone, offline; posted when it syncs.
 model Expense {
   id             String    @id @db.Uuid

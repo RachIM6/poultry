@@ -14,6 +14,7 @@ import { issuedBillsDue, supplierDuesOf } from "@/modules/inventory";
 import { instrumentsToCollect } from "@/modules/sales";
 import { wagesDue } from "@/modules/workforce";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
+import { loanInstallmentsDue } from "@/modules/finance/application/loans";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
 import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
@@ -196,18 +197,19 @@ const nextMonth = (month: string) => {
 
 /**
  * F-Effects' schedule, the weekly cash need from facts: today's cash and bank (5161, 5141 in the ledger) run forward
- * with the cheques and bills to collect, what is due to suppliers, the bills accepted and not yet debited, and the validated wages not yet paid. Owners, managers and the accountant (a read).
+ * with the cheques and bills to collect, what is due to suppliers, the bills accepted and not yet debited, the validated wages not yet paid and the loan installments not yet paid (FC2). Owners, managers and the accountant (a read).
  */
 export async function cashForecast(ctx: TenantContext, clock: Clock = systemClock) {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN");
-  const [cash, ins, outs, wages, bills] = await Promise.all([
+  const [cash, ins, outs, wages, bills, loans] = await Promise.all([
     db.journalLine.aggregate({ where: { organizationId: ctx.organizationId, account: { in: ["5141", "5161"] } }, _sum: { debitCentimes: true, creditCentimes: true } }),
     instrumentsToCollect(ctx),
     supplierDuesOf(ctx),
     wagesDue(ctx),
     issuedBillsDue(ctx), // FN11: accepted bills leave the bank at their agreed date
+    loanInstallmentsDue(ctx), // FC2: the installments not yet paid, on their due day
   ]);
   const start = (cash._sum.debitCentimes ?? 0n) - (cash._sum.creditCentimes ?? 0n);
-  const flows = [...ins.map((f) => ({ ...f, direction: "in" as const })), ...[...outs, ...wages, ...bills].map((f) => ({ ...f, direction: "out" as const }))];
+  const flows = [...ins.map((f) => ({ ...f, direction: "in" as const })), ...[...outs, ...wages, ...bills, ...loans].map((f) => ({ ...f, direction: "out" as const }))];
   return ok({ startCentimes: start, weeks: cashSchedule(farmDayOf(clock.now()), start, flows) });
 }

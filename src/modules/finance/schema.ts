@@ -93,3 +93,32 @@ export const FixedAssetPayment = z.object({ id: z.uuid(), assetId: z.uuid(), day
 
 /** FC1: sold or scrapped (price 0), the price received in cash or at the bank. */
 export const FixedAssetDisposal = z.object({ assetId: z.uuid(), day: z.iso.date(), priceCentimes: centimes, receivedIn: z.enum(["cash", "bank"]), treasuryId });
+
+// FC2 (T105), the owner's loans. The rules between fields are checked by domain/loans.ts.
+/**
+ * FC2: a loan from its contract. The rate is annual, in 1/100 000 (5,55 % → 5 550). No disbursement day: taken before
+ * Dawra, in the opening balance (FCX3), the principal then being the capital still owed. Its id comes from the form.
+ */
+export const LoanInput = z.object({
+  id: z.uuid(),
+  lender: z.string().trim().min(1).max(120),
+  treasuryId: z.uuid(), // the bank account it is paid into, and the installments leave
+  principalCentimes: positive,
+  disbursedOn: z.iso.date().nullable(),
+  rate: z.int().min(0).max(100_000),
+  frequency: z.enum(["monthly", "quarterly"]),
+  installments: z.int().min(1).max(600),
+  deferral: z.int().min(0).max(120).default(0),
+  firstDueOn: z.iso.date(),
+});
+
+/** FC2: the rows adjusted to the bank's table, before confirming: every row of the draft, by number. */
+export const LoanScheduleInput = z.object({
+  loanId: z.uuid(),
+  rows: z.array(z.object({ number: z.int().min(1), capitalCentimes: centimes, interestCentimes: centimes })).min(1).max(720),
+});
+
+export const LoanRef = z.object({ loanId: z.uuid() });
+
+/** FC2: an installment the bank debited, on its day (default: the due day). */
+export const LoanPayment = z.object({ loanId: z.uuid(), number: z.int().min(1), day: z.iso.date() });

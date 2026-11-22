@@ -14,11 +14,12 @@ export async function batchConsumptionCost(tx: Tx, ctx: TenantContext, batchId: 
 
 /**
  * For finance (SPEC-finance FN15): what the batch consumed, by item kind (feed, vaccine, …): the quantity in base units
- * (grams for kg) and its cost at each item's weighted average cost.
+ * (grams for kg) and its cost at each item's weighted average cost. `asOf` (FC4): the consumptions dated on or before
+ * that day only; the running average makes their cost independent of later movements.
  */
-export async function batchConsumption(tx: Tx, ctx: TenantContext, batchId: string): Promise<Map<string, { quantity: bigint; centimes: bigint }>> {
+export async function batchConsumption(tx: Tx, ctx: TenantContext, batchId: string, asOf?: string): Promise<Map<string, { quantity: bigint; centimes: bigint }>> {
   const org = ctx.organizationId;
-  const mine = await tx.stockMovement.findMany({ where: { organizationId: org, batchId }, select: { id: true, stockItemId: true, quantity: true } });
+  const mine = await tx.stockMovement.findMany({ where: { organizationId: org, batchId, ...(asOf && { day: { lte: new Date(`${asOf}T00:00:00Z`) } }) }, select: { id: true, stockItemId: true, quantity: true } });
   const items = [...new Set(mine.map((m) => m.stockItemId))];
   const [ledger, kinds] = await Promise.all([
     tx.stockMovement.findMany({ where: { organizationId: org, stockItemId: { in: items } } }),

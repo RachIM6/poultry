@@ -513,6 +513,7 @@
     "YEAR_NOT_ENDED": "L’exercice n’est pas terminé : il se clôture après son dernier jour.",
     "PREVIOUS_YEAR_OPEN": "Clôturez d’abord l’exercice précédent : ses soldes ouvrent celui-ci.",
     "CLOSE_RUN_PENDING": "Comptabilisez d’abord les écritures de clôture : l’aperçu en montre encore à passer.",
+    "BATCH_VALUE_MISSING": "Saisissez la valeur actuelle des bandes en cours sans pesée ou sans vente avant de comptabiliser.",
     "YEAR_NOT_CLOSED": "Cet exercice n’est pas clôturé.",
     "NEXT_YEAR_CLOSED": "L’exercice suivant est clôturé : rouvrez-le d’abord.",
     "FIRST_DUE_BEFORE_DISBURSEMENT": "La première échéance doit venir après le déblocage.",
@@ -1029,6 +1030,7 @@
       "depreciation": "Dotations aux amortissements",
       "subsidy": "Quote-part des subventions d’investissement",
       "stock": "Stocks achetés",
+      "batch": "Bandes en cours (animaux)",
       "provision": "Provisions pour dépréciation"
     },
     "stocks": "Stocks au coût moyen pondéré",
@@ -1042,6 +1044,11 @@
     "saveValues": "Enregistrer les valeurs actuelles",
     "valuesSaved": "Valeurs actuelles enregistrées.",
     "valuesFrozen": "Valeurs figées : les écritures de clôture de cet exercice sont comptabilisées.",
+    "batches": "Bandes en cours au coût engagé",
+    "batchesHint": "Le coût engagé de chaque bande de chair ouverte au dernier jour de l’exercice (poussins, consommations, charges directes et réparties jusqu’à ce jour), réparti par tête entre les sujets présents et les sujets vendus. La valeur actuelle proposée : sujets présents × dernier poids moyen × dernier prix de vente au kilo de la ferme pour ce type (ou dernier prix par tête). Saisissez-la pour la remplacer ; sous le coût, la différence est provisionnée.",
+    "birds": "Sujets présents",
+    "notValuedFq7": "Non valorisé (FQ7)",
+    "valueRequired": "Valeur à saisir : ni pesée ni vente pour la proposer.",
     "actions": {
       "none": "Rien à passer pour cet exercice.",
       "unchanged": "Comptabilisée, sans changement.",

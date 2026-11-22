@@ -8,13 +8,17 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
+import { batchesForFinance, lastWeighings } from "@/modules/flock";
 import { stockOnDay, stockValueOnDay } from "@/modules/inventory";
+import { lastSales } from "@/modules/sales";
+import { batchResultsIn } from "@/modules/finance/application/batch-results";
 import { closePosted } from "@/modules/finance/application/count";
 import { countDay } from "@/modules/finance/domain/count";
-import { stocksAtClose, yearEndProvision, yearEndStock, type StockAtClose } from "@/modules/finance/domain/stocks";
+import { batchesAtClose, stocksAtClose, yearEndBatches, yearEndProvision, yearEndStock, type BatchAtClose, type StockAtClose } from "@/modules/finance/domain/stocks";
 import type { Posting } from "@/modules/finance/domain/posting";
 
-// SPEC-finance FC5 (T108): bought stock at the close. Reads inventory through its index; writes only YearEndValue.
+// SPEC-finance FC5 (T108): bought stock at the close; FC4 (T109): batches in progress. Reads inventory, flock and
+// sales through their index; writes only YearEndValue.
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
 
@@ -30,11 +34,48 @@ export async function stockLinesAtClose(tx: Tx, ctx: TenantContext, entity: Lega
   return stocksAtClose(items, values, new Map(counted.map((c) => [c.subjectId, c.quantity])), new Map(current.map((c) => [c.subjectId, c.valueCentimes])));
 }
 
+/**
+ * FC4: each batch open at the end of the last day: birds on hand counted (FC3), else from flock; birds sold up to that
+ * day; FN13's cost engaged to that day; its last weighing and the farm's last sale of that type (FQ20) up to that day;
+ * and the owner's current value.
+ */
+export async function batchLinesAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<BatchAtClose[]> {
+  const where = { organizationId: ctx.organizationId, legalEntityId: entity.id, day: date(day), kind: "batch" };
+  const [batches, results, weighings, sales, counted, current] = await Promise.all([
+    batchesForFinance(tx, ctx, day),
+    batchResultsIn(tx, ctx, day),
+    lastWeighings(tx, ctx, day),
+    lastSales(tx, ctx, day),
+    tx.yearEndCount.findMany({ where, select: { subjectId: true, quantity: true } }),
+    tx.yearEndValue.findMany({ where, select: { subjectId: true, valueCentimes: true } }),
+  ]);
+  const engaged = new Map(results.map((r) => [r.id, r.costCentimes]));
+  const count = new Map(counted.map((c) => [c.subjectId, c.quantity]));
+  const typeOf = new Map(batches.map((b) => [b.id, `${b.farmId}:${b.species}`]));
+  const last = new Map<string, (typeof sales)[number]>(); // the farm's last sale of each production type
+  for (const sale of sales) {
+    const key = typeOf.get(sale.batchId);
+    const seen = key && last.get(key);
+    if (key && (!seen || sale.day > seen.day || (sale.day === seen.day && sale.id > seen.id))) last.set(key, sale);
+  }
+  const open = batches.filter((b) => b.closedOn === null); // as of the day: placed by then, not closed by then
+  return batchesAtClose(
+    open.map((b) => ({ id: b.id, farmId: b.farmId, houseName: b.houseName, species: b.species, onHand: count.get(b.id) ?? b.started - b.out.reduce((n, o) => n + o.birds, 0), sold: b.sold, engaged: engaged.get(b.id) ?? 0n })),
+    weighings,
+    last,
+    new Map(current.map((c) => [c.subjectId, c.valueCentimes])),
+  );
+}
+
+/** The close run's "batch" kind (FCX4, FC4): D 31322 / C 7131. */
+export const closeBatches = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> => yearEndBatches(await batchLinesAtClose(tx, ctx, entity, day));
+
 /** The close run's "stock" kind (FCX4): D 31x / C the 6124 leaves. */
 export const closeStock = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> => yearEndStock(await stockLinesAtClose(tx, ctx, entity, day), entity.accountingProfile.overlays.includes("pca"));
 
-/** The close run's "provision" kind (FCX4): D 6196 / C 3912 for the stock lines below cost. */
-export const closeProvision = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> => yearEndProvision(await stockLinesAtClose(tx, ctx, entity, day));
+/** The close run's "provision" kind (FCX4): D 6196 / C 3912 for the stock lines, C 3913 for the batches, below cost. */
+export const closeProvision = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> =>
+  yearEndProvision(await stockLinesAtClose(tx, ctx, entity, day), await batchLinesAtClose(tx, ctx, entity, day));
 
 const yearIn = (y: number) => Number.isInteger(y) && y >= 2000 && y <= 2100;
 
@@ -42,8 +83,9 @@ export const SaveValues = z.object({ year: z.number().int(), values: z.record(z.
 
 /**
  * FC5, FQ20: saves the owner's current value of stock lines (the whole line, in dirhams); an empty one removes it, so
- * the line is at cost again. Only a line valued at cost takes one. Owner only, audited per line. Refused once the
- * year's close run has posted, as the count (FCX4). Returns how many lines changed.
+ * the line is at cost again. Only a line valued at cost takes one. FC4: the same for a meat batch open on the last
+ * day (empty: back to the suggested value). Owner only, audited per line. Refused once the year's close run has
+ * posted, as the count (FCX4). Returns how many lines changed.
  */
 export async function saveYearEndValues(ctx: TenantContext, input: unknown): Promise<Result<number, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "COUNT_FROZEN">> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
@@ -56,16 +98,19 @@ export async function saveYearEndValues(ctx: TenantContext, input: unknown): Pro
     if (!entity) return fail("NOT_FOUND");
     if (await closePosted(tx, ctx, entity.id, parsed.data.year)) return fail("COUNT_FROZEN");
     const day = countDay(parsed.data.year, entity.fiscalYearStartMonth);
-    const lines = new Map((await stockLinesAtClose(tx, ctx, entity, day)).map((l) => [l.id, l]));
-    const changes: { id: string; value: bigint | null }[] = [];
+    const lines = new Map<string, { kind: "stock" | "batch"; current: bigint | null }>([
+      ...(await stockLinesAtClose(tx, ctx, entity, day)).flatMap((l) => (l.cost === null ? [] : [[l.id, { kind: "stock" as const, current: l.current }] as const])),
+      ...(await batchLinesAtClose(tx, ctx, entity, day)).flatMap((b) => (b.valued ? [[b.id, { kind: "batch" as const, current: b.typed }] as const] : [])),
+    ]);
+    const changes: { id: string; kind: "stock" | "batch"; value: bigint | null }[] = [];
     for (const [id, text] of Object.entries(parsed.data.values)) {
       const line = lines.get(id);
-      if (!line || line.cost === null) return fail("INVALID_INPUT"); // not a valued line of this organisation's stock
+      if (!line) return fail("INVALID_INPUT"); // not a valued stock line or meat batch of this organisation
       const value = text === "" ? null : parseCentimes(text);
       if (text !== "" && value === null) return fail("INVALID_INPUT");
-      if (value !== line.current) changes.push({ id, value });
+      if (value !== line.current) changes.push({ id, kind: line.kind, value });
     }
-    for (const { id, value } of changes) {
+    for (const { id, kind, value } of changes) {
       const key = { legalEntityId_day_subjectId: { legalEntityId: entity.id, day: date(day), subjectId: id } };
       const before = await tx.yearEndValue.findUnique({ where: key });
       const row =
@@ -73,7 +118,7 @@ export async function saveYearEndValues(ctx: TenantContext, input: unknown): Pro
           ? await tx.yearEndValue.delete({ where: key }) // removed: it was there (value ≠ current)
           : await tx.yearEndValue.upsert({
               where: key,
-              create: { id: uuidv7(), organizationId: ctx.organizationId, legalEntityId: entity.id, day: date(day), kind: "stock", subjectId: id, valueCentimes: value, updatedBy: ctx.userId },
+              create: { id: uuidv7(), organizationId: ctx.organizationId, legalEntityId: entity.id, day: date(day), kind, subjectId: id, valueCentimes: value, updatedBy: ctx.userId },
               update: { valueCentimes: value, updatedBy: ctx.userId },
             });
       await audit(tx, ctx, {

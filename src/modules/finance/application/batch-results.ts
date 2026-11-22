@@ -1,4 +1,5 @@
 import { db, SYNC_TX, type Tx } from "@/lib/db";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -13,15 +14,16 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 // farmId: a cost of one farm only (a pay month), shared over that farm's batches; absent, over all of them.
 type SharedExpense = { id: string; amount: bigint; from: string; to: string; farmId?: string };
 
-const sharedExpenses = async (tx: Tx, ctx: TenantContext): Promise<SharedExpense[]> => [
-  ...(await tx.expense.findMany({ where: { organizationId: ctx.organizationId, shared: true }, orderBy: { id: "asc" } })).map((e) => ({
+/** `asOf` (FC4): an expense dated on or before it, a pay month ended by then. */
+const sharedExpenses = async (tx: Tx, ctx: TenantContext, asOf?: string): Promise<SharedExpense[]> => [
+  ...(await tx.expense.findMany({ where: { organizationId: ctx.organizationId, shared: true, ...(asOf && { day: { lte: new Date(`${asOf}T00:00:00Z`) } }) }, orderBy: { id: "asc" } })).map((e) => ({
     id: e.id,
     amount: e.amountCentimes,
     from: day(e.serviceFrom!),
     to: day(e.serviceTo!),
   })),
   // plan-m4 "Later": a validated month's labour cost, shared by bird-days like any common charge of the month
-  ...(await payCosts(tx, ctx)).map((p) => ({ id: p.id, amount: p.costCentimes, ...monthPeriod(p.month), farmId: p.farmId })),
+  ...(await payCosts(tx, ctx)).map((p) => ({ id: p.id, amount: p.costCentimes, ...monthPeriod(p.month), farmId: p.farmId })).filter((p) => !asOf || p.to <= asOf),
 ];
 
 const weightOver = (b: BatchMoneyFacts, e: SharedExpense) =>
@@ -31,9 +33,8 @@ const weightOver = (b: BatchMoneyFacts, e: SharedExpense) =>
  * FN14: each shared expense's parts for the batches not yet frozen: what's left of it after the frozen shares, split
  * by bird-days over its service period (largest remainder, so the parts and the frozen shares sum to the expense).
  */
-async function liveParts(tx: Tx, ctx: TenantContext, batches: BatchMoneyFacts[], frozen: Set<string>): Promise<Map<string, Map<string, bigint>>> {
-  const expenses = await sharedExpenses(tx, ctx);
-  const frozenSums = await tx.frozenAllocation.groupBy({ by: ["expenseId"], where: { organizationId: ctx.organizationId }, _sum: { amountCentimes: true } });
+async function liveParts(tx: Tx, ctx: TenantContext, batches: BatchMoneyFacts[], frozen: Set<string>, expenses: SharedExpense[]): Promise<Map<string, Map<string, bigint>>> {
+  const frozenSums = await tx.frozenAllocation.groupBy({ by: ["expenseId"], where: { organizationId: ctx.organizationId, batchId: { in: [...frozen] } }, _sum: { amountCentimes: true } });
   const taken = new Map(frozenSums.map((f) => [f.expenseId, f._sum.amountCentimes ?? 0n]));
   const open = batches.filter((b) => !frozen.has(b.id));
   return new Map(expenses.map((e) => [e.id, allocate(e.amount - (taken.get(e.id) ?? 0n), open.map((b) => ({ id: b.id, weight: weightOver(b, e) })))]));
@@ -50,8 +51,9 @@ export async function freezeClosedBatches(ctx: TenantContext): Promise<number> {
     const batches = await batchesForFinance(tx, ctx);
     const frozen = new Set((await tx.frozenBatch.findMany({ where: { organizationId: ctx.organizationId }, select: { batchId: true } })).map((f) => f.batchId));
     const closing = batches.filter((b) => b.status === "closed" && !frozen.has(b.id));
+    const expenses = await sharedExpenses(tx, ctx);
     for (const b of closing) {
-      const parts = await liveParts(tx, ctx, batches, frozen);
+      const parts = await liveParts(tx, ctx, batches, frozen, expenses);
       const rows = [...parts].flatMap(([expenseId, split]) => (split.get(b.id) ? [{ organizationId: ctx.organizationId, batchId: b.id, expenseId, amountCentimes: split.get(b.id)! }] : []));
       await tx.frozenAllocation.createMany({ data: rows });
       await tx.frozenBatch.create({ data: { batchId: b.id, organizationId: ctx.organizationId } });
@@ -77,48 +79,55 @@ export type BatchResultRow = BatchResult & {
 /**
  * FN13: each batch's result, newest first: sales − (chicks + valued consumptions + other costs + its direct expenses +
  * its share of the shared ones). A purchase is never a batch cost, only what was consumed (no double count).
+ * `asOf` (FC4, T109): as on that day, from the facts dated on or before it only. A batch closed by then keeps its
+ * frozen shares; one still open then is given its share of what was left, by the bird-days known on that day.
  */
-export async function batchResults(ctx: TenantContext): Promise<Result<BatchResultRow[], "FORBIDDEN">> {
+export async function batchResults(ctx: TenantContext, asOf?: FarmDay): Promise<Result<BatchResultRow[], "FORBIDDEN">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
-  return ok(
-    await db.$transaction(async (tx) => {
-      const batches = await batchesForFinance(tx, ctx);
-      const sales = await salesByBatch(tx, ctx);
-      const org = { organizationId: ctx.organizationId };
-      const direct = new Map(
-        (await tx.expense.groupBy({ by: ["batchId"], where: { ...org, batchId: { not: null } }, _sum: { amountCentimes: true } })).map((d) => [d.batchId!, d._sum.amountCentimes ?? 0n]),
-      );
-      const frozenRows = await tx.frozenAllocation.findMany({ where: org });
-      const frozen = new Set((await tx.frozenBatch.findMany({ where: org, select: { batchId: true } })).map((f) => f.batchId));
-      const live = await liveParts(tx, ctx, batches, frozen);
-      const allocatedTo = (id: string) =>
-        frozen.has(id)
-          ? frozenRows.filter((f) => f.batchId === id).reduce((s, f) => s + f.amountCentimes, 0n)
-          : [...live.values()].reduce((s, split) => s + (split.get(id) ?? 0n), 0n);
+  return ok(await db.$transaction((tx) => batchResultsIn(tx, ctx, asOf)));
+}
 
-      const rows: BatchResultRow[] = [];
-      for (const b of [...batches].reverse()) {
-        const consumed = await batchConsumption(tx, ctx, b.id);
-        const consumption = [...consumed.values()].reduce((s, k) => s + k.centimes, 0n);
-        const feed = consumed.get("feed") ?? { quantity: 0n, centimes: 0n };
-        const costs = { chicks: b.chicksCentimes, consumption, other: b.otherCentimes, direct: direct.get(b.id) ?? 0n, allocated: allocatedTo(b.id) };
-        const costCentimes = costs.chicks + costs.consumption + costs.other + costs.direct + costs.allocated;
-        const salesCentimes = sales.get(b.id) ?? 0n;
-        rows.push({
-          id: b.id,
-          houseName: b.houseName,
-          placedOn: b.placedOn,
-          closedOn: b.closedOn,
-          frozen: frozen.has(b.id),
-          soldGrams: b.soldGrams,
-          salesCentimes,
-          costs,
-          costCentimes,
-          ...batchResult({ salesCentimes, costCentimes, soldGrams: BigInt(b.soldGrams) }),
-          comparison: batchComparison({ started: b.started, lost: b.lost, feedGrams: feed.quantity, feedCentimes: feed.centimes, soldGrams: BigInt(b.soldGrams), salesCentimes }),
-        });
-      }
-      return rows;
-    }),
+/** FN13 inside the caller's transaction (the close run, FC4). */
+export async function batchResultsIn(tx: Tx, ctx: TenantContext, asOf?: FarmDay): Promise<BatchResultRow[]> {
+  const batches = await batchesForFinance(tx, ctx, asOf);
+  const sales = await salesByBatch(tx, ctx, asOf);
+  const org = { organizationId: ctx.organizationId };
+  const dated = asOf ? { day: { lte: new Date(`${asOf}T00:00:00Z`) } } : {};
+  const direct = new Map(
+    (await tx.expense.groupBy({ by: ["batchId"], where: { ...org, ...dated, batchId: { not: null } }, _sum: { amountCentimes: true } })).map((d) => [d.batchId!, d._sum.amountCentimes ?? 0n]),
   );
+  const expenses = await sharedExpenses(tx, ctx, asOf);
+  const counted = new Set(expenses.map((e) => e.id));
+  const closedBy = new Set(batches.filter((b) => b.closedOn !== null).map((b) => b.id)); // as of the day, if any
+  const frozen = new Set((await tx.frozenBatch.findMany({ where: org, select: { batchId: true } })).map((f) => f.batchId).filter((id) => closedBy.has(id)));
+  const frozenRows = (await tx.frozenAllocation.findMany({ where: org })).filter((f) => frozen.has(f.batchId) && counted.has(f.expenseId));
+  const live = await liveParts(tx, ctx, batches, frozen, expenses);
+  const allocatedTo = (id: string) =>
+    frozen.has(id)
+      ? frozenRows.filter((f) => f.batchId === id).reduce((s, f) => s + f.amountCentimes, 0n)
+      : [...live.values()].reduce((s, split) => s + (split.get(id) ?? 0n), 0n);
+
+  const rows: BatchResultRow[] = [];
+  for (const b of [...batches].reverse()) {
+    const consumed = await batchConsumption(tx, ctx, b.id, asOf);
+    const consumption = [...consumed.values()].reduce((s, k) => s + k.centimes, 0n);
+    const feed = consumed.get("feed") ?? { quantity: 0n, centimes: 0n };
+    const costs = { chicks: b.chicksCentimes, consumption, other: b.otherCentimes, direct: direct.get(b.id) ?? 0n, allocated: allocatedTo(b.id) };
+    const costCentimes = costs.chicks + costs.consumption + costs.other + costs.direct + costs.allocated;
+    const salesCentimes = sales.get(b.id) ?? 0n;
+    rows.push({
+      id: b.id,
+      houseName: b.houseName,
+      placedOn: b.placedOn,
+      closedOn: b.closedOn,
+      frozen: frozen.has(b.id),
+      soldGrams: b.soldGrams,
+      salesCentimes,
+      costs,
+      costCentimes,
+      ...batchResult({ salesCentimes, costCentimes, soldGrams: BigInt(b.soldGrams) }),
+      comparison: batchComparison({ started: b.started, lost: b.lost, feedGrams: feed.quantity, feedCentimes: feed.centimes, soldGrams: BigInt(b.soldGrams), salesCentimes }),
+    });
+  }
+  return rows;
 }

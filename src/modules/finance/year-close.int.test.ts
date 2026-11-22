@@ -22,7 +22,7 @@ import { tenant, twoTenants } from "@/test/tenant";
 const clock = fixedClock("2028-06-15T10:00:00Z");
 const NO_SUBSIDY = { kind: "subsidy", action: "none", lines: [] }; // T106: no subsidy in this file
 // T108: no stock in this file either, so no stock entry and no provision.
-const NOTHING_ELSE = [NO_SUBSIDY, { kind: "stock", action: "none", lines: [] }, { kind: "provision", action: "none", lines: [] }];
+const NOTHING_ELSE = [NO_SUBSIDY, { kind: "stock", action: "none", lines: [] }, { kind: "batch", action: "none", lines: [] }, { kind: "provision", action: "none", lines: [] }];
 // SPEC-finance §7.1 A: the generator, 47 350,00, in service on 18 Sep 2026, 84 months typed by the owner.
 const generator = (more: object = {}) => ({
   id: uuidv7(),

@@ -3,6 +3,7 @@ import { v7 as uuidv7 } from "uuid";
 import { beforeAll, describe, expect, it } from "vitest";
 import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { batchResults, postPending } from "@/modules/finance";
@@ -88,6 +89,23 @@ describe("batch result and shared-cost allocation (SPEC-finance FN13, FN14, T34)
     expect(await result(a, ids.batchA)).toMatchObject({ salesCentimes: 3_000_000n, costCentimes: 860_000n, marginCentimes: 2_140_000n, costPerKgCentimes: 430n, marginPerKgCentimes: 1070n, marginPermille: 713n });
     expect((await result(a, ids.batchA)).comparison.pricePerKgCentimes).toBe(1500n); // 30 000,00 DH for 2 000 kg
     expect((await result(a, ids.batchB)).comparison.lostPermille).toBe(200n); // 100 of 500 dead: 20 %
+  });
+
+  it("as of a day, counts only the facts dated on or before it; a closed batch's figures are unchanged (FC4, T109)", async () => {
+    const asOf = async (day: string | undefined, id: string) => {
+      const r = await batchResults(a, day as FarmDay | undefined);
+      if (!r.ok) throw new Error(r.error);
+      return r.value.find((x) => x.id === id)!;
+    };
+    // After everything: the same rows as /results, A closed and frozen with its 3 100,00.
+    expect(await asOf("2026-12-31", ids.batchA)).toEqual(await asOf(undefined, ids.batchA));
+    expect(await asOf("2026-12-31", ids.batchB)).toEqual(await asOf(undefined, ids.batchB));
+    // On 31 October: the bills and the vet fees are dated 5 November, A's sale 2 November; B had eaten its 85 kg.
+    expect(await asOf("2026-10-31", ids.batchB)).toMatchObject({ costs: { chicks: 275_000n, consumption: 38_250n, other: 0n, direct: 0n, allocated: 0n }, costCentimes: 313_250n, salesCentimes: 0n });
+    expect(await asOf("2026-10-31", ids.batchA)).toMatchObject({ closedOn: null, frozen: false, salesCentimes: 0n, soldGrams: 0, costCentimes: 550_000n });
+    expect(await asOf("2026-10-16", ids.batchB)).toMatchObject({ costs: { consumption: 0n } }); // the feed was eaten on the 17th
+    const early = await batchResults(a, "2026-10-01" as FarmDay);
+    expect(early.ok && early.value.map((x) => x.id)).toEqual([ids.batchA]); // B not placed yet
   });
 
   it("is for owners and managers only", async () => {

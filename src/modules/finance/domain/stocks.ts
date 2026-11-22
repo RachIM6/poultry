@@ -70,9 +70,79 @@ export function yearEndStock(lines: readonly StockAtClose[], pca: boolean): Post
   return out.length ? { journal: "OD", label: "Stocks de fin d’exercice", lines: out } : null;
 }
 
-/** FC5: the provision for the lines whose current value is below cost, D 6196 / C 3912. Null when there is none. */
-export function yearEndProvision(lines: readonly StockAtClose[]): Posting | null {
-  const total = lines.reduce((s, l) => s + l.provision, 0n);
+/**
+ * FC4, FC5: one provision entry for the stock lines and the batches in progress whose current value is below cost,
+ * D 6196 / C 3912 and C 3913. Null when there is none.
+ */
+export function yearEndProvision(lines: readonly StockAtClose[], batches: readonly BatchAtClose[] = []): Posting | null {
+  const stock = lines.reduce((s, l) => s + l.provision, 0n);
+  const inProgress = batches.reduce((s, b) => s + b.provision, 0n);
+  if (stock + inProgress === 0n) return null;
+  const credits = [[STOCK_PROVISION, stock], [IN_PROGRESS_PROVISION, inProgress]] as const;
+  return {
+    journal: "OD",
+    label: "Provisions pour dépréciation de l’actif circulant",
+    lines: [{ account: PROVISION_CHARGE, debit: stock + inProgress, credit: 0n }, ...credits.filter(([, a]) => a > 0n).map(([account, credit]) => ({ account, debit: 0n, credit }))],
+  };
+}
+
+// SPEC-finance FC4 (T109): meat batches still open on the fiscal year's last day, at FN13's cost engaged to that day,
+// split by head (FQ19), against a current value from the last weighing and the last sale price (FQ20).
+
+export const IN_PROGRESS = "31322"; // Animaux (3132 Encours de Production); 3132 with the PCA off
+export const IN_PROGRESS_VARIATION = "7131"; // Variation des stocks de produits en cours
+export const IN_PROGRESS_PROVISION = "3913"; // Provisions pour dépréciation des produits en cours
+
+/** FC4's scope: the types sold as meat. Pullets and layers are FC6, not valued until FQ7 (T114, T115). */
+export const MEAT_TYPES: readonly string[] = ["broiler", "turkey", "beldi", "duck", "quail"];
+
+const half = (a: bigint, b: bigint) => (a * 2n + b) / (2n * b); // a ÷ b half up, a ≥ 0, b > 0
+
+/**
+ * §7 `batchInProgressValue`: cost engaged × on hand ÷ (on hand + sold), half up (the dead are carried by the
+ * survivors); the provision is cost − current value when positive. No current value: at cost.
+ */
+export function batchInProgressValue(engaged: bigint, onHand: number, sold: number, current: bigint | null): { cost: bigint; provision: bigint } {
+  const cost = onHand > 0 && engaged > 0n ? half(engaged * BigInt(onHand), BigInt(onHand + sold)) : 0n;
+  return { cost, provision: stockAtCloseValue(cost, current).provision };
+}
+
+type Weighing = { count: number; totalGrams: number };
+type Sale = { kind: "live" | "perHead"; pricePerKgCentimes: bigint; amountCentimes: bigint; birds: number };
+
+/**
+ * FQ20's default current value: birds on hand × the last average weighing × the last price per kg, or × the last
+ * price per head for a sale by the head; half up once. Null without a sale, or a sale by the kg without a weighing.
+ */
+export function suggestedValue(onHand: number, weighing: Weighing | null, sale: Sale | null): bigint | null {
+  if (!sale) return null;
+  if (sale.kind === "perHead") return sale.birds > 0 ? half(BigInt(onHand) * sale.amountCentimes, BigInt(sale.birds)) : null;
+  if (!weighing || weighing.count <= 0) return null;
+  return half(BigInt(onHand) * BigInt(weighing.totalGrams) * sale.pricePerKgCentimes, BigInt(weighing.count) * 1000n);
+}
+
+type BatchIn = { id: string; farmId: string; houseName: string; species: string; onHand: number; sold: number; engaged: bigint };
+
+/**
+ * A batch open on the last day. `valued` false: a pullet or layer batch, listed "non valorisés (FQ7)". `current`: the
+ * owner's value, else the suggested one; `missing`: valued at a cost with neither, so the run refuses to post.
+ */
+export type BatchAtClose = BatchIn & { valued: boolean; cost: bigint; suggested: bigint | null; typed: bigint | null; current: bigint | null; provision: bigint; missing: boolean };
+
+export function batchesAtClose(batches: readonly BatchIn[], weighings: ReadonlyMap<string, Weighing>, sales: ReadonlyMap<string, Sale>, typed: ReadonlyMap<string, bigint>): BatchAtClose[] {
+  return batches.map((b) => {
+    const valued = MEAT_TYPES.includes(b.species);
+    const suggested = valued ? suggestedValue(b.onHand, weighings.get(b.id) ?? null, sales.get(`${b.farmId}:${b.species}`) ?? null) : null;
+    const own = valued ? (typed.get(b.id) ?? null) : null;
+    const current = own ?? suggested;
+    const { cost, provision } = valued ? batchInProgressValue(b.engaged, b.onHand, b.sold, current) : { cost: 0n, provision: 0n };
+    return { ...b, valued, cost, suggested, typed: own, current, provision, missing: cost > 0n && current === null };
+  });
+}
+
+/** FC4: D 31322 / C 7131 at cost for the batches valued. Null when nothing is. */
+export function yearEndBatches(batches: readonly BatchAtClose[]): Posting | null {
+  const total = batches.reduce((s, b) => s + b.cost, 0n);
   if (total === 0n) return null;
-  return { journal: "OD", label: "Provisions pour dépréciation de l’actif circulant", lines: [{ account: PROVISION_CHARGE, debit: total, credit: 0n }, { account: STOCK_PROVISION, debit: 0n, credit: total }] };
+  return { journal: "OD", label: "Encours de production : animaux", lines: [{ account: IN_PROGRESS, debit: total, credit: 0n }, { account: IN_PROGRESS_VARIATION, debit: 0n, credit: total }] };
 }

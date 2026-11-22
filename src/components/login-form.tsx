@@ -19,6 +19,7 @@ export function LoginForm() {
   const [busy, setBusy] = useState(false);
   const [captcha, setCaptcha] = useState<Payload>();
   const [captchaKey, setCaptchaKey] = useState(0);
+  const [verifyCaptcha, setVerifyCaptcha] = useState(false); // after 3 wrong codes the server asks for one (T26)
 
   const submit = (run: (form: HTMLFormElement) => Promise<void>) => async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -44,9 +45,12 @@ export function LoginForm() {
 
   const verify = submit(async (form) => {
     const code = new FormData(form).get("code");
-    const res = await postJson("/api/auth/verify-code", { phone, code, locale });
-    if (res.status === 200) router.replace("/dashboard");
-    else setError(res.messageKey);
+    const res = await postJson("/api/auth/verify-code", { phone, code, locale, captcha });
+    if (res.status === 200) return router.replace("/dashboard");
+    setError(res.messageKey);
+    if (res.messageKey === "errors.CAPTCHA_REQUIRED") setVerifyCaptcha(true);
+    setCaptcha(undefined); // single use: a new one for the next try
+    setCaptchaKey((n) => n + 1);
   });
 
   const big = "h-[60px] rounded-2xl border-2 border-ink bg-card px-4 text-[22px] font-medium text-ink placeholder:text-muted";
@@ -92,11 +96,12 @@ export function LoginForm() {
         placeholder="••••••"
         className={`${big} h-16 text-center text-[28px] font-semibold tracking-[0.5em]`}
       />
+      {verifyCaptcha && <CaptchaField key={captchaKey} onSolved={setCaptcha} />}
       {error && <p role="alert" className={danger}>{t(error)}</p>}
       <button type="button" onClick={() => setStep("phone")} className="self-end min-h-11 underline underline-offset-4">
         {t("Login.changeNumber")}
       </button>
-      <button type="submit" disabled={busy} className={`${button} mt-auto`}>{t("Login.verify")}</button>
+      <button type="submit" disabled={busy || (verifyCaptcha && !captcha)} className={`${button} mt-auto`}>{t("Login.verify")}</button>
     </form>
   );
 }

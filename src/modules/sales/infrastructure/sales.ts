@@ -137,8 +137,8 @@ export const claimDueInstruments = async (tx: Tx, day: string, now: Date) => [
   ...(await tx.$queryRaw<InstrumentRow[]>`
     UPDATE "Sale" s SET "instrumentRemindedAt" = ${now}
     FROM "Buyer" b
-    WHERE b.id = s."buyerId" AND s."instrumentDueOn" = ${day}::date AND s."instrumentRemindedAt" IS NULL
-    RETURNING s."organizationId", s."paymentMethod" AS method, s."instrumentNumber" AS number, s."amountCentimes", b.name AS buyer`),
+    WHERE b.id = s."buyerId" AND s."instrumentDueOn" = ${day}::date AND s."instrumentRemindedAt" IS NULL AND s."paidCentimes" > 0
+    RETURNING s."organizationId", s."paymentMethod" AS method, s."instrumentNumber" AS number, s."paidCentimes" AS "amountCentimes", b.name AS buyer`), // the part paid with it, as the portfolio shows (instrumentsOf)
   // FN11: a later payment's cheque or bill, when its number and agreed date were given
   ...(await tx.$queryRaw<InstrumentRow[]>`
     UPDATE "BuyerPayment" p SET "instrumentRemindedAt" = ${now}

@@ -22,9 +22,11 @@ describe("the close run's versions (SPEC-finance FCX4, FN7, T103)", () => {
     expect(reversalSource("depreciation", "e1", 2026)).toBe("reversal:close:depreciation:e1:2026");
   });
 
-  it("never reverses depreciation or the subsidy release at the opening; every kind says whether it is reversed (FCX5)", () => {
+  it("never reverses depreciation or the subsidy release at the opening, always stocks and provisions; every kind says whether it is reversed (FCX5)", () => {
     expect(REVERSED_AT_OPENING.depreciation).toBe(false);
     expect(REVERSED_AT_OPENING.subsidy).toBe(false);
+    expect(REVERSED_AT_OPENING.stock).toBe(true); // T108
+    expect(REVERSED_AT_OPENING.provision).toBe(true);
     expect(Object.keys(REVERSED_AT_OPENING).sort()).toEqual([...CLOSE_KINDS].sort());
   });
 });

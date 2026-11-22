@@ -1027,8 +1027,21 @@
     "locked": "Le dernier mois de l’exercice est clôturé : les écritures de clôture ne peuvent pas y être passées.",
     "kinds": {
       "depreciation": "Dotations aux amortissements",
-      "subsidy": "Quote-part des subventions d’investissement"
+      "subsidy": "Quote-part des subventions d’investissement",
+      "stock": "Stocks achetés",
+      "provision": "Provisions pour dépréciation"
     },
+    "stocks": "Stocks au coût moyen pondéré",
+    "stocksHint": "La quantité comptée (sinon celle des registres) au coût moyen pondéré du dernier jour de l’exercice. Pour un lot abîmé ou périmé, saisissez sa valeur actuelle, plus basse : la différence est provisionnée. Sans valeur saisie, le stock reste au coût.",
+    "quantity": "Quantité",
+    "atCost": "Au coût",
+    "currentValue": "Valeur actuelle",
+    "currentValueOf": "Valeur actuelle : {line}",
+    "provision": "Provision",
+    "notValued": "Non valorisé : aucun coût d’achat",
+    "saveValues": "Enregistrer les valeurs actuelles",
+    "valuesSaved": "Valeurs actuelles enregistrées.",
+    "valuesFrozen": "Valeurs figées : les écritures de clôture de cet exercice sont comptabilisées.",
     "actions": {
       "none": "Rien à passer pour cet exercice.",
       "unchanged": "Comptabilisée, sans changement.",

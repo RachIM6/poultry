@@ -5,16 +5,17 @@ import { Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
 import { card, done, table, warn } from "@/components/ui";
 import { Link, redirect } from "@/i18n/navigation";
-import { formatDay, formatMoney } from "@/lib/format";
+import { formatCount, formatDay, formatKg, formatMoney } from "@/lib/format";
 import { addFarmDays } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
-import { closePreview } from "@/modules/finance";
+import { closePreview, type CloseStockView } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
-import { CloseForm, YearForm } from "./form";
+import { CloseForm, ValuesForm, YearForm } from "./form";
 
 // SPEC-finance FCX4 (T103), FCX2: "Préparer la clôture", online like /books. Each kind's year-end entry, OD on the
 // fiscal year's last day, as the run would post it; the owner posts it, the manager and the accountant read it.
 // FCX6 (T104): whether the year is closed, for everyone who reads it; the owner closes or reopens it.
+// FC5 (T108): the stock lines the "stock" entry values, where the owner types a lower current value until the run posts.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function ClosingPage({ searchParams }: { searchParams: Search }) {
@@ -37,9 +38,49 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await closePreview(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
   if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
-  const { year, day, books, locked, closedOn, entries } = result.value;
+  const { year, day, books, locked, closedOn, frozen, entries, stocks } = result.value;
   const todo = entries.some((e) => e.action === "post" || e.action === "repost" || e.action === "reverse");
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));
+  const owner = can(ctx.value, "finance.manage") && !frozen; // the manager and the accountant read (FCX1)
+  const quantity = (l: CloseStockView) => (l.unit === "kg" ? formatKg(l.quantity) : `${formatCount(l.quantity)} ${t(`Stock.units.${l.unit}`)}`);
+  const label = (l: CloseStockView) => `${t(`Stock.kinds.${l.kind}`)} · ${l.name}${l.lot ? ` · ${l.lot}` : ""}`;
+  const typed = (c: bigint | null) => (c === null ? "" : `${c / 100n},${String(c % 100n).padStart(2, "0")}`);
+  const stockTable = stocks.length > 0 && (
+    <ValuesForm year={year} write={owner}>
+      <p className="text-sm text-ink-2">{t("Close.stocksHint")}</p>
+      {frozen && <p className="text-sm font-semibold">{t("Close.valuesFrozen")}</p>}
+      <div className="relative overflow-x-auto">
+        <table className={table} aria-label={t("Close.stocks")}>
+          <thead>
+            <tr>
+              <th className="p-2 text-start">{t("Count.item")}</th>
+              <th className="p-2 text-end">{t("Close.quantity")}</th>
+              <th className="p-2 text-end">{t("Close.atCost")}</th>
+              <th className="p-2 text-end">{t("Close.currentValue")}</th>
+              <th className="p-2 text-end">{t("Close.provision")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stocks.map((l) => (
+              <tr key={l.id} className="border-t border-line">
+                <td className="p-2">{label(l)}<span className="block text-sm text-ink-2">{l.farm}</span></td>
+                <td dir="ltr" className="p-2 text-end tabular-nums whitespace-nowrap">{quantity(l)}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums whitespace-nowrap">{l.cost === null ? <span dir="auto">{t("Close.notValued")}</span> : formatMoney(l.cost)}</td>
+                <td className="p-2 text-end tabular-nums whitespace-nowrap">
+                  {owner && l.cost !== null ? (
+                    <input key={`${l.id}:${l.current}`} name={`value:${l.id}`} defaultValue={typed(l.current)} inputMode="decimal" dir="ltr" aria-label={t("Close.currentValueOf", { line: label(l) })} className="w-32 rounded-lg border border-line bg-card px-2 py-1 text-end" />
+                  ) : (
+                    <bdi dir="ltr">{l.current === null ? "" : formatMoney(l.current)}</bdi>
+                  )}
+                </td>
+                <td dir="ltr" className="p-2 text-end tabular-nums whitespace-nowrap">{money(l.provision)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </ValuesForm>
+  );
 
   return (
     <>
@@ -80,6 +121,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
               </table>
             </div>
           )}
+          {e.kind === "stock" && stockTable}
         </section>
       ))}
       {books === "ledger" && !todo && <p>{t("Close.nothing")}</p>}

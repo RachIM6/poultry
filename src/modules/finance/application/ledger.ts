@@ -8,7 +8,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { z } from "zod";
 import { BOOKS, booksAllowed, legalEntityIn, listLegalEntities, saveAccountingChoices, type LegalEntityDto } from "@/modules/farm-registry";
 import { chartOf } from "@/modules/finance/domain/chart";
-import { CLOSE_KINDS, REVERSED_AT_OPENING, closeAction, closeSource, openingSource, reversalSource } from "@/modules/finance/domain/close";
+import { CLOSE_KINDS, REVERSED_AT_OPENING, closeAction, closeSource, openingReversalOf, openingSource, reversalSource } from "@/modules/finance/domain/close";
 import { checkEntry, firstOpenMonth, fiscalYearOf, monthOf, openingLines, reversalOf, type EntryError } from "@/modules/finance/domain/entry";
 import type { Posting } from "@/modules/finance/domain/posting";
 import {
@@ -145,7 +145,7 @@ export async function postOpening(tx: Tx, ctx: TenantContext, entity: LegalEntit
   let posted = await postVersion(tx, ctx, entity.id, source, firstDay, lines.length > 0 ? { journal: "OD", label: "À-nouveaux", lines } : null);
   for (const kind of CLOSE_KINDS.filter((k) => REVERSED_AT_OPENING[k])) {
     const close = await standingEntryFor(tx, ctx, "finance", closeSource(kind, entity.id, closedYear));
-    const reversal = close && { journal: "OD" as const, label: "Extourne des écritures de clôture", lines: reversalOf(close.lines) };
+    const reversal = close && { journal: "OD" as const, label: "Extourne des écritures de clôture", lines: openingReversalOf(close.lines) };
     posted += await postVersion(tx, ctx, entity.id, reversalSource(kind, entity.id, closedYear), firstDay, reversal);
   }
   return ok({ id: (await standingEntryFor(tx, ctx, "finance", source))?.id ?? null, posted });

@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
-import { closeFiscalYear, reopenFiscalYear, runClose } from "@/modules/finance";
+import { closeFiscalYear, reopenFiscalYear, runClose, saveYearEndValues } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 
 export type CloseState = { ok?: boolean; messageKey?: string; posted?: number };
@@ -15,6 +15,17 @@ export async function runCloseAction(_: CloseState, form: FormData): Promise<Clo
   if (!run.ok) return { messageKey: `errors.${run.error}` };
   refresh();
   return run.value === 0 ? { ok: true, messageKey: "Close.nothingPosted" } : { ok: true, messageKey: "Close.posted", posted: run.value };
+}
+
+/** FC5, FQ20: the owner's current values of the stock lines (`value:<item>`); an empty one puts the line back at cost. */
+export async function saveValuesAction(_: CloseState, form: FormData): Promise<CloseState> {
+  const ctx = await getTenantContext(await headers());
+  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const values = Object.fromEntries([...form].flatMap(([k, v]) => (k.startsWith("value:") ? [[k.slice(6), String(v)]] : [])));
+  const saved = await saveYearEndValues(ctx.value, { year: Number(form.get("year")), values });
+  if (!saved.ok) return { messageKey: `errors.${saved.error}` };
+  refresh();
+  return { ok: true, messageKey: "Close.valuesSaved" };
 }
 
 /** FCX6: closes the fiscal year (locks it, posts the next year's opening), or reopens it (`reopen`: its last month). */

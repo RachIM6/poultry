@@ -1194,6 +1194,24 @@ model YearEndCount {
   @@index([organizationId])
 }
 
+// Owner: finance. SPEC-finance FC5, FQ20 (T108): the owner's current value of a count line on the fiscal year's last
+// day, the whole line in centimes, typed when it is below cost (a damaged or expired lot); the close run provisions the
+// difference. `subjectId`: the stock item (T109: the open batch). Frozen with the count once the close run posts.
+model YearEndValue {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  day            DateTime @db.Date
+  kind           String // stock (T109: batch)
+  subjectId      String   @db.Uuid
+  valueCentimes  BigInt
+  updatedBy      String   @db.Uuid
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@unique([legalEntityId, day, subjectId])
+  @@index([organizationId])
+}
+
 // Owner: workforce. SPEC-m4 WF1–WF3: a person working on a farm. Not every employee has a phone, so not every one is a
 // member; `userId` is the member signing in with `phone`, set by the server when the employee is saved.
 model Employee {

@@ -49,7 +49,7 @@ const acquisitionSource = (id: string) => `asset:${id}:acq`;
 const paymentSource = (id: string, paymentId: string) => `asset:${id}:pay:${paymentId}`;
 const disposalSource = (id: string) => `asset:${id}:disposal`; // versions 1–3: depreciation, exit, price
 
-const facts = (r: FixedAsset): DepreciableAsset => ({
+export const facts = (r: FixedAsset): DepreciableAsset => ({
   cost: r.costCentimes,
   residual: r.residualCentimes,
   lifeMonths: r.lifeMonths,

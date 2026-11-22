@@ -28,9 +28,9 @@ const installmentSource = (id: string, number: number) => `loan:${id}:installmen
 /**
  * Posts a rule's entry in the entity's chart (PCA off → FN2's CGNC accounts), dated by its author: a locked month
  * refuses it. Unlike an asset's (FCX4, FQ27), a `cash_book` entity posts it too: the money moves on its bank account,
- * so the receipt and the installments show in its cash book (FN16).
+ * so the disbursement, the installments and a subsidy's receipt (T106) show in its cash book (FN16).
  */
-async function post(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, source: string, day: FarmDay, rule: Posting): Promise<Result<void, PostError>> {
+export async function post(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, source: string, day: FarmDay, rule: Posting): Promise<Result<void, PostError>> {
   const all = await ledgerAccounts(tx);
   const posting = inChart(rule, chartOf(all, "cgnc", ["pca"]), chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays));
   if (!posting) throw new Error(`${source}: an account has no home in this chart`); // a rule bug: accounts.test.ts

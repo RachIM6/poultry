@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { parseCentimes } from "@/lib/kernel/money";
-import { confirmLoan, createLoan, discardLoan, payLoanInstallment, saveLoanSchedule } from "@/modules/finance";
+import { confirmLoan, createLoan, createSubsidy, discardLoan, payLoanInstallment, saveLoanSchedule } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 
 export type LoanState = { ok?: boolean; messageKey?: string };
@@ -73,4 +73,18 @@ export async function payInstallmentAction(_: LoanState, form: FormData): Promis
 
 export async function discardLoanAction(_: LoanState, form: FormData): Promise<LoanState> {
   return run((ctx) => discardLoan(ctx, { loanId: form.get("loanId") }), "Loans.discarded");
+}
+
+/** FC2 (T106): a subsidy as received, with the assets it finances (the checked boxes). */
+export async function createSubsidyAction(form: FormData): Promise<LoanState> {
+  const subsidy = {
+    id: form.get("id"),
+    label: form.get("label"),
+    grantor: form.get("grantor"),
+    amountCentimes: centimes(form, "amount"),
+    receivedOn: form.get("receivedOn"),
+    treasuryId: text(form, "treasuryId"),
+    assetIds: form.getAll("assetId"),
+  };
+  return run((ctx) => createSubsidy(ctx, subsidy), "Subsidies.created");
 }

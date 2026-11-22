@@ -14,6 +14,7 @@ import { ManualEntryForm } from "./form";
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
 // FCX3: the owner's manual entry form; a cash_book entity sees it disabled (FQ11).
+// FCX6: the CPC and the bilan are a "Projet" until the year is closed, then "Exercice clôturé le …".
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 const VIEWS = ["cash", "journals", "ledger", "trial", "cpc", "bilan"] as const;
 
@@ -51,6 +52,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
   const view = views.find((v) => v === search.view) ?? views[0];
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));
   const day = (d: string) => formatDay(d as FarmDay, lang);
+  const closed = books.closedOn ? day(books.closedOn) : null;
   const account = (n: string) => `${n} ${books.labels[n] ?? ""}`;
   const href = (v: string, m: string) => ({ pathname: "/books", query: { view: v, month: m } });
 
@@ -82,7 +84,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
         <nav className="flex flex-wrap gap-3" aria-label={t("Books.views")}>
           {views.map((v) => (
             <Link key={v} href={href(v, month)} aria-current={v === view ? "page" : undefined} className={v === view ? "font-semibold" : "underline underline-offset-4"}>
-              {t(`Books.${v}`)}
+              {t(v === "bilan" && closed ? "Books.bilanClosed" : `Books.${v}`)}
             </Link>
           ))}
         </nav>
@@ -194,7 +196,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       )}
       {view === "cpc" && books.incomeStatement && (
         <table className={table} aria-label={t("Books.cpc")}>
-          <caption className="text-start">{t("Books.cpcDraft", { from: day(books.fiscalYear.from) })}</caption>
+          <caption className="text-start">{closed ? t("Books.cpcClosed", { closed, from: day(books.fiscalYear.from) }) : t("Books.cpcDraft", { from: day(books.fiscalYear.from) })}</caption>
           <tbody>
             {cpcRows(books.incomeStatement).map((r) => (
               <tr key={r.key} className={`border-t border-line ${r.kind === "line" ? "" : "font-semibold"} ${r.kind === "head" ? "bg-shell" : ""} ${r.kind === "total" ? "border-t-2" : ""}`}>
@@ -206,8 +208,8 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
         </table>
       )}
       {view === "bilan" && bilan && (
-        <table className={table} aria-label={t("Books.bilan")}>
-          <caption className="text-start">{t("Books.bilanDraft", { from: day(books.fiscalYear.from) })}</caption>
+        <table className={table} aria-label={t(closed ? "Books.bilanClosed" : "Books.bilan")}>
+          <caption className="text-start">{closed ? t("Books.bilanClosedCaption", { closed, from: day(books.fiscalYear.from) }) : t("Books.bilanDraft", { from: day(books.fiscalYear.from) })}</caption>
           <tbody>
             {([["assets", bilan.totalAssets], ["liabilities", bilan.totalLiabilities]] as const).map(([side, total]) => (
               <Fragment key={side}>

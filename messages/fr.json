@@ -505,7 +505,12 @@
     "DISPOSAL_BEFORE_IN_SERVICE": "La cession ne peut pas précéder la mise en service, ni les soldes d’ouverture.",
     "CASH_BOOK_NO_PAYMENT": "Pas de paiement de dette dans le livre des recettes et dépenses : sans le compte 4481, la dette sur immobilisation n’y est pas suivie.",
     "CASH_BOOK_NO_CLOSE": "Pas de clôture dans le livre des recettes et dépenses : il n’a pas de bilan.",
-    "COUNT_FROZEN": "Les écritures de clôture de cet exercice sont comptabilisées : le comptage ne peut plus changer."
+    "COUNT_FROZEN": "Les écritures de clôture de cet exercice sont comptabilisées : le comptage ne peut plus changer.",
+    "YEAR_NOT_ENDED": "L’exercice n’est pas terminé : il se clôture après son dernier jour.",
+    "PREVIOUS_YEAR_OPEN": "Clôturez d’abord l’exercice précédent : ses soldes ouvrent celui-ci.",
+    "CLOSE_RUN_PENDING": "Comptabilisez d’abord les écritures de clôture : l’aperçu en montre encore à passer.",
+    "YEAR_NOT_CLOSED": "Cet exercice n’est pas clôturé.",
+    "NEXT_YEAR_CLOSED": "L’exercice suivant est clôturé : rouvrez-le d’abord."
   },
   "Weighing": {
     "title": "Pesée",
@@ -913,6 +918,7 @@
     "export": "Exporter pour le comptable (CSV, Excel)",
     "cpc": "Produits et charges",
     "cpcDraft": "Brouillon depuis le début de l’exercice, le {from} : l’expert-comptable arrête l’exercice (stocks, amortissements).",
+    "cpcClosed": "Exercice clôturé le {closed}, depuis son début, le {from}.",
     "cpcSections": {
       "operating": {
         "income": "Produits d’exploitation",
@@ -938,6 +944,8 @@
     "cpcNet": "Résultat net",
     "bilan": "Bilan (projet)",
     "bilanDraft": "Projet depuis le début de l’exercice, le {from}, jusqu’à la fin du mois : l’expert-comptable arrête l’exercice (stocks, amortissements).",
+    "bilanClosed": "Bilan",
+    "bilanClosedCaption": "Exercice clôturé le {closed}, depuis son début, le {from}, jusqu’à la fin du mois.",
     "bilanSides": {
       "assets": "Actif",
       "liabilities": "Passif"
@@ -1020,7 +1028,14 @@
     "nothing": "Rien à comptabiliser.",
     "run": "Comptabiliser les écritures de clôture",
     "posted": "Écritures comptabilisées : {count}.",
-    "nothingPosted": "Rien à comptabiliser : aucune écriture passée."
+    "nothingPosted": "Rien à comptabiliser : aucune écriture passée.",
+    "closedOn": "Exercice clôturé le {day}.",
+    "closeYear": "Clôturer l’exercice",
+    "closeYearHint": "Après l’accord de l’expert-comptable : verrouille tous les mois de l’exercice et passe au {next} les à-nouveaux de l’exercice suivant.",
+    "yearClosed": "Exercice clôturé. Écritures d’ouverture passées : {count}.",
+    "reopen": "Rouvrir l’exercice",
+    "reopenHint": "Déverrouille le dernier mois pour corriger les écritures de clôture. Clôturez ensuite de nouveau : les à-nouveaux suivront.",
+    "reopened": "Exercice rouvert : le dernier mois est déverrouillé."
   },
   "Assets": {
     "open": "Immobilisations",

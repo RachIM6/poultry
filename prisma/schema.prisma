@@ -890,6 +890,18 @@ model LockedPeriod {
   @@index([organizationId])
 }
 
+// Owner: finance. SPEC-finance FCX6 (T104): a fiscal year the owner closed, who and when. Reopening deletes it (audited).
+model FiscalYearClose {
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  day            DateTime @db.Date // the fiscal year's last day, like YearEndCount's
+  closedBy       String   @db.Uuid
+  closedAt       DateTime @db.Timestamptz // from the Clock: shown as "Exercice clôturé le …"
+
+  @@id([legalEntityId, day])
+  @@index([organizationId])
+}
+
 // SPEC-finance FN6: AC purchases, VT sales, CA cash, BQ bank, EF bills and cheques received, OD miscellaneous.
 enum Journal {
   AC

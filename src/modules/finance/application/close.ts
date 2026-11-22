@@ -1,22 +1,22 @@
-import { v7 as uuidv7 } from "uuid";
 import { z } from "zod";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
 import { closeDepreciation } from "@/modules/finance/application/assets";
-import { postEntry, type PostError } from "@/modules/finance/application/ledger";
+import { lockMonth, postOpening, postVersion, type PostError } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { CLOSE_KINDS, closeAction, closeSource, type CloseAction, type CloseKind } from "@/modules/finance/domain/close";
 import { countDay, countYearOf } from "@/modules/finance/domain/count";
-import { fiscalYearOf, monthOf, reversalOf } from "@/modules/finance/domain/entry";
+import { fiscalYearOf, monthOf, monthsBetween } from "@/modules/finance/domain/entry";
 import { inChart, type Posting } from "@/modules/finance/domain/posting";
-import { lastSourceVersion, ledgerAccounts, lockedMonths, standingEntryFor, type EntryRow } from "@/modules/finance/infrastructure/ledger";
+import { entriesBetween, ledgerAccounts, lockedMonths, standingEntryFor, yearClose } from "@/modules/finance/infrastructure/ledger";
 
 // SPEC-finance FCX4 (T103): "Préparer la clôture". Computes each kind's year-end entry, shows it, then posts it.
+// FCX5, FCX6 (T104): "Clôturer l'exercice" locks the year and posts the next year's opening; reopening unlocks its last month.
 
 type FiscalYear = { from: FarmDay; to: FarmDay };
 
@@ -46,15 +46,18 @@ async function plan(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, year: nu
   return { chart, kinds };
 }
 
+/** What the run would still post: the year close waits for it (FCX6). */
+const pending = (a: CloseAction) => a === "post" || a === "repost" || a === "reverse";
+
 const yearIn = (y: number) => Number.isInteger(y) && y >= 2000 && y <= 2100;
 
 export type CloseEntryView = { kind: CloseKind; action: CloseAction; lines: { account: string; label: string; debit: bigint; credit: bigint }[] };
-export type ClosePreview = { year: number; day: FarmDay; books: "cash_book" | "ledger"; locked: boolean; entries: CloseEntryView[] };
+export type ClosePreview = { year: number; day: FarmDay; books: "cash_book" | "ledger"; locked: boolean; closedOn: FarmDay | null; entries: CloseEntryView[] };
 
 /**
  * FCX4: the year-end entries of a fiscal year (by the calendar year it ends in; the current one by default), as the
- * run would post them. The owner runs it; the manager and the accountant see it (FCX1); workers nothing (FX2).
- * A `cash_book` entity has none.
+ * run would post them, and whether the year is closed (FCX6: "Exercice clôturé le …"). The owner runs it; the manager
+ * and the accountant see it (FCX1); workers nothing (FX2). A `cash_book` entity has none.
  */
 export async function closePreview(ctx: TenantContext, year: number | null, clock: Clock = systemClock): Promise<Result<ClosePreview, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN");
@@ -64,15 +67,15 @@ export async function closePreview(ctx: TenantContext, year: number | null, cloc
   if (!yearIn(y)) return fail("INVALID_INPUT");
   const { to: day } = fiscalYear(y, entity.fiscalYearStartMonth);
   const books = entity.accountingProfile.books;
-  if (books !== "ledger") return ok({ year: y, day, books, locked: false, entries: [] });
-  const [locked, { chart, kinds }] = await Promise.all([lockedMonths(db, ctx, entity.id), plan(db, ctx, entity, y)]);
+  if (books !== "ledger") return ok({ year: y, day, books, locked: false, closedOn: null, entries: [] });
+  const [locked, closed, { chart, kinds }] = await Promise.all([lockedMonths(db, ctx, entity.id), yearClose(db, ctx, entity.id, day), plan(db, ctx, entity, y)]);
   const entries = kinds.map(({ kind, action, posting, standing }) => ({
     kind,
     action,
     // What the run posts, or for a reversal alone what it cancels.
     lines: (posting?.lines ?? standing?.lines ?? []).map((l) => ({ account: l.account, label: chart.get(l.account)?.label ?? "", debit: l.debit, credit: l.credit })),
   }));
-  return ok({ year: y, day, books, locked: locked.has(monthOf(day)), entries });
+  return ok({ year: y, day, books, locked: locked.has(monthOf(day)), closedOn: closed && farmDayOf(closed.closedAt), entries });
 }
 
 const CloseRun = z.object({ year: z.number().int() });
@@ -98,20 +101,76 @@ export async function runClose(ctx: TenantContext, input: unknown, clock: Clock 
     if (from > farmDayOf(clock.now())) return fail("DAY_IN_FUTURE");
     if ((await lockedMonths(tx, ctx, entity.id)).has(monthOf(to))) return fail("PERIOD_LOCKED");
     let posted = 0;
-    const post = async (e: EntryRow) => {
-      const r = await postEntry(tx, ctx, e);
-      if (!r.ok) throw new Error(`${e.source?.id ?? e.reversesId}: ${r.error}`); // the checks above passed: a rule bug
-      posted++;
-    };
-    for (const k of (await plan(tx, ctx, entity, year)).kinds) {
-      if (k.standing && (k.action === "repost" || k.action === "reverse")) {
-        await post({ id: uuidv7(), legalEntityId: entity.id, journal: k.standing.journal, day: to, label: "Annulation", reversesId: k.standing.id, lines: reversalOf(k.standing.lines) });
-      }
-      if (k.posting && (k.action === "post" || k.action === "repost")) {
-        const version = (await lastSourceVersion(tx, ctx, "finance", k.source)) + 1;
-        await post({ id: uuidv7(), legalEntityId: entity.id, journal: k.posting.journal, day: to, label: k.posting.label, reversesId: null, lines: k.posting.lines, source: { module: "finance", id: k.source, version } });
-      }
-    }
+    for (const k of (await plan(tx, ctx, entity, year)).kinds) posted += await postVersion(tx, ctx, entity.id, k.source, to, k.posting);
     return ok(posted);
+  });
+}
+
+const audit = (tx: Tx, ctx: TenantContext, action: string, legalEntityId: string, before: object | undefined, after: object) =>
+  tx.auditEvent.create({ data: { organizationId: ctx.organizationId, userId: ctx.userId, entity: "FiscalYearClose", entityId: legalEntityId, action, before, after } });
+
+export type YearCloseError = PostError | "INVALID_INPUT" | "CASH_BOOK_NO_CLOSE" | "YEAR_NOT_ENDED" | "PREVIOUS_YEAR_OPEN" | "CLOSE_RUN_PENDING";
+
+/**
+ * FCX6: "Clôturer l'exercice", after the close run and the accountant's approval (given outside the app, NQ7). In one
+ * transaction: posts the next year's opening on its first day (the à-nouveaux and the reversals, FCX5, again by
+ * reversal and new version when the closing changed), locks every month of the year (FN5, audited) and records who
+ * closed it and when. Refused for a `cash_book` entity (no close run), for a year not over yet, while the previous
+ * year has entries and isn't closed (its opening would be missing), while the close run still has something to post
+ * ("run the close first"), and while the next year's first month is locked. Closing a closed year again posts nothing.
+ * Owner only. Returns the opening entries posted.
+ */
+export async function closeFiscalYear(ctx: TenantContext, input: unknown, clock: Clock = systemClock): Promise<Result<number, YearCloseError>> {
+  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  const parsed = CloseRun.safeParse(input);
+  if (!parsed.success || !yearIn(parsed.data.year)) return fail("INVALID_INPUT");
+  const { year } = parsed.data;
+  const [first] = await listLegalEntities(ctx);
+  if (!first) return fail("NOT_FOUND");
+  return db.$transaction(async (tx) => {
+    const entity = await legalEntityIn(tx, ctx, first.id); // row-locked: no run, count or other close meanwhile
+    if (!entity) return fail("NOT_FOUND");
+    if (entity.accountingProfile.books !== "ledger") return fail("CASH_BOOK_NO_CLOSE");
+    const { from, to } = fiscalYear(year, entity.fiscalYearStartMonth);
+    if (to >= farmDayOf(clock.now())) return fail("YEAR_NOT_ENDED");
+    const previous = fiscalYear(year - 1, entity.fiscalYearStartMonth);
+    if ((await entriesBetween(tx, ctx, entity.id, previous.from, previous.to)) > 0 && !(await yearClose(tx, ctx, entity.id, previous.to))) return fail("PREVIOUS_YEAR_OPEN");
+    if ((await plan(tx, ctx, entity, year)).kinds.some((k) => pending(k.action))) return fail("CLOSE_RUN_PENDING");
+    const opened = await postOpening(tx, ctx, entity, addFarmDays(to, 1)); // first: refused before anything is written
+    if (!opened.ok) return opened;
+    const locked = await lockedMonths(tx, ctx, entity.id);
+    for (const month of monthsBetween(from, to)) if (!locked.has(month)) await lockMonth(tx, ctx, entity.id, month, true);
+    if (!(await yearClose(tx, ctx, entity.id, to))) {
+      const closedAt = clock.now();
+      await tx.fiscalYearClose.create({ data: { organizationId: ctx.organizationId, legalEntityId: entity.id, day: new Date(`${to}T00:00:00Z`), closedBy: ctx.userId, closedAt } });
+      await audit(tx, ctx, "close", entity.id, undefined, { day: to, closedAt });
+    }
+    return ok(opened.value.posted);
+  });
+}
+
+/**
+ * FCX6: reopening a closed year, owner only, audited: unlocks its last month only, so the close run can post again,
+ * and the year is no longer closed until the owner closes it again (which posts the opening again, FCX5). Refused while
+ * the next year is closed: its opening could no longer follow.
+ */
+export async function reopenFiscalYear(ctx: TenantContext, input: unknown): Promise<Result<void, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "YEAR_NOT_CLOSED" | "NEXT_YEAR_CLOSED">> {
+  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  const parsed = CloseRun.safeParse(input);
+  if (!parsed.success || !yearIn(parsed.data.year)) return fail("INVALID_INPUT");
+  const { year } = parsed.data;
+  const [first] = await listLegalEntities(ctx);
+  if (!first) return fail("NOT_FOUND");
+  return db.$transaction(async (tx) => {
+    const entity = await legalEntityIn(tx, ctx, first.id);
+    if (!entity) return fail("NOT_FOUND");
+    const { to } = fiscalYear(year, entity.fiscalYearStartMonth);
+    const closed = await yearClose(tx, ctx, entity.id, to);
+    if (!closed) return fail("YEAR_NOT_CLOSED");
+    if (await yearClose(tx, ctx, entity.id, fiscalYear(year + 1, entity.fiscalYearStartMonth).to)) return fail("NEXT_YEAR_CLOSED");
+    await tx.fiscalYearClose.delete({ where: { legalEntityId_day: { legalEntityId: entity.id, day: closed.day } } });
+    await audit(tx, ctx, "reopen", entity.id, { day: to, closedBy: closed.closedBy, closedAt: closed.closedAt }, { day: to });
+    await lockMonth(tx, ctx, entity.id, monthOf(to), false);
+    return ok(undefined);
   });
 }

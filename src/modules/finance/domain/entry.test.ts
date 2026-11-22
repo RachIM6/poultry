@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { chartOf } from "@/modules/finance/domain/chart";
-import { checkEntry, firstOpenMonth, fiscalYearOf, monthOf, openingLines, reversalOf, type Line } from "@/modules/finance/domain/entry";
+import { checkEntry, firstOpenMonth, fiscalYearOf, monthOf, monthsBetween, openingLines, reversalOf, type Line } from "@/modules/finance/domain/entry";
 import type { AccountRow } from "@/modules/finance/schema";
 
 const acc = (number: string, parent: string | null, chart: "cgnc" | "pca" = "cgnc"): AccountRow => ({ chart, number, label: number, parent, fallback: null });
@@ -44,6 +44,13 @@ describe("fiscal years and periods (ADR-010 §1)", () => {
     expect(firstOpenMonth("2026-10", new Set(["2026-10", "2026-11"]))).toBe("2026-12");
     expect(firstOpenMonth("2026-12", new Set(["2026-12"]))).toBe("2027-01");
     expect(firstOpenMonth("2026-09", new Set(["2026-10"]))).toBe("2026-09");
+  });
+
+  it("lists a fiscal year's twelve months, the periods its close locks (FCX6)", () => {
+    expect(monthsBetween(d("2026-01-01"), d("2026-12-31"))).toEqual(["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]);
+    const july = fiscalYearOf(d("2026-11-14"), 7);
+    expect(monthsBetween(july.from, july.to)).toHaveLength(12);
+    expect(monthsBetween(july.from, july.to).slice(5, 8)).toEqual(["2026-12", "2027-01", "2027-02"]);
   });
 });
 

@@ -118,3 +118,8 @@ export async function lastSourceVersion(tx: Tx, ctx: TenantContext, module: stri
   const r = await tx.journalEntry.aggregate({ where: { organizationId: ctx.organizationId, sourceModule: module, sourceId }, _max: { sourceVersion: true } });
   return r._max.sourceVersion ?? 0;
 }
+
+/** FCX6: the close of the fiscal year ending on `lastDay` (who, when), null while the year is open. */
+export async function yearClose(tx: Tx, ctx: TenantContext, legalEntityId: string, lastDay: FarmDay) {
+  return tx.fiscalYearClose.findFirst({ where: { organizationId: ctx.organizationId, legalEntityId, day: date(lastDay) } });
+}

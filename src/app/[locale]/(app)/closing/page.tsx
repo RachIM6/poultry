@@ -3,16 +3,18 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
-import { card, table, warn } from "@/components/ui";
+import { card, done, table, warn } from "@/components/ui";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
+import { addFarmDays } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import { closePreview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
-import { CloseForm } from "./form";
+import { CloseForm, YearForm } from "./form";
 
 // SPEC-finance FCX4 (T103), FCX2: "Préparer la clôture", online like /books. Each kind's year-end entry, OD on the
 // fiscal year's last day, as the run would post it; the owner posts it, the manager and the accountant read it.
+// FCX6 (T104): whether the year is closed, for everyone who reads it; the owner closes or reopens it.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function ClosingPage({ searchParams }: { searchParams: Search }) {
@@ -35,7 +37,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await closePreview(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
   if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
-  const { year, day, books, locked, entries } = result.value;
+  const { year, day, books, locked, closedOn, entries } = result.value;
   const todo = entries.some((e) => e.action === "post" || e.action === "repost" || e.action === "reverse");
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));
 
@@ -50,7 +52,8 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
       </nav>
       <p className="text-sm text-ink-2">{t("Close.hint", { day: formatDay(day, lang) })}</p>
       {books !== "ledger" && <p className={warn}>{t("Close.cashBook")}</p>}
-      {locked && <p className={warn}>{t("Close.locked")}</p>}
+      {closedOn && <p className={done}>{t("Close.closedOn", { day: formatDay(closedOn, lang) })}</p>}
+      {locked && !closedOn && <p className={warn}>{t("Close.locked")}</p>}
       {entries.map((e) => (
         <section key={e.kind} aria-label={t(`Close.kinds.${e.kind}`)} className={card}>
           <h2 className="text-xl font-semibold">{t(`Close.kinds.${e.kind}`)}</h2>
@@ -80,7 +83,12 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
         </section>
       ))}
       {books === "ledger" && !todo && <p>{t("Close.nothing")}</p>}
-      {books === "ledger" && can(ctx.value, "finance.manage") && <CloseForm year={year} disabled={locked} />}
+      {books === "ledger" && can(ctx.value, "finance.manage") && (
+        <>
+          <CloseForm year={year} disabled={locked} />
+          <YearForm year={year} closed={closedOn !== null} hint={closedOn ? t("Close.reopenHint") : t("Close.closeYearHint", { next: formatDay(addFarmDays(day, 1), lang) })} />
+        </>
+      )}
     </>
   );
 }

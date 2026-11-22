@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
-import { runClose } from "@/modules/finance";
+import { closeFiscalYear, reopenFiscalYear, runClose } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 
 export type CloseState = { ok?: boolean; messageKey?: string; posted?: number };
@@ -15,4 +15,21 @@ export async function runCloseAction(_: CloseState, form: FormData): Promise<Clo
   if (!run.ok) return { messageKey: `errors.${run.error}` };
   refresh();
   return run.value === 0 ? { ok: true, messageKey: "Close.nothingPosted" } : { ok: true, messageKey: "Close.posted", posted: run.value };
+}
+
+/** FCX6: closes the fiscal year (locks it, posts the next year's opening), or reopens it (`reopen`: its last month). */
+export async function fiscalYearAction(_: CloseState, form: FormData): Promise<CloseState> {
+  const ctx = await getTenantContext(await headers());
+  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const input = { year: Number(form.get("year")) };
+  if (form.get("reopen")) {
+    const reopened = await reopenFiscalYear(ctx.value, input);
+    if (!reopened.ok) return { messageKey: `errors.${reopened.error}` };
+    refresh();
+    return { ok: true, messageKey: "Close.reopened" };
+  }
+  const closed = await closeFiscalYear(ctx.value, input);
+  if (!closed.ok) return { messageKey: `errors.${closed.error}` };
+  refresh();
+  return { ok: true, messageKey: "Close.yearClosed", posted: closed.value };
 }

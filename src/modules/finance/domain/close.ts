@@ -11,6 +11,18 @@ export type CloseKind = (typeof CLOSE_KINDS)[number];
 export const closeSource = (kind: CloseKind, legalEntityId: string, year: number) => `close:${kind}:${legalEntityId}:${year}`;
 
 /**
+ * FCX5: the kinds whose close entry is reversed on the next fiscal year's first day, with its à-nouveaux. T108 (stocks)
+ * and T109 (batches in progress) set theirs, provisions included. Depreciation is never reversed.
+ */
+export const REVERSED_AT_OPENING: Record<CloseKind, boolean> = { depreciation: false };
+
+/** FN3, FCX6: the à-nouveaux's source id, by the first day of the fiscal year it opens (FN7 versions). */
+export const openingSource = (legalEntityId: string, firstDay: string) => `opening:${legalEntityId}:${firstDay}`;
+
+/** FCX5: the source id of a close entry's reversal at the next opening. */
+export const reversalSource = (kind: CloseKind, legalEntityId: string, year: number) => `reversal:${closeSource(kind, legalEntityId, year)}`;
+
+/**
  * FN7 for a kind: nothing to post; the same figures as the standing version (nothing posted); a first version; a
  * reversal of the standing version and a new one; or, the figures now zero, the reversal alone.
  */

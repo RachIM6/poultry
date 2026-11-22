@@ -22,4 +22,4 @@ export { saveYearEndCount, yearEndCount, type CountSheet } from "./application/c
 export type { CountBatchLine, CountLine, CountStockLine } from "./domain/count";
 export { assetRegister, attachFixedAssetReceipt, createFixedAsset, disposeFixedAsset, payFixedAsset, updateFixedAsset, type AssetRegister, type AssetView, type AssetWriteError } from "./application/assets";
 export { ASSET_CATEGORIES, ASSET_ACCOUNTS, type AssetCategory, type ScheduleYear } from "./domain/assets";
-export { closePreview, runClose, type CloseEntryView, type ClosePreview } from "./application/close";
+export { closeFiscalYear, closePreview, reopenFiscalYear, runClose, type CloseEntryView, type ClosePreview, type YearCloseError } from "./application/close";

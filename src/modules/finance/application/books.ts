@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import type { FarmDay } from "@/lib/kernel/farm-day";
+import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -9,7 +9,7 @@ import { balanceSheet, incomeStatement } from "@/modules/finance/domain/statemen
 import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
 import { fiscalYearOf, type Line } from "@/modules/finance/domain/entry";
 import { monthPeriod } from "@/modules/finance/domain/batch";
-import { ledgerAccounts } from "@/modules/finance/infrastructure/ledger";
+import { ledgerAccounts, yearClose } from "@/modules/finance/infrastructure/ledger";
 import { entryTags } from "@/modules/finance/application/tags";
 import type { EntryTags } from "@/modules/finance/domain/export";
 
@@ -29,6 +29,7 @@ export type Books = {
   trialBalance?: ReturnType<typeof trialBalance>; // from the fiscal year's first day to the month's last
   incomeStatement?: ReturnType<typeof incomeStatement>; // F-Statements: a draft CPC over the same period
   balanceSheet?: ReturnType<typeof balanceSheet>; // FC8: the draft bilan on the month's last day, its result the CPC's net
+  closedOn?: FarmDay | null; // FCX6: the day the fiscal year was closed; until then the statements are a "Projet"
   postingAccounts?: { number: string; label: string }[]; // FCX3: the owner's manual entry form, `ledger` entities only
 };
 
@@ -86,6 +87,7 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
     }
   }
   const balance = trialBalance(sinceYearStart.flatMap((e) => e.lines));
+  const closed = await yearClose(db, ctx, entity.id, year.to);
   return ok({
     ...books,
     journals: [...journals].sort(([a], [b]) => a.localeCompare(b)).map(([journal, entries]) => ({ journal, entries })),
@@ -93,6 +95,7 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
     trialBalance: balance,
     incomeStatement: incomeStatement(balance.rows),
     balanceSheet: balanceSheet(balance.rows),
+    closedOn: closed && farmDayOf(closed.closedAt),
     ...(can(ctx, "finance.manage") && {
       postingAccounts: leafAccounts(chartOf(accounts, entity.accountingProfile.base, entity.accountingProfile.overlays))
         .map((a) => ({ number: a.number, label: a.label }))

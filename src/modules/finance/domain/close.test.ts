@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { closeAction, closeSource } from "@/modules/finance/domain/close";
+import { CLOSE_KINDS, REVERSED_AT_OPENING, closeAction, closeSource, openingSource, reversalSource } from "@/modules/finance/domain/close";
 
 const lines = (amount: bigint) => [{ account: "6193", debit: amount, credit: 0n }, { account: "2833", debit: 0n, credit: amount }];
 
@@ -15,5 +15,15 @@ describe("the close run's versions (SPEC-finance FCX4, FN7, T103)", () => {
 
   it("keys each kind's entry by legal entity and year", () => {
     expect(closeSource("depreciation", "e1", 2026)).toBe("close:depreciation:e1:2026");
+  });
+
+  it("keys the opening by the first day it opens, and a kind's reversal by the close entry it reverses (FCX5, T104)", () => {
+    expect(openingSource("e1", "2027-01-01")).toBe("opening:e1:2027-01-01");
+    expect(reversalSource("depreciation", "e1", 2026)).toBe("reversal:close:depreciation:e1:2026");
+  });
+
+  it("never reverses depreciation at the opening; every kind says whether it is reversed (FCX5)", () => {
+    expect(REVERSED_AT_OPENING.depreciation).toBe(false);
+    expect(Object.keys(REVERSED_AT_OPENING).sort()).toEqual([...CLOSE_KINDS].sort());
   });
 });

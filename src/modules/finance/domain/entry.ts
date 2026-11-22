@@ -49,6 +49,13 @@ export function firstOpenMonth(month: string, locked: ReadonlySet<string>): stri
   return `${y}-${pad(m)}`;
 }
 
+/** FCX6: the months from `from` to `to`, "YYYY-MM" each: the periods a year close locks. */
+export function monthsBetween(from: FarmDay, to: FarmDay): string[] {
+  const months: string[] = [];
+  for (let [y, m] = from.split("-").map(Number); `${y}-${pad(m)}` <= monthOf(to); [y, m] = m === 12 ? [y + 1, 1] : [y, m + 1]) months.push(`${y}-${pad(m)}`);
+  return months;
+}
+
 // Classes 1–5 are the balance sheet, 6–7 the income statement (CGNC).
 const BALANCE_SHEET = new Set(["1", "2", "3", "4", "5"]);
 const PROFIT = "1191"; // Résultat net de l'exercice (créditeur), PCA / CGNC nomenclature

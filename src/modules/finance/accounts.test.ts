@@ -8,7 +8,7 @@ import { EXPENSE_ACCOUNTS } from "@/modules/finance/domain/treasury";
 import { ASSET_ACCOUNTS, ASSET_DEBTS, DEPRECIATION_CHARGE, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
 import { LOAN_INTEREST, LOANS } from "@/modules/finance/domain/loans";
 import { SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE } from "@/modules/finance/domain/subsidies";
-import { PROVISION_CHARGE, PROVISION_REVERSAL, STOCK_ACCOUNTS, STOCK_PROVISION, stockAccountsOf } from "@/modules/finance/domain/stocks";
+import { IN_PROGRESS, IN_PROGRESS_PROVISION, IN_PROGRESS_VARIATION, PROVISION_CHARGE, PROVISION_REVERSAL, STOCK_ACCOUNTS, STOCK_PROVISION, stockAccountsOf } from "@/modules/finance/domain/stocks";
 
 const seed = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
 const everything = chartOf(seed.accounts, "cgnc", ["pca"]);
@@ -109,15 +109,17 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
     const parents = (chart: typeof withPca) => new Set([...chart.values()].map((a) => a.parent));
     // T102 (FC1): every asset and depreciation account of the categories, and the acquisition and disposal accounts.
     const assets = [...Object.values(ASSET_ACCOUNTS).flatMap((a) => [a.asset, a.depreciation ?? []].flat()), ASSET_DEBTS, DEPRECIATION_CHARGE, NET_BOOK_VALUE_DISPOSED, DISPOSAL_PROCEEDS];
-    // T108 (FC5): the stock and variation accounts by kind, the provision and its reversal.
-    const stocks = [...Object.values(STOCK_ACCOUNTS).flatMap((a) => [a.stock, a.variation]), PROVISION_CHARGE, STOCK_PROVISION, PROVISION_REVERSAL];
+    // T108 (FC5): the stock and variation accounts by kind, the provision and its reversal. T109 (FC4): the batches in progress.
+    const stocks = [...Object.values(STOCK_ACCOUNTS).flatMap((a) => [a.stock, a.variation]), PROVISION_CHARGE, STOCK_PROVISION, PROVISION_REVERSAL, IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION];
     const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets, LOANS, LOAN_INTEREST, SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE, ...stocks]; // T105, T106 (FC2): the loans' and subsidies'
-    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "6193", "6513", "7513", "1481", "6311", "1311", "1319", "7577", "3121", "31221", "31223", "612412", "61242", "6196", "3912", "7196"]));
+    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "6193", "6513", "7513", "1481", "6311", "1311", "1319", "7577", "3121", "31221", "31223", "612412", "61242", "6196", "3912", "7196", "31322", "7131", "3913"]));
     for (const account of rules) {
       expect(withPca.has(account), account).toBe(true);
       expect(parents(withPca).has(account), account).toBe(false);
       expect(parents(cgncOnly).has(postingAccount(account, everything, cgncOnly)), account).toBe(false);
     }
+    // T109 (FC4, FQ1): with the PCA off, 31322 lands on 3132 Encours de Production, a CGNC leaf; 7131 and 3913 are CGNC's.
+    expect([IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION].map((a) => postingAccount(a, everything, cgncOnly))).toEqual(["3132", "7131", "3913"]);
   });
 
   // T108 (FC5, FQ1): the stock account follows the purchase's family in each chart (FN6: 6121 → 3121 / 61241x,

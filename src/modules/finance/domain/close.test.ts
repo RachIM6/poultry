@@ -26,6 +26,7 @@ describe("the close run's versions (SPEC-finance FCX4, FN7, T103)", () => {
     expect(REVERSED_AT_OPENING.depreciation).toBe(false);
     expect(REVERSED_AT_OPENING.subsidy).toBe(false);
     expect(REVERSED_AT_OPENING.stock).toBe(true); // T108
+    expect(REVERSED_AT_OPENING.batch).toBe(true); // T109
     expect(REVERSED_AT_OPENING.provision).toBe(true);
     expect(Object.keys(REVERSED_AT_OPENING).sort()).toEqual([...CLOSE_KINDS].sort());
   });

@@ -52,10 +52,24 @@ export async function instrumentStepsChangedSince(tx: Tx, ctx: TenantContext, af
   });
 }
 
-/** For finance (SPEC-finance FN13): what each batch's sales came to, in centimes (the farm-weight amount). */
-export async function salesByBatch(tx: Tx, ctx: TenantContext): Promise<Map<string, bigint>> {
-  const rows = await tx.sale.groupBy({ by: ["batchId"], where: { organizationId: ctx.organizationId }, _sum: { amountCentimes: true } });
+/** For finance (SPEC-finance FN13): what each batch's sales came to, in centimes (the farm-weight amount); `asOf` (FC4): up to that day. */
+export async function salesByBatch(tx: Tx, ctx: TenantContext, asOf?: string): Promise<Map<string, bigint>> {
+  const where = { organizationId: ctx.organizationId, ...(asOf && { day: { lte: new Date(`${asOf}T00:00:00Z`) } }) };
+  const rows = await tx.sale.groupBy({ by: ["batchId"], where, _sum: { amountCentimes: true } });
   return new Map(rows.map((r) => [r.batchId, r._sum.amountCentimes ?? 0n]));
+}
+
+export type LastSale = { batchId: string; id: string; day: string; kind: "live" | "perHead"; pricePerKgCentimes: bigint; amountCentimes: bigint; birds: number };
+
+/** For finance (SPEC-finance FC4, FQ20): each batch's last sale of live birds (by the kg or by the head) on or before `day`. */
+export async function lastSales(tx: Tx, ctx: TenantContext, day: string): Promise<LastSale[]> {
+  const rows = await tx.sale.findMany({
+    where: { organizationId: ctx.organizationId, kind: { in: ["live", "perHead"] }, day: { lte: new Date(`${day}T00:00:00Z`) } },
+    orderBy: [{ batchId: "asc" }, { day: "desc" }, { id: "desc" }],
+    distinct: ["batchId"],
+    select: { batchId: true, id: true, day: true, kind: true, pricePerKgCentimes: true, amountCentimes: true, birds: true },
+  });
+  return rows.map((r) => ({ ...r, day: r.day.toISOString().slice(0, 10), kind: r.kind as LastSale["kind"] }));
 }
 
 /** For finance's cash schedule (F-Effects): the cheques and bills received and not yet cashed or returned, by due date. */

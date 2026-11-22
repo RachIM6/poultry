@@ -5,21 +5,21 @@ import { PROVISION_CHARGE, PROVISION_REVERSAL } from "@/modules/finance/domain/s
 // SPEC-finance FCX4: the close run. One OD entry per kind, on the fiscal year's last day.
 
 /**
- * The run's kinds, in posting order: depreciation, the subsidy release (T106), bought stock and the provisions for
- * impairment of current assets (T108, FC5: one entry for every provision, FCX4). T109 adds batches in progress and
- * its provision lines to `provision`.
+ * The run's kinds, in posting order: depreciation, the subsidy release (T106), bought stock (T108), the meat batches
+ * in progress (T109, FC4) and the provisions for impairment of current assets (FC4, FC5: one entry for every
+ * provision, FCX4).
  */
-export const CLOSE_KINDS = ["depreciation", "subsidy", "stock", "provision"] as const;
+export const CLOSE_KINDS = ["depreciation", "subsidy", "stock", "batch", "provision"] as const;
 export type CloseKind = (typeof CLOSE_KINDS)[number];
 
 /** FCX4: the entry's source id, `close:<kind>:<legal entity>:<year>` (the calendar year the fiscal year ends in). */
 export const closeSource = (kind: CloseKind, legalEntityId: string, year: number) => `close:${kind}:${legalEntityId}:${year}`;
 
 /**
- * FCX5: the kinds whose close entry is reversed on the next fiscal year's first day, with its à-nouveaux: stocks and
- * provisions (T108; T109's batches in progress too). Depreciation and the subsidy release are never reversed.
+ * FCX5: the kinds whose close entry is reversed on the next fiscal year's first day, with its à-nouveaux: stocks,
+ * batches in progress and provisions (T108, T109). Depreciation and the subsidy release are never reversed.
  */
-export const REVERSED_AT_OPENING: Record<CloseKind, boolean> = { depreciation: false, subsidy: false, stock: true, provision: true };
+export const REVERSED_AT_OPENING: Record<CloseKind, boolean> = { depreciation: false, subsidy: false, stock: true, batch: true, provision: true };
 
 /**
  * FCX5: a close entry's reversal at the next opening, sides swapped; a provision is taken back as a reversal of

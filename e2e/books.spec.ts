@@ -24,6 +24,10 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Livre des recettes et dépenses");
   await expect(page.getByRole("link", { name: "Balance" })).toHaveCount(0); // a cash_book entity has no ledger views
   await expect(page.getByRole("link", { name: "Bilan (projet)" })).toHaveCount(0); // nor a balance sheet (T110)
+  // T101 (FCX3): no manual entry either, while its opening balances' counter-account waits for FQ11.
+  await page.getByText("Écriture manuelle", { exact: true }).click();
+  await expect(page.getByText(/^Pas d’écriture manuelle dans le livre des recettes et dépenses/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Passer l’écriture" })).toBeDisabled();
   const book = page.getByRole("table", { name: "Recettes et dépenses" });
   await expect(book.getByRole("row").nth(1)).toContainText(/Dépense · Consommation d’Eau.*5161 Caisses.*450,00\sDH/);
   await expect(book.getByRole("row").last()).toContainText(/Total du mois\s*0,00\sDH\s*450,00\sDH/);

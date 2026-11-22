@@ -36,3 +36,9 @@ export function postingAccount(number: string, everything: ChartOfAccounts, char
   }
   return null;
 }
+
+/** SPEC-finance FN4: the accounts a line can go on, those without sub-accounts (the class "6" isn't one). */
+export function leafAccounts(chart: ChartOfAccounts): AccountRow[] {
+  const parents = new Set([...chart.values()].map((a) => a.parent));
+  return [...chart.values()].filter((a) => !parents.has(a.number));
+}

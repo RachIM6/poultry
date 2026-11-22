@@ -459,7 +459,7 @@
     "UNBALANCED": "L’écriture n’est pas équilibrée : le total des débits doit égaler celui des crédits.",
     "TOO_FEW_LINES": "Une écriture a au moins deux lignes.",
     "ONE_SIDE_PER_LINE": "Chaque ligne a soit un débit, soit un crédit, positif.",
-    "UNKNOWN_ACCOUNT": "Ce compte n’existe pas dans le plan comptable de l’entité.",
+    "UNKNOWN_ACCOUNT": "Ce compte n’est pas un compte de détail du plan comptable de l’entité : il n’existe pas, ou il a des sous-comptes.",
     "PERIOD_LOCKED": "Cette période est clôturée : aucune écriture ne peut y être ajoutée.",
     "ALREADY_REVERSED": "Cette écriture a déjà été annulée.",
     "FISCAL_YEAR_HAS_ENTRIES": "L’exercice a déjà des écritures : ce réglage ne peut changer qu’au début du prochain exercice.",
@@ -493,7 +493,8 @@
     "PAID_MORE_THAN_OWED": "Ce paiement dépasse ce qui est dû au fournisseur.",
     "PAY_MONTH_NOT_VALIDATED": "Validez d’abord la paie de ce mois.",
     "LINE_AFTER_STATEMENT": "Cette opération est datée après la fin du relevé.",
-    "LINE_ALREADY_TICKED": "Cette opération est déjà pointée sur un relevé."
+    "LINE_ALREADY_TICKED": "Cette opération est déjà pointée sur un relevé.",
+    "CASH_BOOK_NO_MANUAL_ENTRY": "Pas d’écriture manuelle dans le livre des recettes et dépenses : le compte de contrepartie attend la réponse de l’expert-comptable."
   },
   "Weighing": {
     "title": "Pesée",
@@ -930,7 +931,22 @@
       "assets": "Actif",
       "liabilities": "Passif"
     },
-    "batch": "Bande"
+    "batch": "Bande",
+    "manual": "Écriture manuelle",
+    "manualOpening": "Opérations diverses (OD), sur les comptes de détail du plan comptable. Soldes d’ouverture du premier exercice : datez l’écriture du {from}.",
+    "manualCashBook": "Pas d’écriture manuelle dans le livre des recettes et dépenses : le compte de contrepartie des soldes d’ouverture de la banque et de la caisse attend la réponse de l’expert-comptable.",
+    "piece": "N° de pièce",
+    "lineAccount": "Compte, ligne {n}",
+    "lineDebit": "Débit, ligne {n}",
+    "lineCredit": "Crédit, ligne {n}",
+    "addLine": "Ajouter une ligne",
+    "difference": "Débit − crédit :",
+    "receiptFile": "Justificatif (facultatif)",
+    "manualPost": "Passer l’écriture",
+    "manualPosted": "Écriture enregistrée.",
+    "manualSee": "Voir le journal du mois",
+    "pieceOf": "pièce {piece}",
+    "receiptOf": "justificatif"
   },
   "Threshold": {
     "open": "Seuil des 5 M DH",

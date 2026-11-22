@@ -119,11 +119,11 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Blocked by:** T100 (opening balances need class 1–5 accounts that aren't seeded).
 **Description:** "Écriture manuelle" on `/books` for the owner: day, label, piece reference, optional receipt (ADR-011), lines on any posting account of the entity's chart, live Σdebit − Σcredit. Posted through `postEntry` (OD, source `finance:<id>`). The first year's opening entry is the same form, dated the year's first day.
 **AC:**
-- [ ] A balanced entry on any leaf account posts once (same id twice → one entry), audited. Unbalanced, one-line and parent-account entries are refused (FN4).
-- [ ] Manager, accountant and worker are refused (integration). The accountant sees the entries on `/books`.
-- [ ] An entry in a locked month is refused with the reason. It isn't moved: a manual entry is dated by its author.
-- [ ] A `cash_book` entity sees the form disabled with the FQ11 reason.
-- [ ] Playwright: the owner types a three-line opening entry, it shows in the journal and the trial balance.
+- [x] A balanced entry on any leaf account posts once (same id twice → one entry), audited. Unbalanced, one-line and parent-account entries are refused (FN4). _`finance/manual.int.test.ts` "posts a balanced entry on any leaf account once (OD, source finance:<id>), audited" and "refuses unbalanced, one-line and parent-account entries (FN4)" (2321 Bâtiments, which has sub-accounts). The piece reference and the receipt live in a new `ManualEntry` row (migration `manual_entry`): `JournalEntry` has no piece column and its immutability trigger forbids attaching a receipt after posting._
+- [x] Manager, accountant and worker are refused (integration). The accountant sees the entries on `/books`. _`finance/manual.int.test.ts` "is the owner's: manager, accountant and worker are refused; the accountant reads the entry on /books" (`readBooks` as the accountant: the OD entry with its piece, and the trial balance)._
+- [x] An entry in a locked month is refused with the reason. It isn't moved: a manual entry is dated by its author. _`finance/manual.int.test.ts` "refuses an entry in a locked month with the reason, and doesn't move it": `PERIOD_LOCKED` (`errors.PERIOD_LOCKED` on the form), nothing posted in any month._
+- [x] A `cash_book` entity sees the form disabled with the FQ11 reason. _`e2e/books.spec.ts` (the cash-book farmer: reason shown, button disabled); the server refuses too, `CASH_BOOK_NO_MANUAL_ENTRY` (`finance/manual.int.test.ts`)._
+- [x] Playwright: the owner types a three-line opening entry, it shows in the journal and the trial balance. _`e2e/manual-entry.spec.ts`: 2340 and 5141 against 1111 on 1 January, with the live Σdebit − Σcredit and a receipt; journal (piece, receipt link) and balanced trial balance._
 **Depends on:** T100.
 **Size:** M
 

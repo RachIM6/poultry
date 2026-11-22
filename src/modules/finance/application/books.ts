@@ -6,13 +6,15 @@ import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { cashBookOf, trialBalance } from "@/modules/finance/domain/books";
 import { balanceSheet, incomeStatement } from "@/modules/finance/domain/statements";
+import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
 import { fiscalYearOf, type Line } from "@/modules/finance/domain/entry";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { ledgerAccounts } from "@/modules/finance/infrastructure/ledger";
 import { entryTags } from "@/modules/finance/application/tags";
 import type { EntryTags } from "@/modules/finance/domain/export";
 
-type Entry = { id: string; day: string; journal: string; label: string; reversesId: string | null; lines: Line[] };
+// piece, receipt: a manual entry's (FCX3), from its ManualEntry row
+type Entry = { id: string; day: string; journal: string; label: string; reversesId: string | null; lines: Line[]; piece?: string | null; receipt?: string | null };
 
 export type Books = {
   books: "cash_book" | "ledger"; // FN16: what the entity's profile shows
@@ -27,6 +29,7 @@ export type Books = {
   trialBalance?: ReturnType<typeof trialBalance>; // from the fiscal year's first day to the month's last
   incomeStatement?: ReturnType<typeof incomeStatement>; // F-Statements: a draft CPC over the same period
   balanceSheet?: ReturnType<typeof balanceSheet>; // FC8: the draft bilan on the month's last day, its result the CPC's net
+  postingAccounts?: { number: string; label: string }[]; // FCX3: the owner's manual entry form, `ledger` entities only
 };
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
@@ -60,13 +63,18 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
   if (!entity) return fail("NOT_FOUND");
   const period = monthPeriod(month);
   const year = fiscalYearOf(period.from as FarmDay, entity.fiscalYearStartMonth);
-  const labels = Object.fromEntries((await ledgerAccounts(db)).map((a) => [a.number, a.label]));
+  const accounts = await ledgerAccounts(db);
+  const labels = Object.fromEntries(accounts.map((a) => [a.number, a.label]));
   const inMonth = await entriesBetween(ctx, entity.id, period.from, period.to);
   const books: Books = { books: entity.accountingProfile.books, month, fiscalYear: year, labels, cashBook: cashBookOf(inMonth), tags: await entryTags(ctx, month) };
   if (entity.accountingProfile.books !== "ledger") return ok(books);
 
+  const manual = new Map((await db.manualEntry.findMany({ where: { organizationId: ctx.organizationId, id: { in: inMonth.map((e) => e.id) } } })).map((m) => [m.id, m]));
   const journals = new Map<string, Entry[]>();
-  for (const e of inMonth) journals.set(e.journal, [...(journals.get(e.journal) ?? []), e]);
+  for (const e of inMonth) {
+    const m = manual.get(e.id);
+    journals.set(e.journal, [...(journals.get(e.journal) ?? []), m ? { ...e, piece: m.piece, receipt: m.receiptFileId } : e]);
+  }
   const sinceYearStart = await entriesBetween(ctx, entity.id, year.from, period.to);
   const byAccount = new Map<string, NonNullable<Books["generalLedger"]>[number]["lines"]>();
   for (const e of sinceYearStart) {
@@ -85,5 +93,10 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
     trialBalance: balance,
     incomeStatement: incomeStatement(balance.rows),
     balanceSheet: balanceSheet(balance.rows),
+    ...(can(ctx, "finance.manage") && {
+      postingAccounts: leafAccounts(chartOf(accounts, entity.accountingProfile.base, entity.accountingProfile.overlays))
+        .map((a) => ({ number: a.number, label: a.label }))
+        .sort((a, b) => a.number.localeCompare(b.number)),
+    }),
   });
 }

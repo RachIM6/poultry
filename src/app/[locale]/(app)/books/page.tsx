@@ -5,12 +5,15 @@ import { Fragment, Suspense } from "react";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { can } from "@/lib/permissions";
 import { batchOf, readBooks, type IncomeStatement } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
-import { table } from "@/components/ui";
+import { card, table, warn } from "@/components/ui";
+import { ManualEntryForm } from "./form";
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
+// FCX3: the owner's manual entry form; a cash_book entity sees it disabled (FQ11).
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 const VIEWS = ["cash", "journals", "ledger", "trial", "cpc", "bilan"] as const;
 
@@ -38,7 +41,8 @@ const shift = (month: string, by: number) => {
 async function BooksView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
-  const month = typeof search.month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : farmDayOf(new Date()).slice(0, 7);
+  const today = farmDayOf(new Date());
+  const month = typeof search.month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : today.slice(0, 7);
   const result = await readBooks(ctx.value, month);
   if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
   const books = result.value;
@@ -60,6 +64,20 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
         {/* FN18: a file, not a page, so a plain link to the route handler */}
         <a href={`/api/finance/export?month=${month}`} download className="ms-auto underline underline-offset-4">{t("Books.export")}</a>
       </nav>
+      {can(ctx.value, "finance.manage") && (
+        <details className={card}>
+          <summary className="cursor-pointer font-semibold">{t("Books.manual")}</summary>
+          {books.books === "ledger" ? (
+            <p className="text-sm text-ink-2">{t("Books.manualOpening", { from: day(books.fiscalYear.from) })}</p>
+          ) : (
+            <p className={warn}>{t("Books.manualCashBook")}</p>
+          )}
+          <datalist id="ledger-accounts">
+            {books.postingAccounts?.map((a) => <option key={a.number} value={a.number}>{`${a.number} ${a.label}`}</option>)}
+          </datalist>
+          <ManualEntryForm today={today} accounts="ledger-accounts" blocked={books.books !== "ledger"} />
+        </details>
+      )}
       {views.length > 1 && (
         <nav className="flex flex-wrap gap-3" aria-label={t("Books.views")}>
           {views.map((v) => (
@@ -108,7 +126,11 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
             <h2 className="text-[17px] font-semibold text-ink-2">{t("Books.journal", { journal: j.journal })}</h2>
             {j.entries.map((e) => (
               <table key={e.id} className={table}>
-                <caption className="text-start font-semibold">{day(e.day)} · {e.label}</caption>
+                <caption className="text-start font-semibold">
+                  {day(e.day)} · {e.label}
+                  {e.piece && <> · {t("Books.pieceOf", { piece: e.piece })}</>}
+                  {e.receipt && <> · <a href={`/api/files/${e.receipt}`} className="underline underline-offset-4">{t("Books.receiptOf")}</a></>}
+                </caption>
                 <tbody>
                   {e.lines.map((l, i) => (
                     <tr key={i} className="border-t border-line">

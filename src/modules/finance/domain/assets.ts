@@ -104,6 +104,28 @@ export function straightLine(a: DepreciableAsset, fiscalYearStartMonth: number):
   }
 }
 
+/**
+ * FC1 year-end posting (the close run, T103): each asset's straight-line charge for the fiscal year starting on
+ * `yearFrom`, D 6193 for the total / C each depreciation account (2832–2835) for its share. The disposal year is left
+ * out: the disposal posted its months (`toDisposal`). Null when there is nothing to post.
+ */
+export function yearEndDepreciation(assets: readonly (DepreciableAsset & { category: AssetCategory })[], yearFrom: FarmDay, fiscalYearStartMonth: number): Posting | null {
+  const byAccount = new Map<string, bigint>();
+  for (const a of assets) {
+    const account = ASSET_ACCOUNTS[a.category].depreciation;
+    const year = straightLine(a, fiscalYearStartMonth).find((y) => y.from === yearFrom);
+    if (account && year && !year.toDisposal && year.charge > 0n) byAccount.set(account, (byAccount.get(account) ?? 0n) + year.charge);
+  }
+  const credits = [...byAccount].sort(([a], [b]) => a.localeCompare(b));
+  const total = credits.reduce((s, [, c]) => s + c, 0n);
+  if (total === 0n) return null;
+  return {
+    journal: "OD",
+    label: "Dotations aux amortissements de l’exercice",
+    lines: [{ account: DEPRECIATION_CHARGE, debit: total, credit: 0n }, ...credits.map(([account, credit]) => ({ account, debit: 0n, credit }))],
+  };
+}
+
 export type AssetError =
   | "INVALID_INPUT"
   | "LIFE_REQUIRED"

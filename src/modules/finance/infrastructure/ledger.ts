@@ -112,3 +112,9 @@ export async function standingEntryFor(tx: Tx, ctx: TenantContext, module: strin
 export async function sourceAlreadyPosted(tx: Tx, source: { module: string; id: string; version: number }) {
   return (await tx.journalEntry.count({ where: { sourceModule: source.module, sourceId: source.id, sourceVersion: source.version } })) > 0;
 }
+
+/** FN7: a source record's highest version posted, 0 when none: its next version is this + 1. */
+export async function lastSourceVersion(tx: Tx, ctx: TenantContext, module: string, sourceId: string): Promise<number> {
+  const r = await tx.journalEntry.aggregate({ where: { organizationId: ctx.organizationId, sourceModule: module, sourceId }, _max: { sourceVersion: true } });
+  return r._max.sourceVersion ?? 0;
+}

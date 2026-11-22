@@ -968,6 +968,19 @@ model BankMatch {
   @@index([statementId])
 }
 
+// Owner: finance. SPEC-finance FCX3: an entry the owner typed (T101), posted as the JournalEntry with the same id
+// (source finance:<id>). Its piece reference, and the receipt attached after posting: the entry itself is immutable.
+model ManualEntry {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  piece          String?
+  receiptFileId  String?  @db.Uuid // ADR-011: a StoredFile, attached online after the entry
+  createdBy      String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
 // Owner: finance. SPEC-finance FN6, FX4: a quick expense recorded on the phone, offline; posted when it syncs.
 model Expense {
   id             String    @id @db.Uuid

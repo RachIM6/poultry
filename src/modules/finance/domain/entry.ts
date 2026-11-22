@@ -1,6 +1,6 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
-import type { ChartOfAccounts } from "@/modules/finance/domain/chart";
+import { leafAccounts, type ChartOfAccounts } from "@/modules/finance/domain/chart";
 
 /**
  * One line of a journal entry: amounts in centimes (FX1), exactly one side above zero. `treasuryId`: which bank
@@ -18,8 +18,8 @@ export type EntryError = "TOO_FEW_LINES" | "ONE_SIDE_PER_LINE" | "UNKNOWN_ACCOUN
 export function checkEntry(lines: readonly Line[], chart: ChartOfAccounts): Result<void, EntryError> {
   if (lines.length < 2) return fail("TOO_FEW_LINES");
   if (lines.some((l) => l.debit < 0n || l.credit < 0n || (l.debit > 0n) === (l.credit > 0n))) return fail("ONE_SIDE_PER_LINE");
-  const parents = new Set([...chart.values()].map((a) => a.parent));
-  if (lines.some((l) => !chart.has(l.account) || parents.has(l.account))) return fail("UNKNOWN_ACCOUNT");
+  const leaves = new Set(leafAccounts(chart).map((a) => a.number));
+  if (lines.some((l) => !leaves.has(l.account))) return fail("UNKNOWN_ACCOUNT");
   const total = lines.reduce((s, l) => s + l.debit - l.credit, 0n);
   return total === 0n ? ok(undefined) : fail("UNBALANCED");
 }

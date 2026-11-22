@@ -12,6 +12,7 @@ export { batchResults, freezeClosedBatches, type BatchResultRow } from "./applic
 export { budgetBases, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";
 export { readBooks, type Books } from "./application/books";
+export { attachManualEntryReceipt, postManualEntry, type ManualEntryError } from "./application/manual";
 export type { IncomeStatement } from "./domain/statements";
 export { chartView } from "./application/chart";
 export { exportBooks } from "./application/export";

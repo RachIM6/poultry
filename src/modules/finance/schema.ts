@@ -52,3 +52,12 @@ export const BankMatchInput = z.object({ statementId: z.uuid(), lineId: z.uuid()
 
 /** FN6: money moved from one treasury account to another (cash deposited, cash withdrawn). */
 export const RecordTransfer = z.object({ id: z.uuid(), day: z.iso.date(), amountCentimes: positive, fromId: z.uuid(), toId: z.uuid() });
+
+/** FCX3: an entry the owner types (OD). Its id comes from the form, so a retry posts nothing twice. FN4 checks the lines. */
+export const ManualEntryInput = z.object({
+  id: z.uuid(),
+  day: z.iso.date(),
+  label: z.string().trim().min(1).max(200),
+  piece: z.string().trim().max(40).transform((x) => x || null).nullable().default(null),
+  lines: z.array(z.object({ account: z.string().trim().regex(/^[1-8]\d{0,7}$/), debit: centimes, credit: centimes })).max(200),
+});

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { INSTRUMENT_STATES } from "@/modules/sales/domain/instruments";
 import { BUYER_TYPES, HEAD_KINDS, PAYMENT_METHODS } from "@/modules/sales/domain/sale";
-import { LATER_PAYMENT_METHODS } from "@/modules/sales/shared";
+import { LATER_PAYMENT_METHODS, TAKERS } from "@/modules/sales/shared";
 
 // SPEC V1–V4, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009), re-exported here so
 // server code and tests keep one import.
@@ -68,6 +68,18 @@ export const RecordHeadSale = z.object({
   vatCentimes: centimes.default("0"),
   instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(),
 });
+
+/**
+ * SPEC-finance FC7: birds or eggs taken home, on the form of the same product (V2, V7, V6), with who took them and no
+ * buyer or payment. A price left out (always, from a worker: I5) is the last sale's (FQ21); a worker's is ignored.
+ */
+const consumption = { id: z.uuid(), batchId: z.uuid(), day: z.iso.date(), takenBy: z.enum(TAKERS) };
+const price = centimes.nullable().default(null);
+export const RecordConsumption = z.discriminatedUnion("kind", [
+  z.object({ ...consumption, kind: z.literal("live"), birds: z.int32().positive(), farmWeightGrams: z.int32().positive(), pricePerKgCentimes: price }),
+  z.object({ ...consumption, kind: z.literal("perHead"), lines: z.array(RecordHeadSale.shape.lines.element.extend({ pricePerHeadCentimes: price })).min(1).max(3), farmWeightGrams: z.int32().positive().nullable() }),
+  z.object({ ...consumption, kind: z.literal("eggs"), lines: z.array(RecordEggSale.shape.lines.element.extend({ unitPriceCentimes: price })).min(1).max(20) }),
+]);
 
 /** V4: a later payment from a buyer, against what they owe. */
 export const RecordPayment = z.object({

@@ -666,7 +666,20 @@
     "farmKgOptional": "Poids à la ferme (kg, facultatif)",
     "headCount": "{birds} sujets",
     "headLine": "{date} · {buyer} · {birds} sujets à la tête",
-    "vat": "Dont TVA (DH, facultatif)"
+    "vat": "Dont TVA (DH, facultatif)",
+    "kind": "Type",
+    "sale": "Vente",
+    "consumption": "Consommation",
+    "addConsumption": "Nouvelle consommation",
+    "takenBy": "Pris par",
+    "takers": {
+      "exploitant": "L’exploitant",
+      "associate": "Un associé",
+      "employee": "Un employé"
+    },
+    "consumptionLine": "{date} · Consommation · {who} · {birds} oiseaux",
+    "value": "Valeur : {amount}",
+    "saveConsumption": "Enregistrer la consommation"
   },
   "Receivables": {
     "title": "Créances",
@@ -977,7 +990,16 @@
     "manualPosted": "Écriture enregistrée.",
     "manualSee": "Voir le journal du mois",
     "pieceOf": "pièce {piece}",
-    "receiptOf": "justificatif"
+    "receiptOf": "justificatif",
+    "unposted": "Consommations non comptabilisées",
+    "unpostedLine": "{date} · {who} · {quantity} · {amount} : {reason}",
+    "unpostedBirds": "{n} oiseaux",
+    "unpostedEggs": "{n} œufs",
+    "unpostedReason": {
+      "FQ11": "non comptabilisé (FQ11)",
+      "FQ25": "non comptabilisé (FQ25)",
+      "noValue": "non comptabilisé (aucune vente du produit, valeur 0)"
+    }
   },
   "Threshold": {
     "open": "Seuil des 5 M DH",
@@ -1702,7 +1724,8 @@
     "price": "Prix d’un plateau (DH)",
     "addLine": "Ajouter une ligne",
     "amount": "Montant : {amount}",
-    "save": "Enregistrer la vente"
+    "save": "Enregistrer la vente",
+    "consume": "Consommation d’œufs"
   },
   "Compare": {
     "title": "Comparer les lots",

@@ -18,17 +18,22 @@ import {
   PAYMENT_METHODS,
   SALES_MUTATIONS as S,
   HEAD_KINDS,
+  TAKERS,
   checkHeadSale,
   checkSale,
+  lastPrices,
   saleAmount,
+  typedPrice,
   weighingGap,
   type BuyerDto,
   type PaymentMethod,
   type SaleDto,
+  type Taker,
 } from "@/modules/sales/shared";
 
-// SPEC V1–V3 and B5 on the batch screen, offline, for owners and managers only (prices). The phone shows the amount and
-// the weighing gap as they are typed, and refuses a sale during a withdrawal with the same rule as the server.
+// SPEC V1–V3 and B5 on the batch screen, offline. The phone shows the amount and the weighing gap as they are typed, and
+// refuses a sale during a withdrawal with the same rule as the server. Sales are for owners and managers (`seller`:
+// prices); a home consumption (SPEC-finance FC7) is the workers' too, without its price (I5).
 
 const today = () => farmDayOf(new Date());
 
@@ -51,20 +56,23 @@ export function Sales({
   buyers,
   treatments,
   birdsOnHand,
+  seller = true,
   write,
 }: {
   batch: BatchDto;
-  sales: SaleDto[];
+  sales: SaleDto[]; // every batch's: a consumption's price is the farm's last sale's (FQ21)
   buyers: BuyerDto[];
   treatments: TreatmentDto[];
   birdsOnHand: number;
+  seller?: boolean;
   write: Write;
 }) {
   const t = useTranslations();
   const locale = useLocale();
   const [adding, setAdding] = useState(false);
-  const buyerName = (id: string) => buyers.find((b) => b.id === id)?.name ?? "—";
-  const list = [...sales].sort((a, b) => b.day.localeCompare(a.day));
+  const buyerName = (id: string | null) => buyers.find((b) => b.id === id)?.name ?? "—";
+  // egg sales: /eggs. A worker sees the consumptions only, not the farm's sales and buyers.
+  const list = sales.filter((s) => s.batchId === batch.id && s.kind !== "eggs" && (seller || s.takenBy)).sort((a, b) => b.day.localeCompare(a.day));
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="sale-title">
@@ -75,6 +83,14 @@ export function Sales({
         <ul className="flex flex-col gap-3" aria-labelledby="sale-title">
           {list.map((s) => {
             const gap = weighingGap(s.farmWeightGrams, s.buyerWeightGrams);
+            if (s.takenBy) {
+              return (
+                <li key={s.id} className={card}>
+                  <span className="font-semibold">{t("Sale.consumptionLine", { date: formatDay(s.day as FarmDay, locale), who: t(`Sale.takers.${s.takenBy}`), birds: formatCount(s.birds) })}</span>
+                  {s.amountCentimes && <span>{t("Sale.value", { amount: formatMoney(BigInt(s.amountCentimes)) })}</span>}
+                </li>
+              );
+            }
             return (
               <li key={s.id} className={card}>
                 <span className="font-semibold">
@@ -100,9 +116,9 @@ export function Sales({
         </ul>
       )}
       {batch.status !== "open" ? null : adding ? (
-        <SaleForm batch={batch} buyers={buyers} treatments={treatments} birdsOnHand={birdsOnHand} write={write} onDone={() => setAdding(false)} />
+        <SaleForm batch={batch} sales={sales} buyers={buyers} treatments={treatments} birdsOnHand={birdsOnHand} seller={seller} write={write} onDone={() => setAdding(false)} />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t("Sale.add")}</button>
+        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t(seller ? "Sale.add" : "Sale.addConsumption")}</button>
       )}
     </section>
   );
@@ -110,20 +126,25 @@ export function Sales({
 
 function SaleForm({
   batch,
+  sales,
   buyers,
   treatments,
   birdsOnHand,
+  seller,
   write,
   onDone,
 }: {
   batch: BatchDto;
+  sales: SaleDto[];
   buyers: BuyerDto[];
   treatments: TreatmentDto[];
   birdsOnHand: number;
+  seller: boolean;
   write: Write;
   onDone: () => void;
 }) {
   const t = useTranslations();
+  const [takenBy, setTakenBy] = useState<Taker | null>(seller ? null : TAKERS[0]); // FC7: null = a sale
   const [buyerId, setBuyerId] = useState(buyers[0]?.id ?? "new");
   const [farmKg, setFarmKg] = useState("");
   const [buyerKg, setBuyerKg] = useState("");
@@ -153,6 +174,7 @@ function SaleForm({
     const day = (get("day") || today()) as FarmDay;
     const paid = parseCentimes(get("paid"));
     const vat = parseCentimes(get("vat") || "0"); // SPEC-finance FN9: part of the total
+    if (takenBy) return submitConsumption(day, takenBy, get);
     if (vat === null) return setError("errors.INVALID_INPUT");
     if (perHead) return submitPerHead(day, paid, vat, get);
     const birds = /^\d+$/.test(get("birds")) ? Number(get("birds")) : NaN;
@@ -235,8 +257,63 @@ function SaleForm({
     if (saved) onDone();
   };
 
+  // FQ21: a consumption is prefilled with the farm's last sale prices, which the owner or manager can change.
+  const prefill = () => {
+    const head = lastPrices(sales, "perHead", today());
+    setPrice(typedPrice(lastPrices(sales, "live", today()).get("kg")));
+    setHeads((h) => ({ rooster: { ...h.rooster, price: typedPrice(head.get("rooster")) }, hen: { ...h.hen, price: typedPrice(head.get("hen")) }, bird: { ...h.bird, price: typedPrice(head.get("bird")) } }));
+  };
+
+  // SPEC-finance FC7: no buyer and no payment; the withdrawal and birds on hand as a sale. A worker's has no price (I5).
+  const submitConsumption = async (day: FarmDay, who: Taker, get: (k: string) => string) => {
+    const typed = (text: string) => (seller && text ? parseCentimes(text) : null); // none: the server takes the last sale's
+    const weighed = farmKg ? farmGrams : null;
+    const badPrice = seller && (perHead ? headLines.some((l) => heads[l.item].price && l.pricePerHeadCentimes < 0n) : price && pricePerKg === null);
+    if (badPrice || (perHead ? headLines.length === 0 || (farmKg && weighed === null) : farmGrams === null)) return setError("errors.INVALID_INPUT");
+    if (withdrawalUntil(treatments.map((x) => ({ startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay, withdrawalDays: x.withdrawalDays })), day)) return setError("errors.WITHDRAWAL_IN_PROGRESS");
+    const birds = perHead ? headLines.reduce((n, l) => n + l.birds, 0) : /^\d+$/.test(get("birds")) ? Number(get("birds")) : NaN;
+    const aggregate = Batch.rehydrate({ ...batch, placedOn: batch.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, batch.status);
+    const birdsOk = aggregate.checkBirdsSold(day, birds, birdsStarted(batch) - birdsOnHand, today());
+    if (!birdsOk.ok) return setError(`errors.${birdsOk.error}`);
+    setError(undefined);
+
+    const grams = (perHead ? weighed : farmGrams) ?? 0;
+    const base = { id: uuidv7(), batchId: batch.id, day, takenBy: who };
+    const payload = perHead
+      ? { ...base, kind: "perHead" as const, lines: headLines.map((l) => ({ item: l.item, birds: l.birds, pricePerHeadCentimes: typed(heads[l.item].price)?.toString() ?? null })), farmWeightGrams: weighed }
+      : { ...base, kind: "live" as const, birds, farmWeightGrams: grams, pricePerKgCentimes: typed(price)?.toString() ?? null };
+    const value = seller ? (perHead ? headAmount : amount) : null; // provisional: the server prices it, the pull brings it back
+    const sale: SaleDto = { ...base, buyerId: null, birds, farmWeightGrams: grams, buyerWeightGrams: null, kind: payload.kind, ...(value !== null && { amountCentimes: String(value) }) };
+    const sold: SoldBirdsDto = { id: base.id, batchId: batch.id, day, birds, liveWeightGrams: grams };
+    const saved = await write({ type: S.recordConsumption, payload }, [
+      { entity: "sale", id: base.id, data: sale },
+      { entity: "soldBirds", id: base.id, data: sold },
+      ...(birds === birdsOnHand ? [{ entity: "batch", id: batch.id, data: closedLocally(batch, day, null) }] : []),
+    ]);
+    if (saved) onDone();
+  };
+
   return (
     <form onSubmit={submit} className="flex flex-col gap-2.5">
+      {seller && (
+        <fieldset className="flex gap-2">
+          <legend className="sr-only">{t("Sale.kind")}</legend>
+          {[null, TAKERS[0]].map((who) => (
+            <label key={String(who)} className={`${secondary} flex-1 gap-2 has-[:checked]:border-ink has-[:checked]:font-semibold`}>
+              <input
+                type="radio"
+                name="kind"
+                checked={(takenBy === null) === (who === null)}
+                onChange={() => {
+                  setTakenBy(who);
+                  if (who) prefill();
+                }}
+              />
+              {t(who ? "Sale.consumption" : "Sale.sale")}
+            </label>
+          ))}
+        </fieldset>
+      )}
       <fieldset className="flex gap-2">
         <legend className="sr-only">{t("Sale.pricing")}</legend>
         {[false, true].map((head) => (
@@ -248,6 +325,15 @@ function SaleForm({
       </fieldset>
       <div className={`${card} grid grid-cols-2 gap-2.5 [&>*]:min-w-0`}>
       <div className="col-span-2">
+      {takenBy ? (
+        <Field label={t("Sale.takenBy")}>
+          {(id) => (
+            <select id={id} value={takenBy} onChange={(e) => setTakenBy(e.target.value as Taker)} className={field}>
+              {TAKERS.map((w) => <option key={w} value={w}>{t(`Sale.takers.${w}`)}</option>)}
+            </select>
+          )}
+        </Field>
+      ) : (
       <Field label={t("Sale.buyer")}>
         {(id) => (
           <select id={id} value={buyerId} onChange={(e) => setBuyerId(e.target.value)} className={field}>
@@ -256,8 +342,9 @@ function SaleForm({
           </select>
         )}
       </Field>
+      )}
       </div>
-      {buyerId === "new" && (
+      {!takenBy && buyerId === "new" && (
         <>
           <Input label={t("Sale.buyerName")} name="buyerName" required maxLength={120} />
           <Input label={t("Sale.buyerPhone")} name="buyerPhone" type="tel" maxLength={32} dir="ltr" />
@@ -276,7 +363,7 @@ function SaleForm({
           {HEAD_KINDS.map((k) => (
             <div key={k} className="col-span-2 grid grid-cols-2 gap-2.5">
               <Input label={t(`Sale.heads.${k}`)} value={heads[k].birds} onChange={(e) => setHeads((h) => ({ ...h, [k]: { ...h[k], birds: e.target.value } }))} inputMode="numeric" dir="ltr" />
-              <Input label={t("Sale.pricePerHead", { what: t(`Sale.heads.${k}`) })} value={heads[k].price} onChange={(e) => setHeads((h) => ({ ...h, [k]: { ...h[k], price: e.target.value } }))} inputMode="decimal" dir="ltr" />
+              {seller && <Input label={t("Sale.pricePerHead", { what: t(`Sale.heads.${k}`) })} value={heads[k].price} onChange={(e) => setHeads((h) => ({ ...h, [k]: { ...h[k], price: e.target.value } }))} inputMode="decimal" dir="ltr" />}
             </div>
           ))}
           <Input label={t("Sale.farmKgOptional")} value={farmKg} onChange={(e) => setFarmKg(e.target.value)} inputMode="decimal" dir="ltr" />
@@ -285,13 +372,16 @@ function SaleForm({
         <>
           <Input label={t("Sale.birds")} name="birds" inputMode="numeric" pattern="\d+" required dir="ltr" />
           <Input label={t("Sale.farmKg")} value={farmKg} onChange={(e) => setFarmKg(e.target.value)} inputMode="decimal" required dir="ltr" />
-          <Input label={t("Sale.buyerKg")} value={buyerKg} onChange={(e) => setBuyerKg(e.target.value)} inputMode="decimal" dir="ltr" />
+          {!takenBy && <Input label={t("Sale.buyerKg")} value={buyerKg} onChange={(e) => setBuyerKg(e.target.value)} inputMode="decimal" dir="ltr" />}
         </>
       )}
       {gap && <p className="col-span-2 text-sm font-medium text-brick-fg">{t("Sale.gap", { kg: formatKg(gap.grams), percent: formatPercent(gap.percent) })}</p>}
       </div>
+      {seller && (
       <div className={`${card} grid grid-cols-2 gap-2.5 [&>*]:min-w-0`}>
-      {!perHead && <Input label={t("Sale.price")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" required dir="ltr" />}
+      {!perHead && <Input label={t("Sale.price")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" required={!takenBy} dir="ltr" />}
+      {!takenBy && (
+      <>
       <Field label={t("Sale.method")}>
         {(id) => (
           <select id={id} value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} className={field}>
@@ -307,22 +397,25 @@ function SaleForm({
           <Input label={t("Sale.instrumentDueOn")} name="instrumentDueOn" type="date" required />
         </>
       )}
+      </>
+      )}
       </div>
-      {perHead && headAmount !== null && (
+      )}
+      {seller && perHead && headAmount !== null && (
         <p className="flex items-baseline justify-between gap-3 rounded-[18px] bg-ink px-4 py-3.5 text-shell">
           <span className="text-sm text-sand">{t("Sale.headCount", { birds: formatCount(headLines.reduce((n, l) => n + l.birds, 0)) })}</span>
-          <b className="text-[22px] font-semibold">{t("Sale.amount", { amount: formatMoney(headAmount) })}</b>
+          <b className="text-[22px] font-semibold">{t(takenBy ? "Sale.value" : "Sale.amount", { amount: formatMoney(headAmount) })}</b>
         </p>
       )}
-      {!perHead && amount !== null && (
+      {seller && !perHead && amount !== null && (
         <p className="flex items-baseline justify-between gap-3 rounded-[18px] bg-ink px-4 py-3.5 text-shell">
           <span className="text-sm text-sand">{farmKg} kg × {price}</span>
-          <b className="text-[22px] font-semibold">{t("Sale.amount", { amount: formatMoney(amount) })}</b>
+          <b className="text-[22px] font-semibold">{t(takenBy ? "Sale.value" : "Sale.amount", { amount: formatMoney(amount) })}</b>
         </p>
       )}
       {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
-        <button type="submit" className={primary}>{t("Sale.save")}</button>
+        <button type="submit" className={primary}>{t(takenBy ? "Sale.saveConsumption" : "Sale.save")}</button>
         <button type="button" onClick={onDone} className={secondary}>{t("Sale.cancel")}</button>
       </div>
     </form>

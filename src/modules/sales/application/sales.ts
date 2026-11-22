@@ -82,7 +82,7 @@ export async function recordSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof
   const sold = await recordBirdsSold(tx, ctx, { id: cmd.id, batchId: cmd.batchId, day: cmd.day, birds: cmd.birds, liveWeightGrams: cmd.farmWeightGrams }, meta, clock);
   if (!sold.ok) return sold; // nothing written yet: flock checks before it writes
 
-  const sale: Required<SaleDto> = { ...cmd, amountCentimes: String(checked.value.amountCentimes), creditApproval, kind: "live", lines: [] };
+  const sale: Required<SaleDto> = { ...cmd, amountCentimes: String(checked.value.amountCentimes), creditApproval, kind: "live", lines: [], takenBy: null };
   await saveSale(tx, ctx, sale);
   await recordChange(tx, ctx, "sale", sale.id, sale);
   await audit(tx, ctx, { entity: "Sale", entityId: sale.id, action: "create", after: sale, ...meta });
@@ -149,6 +149,7 @@ export async function recordEggSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typ
     instrument: cmd.instrument,
     creditApproval: decided.value.creditApproval,
     kind: "eggs",
+    takenBy: null,
     lines: lines.map((l) => ({ ...l, unitPriceCentimes: String(l.unitPriceCentimes), amountCentimes: String(eggLineAmount(l)) })),
   };
   await saveSale(tx, ctx, sale);
@@ -262,6 +263,7 @@ export async function recordHeadSale(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
     instrument: cmd.instrument,
     creditApproval: decided.value.creditApproval,
     kind: "perHead",
+    takenBy: null,
     lines: lines.map((l) => ({ item: l.item, eggs: l.birds, eggsPerTray: 1, unitPriceCentimes: String(l.pricePerHeadCentimes), amountCentimes: String(BigInt(l.birds) * l.pricePerHeadCentimes) })),
   };
   await saveSale(tx, ctx, sale);

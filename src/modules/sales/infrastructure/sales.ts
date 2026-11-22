@@ -105,6 +105,7 @@ export async function approveSaleCredit(tx: Tx, ctx: TenantContext, saleId: stri
     instrument: s.instrumentNumber && s.instrumentDueOn ? { number: s.instrumentNumber, dueOn: day(s.instrumentDueOn) } : null,
     creditApproval: "approved",
     kind: s.kind as "live" | "eggs" | "perHead",
+    takenBy: null, // a consumption has no credit to approve
     lines: lines.map((l) => ({ item: l.item, eggs: l.eggs, eggsPerTray: l.eggsPerTray, unitPriceCentimes: String(l.unitPriceCentimes), amountCentimes: String(l.amountCentimes) })),
   };
 }
@@ -145,6 +146,25 @@ export const claimDueInstruments = async (tx: Tx, day: string, now: Date) => [
     WHERE b.id = p."buyerId" AND p."instrumentDueOn" = ${day}::date AND p."instrumentRemindedAt" IS NULL
     RETURNING p."organizationId", p.method, p."instrumentNumber" AS number, p."amountCentimes", b.name AS buyer`),
 ];
+
+/** SPEC-finance FQ21: the organisation's latest sales of a kind on or before `day`, consumptions aside, for `lastPrices`. */
+// ponytail: the last 100 only, so a product not sold in them gets no price; DISTINCT ON per item if that ever bites.
+export async function recentSales(tx: Tx, ctx: TenantContext, kind: "live" | "eggs" | "perHead", day: string) {
+  const sales = await tx.sale.findMany({
+    where: { organizationId: ctx.organizationId, kind, takenBy: null, day: { lte: date(day) } },
+    orderBy: [{ day: "desc" }, { id: "desc" }],
+    take: 100,
+    select: { id: true, day: true, pricePerKgCentimes: true },
+  });
+  const lines = await tx.saleLine.findMany({ where: { saleId: { in: sales.map((s) => s.id) } }, select: { saleId: true, item: true, unitPriceCentimes: true } });
+  return sales.map((s) => ({
+    id: s.id,
+    day: dayOf(s.day),
+    kind,
+    pricePerKgCentimes: String(s.pricePerKgCentimes),
+    lines: lines.filter((l) => l.saleId === s.id).map((l) => ({ item: l.item, unitPriceCentimes: String(l.unitPriceCentimes) })),
+  }));
+}
 
 export async function saveSale(tx: Tx, ctx: TenantContext, s: Required<SaleDto>) {
   const { instrument, lines, ...rest } = s;

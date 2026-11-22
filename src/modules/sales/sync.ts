@@ -1,5 +1,6 @@
 import { can, withoutMoney } from "@/lib/permissions";
 import { defineMutation, type SyncRegistry } from "@/lib/sync/server";
+import { recordConsumption } from "@/modules/sales/application/consumption";
 import { approveCredit, createBuyer, recordEggSale, recordHeadSale, recordPayment, recordSale, setCreditLimit, setInstrumentState, unblockBuyer } from "@/modules/sales/application/sales";
 import {
   CreateBuyer,
@@ -7,6 +8,7 @@ import {
   RecordSale,
   RecordEggSale,
   RecordHeadSale,
+  RecordConsumption,
   SALE_MONEY,
   SALES_MUTATIONS as M,
   ApproveCredit,
@@ -20,12 +22,14 @@ import {
 } from "@/modules/sales/schema";
 
 // Offline sales writes: owners and managers only, since a sale carries prices and amounts (SPEC I5). Workers see the
-// birds leave through flock's sold birds, never the sale's money.
+// birds leave through flock's sold birds, never the sale's money. A home consumption (SPEC-finance FC7) is a worker's
+// job too: they record its quantities, the server prices it.
 export const salesSync: SyncRegistry = {
   mutations: {
     [M.createBuyer]: defineMutation({ schema: CreateBuyer, action: "sales.manage", apply: (tx, ctx, cmd, meta) => createBuyer(tx, ctx, cmd, meta) }),
     [M.recordSale]: defineMutation({ schema: RecordSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => recordSale(tx, ctx, cmd, meta) }),
     [M.recordHeadSale]: defineMutation({ schema: RecordHeadSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => recordHeadSale(tx, ctx, cmd, meta) }),
+    [M.recordConsumption]: defineMutation({ schema: RecordConsumption, action: "flock.record", apply: (tx, ctx, cmd, meta) => recordConsumption(tx, ctx, cmd, meta) }),
     [M.recordEggSale]: defineMutation({ schema: RecordEggSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => recordEggSale(tx, ctx, cmd, meta) }),
     [M.recordPayment]: defineMutation({ schema: RecordPayment, action: "sales.manage", apply: (tx, ctx, cmd, meta) => recordPayment(tx, ctx, cmd, meta) }),
     [M.setInstrumentState]: defineMutation({ schema: SetInstrumentState, action: "sales.manage", apply: (tx, ctx, cmd, meta) => setInstrumentState(tx, ctx, cmd, meta) }),

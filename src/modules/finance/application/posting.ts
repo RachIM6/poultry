@@ -13,7 +13,7 @@ import { alertThresholdOnce } from "@/modules/finance/application/threshold";
 import { postEntry } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
-import { inChart, postingOf, samePosting, type FarmEvent } from "@/modules/finance/domain/posting";
+import { inChart, postingOf, samePosting, unpostedConsumption, type FarmEvent } from "@/modules/finance/domain/posting";
 import { ledgerAccounts, lockCursor, lockedMonths, moveCursor, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 
 type Change = { version: bigint; event: FarmEvent };
@@ -59,7 +59,9 @@ const SOURCES: Source[] = [
     read: async (tx, ctx, after) =>
       (await salesChangedSince(tx, ctx, after)).map((s) => ({
         version: s.version,
-        event: { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method, kind: s.kind, vat: s.vatCentimes },
+        event: s.takenBy
+          ? { type: "consumption", id: s.id, day: s.day, amount: s.amountCentimes, takenBy: s.takenBy } // FC7
+          : { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method, kind: s.kind, vat: s.vatCentimes },
       })),
   },
   {
@@ -144,7 +146,8 @@ export async function postPending(pusher: TenantContext): Promise<number> {
         n++;
       };
       for (const { version, event } of changes) {
-        const rule = postingOf(event, entity.vatRegistered);
+        // FC7: a home consumption that can't post (FQ11, FQ25, no value) is left out, and listed on /books instead
+        const rule = event.type === "consumption" && unpostedConsumption(event, everything, chart) ? null : postingOf(event, entity.vatRegistered);
         const posting = rule && inChart(rule, everything, chart);
         if (rule && !posting) throw new Error(`${source.name} ${event.id}: an account has no home in this chart`);
         const day = openDay(event.day);

@@ -666,7 +666,20 @@
     "farmKgOptional": "الوزن في الضيعة (كغ، اختياري)",
     "headCount": "{birds} طائر",
     "headLine": "{date} · {buyer} · {birds} طائر بالرأس",
-    "vat": "منها الضريبة على القيمة المضافة (درهم، اختياري)"
+    "vat": "منها الضريبة على القيمة المضافة (درهم، اختياري)",
+    "kind": "النوع",
+    "sale": "بيع",
+    "consumption": "استهلاك",
+    "addConsumption": "استهلاك جديد",
+    "takenBy": "أخذه",
+    "takers": {
+      "exploitant": "صاحب الاستغلالية",
+      "associate": "شريك",
+      "employee": "مستخدم"
+    },
+    "consumptionLine": "{date} · استهلاك · {who} · {birds} طيور",
+    "value": "القيمة: {amount}",
+    "saveConsumption": "تسجيل الاستهلاك"
   },
   "Receivables": {
     "title": "الديون",
@@ -977,7 +990,16 @@
     "manualPosted": "تم تسجيل القيد.",
     "manualSee": "عرض يومية الشهر",
     "pieceOf": "المستند {piece}",
-    "receiptOf": "المستند المثبت"
+    "receiptOf": "المستند المثبت",
+    "unposted": "استهلاكات غير مقيدة",
+    "unpostedLine": "{date} · {who} · {quantity} · {amount}: {reason}",
+    "unpostedBirds": "{n} طيور",
+    "unpostedEggs": "{n} بيضة",
+    "unpostedReason": {
+      "FQ11": "غير مقيد (FQ11)",
+      "FQ25": "غير مقيد (FQ25)",
+      "noValue": "غير مقيد (لا بيع سابق للمنتج، القيمة 0)"
+    }
   },
   "Threshold": {
     "open": "سقف 5 ملايين درهم",
@@ -1702,7 +1724,8 @@
     "price": "ثمن الصينية (درهم)",
     "addLine": "إضافة سطر",
     "amount": "المبلغ: {amount}",
-    "save": "تسجيل البيع"
+    "save": "تسجيل البيع",
+    "consume": "استهلاك البيض"
   },
   "Compare": {
     "title": "مقارنة الدفعات",

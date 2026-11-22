@@ -18,7 +18,7 @@ export type Instrument = {
   state: InstrumentState;
 };
 
-type SaleRow = { id: string; buyerId: string; paymentMethod: string; paidCentimes: bigint; instrument: { number: string; dueOn: string } | null; day: string };
+type SaleRow = { id: string; buyerId: string | null; paymentMethod: string; paidCentimes: bigint; instrument: { number: string; dueOn: string } | null; day: string };
 type PaymentRow = { id: string; buyerId: string; method: string; amountCentimes: bigint; day: string; instrument?: { number: string; dueOn: string } | null };
 type StatusRow = { instrumentId: string; state: (typeof INSTRUMENT_STATES)[number]; id: string }; // ids are UUIDv7: later = newer
 
@@ -31,7 +31,7 @@ export function instrumentsOf(sales: readonly SaleRow[], payments: readonly Paym
   const stateOf = (id: string): InstrumentState => latest.get(id)?.state ?? "in_portfolio";
   return [
     ...sales
-      .filter((s) => isInstrument(s.paymentMethod) && s.paidCentimes > 0n)
+      .filter((s): s is SaleRow & { buyerId: string } => s.buyerId !== null && isInstrument(s.paymentMethod) && s.paidCentimes > 0n) // a consumption: none
       .map((s) => ({ id: s.id, buyerId: s.buyerId, kind: s.paymentMethod as InstrumentKind, number: s.instrument?.number ?? null, amountCentimes: s.paidCentimes, dueOn: s.instrument?.dueOn ?? s.day, state: stateOf(s.id) })),
     ...payments
       .filter((p) => isInstrument(p.method))

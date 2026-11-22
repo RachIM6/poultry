@@ -3,12 +3,13 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import type { InstrumentKind, InstrumentState } from "@/modules/sales/domain/instruments";
 import { instrumentsWhere } from "@/modules/sales/infrastructure/sales";
-import type { InstrumentStatusDto, PaymentDto, SaleDto } from "@/modules/sales/shared";
+import type { InstrumentStatusDto, PaymentDto, SaleDto, Taker } from "@/modules/sales/shared";
 
 // For finance (SPEC-finance FN7): sales records changed after `after` (this organisation's change-log version), oldest
 // first, as the facts finance posts. Amounts in centimes.
 
-export type SaleChange = { version: bigint; id: string; day: FarmDay; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint; method: string; kind: "live" | "eggs" | "perHead" };
+// takenBy: a home consumption (SPEC-finance FC7), posted by its own rule; null for a sale
+export type SaleChange = { version: bigint; id: string; day: FarmDay; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint; method: string; kind: "live" | "eggs" | "perHead"; takenBy: Taker | null };
 export type PaymentChange = { version: bigint; id: string; day: FarmDay; amountCentimes: bigint; method: string };
 export type InstrumentStep = { version: bigint; id: string; day: FarmDay; kind: InstrumentKind; from: InstrumentState; to: InstrumentStatusDto["state"]; amountCentimes: bigint };
 
@@ -18,7 +19,7 @@ const changes = async (tx: Tx, ctx: TenantContext, entity: string, after: bigint
 export async function salesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<SaleChange[]> {
   return (await changes(tx, ctx, "sale", after, limit)).map((c) => {
     const s = c.data as unknown as SaleDto & Required<Omit<SaleDto, "vatCentimes">>; // vatCentimes: absent before T39
-    return { version: c.version, id: s.id, day: s.day as FarmDay, amountCentimes: BigInt(s.amountCentimes), paidCentimes: BigInt(s.paidCentimes), vatCentimes: BigInt(s.vatCentimes ?? 0), method: s.paymentMethod, kind: s.kind ?? "live" };
+    return { version: c.version, id: s.id, day: s.day as FarmDay, amountCentimes: BigInt(s.amountCentimes), paidCentimes: BigInt(s.paidCentimes), vatCentimes: BigInt(s.vatCentimes ?? 0), method: s.paymentMethod, kind: s.kind ?? "live", takenBy: s.takenBy ?? null };
   });
 }
 
@@ -61,15 +62,29 @@ export async function salesByBatch(tx: Tx, ctx: TenantContext, asOf?: string): P
 
 export type LastSale = { batchId: string; id: string; day: string; kind: "live" | "perHead"; pricePerKgCentimes: bigint; amountCentimes: bigint; birds: number };
 
-/** For finance (SPEC-finance FC4, FQ20): each batch's last sale of live birds (by the kg or by the head) on or before `day`. */
+/** For finance (SPEC-finance FC4, FQ20): each batch's last sale of live birds (by the kg or by the head) on or before `day`, consumptions aside. */
 export async function lastSales(tx: Tx, ctx: TenantContext, day: string): Promise<LastSale[]> {
   const rows = await tx.sale.findMany({
-    where: { organizationId: ctx.organizationId, kind: { in: ["live", "perHead"] }, day: { lte: new Date(`${day}T00:00:00Z`) } },
+    where: { organizationId: ctx.organizationId, kind: { in: ["live", "perHead"] }, takenBy: null, day: { lte: new Date(`${day}T00:00:00Z`) } },
     orderBy: [{ batchId: "asc" }, { day: "desc" }, { id: "desc" }],
     distinct: ["batchId"],
     select: { batchId: true, id: true, day: true, kind: true, pricePerKgCentimes: true, amountCentimes: true, birds: true },
   });
   return rows.map((r) => ({ ...r, day: r.day.toISOString().slice(0, 10), kind: r.kind as LastSale["kind"] }));
+}
+
+export type Consumption = { id: string; day: string; batchId: string; kind: "live" | "eggs" | "perHead"; takenBy: Taker; birds: number; eggs: number; amountCentimes: bigint };
+
+/** For finance's books (SPEC-finance FC7): the home consumptions from `from` to `to`, by day, with the eggs they took. */
+export async function consumptionsBetween(tx: Tx, ctx: TenantContext, from: string, to: string): Promise<Consumption[]> {
+  const rows = await tx.sale.findMany({
+    where: { organizationId: ctx.organizationId, takenBy: { not: null }, day: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) } },
+    orderBy: [{ day: "asc" }, { id: "asc" }],
+    select: { id: true, day: true, batchId: true, kind: true, takenBy: true, birds: true, amountCentimes: true },
+  });
+  const eggs = await tx.saleLine.groupBy({ by: ["saleId"], where: { saleId: { in: rows.filter((r) => r.kind === "eggs").map((r) => r.id) } }, _sum: { eggs: true } });
+  const eggsOf = new Map(eggs.map((e) => [e.saleId, e._sum.eggs ?? 0]));
+  return rows.map((r) => ({ ...r, day: r.day.toISOString().slice(0, 10), kind: r.kind as Consumption["kind"], takenBy: r.takenBy as Taker, eggs: eggsOf.get(r.id) ?? 0 }));
 }
 
 /** For finance's cash schedule (F-Effects): the cheques and bills received and not yet cashed or returned, by due date. */
@@ -92,9 +107,10 @@ export async function ledgerTagsOf(tx: Tx, ctx: TenantContext, ids: string[]) {
     tx.buyerPayment.findMany({ where: { ...org, id: { in: recordIds } }, select: { id: true, buyerId: true } }),
   ]);
   const records = new Map([...sales, ...payments.map((p) => ({ ...p, batchId: null }))].map((r) => [r.id, r]));
-  const buyers = await tx.buyer.findMany({ where: { ...org, id: { in: [...records.values()].map((r) => r.buyerId) } }, select: { id: true, name: true } });
+  const buyerIds = [...records.values()].flatMap((r) => (r.buyerId ? [r.buyerId] : [])); // a consumption (FC7) has none
+  const buyers = await tx.buyer.findMany({ where: { ...org, id: { in: buyerIds } }, select: { id: true, name: true } });
   const name = new Map(buyers.map((b) => [b.id, b.name]));
-  const tag = (r: { buyerId: string; batchId: string | null }) => ({ party: name.get(r.buyerId) ?? null, farmId: null, batchId: r.batchId });
+  const tag = (r: { buyerId: string | null; batchId: string | null }) => ({ party: (r.buyerId && name.get(r.buyerId)) ?? null, farmId: null, batchId: r.batchId });
   return new Map([
     ...[...records.values()].map((r) => [r.id, tag(r)] as const),
     ...steps.flatMap((s) => (records.has(s.instrumentId) ? [[s.id, tag(records.get(s.instrumentId)!)] as const] : [])),

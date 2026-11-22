@@ -9,6 +9,11 @@ describe("quick expenses and transfers (SPEC-finance FN6)", () => {
       lines: [{ account: "612512", debit: 120_000n, credit: 0n }, { account: "5161", debit: 0n, credit: 120_000n, treasuryId: "box" }],
     });
     expect(expensePosting({ category: "vet_fees", amount: 5n, paidFrom: "bank", treasuryId: null })).toMatchObject({ journal: "BQ", lines: [{ account: "6136" }, { account: "5141" }] });
+    expect(expensePosting({ category: "bank_fees", amount: 4_500n, paidFrom: "bank", treasuryId: "bp" })).toEqual({
+      journal: "BQ",
+      label: "Dépense",
+      lines: [{ account: "6147", debit: 4_500n, credit: 0n }, { account: "5141", debit: 0n, credit: 4_500n, treasuryId: "bp" }],
+    }); // FC9 (T119)
     expect(expensePosting({ category: "catching", amount: 5n, paidFrom: "credit", treasuryId: "ignored" })).toMatchObject({
       journal: "AC",
       lines: [{ account: "612612" }, { account: "4411", treasuryId: null }],

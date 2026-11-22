@@ -793,7 +793,8 @@
       "water": "Eau",
       "vet_fees": "Honoraires du vétérinaire",
       "insurance": "Assurance",
-      "catching": "Équipe d’enlèvement ou transport"
+      "catching": "Équipe d’enlèvement ou transport",
+      "bank_fees": "Frais bancaires"
     },
     "amount": "Montant (DH)",
     "from": "Payé avec",
@@ -820,7 +821,8 @@
     "batch": "Bande {house} du {date}",
     "receipt": "Voir le reçu",
     "receiptMissing": "Reçu à ajouter (après envoi, avec du réseau)",
-    "receiptAdd": "Ajouter le reçu"
+    "receiptAdd": "Ajouter le reçu",
+    "bankFeesAccount": "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord."
   },
   "Treasury": {
     "title": "Trésorerie",

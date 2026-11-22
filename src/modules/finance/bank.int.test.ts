@@ -133,4 +133,36 @@ describe("bank reconciliation, manual matching (SPEC-finance FC9, FCX1, T111)", 
     expect(await addBankStatement(a, { treasuryId: bank, endDay: "2026-03-20", closingCentimes: "12.5" }, clock)).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect((await addBankStatement(a, { treasuryId: bank, endDay: "2026-03-20", closingCentimes: "-150000" }, clock)).ok).toBe(true); // overdrawn
   });
+
+  it("T119: a statement with a fee line reaches 0 once the fee is booked as \"Frais bancaires\", D 6147 / C 5141 in BQ", async () => {
+    // The two-week fixture again, on a second account, and the bank took 45,00 of fees on the 14th: 43 455,00 printed.
+    const second = uuidv7();
+    const key: Record<string, string> = { deposit: uuidv7(), power: uuidv7(), water: uuidv7(), withdrawal: uuidv7(), fee: uuidv7() };
+    const spent = (id: string, day: string, category: string, amountCentimes: string, paidFrom = "bank", treasuryId: string | null = second) =>
+      m("finance.recordExpense", { id, day, category, amountCentimes, paidFrom, treasuryId, note: null });
+    await applied(
+      a,
+      m("finance.createTreasuryAccount", { id: second, kind: "bank", name: "Crédit Agricole" }),
+      m("finance.recordTransfer", { id: key.deposit, day: "2026-03-02", amountCentimes: "5000000", fromId: box, toId: second }),
+      spent(key.power, "2026-03-05", "electricity", "120000"),
+      spent(key.water, "2026-03-09", "water", "30000"),
+      m("finance.recordTransfer", { id: key.withdrawal, day: "2026-03-12", amountCentimes: "500000", fromId: second, toId: box }),
+    );
+    const added = await addBankStatement(a, { treasuryId: second, endDay: "2026-03-14", closingCentimes: "4345500" });
+    if (!added.ok) throw new Error(added.error);
+    const lineOn = async (sourceId: string) => (await db.journalLine.findFirstOrThrow({ where: { account: "5141", treasuryId: second, entry: { sourceId } } })).id;
+    for (const k of ["deposit", "power", "water", "withdrawal"]) expect((await matchBankLine(a, { statementId: added.value, lineId: await lineOn(key[k]), ticked: true })).ok).toBe(true);
+    expect((await read(a, second, added.value)).statement).toMatchObject({ tickedCentimes: 4_350_000n, differenceCentimes: -4_500n, reconciled: false }); // the fee isn't in the books
+
+    // Bank fees go on the bank account they reconcile: never a cash box, on credit, or a bank with no account.
+    const refused = [spent(uuidv7(), "2026-03-14", "bank_fees", "4500", "cash", box), spent(uuidv7(), "2026-03-14", "bank_fees", "4500", "credit", null), spent(uuidv7(), "2026-03-14", "bank_fees", "4500", "bank", null)];
+    expect((await push(a, refused, registry)).results.map((r) => r.status === "rejected" && r.messageKey)).toEqual(refused.map(() => "errors.INVALID_INPUT"));
+
+    await applied(a, spent(key.fee, "2026-03-14", "bank_fees", "4500"));
+    const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceId: key.fee }, include: { lines: { orderBy: { debitCentimes: "desc" } } } });
+    expect([entry.journal, entry.lines.map((l) => [l.account, l.debitCentimes, l.creditCentimes, l.treasuryId])]).toEqual(["BQ", [["6147", 4_500n, 0n, null], ["5141", 0n, 4_500n, second]]]);
+    expect((await read(a, second, added.value)).statement).toMatchObject({ bookCentimes: 4_345_500n, differenceCentimes: -4_500n, reconciled: false }); // booked, not ticked yet
+    expect((await matchBankLine(a, { statementId: added.value, lineId: await lineOn(key.fee), ticked: true })).ok).toBe(true);
+    expect((await read(a, second, added.value)).statement).toMatchObject({ closingCentimes: 4_345_500n, bookCentimes: 4_345_500n, tickedCentimes: 4_345_500n, differenceCentimes: 0n, reconciled: true });
+  });
 });

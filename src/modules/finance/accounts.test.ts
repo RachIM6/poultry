@@ -112,7 +112,7 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
     // T108 (FC5): the stock and variation accounts by kind, the provision and its reversal. T109 (FC4): the batches in progress.
     const stocks = [...Object.values(STOCK_ACCOUNTS).flatMap((a) => [a.stock, a.variation]), PROVISION_CHARGE, STOCK_PROVISION, PROVISION_REVERSAL, IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION];
     const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets, LOANS, LOAN_INTEREST, SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE, ...stocks]; // T105, T106 (FC2): the loans' and subsidies'
-    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "6193", "6513", "7513", "1481", "6311", "1311", "1319", "7577", "3121", "31221", "31223", "612412", "61242", "6196", "3912", "7196", "31322", "7131", "3913"]));
+    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "6193", "6513", "7513", "1481", "6311", "1311", "1319", "7577", "3121", "31221", "31223", "612412", "61242", "6196", "3912", "7196", "31322", "7131", "3913", "6147"]));
     for (const account of rules) {
       expect(withPca.has(account), account).toBe(true);
       expect(parents(withPca).has(account), account).toBe(false);

@@ -13,9 +13,13 @@ export const EXPENSE_ACCOUNTS = {
   vet_fees: "6136", // Rémunérations d'intermédiaires et honoraires
   insurance: "6134", // Primes d'assurances
   catching: "612612", // Travaux et façons, productions animales: catching crew or transport of the birds
+  bank_fees: "6147", // Services bancaires (FC9, T119)
 } as const;
 export type ExpenseCategory = keyof typeof EXPENSE_ACCOUNTS;
 export const EXPENSE_CATEGORIES = Object.keys(EXPENSE_ACCOUNTS) as ExpenseCategory[];
+
+/** FC9 (T119): the bank takes its fees from one of its accounts, so they are paid from that bank account only. */
+export const bankOnly = (category: string) => category === "bank_fees";
 
 /** How an expense is paid: from a cash box, from a bank account, or owed to a supplier (credit). */
 export const PAID_FROM = ["cash", "bank", "credit"] as const;

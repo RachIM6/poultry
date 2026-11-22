@@ -26,6 +26,14 @@ export const POLICIES = {
     { dim: "subnet", limit: 200, windowSec: HOUR },
     { dim: "phone", limit: 10, windowSec: HOUR },
   ],
+  // Consecutive verify failures (rate-limiting.md §4), not a budget: from the 3rd one on, verify-code needs a captcha.
+  // Each attempt counts as a failure until it succeeds, and a success resets both dimensions (reset()). Forgotten after 1 h.
+  // ponytail: no progressive delay (5–9 failures) or 15-min block (≥ 10): the verify budget (10 / h per number) and
+  // the 5 attempts per code already cap them. Add both if failures ever spread across many numbers from one IP.
+  verifyFailures: [
+    { dim: "ip", limit: 3, windowSec: HOUR },
+    { dim: "phone", limit: 3, windowSec: HOUR },
+  ],
   inviteMember: [
     { dim: "phone", limit: 10, windowSec: DAY }, // the invited number
     { dim: "user", limit: 50, windowSec: DAY }, // the inviting owner

@@ -2,13 +2,13 @@ import { db } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { verifyCaptcha } from "@/lib/security/captcha";
-import { consume } from "@/lib/security/rate-limit";
+import { consume, reset } from "@/lib/security/rate-limit";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
 import { acceptInvitations } from "@/modules/identity/application/members";
 import { auth, AUTH_CONFIG } from "@/modules/identity/infrastructure/better-auth";
 
 type Net = { ip?: string; subnet?: string };
-type LoginError = "INVALID_OR_EXPIRED_CODE" | "TOO_MANY_REQUESTS";
+type LoginError = "INVALID_OR_EXPIRED_CODE" | "TOO_MANY_REQUESTS" | "CAPTCHA_REQUIRED";
 
 /**
  * Sends a code if the number is eligible. The answer never says whether a code went out (poultry-auth §0.9):
@@ -31,23 +31,34 @@ export async function requestCode(
   return "sent_if_eligible";
 }
 
-/** Checks the code and opens a session. Every failure is the same INVALID_OR_EXPIRED_CODE. */
+/**
+ * Checks the code and opens a session. Every failure is the same INVALID_OR_EXPIRED_CODE.
+ * After 3 consecutive failures for the number or the IP (rate-limiting.md §4) a solved captcha is required, checked
+ * before the number's budget: so wrong codes alone can't use up a farmer's 10 tries an hour. The account never locks.
+ */
 export async function verifyCode(
   rawPhone: string,
   code: string,
   locale: "ar" | "fr",
   net: Net,
+  captcha?: unknown,
 ): Promise<Result<Headers, LoginError>> {
+  if ((await consume("verifyCode", net)).length > 0) return fail("TOO_MANY_REQUESTS");
   const phone = PhoneNumber.create(rawPhone);
-  const blocked = await consume("verifyCode", { ...net, ...(phone.ok ? { phone: phone.value.e164 } : {}) });
-  if (blocked.length > 0) return fail("TOO_MANY_REQUESTS");
-  if (!phone.ok || !/^\d{6}$/.test(code)) return fail("INVALID_OR_EXPIRED_CODE");
+  const who = { ip: net.ip, phone: phone.ok ? phone.value.e164 : undefined };
+  // Counted as a failure before the code is checked, so parallel wrong codes can't all slip in under the threshold.
+  // A refused captcha keeps that failure (captcha.md §5).
+  if ((await consume("verifyFailures", who)).length > 0 && !(await verifyCaptcha(captcha))) return fail("CAPTCHA_REQUIRED");
+  if (!phone.ok) return fail("INVALID_OR_EXPIRED_CODE");
+  if ((await consume("verifyCode", { phone: phone.value.e164 })).length > 0) return fail("TOO_MANY_REQUESTS");
+  if (!/^\d{6}$/.test(code)) return fail("INVALID_OR_EXPIRED_CODE");
 
   try {
     const { headers, response } = await auth.api.verifyPhoneNumber({
       body: { phoneNumber: phone.value.e164, code },
       returnHeaders: true,
     });
+    await reset("verifyFailures", who);
     // SPEC I3: the language used to log in is the user's current choice. (Better Auth drops extra body fields.)
     await db.user.update({ where: { id: response.user.id }, data: { locale } });
     await acceptInvitations(response.user.id, phone.value.e164);

@@ -7,7 +7,7 @@ import type { Line } from "@/modules/finance/domain/entry";
 type Books = {
   labels: Record<string, string>;
   cashBook: { rows: CashBookRow[]; receipts: bigint; expenses: bigint };
-  journals?: { journal: string; entries: { id: string; day: string; label: string; lines: Line[] }[] }[];
+  journals?: { journal: string; entries: { id: string; day: string; label: string; lines: Line[]; piece?: string | null }[] }[]; // piece: a manual entry's (FCX3)
   trialBalance?: { rows: TrialBalanceRow[]; debit: bigint; credit: bigint };
   tags?: EntryTags; // FN16, FN18: each entry's party, farm, house and batch
 };
@@ -28,7 +28,7 @@ export function exportSheets(books: Books): (Sheet & { file: string })[] {
   const sheets: (Sheet & { file: string })[] = [];
   if (books.journals) {
     const rows: Cell[][] = books.journals.flatMap((j) =>
-      j.entries.flatMap((e) => e.lines.map((l) => [{ day: e.day }, j.journal, e.id, l.account, label(l.account), e.label, l.debit, l.credit, ...(tags.get(e.id) ?? ["", "", "", ""])])),
+      j.entries.flatMap((e) => e.lines.map((l) => [{ day: e.day }, j.journal, e.piece || e.id, l.account, label(l.account), e.label, l.debit, l.credit, ...(tags.get(e.id) ?? ["", "", "", ""])])),
     );
     sheets.push({ name: "Écritures", file: "ecritures", header: ["Date", "Journal", "Pièce", "Compte", "Libellé du compte", "Libellé", "Débit", "Crédit", "Tiers", "Ferme", "Bâtiment", "Lot"], rows });
   }

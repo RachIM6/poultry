@@ -138,7 +138,7 @@ Done 2026-11-17 (branch `feat/t62-egg-withdrawal`): `Treatment.eggWithdrawalDays
 **Description:** `Sale.kind = eggs`, `SaleLine`, FIFO draw from the egg ledger, withdrawal block, receivables as V2.
 **AC:**
 - [x] FIFO draw over two laying days (unit test); amount with 30 and 12 eggs per tray (unit test). (`eggs/domain/stock.test.ts`, `sales/domain/sale.test.ts`: P-EggStock's 1 080 trays × 33,00 = 35 640,00 DH.)
-- [x] A sale drawing eggs laid during a withdrawal is refused with the days to discard (integration test). (`sales/egg-sales.int.test.ts` → `EGGS_IN_WITHDRAWAL`, "écartez-les avant de vendre". The refusal carries the laying days to discard first (`drawFifo` → `days`, `eggs/domain/stock.test.ts`, same test); the sale form names them and /eggs marks withheld lots "En délai d’attente jusqu’au …". The sync wire still sends the bare key, so a rejection shown under "À vérifier" names no day.)
+- [x] A sale drawing eggs laid during a withdrawal is refused with the days to discard (integration test). (`sales/egg-sales.int.test.ts` → `EGGS_IN_WITHDRAWAL`, "écartez-les avant de vendre". The refusal carries the laying days to discard first (`drawFifo` → `days`, `eggs/domain/stock.test.ts`, same test); the sale form names them and /eggs marks withheld lots "En délai d’attente jusqu’au …". A server rejection sends them as `messageValues.days` (optional field, 2026-11-23) and "À vérifier" names them too.)
 
 Done 2026-11-17 (branch `feat/t63-egg-sales`). Decisions:
 - An egg sale **is a `Sale`** with `kind = "eggs"` (birds, weights and price per kg at 0) and its `SaleLine`s, so receivables, cheques and bills, credit blocks and limits, and finance postings apply unchanged.

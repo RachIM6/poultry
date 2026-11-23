@@ -17,7 +17,8 @@ export type PushedMutation = {
   createdAt: string; // device clock (ISO with offset), kept for the audit log only
 };
 
-export type MutationResult = { status: "applied" } | { status: "rejected"; messageKey: string };
+/** `messageValues` (optional, added 2026-11-23): the rejection's message values, e.g. V6's `days` ("2026-11-12,2026-11-13"). */
+export type MutationResult = { status: "applied" } | { status: "rejected"; messageKey: string; messageValues?: Record<string, string | number> };
 /** Results come back in push order. Fewer results than mutations: the server stopped on an error; retry the rest. */
 export type PushResponse = { results: ({ id: string } & MutationResult)[] };
 

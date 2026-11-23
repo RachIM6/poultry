@@ -15,7 +15,7 @@ export { readBooks, type Books } from "./application/books";
 export { attachManualEntryReceipt, postManualEntry, type ManualEntryError } from "./application/manual";
 export type { IncomeStatement } from "./domain/statements";
 export { chartView } from "./application/chart";
-export { exportBooks } from "./application/export";
+export { exportBooks, exportFec } from "./application/export";
 export { batchOf } from "./domain/export";
 export { alertThresholdOnce, thresholdTracker, type ThresholdTracker } from "./application/threshold";
 export { saveYearEndCount, yearEndCount, type CountSheet } from "./application/count";

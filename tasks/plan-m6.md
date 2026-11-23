@@ -60,7 +60,7 @@ T114 hens, simplified        ← FQ7; after T100
 T115 hens, classic           ← FQ7, FQ8; after T100
 T116 official statements     ← FQ22
 T117 bank statement import   ← real statement samples
-T118 accountant import       ← FQ10
+T118 accountant import       ← FQ10 (decided by default 2026-11-23)
 ```
 
 ## Buildable now
@@ -303,9 +303,14 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** M per bank
 
 ### T118: Accountant import format (FC10)
-**Blocked by:** FQ10 (the firm's software, its import format and a sample file).
+**Blocked by:** nothing since 2026-11-23: FQ10 decided by default, to review.
 **Description:** One export per software next to FN18's CSV and Excel.
 **Size:** M per format
+**Note (2026-11-23):** studied in `docs/studies/accountant-import-format.md`. No vendor (Sage, EBP, Cegid, KHABIR) publishes its own import format; the CNC's Moroccan FEC (avis n° 24) lists the fields but no technical format. Built the one fully published file: the FEC of article A47 A-1 LPF, which Sage 100 and EBP import. `/books` "Fichier FEC pour le logiciel comptable" (`ledger` entities), `/api/finance/export?month=…&format=fec`.
+**AC:**
+- [x] A fixture month exports byte for byte (UTF-8, no BOM, tabs, CRLF), entries balanced, journals and accounts mapped. _`finance/domain/fec.test.ts`._
+- [x] The month of a ledger entity in the database, numbered in posting order; a cash book gets none; workers can't. _`finance/books.int.test.ts` "exports a month as a FEC for the accountant's software (FC10, T118)"._
+- [ ] The pilot's firm imports a month into its software.
 
 ## ✅ Checkpoint M6
 - [x] The PCA PDF is in the repository (or its download is allowed) and T100 is done: every candidate account is confirmed or replaced. _`docs/sources/plan-comptable-agricole-2015.pdf`; all eight candidates confirmed._

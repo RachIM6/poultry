@@ -58,7 +58,7 @@ T100 close accounts         ← the PCA PDF, now in docs/sources/
 T113 eggs at close           ← unblocked 22 Nov 2026 (finance → eggs approved); after T108
 T114 hens, simplified        ← FQ7; after T100
 T115 hens, classic           ← FQ7, FQ8; after T100
-T116 official statements     ← FQ22
+T116 official statements     ← unblocked 23 Nov 2026 (FQ22 decided defaults, to review); done
 T117 bank statement import   ← real statement samples
 T118 accountant import       ← FQ10
 ```
@@ -292,8 +292,12 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** L
 
 ### T116: Official statements (FC8)
-**Blocked by:** FQ22 (the official simplified model and its line ↔ account mapping, the PCA biological-asset tables, the revenue limit).
-**Description:** Bilan, CPC and ETIC in the simplified CGNC model, printable PDF, "Projet" until the year close.
+**Unblocked 2026-11-23:** the product owner asked for the most logical reading of the official texts, built now, each choice recorded as a decided default to review (SPEC-finance §9 "Official statements (T116)", FQ22). Sources: CGNC Tome I scan pp. 13, 51–52, 54–55, 67–68, 155–157, 171–173, 316–339; PCA Annexe B, PDF pp. 179–187, and pp. 17–19 (revenue limit).
+**Description:** `/closing/statements`. Bilan, CPC and the ETIC tables the ledger fills (S1, S1 bis; S1-1 and S1 ter with the PCA overlay), in the simplified CGNC model or its PCA variant, with N-1. "Projet" until the year close. Printable from the browser (print CSS: the repo generates no PDF, and no dependency was added).
+**AC:**
+- [x] Every class 1–7 posting account of both seeded charts lands on exactly one bilan or CPC line. On a fixture ledger the bilan balances and its result equals the CPC's net and the draft's (U16). _`finance/domain/official-statements.test.ts`._
+- [x] A seeded fiscal year with known entries gives the expected lines: the closed year final, the open one a draft with N-1 and its ETIC from the à-nouveaux; nothing for a `cash_book` entity; workers refused. _`finance/statements.int.test.ts` (runs in CI)._
+- [x] SPEC-finance FC8 and §9 FQ22 updated with the decided defaults and their pages.
 **Size:** L
 
 ### T117: Bank statement import (FC9)

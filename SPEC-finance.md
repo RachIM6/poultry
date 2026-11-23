@@ -315,7 +315,14 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
   - **Out of scope:** the payroll side of a benefit in kind (CNSS, income tax).
 - **FC8. Statements** (FQ22).
   - **Draft balance sheet** (buildable): from the trial balance on the last day, after the close run. Classes 1–5 by 3-digit account, debit balances as assets and credit balances as liabilities, and the net result of classes 6–7 as its own line. That result equals the draft CPC's net (U16). Labelled "Projet" until the year close (FCX6).
-  - **Official statements, blocked** (FQ22): the simplified CGNC model (revenue ≤ 10 M DH, to confirm): bilan, CPC and ETIC with the PCA's biological-asset tables. Each line is mapped to accounts from the official model, with a printable PDF.
+  - **Official statements** (T116; FQ22 decided defaults, to review, §9): `/closing/statements`, for a fiscal year, from the posted lines.
+    - The CGNC's simplified model (CGNC Tome I scan p. 51 bilan, p. 52 CPC), or the PCA's simplified model when the entity has the PCA overlay (PCA Annexe B, PDF p. 181 bilan, p. 182 CPC). Every entity with the ledger gets it: no gate on revenue; above the PCA's 10 M DH the page says the normal model applies (out of scope).
+    - Bilan: gross, amortissements et provisions, net, and N-1's net; CPC: the year and N-1. N-1 shows when that year has entries.
+    - ETIC: the tables the ledger can fill. S1 (fixed assets) and S1 bis (amortissements) by the bilan's postes; with the PCA, S1-1 (biological assets in fixed assets) and S1 ter (biological assets in stock). Start = the à-nouveaux, increase and decrease = the year's other debits and credits.
+    - "Projet" watermark until the year close (FCX6), then "Exercice clôturé le …". Printable from the browser (print CSS; no PDF dependency).
+    - Each line lists its accounts by number prefix, as data with its page references (`finance/domain/official-statements.ts`); an account goes to the line with its longest matching prefix. Every class 1–7 posting account of both charts has exactly one line (unit test).
+    - Labels: the printed French; Arabic translated, to review (FQ12).
+    - `cash_book` entity: no statements (FCX4); the page says so.
   - **Checks:** Σ assets = Σ liabilities, result included; the CPC's net equals the balance sheet's result.
   - **Out of scope:** the tax return (liasse fiscale, IS / IR), the normal model, cooperative statements (§6).
 - **FC9. Bank reconciliation.**
@@ -449,7 +456,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ19 | Cost of a meat batch in progress at year end: only FN13's costs, or also depreciation and overheads? Split between birds sold before the close and birds on hand: by head or by weight? | FC4 (default in §5: FN13 cost, by head) |
 | FQ20 | Current value for the provision test of batches in progress and stocks: what evidence is accepted (last sale price × last weighing, market price, the owner's estimate)? | FC4, FC5 (default in §5: last weighing × last sale price; stocks at cost unless lowered) |
 | FQ21 | Home consumption: 7140 Production Autoconsommée is in the PCA (T100); which account with the PCA off, where 714 has sub-accounts? Valued at cost or at selling price? An employee's share on 6171? | FC7 (default in §5: last sale price, 6171) |
-| FQ22 | The official simplified model (bilan, CPC, ETIC) and the PCA's biological-asset tables: the text, each line's accounts, and the revenue limit of the simplified model (10 M DH?) | FC8 official statements (blocked) |
+| FQ22 | The official simplified model (bilan, CPC, ETIC) and the PCA's biological-asset tables: the text, each line's accounts, and the revenue limit of the simplified model (10 M DH?) | FC8 official statements (decided defaults, to review: "Official statements (T116)" below) |
 | FQ23 | An asset bought on credit: 4481 Dettes sur acquisition d’immobilisations (passif circulant) or 1486 Fournisseurs d’immobilisations (dettes de financement), and from what term? | FC1 (default in §5: 4481) |
 | FQ24 | The PCA subdivides four accounts the M2 rules post to: 3421 (34211, 34212, 34217, 34218), 3424, 4411 (44111, 44117, 44118) and 6136 (61361, 61365 → 613651 Honoraires des vétérinaires, 613657, 61367). Which leaf should each rule use, and do the Agrégés / Agrégateur sub-ledgers matter for the pilot? | FN6 rules (T100 left these sub-accounts out) |
 | FQ25 | With the PCA off, these PCA accounts land on a CGNC account that has sub-accounts, so no line can go there: 3152 → 315, 7140 → 714, 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71, and 7187 → 718 (culled hens, FC6; not in the CGNC, §9). Also 31322 (batches in progress) → 3132, which the seed keeps `cgnc` though the CGNC has no 3132 (§9). Which CGNC account for each? | FC5 eggs, FC6, FC7 with the PCA off |
@@ -459,6 +466,34 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ29 | Bought stock with the PCA off: vaccines and medicines are bought on 6122 (612123's CGNC fallback). Are they in stock on 3121 / 61241 like feed, or on 31221 / 61242 like the other supplies? §5's "Bought stock by kind" covers only the PCA case. | FC5 (until then they follow their purchase family: 31221 / 61242) |
 | FQ30 | Bought stock of a VAT-registered entity: valued net of the purchases' VAT (as the charges were booked, FN9)? The batch cost (FN13) still uses amounts including VAT. | FC5 (until then net of VAT) |
 | FQ31 | Home consumption of a product the farm has not sold yet (first eggs of a grade, first birds by the head): FQ21's last sale price doesn't exist. Which value? | FC7 (until then such an entry, a worker's or one whose price was left empty, is valued 0: it counts in the batch's kg sold, posts nothing and is listed "non comptabilisé" on `/books`) |
+
+### Official statements (T116): decided defaults, to review (FQ22, 2026-11-23)
+
+The product owner asked (2026-11-23) for the most logical reading of the official texts, built, each choice listed here for the accountant. Sources: CGNC Tome I scan pages (OCR in `docs/sources/cgnc-tome-I-statements.ocr.txt`, the page images checked for the tables) and the PCA PDF pages (`docs/sources/plan-comptable-agricole-2015.pdf`).
+
+- **Revenue limit: the texts disagree.**
+  - Loi 9-88, art. 21 (scan p. 13): revenue ≤ 7,5 M DH is exempt from the ESG, the TF and the ETIC.
+  - CNC avis n° 1 of 26 July 1993 (scan pp. 67–68): revenue ≤ 7,5 M DH follows the simplified model and presents only its bilan and CPC.
+  - PCA 2015 (PDF p. 17 §H.1, p. 18 §B.4, p. 19 §B.7): "simplifications prévues dans le droit commun", the simplified model below 10 M DH, and only the bilan and the CPC up to 10 M DH. No other text in the sources gives the 10 M DH, which probably comes from a later amendment of loi 9-88.
+  - Default: the simplified model for every `ledger` entity, gated on nothing. Above 10 M DH of revenue (lines 1 + 2) the page says the normal model applies (out of scope, FC8).
+- **Which model.** The CGNC simplified bilan and CPC (scan pp. 51–52) without the PCA overlay. With it, the PCA's Annexe B (PDF pp. 181–182). The PCA bilan only adds "Plantations" and "Animaux immobilisés". The PCA CPC follows the normal model's cascade: exploitation, financier, courant, non courant, impôts. It adds "Variation d'inventaire (animaux immobilisés)" (715) and details the financial and non-current lines.
+- **Line ↔ accounts.** The bilan's masses, rubriques and postes are the 1-, 2- and 3-digit numbers of classes 1–5 (scan p. 156). The simplified model keeps the rubriques and reduces the postes through "divers" postes and rubriques without detail (scan pp. 171–172). So:
+  - a normal poste goes to the simplified poste of the same number when there is one: 223, 231–234, 311, 342, 346, 349, 441, 446, 449, 511, 514, 516, 554;
+  - otherwise it goes to its rubrique's "divers" poste (the simplified plan's 117, 227, 237, 317, 347, 447, scan pp. 316–339), or to the rubrique when that has no detail (13, 14, 15, 24/25, 35, 45);
+  - 552 and 553 go to "Crédits d'escompte et de trésorerie" (the simplified plan's 552/553).
+- **Amortissements et provisions** sit on the poste the simplified plan gives them: 2823 and 2831–2834 on their poste, 2836 / 2936 and 2837 / 2937 on Plantations / Animaux (PCA). 281 goes to the non-valeurs. 282 and 283 otherwise go to the "diverses" postes. The simplified plan keeps 292, 293, 294/295, 391, 394, 395 and 59 undivided (2920, 2930, 2940, 3910, 3940, 3950, 5900). So 3911, 3942 and 3946 go on their poste, and the rest is shown on the rubrique line (immobilisations, trésorerie) or on the "divers" poste (stocks, créances).
+- **Not in the simplified bilan, added when non-zero:** écarts de conversion (17, 27, 37, 47), as scan p. 171 asks, and comptes de liaison (16). They are hidden when zero.
+- **Result.** "Résultat net de l'exercice" is the CPC's net. 119 holds last year's result until it is allocated (FN3's à-nouveaux puts it on 1191 / 1199), so it is shown with 116 and 118 on "Reports à nouveau et résultats nets en instance d'affectation".
+- **Signs.** Each account stays on its poste of origin with its sign (a supplier in debit reduces "Fournisseurs"). The one exception is a bank in credit (514), shown on "Banques (soldes créditeurs)": the model has both postes. The draft bilan on `/books` (T110) moves classes 3–5 by sign instead.
+- **CPC (CGNC).** Line 5 prints "Subventions d'exploitation" and "Autres produits d'exploitation" together. The simplified plan has no 716 (scan pp. 316–339), so 716 has its own half-line. "Opérations concernant les exercices précédents" (column 2) isn't split out: column 3 only, and N-1.
+- **ETIC** (simplified: S1–S7, scan p. 54; PCA: S1–S9, PDF p. 179). Avis n° 1 and the PCA (above) exempt these entities, so the tables are shown for information. Only the tables the ledger can fill are shown:
+  - S1 by the bilan's postes (scan p. 55), with increases and decreases in total. The acquisition / production / transfer split needs each asset's history (FC1 register), not the ledger.
+  - S1 bis with the amortissements only (28).
+  - With the PCA, S1-1 (PDF p. 185): animals 237 and 23962, plantations 236 and 23961.
+  - With the PCA, S1 ter (PDF p. 187): animaux adultes 316 and 3171, animaux en cours 31322, plantations en cours 3131 and 31321. "Plantations matures" has no stock account in the PCA: left empty.
+  - Opening = the à-nouveaux entry (FN3's `opening:` source). In the first year kept in Dawra, the opening balances come in a manual entry (FCX3), so they count as increases.
+  - S2–S9 (disposals, provisions, sûretés, TVA, capital, allocation, tax result, aggregation) are left to the accountant.
+- **Arabic.** No official Arabic version of the models in the sources (FQ12). The Arabic labels are translations, to review.
 
 ### Found for the accountant (T100)
 

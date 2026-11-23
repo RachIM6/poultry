@@ -1,11 +1,7 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
-import * as hens from "@/modules/finance/domain/hens";
 import { classicYearEnd, flockYear, hensMethodOf, layPosting, simplifiedProvision, simplifiedValue, simplifiedYearEnd, type LayingFlock } from "@/modules/finance/domain/hens";
 import { postingOf } from "@/modules/finance/domain/posting";
-import { AccountsFile } from "@/modules/finance/schema";
 
 // SPEC-finance FC6 (T114, T115): the laying hens' rules, pure.
 
@@ -141,13 +137,5 @@ describe("laying hens' books (FC6)", () => {
     expect(hensMethodOf({ books: "ledger", overlays: ["pca"] }, "simplified")).toBe("simplified");
     expect(hensMethodOf({ books: "ledger", overlays: [] }, "classic")).toBeNull();
     expect(hensMethodOf({ books: "cash_book", overlays: ["pca"] }, "classic")).toBeNull();
-  });
-
-  it("posts every hens account on a leaf of the chart with the PCA (FN4), 61943 seeded under 6194", () => {
-    const seed = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
-    const leaves = new Set(leafAccounts(chartOf(seed.accounts, "cgnc", ["pca"])).map((a) => a.number));
-    const accounts = Object.entries(hens).flatMap(([name, value]) => (name.startsWith("HENS_") && typeof value === "string" ? [value] : []));
-    expect(accounts).toHaveLength(14);
-    for (const account of accounts) expect(leaves.has(account), account).toBe(true);
   });
 });

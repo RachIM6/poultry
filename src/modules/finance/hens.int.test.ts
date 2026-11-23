@@ -53,7 +53,7 @@ describe("laying hens and pullets (SPEC-finance FC6, T114, T115)", () => {
   it("stores the method with the accounting choices, audited (FQ7a)", async () => {
     expect((await listLegalEntities(classic))[0].hensMethod).toBe("classic");
     expect((await listLegalEntities(simplified))[0].hensMethod).toBe("simplified");
-    const audited = await db.auditEvent.findFirstOrThrow({ where: { organizationId: simplified.organizationId, entity: "LegalEntity", action: "update" }, orderBy: { createdAt: "desc" } });
+    const audited = await db.auditEvent.findFirstOrThrow({ where: { organizationId: simplified.organizationId, entity: "LegalEntity", action: "update" }, orderBy: { id: "desc" } });
     expect(audited.after).toMatchObject({ hensMethod: "simplified" });
   });
 

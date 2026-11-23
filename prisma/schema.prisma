@@ -588,7 +588,7 @@ model Vaccination {
   id               String    @id @db.Uuid
   organizationId   String    @db.Uuid
   batchId          String    @db.Uuid
-  protocolId       String    @db.Uuid // the farm's protocol it came from
+  protocolId       String?   @db.Uuid // the farm's protocol it came from; null for a line added by hand (SPEC-m5 PA4)
   dayOfAge         Int
   dueOn            DateTime  @db.Date // farm day
   productId        String // a vaccine of the catalogue
@@ -716,6 +716,7 @@ model EggDiscard {
   item           String // ungraded | downgraded | grade:<id>
   eggs           Int
   reason         String
+  day            DateTime @db.Date // farm day the phone recorded it
   recordedBy     String   @db.Uuid
   createdAt      DateTime @default(now()) @db.Timestamptz
 
@@ -732,6 +733,7 @@ model EggDraw {
   laidOn         DateTime @db.Date
   item           String
   eggs           Int
+  day            DateTime @db.Date // the sale's farm day
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId, batchId])
@@ -1179,6 +1181,7 @@ model Budget {
   organizationId         String   @db.Uuid
   name                   String
   basedOn                String?  @db.Uuid
+  batchId                String?  @db.Uuid // FN17: the open flock batch it plans (§9 FQ32); null: a batch not placed yet
   chicks                 Int
   chickPriceCentimes     BigInt
   feedGrams              BigInt

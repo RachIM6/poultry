@@ -13,7 +13,7 @@ test("a treatment recorded offline shows the withdrawal banner; an ended withdra
   const medicine = crypto.randomUUID();
   await pushAs(page, [
     { type: "inventory.createStockItem", payload: { id: medicine, farmId: ids.farm, productId: null, kind: "medicine", name: "Amoxicilline", unit: "ml", lot: "AMX-1", expiresOn: farmDaysAgo(-365) } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: medicine, day: farmDaysAgo(20), quantity: 1000, unitPriceCentimes: "50", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: medicine, day: farmDaysAgo(20), quantity: 1000, unitPriceCentimes: "50", paidCentimes: "0", dueOn: null } },
     {
       // ended 12 days ago + 5 days of withdrawal: over a week ago
       type: "health.recordTreatment",

@@ -35,7 +35,7 @@ export async function recordConsumption(tx: Tx, ctx: TenantContext, cmd: z.infer
     if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
     const lines = cmd.lines.map((l) => ({ ...l, unitPriceCentimes: priceOf(l.unitPriceCentimes, l.item) }));
     const withheld = await eggWithdrawalWindowsOf(tx, ctx, cmd.batchId);
-    const drawn = await drawEggs(tx, ctx, { saleId: cmd.id, batchId: cmd.batchId, wanted: lines.map((l) => ({ item: l.item as EggItem, eggs: l.eggs })), withheld });
+    const drawn = await drawEggs(tx, ctx, { saleId: cmd.id, batchId: cmd.batchId, day: cmd.day, wanted: lines.map((l) => ({ item: l.item as EggItem, eggs: l.eggs })), withheld });
     if (!drawn.ok) return drawn; // nothing written yet: eggs checks before it writes
     const priced = lines.map((l) => ({ ...l, unitPriceCentimes: String(l.unitPriceCentimes), amountCentimes: String(eggLineAmount(l)) }));
     sale = { ...base, birds: 0, farmWeightGrams: 0, pricePerKgCentimes: "0", amountCentimes: String(priced.reduce((a, l) => a + BigInt(l.amountCentimes), 0n)), lines: priced };

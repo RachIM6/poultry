@@ -23,5 +23,5 @@ export const GradeEggs = z.object({
   grades: z.record(gradeId, z.int32().min(0)).refine((g) => Object.keys(g).length > 0 && Object.keys(g).length <= 10, "1 to 10 grades"),
 });
 
-/** E3: eggs thrown away from a lot. */
-export const DiscardEggs = z.object({ id: z.uuidv7(), batchId: z.uuid(), laidOn: z.iso.date(), item, eggs: z.int32().positive(), reason: z.string().trim().min(1).max(200) });
+/** E3: eggs thrown away from a lot, on the phone's farm day `day` (optional: phones from before it was sent, see discardEggs). */
+export const DiscardEggs = z.object({ id: z.uuidv7(), batchId: z.uuid(), laidOn: z.iso.date(), item, eggs: z.int32().positive(), reason: z.string().trim().min(1).max(200), day: z.iso.date().optional() });

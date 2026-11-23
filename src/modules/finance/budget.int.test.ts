@@ -57,7 +57,7 @@ describe("budget from a closed batch (SPEC-finance FN15, T35)", () => {
   });
 
   it("saves a budget for the owner and the manager only, each organisation its own", async () => {
-    const form = { name: "Bande de janvier", basedOn: ids.batch, chicks: "1200", chickPriceCentimes: "600", feedGrams: "3600000", feedPricePerKgCentimes: "480", otherCostCentimes: "60000", plannedGrams: "2400000", salePricePerKgCentimes: "1450" };
+    const form = { id: uuidv7(), name: "Bande de janvier", basedOn: ids.batch, chicks: "1200", chickPriceCentimes: "600", feedGrams: "3600000", feedPricePerKgCentimes: "480", otherCostCentimes: "60000", plannedGrams: "2400000", salePricePerKgCentimes: "1450" };
     expect(await saveBudget({ ...a, role: "worker" }, form)).toEqual({ ok: false, error: "FORBIDDEN" });
     expect(await saveBudget(a, { ...form, chicks: "-3" })).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(await saveBudget({ ...a, role: "manager" }, form)).toMatchObject({ ok: true });
@@ -66,5 +66,16 @@ describe("budget from a closed batch (SPEC-finance FN15, T35)", () => {
     const other = await listBudgets(b);
     expect(other.ok && other.value).toEqual([]);
     expect(await budgetBases({ ...a, role: "worker" })).toEqual({ ok: false, error: "FORBIDDEN" });
+  });
+
+  it("saves the same id once (SPEC §7: a double submit, a retry), and copies only a batch of the organisation", async () => {
+    const form = { id: uuidv7(), name: "Bande de mars", basedOn: ids.batch, chicks: "1000", chickPriceCentimes: "550", feedGrams: "3000000", feedPricePerKgCentimes: "460", otherCostCentimes: "0", plannedGrams: "2000000", salePricePerKgCentimes: "1400" };
+    const twice = await Promise.all([saveBudget(a, form), saveBudget(a, form)]); // at once: one insert wins, the other is a retry
+    expect(twice).toEqual([{ ok: true, value: form.id }, { ok: true, value: form.id }]);
+    expect(await saveBudget(a, form)).toEqual({ ok: true, value: form.id });
+    expect(await db.budget.count({ where: { id: form.id } })).toBe(1);
+    expect(await saveBudget(b, form)).toEqual({ ok: false, error: "ALREADY_EXISTS" }); // another organisation's id
+    expect(await saveBudget(b, { ...form, id: uuidv7() })).toEqual({ ok: false, error: "INVALID_INPUT" }); // a's batch
+    expect(await saveBudget(a, { ...form, id: uuidv7(), basedOn: uuidv7() })).toEqual({ ok: false, error: "INVALID_INPUT" }); // no such batch
   });
 });

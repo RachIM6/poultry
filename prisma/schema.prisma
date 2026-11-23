@@ -716,6 +716,7 @@ model EggDiscard {
   item           String // ungraded | downgraded | grade:<id>
   eggs           Int
   reason         String
+  day            DateTime @db.Date // farm day the phone recorded it
   recordedBy     String   @db.Uuid
   createdAt      DateTime @default(now()) @db.Timestamptz
 
@@ -732,6 +733,7 @@ model EggDraw {
   laidOn         DateTime @db.Date
   item           String
   eggs           Int
+  day            DateTime @db.Date // the sale's farm day
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId, batchId])

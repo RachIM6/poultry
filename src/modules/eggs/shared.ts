@@ -23,13 +23,14 @@ export const EGG_MUTATIONS = {
 
 /** SPEC-m3 E3. */
 export type EggGradingDto = { id: string; batchId: string; laidOn: string; grades: Record<string, number> };
-export type EggDiscardDto = { id: string; batchId: string; laidOn: string; item: EggItem; eggs: number; reason: string };
+/** `day`: the farm day the phone recorded it (the egg stock on a day counts it from then, SPEC-finance FC5). */
+export type EggDiscardDto = { id: string; batchId: string; laidOn: string; item: EggItem; eggs: number; reason: string; day: string };
 
 /** SPEC-m3 E1: one collection of a layer batch. No money: workers see it all. */
 export type EggCollectionDto = { id: string; batchId: string; day: string; counts: EggCounts; sample: EggSample };
 
-/** SPEC-m3 V6: eggs a sale took from a lot. No money. */
-export type EggDrawDto = { id: string; batchId: string; saleId: string; laidOn: string; item: EggItem; eggs: number };
+/** SPEC-m3 V6: eggs a sale took from a lot, on the sale's day. No money. */
+export type EggDrawDto = { id: string; batchId: string; saleId: string; day: string; laidOn: string; item: EggItem; eggs: number };
 
 /** V6: a draw's id, the same on the phone and the server: a UUIDv5 of the sale and the draw's place in it. */
 const DRAW_NAMESPACE = "5d0c8a3e-7b1f-4c2a-9e6d-3f4b8a1c2d70";

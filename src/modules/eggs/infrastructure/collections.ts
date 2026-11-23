@@ -1,5 +1,5 @@
 import type { Tx } from "@/lib/db";
-import { farmInstant, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import type { EggCollectionDto, EggDiscardDto, EggDrawDto, EggGradingDto, EggItem } from "@/modules/eggs/schema";
 
@@ -36,19 +36,21 @@ export const lockEggs = (tx: Tx, batchId: string) => tx.$executeRaw`SELECT pg_ad
 export const eggFlowsOf = (tx: Tx, ctx: TenantContext, batchId: string) => flowsWhere(tx, { organizationId: ctx.organizationId, batchId });
 
 /**
- * The organisation's egg stock as at the end of `day`: the collections laid by then, and the gradings, discards and draws
- * recorded by then (they carry no day of their own: the farm day the server received them). `farmOf`: each batch's farm.
+ * The organisation's egg stock as at the end of `day`, each record on the farm day it happened, never when the server
+ * received it: the collections laid by then, the discards and draws (sales) of a day by then, and the gradings of eggs
+ * laid by then (a grading only moves eggs between items: when it was done doesn't change a farm's eggs). `farmOf`: each
+ * batch's farm.
  */
 export function eggFlowsOnDay(tx: Tx, ctx: TenantContext, day: FarmDay) {
-  return flowsWhere(tx, { organizationId: ctx.organizationId }, { day: { lte: date(day) } }, { createdAt: { lt: farmInstant(nextFarmDay(day), 0) } });
+  return flowsWhere(tx, { organizationId: ctx.organizationId }, { lte: date(day) });
 }
 
-async function flowsWhere(tx: Tx, where: { organizationId: string; batchId?: string }, laid: { day?: { lte: Date } } = {}, recorded: { createdAt?: { lt: Date } } = {}) {
+async function flowsWhere(tx: Tx, where: { organizationId: string; batchId?: string }, by?: { lte: Date }) {
   const [collections, gradings, discards, drawn] = await Promise.all([
-    tx.eggCollection.findMany({ where: { ...where, ...laid } }),
-    tx.eggGrading.findMany({ where: { ...where, ...recorded } }),
-    tx.eggDiscard.findMany({ where: { ...where, ...recorded } }),
-    tx.eggDraw.findMany({ where: { ...where, ...recorded } }),
+    tx.eggCollection.findMany({ where: { ...where, day: by } }),
+    tx.eggGrading.findMany({ where: { ...where, laidOn: by } }),
+    tx.eggDiscard.findMany({ where: { ...where, day: by } }),
+    tx.eggDraw.findMany({ where: { ...where, day: by } }),
   ]);
   const day = (d: Date) => d.toISOString().slice(0, 10);
   return {
@@ -68,7 +70,7 @@ export async function saveGrading(tx: Tx, ctx: TenantContext, farmId: string, g:
 }
 
 export async function saveDiscard(tx: Tx, ctx: TenantContext, farmId: string, d: EggDiscardDto) {
-  await tx.eggDiscard.create({ data: { ...d, laidOn: date(d.laidOn), organizationId: ctx.organizationId, farmId, recordedBy: ctx.userId } });
+  await tx.eggDiscard.create({ data: { ...d, day: date(d.day), laidOn: date(d.laidOn), organizationId: ctx.organizationId, farmId, recordedBy: ctx.userId } });
 }
 
 export const collectionIdTaken = async (tx: Tx, id: string) => (await tx.eggCollection.count({ where: { id } })) > 0;
@@ -87,5 +89,5 @@ export async function saveCorrection(tx: Tx, c: EggCollectionDto) {
 }
 
 export async function saveDraws(tx: Tx, ctx: TenantContext, farmId: string, draws: EggDrawDto[]) {
-  await tx.eggDraw.createMany({ data: draws.map((d) => ({ ...d, laidOn: date(d.laidOn), organizationId: ctx.organizationId, farmId })) });
+  await tx.eggDraw.createMany({ data: draws.map((d) => ({ ...d, day: date(d.day), laidOn: date(d.laidOn), organizationId: ctx.organizationId, farmId })) });
 }

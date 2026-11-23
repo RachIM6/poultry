@@ -99,8 +99,9 @@ export const SaveValues = z.object({ year: z.number().int(), values: z.record(z.
  * FC5, FQ20: saves the owner's current value of stock lines (the whole line, in dirhams); an empty one removes it, so
  * the line is at cost again. Only a line valued at cost takes one. FC4: the same for a meat batch open on the last
  * day (empty: back to the suggested value). FC5, FQ18 (T113): a farm's value per egg (in dirhams, to the centime), for
- * eggs that post (with the PCA). Owner only, audited per line. Refused once the year's close run has
- * posted, as the count (FCX4). Returns how many lines changed.
+ * eggs that post (with the PCA). Owner only, audited per line. Once the year's close run has posted, frozen as the
+ * count (FCX4), except a value given to a line the run now refuses without one (a batch or eggs of the last day
+ * synced after it). Returns how many lines changed.
  */
 export async function saveYearEndValues(ctx: TenantContext, input: unknown): Promise<Result<number, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "COUNT_FROZEN">> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
@@ -111,12 +112,12 @@ export async function saveYearEndValues(ctx: TenantContext, input: unknown): Pro
   return db.$transaction(async (tx): Promise<Result<number, "INVALID_INPUT" | "NOT_FOUND" | "COUNT_FROZEN">> => {
     const entity = await legalEntityIn(tx, ctx, first.id); // row-locked, as the close run: no run posts meanwhile
     if (!entity) return fail("NOT_FOUND");
-    if (await closePosted(tx, ctx, entity.id, parsed.data.year)) return fail("COUNT_FROZEN");
+    const frozen = await closePosted(tx, ctx, entity.id, parsed.data.year);
     const day = countDay(parsed.data.year, entity.fiscalYearStartMonth);
-    const lines = new Map<string, { kind: "stock" | "batch" | "eggs"; current: bigint | null }>([
+    const lines = new Map<string, { kind: "stock" | "batch" | "eggs"; current: bigint | null; missing?: boolean }>([
       ...(await stockLinesAtClose(tx, ctx, entity, day)).flatMap((l) => (l.cost === null ? [] : [[l.id, { kind: "stock" as const, current: l.current }] as const])),
-      ...(await batchLinesAtClose(tx, ctx, entity, day)).flatMap((b) => (b.valued ? [[b.id, { kind: "batch" as const, current: b.typed }] as const] : [])),
-      ...(await eggLinesAtClose(tx, ctx, entity, day)).flatMap((e) => (e.posted ? [[e.farmId, { kind: "eggs" as const, current: e.perEgg }] as const] : [])),
+      ...(await batchLinesAtClose(tx, ctx, entity, day)).flatMap((b) => (b.valued ? [[b.id, { kind: "batch" as const, current: b.typed, missing: b.missing }] as const] : [])),
+      ...(await eggLinesAtClose(tx, ctx, entity, day)).flatMap((e) => (e.posted ? [[e.farmId, { kind: "eggs" as const, current: e.perEgg, missing: e.missing }] as const] : [])),
     ]);
     const changes: { id: string; kind: "stock" | "batch" | "eggs"; value: bigint | null }[] = [];
     for (const [id, text] of Object.entries(parsed.data.values)) {
@@ -124,7 +125,9 @@ export async function saveYearEndValues(ctx: TenantContext, input: unknown): Pro
       if (!line) return fail("INVALID_INPUT"); // not a valued stock line, meat batch or farm with eggs of this organisation
       const value = text === "" ? null : parseCentimes(text);
       if (text !== "" && value === null) return fail("INVALID_INPUT");
-      if (value !== line.current) changes.push({ id, kind: line.kind, value });
+      if (value === line.current) continue;
+      if (frozen && !(line.missing && value !== null)) return fail("COUNT_FROZEN"); // after the run: a missing value only
+      changes.push({ id, kind: line.kind, value });
     }
     for (const { id, kind, value } of changes) {
       const key = { legalEntityId_day_subjectId: { legalEntityId: entity.id, day: date(day), subjectId: id } };

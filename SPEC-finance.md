@@ -193,6 +193,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
 - **FCX4. Close run.** For a `ledger` entity, the owner runs "Préparer la clôture" for a fiscal year. Finance computes the year-end entries of FC1, FC2, FC4 and FC5 (FC6 once unblocked) and shows them before posting.
   - Each entry is `OD`, dated the last day of the fiscal year, one per kind (depreciation, subsidy release, batches in progress, stocks, provisions). Source `(finance, close:<kind>:<legal entity>:<year>, version)`.
   - Running again with the same figures posts nothing; with changed figures it posts a reversal and a new entry (FN7).
+  - Once the run has posted, the count (FC3) and the current values are frozen, except a value still missing (FC4, FC5) on a batch or eggs line of the last day synced after the run: the owner types it once, so the run can post it and the year close (FCX6) is not refused forever.
   - Refused while the last month of the year is locked: year-end entries are never moved to another period, unlike FN5 corrections.
   - Refused for a `cash_book` entity, which has no balance sheet: it keeps the registers and schedules only.
 - **FCX5. Reversal at opening.** The stock and batch-in-progress entries (FC4, FC5) and their provisions are reversed on the first day of the next fiscal year (`OD`), posted with that year's à-nouveaux. For a provision this has the same effect on the next year's result as a reversal at the next close.

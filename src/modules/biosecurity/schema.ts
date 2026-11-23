@@ -70,3 +70,13 @@ export const RecordRodentCheck = z.object({
   action: z.enum(RODENT_ACTIONS),
   product: note(120),
 });
+
+// D6: a record is never deleted; a correction is an edit of what was entered, field by field, last write received wins
+// (ADR-003 §5). The farm, a visit's entry time, a step's kind and a rodent check's proof are not corrections.
+const edit = <T extends z.ZodRawShape>(fields: z.ZodObject<T>) =>
+  z.object({ id: z.uuid(), changes: fields.partial().refine((c) => Object.keys(c).length > 0, "no change") });
+export const EditVisit = edit(RecordVisit.omit({ id: true, farmId: true, enteredAt: true }));
+export const EditDisposal = edit(RecordDisposal.omit({ id: true, farmId: true }));
+export const EditManure = edit(RecordManure.omit({ id: true, farmId: true }));
+export const EditRodentCheck = edit(RecordRodentCheck.omit({ id: true, farmId: true }));
+export const EditCleanoutStep = edit(RecordCleanoutStep.omit({ id: true, cleanoutId: true, step: true }));

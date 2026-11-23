@@ -57,6 +57,12 @@ export const BIOSECURITY_MUTATIONS = {
   recordCleanoutStep: "biosecurity.recordCleanoutStep",
   setMinDowntime: "biosecurity.setMinDowntime",
   recordRodentCheck: "biosecurity.recordRodentCheck",
+  // D6: corrections, audited
+  editVisit: "biosecurity.editVisit",
+  editDisposal: "biosecurity.editDisposal",
+  editManure: "biosecurity.editManure",
+  editRodentCheck: "biosecurity.editRodentCheck",
+  editCleanoutStep: "biosecurity.editCleanoutStep",
 } as const;
 
 /** BS4: a step of a clean-out, marked once. Disinfection says with what (product, dose, product lot). */

@@ -98,10 +98,10 @@ export async function findMovement(tx: Tx, ctx: TenantContext, id: string): Prom
   return row && { ...row, kind: row.kind as MovementDto["kind"], day: dayOf(row.day) };
 }
 
-export const updateMovementQuantity = (tx: Tx, id: string, quantity: number, day: string) =>
-  tx.stockMovement.update({ where: { id }, data: { quantity, day: date(day) } });
+export const updateMovementQuantity = (tx: Tx, ctx: TenantContext, id: string, quantity: number, day: string) =>
+  tx.stockMovement.update({ where: { id, organizationId: ctx.organizationId }, data: { quantity, day: date(day) } });
 
-export const deleteMovement = (tx: Tx, id: string) => tx.stockMovement.delete({ where: { id } });
+export const deleteMovement = (tx: Tx, ctx: TenantContext, id: string) => tx.stockMovement.delete({ where: { id, organizationId: ctx.organizationId } });
 
 export async function insertPurchase(
   tx: Tx,

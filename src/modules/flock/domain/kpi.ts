@@ -1,4 +1,5 @@
 import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
+import { birdsOnHand } from "@/modules/flock/domain/birds";
 
 // SPEC B4. Pure and isomorphic: the phone computes the batch's KPIs from its local data, offline. Integers in (birds,
 // grams), numbers out; rounding is for display only.
@@ -58,7 +59,7 @@ export function batchKpis(
   today: FarmDay,
   sold: readonly Sold[] = [],
 ): BatchKpis {
-  const birdsOnHand = batch.birdsStarted - out(entries) - birds(sold);
+  const onHand = birdsOnHand(batch.birdsStarted, entries, sold);
   const last = [...weighings].sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id)).at(-1); // UUIDv7: later id = later
   let weighed: BatchKpis["weighed"] = null;
   if (last) {
@@ -70,7 +71,7 @@ export function batchKpis(
       placed: batch.birdsStarted,
       dead: out(until),
       feedGrams: feed(until),
-      liveWeightGrams: (batch.birdsStarted - out(until) - birds(soldUntil)) * averageGrams + soldUntil.reduce((g, x) => g + x.liveWeightGrams, 0),
+      liveWeightGrams: birdsOnHand(batch.birdsStarted, until, soldUntil) * averageGrams + soldUntil.reduce((g, x) => g + x.liveWeightGrams, 0),
       ageDays,
       avgWeightGrams: averageGrams,
     };
@@ -85,9 +86,9 @@ export function batchKpis(
   }
   return {
     ageDays: daysBetween(batch.placedOn, today) + (batch.ageAtPlacementDays ?? 0),
-    birdsOnHand,
+    birdsOnHand: onHand,
     mortalityPercent: (out(entries) / batch.birdsStarted) * 100,
-    feedPerBirdGrams: birdsOnHand > 0 ? feed(entries) / birdsOnHand : null,
+    feedPerBirdGrams: onHand > 0 ? feed(entries) / onHand : null,
     weighed,
   };
 }

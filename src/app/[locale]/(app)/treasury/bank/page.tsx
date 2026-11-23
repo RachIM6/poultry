@@ -6,10 +6,10 @@ import { BackLink } from "@/components/app-nav";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { bankReconciliation } from "@/modules/finance";
+import { bankReconciliation, IMPORT_MAX_BYTES } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { done, warn } from "@/components/ui";
-import { MatchTable, StatementForm } from "./forms";
+import { ImportedTable, ImportForm, MatchTable, StatementForm } from "./forms";
 
 // SPEC-finance FC9, FCX1, FCX2: bank reconciliation by manual matching. Online, server-rendered from the ledger.
 // Owner and manager tick; the accountant reads; workers are refused by finance.
@@ -85,6 +85,17 @@ async function Bank({ searchParams }: { searchParams: Search }) {
               </dl>
               <p role="status" className={s.reconciled ? done : warn}>{t(s.reconciled ? "Bank.reconciled" : "Bank.notReconciled")}</p>
               {!s.reconciled && <p className="text-sm text-ink-2">{t("Bank.differenceNote")}</p>}
+              {s.imported.length > 0 && (
+                <>
+                  <h3 className="font-semibold text-ink-2">{t("Bank.imported")}</h3>
+                  <p className="text-sm text-ink-2">{t("Bank.importedNote")}</p>
+                  <ImportedTable
+                    statementId={s.id}
+                    canWrite={canWrite}
+                    lines={s.imported.map((l) => ({ id: l.id, day: day(l.day), label: l.label, amount: formatMoney(l.amountCentimes), lineId: l.lineId, ticked: l.ticked }))}
+                  />
+                </>
+              )}
               <h3 className="font-semibold text-ink-2">{t("Bank.lines", { day: day(s.endDay) })}</h3>
               {s.lines.length === 0 ? (
                 <p>{t("Bank.none")}</p>
@@ -109,6 +120,12 @@ async function Bank({ searchParams }: { searchParams: Search }) {
             <section className="flex flex-col gap-2" aria-labelledby="add-statement">
               <h2 id="add-statement" className="text-[17px] font-semibold text-ink-2">{t("Bank.add")}</h2>
               <StatementForm key={account.id} treasuryId={account.id} today={farmDayOf(new Date())} />
+            </section>
+          )}
+          {canWrite && (
+            <section className="flex flex-col gap-2" aria-labelledby="import-statement">
+              <h2 id="import-statement" className="text-[17px] font-semibold text-ink-2">{t("Bank.import")}</h2>
+              <ImportForm key={account.id} treasuryId={account.id} today={farmDayOf(new Date())} maxBytes={IMPORT_MAX_BYTES} />
             </section>
           )}
         </>

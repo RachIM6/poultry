@@ -9,7 +9,7 @@ import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
-import { Batch, birdsStarted, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import { Batch, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { withdrawalUntil, type TreatmentDto } from "@/modules/health/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
 import { card, danger, field, primary, secondary } from "@/components/ui";
@@ -203,7 +203,7 @@ function SaleForm({
     );
     if (!checked.ok) return setError(`errors.${checked.error}`);
     const aggregate = Batch.rehydrate({ ...batch, placedOn: batch.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, batch.status);
-    const birdsOk = aggregate.checkBirdsSold(day, birds, birdsStarted(batch) - birdsOnHand, today());
+    const birdsOk = aggregate.checkBirdsSold(day, birds, birdsOnHand, today());
     if (!birdsOk.ok) return setError(`errors.${birdsOk.error}`);
     setError(undefined);
 
@@ -247,7 +247,7 @@ function SaleForm({
     if (!checked.ok) return setError(`errors.${checked.error}`);
     const birds = checked.value.birds;
     const aggregate = Batch.rehydrate({ ...batch, placedOn: batch.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, batch.status);
-    const birdsOk = aggregate.checkBirdsSold(day, birds, birdsStarted(batch) - birdsOnHand, today());
+    const birdsOk = aggregate.checkBirdsSold(day, birds, birdsOnHand, today());
     if (!birdsOk.ok) return setError(`errors.${birdsOk.error}`);
     setError(undefined);
 
@@ -289,7 +289,7 @@ function SaleForm({
     if (withdrawalUntil(treatments.map((x) => ({ startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay, withdrawalDays: x.withdrawalDays })), day)) return setError("errors.WITHDRAWAL_IN_PROGRESS");
     const birds = perHead ? headLines.reduce((n, l) => n + l.birds, 0) : /^\d+$/.test(get("birds")) ? Number(get("birds")) : NaN;
     const aggregate = Batch.rehydrate({ ...batch, placedOn: batch.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, batch.status);
-    const birdsOk = aggregate.checkBirdsSold(day, birds, birdsStarted(batch) - birdsOnHand, today());
+    const birdsOk = aggregate.checkBirdsSold(day, birds, birdsOnHand, today());
     if (!birdsOk.ok) return setError(`errors.${birdsOk.error}`);
     setError(undefined);
 

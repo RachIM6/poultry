@@ -100,10 +100,17 @@ async function decide(tx: Tx, ctx: TenantContext, m: PushedMutation, registry: S
   const payload = handler.schema.safeParse(m.payload);
   if (!payload.success) return rejected("INVALID_INPUT");
   const outcome = await handler.apply(tx, ctx, payload.data, { mutationId: m.id, deviceCreatedAt: new Date(m.createdAt) });
-  return outcome.ok ? { status: "applied" } : rejected(outcome.error);
+  if (outcome.ok) return { status: "applied" };
+  // A failure's own fields become its message values; a list arrives comma-joined (V6: the days to discard first).
+  const extra = Object.entries(outcome).filter(([k]) => k !== "ok" && k !== "error");
+  return rejected(outcome.error, Object.fromEntries(extra.map(([k, v]) => [k, typeof v === "number" ? v : String(v)])));
 }
 
-const rejected = (code: string): MutationResult => ({ status: "rejected", messageKey: `errors.${code}` });
+const rejected = (code: string, values: Record<string, string | number> = {}): MutationResult => ({
+  status: "rejected",
+  messageKey: `errors.${code}`,
+  ...(Object.keys(values).length > 0 && { messageValues: values }),
+});
 
 /** ADR-003 pull: the caller's organisation only, after the cursor, in version order, a page at a time. */
 export async function pull(ctx: TenantContext, since: number, registry: SyncRegistry): Promise<PullResponse> {

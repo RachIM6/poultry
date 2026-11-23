@@ -4,6 +4,7 @@ import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
+import { can } from "@/lib/permissions";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { recordBirdsSold } from "@/modules/flock";
@@ -111,7 +112,7 @@ async function creditDecision(tx: Tx, ctx: TenantContext, buyerId: string, credi
   const terms = await creditTerms(tx, ctx, buyerId);
   if (credit > 0n && terms?.creditBlocked) return fail("BUYER_CREDIT_BLOCKED");
   let creditApproval: "pending" | null = null;
-  if (credit > 0n && terms?.creditLimitCentimes != null && ctx.role !== "owner") {
+  if (credit > 0n && terms?.creditLimitCentimes != null && !can(ctx, "finance.manage")) {
     await lockBuyer(tx, buyerId);
     const { sales, payments, unpaid } = await buyerLedger(tx, ctx, buyerId);
     const owed = buyerBalances(sales, payments, unpaid).get(buyerId) ?? 0n;

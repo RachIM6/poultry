@@ -7,6 +7,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { farmRegistrySync } from "@/modules/farm-registry";
 import { FARM_MUTATIONS } from "@/modules/farm-registry/schema";
 import { inventorySync as registry, stockOnHand, supplierBalances } from "@/modules/inventory";
+import { deleteMovement, updateMovementQuantity } from "@/modules/inventory/infrastructure/repository";
 import { INVENTORY_MUTATIONS as M, type MovementDto, type PurchaseDto } from "@/modules/inventory/schema";
 import { twoTenants } from "@/test/tenant";
 
@@ -88,5 +89,12 @@ describe("stock ledger, purchases and supplier credit (SPEC S1–S3, I5)", () =>
     await push(b, [m(M.createStockItem, { id: itemB, farmId: farmB, productId: null, kind: "gas", name: "Gaz", unit: "unit", lot: null, expiresOn: null })], registry);
     expect(await statuses(b, [m(M.recordPurchase, { id: uuidv7(), movementId: uuidv7(), supplierId: supplier, stockItemId: itemB, day: "2026-11-05", quantity: 2, unitPriceCentimes: "1000", paidCentimes: "0", dueOn: null })])).toEqual(["errors.NOT_FOUND"]);
     expect((await pull(b, 0, registry)).changes.every((c) => c.id !== starter && c.id !== supplier)).toBe(true);
+  });
+
+  it("never edits or deletes another organisation's movement, even when called with its id (ADR-006)", async () => {
+    const movement = await db.stockMovement.findFirstOrThrow({ where: { organizationId: a.organizationId } });
+    await expect(db.$transaction((tx) => updateMovementQuantity(tx, b, movement.id, 1, "2026-11-05"))).rejects.toThrow();
+    await expect(db.$transaction((tx) => deleteMovement(tx, b, movement.id))).rejects.toThrow();
+    expect(await db.stockMovement.findUniqueOrThrow({ where: { id: movement.id } })).toEqual(movement);
   });
 });

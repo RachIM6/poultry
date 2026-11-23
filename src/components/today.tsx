@@ -10,7 +10,7 @@ import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatPercent } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ageOn, birdsStarted, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import { ageOn, birdsOnHand, birdsStarted, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { eggsIn, layerKpis, type EggCollectionDto } from "@/modules/eggs/shared";
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
 import { SyncBadge } from "@/components/sync-status";
@@ -102,7 +102,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
       withdrawal: until && from ? { from: from as FarmDay, to: until } : null,
       rolling: b.species !== "broiler", // SPEC-m3: long cycles show a rolling window
     });
-    const birds = birdsStarted(b) - sold.filter((s) => s.batchId === b.id).reduce((n, s) => n + s.birds, 0) - own.reduce((n, e) => n + e.dead + e.culled, 0);
+    const birds = birdsOnHand(birdsStarted(b), own, sold.filter((s) => s.batchId === b.id));
     const house = houses.find((h) => h.id === b.houseId)?.name ?? "";
     // SPEC-m3 R5: a "non précisée" strain shows the production type instead; turkeys show their sex.
     const named = b.strainId.startsWith("unspecified-") ? t(`Types.${b.species}`) : (strains.find((s) => s.id === b.strainId)?.name ?? b.strainId);

@@ -62,7 +62,8 @@ describe("egg sales (SPEC-m3 V6)", () => {
     await db.treatment.create({
       data: { id: uuidv7(), organizationId: a.organizationId, batchId: ids.layers, stockItemId: item.id, quantity: 1, dose: "d", startOn: date(newer), endOn: date(newer), reason: "r", prescriber: "p", withdrawalDays: 0, withdrawalEndsOn: date(newer), eggWithdrawalDays: 2, eggWithdrawalEndsOn: date(addFarmDays(newer, 2)), recordedBy: a.userId },
     });
-    expect(await statuses(a, sale([{ item: "grade:m", eggs: 10, unitPriceCentimes: "3300" }]))).toEqual(["errors.EGGS_IN_WITHDRAWAL"]);
+    const withheld = sale([{ item: "grade:m", eggs: 10, unitPriceCentimes: "3300" }]);
+    expect((await push(a, [withheld], registry)).results).toEqual([{ id: withheld.id, status: "rejected", messageKey: "errors.EGGS_IN_WITHDRAWAL", messageValues: { days: newer } }]); // the days to discard first
     expect(await statuses(a, m(E.discardEggs, { id: uuidv7(), batchId: ids.layers, laidOn: newer, item: "grade:m", eggs: 450, reason: "Délai d’attente" }))).toEqual(["applied"]);
     expect(await statuses(a, sale([{ item: "grade:m", eggs: 1, unitPriceCentimes: "3300" }]))).toEqual(["errors.NOT_ENOUGH_EGGS"]);
     expect(await db.eggDraw.count()).toBe(2); // nothing drawn by the refused sales

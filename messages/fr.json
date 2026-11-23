@@ -1783,7 +1783,8 @@
     "saveGrading": "Enregistrer le calibrage",
     "discardEggs": "Œufs écartés",
     "reason": "Raison",
-    "saveDiscard": "Écarter ces œufs"
+    "saveDiscard": "Écarter ces œufs",
+    "withheld": "En délai d’attente jusqu’au {day} : à écarter, jamais à vendre"
   },
   "Layers": {
     "hens": "Poules présentes",
@@ -1821,7 +1822,8 @@
     "addLine": "Ajouter une ligne",
     "amount": "Montant : {amount}",
     "save": "Enregistrer la vente",
-    "consume": "Consommation d’œufs"
+    "consume": "Consommation d’œufs",
+    "discardFirst": "Des œufs en délai d’attente seraient vendus : écartez d’abord ceux pondus le {days}."
   },
   "Compare": {
     "title": "Comparer les lots",

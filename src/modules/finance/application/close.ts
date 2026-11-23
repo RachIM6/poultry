@@ -8,10 +8,12 @@ import type { TenantContext } from "@/lib/tenant";
 import { legalEntityIn, listLegalEntities, placeNames, type LegalEntityDto } from "@/modules/farm-registry";
 import { closeDepreciation } from "@/modules/finance/application/assets";
 import { closePosted } from "@/modules/finance/application/count";
+import { closeHens, hensAtClose, type HensAtClose } from "@/modules/finance/application/hens";
 import { batchLinesAtClose, closeBatches, closeProvision, closeStock, eggLinesAtClose, stockLinesAtClose } from "@/modules/finance/application/stocks";
 import { closeSubsidies } from "@/modules/finance/application/subsidies";
 import { lockMonth, postOpening, postVersion, type PostError } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
+import type { HensMethod } from "@/modules/finance/domain/hens";
 import { CLOSE_KINDS, closeAction, closeSource, openingSource, type CloseAction, type CloseKind } from "@/modules/finance/domain/close";
 import { countDay, countYearOf } from "@/modules/finance/domain/count";
 import type { BatchAtClose, EggsAtClose, StockAtClose } from "@/modules/finance/domain/stocks";
@@ -30,6 +32,7 @@ const KINDS: Record<CloseKind, (tx: Tx, ctx: TenantContext, entity: LegalEntityD
   subsidy: (tx, ctx, entity, year) => closeSubsidies(tx, ctx, entity.id, year, entity.fiscalYearStartMonth),
   stock: (tx, ctx, entity, year) => closeStock(tx, ctx, entity, year.to),
   batch: (tx, ctx, entity, year) => closeBatches(tx, ctx, entity, year.to),
+  hens: (tx, ctx, entity, year) => closeHens(tx, ctx, entity, year),
   provision: (tx, ctx, entity, year) => closeProvision(tx, ctx, entity, year.to),
 };
 
@@ -66,13 +69,28 @@ export type CloseStockView = StockAtClose & { farm: string };
 export type CloseBatchView = BatchAtClose & { farm: string };
 /** FC5 (T113): a farm's eggs as the run values them; `posted` false: the PCA is off (FQ25). */
 export type CloseEggsView = EggsAtClose & { farm: string };
+/** FC6 (T114, T115): the layer and pullet batches by the entity's method; `method` null: not valued (FQ25). */
+export type CloseHensView = { method: HensMethod | null; lines: (HensAtClose & { farm: string })[] };
 /**
  * `frozen`: the run has posted, so the count and the current values no longer change (FCX4). `opening` (FN3, FCX6):
  * this year's à-nouveaux while the previous year isn't closed: "due" (not posted yet), "provisional" (posted from the
  * previous year as it stands, posted again by its close); null once that year is closed, before this one begins, or
  * when the previous year has no entry (the first year is opened by hand, FCX3).
  */
-export type ClosePreview = { year: number; day: FarmDay; books: "cash_book" | "ledger"; locked: boolean; closedOn: FarmDay | null; frozen: boolean; opening: "due" | "provisional" | null; entries: CloseEntryView[]; stocks: CloseStockView[]; batches: CloseBatchView[]; eggs: CloseEggsView[] };
+export type ClosePreview = {
+  year: number;
+  day: FarmDay;
+  books: "cash_book" | "ledger";
+  locked: boolean;
+  closedOn: FarmDay | null;
+  frozen: boolean;
+  opening: "due" | "provisional" | null;
+  entries: CloseEntryView[];
+  stocks: CloseStockView[];
+  batches: CloseBatchView[];
+  eggs: CloseEggsView[];
+  hens: CloseHensView;
+};
 
 /**
  * FCX4: the year-end entries of a fiscal year (by the calendar year it ends in; the current one by default), as the
@@ -88,8 +106,8 @@ export async function closePreview(ctx: TenantContext, year: number | null, cloc
   const { from, to: day } = fiscalYear(y, entity.fiscalYearStartMonth);
   const previous = fiscalYear(y - 1, entity.fiscalYearStartMonth);
   const books = entity.accountingProfile.books;
-  if (books !== "ledger") return ok({ year: y, day, books, locked: false, closedOn: null, frozen: false, opening: null, entries: [], stocks: [], batches: [], eggs: [] });
-  const [locked, closed, frozen, previousClosed, previousEntries, opened, stock, batch, egg, { chart, kinds }] = await Promise.all([
+  if (books !== "ledger") return ok({ year: y, day, books, locked: false, closedOn: null, frozen: false, opening: null, entries: [], stocks: [], batches: [], eggs: [], hens: { method: null, lines: [] } });
+  const [locked, closed, frozen, previousClosed, previousEntries, opened, stock, batch, egg, hen, { chart, kinds }] = await Promise.all([
     lockedMonths(db, ctx, entity.id),
     yearClose(db, ctx, entity.id, day),
     closePosted(db, ctx, entity.id, y),
@@ -99,12 +117,14 @@ export async function closePreview(ctx: TenantContext, year: number | null, cloc
     stockLinesAtClose(db, ctx, entity, day),
     batchLinesAtClose(db, ctx, entity, day),
     eggLinesAtClose(db, ctx, entity, day),
+    hensAtClose(db, ctx, entity, { from, to: day }),
     plan(db, ctx, entity, y),
   ]);
-  const farms = await placeNames(db, ctx, [...new Set([...stock, ...batch, ...egg].map((l) => l.farmId))]);
+  const farms = await placeNames(db, ctx, [...new Set([...stock, ...batch, ...egg, ...hen.lines].map((l) => l.farmId))]);
   const stocks = stock.map((l) => ({ ...l, farm: farms.get(l.farmId) ?? "" }));
   const batches = batch.map((b) => ({ ...b, farm: farms.get(b.farmId) ?? "" }));
   const eggs = egg.map((e) => ({ ...e, farm: farms.get(e.farmId) ?? "" }));
+  const hens = { method: hen.method, lines: hen.lines.map((h) => ({ ...h, farm: farms.get(h.farmId) ?? "" })) };
   const entries = kinds.map(({ kind, action, posting, standing }) => ({
     kind,
     action,
@@ -112,7 +132,7 @@ export async function closePreview(ctx: TenantContext, year: number | null, cloc
     lines: (posting?.lines ?? standing?.lines ?? []).map((l) => ({ account: l.account, label: chart.get(l.account)?.label ?? "", debit: l.debit, credit: l.credit })),
   }));
   const opening = from > farmDayOf(clock.now()) || previousClosed || (previousEntries === 0 && !opened) ? null : opened ? "provisional" : "due";
-  return ok({ year: y, day, books, locked: locked.has(monthOf(day)), closedOn: closed && farmDayOf(closed.closedAt), frozen, opening, entries, stocks, batches, eggs });
+  return ok({ year: y, day, books, locked: locked.has(monthOf(day)), closedOn: closed && farmDayOf(closed.closedAt), frozen, opening, entries, stocks, batches, eggs, hens });
 }
 
 const CloseRun = z.object({ year: z.number().int() });
@@ -122,10 +142,15 @@ const CloseRun = z.object({ year: z.number().int() });
  * same figures post nothing; changed ones post a reversal of the standing version and a new version; figures now zero
  * post the reversal alone. Refused while the year's last month is locked (never moved to another period), for a
  * `cash_book` entity, for a year not yet begun, while a meat batch in progress has no current value (FC4: no
- * weighing or no sale to suggest one, and none typed), and while a farm's eggs to post have no value per egg (FC5,
- * FQ18). Owner only. Returns the entries posted.
+ * weighing or no sale to suggest one, and none typed), while a farm's eggs to post have no value per egg (FC5,
+ * FQ18), and while a laying flock lacks the owner's figures (FC6: its life and cull value, or its current value per
+ * bird under the simplified method). Owner only. Returns the entries posted.
  */
-export async function runClose(ctx: TenantContext, input: unknown, clock: Clock = systemClock): Promise<Result<number, PostError | "INVALID_INPUT" | "CASH_BOOK_NO_CLOSE" | "DAY_IN_FUTURE" | "BATCH_VALUE_MISSING" | "EGG_VALUE_MISSING">> {
+export async function runClose(
+  ctx: TenantContext,
+  input: unknown,
+  clock: Clock = systemClock,
+): Promise<Result<number, PostError | "INVALID_INPUT" | "CASH_BOOK_NO_CLOSE" | "DAY_IN_FUTURE" | "BATCH_VALUE_MISSING" | "EGG_VALUE_MISSING" | "HENS_VALUE_MISSING">> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
   const parsed = CloseRun.safeParse(input);
   if (!parsed.success || !yearIn(parsed.data.year)) return fail("INVALID_INPUT");
@@ -141,6 +166,7 @@ export async function runClose(ctx: TenantContext, input: unknown, clock: Clock 
     if ((await lockedMonths(tx, ctx, entity.id)).has(monthOf(to))) return fail("PERIOD_LOCKED");
     if ((await batchLinesAtClose(tx, ctx, entity, to)).some((b) => b.missing)) return fail("BATCH_VALUE_MISSING");
     if ((await eggLinesAtClose(tx, ctx, entity, to)).some((e) => e.missing)) return fail("EGG_VALUE_MISSING");
+    if ((await hensAtClose(tx, ctx, entity, { from, to })).lines.some((h) => h.missing)) return fail("HENS_VALUE_MISSING");
     let posted = 0;
     for (const k of (await plan(tx, ctx, entity, year)).kinds) posted += await postVersion(tx, ctx, entity.id, k.source, to, k.posting);
     return ok(posted);
@@ -183,7 +209,7 @@ export type YearCloseError = PostError | "INVALID_INPUT" | "CASH_BOOK_NO_CLOSE" 
  * reversal and new version when the closing changed), locks every month of the year (FN5, audited) and records who
  * closed it and when. Refused for a `cash_book` entity (no close run), for a year not over yet, while the previous
  * year has entries and isn't closed (its opening would be missing), while the close run still has something to post
- * ("run the close first"; eggs without a value count, T113), and while the next year's first month is locked.
+ * ("run the close first"; eggs or hens without a value count, T113, FC6), and while the next year's first month is locked.
  * Closing a closed year again posts nothing. Owner only. Returns the opening entries posted.
  */
 export async function closeFiscalYear(ctx: TenantContext, input: unknown, clock: Clock = systemClock): Promise<Result<number, YearCloseError>> {
@@ -201,7 +227,12 @@ export async function closeFiscalYear(ctx: TenantContext, input: unknown, clock:
     if (to >= farmDayOf(clock.now())) return fail("YEAR_NOT_ENDED");
     const previous = fiscalYear(year - 1, entity.fiscalYearStartMonth);
     if ((await entriesBetween(tx, ctx, entity.id, previous.from, previous.to)) > 0 && !(await yearClose(tx, ctx, entity.id, previous.to))) return fail("PREVIOUS_YEAR_OPEN");
-    if ((await plan(tx, ctx, entity, year)).kinds.some((k) => pending(k.action)) || (await eggLinesAtClose(tx, ctx, entity, to)).some((e) => e.missing)) return fail("CLOSE_RUN_PENDING");
+    if (
+      (await plan(tx, ctx, entity, year)).kinds.some((k) => pending(k.action)) ||
+      (await eggLinesAtClose(tx, ctx, entity, to)).some((e) => e.missing) ||
+      (await hensAtClose(tx, ctx, entity, { from, to })).lines.some((h) => h.missing)
+    )
+      return fail("CLOSE_RUN_PENDING");
     const opened = await postOpening(tx, ctx, entity, addFarmDays(to, 1)); // first: refused before anything is written
     if (!opened.ok) return opened;
     const locked = await lockedMonths(tx, ctx, entity.id);

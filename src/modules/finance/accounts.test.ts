@@ -8,6 +8,7 @@ import { EXPENSE_ACCOUNTS } from "@/modules/finance/domain/treasury";
 import { ASSET_ACCOUNTS, ASSET_DEBTS, ASSET_VAT_RECOVERABLE, DEPRECIATION_CHARGES, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
 import { LOAN_INTEREST, LOANS } from "@/modules/finance/domain/loans";
 import { SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE } from "@/modules/finance/domain/subsidies";
+import * as hens from "@/modules/finance/domain/hens";
 import { EGGS_STOCK, EGGS_VARIATION, IN_PROGRESS, IN_PROGRESS_PROVISION, IN_PROGRESS_VARIATION, PROVISION_CHARGE, PROVISION_REVERSAL, STOCK_ACCOUNTS, STOCK_PROVISION, stockAccountsOf } from "@/modules/finance/domain/stocks";
 
 const seed = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
@@ -178,6 +179,13 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
     for (const account of [EGGS_STOCK, EGGS_VARIATION]) expect(parents(withPca).has(account), account).toBe(false);
     expect([EGGS_STOCK, EGGS_VARIATION].map((a) => postingAccount(a, everything, cgncOnly))).toEqual(["315", "71321"]);
     expect(parents(cgncOnly).has("315")).toBe(true);
+    // T114, T115 (FC6, FQ25): the hens post with the PCA only (`hensMethodOf`), each account a leaf with it.
+    const hensAccounts = [...Object.entries(hens).flatMap(([name, value]) => (name.startsWith("HENS_") && typeof value === "string" ? [value] : [])), ASSET_DEBTS];
+    expect(hensAccounts.sort()).toEqual(["23711", "23712", "23962", "28371", "2937", "4481", "6187", "61937", "61943", "6513", "71431", "7151", "7152", "7187", "7194"]);
+    for (const account of hensAccounts) {
+      expect(withPca.has(account), account).toBe(true);
+      expect(parents(withPca).has(account), account).toBe(false);
+    }
     // FC7 (FQ21, FQ25): home consumption is credited to 7140 with the PCA only; without it 7140 lands on 714, a parent.
     expect(parents(withPca).has("7140")).toBe(false);
     expect(postingAccount("7140", everything, cgncOnly)).toBe("714");

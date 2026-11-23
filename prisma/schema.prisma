@@ -101,6 +101,7 @@ model LegalEntity {
   pcaOverlay           Boolean?
   fiscalYearStartMonth Int          @default(1) // 1 = January: the fiscal year runs 1 Jan–31 Dec
   vatRegistered        Boolean      @default(false) // SPEC-finance FN9: not registered until FQ4 is answered
+  hensMethod           HensMethod   @default(classic) // SPEC-finance FC6 (FQ7a): laying hens and their pullets
   createdAt            DateTime     @default(now()) @db.Timestamptz
   organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -110,6 +111,11 @@ model LegalEntity {
 enum Books {
   cash_book
   ledger
+}
+
+enum HensMethod {
+  classic
+  simplified
 }
 
 enum LegalForm {
@@ -1274,13 +1280,31 @@ model YearEndValue {
   organizationId String   @db.Uuid
   legalEntityId  String   @db.Uuid
   day            DateTime @db.Date
-  kind           String // stock (T109: batch, T113: eggs)
+  kind           String // stock (T109: batch, T113: eggs, T114: hens, the value of one bird)
   subjectId      String   @db.Uuid
   valueCentimes  BigInt
   updatedBy      String   @db.Uuid
   updatedAt      DateTime @updatedAt @db.Timestamptz
 
   @@unique([legalEntityId, day, subjectId])
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FC6 (T115), classic method: a laying flock's depreciation, typed by the owner (never
+// prefilled), required before the close run posts. Life = the laying period in months; cull value = what the culled
+// hens are expected to fetch, the whole flock, deducted from the depreciable base. Frozen once the close run of the
+// flock's entry year has posted.
+model HensSchedule {
+  id                String   @id @db.Uuid
+  organizationId    String   @db.Uuid
+  legalEntityId     String   @db.Uuid
+  batchId           String   @db.Uuid // the layer batch (flock), referenced by id
+  lifeMonths        Int
+  cullValueCentimes BigInt
+  updatedBy         String   @db.Uuid
+  updatedAt         DateTime @updatedAt @db.Timestamptz
+
+  @@unique([legalEntityId, batchId])
   @@index([organizationId])
 }
 

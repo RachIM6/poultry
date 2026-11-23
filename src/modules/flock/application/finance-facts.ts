@@ -23,6 +23,8 @@ export type BatchMoneyFacts = {
   sold: number; // birds sold (SPEC-finance FC4's split by head)
   lost: number; // dead and culled, from the daily entries (FN13's mortality)
   out: { day: string; birds: number }[]; // deaths, culls and sales, by day (for bird-days)
+  soldOut: { day: string; birds: number }[]; // the sales alone, by day (SPEC-finance FC6: a laying flock's culls)
+  fromBatchId: string | null; // SPEC-m3 B13: a layer batch transferred from this pullet batch (SPEC-finance FC6)
 };
 
 /**
@@ -62,6 +64,8 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext, asOf?: strin
       ...entries.filter((e) => e.batchId === b.id).map((e) => ({ day: day(e.day), birds: e.dead + e.culled })),
       ...sold.filter((s) => s.batchId === b.id).map((s) => ({ day: day(s.day), birds: s.birds })),
     ],
+    soldOut: sold.filter((s) => s.batchId === b.id).map((s) => ({ day: day(s.day), birds: s.birds })),
+    fromBatchId: b.fromBatchId,
   }));
 }
 

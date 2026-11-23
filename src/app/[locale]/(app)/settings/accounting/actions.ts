@@ -17,6 +17,7 @@ export async function saveAccountingAction(_: SaveState, form: FormData): Promis
     pcaOverlay: f.chart === "pca",
     fiscalYearStartMonth: Number(f.month),
     vatRegistered: f.vatRegistered === "on",
+    hensMethod: f.hensMethod,
   });
   if (!saved.ok) return { messageKey: `errors.${saved.error}` };
   refresh();

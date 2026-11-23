@@ -393,7 +393,8 @@
     "claim": "Morts à l’arrivée au-dessus du seuil du contrat : réclamation au couvoir",
     "run": "{house} · {bands} bandes · {birds} sujets",
     "nextVaccine": "Prochain vaccin : {vaccine}",
-    "downtimeWarning": "Attention : vide sanitaire de {elapsed} jours dans ce bâtiment, le minimum de la ferme est {min} jours."
+    "downtimeWarning": "Attention : {elapsed} jours de vide sanitaire seulement, le minimum est de {min} jours ({source}).",
+    "downtimeOccupied": "Attention : {house} a encore une bande du cycle précédent. Le vide sanitaire se fait pour toute la ferme (arrêté n° 2127-05, art. 4)."
   },
   "Day": {
     "title": "Saisie du jour",
@@ -485,6 +486,7 @@
     "EGGS_IN_WITHDRAWAL": "Des œufs pondus pendant un délai d’attente sont encore dans ce stock : écartez-les avant de vendre.",
     "VISIT_DIRTY_ZONE_ONLY": "Ce visiteur est passé par un autre élevage : zone sale uniquement.",
     "DISPOSAL_METHOD_NOTE_REQUIRED": "Décrivez la méthode d’élimination.",
+    "DOWNTIME_BELOW_OFFICIAL": "Le vide sanitaire ne peut pas être inférieur à 20 jours (arrêté n° 2127-05, art. 4).",
     "STEP_ALREADY_DONE": "Cette étape est déjà notée.",
     "DISINFECTANT_REQUIRED": "Indiquez le produit désinfectant.",
     "BATCH_NOT_CLOSED": "La bande de ce bâtiment n’est pas encore clôturée.",
@@ -1678,7 +1680,6 @@
     "title": "Planning des lots",
     "open": "Planning des lots",
     "downtime": "Vide sanitaire minimum : {days} j (source : {source})",
-    "noDowntime": "Vide sanitaire minimum non saisi : l’écart entre les lots est affiché, sans alerte.",
     "empty": "Aucun lot en place ni prévu.",
     "of": "Lots de {house}",
     "batch": "Lot en place depuis le {date}",
@@ -1699,7 +1700,7 @@
     "saleAge": "Âge de vente prévu (jours, facultatif)",
     "save": "Enregistrer le lot prévu",
     "enterDowntime": "Saisir le vide sanitaire minimum",
-    "downtimeHint": "Nombre de jours entre la vente d’un lot et la mise en place du suivant, selon votre vétérinaire ou votre guide. Indiquez la source.",
+    "downtimeHint": "Le minimum officiel est de 20 jours (arrêté n° 2127-05, art. 4). Saisissez un minimum plus long seulement si votre vétérinaire ou l’ONSSA le demande, avec la source.",
     "minDays": "Jours minimum",
     "saveDowntime": "Enregistrer le minimum",
     "place": "Mettre en place le lot prévu le {date}",
@@ -1961,7 +1962,6 @@
     "after": "Bande placée le {date}, clôturée.",
     "start": "Commencer le nettoyage",
     "notDisinfected": "Vide sanitaire : commence le jour de la désinfection.",
-    "downtime": "Vide sanitaire : jour {day}",
     "downtimeOf": "Vide sanitaire : jour {day} sur {min} · fin le {end}",
     "steps": {
       "manureOut": "Sortie du fumier",
@@ -1980,9 +1980,7 @@
     "productLot": "N° de lot du produit (facultatif)",
     "lot": "lot {lot}",
     "note": "Note (facultatif)",
-    "save": "Enregistrer l’étape",
-    "minDays": "Vide sanitaire minimal de la ferme (jours, facultatif)",
-    "saveMin": "Enregistrer"
+    "save": "Enregistrer l’étape"
   },
   "Files": {
     "sending": "Envoi du fichier…",

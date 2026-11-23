@@ -8,8 +8,8 @@ import type { TenantContext } from "@/lib/tenant";
 import { PLANNING_MUTATIONS as M } from "@/modules/planning/schema";
 import { twoTenants } from "@/test/tenant";
 
-// SPEC-m5 PL1, PL5 (T96): plans are saved, edited while planned and cancelled; the downtime is the owner's, with a
-// source. Made-up figures.
+// SPEC-m5 PL1, PL5 (T96): plans are saved, edited while planned and cancelled; the owner's downtime, with a source,
+// is above the official 20 days (arrêté n° 2127-05, art. 4). Made-up figures otherwise.
 const m = (type: string, payload: unknown): PushedMutation => ({ id: uuidv7(), type, payload, createdAt: new Date().toISOString() });
 const statuses = async (ctx: TenantContext, ms: PushedMutation[]) => (await push(ctx, ms, registry)).results.map((r) => (r.status === "rejected" ? r.messageKey : r.status));
 
@@ -47,14 +47,16 @@ describe("planned batches (SPEC-m5 PL1, PL5)", () => {
     expect((await pull(b, 0, registry)).changes.some((c) => c.entity === "plannedBatch")).toBe(false);
   });
 
-  it("the owner enters the farm's minimum downtime with its source; a manager cannot, and a source is required", async () => {
-    const rule = { id: uuidv7(), farmId: farm, validFrom: "2026-01-01", minDays: 14, source: "Test E2E" };
+  it("the owner enters a higher minimum downtime with its source; never below the official 20 days (CQ3); a manager cannot", async () => {
+    const rule = { id: uuidv7(), farmId: farm, validFrom: "2026-01-01", minDays: 28, source: "Test E2E" };
     expect(await statuses({ ...a, role: "manager" }, [m(M.saveDowntime, rule)])).toEqual(["errors.FORBIDDEN"]);
-    expect(await statuses(a, [m(M.saveDowntime, { ...rule, id: uuidv7(), source: "" }), m(M.saveDowntime, rule), m(M.saveDowntime, rule)])).toEqual([
+    expect(await statuses(a, [m(M.saveDowntime, { ...rule, id: uuidv7(), source: "" }), m(M.saveDowntime, { ...rule, id: uuidv7(), minDays: 19 }), m(M.saveDowntime, rule), m(M.saveDowntime, rule)])).toEqual([
       "errors.INVALID_INPUT",
+      "errors.DOWNTIME_BELOW_OFFICIAL",
       "applied",
       "errors.ALREADY_EXISTS",
     ]);
+    expect(await db.downtimeRule.count({ where: { farmId: farm } })).toBe(1);
     expect(await statuses(b, [m(M.saveDowntime, { ...rule, id: uuidv7() })])).toEqual(["errors.NOT_FOUND"]);
   });
 

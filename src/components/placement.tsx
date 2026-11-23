@@ -6,12 +6,13 @@ import { v7 as uuidv7 } from "uuid";
 import { field, primary, secondary, warn } from "@/components/ui";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
-import { downtimeWarning } from "@/modules/biosecurity/shared";
+import type { CleanoutDto } from "@/modules/biosecurity/shared";
 import type { HouseDto } from "@/modules/farm-registry/schema";
 import { Batch, FLOCK_MUTATIONS as M, canJoinHouse, type BatchDto } from "@/modules/flock/shared";
 import { HEALTH_MUTATIONS as H, planFor } from "@/modules/health/shared";
 import type { LocalDb } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
+import { downtimeByHouse, downtimeOn, houseCycles, placementDowntime, type DowntimeRule } from "@/modules/planning/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
 import { PRODUCTION_TYPES, type BirdSex, type ProductionType } from "@/modules/reference-data/shared";
 
@@ -44,11 +45,13 @@ export function PlacementForm({
   houses,
   strains,
   protocols,
+  downtime,
   db,
   onPlaced,
   onCancel,
 }: {
-  houses: (HouseDto & { label: string; busy: boolean; open: { species: ProductionType; sex?: BirdSex }[]; disinfectedOn: FarmDay | null; minDays: number | null })[];
+  houses: (HouseDto & { label: string; busy: boolean; open: { species: ProductionType; sex?: BirdSex }[] })[];
+  downtime: { batches: readonly BatchDto[]; cleanouts: readonly CleanoutDto[]; rules: readonly DowntimeRule[] };
   strains: { id: string; name: string; productionTypes: readonly ProductionType[] }[];
   protocols: ProtocolDto[];
   db: LocalDb;
@@ -63,7 +66,11 @@ export function PlacementForm({
   const sexed = type === "turkey" && bySex;
   const [draft, setDraft] = useState<{ houseId?: string; placedOn: string }>({ houseId: houses[0]?.id, placedOn: today() });
   const chosen = houses.find((h) => h.id === draft.houseId);
-  const warning = chosen && downtimeWarning(chosen.minDays, chosen.disinfectedOn, draft.placedOn as FarmDay); // a warning, never a block
+  // SPEC-m2-compliance BS5, CQ3: planning's one figure, from the disinfection day else the removal; a warning, never a block.
+  const min = chosen && downtimeOn(downtime.rules, chosen.farmId, draft.placedOn);
+  const disinfected = new Map(downtime.cleanouts.flatMap((c) => c.steps.filter((s) => s.step === "disinfection").map((s) => [c.afterBatchId, s.day] as const)));
+  const farmHouses = houses.filter((h) => h.farmId === chosen?.farmId);
+  const warning = chosen && min && placementDowntime(min.minDays, downtimeByHouse(type), houseCycles(farmHouses.map((h) => h.id), downtime.batches, disinfected), chosen.id, draft.placedOn);
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -190,7 +197,13 @@ export function PlacementForm({
         {!sexed && <Field name="weakChicks" label={t("Batches.weakChicks")} inputMode="numeric" pattern="\d+" dir="ltr" />}
         <Field name="litterTemp" label={t("Batches.litterTemp")} inputMode="decimal" dir="ltr" />
       </fieldset>
-      {warning && <p role="status" className={warn}>{t("Batches.downtimeWarning", { elapsed: warning.elapsedDays, min: warning.minDays })}</p>}
+      {warning && min && (
+        <p role="status" className={warn}>
+          {warning.kind === "short"
+            ? t("Batches.downtimeWarning", { elapsed: warning.elapsedDays, min: warning.minDays, source: min.source })
+            : t("Batches.downtimeOccupied", { house: farmHouses.find((h) => h.id === warning.houseId)?.name ?? "" })}
+        </p>
+      )}
       {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Batches.save")}</button>

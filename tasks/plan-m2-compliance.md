@@ -11,7 +11,7 @@ Taken as safe defaults (SPEC-m2-compliance §3, to report to the owner):
 - **The register is built on the phone** from synced records, in a precached static shell: it prints offline, on the farm.
 - **Files in PostgreSQL** (`StoredFile`, bytea, ≤ 5 MB, PDF/JPEG/PNG/WebP by magic bytes), one upload route handler: ADR-011.
 - **Biosecurity records are offline mutations**; a proof photo is attached online, later, to the same record. The sync protocol doesn't change.
-- **No official content invented**: register layout, disposal methods, minimum downtime, retention and the inspection checklist wait for CQ1–CQ7; printed pages carry « Présentation provisoire, à valider avec l'ONSSA ».
+- **No official content invented**: register layout, retention and the inspection checklist wait for CQ1, CQ2, CQ5–CQ7 (the minimum downtime and disposal methods were taken from the official texts on 23 Nov 2026: CQ3, CQ4); printed pages carry « Présentation provisoire, à valider avec l'ONSSA ».
 
 ## Dependency graph
 
@@ -69,6 +69,10 @@ Done 2026-11-16 (branch `feat/t42-cleanout`), decisions taken without asking:
 
 ### T43: File storage and rodent control with proof (DC2, BS8, ADR-011)
 **Description:** Create the `documents` module with `StoredFile`; `POST /api/files` and `GET /api/files/[id]`; `RodentCheck` in `biosecurity` with `proofFileId`; the "Nuisibles" tab on `/disposal`; "Ajouter la photo" when online.
+
+Revised 2026-11-23 (branch `feat/downtime-disposal-official`), CQ3 decided default with sources (SPEC-m2-compliance §9):
+- [x] One figure: planning's `DowntimeRule`, else the built-in 20 days (arrêté n° 2127-05, art. 4). `DowntimeSetting`, its mutation and its form are retired; a migration moves a setting above 20 into a dated rule (synced and audited) and drops the table.
+- [x] The placement warning is planning's `placementDowntime`: farm-wide (from the farm's last end, or another house still holding a previous-cycle batch), house by house for table-egg layers; an end is the disinfection day, else the removal. (`planning/domain/plan.test.ts`, `e2e/cleanout.spec.ts`.)
 **AC:**
 - [x] Upload refuses a wrong type (magic bytes), > 5 MB, no session, wrong origin; download is tenant-scoped, `Content-Disposition: attachment`, `nosniff`. (`documents/domain/file.test.ts`, `app/api/files/files.int.test.ts`.)
 - [x] A rodent check is recorded offline; its photo is attached online once (`PROOF_ALREADY_ATTACHED`); without one it shows "preuve à ajouter".

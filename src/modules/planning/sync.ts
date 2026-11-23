@@ -3,7 +3,7 @@ import { fail, ok } from "@/lib/kernel/result";
 import { withoutMoney } from "@/lib/permissions";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import { farmBelongsTo, houseOf, placeBatch } from "@/modules/flock";
-import { CancelPlan, PlaceFromPlan, PLANNING_MUTATIONS as M, SaveDowntime, SavePlan, type DowntimeRule, type PlanDto } from "@/modules/planning/schema";
+import { CancelPlan, checkDowntimeRule, PlaceFromPlan, PLANNING_MUTATIONS as M, SaveDowntime, SavePlan, type DowntimeRule, type PlanDto } from "@/modules/planning/schema";
 
 // SPEC-m5 §7: planned batches and the farm's minimum downtime, written offline. Light module: Prisma and rules here;
 // the planner's rules (sale day, gaps, overlaps) are in domain/ because the phone runs them too.
@@ -78,12 +78,14 @@ export const planningSync: SyncRegistry = {
         return ok(undefined);
       },
     }),
-    // PL5, §2: the owner's figure from their source (NQ4); none is built in.
+    // PL5, §2: a figure above the official one, from the owner's source (CQ3, NQ4).
     [M.saveDowntime]: defineMutation({
       schema: SaveDowntime,
       action: "organization.manage",
       async apply(tx, ctx, r, meta) {
         if (!(await farmBelongsTo(tx, ctx, r.farmId))) return fail("NOT_FOUND");
+        const checked = checkDowntimeRule(r);
+        if (!checked.ok) return checked;
         if (await tx.downtimeRule.findUnique({ where: { id: r.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
         await tx.downtimeRule.create({ data: { ...r, validFrom: date(r.validFrom), organizationId: ctx.organizationId, createdBy: ctx.userId } });
         const dto: DowntimeRule = r;

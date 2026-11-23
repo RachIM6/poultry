@@ -17,14 +17,12 @@ import {
   RecordManure,
   RecordRodentCheck,
   RecordVisit,
-  SetMinDowntime,
   StartCleanout,
   checkDisposal,
   checkStep,
   type CleanoutDto,
   type CleanoutStepDto,
   type CleanoutStepKey,
-  type DowntimeSettingDto,
   visitZone,
   type DisposalDto,
   type ManureRemovalDto,
@@ -166,20 +164,6 @@ export const biosecuritySync: SyncRegistry = {
         return ok(undefined);
       },
     }),
-    // BS5: a farm setting, so the farm's managers set it, like the farm itself.
-    [M.setMinDowntime]: defineMutation({
-      schema: SetMinDowntime,
-      action: "farms.manage",
-      async apply(tx, ctx, { farmId, minDays }, meta) {
-        if (!(await farmBelongsTo(tx, ctx, farmId))) return fail("NOT_FOUND");
-        const before = await tx.downtimeSetting.findUnique({ where: { farmId } });
-        await tx.downtimeSetting.upsert({ where: { farmId }, create: { farmId, organizationId: ctx.organizationId, minDays }, update: { minDays } });
-        const dto: DowntimeSettingDto = { id: farmId, farmId, minDays };
-        await recordChange(tx, ctx, "downtimeSetting", farmId, dto);
-        await audit(tx, ctx, { entity: "DowntimeSetting", entityId: farmId, action: "update", before: before && { minDays: before.minDays }, after: { minDays }, ...meta });
-        return ok(undefined);
-      },
-    }),
     [M.recordRodentCheck]: defineMutation({
       schema: RecordRodentCheck,
       action: "biosecurity.record",
@@ -285,7 +269,6 @@ export const biosecuritySync: SyncRegistry = {
     disposal: (_ctx, data: DisposalDto) => data,
     manureRemoval: (_ctx, data: ManureRemovalDto) => data,
     cleanout: (_ctx, data: CleanoutDto) => data,
-    downtimeSetting: (_ctx, data: DowntimeSettingDto) => data,
     rodentCheck: (_ctx, data: RodentCheckDto) => data,
   },
 };

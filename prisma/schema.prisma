@@ -1508,6 +1508,7 @@ model PlannedBatch {
 }
 
 // Owner: planning (SPEC-m5 PL5, §2). The owner's minimum downtime between batches of a farm, from a source; dated.
+// The one downtime figure (CQ3): without a rule the official 20 days apply (arrêté n° 2127-05, art. 4, built in).
 model DowntimeRule {
   id             String   @id @db.Uuid
   organizationId String   @db.Uuid
@@ -1605,13 +1606,6 @@ model CleanoutStep {
   cleanout   Cleanout @relation(fields: [cleanoutId], references: [id], onDelete: Cascade)
 
   @@unique([cleanoutId, step])
-}
-
-// Owner: biosecurity. BS5: the farm's own minimum downtime between batches, set by the owner or manager (CQ3).
-model DowntimeSetting {
-  farmId         String @id @db.Uuid
-  organizationId String @db.Uuid
-  minDays        Int?
 }
 
 // Owner: documents. SPEC-m2-compliance DC2, ADR-011: an uploaded file, kept in the database until hosting is chosen

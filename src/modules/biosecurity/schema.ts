@@ -60,8 +60,6 @@ export const RecordCleanoutStep = z.object({
 });
 export type RecordCleanoutStep = z.infer<typeof RecordCleanoutStep>;
 
-export const SetMinDowntime = z.object({ farmId: z.uuid(), minDays: z.int32().min(1).max(365).nullable() });
-
 export const RecordRodentCheck = z.object({
   id: z.uuid(),
   farmId: z.uuid(),

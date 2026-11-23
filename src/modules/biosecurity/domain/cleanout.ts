@@ -13,15 +13,8 @@ export function checkStep(done: readonly { step: CleanoutStep }[], next: { step:
   return ok(undefined);
 }
 
-/** BS5: downtime starts on the disinfection day, which is day 1. */
-export const downtimeDay = (disinfectedOn: FarmDay, today: FarmDay) => daysBetween(disinfectedOn, today) + 1;
-
 /**
- * BS5: placing a batch before the farm's own minimum gives a warning, never a block. The minimum is the owner's
- * choice: no default until ONSSA or a vet gives one (CQ3).
+ * BS5: downtime starts on the disinfection day, which is day 1. Its minimum and the placement warning are planning's
+ * (one figure, CQ3): `downtimeOn` and `placementDowntime` in planning's shared.ts.
  */
-export function downtimeWarning(minDays: number | null, disinfectedOn: FarmDay | null, placedOn: FarmDay) {
-  if (minDays === null || disinfectedOn === null) return null;
-  const elapsedDays = daysBetween(disinfectedOn, placedOn);
-  return elapsedDays < minDays ? { elapsedDays, minDays } : null;
-}
+export const downtimeDay = (disinfectedOn: FarmDay, today: FarmDay) => daysBetween(disinfectedOn, today) + 1;

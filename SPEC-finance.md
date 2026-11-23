@@ -118,7 +118,7 @@ M6 closes a fiscal year in Dawra: what the farm owns and owes at year end (fixed
 
 **Accounts.** T100 seeded the PCA nomenclature (chapter 5 of the text, classes 1–8; copy in `docs/sources/plan-comptable-agricole-2015.pdf`) into `prisma/seed/finance/accounts.json`, labels as printed. Every account this section names is in the seed with its printed label (`accounts.test.ts`). An account the PCA text doesn't have blocks its rule until the accountant answers; no number is invented (ADR-010 §2). Fourteen printed rows are left out (§9 "Found for the accountant").
 - **Posting accounts only (FN4).** A line can't go on an account with sub-accounts. Where the nomenclature subdivides an account, a rule posts to a leaf: for example 6124 has 61241 (→ 612411–612413), 61242 and 61243, so FC5 posts to those, never to 6124.
-- **PCA off.** A PCA account posts to its `fallback`, the nearest CGNC ancestor (FN2). Where that ancestor has sub-accounts in the CGNC chart, it can't take the line either: 3152 → 315, 7140 → 714, and the hens accounts 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71, 7187 → 718. A rule using them with the PCA off needs a CGNC account from the accountant (§9).
+- **PCA off.** A PCA account posts to its `fallback`, the nearest CGNC ancestor (FN2). Where that ancestor has sub-accounts in the CGNC chart, it can't take the line either: 3152 → 315, 7140 → 714, and the hens accounts 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71, 7187 → 718. A rule using them with the PCA off needs a CGNC account from the accountant (§9). Exception: 61936 / 61937 (D.E.A of plantations and animals) fall back to 61938, the CGNC's "autres immobilisations corporelles" leaf, not to 6193 (§9 "Decided defaults").
 
 **Candidates (confirmed by T100).** The numbers this section first gave as candidates are all in the nomenclature with the role assumed: 4481, 6513, 7513, 1319, 3912, 7196, 6147, and 2351–2358 for furniture and office equipment (labels in "Accounts from the PCA nomenclature" below).
 
@@ -132,7 +132,7 @@ Numbers and labels as printed in the PCA nomenclature (chapter 5, pages 53–71)
 | Debts on fixed-asset acquisitions (FC1) | 4481 Dettes sur acquisition d’immobilisations (1486 Fournisseurs d’immobilisations also exists in class 1: §9) |
 | Net book value of tangible assets disposed of (FC1) | 6513 VNA des immobilisations corporelles cédées |
 | Proceeds of tangible-asset disposals (FC1) | 7513 Produits des cessions des immobilisations corporelles |
-| Depreciation charge (FC1, FC6) | 6193 Dotations d’exploitation aux amortissements des immobilisations corporelles |
+| Depreciation charge (FC1, FC6) | a sub-account of 6193 Dotations d’exploitation aux amortissements des immobilisations corporelles, by asset kind (CGNC scan p. 296; PCA pp. 123–124): 61932 D.E.A. des constructions, 61933 D.E.A. des installations techniques, matériel et outillage, 61934 D.E.A. du matériel de transport, 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers, 61937 D.E.A des Animaux (FC6, PCA; 61938 with the PCA off). 6193 itself takes no line (FN4) |
 | Loans (FC2) | 1481 Emprunts auprès des établissements de crédit; 6311 Intérêts des emprunts et dettes |
 | Investment subsidies (FC2) | 1311 Subventions d’investissement reçues; 1319 Subventions d’investissement inscrites au compte de produits et charges; 7577 Reprises sur subventions d’investissement de l’exercice |
 | Batches in progress (FC4) | 31322 Animaux (under 3132 Encours de Production); 7131 Variation des stocks de produits en cours; 6196 Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant; 3913 Provisions pour dépréciation des produits en cours |
@@ -146,15 +146,15 @@ Numbers and labels as printed in the PCA nomenclature (chapter 5, pages 53–71)
 
 **Fixed-asset categories (FC1), default:**
 
-| Category | Asset account | Depreciation |
-|---|---|---|
-| Land | 23111 Terrains nus d’exploitation (23121 Terrains aménagés d’exploitation for prepared land); 2311 / 2312 with the PCA off | none |
-| Buildings, poultry houses included | 23211 Bâtiments d’exploitation (2321 with the PCA off); 23231 on someone else's land | 2832 Amortissements des constructions |
-| Technical installations, equipment and tools | 233111 Installations techniques Agricoles sur sol propre (233112 on someone else's land; 2331 with the PCA off); 2332 Matériel et outillage for movable equipment and tools | 2833 Amortissements des installations techniques, matériel et outillage |
-| Transport equipment | 2340 Matériel de transport | 2834 Amortissements du matériel de transport |
-| Furniture and office equipment | 2351 Mobilier de bureau, 2352 Matériel de bureau, 2355 Matériel informatique, 2358 Autres mobilier, matériel de bureau et aménagements divers | 2835 Amortissements du mobilier, matériel de bureau et aménagements divers |
+| Category | Asset account | Depreciation | Charge |
+|---|---|---|---|
+| Land | 23111 Terrains nus d’exploitation (23121 Terrains aménagés d’exploitation for prepared land); 2311 / 2312 with the PCA off | none | none |
+| Buildings, poultry houses included | 23211 Bâtiments d’exploitation (2321 with the PCA off); 23231 on someone else's land | 2832 Amortissements des constructions | 61932 D.E.A. des constructions |
+| Technical installations, equipment and tools | 233111 Installations techniques Agricoles sur sol propre (233112 on someone else's land; 2331 with the PCA off); 2332 Matériel et outillage for movable equipment and tools | 2833 Amortissements des installations techniques, matériel et outillage | 61933 D.E.A. des installations techniques, matériel et outillage |
+| Transport equipment | 2340 Matériel de transport | 2834 Amortissements du matériel de transport | 61934 D.E.A. du matériel de transport |
+| Furniture and office equipment | 2351 Mobilier de bureau, 2352 Matériel de bureau, 2355 Matériel informatique, 2358 Autres mobilier, matériel de bureau et aménagements divers | 2835 Amortissements du mobilier, matériel de bureau et aménagements divers | 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers |
 
-The "d’exploitation / hors exploitation" split follows the text: "hors exploitation" land is land not used by the farm (chapter 6, account 231, p. 84). Each depreciation account above is a leaf.
+The "d’exploitation / hors exploitation" split follows the text: "hors exploitation" land is land not used by the farm (chapter 6, account 231, p. 84). Each depreciation and charge account above is a leaf, in both charts. 6193 is not: the CGNC subdivides it by asset kind, each 6193x paired with its 283x (scan p. 296), so a category's charge goes on the sub-account that matches its depreciation account (§9 "Decided defaults"). 61938 D.E.A. des autres immobilisations corporelles (with 2838) has no category yet.
 
 **Bought stock by kind (FC5), default.** The stock account follows the purchase account's family (FN6), and the variation account is the matching 6124 leaf:
 
@@ -229,9 +229,9 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - Months used in a fiscal year: from the in-service month (included) to the disposal month (excluded) or the year end, never beyond the life.
     - The charge of a year is cumulative(end) − cumulative(start), with cumulative(m) = base × min(m, life) ÷ life, rounded half up to the centime. Rounded once per cumulative figure, so the charges always add up to the base exactly (§7.1 fixture A).
     - An asset in the opening balance spreads what is left (base − accumulated depreciation entered) the same way over the life months left.
-  - **Year-end posting** (close run): D 6193 / C 2832–2835, one line per depreciation account.
+  - **Year-end posting** (close run): D 61932–61935 / C 2832–2835, one debit line per charge account and one credit line per depreciation account, paired as the CGNC pairs them (61932 / 2832 … 61935 / 2835; table above).
   - **Disposal** (sold or scrapped): day, price (0 when scrapped), received in cash or at the bank. On the disposal day (`OD`):
-    - the depreciation of the year up to the disposal month: D 6193 / C the asset's depreciation account (2832–2835);
+    - the depreciation of the year up to the disposal month: D the asset's charge account (61932–61935) / C its depreciation account (2832–2835);
     - the asset leaves: D that depreciation account (accumulated), D 6513 VNA des immobilisations corporelles cédées, C asset account (cost);
     - the price: D 5161 / 5141 / C 7513 Produits des cessions des immobilisations corporelles.
 
@@ -366,7 +366,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 1. Base = 4 735 000 centimes. Months used: 2026 = September to December = 4 (September counts in full); 2027–2032 = 12 each; 2033 = 84 − 4 − 6 × 12 = 8 (January to August).
 2. cumulative(m) = 4 735 000 × m ÷ 84, half up:
 
-| Year | m at year end | 4 735 000 × m ÷ 84, centimes | cumulative, centimes | Charge, DH (D 6193 / C 2833) |
+| Year | m at year end | 4 735 000 × m ÷ 84, centimes | cumulative, centimes | Charge, DH (D 61933 / C 2833) |
 |---|---|---|---|---|
 | 2026 | 4 | 225 476,19 | 225 476 | 2 254,76 |
 | 2027 | 16 | 901 904,76 | 901 905 | 6 764,29 |
@@ -459,6 +459,12 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ29 | Bought stock with the PCA off: vaccines and medicines are bought on 6122 (612123's CGNC fallback). Are they in stock on 3121 / 61241 like feed, or on 31221 / 61242 like the other supplies? §5's "Bought stock by kind" covers only the PCA case. | FC5 (until then they follow their purchase family: 31221 / 61242) |
 | FQ30 | Bought stock of a VAT-registered entity: valued net of the purchases' VAT (as the charges were booked, FN9)? The batch cost (FN13) still uses amounts including VAT. | FC5 (until then net of VAT) |
 | FQ31 | Home consumption of a product the farm has not sold yet (first eggs of a grade, first birds by the head): FQ21's last sale price doesn't exist. Which value? | FC7 (until then such an entry, a worker's or one whose price was left empty, is valued 0: it counts in the batch's kg sold, posts nothing and is listed "non comptabilisé" on `/books`) |
+
+### Decided defaults, to review
+
+Decided from the official texts on the owner's instruction (2026-11-23), built or specified, and to review with the accountant. PCA pages are as printed in `docs/sources/plan-comptable-agricole-2015.pdf`; CGNC pages are scan pages of the Tome I (below).
+
+- **6193 is subdivided; FC1 posts to its sub-accounts** (FN4). The CGNC lists 61931 D.E.A. des terrains, 61932 D.E.A. des constructions, 61933 D.E.A. des installations techniques, matériel et outillage, 61934 D.E.A. du matériel de transport, 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers and 61938 D.E.A des autres immobilisations corporelles under 6193 (scan p. 296; OCR lines 1948–1964). PCA chapter 6 repeats them and adds 61936 D.E.A des Plantations and 61937 D.E.A des Animaux (pp. 123–124). Seeded: the six CGNC ones `cgnc`; 61936 and 61937 `pca`, both falling back to 61938, since plantations (236) and animals (237) are PCA rubriques with no CGNC account and 238 Autres immobilisations corporelles is the CGNC's catch-all (its depreciation 2838, its charge 61938). These come from chapter 6, an exception to "Chapter 6 only" below: the CGNC prints the subdivision itself. FC1's charge follows the asset's depreciation account: 2832 → 61932, 2833 → 61933, 2834 → 61934, 2835 → 61935 (2838 → 61938 when a category uses it; land is not depreciated). The year-end entry has one debit line per charge account. Until this change every depreciation posted on 6193, a parent; no pilot has run, so no production entry needs moving.
 
 ### Found for the accountant (T100)
 

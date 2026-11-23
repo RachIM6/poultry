@@ -944,6 +944,7 @@
     "balanced": "Balance équilibrée",
     "unbalanced": "Balance déséquilibrée",
     "export": "Exporter pour le comptable (CSV, Excel)",
+    "exportFec": "Fichier FEC pour le logiciel comptable",
     "cpc": "Produits et charges",
     "cpcDraft": "Brouillon depuis le début de l’exercice, le {from} : l’expert-comptable arrête l’exercice (stocks, amortissements).",
     "cpcClosed": "Exercice clôturé le {closed}, depuis son début, le {from}.",

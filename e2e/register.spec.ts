@@ -71,7 +71,7 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
   await printsOnA4(page, "register-fr");
 
   await page.goBack();
-  await page.getByRole("link", { name: "سجل التتبع الصحي (العربية)" }).click();
+  await page.getByRole("link", { name: "Registre de suivi sanitaire (العربية)" }).click();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(doc.getByRole("heading", { level: 1 })).toHaveText("سجل التتبع الصحي");
   await expect(doc).toContainText("القرار رقم 2126-05");

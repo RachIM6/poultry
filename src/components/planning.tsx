@@ -31,6 +31,7 @@ function Planning(scope: Scope) {
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [message, setMessage] = useState<string>();
   const [placing, setPlacing] = useState<string | null>(null); // the plan being placed (PL3)
+  const [editing, setEditing] = useState<string | null>(null); // the plan being edited (PL1)
   if (!records) return null;
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const farms = of<FarmDto>("farm");
@@ -52,6 +53,8 @@ function Planning(scope: Scope) {
       setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
     }
   };
+  // PL1: created, or edited while planned; the server takes the whole plan again.
+  const savePlan = (p: PlanDto) => write(P.savePlan, "plannedBatch", p, { id: p.id, houseId: p.houseId, placeOn: p.placeOn, chicks: p.chicks, strainId: p.strainId, hatchery: p.hatchery, chickPriceCentimes: p.chickPriceCentimes ?? null, saleAge: p.saleAge });
 
   // PL3: one mutation places the batch and marks the plan; the vaccination plan follows, as on /batches (H1).
   const place = async (plan: PlanDto, batch: BatchDto, sent: object, protocol: ProtocolDto | undefined) => {
@@ -110,11 +113,15 @@ function Planning(scope: Scope) {
                             {plan && manage && placing === plan.id && (
                               <PlaceForm plan={plan} today={today} protocols={of<ProtocolDto>("protocol")} onSave={(batch, sent, protocol) => place(plan, batch, sent, protocol)} onCancel={() => setPlacing(null)} />
                             )}
-                            {plan && manage && placing !== plan.id && (
+                            {plan && manage && editing === plan.id && (
+                              <PlanForm plan={plan} houses={houses} strains={strains} today={today} onSave={(p) => savePlan(p).then(() => setEditing(null))} onCancel={() => setEditing(null)} />
+                            )}
+                            {plan && manage && placing !== plan.id && editing !== plan.id && (
                               <span className="mt-2 flex flex-wrap gap-2">
                                 {plan.placeOn <= nextFarmDay(today) && (
                                   <button type="button" onClick={() => setPlacing(plan.id)} className={primary}>{t("Planning.place", { date: day(plan.placeOn) })}</button>
                                 )}
+                                <button type="button" onClick={() => setEditing(plan.id)} className={secondary}>{t("Planning.edit", { date: day(plan.placeOn) })}</button>
                                 <button type="button" onClick={() => write(P.cancelPlan, "plannedBatch", { ...plan, status: "cancelled" }, { id: plan.id })} className={secondary}>
                                   {t("Planning.cancel", { date: day(plan.placeOn) })}
                                 </button>
@@ -131,13 +138,14 @@ function Planning(scope: Scope) {
           </section>
         );
       })}
-      {manage && <PlanForm houses={houses} strains={strains} today={today} onSave={(p) => write(P.savePlan, "plannedBatch", p, { id: p.id, houseId: p.houseId, placeOn: p.placeOn, chicks: p.chicks, strainId: p.strainId, hatchery: p.hatchery, chickPriceCentimes: p.chickPriceCentimes ?? null, saleAge: p.saleAge })} />}
+      {manage && <PlanForm houses={houses} strains={strains} today={today} onSave={savePlan} />}
       {can(scope, "organization.manage") && <DowntimeForm farms={farms} today={today} onSave={(r) => write(P.saveDowntime, "downtimeRule", r)} />}
     </>
   );
 }
 
 type Strain = { id: string; name: string };
+const priceText = (centimes: string | null | undefined) => (centimes ? `${BigInt(centimes) / 100n},${String(BigInt(centimes) % 100n).padStart(2, "0")}` : "");
 
 /** PL3: the placement, filled from the plan; what only the delivery says (dead on arrival, delivery note) is asked here. */
 function PlaceForm({ plan, today, protocols, onSave, onCancel }: { plan: PlanDto; today: string; protocols: ProtocolDto[]; onSave: (batch: BatchDto, sent: object, protocol: ProtocolDto | undefined) => Promise<void>; onCancel: () => void }) {
@@ -145,7 +153,7 @@ function PlaceForm({ plan, today, protocols, onSave, onCancel }: { plan: PlanDto
   const locale = useLocale();
   const [error, setError] = useState<string>();
   const id = { day: useId(), chicks: useId(), dead: useId(), note: useId(), price: useId(), weight: useId(), protocol: useId() };
-  const price = plan.chickPriceCentimes ? `${BigInt(plan.chickPriceCentimes) / 100n},${String(BigInt(plan.chickPriceCentimes) % 100n).padStart(2, "0")}` : "";
+  const price = priceText(plan.chickPriceCentimes);
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);
@@ -190,8 +198,10 @@ function PlaceForm({ plan, today, protocols, onSave, onCancel }: { plan: PlanDto
   );
 }
 
-function PlanForm({ houses, strains, today, onSave }: { houses: HouseDto[]; strains: readonly Strain[]; today: string; onSave: (p: PlanDto) => Promise<void> }) {
+/** PL1: a new plan, or an edit of a planned one (the same form, prefilled). */
+function PlanForm({ plan, houses, strains, today, onSave, onCancel }: { plan?: PlanDto; houses: HouseDto[]; strains: readonly Strain[]; today: string; onSave: (p: PlanDto) => Promise<unknown>; onCancel?: () => void }) {
   const t = useTranslations();
+  const locale = useLocale();
   const [error, setError] = useState<string>();
   const [key, setKey] = useState(0); // a new key empties the form after a save
   const id = { house: useId(), day: useId(), chicks: useId(), strain: useId(), hatchery: useId(), price: useId(), age: useId() };
@@ -206,31 +216,44 @@ function PlanForm({ houses, strains, today, onSave }: { houses: HouseDto[]; stra
     if ((get("price") !== "" && price === null) || !Number.isInteger(chicks) || chicks <= 0 || (age !== null && !(Number.isInteger(age) && age >= 1 && age <= 800))) return setError("errors.INVALID_QUANTITY");
     setError(undefined);
     const house = houses.find((h) => h.id === get("house"))!;
-    await onSave({ id: uuidv7(), farmId: house.farmId, houseId: house.id, placeOn: get("day"), chicks, strainId: get("strain"), hatchery: get("hatchery"), chickPriceCentimes: price === null ? null : String(price), saleAge: age, status: "planned", batchId: null });
+    await onSave({ id: plan?.id ?? uuidv7(), farmId: house.farmId, houseId: house.id, placeOn: get("day"), chicks, strainId: get("strain"), hatchery: get("hatchery"), chickPriceCentimes: price === null ? null : String(price), saleAge: age, status: "planned", batchId: null });
     setKey((k) => k + 1);
   };
   return (
-    <form key={key} onSubmit={submit} className={card} aria-label={t("Planning.add")}>
+    <form
+      key={key}
+      onSubmit={submit}
+      className={plan ? "mt-2 flex flex-col gap-2 rounded-2xl border border-line p-3" : card}
+      aria-label={plan ? t("Planning.edit", { date: formatDay(plan.placeOn as FarmDay, locale) }) : t("Planning.add")}
+    >
       <label htmlFor={id.house}>{t("Planning.house")}</label>
-      <select id={id.house} name="house" className={field}>
+      <select id={id.house} name="house" defaultValue={plan?.houseId} className={field}>
         {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
       </select>
       <label htmlFor={id.day}>{t("Planning.placeOn")}</label>
-      <input id={id.day} name="day" type="date" required min={today} className={field} />
+      {/* an overdue plan keeps its day; no earlier one */}
+      <input id={id.day} name="day" type="date" required min={plan && plan.placeOn < today ? plan.placeOn : today} defaultValue={plan?.placeOn} className={field} />
       <label htmlFor={id.chicks}>{t("Planning.chicks")}</label>
-      <input id={id.chicks} name="chicks" inputMode="numeric" dir="ltr" required className={field} />
+      <input id={id.chicks} name="chicks" inputMode="numeric" dir="ltr" required defaultValue={plan ? String(plan.chicks) : undefined} className={field} />
       <label htmlFor={id.strain}>{t("Planning.strain")}</label>
-      <select id={id.strain} name="strain" required className={field}>
+      <select id={id.strain} name="strain" required defaultValue={plan?.strainId} className={field}>
         {strains.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
       </select>
       <label htmlFor={id.hatchery}>{t("Planning.hatchery")}</label>
-      <input id={id.hatchery} name="hatchery" required maxLength={120} className={field} />
+      <input id={id.hatchery} name="hatchery" required maxLength={120} defaultValue={plan?.hatchery} className={field} />
       <label htmlFor={id.price}>{t("Planning.price")}</label>
-      <input id={id.price} name="price" inputMode="decimal" dir="ltr" className={field} />
+      <input id={id.price} name="price" inputMode="decimal" dir="ltr" defaultValue={priceText(plan?.chickPriceCentimes)} className={field} />
       <label htmlFor={id.age}>{t("Planning.saleAge")}</label>
-      <input id={id.age} name="age" inputMode="numeric" dir="ltr" className={field} />
+      <input id={id.age} name="age" inputMode="numeric" dir="ltr" defaultValue={plan?.saleAge ?? ""} className={field} />
       {error && <p role="alert">{t(error)}</p>}
-      <button type="submit" className={primary}>{t("Planning.save")}</button>
+      {onCancel ? (
+        <div className="flex gap-3">
+          <button type="submit" className={primary}>{t("Planning.save")}</button>
+          <button type="button" onClick={onCancel} className={secondary}>{t("Batches.cancel")}</button>
+        </div>
+      ) : (
+        <button type="submit" className={primary}>{t("Planning.save")}</button>
+      )}
     </form>
   );
 }

@@ -3,7 +3,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { alertIfLow } from "@/modules/inventory/application/alerts";
-import { deleteMovement, findItem, findMovement, insertMovement, updateMovementQuantity } from "@/modules/inventory/infrastructure/repository";
+import { deleteMovement, findItem, findMovement, idTaken, insertMovement, updateMovementQuantity } from "@/modules/inventory/infrastructure/repository";
 import type { MovementDto } from "@/modules/inventory/schema";
 
 /**
@@ -26,6 +26,7 @@ export async function recordConsumption(
 
   const previous = await findMovement(tx, ctx, c.id);
   if (previous && !(c.replace && previous.kind === "consumption")) return fail("ALREADY_EXISTS");
+  if (!previous && (await idTaken(tx, "stockMovement", c.id))) return fail("ALREADY_EXISTS"); // another organisation's
   if (previous && previous.stockItemId !== item.id) await removeConsumption(tx, ctx, c.id); // another item this time
   const same = previous && previous.stockItemId === item.id ? previous : null;
 

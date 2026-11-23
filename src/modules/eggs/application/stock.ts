@@ -6,7 +6,7 @@ import { eggFlowsOnDay } from "@/modules/eggs/infrastructure/collections";
 
 /**
  * For finance (SPEC-finance FC3, FC5), read-only: each farm's eggs on hand at the end of `day` (E2's lots, from the
- * collections laid by then and the gradings, discards and draws recorded by then), farms with none left out.
+ * collections, discards and draws of a farm day by then, and the gradings of eggs laid by then), farms with none left out.
  */
 export async function eggStockOnDay(tx: Tx, ctx: TenantContext, day: FarmDay): Promise<{ farmId: string; eggs: number }[]> {
   const { farmOf, ...flows } = await eggFlowsOnDay(tx, ctx, day);

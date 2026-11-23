@@ -2,13 +2,26 @@ import { db } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { verifyCaptcha } from "@/lib/security/captcha";
-import { consume, reset } from "@/lib/security/rate-limit";
+import { clientNet, consume, reset } from "@/lib/security/rate-limit";
+import type { PolicyName } from "@/lib/security/policies";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
 import { acceptInvitations } from "@/modules/identity/application/members";
+import { recordAuthEvent, type AuthAction, type Client } from "@/modules/identity/infrastructure/auth-events";
 import { auth, AUTH_CONFIG } from "@/modules/identity/infrastructure/better-auth";
 
-type Net = { ip?: string; subnet?: string };
 type LoginError = "INVALID_OR_EXPIRED_CODE" | "TOO_MANY_REQUESTS" | "CAPTCHA_REQUIRED";
+
+/** The request's IP (for the limits), coarse subnet and user agent (for the auth events, poultry-auth §6). */
+export const clientOf = (headers: Headers): Client => ({ ...clientNet(headers), userAgent: headers.get("user-agent") ?? undefined });
+
+// Every path below writes exactly one auth event, so auditing adds the same work to each answer (poultry-auth §0.9).
+const eventFor = (client: Client, phone: ReturnType<typeof PhoneNumber.create>) => (action: AuthAction, reason: string) =>
+  recordAuthEvent(action, client, { reason, phone: phone.ok ? phone.value.masked : undefined });
+const blockedOn = (policy: PolicyName, dims: string[]) => `${policy}:${dims.join(",")}`;
+
+// Better Auth's error code, kept for the audit only: the answer is always INVALID_OR_EXPIRED_CODE.
+const VERIFY_FAILURES: Record<string, string> = { INVALID_OTP: "wrong_code", OTP_EXPIRED: "expired", OTP_NOT_FOUND: "no_code", TOO_MANY_ATTEMPTS: "locked" };
+const verifyFailure = (e: unknown) => VERIFY_FAILURES[(e as { body?: { code?: string } }).body?.code ?? ""] ?? "error";
 
 /**
  * Sends a code if the number is eligible. The answer never says whether a code went out (poultry-auth §0.9):
@@ -18,16 +31,28 @@ type LoginError = "INVALID_OR_EXPIRED_CODE" | "TOO_MANY_REQUESTS" | "CAPTCHA_REQ
  */
 export async function requestCode(
   rawPhone: string,
-  net: Net,
+  client: Client,
   captcha?: unknown,
 ): Promise<"sent_if_eligible" | "TOO_MANY_REQUESTS" | "CAPTCHA_REQUIRED"> {
-  if ((await consume("requestCode", net)).length > 0) return "TOO_MANY_REQUESTS";
-  if (!(await verifyCaptcha(captcha))) return "CAPTCHA_REQUIRED";
-
   const phone = PhoneNumber.create(rawPhone);
-  if (!phone.ok) return "sent_if_eligible";
+  const event = eventFor(client, phone);
+  const flood = await consume("requestCode", { ip: client.ip, subnet: client.subnet });
+  if (flood.length > 0) {
+    await event("rate_limited", blockedOn("requestCode", flood));
+    return "TOO_MANY_REQUESTS";
+  }
+  if (!(await verifyCaptcha(captcha))) {
+    await event("captcha_failed", "requestCode");
+    return "CAPTCHA_REQUIRED";
+  }
+
+  if (!phone.ok) {
+    await event("code_requested", "invalid_phone");
+    return "sent_if_eligible";
+  }
   const blocked = await consume("requestCode", { phone: phone.value.e164, prefix: phone.value.e164.slice(0, 7), global: "sms" });
   if (blocked.length === 0) await auth.api.sendPhoneNumberOTP({ body: { phoneNumber: phone.value.e164 } });
+  await (blocked.length === 0 ? event("code_requested", "eligible") : event("rate_limited", blockedOn("requestCode", blocked)));
   return "sent_if_eligible";
 }
 
@@ -40,18 +65,36 @@ export async function verifyCode(
   rawPhone: string,
   code: string,
   locale: "ar" | "fr",
-  net: Net,
+  client: Client,
   captcha?: unknown,
 ): Promise<Result<Headers, LoginError>> {
-  if ((await consume("verifyCode", net)).length > 0) return fail("TOO_MANY_REQUESTS");
   const phone = PhoneNumber.create(rawPhone);
-  const who = { ip: net.ip, phone: phone.ok ? phone.value.e164 : undefined };
+  const event = eventFor(client, phone);
+  const flood = await consume("verifyCode", { ip: client.ip, subnet: client.subnet });
+  if (flood.length > 0) {
+    await event("rate_limited", blockedOn("verifyCode", flood));
+    return fail("TOO_MANY_REQUESTS");
+  }
+  const who = { ip: client.ip, phone: phone.ok ? phone.value.e164 : undefined };
   // Counted as a failure before the code is checked, so parallel wrong codes can't all slip in under the threshold.
   // A refused captcha keeps that failure (captcha.md §5).
-  if ((await consume("verifyFailures", who)).length > 0 && !(await verifyCaptcha(captcha))) return fail("CAPTCHA_REQUIRED");
-  if (!phone.ok) return fail("INVALID_OR_EXPIRED_CODE");
-  if ((await consume("verifyCode", { phone: phone.value.e164 })).length > 0) return fail("TOO_MANY_REQUESTS");
-  if (!/^\d{6}$/.test(code)) return fail("INVALID_OR_EXPIRED_CODE");
+  if ((await consume("verifyFailures", who)).length > 0 && !(await verifyCaptcha(captcha))) {
+    await event("captcha_failed", "verifyCode");
+    return fail("CAPTCHA_REQUIRED");
+  }
+  if (!phone.ok) {
+    await event("verify_failed", "invalid_phone");
+    return fail("INVALID_OR_EXPIRED_CODE");
+  }
+  const budget = await consume("verifyCode", { phone: phone.value.e164 });
+  if (budget.length > 0) {
+    await event("rate_limited", blockedOn("verifyCode", budget));
+    return fail("TOO_MANY_REQUESTS");
+  }
+  if (!/^\d{6}$/.test(code)) {
+    await event("verify_failed", "malformed_code");
+    return fail("INVALID_OR_EXPIRED_CODE");
+  }
 
   try {
     const { headers, response } = await auth.api.verifyPhoneNumber({
@@ -62,8 +105,10 @@ export async function verifyCode(
     // SPEC I3: the language used to log in is the user's current choice. (Better Auth drops extra body fields.)
     await db.user.update({ where: { id: response.user.id }, data: { locale } });
     await acceptInvitations(response.user.id, phone.value.e164);
+    await recordAuthEvent("login", client, { userId: response.user.id, phone: phone.value.masked });
     return ok(headers);
-  } catch {
+  } catch (e) {
+    await event("verify_failed", verifyFailure(e));
     return fail("INVALID_OR_EXPIRED_CODE");
   }
 }
@@ -82,6 +127,13 @@ export async function getSession(headers: Headers, clock: Clock = systemClock) {
 
 /** Deletes the server session; the returned headers clear the cookie. */
 export async function logout(headers: Headers): Promise<Headers> {
+  const session = await getSession(headers);
+  const out = await signOut(headers);
+  if (session) await recordLogout(headers, session);
+  return out;
+}
+
+async function signOut(headers: Headers): Promise<Headers> {
   try {
     const { headers: out } = await auth.api.signOut({ headers, returnHeaders: true });
     return out;
@@ -90,11 +142,17 @@ export async function logout(headers: Headers): Promise<Headers> {
   }
 }
 
+const recordLogout = (headers: Headers, session: { userId: string; phone?: string | null }, reason?: string) => {
+  const phone = PhoneNumber.create(session.phone ?? "");
+  return recordAuthEvent("logout", clientOf(headers), { userId: session.userId, phone: phone.ok ? phone.value.masked : undefined, reason });
+};
+
 /** poultry-auth §3, T25 S2: "log out all my devices" for a lost phone. Every session of this user ends, this one too. */
 export async function logoutEverywhere(headers: Headers): Promise<Headers> {
   const session = await getSession(headers);
-  const out = await logout(headers);
+  const out = await signOut(headers);
   if (!session) return out;
+  await recordLogout(headers, session, "everywhere");
   await db.$transaction(async (tx) => {
     const { count } = await tx.session.deleteMany({ where: { userId: session.userId } });
     const memberships = await tx.membership.findMany({ where: { userId: session.userId }, select: { organizationId: true } });

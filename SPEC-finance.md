@@ -289,7 +289,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - **Current value, default (FQ20):** equal to cost, unless the owner enters a lower one for a damaged or expired lot (the count sheet flags expired lots). A provision for the difference: D 6196 / C 3912 Provisions pour dépréciation des matières et fournitures (§7 `stockAtCloseValue`).
     - Reversed on the next year's first day (FCX5): D the 6124 leaf / C the stock account, and D 3912 / C 7196.
   - **Eggs** (T113; `eggs` added to finance's dependencies by the product owner on 22 Nov 2026, CAPABILITY-MAP):
-    - quantity: the count, else the egg stock (SPEC-m3 E2) on the last day: the collections laid by then, and the gradings, discards and draws received by the end of that day (they carry no day of their own);
+    - quantity: the count, else the egg stock (SPEC-m3 E2) on the last day: each record on the farm day it happened, whenever the server received it: the collections laid by then, the discards (the phone's farm day) and the draws (the sale's day) of a day by then, and the gradings of eggs laid by then (a grading only moves eggs between items);
     - **default (FQ18): value per egg typed by the owner**, in dirhams to the centime, no computed cost. Value = quantity × value per egg, exact. The run refuses while eggs to post have no value; none counted, nothing posted;
     - D 3152 Produits finis (d’animaux) / C 7132, in the "stock" entry, reversed with it (FCX5). With the PCA off, 3152 lands on 315, which has sub-accounts: nothing posts for the eggs and no value is asked, listed "non comptabilisé (FQ25)" (§9).
   - **Out of scope:** any valuation method other than the weighted average cost (S5).

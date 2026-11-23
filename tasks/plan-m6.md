@@ -277,18 +277,18 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Depends on:** T108. **Size:** S
 
 ### T114: Laying hens, simplified method (FC6)
-**Blocked by:** FQ7 (no safe default: choosing the method is the accountant's), and T100 (715 and the valuation basis, read from the PCA text: SPEC-finance §5 "Laying hens, what the text says"; 23711 / 23712 against the text's 2371 / 2372 is part of FQ7).
+**Blocked by:** T100 (715 and the valuation basis, read from the PCA text: SPEC-finance §5 "Laying hens, what the text says"). FQ7 has a decided default, to review (SPEC-finance §5 FC6, §9 "Decided defaults": classic by default, simplified by the owner's choice, 23711 / 23712).
 **Description:** The method choice per category in the accounting settings (locked once the year has an entry, like FN1). The close run values the laying flock per the PCA text, through 7151 / 7152.
 **Size:** M
 
 ### T115: Laying hens and pullets, classic method (FC6)
-**Blocked by:** FQ7 and FQ8 (removing culled hens' remaining book value: no safe default), and T100 (23962, 71431, 23711, 28371, 7187).
+**Blocked by:** T100 (23962, 71431, 23711, 28371, 7187). FQ7 and FQ8 have decided defaults, to review (SPEC-finance §5 FC6, §9 "Decided defaults").
 **Description:**
 - Own pullets capitalised: D 23962 / C 71431, at the transfer to lay and at year end.
 - Point-of-lay hens bought: D 23711.
-- Depreciation over the laying period (life and cull value typed by the owner): D 6193 / C 28371.
+- Depreciation over the laying period (life and cull value typed by the owner): D 61937 / C 28371.
 - Culled hens sold: C 7187.
-- The removal entry, per FQ8's answer.
+- The removal entry at the cull (FQ8 default): D 28371 + D 6187 / C 23711.
 **Size:** L
 
 ### T116: Official statements (FC8)

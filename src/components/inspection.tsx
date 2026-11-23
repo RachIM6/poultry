@@ -13,12 +13,15 @@ import { CLEANOUT_STEPS, type CleanoutDto, type ManureRemovalDto, type RodentChe
 import { byExpiry, documentState, type DocumentDto } from "@/modules/documents/shared";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto } from "@/modules/flock/shared";
-import { inspectionChecklist, inspectionSince, type Missing } from "@/modules/reporting/shared";
+import type { VaccinationDto, VetVisitDto } from "@/modules/health/shared";
+import type { StockItemDto } from "@/modules/inventory/shared";
+import { inPack, inspectionChecklist, inspectionSince, type Missing } from "@/modules/reporting/shared";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
 
 // SPEC-m2-compliance RP4 on the static /inspection shell: one farm's pack in one printable document, from the phone's
-// records, offline. Owners and managers (the vault is theirs). The list of pieces is provisional (CQ2).
+// records, offline. Owners and managers (the vault is theirs). The checklist's lines come from the texts, each with its
+// source (CQ2); registers are kept for their retention period (CQ5), the logs for 12 months.
 
 const ENTITIES = [...REGISTER_ENTITIES, "visit", "cleanout", "manureRemoval", "rodentCheck"];
 
@@ -63,21 +66,34 @@ function Pack(scope: Scope) {
   const houses = all<HouseDto>("house");
   const houseName = (id: string | null) => houses.find((h) => h.id === id)?.name ?? "—";
   const batches = all<BatchDto>("batch")
-    .filter((b) => b.farmId === farm.id && (b.status === "open" || inPeriod(b.closedOn ?? "")))
+    .filter((b) => b.farmId === farm.id && inPack(b, today))
     .sort((x, y) => y.placedOn.localeCompare(x.placedOn));
   const documents = all<DocumentDto>("document").filter((d) => d.farmId === null || d.farmId === farm.id).sort(byExpiry);
   const cleanouts = all<CleanoutDto>("cleanout").filter((c) => c.farmId === farm.id && inPeriod(c.startedOn));
   const rodentChecks = all<RodentCheckDto>("rodentCheck").filter((r) => r.farmId === farm.id && inPeriod(r.day));
-  const missing = inspectionChecklist({ today, farm, documents, batches: all<BatchDto>("batch"), cleanouts: all<CleanoutDto>("cleanout"), rodentChecks });
+  const checklist = inspectionChecklist({
+    today,
+    farm,
+    documents,
+    batches: all<BatchDto>("batch"),
+    cleanouts: all<CleanoutDto>("cleanout"),
+    rodentChecks,
+    vetVisits: all<VetVisitDto>("vetVisit"),
+    vaccinations: all<VaccinationDto>("vaccination"),
+    stockItems: all<StockItemDto>("stockItem"),
+  });
+  const missing = checklist.flatMap((l) => l.missing);
   const of = <T extends { farmId: string; day: string },>(entity: string) => all<T>(entity).filter((x) => x.farmId === farm.id && inPeriod(x.day)).sort((x, y) => y.day.localeCompare(x.day));
   const visits = all<VisitDto>("visit").filter((v) => v.farmId === farm.id && inPeriod(farmDayOf(new Date(v.enteredAt)))).sort((x, y) => y.enteredAt.localeCompare(x.enteredAt));
   const batchLabel = (id: string) => {
     const b = all<BatchDto>("batch").find((x) => x.id === id);
     return b ? t("Inspection.batch", { house: houseName(b.houseId), date: day(b.placedOn) }) : "—";
   };
+  const month = (m: string) => new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${m}-01T00:00:00Z`));
   const missingText = (m: Missing) =>
-    m.key === "documentExpired" ? t("Inspection.missing.documentExpired", { title: m.title })
-      : m.key === "noDisinfection" ? t("Inspection.missing.noDisinfection", { batch: batchLabel(m.batchId) })
+    m.key === "vetVisa" ? t("Inspection.missing.vetVisa", { month: month(m.month), batch: batchLabel(m.batchId) })
+      : m.key === "downtime" ? t("Inspection.missing.downtime", { days: m.days, batch: batchLabel(m.batchId) })
+      : m.key === "noDisinfection" || m.key === "newcastle" || m.key === "newcastleLot" ? t(`Inspection.missing.${m.key}`, { batch: batchLabel(m.batchId) })
       : m.key === "rodentProof" ? t("Inspection.missing.rodentProof", { date: day(m.day) })
       : t(`Inspection.missing.${m.key}`);
 
@@ -98,14 +114,20 @@ function Pack(scope: Scope) {
       </header>
 
       <Section title={t("Inspection.checklist")}>
+        <Table
+          none={t("Register.none")}
+          head={[t("Inspection.point"), t("Inspection.state"), t("Inspection.source")]}
+          rows={checklist.map((l) => [t(`Inspection.lines.${l.key}`), t(`Inspection.states.${l.state}`), l.source])}
+        />
+        <p className="text-sm text-ink-2 print:text-black">{t("Inspection.selfDeclared")}</p>
+        <p className="text-sm text-ink-2 print:text-black">{t("Inspection.threshold")}</p>
         {missing.length === 0 ? (
           <p className={done}>{t("Inspection.complete")}</p>
         ) : (
-          <ul className={`${danger} flex list-disc flex-col gap-1 ps-8`} aria-label={t("Inspection.checklist")}>
+          <ul className={`${danger} flex list-disc flex-col gap-1 ps-8`} aria-label={t("Inspection.toComplete")}>
             {missing.map((m, i) => <li key={i}>{missingText(m)}</li>)}
           </ul>
         )}
-        <p className="text-sm text-ink-2">{t("Inspection.provisional")}</p>
       </Section>
 
       <Section title={t("Inspection.documents")}>

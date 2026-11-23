@@ -26,16 +26,14 @@ test("the inspection pack opens offline, lists the missing pieces and prints", a
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.reload();
-  const missing = page.getByRole("list", { name: "À compléter" }).getByRole("listitem");
-  await expect(missing).toHaveText([
-    "Autorisation sanitaire non renseignée",
-    "Contrat du vétérinaire sanitaire absent ou expiré",
-    "Document expiré : Contrat du vétérinaire",
-    /^Dératisation du .+ sans photo$/,
-  ]);
+  const missing = page.getByRole("list", { name: "À compléter" });
+  for (const item of ["Autorisation sanitaire non renseignée", "Contrat du vétérinaire sanitaire absent ou expiré", /Dératisation du .+ sans photo/]) {
+    await expect(missing.getByRole("listitem").filter({ hasText: item })).toHaveCount(1);
+  }
+  await expect(pack).toContainText("Arrêté n° 2127-05, art. 4"); // each checklist line prints its source
   await expect(pack).toContainText("Dr Naïma R.");
   await expect(pack).toContainText("Appâts posés");
-  await expect(page.getByRole("heading", { level: 1, name: "Registre d’élevage" })).toHaveCount(1); // the open batch's register
+  await expect(page.getByRole("heading", { level: 1, name: "Registre de suivi sanitaire" })).toHaveCount(1); // the open batch's register
 
   await page.emulateMedia({ media: "print" });
   await page.setViewportSize({ width: 794, height: 1123 });

@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { farmDaysAgo, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
 
 // T47 acceptance: a batch's ONSSA register prints offline in French and in Arabic, with its cover, daily rows, birds
-// out and disposals, the provisional mention (CQ1), and nothing wider than an A4 page. PDFs are kept in test-results/.
+// out and disposals, the vet visa grid and the legal reference (arrêté n° 2126-05), and nothing wider than an A4 page. PDFs are kept in test-results/.
 async function printsOnA4(page: Page, name: string) {
   await page.emulateMedia({ media: "print" });
   await page.setViewportSize({ width: 794, height: 1123 });
@@ -40,14 +40,14 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
   await page.goto(`/fr/batches#${ids.batch}`);
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await referenceCached(page);
-  await expect(page.getByRole("link", { name: "Registre d’élevage (Français)" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Registre de suivi sanitaire (Français)" })).toBeVisible();
   await expect(page.getByText("Abattoir Doukkala")).toBeVisible(); // the sale is on the phone
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
 
-  await page.getByRole("link", { name: "Registre d’élevage (Français)" }).click();
+  await page.getByRole("link", { name: "Registre de suivi sanitaire (Français)" }).click();
   const doc = page.getByRole("article");
-  await expect(doc.getByRole("heading", { level: 1 })).toHaveText("Registre d’élevage");
+  await expect(doc.getByRole("heading", { level: 1 })).toHaveText("Registre de suivi sanitaire");
   for (const text of [
     "Ferme El Kheir",
     "Ouled Said, Settat, Casablanca-Settat",
@@ -59,8 +59,10 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
     "Abattoir Doukkala",
     ids.sale.slice(0, 8).toUpperCase(),
     "Incinération",
-    "Présentation provisoire, à valider avec l’ONSSA",
-    "Visa du vétérinaire sanitaire",
+    "Arrêté n° 2126-05 du 15 décembre 2005 (décret n° 2-04-684, art. 8)",
+    "Visas du vétérinaire sanitaire (art. 7)",
+    "Visa du détenteur",
+    "Pièces à joindre",
   ]) {
     await expect(doc).toContainText(text);
   }
@@ -69,10 +71,10 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
   await printsOnA4(page, "register-fr");
 
   await page.goBack();
-  await page.getByRole("link", { name: "Registre d’élevage (العربية)" }).click();
+  await page.getByRole("link", { name: "سجل التتبع الصحي (العربية)" }).click();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(doc.getByRole("heading", { level: 1 })).toHaveText("سجل التربية");
-  await expect(doc).toContainText("عرض مؤقت، يجب التحقق منه مع أونسا");
+  await expect(doc.getByRole("heading", { level: 1 })).toHaveText("سجل التتبع الصحي");
+  await expect(doc).toContainText("القرار رقم 2126-05");
   await expect(doc.locator('bdi[dir="ltr"]').first()).toHaveText("AV-2026-0412");
   await printsOnA4(page, "register-ar");
 });

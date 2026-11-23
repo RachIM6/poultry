@@ -1942,7 +1942,8 @@
     },
     "file": "Voir le fichier",
     "fileAdd": "Ajouter le fichier (PDF ou photo)",
-    "fileLater": "Fichier à ajouter (après envoi, avec du réseau)"
+    "fileLater": "Fichier à ajouter (après envoi, avec du réseau)",
+    "edit": "Modifier « {title} »"
   },
   "Register": {
     "link": "Registre d’élevage ({language})",

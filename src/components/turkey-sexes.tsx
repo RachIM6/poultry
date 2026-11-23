@@ -17,7 +17,7 @@ export function TurkeySexes({ batch, batches, entries, weighings, sold }: { batc
   if (pair.length < 2) return null;
   return (
     <section aria-labelledby="sexes-title" className="flex flex-col gap-2">
-      <h3 id="sexes-title" className="text-[17px] font-semibold text-ink-2">{t("Batches.bySex")}</h3>
+      <h3 id="sexes-title" className="text-[17px] font-semibold text-ink-2">{t("Batches.sexPair")}</h3>
       <div className="grid grid-cols-2 gap-2">
         {pair.map((b) => {
           const own = <T extends { batchId: string }>(xs: T[]) => xs.filter((x) => x.batchId === b.id);

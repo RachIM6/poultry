@@ -398,7 +398,7 @@
       "female": "femelles",
       "male": "mâles"
     },
-    "bySex": "Même lot, par sexe",
+    "sexPair": "Même lot, par sexe",
     "freeChicks": "Supplément gratuit (facultatif)",
     "arrival": "Qualité à l’arrivée (facultatif)",
     "parentFlock": "Lot reproducteur",

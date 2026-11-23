@@ -103,10 +103,11 @@ export async function batchFacts(tx: Tx, ctx: TenantContext, id: string) {
 }
 
 /** B6: what the closing needs: other costs and the farm weight of every bird sold. */
-export async function closingTotals(tx: Tx, batchId: string) {
+export async function closingTotals(tx: Tx, ctx: TenantContext, batchId: string) {
+  const where = { batchId, organizationId: ctx.organizationId };
   const [other, sold] = await Promise.all([
-    tx.batchCost.aggregate({ where: { batchId }, _sum: { amountCentimes: true } }),
-    tx.soldBirds.aggregate({ where: { batchId }, _sum: { liveWeightGrams: true } }),
+    tx.batchCost.aggregate({ where, _sum: { amountCentimes: true } }),
+    tx.soldBirds.aggregate({ where, _sum: { liveWeightGrams: true } }),
   ]);
   return { otherCentimes: other._sum.amountCentimes ?? 0n, soldGrams: sold._sum.liveWeightGrams ?? 0 };
 }

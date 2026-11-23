@@ -1,6 +1,7 @@
 // Public API of the `identity` module (see CAPABILITY-MAP.md). Other modules import only from here.
 export { clientOf, getSession, logout, logoutEverywhere, requestCode, verifyCode } from "./application/login";
 export { recordAuthEvent } from "./infrastructure/auth-events";
+export { limitSignedIn } from "./application/limits";
 export { cancelInvitation, changeRole, inviteMember, listMembers, removeMember } from "./application/members";
 export type { MembersDto } from "./application/members";
 export {
@@ -14,6 +15,7 @@ export {
   membersWithRoles,
   myOrganizations,
   ORG_COOKIE,
+  saveLocale,
 } from "./application/membership";
 export type { MyOrganizations } from "./application/membership";
 export { PhoneNumber } from "./domain/phone-number";

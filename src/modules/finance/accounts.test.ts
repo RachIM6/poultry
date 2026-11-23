@@ -172,7 +172,7 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
       expect(parents(withPca).has(account), account).toBe(false);
       expect(parents(cgncOnly).has(postingAccount(account, everything, cgncOnly)), account).toBe(false);
     }
-    // T109 (FC4, FQ1): with the PCA off, 31322 lands on 3132 Encours de Production, a CGNC leaf; 7131 and 3913 are CGNC's.
+    // T109 (FC4, FQ1): with the PCA off, 31322 lands on 3132 Encours de Production, a CGNC leaf; 71311 and 3913 are CGNC's.
     expect([IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION].map((a) => postingAccount(a, everything, cgncOnly))).toEqual(["3132", "71311", "3913"]);
     // T113 (FC5, FQ25): the eggs post with the PCA only; without it 3152 lands on 315, which has sub-accounts.
     for (const account of [EGGS_STOCK, EGGS_VARIATION]) expect(parents(withPca).has(account), account).toBe(false);

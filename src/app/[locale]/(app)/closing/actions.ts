@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
-import { closeFiscalYear, reopenFiscalYear, runClose, saveYearEndValues } from "@/modules/finance";
+import { closeFiscalYear, openFiscalYear, reopenFiscalYear, runClose, saveYearEndValues } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 
 export type CloseState = { ok?: boolean; messageKey?: string; posted?: number };
@@ -43,4 +43,14 @@ export async function fiscalYearAction(_: CloseState, form: FormData): Promise<C
   if (!closed.ok) return { messageKey: `errors.${closed.error}` };
   refresh();
   return { ok: true, messageKey: "Close.yearClosed", posted: closed.value };
+}
+
+/** FN3: opens the fiscal year with its à-nouveaux before the previous year is closed (again: only what changed, FN7). */
+export async function openYearAction(_: CloseState, form: FormData): Promise<CloseState> {
+  const ctx = await getTenantContext(await headers());
+  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const opened = await openFiscalYear(ctx.value, { year: Number(form.get("year")) });
+  if (!opened.ok) return { messageKey: `errors.${opened.error}` };
+  refresh();
+  return opened.value === 0 ? { ok: true, messageKey: "Close.nothingPosted" } : { ok: true, messageKey: "Close.opened", posted: opened.value };
 }

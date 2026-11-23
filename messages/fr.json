@@ -498,6 +498,8 @@
     "PAY_MONTH_NOT_VALIDATED": "Validez d’abord la paie de ce mois.",
     "LINE_AFTER_STATEMENT": "Cette opération est datée après la fin du relevé.",
     "LINE_ALREADY_TICKED": "Cette opération est déjà pointée sur un relevé.",
+    "TREASURY_ACCOUNT_REQUIRED": "Une ligne sur 5141 ou 5161 indique son compte bancaire ou sa caisse.",
+    "TREASURY_ACCOUNT_MISMATCH": "Le 5141 va avec un compte bancaire, le 5161 avec une caisse.",
     "CASH_BOOK_NO_MANUAL_ENTRY": "Pas d’écriture manuelle dans le livre des recettes et dépenses : le compte de contrepartie attend la réponse de l’expert-comptable.",
     "LIFE_REQUIRED": "Saisissez la durée d’utilisation en mois (plus de 0), selon l’expert-comptable ou les règles fiscales.",
     "LAND_NOT_DEPRECIATED": "Un terrain ne s’amortit pas : il n’a pas de durée.",
@@ -511,6 +513,8 @@
     "CASH_BOOK_NO_CLOSE": "Pas de clôture dans le livre des recettes et dépenses : il n’a pas de bilan.",
     "COUNT_FROZEN": "Les écritures de clôture de cet exercice sont comptabilisées : le comptage ne peut plus changer.",
     "YEAR_NOT_ENDED": "L’exercice n’est pas terminé : il se clôture après son dernier jour.",
+    "YEAR_NOT_BEGUN": "Cet exercice n’a pas commencé : il s’ouvre à son premier jour.",
+    "CASH_BOOK_NO_OPENING": "Pas d’à-nouveaux dans le livre des recettes et dépenses : il n’a pas de bilan.",
     "PREVIOUS_YEAR_OPEN": "Clôturez d’abord l’exercice précédent : ses soldes ouvrent celui-ci.",
     "CLOSE_RUN_PENDING": "Comptabilisez d’abord les écritures de clôture : l’aperçu en montre encore à passer.",
     "BATCH_VALUE_MISSING": "Saisissez la valeur actuelle des bandes en cours sans pesée ou sans vente avant de comptabiliser.",
@@ -997,6 +1001,10 @@
     "lineAccount": "Compte, ligne {n}",
     "lineDebit": "Débit, ligne {n}",
     "lineCredit": "Crédit, ligne {n}",
+    "lineTreasury": "Compte bancaire ou caisse, ligne {n}",
+    "treasuryBank": "Quel compte bancaire ?",
+    "treasuryCash": "Quelle caisse ?",
+    "treasuryNone": "Ajoutez d’abord ce compte bancaire ou cette caisse, sur l’écran des dépenses.",
     "addLine": "Ajouter une ligne",
     "difference": "Débit − crédit :",
     "receiptFile": "Justificatif (facultatif)",
@@ -1167,7 +1175,12 @@
     "yearClosed": "Exercice clôturé. Écritures d’ouverture passées : {count}.",
     "reopen": "Rouvrir l’exercice",
     "reopenHint": "Déverrouille le dernier mois pour corriger les écritures de clôture. Clôturez ensuite de nouveau : les à-nouveaux suivront.",
-    "reopened": "Exercice rouvert : le dernier mois est déverrouillé."
+    "reopened": "Exercice rouvert : le dernier mois est déverrouillé.",
+    "openYear": "Ouvrir l’exercice {year}",
+    "refreshOpening": "Reprendre les à-nouveaux de {previous}",
+    "openYearHint": "Sans attendre la clôture de {previous} : passe au premier jour de l’exercice les à-nouveaux (comptes de classes 1 à 5) depuis les écritures de {previous} telles qu’elles sont. La clôture de {previous} les passera de nouveau si les chiffres ont changé.",
+    "openingProvisional": "Ouverture provisoire : les à-nouveaux reprennent l’exercice {previous} tel qu’il est, tant qu’il n’est pas clôturé.",
+    "opened": "Exercice ouvert. Écritures d’ouverture passées : {count}."
   },
   "Assets": {
     "open": "Immobilisations",
@@ -1770,7 +1783,8 @@
     "saveGrading": "Enregistrer le calibrage",
     "discardEggs": "Œufs écartés",
     "reason": "Raison",
-    "saveDiscard": "Écarter ces œufs"
+    "saveDiscard": "Écarter ces œufs",
+    "withheld": "En délai d’attente jusqu’au {day} : à écarter, jamais à vendre"
   },
   "Layers": {
     "hens": "Poules présentes",
@@ -1808,7 +1822,8 @@
     "addLine": "Ajouter une ligne",
     "amount": "Montant : {amount}",
     "save": "Enregistrer la vente",
-    "consume": "Consommation d’œufs"
+    "consume": "Consommation d’œufs",
+    "discardFirst": "Des œufs en délai d’attente seraient vendus : écartez d’abord ceux pondus le {days}."
   },
   "Compare": {
     "title": "Comparer les lots",

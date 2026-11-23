@@ -12,6 +12,7 @@ export { PRODUCTION_TYPES, type ProductionType } from "@/modules/reference-data/
 export { Batch, ageOfBatch, ageOn, birdsStarted, canJoinHouse, doaClaim } from "@/modules/flock/domain/batch";
 export type { BatchStatus, PlacementError } from "@/modules/flock/domain/batch";
 export { batchCost } from "@/modules/flock/domain/closing";
+export { birdsOnHand } from "@/modules/flock/domain/birds";
 
 /** What pull returns and the phone stores. */
 export type BatchDto = {

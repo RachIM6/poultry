@@ -8,6 +8,8 @@ import { farmRegistrySync } from "@/modules/farm-registry";
 import { FARM_MUTATIONS } from "@/modules/farm-registry/schema";
 import { flockSync, recordBirdsSold } from "@/modules/flock";
 import { FLOCK_MUTATIONS as F, type BatchDto } from "@/modules/flock/schema";
+import { closingTotals, loadBatch } from "@/modules/flock/infrastructure/batches";
+import { birdsOnHandBesides } from "@/modules/flock/infrastructure/daily-entries";
 import { inventorySync } from "@/modules/inventory";
 import { INVENTORY_MUTATIONS as I } from "@/modules/inventory/schema";
 import { twoTenants } from "@/test/tenant";
@@ -22,7 +24,7 @@ const statuses = async (ctx: TenantContext, ms: PushedMutation[]) =>
 const pulledBatch = async (ctx: TenantContext, id: string) => (await pull(ctx, 0, registry)).changes.filter((c) => c.entity === "batch" && c.id === id).at(-1)?.data as BatchDto;
 
 describe("closing a batch and its cost per kg (SPEC B6)", () => {
-  let a: TenantContext;
+  let a: TenantContext, b: TenantContext;
   const [farm, house, feed, batch, next] = Array.from({ length: 5 }, () => uuidv7());
   const place = (id: string) =>
     m(F.placeBatch, { id, houseId: house, strainId: "ross-308", placedOn: "2026-10-01", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null });
@@ -31,7 +33,7 @@ describe("closing a batch and its cost per kg (SPEC B6)", () => {
     db.$transaction((tx) => recordBirdsSold(tx, a, { id: uuidv7(), batchId: batch, day: "2026-11-05", birds, liveWeightGrams }, { mutationId: uuidv7(), deviceCreatedAt: new Date() }));
 
   beforeAll(async () => {
-    [a] = await twoTenants();
+    [a, b] = await twoTenants();
     await db.strain.create({ data: { id: "ross-308", name: "Ross 308" } });
     await push(a, [
       m(FARM_MUTATIONS.createFarm, { id: farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
@@ -87,5 +89,15 @@ describe("closing a batch and its cost per kg (SPEC B6)", () => {
     expect(await statuses(a, [close({ reason: "" })])).toEqual(["INVALID_INPUT"]);
     expect(await statuses(a, [close()])).toEqual(["applied"]);
     expect(await pulledBatch(a, next)).toMatchObject({ status: "closed", closeReason: "Maladie : abattage sanitaire", soldGrams: 0, costCentimes: "450000", costPerKgCentimes: null });
+  });
+
+  it("sums only its own organisation's costs, sales and deaths (ADR-006)", async () => {
+    const totals = await db.$transaction((tx) => Promise.all([closingTotals(tx, a, batch), closingTotals(tx, b, batch)]));
+    expect(totals).toEqual([{ otherCentimes: 20_000n, soldGrams: 2_000_000 }, { otherCentimes: 0n, soldGrams: 0 }]);
+    const onHand = await db.$transaction(async (tx) => {
+      const loaded = (await loadBatch(tx, a, batch))!; // 1 000 started, all sold
+      return Promise.all([birdsOnHandBesides(tx, a, loaded), birdsOnHandBesides(tx, b, loaded)]);
+    });
+    expect(onHand).toEqual([0, 1000]); // b sees none of a's sales
   });
 });

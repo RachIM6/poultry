@@ -152,7 +152,7 @@ No global coverage percentage. The bar is: every domain rule in this spec has a 
 - **Ask first**
   - Adding a dependency.
   - A migration that drops or renames columns.
-  - Changing the sync protocol.
+  - Changing the sync protocol. (2026-11-23: optional `messageValues` added to rejected results, decided by the product owner; backward compatible, old phones ignore it.)
   - Adding an external service (SMS / WhatsApp provider, hosting, analytics).
   - Changing a module's dependencies in the capability map.
 - **Never**

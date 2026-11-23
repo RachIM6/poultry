@@ -4,9 +4,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { Link } from "@/i18n/navigation";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatDay } from "@/lib/format";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { Role } from "@/lib/tenant";
-import { currentScope, localDb, metaValue, rememberScope, scopeKey, type Scope } from "@/offline/db";
+import { currentScope, localDb, metaValue, rememberScope, scopeKey, type RejectedEntry, type Scope } from "@/offline/db";
 import { requestSync, startSync } from "@/offline/sync";
 import { primary } from "@/components/ui";
 
@@ -72,6 +73,11 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
 
   if (!state) return null;
   const { pending, rejected, lastSyncAt, outcome } = state;
+  // V6: the server sends the raw laying days to discard first; the phone formats them. Older entries have no values.
+  const message = ({ messageKey, messageValues: v }: RejectedEntry) =>
+    messageKey === "errors.EGGS_IN_WITHDRAWAL" && typeof v?.days === "string"
+      ? t("EggSale.discardFirst", { days: v.days.split(",").map((d) => formatDay(d as FarmDay, locale)).join(", ") })
+      : t(messageKey, v);
 
   return (
     <>
@@ -98,7 +104,7 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
           <ul className="flex flex-col gap-3">
             {rejected.map((entry) => (
               <li key={entry.id} className="flex flex-col gap-2 rounded-2xl bg-alert-soft p-3 text-alert-fg">
-                <p>{t(entry.messageKey)}</p>
+                <p>{message(entry)}</p>
                 <p className="text-sm text-muted">{formatDateTime(entry.createdAt, locale)}</p>
                 <button
                   type="button"

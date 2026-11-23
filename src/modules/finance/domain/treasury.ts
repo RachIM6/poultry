@@ -58,6 +58,9 @@ export function expensePosting(
 }
 
 const ACCOUNT: Record<TreasuryKind, string> = { bank: "5141", cash: "5161" };
+
+/** FN3: the kind of treasury account a line on `account` names (5141 a bank account, 5161 a cash box), or null. */
+export const treasuryKindOfAccount = (account: string): TreasuryKind | null => TREASURY_KINDS.find((k) => ACCOUNT[k] === account) ?? null;
 const JOURNAL: Record<TreasuryKind, Posting["journal"]> = { bank: "BQ", cash: "CA" };
 const IN_TRANSIT = "5115"; // Virements de fonds
 

@@ -1,13 +1,13 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { card, field, primary, secondary } from "@/components/ui";
-import { formatMoney } from "@/lib/format";
+import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
-import { drawFifo, drawId, type EggDrawDto, type EggItem, type Lot } from "@/modules/eggs/shared";
+import { drawFifo, drawId, type DrawRefusal, type EggDrawDto, type EggItem, type Lot } from "@/modules/eggs/shared";
 import type { BatchDto } from "@/modules/flock/shared";
 import { eggWithdrawalWindows, type TreatmentDto } from "@/modules/health/shared";
 import { PAYMENT_METHODS, SALES_MUTATIONS as S, TAKERS, checkEggSale, eggLineAmount, lastPrices, typedPrice, type BuyerDto, type PaymentMethod, type SaleDto, type Taker } from "@/modules/sales/shared";
@@ -43,6 +43,7 @@ export function EggSaleForm({
   onCancel: () => void;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const withStock = batches.filter((b) => lots.some((l) => l.batchId === b.id));
   const [batchId, setBatchId] = useState(withStock[0]?.id);
   const items = [...new Set(lots.filter((l) => l.batchId === batchId).map((l) => l.item))];
@@ -50,6 +51,7 @@ export function EggSaleForm({
   const [method, setMethod] = useState<PaymentMethod>("cash");
   const [takenBy, setTakenBy] = useState<Taker | null>(seller ? null : TAKERS[0]); // null: a sale
   const [error, setError] = useState<string>();
+  const [days, setDays] = useState(""); // V6: the withheld laying days to discard first
   if (!batchId) return <p>{t("EggStock.none")}</p>;
   const last = lastPrices(sales, "eggs", today());
   const prefilled = (item: EggItem) => (seller ? typedPrice(last.get(item)) : "");
@@ -60,13 +62,17 @@ export function EggSaleForm({
   });
   const amount = parsed.every((l) => l.eggs > 0 && l.eggsPerTray > 0 && l.unitPriceCentimes > 0n) ? parsed.reduce((a, l) => a + eggLineAmount(l), 0n) : null;
   const set = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const refuse = (r: DrawRefusal) => {
+    setDays(r.error === "EGGS_IN_WITHDRAWAL" ? r.days.map((d) => formatDay(d as FarmDay, locale)).join(", ") : "");
+    setError(r.error === "EGGS_IN_WITHDRAWAL" ? "EggSale.discardFirst" : `errors.${r.error}`);
+  };
   const withheld = () => eggWithdrawalWindows(treatments.filter((x) => x.batchId === batchId).map((x) => ({ startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay, eggWithdrawalDays: x.eggWithdrawalDays ?? null })));
 
   // FC7: the eggs leave the stock oldest first, as sold; a price left empty is the server's last sale price.
   const consume = async (who: Taker, day: string) => {
     if (parsed.some((l) => !(l.eggs > 0) || !(l.eggsPerTray > 0)) || lines.some((l, i) => seller && l.price && parsed[i].unitPriceCentimes < 0n)) return setError("errors.INVALID_INPUT");
     const drawn = drawFifo(lots, batchId, parsed, withheld());
-    if (!drawn.ok) return setError(`errors.${drawn.error}`);
+    if (!drawn.ok) return refuse(drawn);
     setError(undefined);
     const id = uuidv7();
     const payload = { id, batchId, day, takenBy: who, kind: "eggs" as const, lines: parsed.map((l, i) => ({ item: l.item, eggs: l.eggs, eggsPerTray: l.eggsPerTray, unitPriceCentimes: seller && lines[i].price ? String(l.unitPriceCentimes) : null })) };
@@ -88,7 +94,7 @@ export function EggSaleForm({
     const checked = checkEggSale({ lines: parsed, paymentMethod: method, paidCentimes: paid, vatCentimes: vat, instrument }); // as the server
     if (!checked.ok) return setError(`errors.${checked.error}`);
     const drawn = drawFifo(lots, batchId, parsed, withheld());
-    if (!drawn.ok) return setError(`errors.${drawn.error}`);
+    if (!drawn.ok) return refuse(drawn);
     setError(undefined);
 
     const id = uuidv7();
@@ -222,7 +228,7 @@ export function EggSaleForm({
       </>
       )}
       {seller && amount !== null && <p className="text-xl font-semibold">{t(takenBy ? "Sale.value" : "EggSale.amount", { amount: formatMoney(amount) })}</p>}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert">{t(error, { days })}</p>}
       <span className="flex gap-2">
         <button type="submit" className={primary}>{t(takenBy ? "Sale.saveConsumption" : "EggSale.save")}</button>
         <button type="button" className={secondary} onClick={onCancel}>{t("Closing.cancel")}</button>

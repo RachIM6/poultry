@@ -121,7 +121,7 @@ describe("loan entries (FC2, §7.1 B step 5)", () => {
     expect(installmentPosting("BMCE", { number: 1, capital: 0n, interest: 0n }, "bank-1")).toBeNull();
   });
 
-  it("§7.1 B: 1481 at 31 Dec 2027 is 33 333,32 credit; 6311 is 4 162,50 for 2027 and 693,75 for 2028", () => {
+  it("§7.1 B: 1481 at 31 Dec 2027 is 33 333,32 credit; 63111 is 4 162,50 for 2027 and 693,75 for 2028", () => {
     const rows = loanSchedule(b);
     expect(10_000_000n - sum(rows.slice(0, 4).map((r) => r.capital))).toBe(3_333_332n);
     expect(sum(rows.filter((r) => r.dueOn <= "2027-12-31").map((r) => r.interest))).toBe(416_250n);

@@ -62,7 +62,7 @@ async function pushOutbox(db: LocalDb, scope: Scope, fetchFn: Fetch): Promise<Sy
         if (!entry) continue;
         await db.outbox.delete(entry.id);
         if (result.status === "rejected") {
-          await db.needsAttention.put({ ...entry, messageKey: result.messageKey }); // ADR-003 §7: never dropped silently
+          await db.needsAttention.put({ ...entry, messageKey: result.messageKey, ...(result.messageValues && { messageValues: result.messageValues }) }); // ADR-003 §7: never dropped silently
           // The local copy showed a write the server refused: drop it and read everything again from the server.
           // ponytail: a full re-pull per rejection; rejections are rare. Re-pull one entity if they aren't.
           for (const key of entry.recordKeys ?? []) await db.records.delete(key);

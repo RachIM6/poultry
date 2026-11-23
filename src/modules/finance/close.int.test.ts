@@ -70,6 +70,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
         locked: false,
         closedOn: null,
         frozen: false,
+        opening: null, // 2025 has no entry: the first year is opened by hand (FCX3)
         entries: [
           {
             kind: "depreciation",
@@ -160,7 +161,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     // An individual farmer keeps the receipts-and-expenses book: no balance sheet, no close entries.
     expect(await createFixedAsset(cashBook, generator(), clock)).toEqual({ ok: true, value: undefined });
     expect(await runClose(cashBook, { year: 2026 }, clock)).toEqual({ ok: false, error: "CASH_BOOK_NO_CLOSE" });
-    expect(await closePreview(cashBook, 2026, clock)).toEqual({ ok: true, value: { year: 2026, day: "2026-12-31", books: "cash_book", locked: false, closedOn: null, frozen: false, entries: [], stocks: [], batches: [], eggs: [] } });
+    expect(await closePreview(cashBook, 2026, clock)).toEqual({ ok: true, value: { year: 2026, day: "2026-12-31", books: "cash_book", locked: false, closedOn: null, frozen: false, opening: null, entries: [], stocks: [], batches: [], eggs: [] } });
     const cashEntity = (await listLegalEntities(cashBook))[0].id;
     expect(await db.journalEntry.count({ where: { legalEntityId: cashEntity } })).toBe(0);
   });

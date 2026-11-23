@@ -47,7 +47,7 @@ export async function postEntry(tx: Tx, ctx: TenantContext, e: EntryRow): Promis
   if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
   const entity = await legalEntityIn(tx, ctx, e.legalEntityId);
   if (!entity) return fail("NOT_FOUND");
-  if (e.source && (await sourceAlreadyPosted(tx, e.source))) return ok(undefined);
+  if (e.source && (await sourceAlreadyPosted(tx, ctx, e.source))) return ok(undefined);
   if ((await lockedMonths(tx, ctx, e.legalEntityId)).has(monthOf(e.day))) return fail("PERIOD_LOCKED");
   const { base, overlays } = entity.accountingProfile;
   const checked = checkEntry(e.lines, chartOf(await ledgerAccounts(tx), base, overlays));
@@ -149,23 +149,6 @@ export async function postOpening(tx: Tx, ctx: TenantContext, entity: LegalEntit
     posted += await postVersion(tx, ctx, entity.id, reversalSource(kind, entity.id, closedYear), firstDay, reversal);
   }
   return ok({ id: (await standingEntryFor(tx, ctx, "finance", source))?.id ?? null, posted });
-}
-
-/**
- * FN3: opens the fiscal year holding `day` with the à-nouveaux entry (OD, its first day), carrying forward the
- * previous year's closing balances, and the opening reversals (FCX5). Opening it again with the same balances posts
- * nothing; changed ones post a reversal and a new version (FN7); nothing is posted after an empty year. The year close
- * (FCX6) does the same. The first year in Dawra is opened by hand from the accountant's last balance sheet (FQ11 for
- * cash_book entities). Returns the standing à-nouveaux.
- */
-export async function openFiscalYear(ctx: TenantContext, legalEntityId: string, day: FarmDay): Promise<Result<string | null, PostError>> {
-  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
-  return db.$transaction(async (tx) => {
-    const entity = await legalEntityIn(tx, ctx, legalEntityId);
-    if (!entity) return fail("NOT_FOUND");
-    const opened = await postOpening(tx, ctx, entity, fiscalYearOf(day, entity.fiscalYearStartMonth).from);
-    return opened.ok ? ok(opened.value.id) : opened;
-  });
 }
 
 /** FN1, FN9: the owner's accounting choices; null keeps the legal form's default, an absent vatRegistered keeps it. */

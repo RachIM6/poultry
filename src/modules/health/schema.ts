@@ -21,6 +21,12 @@ export const RecordVaccination = z.object({
   method: z.enum(VACCINATION_METHODS),
 });
 
+// SPEC-m5 PA4: the plan edited after it was made. A line added by hand has the phone's id; its vaccine and day come from
+// whoever adds it (OQ4), on the protocol's own scale (day of age).
+export const AddVaccination = ProtocolItem.extend({ id: z.uuidv7(), batchId: z.uuid() });
+export const MoveVaccination = z.object({ id: z.uuid(), dayOfAge: ProtocolItem.shape.dayOfAge });
+export const CancelVaccination = z.object({ id: z.uuid() });
+
 const text = (max: number) => z.string().trim().min(1).max(max);
 
 export const RecordTreatment = z.object({

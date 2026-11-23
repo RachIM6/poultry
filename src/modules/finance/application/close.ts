@@ -12,7 +12,7 @@ import { batchLinesAtClose, closeBatches, closeProvision, closeStock, eggLinesAt
 import { closeSubsidies } from "@/modules/finance/application/subsidies";
 import { lockMonth, postOpening, postVersion, type PostError } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
-import { CLOSE_KINDS, closeAction, closeSource, type CloseAction, type CloseKind } from "@/modules/finance/domain/close";
+import { CLOSE_KINDS, closeAction, closeSource, openingSource, type CloseAction, type CloseKind } from "@/modules/finance/domain/close";
 import { countDay, countYearOf } from "@/modules/finance/domain/count";
 import type { BatchAtClose, EggsAtClose, StockAtClose } from "@/modules/finance/domain/stocks";
 import { fiscalYearOf, monthOf, monthsBetween } from "@/modules/finance/domain/entry";
@@ -66,8 +66,13 @@ export type CloseStockView = StockAtClose & { farm: string };
 export type CloseBatchView = BatchAtClose & { farm: string };
 /** FC5 (T113): a farm's eggs as the run values them; `posted` false: the PCA is off (FQ25). */
 export type CloseEggsView = EggsAtClose & { farm: string };
-/** `frozen`: the run has posted, so the count and the current values no longer change (FCX4). */
-export type ClosePreview = { year: number; day: FarmDay; books: "cash_book" | "ledger"; locked: boolean; closedOn: FarmDay | null; frozen: boolean; entries: CloseEntryView[]; stocks: CloseStockView[]; batches: CloseBatchView[]; eggs: CloseEggsView[] };
+/**
+ * `frozen`: the run has posted, so the count and the current values no longer change (FCX4). `opening` (FN3, FCX6):
+ * this year's à-nouveaux while the previous year isn't closed: "due" (not posted yet), "provisional" (posted from the
+ * previous year as it stands, posted again by its close); null once that year is closed, before this one begins, or
+ * when the previous year has no entry (the first year is opened by hand, FCX3).
+ */
+export type ClosePreview = { year: number; day: FarmDay; books: "cash_book" | "ledger"; locked: boolean; closedOn: FarmDay | null; frozen: boolean; opening: "due" | "provisional" | null; entries: CloseEntryView[]; stocks: CloseStockView[]; batches: CloseBatchView[]; eggs: CloseEggsView[] };
 
 /**
  * FCX4: the year-end entries of a fiscal year (by the calendar year it ends in; the current one by default), as the
@@ -80,13 +85,17 @@ export async function closePreview(ctx: TenantContext, year: number | null, cloc
   if (!entity) return fail("NOT_FOUND");
   const y = year ?? countYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth);
   if (!yearIn(y)) return fail("INVALID_INPUT");
-  const { to: day } = fiscalYear(y, entity.fiscalYearStartMonth);
+  const { from, to: day } = fiscalYear(y, entity.fiscalYearStartMonth);
+  const previous = fiscalYear(y - 1, entity.fiscalYearStartMonth);
   const books = entity.accountingProfile.books;
-  if (books !== "ledger") return ok({ year: y, day, books, locked: false, closedOn: null, frozen: false, entries: [], stocks: [], batches: [], eggs: [] });
-  const [locked, closed, frozen, stock, batch, egg, { chart, kinds }] = await Promise.all([
+  if (books !== "ledger") return ok({ year: y, day, books, locked: false, closedOn: null, frozen: false, opening: null, entries: [], stocks: [], batches: [], eggs: [] });
+  const [locked, closed, frozen, previousClosed, previousEntries, opened, stock, batch, egg, { chart, kinds }] = await Promise.all([
     lockedMonths(db, ctx, entity.id),
     yearClose(db, ctx, entity.id, day),
     closePosted(db, ctx, entity.id, y),
+    yearClose(db, ctx, entity.id, previous.to),
+    entriesBetween(db, ctx, entity.id, previous.from, previous.to),
+    standingEntryFor(db, ctx, "finance", openingSource(entity.id, from)),
     stockLinesAtClose(db, ctx, entity, day),
     batchLinesAtClose(db, ctx, entity, day),
     eggLinesAtClose(db, ctx, entity, day),
@@ -102,7 +111,8 @@ export async function closePreview(ctx: TenantContext, year: number | null, cloc
     // What the run posts, or for a reversal alone what it cancels.
     lines: (posting?.lines ?? standing?.lines ?? []).map((l) => ({ account: l.account, label: chart.get(l.account)?.label ?? "", debit: l.debit, credit: l.credit })),
   }));
-  return ok({ year: y, day, books, locked: locked.has(monthOf(day)), closedOn: closed && farmDayOf(closed.closedAt), frozen, entries, stocks, batches, eggs });
+  const opening = from > farmDayOf(clock.now()) || previousClosed || (previousEntries === 0 && !opened) ? null : opened ? "provisional" : "due";
+  return ok({ year: y, day, books, locked: locked.has(monthOf(day)), closedOn: closed && farmDayOf(closed.closedAt), frozen, opening, entries, stocks, batches, eggs });
 }
 
 const CloseRun = z.object({ year: z.number().int() });
@@ -134,6 +144,31 @@ export async function runClose(ctx: TenantContext, input: unknown, clock: Clock 
     let posted = 0;
     for (const k of (await plan(tx, ctx, entity, year)).kinds) posted += await postVersion(tx, ctx, entity.id, k.source, to, k.posting);
     return ok(posted);
+  });
+}
+
+/**
+ * FN3: "Ouvrir l'exercice", owner only, once the previous fiscal year has ended, without waiting for its close: posts
+ * this year's à-nouveaux (OD, its first day) from the previous year's books as they stand, with the opening reversals
+ * of the close entries already posted (FCX5), each in the entries' audit. Provisional until the previous year is
+ * closed: the close posts it again (FCX6). Opening again with the same figures posts nothing; changed ones post a
+ * reversal and a new version (FN7), never two live openings. Refused for a `cash_book` entity (no balance sheet:
+ * FCX4, FQ11), before the year begins and while its first month is locked. Returns the entries posted.
+ */
+export async function openFiscalYear(ctx: TenantContext, input: unknown, clock: Clock = systemClock): Promise<Result<number, PostError | "INVALID_INPUT" | "CASH_BOOK_NO_OPENING" | "YEAR_NOT_BEGUN">> {
+  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  const parsed = CloseRun.safeParse(input);
+  if (!parsed.success || !yearIn(parsed.data.year)) return fail("INVALID_INPUT");
+  const [first] = await listLegalEntities(ctx);
+  if (!first) return fail("NOT_FOUND");
+  return db.$transaction(async (tx) => {
+    const entity = await legalEntityIn(tx, ctx, first.id); // row-locked: one opening, run or close at a time
+    if (!entity) return fail("NOT_FOUND");
+    if (entity.accountingProfile.books !== "ledger") return fail("CASH_BOOK_NO_OPENING");
+    const { from } = fiscalYear(parsed.data.year, entity.fiscalYearStartMonth);
+    if (from > farmDayOf(clock.now())) return fail("YEAR_NOT_BEGUN");
+    const opened = await postOpening(tx, ctx, entity, from);
+    return opened.ok ? ok(opened.value.posted) : opened;
   });
 }
 

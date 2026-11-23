@@ -14,6 +14,7 @@ import { ledgerAccounts, yearClose } from "@/modules/finance/infrastructure/ledg
 import { entryTags } from "@/modules/finance/application/tags";
 import type { EntryTags } from "@/modules/finance/domain/export";
 import { unpostedConsumption } from "@/modules/finance/domain/posting";
+import type { TreasuryKind } from "@/modules/finance/domain/treasury";
 
 // piece, receipt: a manual entry's (FCX3), from its ManualEntry row
 type Entry = { id: string; day: string; journal: string; label: string; reversesId: string | null; lines: Line[]; piece?: string | null; receipt?: string | null };
@@ -34,6 +35,7 @@ export type Books = {
   balanceSheet?: ReturnType<typeof balanceSheet>; // FC8: the draft bilan on the month's last day, its result the CPC's net
   closedOn?: FarmDay | null; // FCX6: the day the fiscal year was closed; until then the statements are a "Projet"
   postingAccounts?: { number: string; label: string }[]; // FCX3: the owner's manual entry form, `ledger` entities only
+  treasuryAccounts?: { id: string; kind: TreasuryKind; name: string }[]; // FN3: what its 5141 / 5161 lines name, same form
 };
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
@@ -109,6 +111,7 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
       postingAccounts: leafAccounts(chart)
         .map((a) => ({ number: a.number, label: a.label }))
         .sort((a, b) => a.number.localeCompare(b.number)),
+      treasuryAccounts: (await db.treasuryAccount.findMany({ where: { organizationId: ctx.organizationId }, select: { id: true, kind: true, name: true }, orderBy: { name: "asc" } })).map((a) => ({ ...a, kind: a.kind as TreasuryKind })),
     }),
   });
 }

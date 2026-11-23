@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
-import { fiscalYearAction, runCloseAction, saveValuesAction } from "./actions";
+import { fiscalYearAction, openYearAction, runCloseAction, saveValuesAction } from "./actions";
 import { primary, secondary } from "@/components/ui";
 
 /** SPEC-finance FCX4: the owner posts what the preview shows (again: FN7 posts only what changed); disabled while the month is locked. */
@@ -42,6 +42,20 @@ export function YearForm({ year, closed, hint }: { year: number; closed: boolean
       {closed && <input type="hidden" name="reopen" value="1" />}
       <p className="text-sm text-ink-2">{hint}</p>
       <button type="submit" disabled={pending} className={closed ? secondary : primary}>{t(closed ? "Close.reopen" : "Close.closeYear")}</button>
+      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey, { count: state.posted ?? 0 })}</p>}
+    </form>
+  );
+}
+
+/** SPEC-finance FN3: the owner opens the year from the previous one as it stands, until that one is closed. */
+export function OpenYearForm({ year, label, hint }: { year: number; label: string; hint: string }) {
+  const t = useTranslations();
+  const [state, action, pending] = useActionState(openYearAction, {});
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <input type="hidden" name="year" value={year} />
+      <p className="text-sm text-ink-2">{hint}</p>
+      <button type="submit" disabled={pending} className={secondary}>{label}</button>
       {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey, { count: state.posted ?? 0 })}</p>}
     </form>
   );

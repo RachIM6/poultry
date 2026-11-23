@@ -66,6 +66,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
         <Link href={href(view, shift(month, 1))} className="underline underline-offset-4">→</Link>
         {/* FN18: a file, not a page, so a plain link to the route handler */}
         <a href={`/api/finance/export?month=${month}`} download className="ms-auto underline underline-offset-4">{t("Books.export")}</a>
+        {books.books === "ledger" && <a href={`/api/finance/export?month=${month}&format=fec`} download className="underline underline-offset-4">{t("Books.exportFec")}</a>}
       </nav>
       {can(ctx.value, "finance.manage") && (
         <details className={card}>
@@ -78,7 +79,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           <datalist id="ledger-accounts">
             {books.postingAccounts?.map((a) => <option key={a.number} value={a.number}>{`${a.number} ${a.label}`}</option>)}
           </datalist>
-          <ManualEntryForm today={today} accounts="ledger-accounts" blocked={books.books !== "ledger"} />
+          <ManualEntryForm today={today} accounts="ledger-accounts" treasuries={books.treasuryAccounts ?? []} blocked={books.books !== "ledger"} />
         </details>
       )}
       {books.unposted.length > 0 && (

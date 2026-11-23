@@ -51,4 +51,11 @@ describe("weighted average valuation (SPEC S5)", () => {
     expect(result.costs.get(overdraw.id)).toBe(55_000n); // only the 110 kg there were
     expect(result).toMatchObject({ onHand: kg(-95), valueCentimes: 0n });
   });
+
+  it("orders a day's movements by when they were recorded, not by id (a consumption's id is a UUIDv5)", () => {
+    const bought = { ...buy("2026-11-01", kg(100), 50_000n), createdAt: new Date("2026-11-01T07:00:00Z") };
+    const used = { id: "00000000-0000-5000-8000-000000000001", day: "2026-11-01", quantity: -kg(10), createdAt: new Date("2026-11-01T18:00:00Z") };
+    expect(used.id < bought.id).toBe(true); // by id, the feed would come first and cost nothing
+    expect(valuate([bought, used]).costs.get(used.id)).toBe(5_000n);
+  });
 });

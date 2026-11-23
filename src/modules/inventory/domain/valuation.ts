@@ -6,6 +6,7 @@ export type ValuedMovement = {
   id: string;
   day: string; // farm day
   quantity: number; // base units, signed
+  createdAt?: Date; // when it was recorded, which orders a day's movements (the server's ledger has it, a phone's doesn't)
   purchaseAmountCentimes?: bigint; // for purchases: what was paid for this quantity
 };
 
@@ -18,9 +19,13 @@ export type Valuation = {
 
 const share = (value: bigint, part: number, whole: number) => (value * BigInt(part) * 2n + BigInt(whole)) / (2n * BigInt(whole));
 
-/** Movements in ledger order: by farm day, then by id (UUIDv7, so creation order within a day). */
+/**
+ * Movements in ledger order: by farm day, then by when they were recorded, then by id. Not by id alone: a consumption's
+ * id is a UUIDv5, which sorts anywhere in its day.
+ */
 export function valuate(movements: readonly ValuedMovement[]): Valuation {
-  const ordered = [...movements].sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id));
+  const recorded = (m: ValuedMovement) => m.createdAt?.getTime() ?? 0;
+  const ordered = [...movements].sort((a, b) => a.day.localeCompare(b.day) || recorded(a) - recorded(b) || a.id.localeCompare(b.id));
   let onHand = 0;
   let value = 0n;
   const costs = new Map<string, bigint>();

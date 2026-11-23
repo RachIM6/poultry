@@ -34,6 +34,15 @@ const registry: SyncRegistry = {
         return ok(undefined);
       },
     }),
+    "test.takenId": defineMutation({
+      schema: z.object({ id: z.uuid() }),
+      action: "organization.read",
+      async apply(tx, ctx, { id }) {
+        // A uniqueness violation the handler didn't check for: the id is already a mutation's.
+        await tx.mutation.create({ data: { id, organizationId: ctx.organizationId, userId: ctx.userId, type: "test", result: {} } });
+        return ok(undefined);
+      },
+    }),
     "test.slow": defineMutation({
       schema: z.object({}),
       action: "organization.read",
@@ -98,6 +107,16 @@ describe("sync push (ADR-003)", () => {
     failNext = false;
     expect(await db.mutation.count({ where: { id: { in: [broken.id, after.id] } } })).toBe(0);
     expect((await push(a, [broken, after], registry)).results.map((r) => r.status)).toEqual(["applied", "applied"]);
+  });
+
+  it("rejects a mutation whose write hits a taken id, keeps nothing of it, and applies what follows", async () => {
+    const taken = save(uuid(), "taken");
+    await push(a, [taken], registry);
+    const [dup, after] = [mutation("test.takenId", { id: taken.id }), save(uuid(), "after")];
+    const results = (await push(a, [save(uuid(), "before"), dup, after], registry)).results;
+    expect(results.map((r) => (r.status === "rejected" ? r.messageKey : r.status))).toEqual(["applied", "errors.ALREADY_EXISTS", "applied"]);
+    expect(await db.mutation.findUniqueOrThrow({ where: { id: dup.id } })).toMatchObject({ organizationId: a.organizationId, result: { status: "rejected" } });
+    expect(await push(a, [dup], registry)).toEqual({ results: [{ id: dup.id, status: "rejected", messageKey: "errors.ALREADY_EXISTS" }] }); // replayed, not retried
   });
 
   it("applies a mutation that runs longer than Prisma's default 5 s transaction timeout", async () => {

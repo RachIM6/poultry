@@ -14,7 +14,7 @@ import { tenant, twoTenants } from "@/test/tenant";
 const clock = fixedClock("2028-06-15T10:00:00Z");
 const NO_SUBSIDY = { kind: "subsidy", action: "none", lines: [] }; // T106: no subsidy in this file
 // T108: no stock in this file either, so no stock entry and no provision.
-const NOTHING_ELSE = [NO_SUBSIDY, { kind: "stock", action: "none", lines: [] }, { kind: "batch", action: "none", lines: [] }, { kind: "provision", action: "none", lines: [] }];
+const NOTHING_ELSE = [NO_SUBSIDY, { kind: "stock", action: "none", lines: [] }, { kind: "batch", action: "none", lines: [] }, { kind: "hens", action: "none", lines: [] }, { kind: "provision", action: "none", lines: [] }];
 // SPEC-finance §7.1 A: the generator, 47 350,00, in service on 18 Sep 2026, 84 months typed by the owner.
 const generator = (more: object = {}) => ({
   id: uuidv7(),
@@ -85,6 +85,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
         stocks: [],
         batches: [],
         eggs: [],
+        hens: { method: "classic", lines: [] }, // FC6: no layer or pullet batch
       },
     });
     expect(await db.journalEntry.count({ where: { sourceId: { startsWith: "close:" } } })).toBe(0); // the preview posts nothing
@@ -161,7 +162,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     // An individual farmer keeps the receipts-and-expenses book: no balance sheet, no close entries.
     expect(await createFixedAsset(cashBook, generator(), clock)).toEqual({ ok: true, value: undefined });
     expect(await runClose(cashBook, { year: 2026 }, clock)).toEqual({ ok: false, error: "CASH_BOOK_NO_CLOSE" });
-    expect(await closePreview(cashBook, 2026, clock)).toEqual({ ok: true, value: { year: 2026, day: "2026-12-31", books: "cash_book", locked: false, closedOn: null, frozen: false, opening: null, entries: [], stocks: [], batches: [], eggs: [] } });
+    expect(await closePreview(cashBook, 2026, clock)).toEqual({ ok: true, value: { year: 2026, day: "2026-12-31", books: "cash_book", locked: false, closedOn: null, frozen: false, opening: null, entries: [], stocks: [], batches: [], eggs: [], hens: { method: null, lines: [] } } });
     const cashEntity = (await listLegalEntities(cashBook))[0].id;
     expect(await db.journalEntry.count({ where: { legalEntityId: cashEntity } })).toBe(0);
   });

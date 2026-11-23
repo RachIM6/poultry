@@ -124,7 +124,7 @@ function Visitors({ records, save }: Parameters<Screen>[0]) {
                 name={v.visitor}
                 form={(close) => <VisitForm farmId={farm.id} visit={v} onCancel={close} onSave={async (n) => (await correct(save, B.editVisit, "visit", v, n)) && (close(), true)} />}
               >
-                {t("line", { visitor: v.visitor, time: formatDateTime(v.enteredAt, locale), zone: t(`zones.${v.zone}`) })}
+                <span>{t("line", { visitor: v.visitor, time: formatDateTime(v.enteredAt, locale), zone: t(`zones.${v.zone}`) })}</span>
               </Editable>
             </li>
           ))}

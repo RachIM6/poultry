@@ -26,7 +26,9 @@ test("a visitor is recorded offline, kept to the dirty zone, and synced once", a
   await page.getByLabel("Pédiluve et surbottes").check();
   await page.getByRole("button", { name: "Enregistrer l’entrée" }).click();
   const today = page.getByRole("list", { name: "Déjà venus aujourd’hui" }).getByRole("listitem");
-  await expect(today).toHaveText([/^Livreur · Provende Atlas · .+ · Zone sale$/]);
+  await expect(today).toHaveCount(1);
+  await expect(today.getByText(/^Livreur · Provende Atlas · .+ · Zone sale$/)).toBeVisible(); // the record, beside its "Modifier"
+  await expect(today.getByRole("button", { name: "Modifier : Livreur · Provende Atlas" })).toBeVisible();
 
   const reload = await page.reload(); // still offline: the shell and the data come from the phone
   expect(reload?.fromServiceWorker()).toBe(true);

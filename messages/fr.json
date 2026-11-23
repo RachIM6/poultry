@@ -901,6 +901,8 @@
     "open": "Budget et seuil de rentabilité",
     "basedOn": "Copié de la bande",
     "blank": "Partir de zéro",
+    "batch": "Bande en cours prévue par ce budget",
+    "noBatch": "Aucune (bande pas encore mise en place)",
     "chicks": "Poussins",
     "chickPrice": "Prix du poussin (DH)",
     "feedKg": "Aliment (kg)",

@@ -1164,6 +1164,7 @@ model Budget {
   organizationId         String   @db.Uuid
   name                   String
   basedOn                String?  @db.Uuid
+  batchId                String?  @db.Uuid // FN17: the open flock batch it plans (§9 FQ32); null: a batch not placed yet
   chicks                 Int
   chickPriceCentimes     BigInt
   feedGrams              BigInt

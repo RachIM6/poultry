@@ -9,7 +9,7 @@ export { financeSync } from "./sync";
 export { attachExpenseReceipt, cashForecast, treasuryOverview, type TreasuryOverview } from "./application/treasury";
 export { addBankStatement, bankReconciliation, matchBankLine, type BankReconciliation } from "./application/bank";
 export { batchResults, freezeClosedBatches, type BatchResultRow } from "./application/batch-results";
-export { budgetBases, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
+export { budgetBases, budgetBatches, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";
 export { readBooks, type Books } from "./application/books";
 export { attachManualEntryReceipt, postManualEntry, type ManualEntryError } from "./application/manual";

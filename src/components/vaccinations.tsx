@@ -2,20 +2,28 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { v7 as uuidv7 } from "uuid";
 import { formatCount, formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { BatchDto } from "@/modules/flock/shared";
-import { HEALTH_MUTATIONS as H, checkDone, statusOn, type VaccinationDto, type VaccinationMethod } from "@/modules/health/shared";
+import { HEALTH_MUTATIONS as H, checkAdd, checkDone, moveLine, planFor, statusOn, type VaccinationDto, type VaccinationMethod } from "@/modules/health/shared";
 import type { MovementDto, StockItemDto } from "@/modules/inventory/shared";
-import type { Product } from "@/modules/reference-data/schema";
+import type { Product, ProtocolDto } from "@/modules/reference-data/schema";
 import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 import type { Write } from "@/components/daily-entry";
 import { field, primary, secondary } from "@/components/ui";
 
 // SPEC H2 on the batch screen, offline: the batch's plan, and "mark done" with the lot it came from. The phone runs the
-// same check as the server and shows the stock leaving the lot at once (S4).
+// same check as the server and shows the stock leaving the lot at once (S4). Whoever manages health (the vet, the owner,
+// a manager: SPEC-m5 PA4) also edits the plan: a farm protocol for a batch without one, a vaccine added by hand, a line
+// moved or taken out. Vaccines and days always come from them, never from a default (OQ4).
 
 const today = () => farmDayOf(new Date());
+const dayOfAgeIn = (data: FormData) => {
+  const raw = String(data.get("dayOfAge") ?? "").trim();
+  return /^\d+$/.test(raw) ? Number(raw) : NaN;
+};
+const facts = (batch: BatchDto) => ({ placedOn: batch.placedOn as FarmDay, ageAtPlacementDays: batch.ageAtPlacementDays, status: batch.status });
 
 export function Vaccinations({
   batch,
@@ -24,6 +32,8 @@ export function Vaccinations({
   lots,
   birdsOnHand,
   userId,
+  protocols,
+  manage,
   write,
 }: {
   batch: BatchDto;
@@ -32,23 +42,29 @@ export function Vaccinations({
   lots: StockItemDto[]; // the farm's vaccine stock items
   birdsOnHand: number;
   userId: string;
+  protocols: ProtocolDto[];
+  manage: boolean; // health.manage
   write: Write;
 }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [doing, setDoing] = useState<string>();
+  const [doing, setDoing] = useState<string>(); // "done:<id>", "move:<id>", "remove:<id>" or "add"
   const vaccine = (id: string) => {
     const p = products.find((x) => x.id === id);
     return p ? (locale === "ar" ? p.nameAr : p.nameFr) : id;
   };
   const day = (d: string) => formatDay(d as FarmDay, locale);
   const plan = [...vaccinations].sort((a, b) => a.dayOfAge - b.dayOfAge || a.productId.localeCompare(b.productId));
+  const close = () => setDoing(undefined);
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="vaccination-title">
       <h3 id="vaccination-title" className="text-[17px] font-semibold text-ink-2">{t("Vaccination.title")}</h3>
       {plan.length === 0 ? (
-        <p>{t("Vaccination.none")}</p>
+        <>
+          <p>{t("Vaccination.none")}</p>
+          {manage && protocols.length > 0 && <ApplyProtocol batch={batch} protocols={protocols} write={write} />}
+        </>
       ) : (
         <ul className="flex flex-col gap-3" aria-labelledby="vaccination-title">
           {plan.map((v) => {
@@ -63,7 +79,7 @@ export function Vaccinations({
                     : t(`Vaccination.status.${status}`, { date: day(v.dueOn) })}
                 </span>
                 {!v.done &&
-                  (doing === v.id ? (
+                  (doing === `done:${v.id}` ? (
                     <DoneForm
                       batch={batch}
                       vaccination={v}
@@ -71,16 +87,44 @@ export function Vaccinations({
                       birdsOnHand={birdsOnHand}
                       userId={userId}
                       write={write}
-                      onDone={() => setDoing(undefined)}
+                      onDone={close}
                     />
+                  ) : doing === `move:${v.id}` ? (
+                    <MoveForm batch={batch} vaccination={v} write={write} onDone={close} />
+                  ) : doing === `remove:${v.id}` ? (
+                    <div className="mt-2 flex flex-col gap-3">
+                      <p role="alert">{t("Vaccination.removeConfirm")}</p>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          className={primary}
+                          onClick={async () => {
+                            if (await write({ type: H.cancelVaccination, payload: { id: v.id } }, [{ entity: "vaccination", id: v.id, data: null }])) close();
+                          }}
+                        >
+                          {t("Vaccination.removeYes")}
+                        </button>
+                        <button type="button" onClick={close} className={secondary}>{t("Vaccination.cancel")}</button>
+                      </div>
+                    </div>
                   ) : (
-                    <button type="button" onClick={() => setDoing(v.id)} className={`${secondary} mt-1`}>{t("Vaccination.markDone")}</button>
+                    <div className="mt-1 flex flex-wrap gap-3">
+                      <button type="button" onClick={() => setDoing(`done:${v.id}`)} className={secondary}>{t("Vaccination.markDone")}</button>
+                      {manage && <button type="button" onClick={() => setDoing(`move:${v.id}`)} className={secondary}>{t("Vaccination.move")}</button>}
+                      {manage && <button type="button" onClick={() => setDoing(`remove:${v.id}`)} className={secondary}>{t("Vaccination.remove")}</button>}
+                    </div>
                   ))}
               </li>
             );
           })}
         </ul>
       )}
+      {manage &&
+        (doing === "add" ? (
+          <AddForm batch={batch} vaccines={products.filter((p) => p.kind === "vaccine")} vaccine={vaccine} write={write} onDone={close} />
+        ) : (
+          <button type="button" onClick={() => setDoing("add")} className={secondary}>{t("Vaccination.add")}</button>
+        ))}
     </section>
   );
 }
@@ -92,6 +136,101 @@ function Labelled({ label, children }: { label: string; children: (id: string) =
       <label htmlFor={id}>{label}</label>
       {children(id)}
     </div>
+  );
+}
+
+/** H1 for a batch placed without a plan: one of the farm's protocols, as the placement would have applied it. */
+function ApplyProtocol({ batch, protocols, write }: { batch: BatchDto; protocols: ProtocolDto[]; write: Write }) {
+  const t = useTranslations();
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const protocol = protocols.find((p) => p.id === new FormData(e.currentTarget).get("protocolId"));
+    if (!protocol || protocol.items.length === 0) return;
+    const plan = planFor(batch.id, batch.placedOn as FarmDay, protocol.items, batch.ageAtPlacementDays);
+    await write({ type: H.planVaccinations, payload: { batchId: batch.id, protocolId: protocol.id, items: protocol.items } }, plan.map((v) => ({ entity: "vaccination", id: v.id, data: v })));
+  };
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <Labelled label={t("Batches.protocol")}>
+        {(id) => (
+          <select id={id} name="protocolId" className={field}>
+            {protocols.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        )}
+      </Labelled>
+      <button type="submit" className={primary}>{t("Vaccination.apply")}</button>
+    </form>
+  );
+}
+
+/** SPEC-m5 PA4: a vaccine of the catalogue on a day of age, added by hand. */
+function AddForm({ batch, vaccines, vaccine, write, onDone }: { batch: BatchDto; vaccines: Product[]; vaccine: (id: string) => string; write: Write; onDone: () => void }) {
+  const t = useTranslations();
+  const [error, setError] = useState<string>();
+  if (vaccines.length === 0) return <p role="alert">{t("Protocol.noReference")}</p>; // the catalogue comes with one sync online
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const dayOfAge = dayOfAgeIn(data);
+    if (Number.isNaN(dayOfAge)) return setError("Batches.invalid");
+    const dueOn = checkAdd(facts(batch), dayOfAge); // as the server
+    if (!dueOn.ok) return setError(`errors.${dueOn.error}`);
+    const line = { id: uuidv7(), batchId: batch.id, dayOfAge, productId: String(data.get("productId")), method: String(data.get("method")) as VaccinationMethod };
+    const dto: VaccinationDto = { ...line, dueOn: dueOn.value, done: null };
+    if (await write({ type: H.addVaccination, payload: line }, [{ entity: "vaccination", id: line.id, data: dto }])) onDone();
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <Labelled label={t("Protocol.vaccine")}>
+        {(id) => (
+          <select id={id} name="productId" className={field}>
+            {vaccines.map((p) => <option key={p.id} value={p.id}>{vaccine(p.id)}</option>)}
+          </select>
+        )}
+      </Labelled>
+      <Labelled label={t("Protocol.day")}>{(id) => <input id={id} name="dayOfAge" inputMode="numeric" pattern="\d+" required dir="ltr" className={field} />}</Labelled>
+      <Labelled label={t("Protocol.method")}>
+        {(id) => (
+          <select id={id} name="method" className={field}>
+            {VACCINATION_METHODS.map((m) => <option key={m} value={m}>{t(`Protocol.methods.${m}`)}</option>)}
+          </select>
+        )}
+      </Labelled>
+      {error && <p role="alert">{t(error)}</p>}
+      <div className="flex gap-3">
+        <button type="submit" className={primary}>{t("Vaccination.addSave")}</button>
+        <button type="button" onClick={onDone} className={secondary}>{t("Vaccination.cancel")}</button>
+      </div>
+    </form>
+  );
+}
+
+/** SPEC-m5 PA4: a line not yet done, to another day of age. */
+function MoveForm({ batch, vaccination, write, onDone }: { batch: BatchDto; vaccination: VaccinationDto; write: Write; onDone: () => void }) {
+  const t = useTranslations();
+  const [error, setError] = useState<string>();
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const dayOfAge = dayOfAgeIn(new FormData(e.currentTarget));
+    if (Number.isNaN(dayOfAge)) return setError("Batches.invalid");
+    const moved = moveLine(vaccination, facts(batch), dayOfAge); // as the server
+    if (!moved.ok) return setError(`errors.${moved.error}`);
+    const data: VaccinationDto = { ...vaccination, dayOfAge, dueOn: moved.value.dueOn };
+    if (await write({ type: H.moveVaccination, payload: { id: vaccination.id, dayOfAge } }, [{ entity: "vaccination", id: vaccination.id, data }])) onDone();
+  };
+  return (
+    <form onSubmit={submit} className="mt-2 flex flex-col gap-3">
+      <Labelled label={t("Protocol.day")}>
+        {(id) => <input id={id} name="dayOfAge" inputMode="numeric" pattern="\d+" defaultValue={String(vaccination.dayOfAge)} required dir="ltr" className={field} />}
+      </Labelled>
+      {error && <p role="alert">{t(error)}</p>}
+      <div className="flex gap-3">
+        <button type="submit" className={primary}>{t("Vaccination.moveSave")}</button>
+        <button type="button" onClick={onDone} className={secondary}>{t("Vaccination.cancel")}</button>
+      </div>
+    </form>
   );
 }
 

@@ -11,7 +11,7 @@ const ALLOWED = {
   "flock.manage": ["owner", "manager"], // place batches (B1); workers see them and enter daily data (I5)
   "flock.record": ["owner", "manager", "worker"], // daily entries (B2), weighings (B3): the worker's job
   "eggs.record": ["owner", "manager", "worker"], // egg collections (SPEC-m3 E1): the worker's job, no money
-  "health.manage": ["owner", "manager", "vet"], // a batch's vaccination plan (H1), with its placement
+  "health.manage": ["owner", "manager", "vet"], // a batch's vaccination plan (H1), with its placement, and its edits (SPEC-m5 PA4)
   "health.record": ["owner", "manager", "worker", "vet"], // vaccinations given (H2), treatments (H3), vet visits (H5), I5
   "biosecurity.record": ["owner", "manager", "worker"], // visitors, disposals, manure, clean-out, rodent checks (BS9)
   "sales.manage": ["owner", "manager"], // buyers and sales (V1–V3): prices and amounts, so never workers (I5)

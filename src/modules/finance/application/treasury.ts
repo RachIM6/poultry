@@ -16,6 +16,7 @@ import { wagesDue } from "@/modules/workforce";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
 import { loanInstallmentsDue } from "@/modules/finance/application/loans";
 import { monthPeriod } from "@/modules/finance/domain/batch";
+import { OPENING_PREFIX } from "@/modules/finance/domain/close";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
 import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
 import type { Posting } from "@/modules/finance/domain/posting";
@@ -157,21 +158,36 @@ export type TreasuryOverview = {
   movements: { day: string; journal: string; label: string; account: string; treasuryId: string | null; debitCentimes: bigint; creditCentimes: bigint; receipt?: string | null }[];
 };
 
+/**
+ * FN10: Σdebit − Σcredit on 5141 / 5161 since the books began, per bank account or cash box, and under null the lines
+ * that name none (the farm-event rules', FN6). The à-nouveaux and their reversals are left out: they restate the
+ * earlier years' lines, which all stay in the ledger, and name no account. So the balances hold across a year close.
+ */
+async function treasuryBalances(ctx: TenantContext): Promise<Map<string | null, bigint>> {
+  const org = { organizationId: ctx.organizationId };
+  const openings = (await db.journalEntry.findMany({ where: { ...org, sourceModule: "finance", sourceId: { startsWith: OPENING_PREFIX } }, select: { id: true } })).map((e) => e.id);
+  const sums = await db.journalLine.groupBy({
+    by: ["treasuryId"],
+    where: { ...org, account: { in: ["5141", "5161"] }, entryId: { notIn: openings }, entry: { OR: [{ reversesId: null }, { reversesId: { notIn: openings } }] } },
+    _sum: { debitCentimes: true, creditCentimes: true },
+  });
+  return new Map(sums.map((x) => [x.treasuryId, (x._sum.debitCentimes ?? 0n) - (x._sum.creditCentimes ?? 0n)]));
+}
+
 /** FN10: each bank account's and cash box's balance, and this month's movements on 5141 / 5161 (owner, manager). */
 export async function treasuryOverview(ctx: TenantContext, month: string): Promise<Result<TreasuryOverview, "FORBIDDEN" | "INVALID_INPUT">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("INVALID_INPUT");
   const org = { organizationId: ctx.organizationId };
-  const [accounts, balances, lines] = await Promise.all([
+  const [accounts, balance, lines] = await Promise.all([
     db.treasuryAccount.findMany({ where: org, orderBy: { name: "asc" } }),
-    db.journalLine.groupBy({ by: ["treasuryId"], where: { ...org, treasuryId: { not: null } }, _sum: { debitCentimes: true, creditCentimes: true } }),
+    treasuryBalances(ctx),
     db.journalLine.findMany({
       where: { ...org, account: { in: ["5141", "5161"] }, entry: { day: { gte: date(`${month}-01`), lt: date(nextMonth(month)) } } },
       include: { entry: { select: { day: true, journal: true, label: true, sourceModule: true, sourceId: true } } },
       orderBy: [{ entry: { day: "asc" } }, { entry: { createdAt: "asc" } }],
     }),
   ]);
-  const balance = new Map(balances.map((x) => [x.treasuryId, (x._sum.debitCentimes ?? 0n) - (x._sum.creditCentimes ?? 0n)]));
   // An expense's entries carry its id; a rule's key (asset:<id>:acq, FC1) isn't a uuid and has no receipt here.
   const sourceIds = lines.flatMap((l) => (l.entry.sourceModule === "finance" && l.entry.sourceId && UUID.test(l.entry.sourceId) ? [l.entry.sourceId] : []));
   const expenses = await db.expense.findMany({ where: { ...org, id: { in: sourceIds } }, select: { id: true, receiptFileId: true } });
@@ -202,15 +218,15 @@ const nextMonth = (month: string) => {
  */
 export async function cashForecast(ctx: TenantContext, clock: Clock = systemClock) {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN");
-  const [cash, ins, outs, wages, bills, loans] = await Promise.all([
-    db.journalLine.aggregate({ where: { organizationId: ctx.organizationId, account: { in: ["5141", "5161"] } }, _sum: { debitCentimes: true, creditCentimes: true } }),
+  const [balances, ins, outs, wages, bills, loans] = await Promise.all([
+    treasuryBalances(ctx), // the accounts' balances, and the cash the farm-event rules post on no account
     instrumentsToCollect(ctx),
     supplierDuesOf(ctx),
     wagesDue(ctx),
     issuedBillsDue(ctx), // FN11: accepted bills leave the bank at their agreed date
     loanInstallmentsDue(ctx), // FC2: the installments not yet paid, on their due day
   ]);
-  const start = (cash._sum.debitCentimes ?? 0n) - (cash._sum.creditCentimes ?? 0n);
+  const start = [...balances.values()].reduce((s, b) => s + b, 0n);
   const flows = [...ins.map((f) => ({ ...f, direction: "in" as const })), ...[...outs, ...wages, ...bills, ...loans].map((f) => ({ ...f, direction: "out" as const }))];
   return ok({ startCentimes: start, weeks: cashSchedule(farmDayOf(clock.now()), start, flows) });
 }

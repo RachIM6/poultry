@@ -58,9 +58,9 @@ T100 close accounts         ← the PCA PDF, now in docs/sources/
 T113 eggs at close           ← unblocked 22 Nov 2026 (finance → eggs approved); after T108
 T114 hens, simplified        ← FQ7; after T100
 T115 hens, classic           ← FQ7, FQ8; after T100
-T116 official statements     ← FQ22
+T116 official statements     ← unblocked 23 Nov 2026 (FQ22 decided defaults, to review); done
 T117 bank statement import   ← real statement samples
-T118 accountant import       ← FQ10
+T118 accountant import       ← FQ10 (decided by default 2026-11-23)
 ```
 
 ## Buildable now
@@ -180,6 +180,7 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 - [x] The reversal of a reversible kind is posted once on the next year's first day; a second close posts nothing. _The flag is `REVERSED_AT_OPENING` in `finance/domain/close.ts` (depreciation `false`; T108 and T109 set theirs). `finance/year-close-reversal.int.test.ts` flags depreciation reversible in that file only (`vi.mock`): the reversal OD on 1 Jan 2027 (source `reversal:close:depreciation:<entity>:2026`), a second close posts nothing, and after a changed close entry the reversal is cancelled and posted again as version 2. With the real flags no reversal is posted (`year-close.int.test.ts`)._
 - [x] Trial balance balanced after close and opening (property test over T103's runs). _`finance/year-close.int.test.ts` "keeps the books balanced and the opening equal to the closing over random assets, runs, closes and changes": 8 seeded organisations (no fast-check), 1–3 random assets each (category, cost, life, day in 2025–2026, cash or credit, PCA on or off), run and close 2025 then 2026, a second close posting nothing, and for about half a changed life, reopen, run and close again; after each close the trial balance of December and January and the bilan balance (`readBooks`), the opening equals the closing, and all lines sum to 0._
 - [x] Owner only; the manager and the accountant see the status (integration). _`finance/year-close.int.test.ts` "is the owner's: the manager and the accountant see the status, workers nothing, each organisation its own" (`closePreview` and `readBooks` give them `closedOn`; `closeFiscalYear` and `reopenFiscalYear` are `FORBIDDEN`). Refusals: `CASH_BOOK_NO_CLOSE`, `CLOSE_RUN_PENDING`, `YEAR_NOT_ENDED`, `PREVIOUS_YEAR_OPEN`, `PERIOD_LOCKED` (the next year's first month), and on reopening `YEAR_NOT_CLOSED`, `NEXT_YEAR_CLOSED`, all before anything is written (no lock and no close row after them: checked for `CLOSE_RUN_PENDING`, `YEAR_NOT_ENDED` and `PERIOD_LOCKED`). Reopening unlocks the last month only, audited._
+- [x] 2026-11-23, gap: the year opens before the previous one is closed (FN3). _"Ouvrir l'exercice N" on `/closing` (year N's page), owner only (`finance.manage`), `ledger` entities, once N has begun: `openFiscalYear(ctx, { year }, clock)` (moved to `application/close.ts`, its first caller) posts N's à-nouveaux through `postOpening` from N−1's books as they stand, with the opening reversals of the close entries already posted, each audited by `postEntry`. `closePreview` gives `opening`: `due`, `provisional` (a note for every reader, the button then "Reprendre les à-nouveaux de N−1") or null once N−1 is closed, before N begins, when N−1 has no entry. Refusals: `CASH_BOOK_NO_OPENING`, `YEAR_NOT_BEGUN`, `PERIOD_LOCKED`, `FORBIDDEN`. `finance/open-year.int.test.ts`: classes 1–5 and the result carried forward, a second click posts nothing; after more 2026 entries the close posts version 2 over the early one (one live opening, the reversal once); after a reopen, a click posts version 3 only because the figures changed; cash_book, a year not begun and the manager, accountant and worker refused with nothing written._
 **Depends on:** T103, T110.
 **Size:** M
 
@@ -272,28 +273,33 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **AC:**
 - [x] Eggs on the count sheet match `eggs` stock on the last day; the value is required before the run posts. _2026-11-22. `eggs.eggStockOnDay(tx, ctx, day)`: E2's `eggLots` per farm over the collections laid by the day and the gradings, discards and draws received by its end (they carry no day of their own). The sheet has one eggs line per farm (`YearEndCount` kind `eggs`, subject the farm), counted in whole eggs, fixed on `/eggs`. The owner types a value per egg on `/closing` (`YearEndValue` kind `eggs`: the value of one egg in centimes, typed in dirhams to the centime); the run refuses (`EGG_VALUE_MISSING`) and the year close says `CLOSE_RUN_PENDING` while eggs to post have none; counted 0, nothing. The "stock" entry carries D 3152 / C 7132 = counted (else book) eggs × the value, reversed on 1 January with it (T104). `finance/eggs-at-close.int.test.ts` (the day rule, the count, the refusal, 188 100 then 197 600 after a late collection by reversal and version 2, a rerun posting nothing, the reversal on 1 January 2026 and the à-nouveaux on 3152, the PCA off, a `cash_book` entity), `finance/domain/stocks.test.ts` "eggs at the close", browser `e2e/eggs-at-close.spec.ts` (also in Arabic)._
 - [x] 2026-11-23, fix: after the run has posted, a line of the last day synced late with no value (eggs collected on 31 Dec, a meat batch open that day) still takes its value, so the rerun and the year close are no longer refused forever (FCX4). _`finance/close-late-facts.int.test.ts`: the run posts, a turkey batch placed and 500 eggs collected on 31 Dec are synced, the run is `BATCH_VALUE_MISSING` then `EGG_VALUE_MISSING` and the year close `CLOSE_RUN_PENDING`; each value is taken once (audited), the rerun posts the batch's reversal and version 2, the provision and the eggs, and the year closes. Changing or clearing a value already saved, a value for a line that isn't missing (alone or mixed with a missing one, nothing saved) and the count stay `COUNT_FROZEN`. The rule is in `saveYearEndValues`: once frozen, a change is accepted only for a line currently `missing` and only to a value. `/closing` shows the field for those lines only. Counts need no exception: a new line without a count uses its book quantity._
+- [x] 2026-11-23, fix: the egg stock on the last day counts discards and draws on the farm day they happened, not the day the server received them, so a discard made offline on 31 Dec or a sale dated 31 Dec synced on 2 Jan leaves the 31 Dec book quantity. _`EggDiscard.day` (the phone's farm day, sent with `eggs.discardEggs`; a phone from before it falls back to the server's farm day, never before the laying day) and `EggDraw.day` (the sale's day, passed by `sales` to `drawEggs`), migration `egg_flow_day` backfilling existing rows with the farm day (Africa/Casablanca) of `createdAt`. `eggFlowsOnDay` takes collections, discards and draws by `day`, gradings by `laidOn` (a grading only moves eggs between items, so the farm's total doesn't depend on when it was done). A discard dated in the future or before its laying day is refused. `finance/eggs-at-close.int.test.ts` "counts a discard and a sale on the farm day they happened"._
 
   _Defaults: the value per egg is to the centime, so the line is exact (no rounding): FQ18 asks for the owner's estimate, not a computed cost, and half a centime per egg is below what that estimate can tell. With the PCA off nothing posts for the eggs and no value is asked: 3152 lands on 315, which has sub-accounts in the CGNC chart (FN4), so the preview says "Non comptabilisé (FQ25)" as FC7 does, until the accountant names the CGNC account. The close kind "Stocks achetés" is now "Stocks"._
 **Depends on:** T108. **Size:** S
 
 ### T114: Laying hens, simplified method (FC6)
-**Blocked by:** FQ7 (no safe default: choosing the method is the accountant's), and T100 (715 and the valuation basis, read from the PCA text: SPEC-finance §5 "Laying hens, what the text says"; 23711 / 23712 against the text's 2371 / 2372 is part of FQ7).
+**Blocked by:** T100 (715 and the valuation basis, read from the PCA text: SPEC-finance §5 "Laying hens, what the text says"). FQ7 has a decided default, to review (SPEC-finance §5 FC6, §9 "Decided defaults": classic by default, simplified by the owner's choice, 23711 / 23712).
 **Description:** The method choice per category in the accounting settings (locked once the year has an entry, like FN1). The close run values the laying flock per the PCA text, through 7151 / 7152.
 **Size:** M
 
 ### T115: Laying hens and pullets, classic method (FC6)
-**Blocked by:** FQ7 and FQ8 (removing culled hens' remaining book value: no safe default), and T100 (23962, 71431, 23711, 28371, 7187).
+**Blocked by:** T100 (23962, 71431, 23711, 28371, 7187). FQ7 and FQ8 have decided defaults, to review (SPEC-finance §5 FC6, §9 "Decided defaults").
 **Description:**
 - Own pullets capitalised: D 23962 / C 71431, at the transfer to lay and at year end.
 - Point-of-lay hens bought: D 23711.
-- Depreciation over the laying period (life and cull value typed by the owner): D 6193 / C 28371.
+- Depreciation over the laying period (life and cull value typed by the owner): D 61937 / C 28371.
 - Culled hens sold: C 7187.
-- The removal entry, per FQ8's answer.
+- The removal entry at the cull (FQ8 default): D 28371 + D 6187 / C 23711.
 **Size:** L
 
 ### T116: Official statements (FC8)
-**Blocked by:** FQ22 (the official simplified model and its line ↔ account mapping, the PCA biological-asset tables, the revenue limit).
-**Description:** Bilan, CPC and ETIC in the simplified CGNC model, printable PDF, "Projet" until the year close.
+**Unblocked 2026-11-23:** the product owner asked for the most logical reading of the official texts, built now, each choice recorded as a decided default to review (SPEC-finance §9 "Official statements (T116)", FQ22). Sources: CGNC Tome I scan pp. 13, 51–52, 54–55, 67–68, 155–157, 171–173, 316–339; PCA Annexe B, PDF pp. 179–187, and pp. 17–19 (revenue limit).
+**Description:** `/closing/statements`. Bilan, CPC and the ETIC tables the ledger fills (S1, S1 bis; S1-1 and S1 ter with the PCA overlay), in the simplified CGNC model or its PCA variant, with N-1. "Projet" until the year close. Printable from the browser (print CSS: the repo generates no PDF, and no dependency was added).
+**AC:**
+- [x] Every class 1–7 posting account of both seeded charts lands on exactly one bilan or CPC line. On a fixture ledger the bilan balances and its result equals the CPC's net and the draft's (U16). _`finance/domain/official-statements.test.ts`._
+- [x] A seeded fiscal year with known entries gives the expected lines: the closed year final, the open one a draft with N-1 and its ETIC from the à-nouveaux; nothing for a `cash_book` entity; workers refused. _`finance/statements.int.test.ts` (runs in CI)._
+- [x] SPEC-finance FC8 and §9 FQ22 updated with the decided defaults and their pages.
 **Size:** L
 
 ### T117: Bank statement import (FC9)
@@ -302,9 +308,14 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** M per bank
 
 ### T118: Accountant import format (FC10)
-**Blocked by:** FQ10 (the firm's software, its import format and a sample file).
+**Blocked by:** nothing since 2026-11-23: FQ10 decided by default, to review.
 **Description:** One export per software next to FN18's CSV and Excel.
 **Size:** M per format
+**Note (2026-11-23):** studied in `docs/studies/accountant-import-format.md`. No vendor (Sage, EBP, Cegid, KHABIR) publishes its own import format; the CNC's Moroccan FEC (avis n° 24) lists the fields but no technical format. Built the one fully published file: the FEC of article A47 A-1 LPF, which Sage 100 and EBP import. `/books` "Fichier FEC pour le logiciel comptable" (`ledger` entities), `/api/finance/export?month=…&format=fec`.
+**AC:**
+- [x] A fixture month exports byte for byte (UTF-8, no BOM, tabs, CRLF), entries balanced, journals and accounts mapped. _`finance/domain/fec.test.ts`._
+- [x] The month of a ledger entity in the database, numbered in posting order; a cash book gets none; workers can't. _`finance/books.int.test.ts` "exports a month as a FEC for the accountant's software (FC10, T118)"._
+- [ ] The pilot's firm imports a month into its software.
 
 ## ✅ Checkpoint M6
 - [x] The PCA PDF is in the repository (or its download is allowed) and T100 is done: every candidate account is confirmed or replaced. _`docs/sources/plan-comptable-agricole-2015.pdf`; all eight candidates confirmed._

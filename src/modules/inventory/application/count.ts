@@ -39,7 +39,7 @@ export async function stockValueOnDay(tx: Tx, ctx: TenantContext, day: string, n
   return new Map(
     [...byItem].map(([item, ms]) => [
       item,
-      valuate(ms.map((m) => ({ id: m.id, day: m.day.toISOString().slice(0, 10), quantity: m.quantity, purchaseAmountCentimes: m.purchaseId ? paid.get(m.purchaseId) : undefined }))).valueCentimes,
+      valuate(ms.map((m) => ({ id: m.id, day: m.day.toISOString().slice(0, 10), quantity: m.quantity, createdAt: m.createdAt, purchaseAmountCentimes: m.purchaseId ? paid.get(m.purchaseId) : undefined }))).valueCentimes,
     ]),
   );
 }

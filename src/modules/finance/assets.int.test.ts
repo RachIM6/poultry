@@ -135,7 +135,7 @@ describe("fixed assets (SPEC-finance FC1, T102)", () => {
     expect(await disposeFixedAsset(owner, sale, clock)).toEqual({ ok: true, value: undefined });
     expect(await disposeFixedAsset(owner, sale, clock)).toEqual({ ok: true, value: undefined }); // the same form again
     expect(await linesOf(`asset:${a.id}:disposal`)).toEqual([
-      [1, "OD", "2028-03-15", "6193", 112_738n, 0n, null], // cumulative(18) − cumulative(16) = 1 014 643 − 901 905
+      [1, "OD", "2028-03-15", "61933", 112_738n, 0n, null], // cumulative(18) − cumulative(16) = 1 014 643 − 901 905
       [1, "OD", "2028-03-15", "2833", 0n, 112_738n, null],
       [2, "OD", "2028-03-15", "6513", 3_720_357n, 0n, null], // 37 203,57
       [2, "OD", "2028-03-15", "2833", 1_014_643n, 0n, null], // 10 146,43

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { farmDaysAgo, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // S2, SPEC-finance FN6: a supplier paid later, offline, lowers what is owed; once synced, the cheque leaves the bank.
@@ -12,7 +13,7 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
     { type: "inventory.createSupplier", payload: { id: supplier, name: "Alf Sahel", phone: null } },
     { type: "inventory.createStockItem", payload: { id: item, farmId: farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
     // 9 000,00 DH on credit
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: supplier, stockItemId: item, day: farmDaysAgo(1), quantity: 2_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: supplier, stockItemId: item, day: farmDaysAgo(1), quantity: 2_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
   ]);
 
   await page.goto("/fr/stock");

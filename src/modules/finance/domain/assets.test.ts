@@ -51,7 +51,7 @@ describe("straightLine (SPEC-finance FC1, FQ9, §7)", () => {
     ]);
     const postings = disposalPostings({ ...registered, ...sold }, 3_000_000n, "bank", null, 1);
     expect(postings.map((p) => [p.version, p.posting.journal, lines(p.posting)])).toEqual([
-      [1, "OD", [["6193", 112_738n, 0n], ["2833", 0n, 112_738n]]],
+      [1, "OD", [["61933", 112_738n, 0n], ["2833", 0n, 112_738n]]],
       [2, "OD", [["2833", 1_014_643n, 0n], ["6513", 3_720_357n, 0n], ["2332", 0n, 4_735_000n]]], // 10 146,43 + 37 203,57 = 47 350,00
       [3, "OD", [["5141", 3_000_000n, 0n], ["7513", 0n, 3_000_000n]]],
     ]);
@@ -174,22 +174,32 @@ describe("the asset postings (SPEC-finance FC1, FN9)", () => {
 describe("the close run's depreciation (SPEC-finance FC1, FCX4, T103)", () => {
   const equipment = { ...generator, category: "equipment" as const };
 
-  it("§7.1 A's 2026 run: D 6193 / C 2833 2 254,76", () => {
+  it("§7.1 A's 2026 run: D 61933 / C 2833 2 254,76", () => {
     const posting = yearEndDepreciation([equipment], day("2026-01-01"), 1);
-    expect(posting && [posting.journal, lines(posting)]).toEqual(["OD", [["6193", 225_476n, 0n], ["2833", 0n, 225_476n]]]);
+    expect(posting && [posting.journal, lines(posting)]).toEqual(["OD", [["61933", 225_476n, 0n], ["2833", 0n, 225_476n]]]);
     expect(yearEndDepreciation([equipment], day("2034-01-01"), 1)).toBeNull(); // the life is over
   });
 
-  it("posts one credit line per depreciation account, the total on 6193; land and the disposal year stay out", () => {
+  it("posts one line per charge and depreciation account, paired as the CGNC pairs them; land and the disposal year stay out", () => {
     const truck = { cost: 1_200_000n, residual: 0n, lifeMonths: 60, inServiceOn: day("2026-01-10"), disposedOn: null, opening: null, category: "transport" as const };
     const land = { ...generator, lifeMonths: null, category: "land" as const };
     const sold = { ...equipment, disposedOn: day("2026-11-15") }; // its September and October: the disposal's
     const scale = { ...generator, cost: 840_000n, category: "installation" as const }; // 8 400,00 × 4 ÷ 84 = 400,00
     const posting = yearEndDepreciation([sold, truck, land, equipment, scale], day("2026-01-01"), 1);
     expect(posting && lines(posting)).toEqual([
-      ["6193", 505_476n, 0n],
-      ["2833", 0n, 265_476n], // the generator's 2 254,76 and the scale's 400,00
-      ["2834", 0n, 240_000n], // 12 months of 60: 2 400,00
+      ["61933", 265_476n, 0n], // the generator's 2 254,76 and the scale's 400,00
+      ["61934", 240_000n, 0n], // 12 months of 60: 2 400,00
+      ["2833", 0n, 265_476n],
+      ["2834", 0n, 240_000n],
     ]);
+  });
+
+  it("posts a building's depreciation to 61932 and a vehicle's to 61934 (CGNC 6193 sub-accounts)", () => {
+    const building = { cost: 2_400_000n, residual: 0n, lifeMonths: 240, inServiceOn: day("2026-01-05"), disposedOn: null, opening: null, category: "building" as const }; // 24 000,00 × 12 ÷ 240 = 1 200,00
+    const vehicle = { cost: 1_200_000n, residual: 0n, lifeMonths: 60, inServiceOn: day("2026-01-10"), disposedOn: null, opening: null, category: "transport" as const };
+    const posting = yearEndDepreciation([vehicle, building], day("2026-01-01"), 1);
+    expect(posting && lines(posting)).toEqual([["61932", 120_000n, 0n], ["61934", 240_000n, 0n], ["2832", 0n, 120_000n], ["2834", 0n, 240_000n]]);
+    const sold = disposalPostings({ ...vehicle, label: "Camionnette", amount: 1_200_000n, disposedOn: day("2027-04-02") }, 0n, "cash", null, 1);
+    expect(lines(sold[0]!.posting)).toEqual([["61934", 60_000n, 0n], ["2834", 0n, 60_000n]]); // January–March 2027
   });
 });

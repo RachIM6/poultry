@@ -327,7 +327,7 @@ test("closed broiler batches compared side by side", async ({ page, context }) =
     { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 3", areaM2: 1000, capacity: 12000, type: "closed" } },
     { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Provende Atlas", phone: null } },
     { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Croissance", unit: "kg", lot: null, expiresOn: null } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day: farmDaysAgo(100), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: farmDaysAgo(100), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
     { type: "sales.createBuyer", payload: { id: ids.buyer, name: "Abattoir", phone: null, type: "abattoir" } },
     ...batch(90, 2, 245, "Couvoir Chaouia"), // 98 sold, 2,5 kg each; 420 kg of feed → IC 1,71
     ...batch(45, 4, 230, "Couvoir B"), // 96 sold, 2,4 kg each; IC 1,83

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { farmDaysAgo, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T19 acceptance (browser part): a batch placed offline gets its vaccination plan from the farm's protocol, and a
@@ -14,7 +15,7 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
     { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1200, capacity: 12000, type: "closed" } },
     { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Véto Atlas", phone: null } },
     { type: "inventory.createStockItem", payload: { id: ids.lot, farmId: ids.farm, productId: "vaccine-newcastle", kind: "vaccine", name: "Newcastle", unit: "dose", lot: "NDV-26", expiresOn: farmDaysAgo(-365) } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.lot, day: farmDaysAgo(0), quantity: 2000, unitPriceCentimes: "20", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.lot, day: farmDaysAgo(0), quantity: 2000, unitPriceCentimes: "20", paidCentimes: "0", dueOn: null } },
     { type: "reference-data.copyProtocol", payload: { id: ids.protocol, templateId: "broiler-default", name: "Programme de la ferme" } },
     {
       type: "reference-data.updateProtocol",

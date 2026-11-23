@@ -48,7 +48,7 @@ export const POLICIES = {
     { dim: "session", limit: 300, windowSec: MIN },
     { dim: "user", limit: 1000, windowSec: MIN },
   ],
-  // GET /api/finance/export: builds a whole month's zip in memory, receipts included (up to 5 MB each). About 1/60 of
+  // GET /api/finance/export: builds a whole month's zip (or FEC) in memory, receipts up to 5 MB each. About 1/60 of
   // the default: an accountant still pulls a quarter's months back to back, a loop can't stack zips in memory.
   financeExport: [
     { dim: "session", limit: 5, windowSec: MIN },

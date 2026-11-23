@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Field, FileUpload, Shell, of, useOnline, type Save, type Screen } from "@/components/local-screen";
 import { card, danger, field, primary, secondary, warn } from "@/components/ui";
@@ -65,6 +65,38 @@ function FarmPicker({ farms, farm, setFarm }: ReturnType<typeof useFarm>) {
 
 const log = { action: "biosecurity.record", forbidden: "Biosecurity.forbidden" } as const;
 
+/** D6: a correction sends only the fields that changed (nothing changed, nothing sent); the phone keeps `local`. */
+function correct<T extends { id: string }>(save: Save, type: string, entity: string, before: T, after: T, local: { id: string } = after) {
+  const changes = Object.fromEntries(Object.entries(after).filter(([k, v]) => v !== before[k as keyof T]));
+  return Object.keys(changes).length === 0 ? Promise.resolve(true) : save({ type, payload: { id: before.id, changes } }, entity, local);
+}
+
+/** A record of the log, and its "Modifier" button that opens `form` in its place. Records are never deleted (D6). */
+function Editable({ name, form, children }: { name: string; form: (close: () => void) => ReactNode; children: ReactNode }) {
+  const t = useTranslations("Biosecurity");
+  const [open, setOpen] = useState(false);
+  if (open) return form(() => setOpen(false));
+  return (
+    <>
+      {children}
+      <button type="button" onClick={() => setOpen(true)} className={`${secondary} self-start`} aria-label={t("editNamed", { record: name })}>
+        {t("edit")}
+      </button>
+    </>
+  );
+}
+
+/** The buttons of a form; a correction can be cancelled. */
+function Submit({ label, onCancel }: { label: string; onCancel?: () => void }) {
+  const t = useTranslations("Biosecurity");
+  return (
+    <div className="flex flex-wrap gap-3">
+      <button type="submit" className={primary}>{onCancel ? t("saveEdit") : label}</button>
+      {onCancel && <button type="button" onClick={onCancel} className={secondary}>{t("cancel")}</button>}
+    </div>
+  );
+}
+
 export const VisitorsScreen = () => <Shell {...log} entities={["farm", "visit"]} screen={Visitors} />;
 
 function Visitors({ records, save }: Parameters<Screen>[0]) {
@@ -88,7 +120,12 @@ function Visitors({ records, save }: Parameters<Screen>[0]) {
         <ul className="flex flex-col gap-2" aria-label={t("today")}>
           {visits.map((v) => (
             <li key={v.id} className={card}>
-              {t("line", { visitor: v.visitor, time: formatDateTime(v.enteredAt, locale), zone: t(`zones.${v.zone}`) })}
+              <Editable
+                name={v.visitor}
+                form={(close) => <VisitForm farmId={farm.id} visit={v} onCancel={close} onSave={async (n) => (await correct(save, B.editVisit, "visit", v, n)) && (close(), true)} />}
+              >
+                {t("line", { visitor: v.visitor, time: formatDateTime(v.enteredAt, locale), zone: t(`zones.${v.zone}`) })}
+              </Editable>
             </li>
           ))}
         </ul>
@@ -97,10 +134,10 @@ function Visitors({ records, save }: Parameters<Screen>[0]) {
   );
 }
 
-function VisitForm({ farmId, onSave }: { farmId: string; onSave: (v: VisitDto) => Promise<boolean> }) {
+function VisitForm({ farmId, visit, onSave, onCancel }: { farmId: string; visit?: VisitDto; onSave: (v: VisitDto) => Promise<boolean>; onCancel?: () => void }) {
   const t = useTranslations();
-  const [recentFarm, setRecentFarm] = useState(false);
-  const [zone, setZone] = useState<Zone>("dirty");
+  const [recentFarm, setRecentFarm] = useState(visit?.recentFarm ?? false);
+  const [zone, setZone] = useState<Zone>(visit?.zone ?? "dirty");
   const [key, setKey] = useState(0); // a new key empties the form after a save
   const [error, setError] = useState<string>();
 
@@ -112,9 +149,9 @@ function VisitForm({ farmId, onSave }: { farmId: string; onSave: (v: VisitDto) =
     if (!allowed.ok) return setError(`errors.${allowed.error}`);
     setError(undefined);
     const saved = await onSave({
-      id: uuidv7(),
+      id: visit?.id ?? uuidv7(),
       farmId,
-      enteredAt: new Date().toISOString(),
+      enteredAt: visit?.enteredAt ?? new Date().toISOString(),
       visitor: get("visitor"),
       vehicle: get("vehicle") || null,
       purpose: get("purpose") as VisitDto["purpose"],
@@ -132,12 +169,12 @@ function VisitForm({ farmId, onSave }: { farmId: string; onSave: (v: VisitDto) =
   };
 
   return (
-    <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-      <Field label={t("Visitors.visitor")}>{(id) => <input id={id} name="visitor" required maxLength={120} className={field} />}</Field>
-      <Field label={t("Visitors.vehicle")}>{(id) => <input id={id} name="vehicle" maxLength={20} dir="ltr" className={field} />}</Field>
+    <form key={key} onSubmit={submit} className="flex flex-col gap-3" aria-label={visit && t("Biosecurity.editNamed", { record: visit.visitor })}>
+      <Field label={t("Visitors.visitor")}>{(id) => <input id={id} name="visitor" required maxLength={120} defaultValue={visit?.visitor} className={field} />}</Field>
+      <Field label={t("Visitors.vehicle")}>{(id) => <input id={id} name="vehicle" maxLength={20} dir="ltr" defaultValue={visit?.vehicle ?? ""} className={field} />}</Field>
       <Field label={t("Visitors.purpose")}>
         {(id) => (
-          <select id={id} name="purpose" className={field}>
+          <select id={id} name="purpose" defaultValue={visit?.purpose} className={field}>
             {VISIT_PURPOSES.map((p) => <option key={p} value={p}>{t(`Visitors.purposes.${p}`)}</option>)}
           </select>
         )}
@@ -152,9 +189,9 @@ function VisitForm({ farmId, onSave }: { farmId: string; onSave: (v: VisitDto) =
       </fieldset>
       <fieldset className="flex flex-col gap-1">
         <legend className="font-semibold">{t("Visitors.checks")}</legend>
-        <label className={check}><input type="checkbox" name="wheels" className="size-6" />{t("Visitors.wheels")}</label>
-        <label className={check}><input type="checkbox" name="footbath" className="size-6" />{t("Visitors.footbath")}</label>
-        <label className={check}><input type="checkbox" name="clothing" className="size-6" />{t("Visitors.clothing")}</label>
+        <label className={check}><input type="checkbox" name="wheels" defaultChecked={visit?.wheelsDisinfected} className="size-6" />{t("Visitors.wheels")}</label>
+        <label className={check}><input type="checkbox" name="footbath" defaultChecked={visit?.footbath} className="size-6" />{t("Visitors.footbath")}</label>
+        <label className={check}><input type="checkbox" name="clothing" defaultChecked={visit?.farmClothing} className="size-6" />{t("Visitors.clothing")}</label>
       </fieldset>
       <fieldset className="flex flex-col gap-1">
         <legend className="font-semibold">{t("Visitors.zone")}</legend>
@@ -166,7 +203,7 @@ function VisitForm({ farmId, onSave }: { farmId: string; onSave: (v: VisitDto) =
         ))}
       </fieldset>
       {error && <p role="alert">{t(error)}</p>}
-      <button type="submit" className={primary}>{t("Visitors.save")}</button>
+      <Submit label={t("Visitors.save")} onCancel={onCancel} />
     </form>
   );
 }
@@ -216,7 +253,7 @@ function Disposal({ records, save, db }: Parameters<Screen>[0]) {
       {tab === "dead" ? (
         <DeadBirds farmId={farm.id} records={records} batches={choices} batchLabel={batchLabel} day={day} save={save} />
       ) : tab === "manure" ? (
-        <Manure farmId={farm.id} records={records} houses={houses} batches={choices} day={day} save={save} />
+        <Manure farmId={farm.id} records={records} houses={houses} batches={choices} batchLabel={batchLabel} day={day} save={save} />
       ) : (
         <Rodents farmId={farm.id} records={records} houses={houses} day={day} save={save} db={db} />
       )}
@@ -224,13 +261,14 @@ function Disposal({ records, save, db }: Parameters<Screen>[0]) {
   );
 }
 
-type LogProps = { farmId: string; records: LocalRecord[]; batches: Choice[]; day: (d: string) => string; save: Save };
+type LogProps = { farmId: string; records: LocalRecord[]; batches: Choice[]; batchLabel: (id: string | null) => string | null; day: (d: string) => string; save: Save };
 
-function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps & { batchLabel: (id: string | null) => string | null }) {
+/** The open batches, and the record's own batch when it has closed since: a correction never drops it silently. */
+const withBatch = (batches: Choice[], id: string | null | undefined, label: LogProps["batchLabel"]) =>
+  id && !batches.some((b) => b.id === id) ? [...batches, { id, label: label(id) ?? id }] : batches;
+
+function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps) {
   const t = useTranslations();
-  const [method, setMethod] = useState<DisposalDto["method"]>("incineration");
-  const [error, setError] = useState<string>();
-  const [key, setKey] = useState(0);
   const today = farmDayOf(new Date());
   const since = addFarmDays(today, -GAP_DAYS);
   const farmBatches = new Set(of<BatchDto>(records, "batch").filter((b) => b.farmId === farmId).map((b) => b.id));
@@ -241,51 +279,9 @@ function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps
   const gaps = disposalGaps(mortality, disposals.filter((d) => d.day >= since)).filter((g) => g.dead || g.disposed);
   const recent = disposals.sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 20);
 
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const get = (k: string) => String(data.get(k) ?? "").trim();
-    const birds = parseQuantity(get("birds"), "unit");
-    const weightGrams = get("weight") ? parseQuantity(get("weight"), "kg") : null;
-    if (birds === null || (get("weight") && weightGrams === null)) return setError("errors.INVALID_QUANTITY");
-    const methodNote = get("methodNote") || null;
-    const checked = checkDisposal({ method, methodNote });
-    if (!checked.ok) return setError(`errors.${checked.error}`);
-    if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
-    setError(undefined);
-    const d: DisposalDto = { id: uuidv7(), farmId, day: get("day") || today, batchId: get("batch") || null, birds, weightGrams, method, methodNote };
-    if (await save({ type: B.recordDisposal, payload: d }, "disposal", d)) {
-      setKey((k) => k + 1);
-      setMethod("incineration");
-    }
-  };
-
   return (
     <>
-      <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-        <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today} max={today} required className={field} />}</Field>
-        <Field label={t("Disposal.batchField")}>
-          {(id) => (
-            <select id={id} name="batch" className={field}>
-              {batches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
-              <option value="">{t("Disposal.noBatch")}</option>
-            </select>
-          )}
-        </Field>
-        <Field label={t("Disposal.birds")}>{(id) => <input id={id} name="birds" inputMode="numeric" required dir="ltr" className={field} />}</Field>
-        <Field label={t("Disposal.weight")}>{(id) => <input id={id} name="weight" inputMode="decimal" dir="ltr" className={field} />}</Field>
-        <Field label={t("Disposal.method")}>
-          {(id) => (
-            <select id={id} value={method} onChange={(e) => setMethod(e.target.value as DisposalDto["method"])} className={field}>
-              {DISPOSAL_METHODS.map((k) => <option key={k} value={k}>{t(`Disposal.methods.${k}`)}</option>)}
-            </select>
-          )}
-        </Field>
-        {method === "other" && <Field label={t("Disposal.methodNote")}>{(id) => <input id={id} name="methodNote" required maxLength={200} className={field} />}</Field>}
-        <p className={`${warn} text-sm`}>{t("Disposal.toConfirm")}</p>
-        {error && <p role="alert">{t(error)}</p>}
-        <button type="submit" className={primary}>{t("Disposal.save")}</button>
-      </form>
+      <DisposalForm farmId={farmId} batches={batches} onSave={(d) => save({ type: B.recordDisposal, payload: d }, "disposal", d)} />
 
       <h2 className="text-lg font-semibold">{t("Disposal.gaps", { days: GAP_DAYS })}</h2>
       {gaps.length === 0 ? (
@@ -317,9 +313,18 @@ function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps
       <ul className="flex flex-col gap-2" aria-label={t("Disposal.recent")}>
         {recent.map((d) => (
           <li key={d.id} className={card}>
-            {t("Disposal.line", { date: day(d.day), birds: formatCount(d.birds), method: d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`) })}
-            {d.weightGrams !== null && ` · ${formatKg(d.weightGrams)}`}
-            {d.batchId && ` · ${batchLabel(d.batchId) ?? ""}`}
+            <Editable
+              name={day(d.day)}
+              form={(close) => (
+                <DisposalForm farmId={farmId} batches={withBatch(batches, d.batchId, batchLabel)} disposal={d} onCancel={close} onSave={async (n) => (await correct(save, B.editDisposal, "disposal", d, n)) && (close(), true)} />
+              )}
+            >
+              <span>
+                {t("Disposal.line", { date: day(d.day), birds: formatCount(d.birds), method: d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`) })}
+                {d.weightGrams !== null && ` · ${formatKg(d.weightGrams)}`}
+                {d.batchId && ` · ${batchLabel(d.batchId) ?? ""}`}
+              </span>
+            </Editable>
           </li>
         ))}
       </ul>
@@ -327,15 +332,103 @@ function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps
   );
 }
 
-function Manure({ farmId, records, houses, batches, day, save }: LogProps & { houses: HouseDto[] }) {
+type FormProps<T> = { farmId: string; onSave: (r: T) => Promise<boolean>; onCancel?: () => void };
+
+/** BS6: records a disposal, or corrects `disposal`. */
+function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps<DisposalDto> & { batches: Choice[]; disposal?: DisposalDto }) {
   const t = useTranslations();
+  const [method, setMethod] = useState<DisposalDto["method"]>(disposal?.method ?? "incineration");
   const [error, setError] = useState<string>();
   const [key, setKey] = useState(0);
   const today = farmDayOf(new Date());
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const get = (k: string) => String(data.get(k) ?? "").trim();
+    const birds = parseQuantity(get("birds"), "unit");
+    const weightGrams = get("weight") ? parseQuantity(get("weight"), "kg") : null;
+    if (birds === null || (get("weight") && weightGrams === null)) return setError("errors.INVALID_QUANTITY");
+    const methodNote = method === "other" ? get("methodNote") || null : null;
+    const checked = checkDisposal({ method, methodNote });
+    if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
+    setError(undefined);
+    const d: DisposalDto = { id: disposal?.id ?? uuidv7(), farmId, day: get("day") || today, batchId: get("batch") || null, birds, weightGrams, method, methodNote };
+    if ((await onSave(d)) && !disposal) {
+      setKey((k) => k + 1);
+      setMethod("incineration");
+    }
+  };
+
+  return (
+    <form key={key} onSubmit={submit} className="flex flex-col gap-3">
+      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={disposal?.day ?? today} max={today} required className={field} />}</Field>
+      <Field label={t("Disposal.batchField")}>
+        {(id) => (
+          <select id={id} name="batch" defaultValue={disposal ? (disposal.batchId ?? "") : undefined} className={field}>
+            {batches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+            <option value="">{t("Disposal.noBatch")}</option>
+          </select>
+        )}
+      </Field>
+      <Field label={t("Disposal.birds")}>{(id) => <input id={id} name="birds" inputMode="numeric" required dir="ltr" defaultValue={disposal?.birds} className={field} />}</Field>
+      <Field label={t("Disposal.weight")}>
+        {(id) => <input id={id} name="weight" inputMode="decimal" dir="ltr" defaultValue={disposal?.weightGrams != null ? String(disposal.weightGrams / 1000) : ""} className={field} />}
+      </Field>
+      <Field label={t("Disposal.method")}>
+        {(id) => (
+          <select id={id} value={method} onChange={(e) => setMethod(e.target.value as DisposalDto["method"])} className={field}>
+            {DISPOSAL_METHODS.map((k) => <option key={k} value={k}>{t(`Disposal.methods.${k}`)}</option>)}
+          </select>
+        )}
+      </Field>
+      {method === "other" && <Field label={t("Disposal.methodNote")}>{(id) => <input id={id} name="methodNote" required maxLength={200} defaultValue={disposal?.methodNote ?? ""} className={field} />}</Field>}
+      <p className={`${warn} text-sm`}>{t("Disposal.toConfirm")}</p>
+      {error && <p role="alert">{t(error)}</p>}
+      <Submit label={t("Disposal.save")} onCancel={onCancel} />
+    </form>
+  );
+}
+
+function Manure({ farmId, records, houses, batches, batchLabel, day, save }: LogProps & { houses: HouseDto[] }) {
+  const t = useTranslations();
   const recent = of<ManureRemovalDto>(records, "manureRemoval")
     .filter((r) => r.farmId === farmId)
     .sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id))
     .slice(0, 20);
+
+  return (
+    <>
+      <ManureForm farmId={farmId} houses={houses} batches={batches} onSave={(r) => save({ type: B.recordManure, payload: r }, "manureRemoval", r)} />
+      <h2 className="text-lg font-semibold">{t("Disposal.recentManure")}</h2>
+      <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentManure")}>
+        {recent.map((r) => (
+          <li key={r.id} className={card}>
+            <Editable
+              name={day(r.day)}
+              form={(close) => (
+                <ManureForm farmId={farmId} houses={houses} batches={withBatch(batches, r.batchId, batchLabel)} removal={r} onCancel={close} onSave={async (n) => (await correct(save, B.editManure, "manureRemoval", r, n)) && (close(), true)} />
+              )}
+            >
+              <span>
+                {t("Disposal.manureLine", { date: day(r.day), kg: formatCount(r.quantityKg), destination: t(`Disposal.destinations.${r.destination}`) })}
+                {r.recipient && ` · ${r.recipient}`}
+              </span>
+            </Editable>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** BS7: records a manure removal, or corrects `removal`. */
+function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: FormProps<ManureRemovalDto> & { houses: HouseDto[]; batches: Choice[]; removal?: ManureRemovalDto }) {
+  const t = useTranslations();
+  const [error, setError] = useState<string>();
+  const [key, setKey] = useState(0);
+  const today = farmDayOf(new Date());
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -346,7 +439,7 @@ function Manure({ farmId, records, houses, batches, day, save }: LogProps & { ho
     if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
     setError(undefined);
     const r: ManureRemovalDto = {
-      id: uuidv7(),
+      id: removal?.id ?? uuidv7(),
       farmId,
       day: get("day") || today,
       houseId: get("house") || null,
@@ -355,51 +448,40 @@ function Manure({ farmId, records, houses, batches, day, save }: LogProps & { ho
       destination: get("destination") as ManureRemovalDto["destination"],
       recipient: get("recipient") || null,
     };
-    if (await save({ type: B.recordManure, payload: r }, "manureRemoval", r)) setKey((k) => k + 1);
+    if ((await onSave(r)) && !removal) setKey((k) => k + 1);
   };
 
   return (
-    <>
-      <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-        <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today} max={today} required className={field} />}</Field>
-        <Field label={t("Disposal.house")}>
-          {(id) => (
-            <select id={id} name="house" className={field}>
-              {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-              <option value="">{t("Disposal.noHouse")}</option>
-            </select>
-          )}
-        </Field>
-        <Field label={t("Disposal.batchField")}>
-          {(id) => (
-            <select id={id} name="batch" defaultValue="" className={field}>
-              <option value="">{t("Disposal.noBatch")}</option>
-              {batches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
-            </select>
-          )}
-        </Field>
-        <Field label={t("Disposal.quantity")}>{(id) => <input id={id} name="quantity" inputMode="numeric" required dir="ltr" className={field} />}</Field>
-        <Field label={t("Disposal.destination")}>
-          {(id) => (
-            <select id={id} name="destination" className={field}>
-              {MANURE_DESTINATIONS.map((k) => <option key={k} value={k}>{t(`Disposal.destinations.${k}`)}</option>)}
-            </select>
-          )}
-        </Field>
-        <Field label={t("Disposal.recipient")}>{(id) => <input id={id} name="recipient" maxLength={120} className={field} />}</Field>
-        {error && <p role="alert">{t(error)}</p>}
-        <button type="submit" className={primary}>{t("Disposal.saveManure")}</button>
-      </form>
-      <h2 className="text-lg font-semibold">{t("Disposal.recentManure")}</h2>
-      <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentManure")}>
-        {recent.map((r) => (
-          <li key={r.id} className={card}>
-            {t("Disposal.manureLine", { date: day(r.day), kg: formatCount(r.quantityKg), destination: t(`Disposal.destinations.${r.destination}`) })}
-            {r.recipient && ` · ${r.recipient}`}
-          </li>
-        ))}
-      </ul>
-    </>
+    <form key={key} onSubmit={submit} className="flex flex-col gap-3">
+      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={removal?.day ?? today} max={today} required className={field} />}</Field>
+      <Field label={t("Disposal.house")}>
+        {(id) => (
+          <select id={id} name="house" defaultValue={removal ? (removal.houseId ?? "") : undefined} className={field}>
+            {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+            <option value="">{t("Disposal.noHouse")}</option>
+          </select>
+        )}
+      </Field>
+      <Field label={t("Disposal.batchField")}>
+        {(id) => (
+          <select id={id} name="batch" defaultValue={removal?.batchId ?? ""} className={field}>
+            <option value="">{t("Disposal.noBatch")}</option>
+            {batches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+          </select>
+        )}
+      </Field>
+      <Field label={t("Disposal.quantity")}>{(id) => <input id={id} name="quantity" inputMode="numeric" required dir="ltr" defaultValue={removal?.quantityKg} className={field} />}</Field>
+      <Field label={t("Disposal.destination")}>
+        {(id) => (
+          <select id={id} name="destination" defaultValue={removal?.destination} className={field}>
+            {MANURE_DESTINATIONS.map((k) => <option key={k} value={k}>{t(`Disposal.destinations.${k}`)}</option>)}
+          </select>
+        )}
+      </Field>
+      <Field label={t("Disposal.recipient")}>{(id) => <input id={id} name="recipient" maxLength={120} defaultValue={removal?.recipient ?? ""} className={field} />}</Field>
+      {error && <p role="alert">{t(error)}</p>}
+      <Submit label={t("Disposal.saveManure")} onCancel={onCancel} />
+    </form>
   );
 }
 
@@ -479,13 +561,16 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
     if (!open) return;
     const data = new FormData(e.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim() || null;
-    const step = { id: uuidv7(), step: open, day: get("day") ?? today, product: get("product"), dose: get("dose"), productLot: get("productLot"), note: get("note") };
-    const checked = checkStep(cleanout.steps, step);
+    const done = cleanout.steps.find((s) => s.step === open); // marked already: this is a correction (D6)
+    const step = { id: done?.id ?? uuidv7(), step: open, day: get("day") ?? today, product: get("product"), dose: get("dose"), productLot: get("productLot"), note: get("note") };
+    const checked = checkStep(done ? [] : cleanout.steps, step);
     if (!checked.ok) return setError(`errors.${checked.error}`);
     if (step.day > today) return setError("errors.DAY_IN_FUTURE");
     setError(undefined);
-    const next: CleanoutDto = { ...cleanout, steps: [...cleanout.steps, step] };
-    if (await save({ type: B.recordCleanoutStep, payload: { ...step, cleanoutId: cleanout.id } }, "cleanout", next)) setOpen(undefined);
+    const saved = done
+      ? await correct(save, B.editCleanoutStep, "cleanout", done, step, { ...cleanout, steps: cleanout.steps.map((s) => (s.id === done.id ? step : s)) })
+      : await save({ type: B.recordCleanoutStep, payload: { ...step, cleanoutId: cleanout.id } }, "cleanout", { ...cleanout, steps: [...cleanout.steps, step] });
+    if (saved) setOpen(undefined);
   };
 
   return (
@@ -500,25 +585,30 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
                 <span className={done ? "font-semibold" : ""}>{t(`Cleanout.steps.${key}`)}</span>
                 {done && <span className="block text-sm text-muted">{[day(done.day), done.product, done.dose, done.productLot && t("Cleanout.lot", { lot: done.productLot }), done.note].filter(Boolean).join(" · ")}</span>}
               </span>
-              {!done && open !== key && (
-                <button type="button" onClick={() => (setOpen(key), setError(undefined))} className={secondary} aria-label={t("Cleanout.markNamed", { step: t(`Cleanout.steps.${key}`) })}>
-                  {t("Cleanout.mark")}
+              {open !== key && (
+                <button
+                  type="button"
+                  onClick={() => (setOpen(key), setError(undefined))}
+                  className={secondary}
+                  aria-label={done ? t("Biosecurity.editNamed", { record: t(`Cleanout.steps.${key}`) }) : t("Cleanout.markNamed", { step: t(`Cleanout.steps.${key}`) })}
+                >
+                  {done ? t("Biosecurity.edit") : t("Cleanout.mark")}
                 </button>
               )}
             </div>
             {open === key && (
               <form onSubmit={submit} className="flex flex-col gap-3">
-                <Field label={t("Cleanout.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today} max={today} required className={field} />}</Field>
+                <Field label={t("Cleanout.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={done?.day ?? today} max={today} required className={field} />}</Field>
                 {key === "disinfection" && (
                   <>
-                    <Field label={t("Cleanout.product")}>{(id) => <input id={id} name="product" required maxLength={120} className={field} />}</Field>
-                    <Field label={t("Cleanout.dose")}>{(id) => <input id={id} name="dose" maxLength={60} className={field} />}</Field>
-                    <Field label={t("Cleanout.productLot")}>{(id) => <input id={id} name="productLot" maxLength={60} dir="ltr" className={field} />}</Field>
+                    <Field label={t("Cleanout.product")}>{(id) => <input id={id} name="product" required maxLength={120} defaultValue={done?.product ?? ""} className={field} />}</Field>
+                    <Field label={t("Cleanout.dose")}>{(id) => <input id={id} name="dose" maxLength={60} defaultValue={done?.dose ?? ""} className={field} />}</Field>
+                    <Field label={t("Cleanout.productLot")}>{(id) => <input id={id} name="productLot" maxLength={60} dir="ltr" defaultValue={done?.productLot ?? ""} className={field} />}</Field>
                   </>
                 )}
-                <Field label={t("Cleanout.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
+                <Field label={t("Cleanout.note")}>{(id) => <input id={id} name="note" maxLength={200} defaultValue={done?.note ?? ""} className={field} />}</Field>
                 {error && <p role="alert">{t(error)}</p>}
-                <button type="submit" className={primary}>{t("Cleanout.save")}</button>
+                <Submit label={t("Cleanout.save")} onCancel={done ? () => setOpen(undefined) : undefined} />
               </form>
             )}
           </li>
@@ -548,72 +638,98 @@ function MinDowntime({ farmId, minDays, save }: { farmId: string; minDays: numbe
 
 // BS8: rodent control with physical proof (law 49-99 art. 15). The check is recorded offline; its photo goes up once
 // the check is on the server and the phone is online.
-function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "batches"> & { houses: HouseDto[]; db: Parameters<Screen>[0]["db"] }) {
+function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "batches" | "batchLabel"> & { houses: HouseDto[]; db: Parameters<Screen>[0]["db"] }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
-  const [key, setKey] = useState(0);
   const online = useOnline();
   const queued = useLiveQuery(() => db.outbox.toArray(), [db]);
-  const today = farmDayOf(new Date());
   const checks = of<RodentCheckDto>(records, "rodentCheck")
     .filter((r) => r.farmId === farmId)
     .sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id))
     .slice(0, 20);
   const unsent = new Set((queued ?? []).flatMap((e) => e.recordKeys ?? []));
 
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const get = (k: string) => String(data.get(k) ?? "").trim();
-    if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
-    setError(undefined);
-    const fields = { id: uuidv7(), farmId, houseId: get("house") || null, day: get("day") || today, action: get("action") as RodentCheckDto["action"], product: get("product") || null };
-    const local: RodentCheckDto = { ...fields, proofFileId: null };
-    if (await save({ type: B.recordRodentCheck, payload: fields }, "rodentCheck", local)) setKey((k) => k + 1);
-  };
-
   return (
     <>
-      <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-        <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today} max={today} required className={field} />}</Field>
-        <Field label={t("Disposal.house")}>
-          {(id) => (
-            <select id={id} name="house" className={field}>
-              {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-              <option value="">{t("Disposal.noHouse")}</option>
-            </select>
-          )}
-        </Field>
-        <Field label={t("Disposal.rodentAction")}>
-          {(id) => (
-            <select id={id} name="action" className={field}>
-              {RODENT_ACTIONS.map((k) => <option key={k} value={k}>{t(`Disposal.rodentActions.${k}`)}</option>)}
-            </select>
-          )}
-        </Field>
-        <Field label={t("Disposal.product")}>{(id) => <input id={id} name="product" maxLength={120} className={field} />}</Field>
-        <button type="submit" className={primary}>{t("Disposal.saveRodent")}</button>
-      </form>
+      <RodentForm
+        farmId={farmId}
+        houses={houses}
+        onError={setError}
+        onSave={(r) => save({ type: B.recordRodentCheck, payload: { ...r, proofFileId: undefined } }, "rodentCheck", r)} // the photo comes online, later
+      />
       {error && <p role="alert" className={danger}>{t(error)}</p>}
       <h2 className="text-lg font-semibold">{t("Disposal.recentRodents")}</h2>
       <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentRodents")}>
         {checks.map((r) => (
           <li key={r.id} className={card}>
-            <span>
-              {t("Disposal.rodentLine", { date: day(r.day), action: t(`Disposal.rodentActions.${r.action}`) })}
-              {r.product && ` · ${r.product}`}
-              {r.houseId && ` · ${houses.find((h) => h.id === r.houseId)?.name ?? ""}`}
-            </span>
-            {r.proofFileId ? (
-              <a href={`/api/files/${r.proofFileId}`} className="underline underline-offset-4">{t("Disposal.proof")}</a>
-            ) : unsent.has(`rodentCheck:${r.id}`) || !online ? (
-              <span className={warn}>{t("Disposal.proofMissing")}</span>
-            ) : (
-              <FileUpload url={`/api/files?purpose=proof&rodentCheck=${r.id}`} accept="image/jpeg,image/png,image/webp" camera label={t("Disposal.proofAdd")} onError={setError} />
-            )}
+            <Editable
+              name={day(r.day)}
+              form={(close) => <RodentForm farmId={farmId} houses={houses} check={r} onError={setError} onCancel={close} onSave={async (n) => (await correct(save, B.editRodentCheck, "rodentCheck", r, n)) && (close(), true)} />}
+            >
+              <span>
+                {t("Disposal.rodentLine", { date: day(r.day), action: t(`Disposal.rodentActions.${r.action}`) })}
+                {r.product && ` · ${r.product}`}
+                {r.houseId && ` · ${houses.find((h) => h.id === r.houseId)?.name ?? ""}`}
+              </span>
+              {r.proofFileId ? (
+                <a href={`/api/files/${r.proofFileId}`} className="underline underline-offset-4">{t("Disposal.proof")}</a>
+              ) : unsent.has(`rodentCheck:${r.id}`) || !online ? (
+                <span className={warn}>{t("Disposal.proofMissing")}</span>
+              ) : (
+                <FileUpload url={`/api/files?purpose=proof&rodentCheck=${r.id}`} accept="image/jpeg,image/png,image/webp" camera label={t("Disposal.proofAdd")} onError={setError} />
+              )}
+            </Editable>
           </li>
         ))}
       </ul>
     </>
+  );
+}
+
+/** BS8: records a rodent check, or corrects `check` (its photo stays: a proof is never replaced). */
+function RodentForm({ farmId, houses, check, onSave, onCancel, onError }: FormProps<RodentCheckDto> & { houses: HouseDto[]; check?: RodentCheckDto; onError: (key: string | undefined) => void }) {
+  const t = useTranslations();
+  const [key, setKey] = useState(0);
+  const today = farmDayOf(new Date());
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const get = (k: string) => String(data.get(k) ?? "").trim();
+    if (get("day") > today) return onError("errors.DAY_IN_FUTURE");
+    onError(undefined);
+    const r: RodentCheckDto = {
+      id: check?.id ?? uuidv7(),
+      farmId,
+      houseId: get("house") || null,
+      day: get("day") || today,
+      action: get("action") as RodentCheckDto["action"],
+      product: get("product") || null,
+      proofFileId: check?.proofFileId ?? null,
+    };
+    if ((await onSave(r)) && !check) setKey((k) => k + 1);
+  };
+
+  return (
+    <form key={key} onSubmit={submit} className="flex flex-col gap-3">
+      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={check?.day ?? today} max={today} required className={field} />}</Field>
+      <Field label={t("Disposal.house")}>
+        {(id) => (
+          <select id={id} name="house" defaultValue={check ? (check.houseId ?? "") : undefined} className={field}>
+            {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+            <option value="">{t("Disposal.noHouse")}</option>
+          </select>
+        )}
+      </Field>
+      <Field label={t("Disposal.rodentAction")}>
+        {(id) => (
+          <select id={id} name="action" defaultValue={check?.action} className={field}>
+            {RODENT_ACTIONS.map((k) => <option key={k} value={k}>{t(`Disposal.rodentActions.${k}`)}</option>)}
+          </select>
+        )}
+      </Field>
+      <Field label={t("Disposal.product")}>{(id) => <input id={id} name="product" maxLength={120} defaultValue={check?.product ?? ""} className={field} />}</Field>
+      <Submit label={t("Disposal.saveRodent")} onCancel={onCancel} />
+    </form>
   );
 }

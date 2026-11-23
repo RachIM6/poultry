@@ -579,7 +579,15 @@
     "noLot": "Aucun lot valide de ce vaccin en stock : ajoutez-le dans Stock.",
     "doses": "Doses",
     "save": "Enregistrer la vaccination",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "apply": "Appliquer ce programme",
+    "add": "Ajouter un vaccin",
+    "addSave": "Ajouter au plan",
+    "move": "Changer le jour",
+    "moveSave": "Enregistrer le jour",
+    "remove": "Retirer du plan",
+    "removeConfirm": "Retirer ce vaccin du plan de la bande ? Il ne sera plus rappelé.",
+    "removeYes": "Oui, retirer"
   },
   "Treatment": {
     "withdrawal": "Délai d’attente en cours jusqu’au {date} inclus : pas de vente de cette bande avant.",

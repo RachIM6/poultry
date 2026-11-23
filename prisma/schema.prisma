@@ -588,7 +588,7 @@ model Vaccination {
   id               String    @id @db.Uuid
   organizationId   String    @db.Uuid
   batchId          String    @db.Uuid
-  protocolId       String    @db.Uuid // the farm's protocol it came from
+  protocolId       String?   @db.Uuid // the farm's protocol it came from; null for a line added by hand (SPEC-m5 PA4)
   dayOfAge         Int
   dueOn            DateTime  @db.Date // farm day
   productId        String // a vaccine of the catalogue

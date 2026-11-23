@@ -125,6 +125,10 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 - [x] An entry in a locked month is refused with the reason. It isn't moved: a manual entry is dated by its author. _`finance/manual.int.test.ts` "refuses an entry in a locked month with the reason, and doesn't move it": `PERIOD_LOCKED` (`errors.PERIOD_LOCKED` on the form), nothing posted in any month._
 - [x] A `cash_book` entity sees the form disabled with the FQ11 reason. _`e2e/books.spec.ts` (the cash-book farmer: reason shown, button disabled); the server refuses too, `CASH_BOOK_NO_MANUAL_ENTRY` (`finance/manual.int.test.ts`)._
 - [x] Playwright: the owner types a three-line opening entry, it shows in the journal and the trial balance. _`e2e/manual-entry.spec.ts`: 2340 and 5141 against 1111 on 1 January, with the live Σdebit − Σcredit and a receipt; journal (piece, receipt link) and balanced trial balance._
+**Note (2026-11-23, branch `feat/period-lock-reverse`):** FN5 on `/books`: the owner locks or unlocks the month, and cancels a manual entry by reversal, then types the right one (SPEC-finance FN5 "Built on /books").
+- [x] A locked month refuses entries; locking and unlocking are the owner's, audited; a month of a closed year isn't unlocked (`FISCAL_YEAR_CLOSED`, the year's reopen instead). _`finance/period-lock.int.test.ts`._
+- [x] "Annuler l’écriture": owner only, once per entry (two at once too), on the entry's day or in the first open month after a locked one; a non-manual entry or a reversal is refused (`NOT_MANUAL_ENTRY`). _`finance/period-lock.int.test.ts`; `reverseEntry` checks `finance.manage` itself._
+- [x] Playwright: the owner cancels an entry, then locks and unlocks the month. _`e2e/period-lock.spec.ts` (runs in CI)._
 **Depends on:** T100.
 **Size:** M
 

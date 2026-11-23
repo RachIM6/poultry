@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useTransition, type FormEvent } from "react";
+import { useActionState, useState, useTransition, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
 import { field, primary, secondary } from "@/components/ui";
 import { treasuryKindOfAccount, type TreasuryAccountDto } from "@/modules/finance/shared";
-import { postManualEntryAction, type PostState } from "./actions";
+import { periodLockAction, postManualEntryAction, reverseEntryAction, type PostState } from "./actions";
 
 /**
  * SPEC-finance FCX3: the owner's manual entry, with a live Σdebit − Σcredit. The accounts come from the server-rendered
@@ -120,5 +120,32 @@ function TreasurySelect({ kind, row, treasuries }: { kind: TreasuryAccountDto["k
       <option value="" disabled>{t(kind === "bank" ? "Books.treasuryBank" : "Books.treasuryCash")}</option>
       {options.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
     </select>
+  );
+}
+
+/** SPEC-finance FN5, FCX3: the owner cancels a manual entry, after a confirmation; then types the right one. */
+export function ReverseEntryForm({ entryId, name, reversed }: { entryId: string; name: string; reversed: boolean }) {
+  const t = useTranslations();
+  const [state, action, pending] = useActionState(reverseEntryAction, {});
+  return (
+    <form action={action} onSubmit={(e) => !confirm(t("Books.reverseConfirm", { name })) && e.preventDefault()} className="flex flex-col items-start gap-2">
+      <input type="hidden" name="entryId" value={entryId} />
+      {!reversed && <button type="submit" disabled={pending} aria-label={t("Books.reverseOf", { name })} className={secondary}>{t("Books.reverse")}</button>}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+    </form>
+  );
+}
+
+/** SPEC-finance FN5: the owner locks the month (after sending the export) or unlocks it. */
+export function PeriodLockForm({ month, locked }: { month: string; locked: boolean }) {
+  const t = useTranslations();
+  const [state, action, pending] = useActionState(periodLockAction, {});
+  return (
+    <form action={action} className="flex flex-col items-start gap-2">
+      <input type="hidden" name="month" value={month} />
+      <input type="hidden" name="locked" value={locked ? "0" : "1"} />
+      <button type="submit" disabled={pending} className={secondary}>{t(locked ? "Books.unlockMonth" : "Books.lockMonth")}</button>
+      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+    </form>
   );
 }

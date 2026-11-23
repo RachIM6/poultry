@@ -43,6 +43,7 @@ describe("pnpm db:seed over posted entries (T100)", () => {
     expect(await db.ledgerAccount.count()).toBe(accounts.length);
     expect(await lines()).toEqual(before);
     // A reversal re-checks every line against the reseeded chart (FN4: posting accounts only).
-    for (const id of ids) expect(await reverseEntry(a, id, d("2025-03-11"), "Annulation"), id).toEqual({ ok: true, value: expect.any(String) });
+    await db.manualEntry.createMany({ data: ids.map((id) => ({ id, organizationId: a.organizationId, createdBy: a.userId })) }); // FN5: reversible ones
+    for (const id of ids) expect(await reverseEntry(a, id), id).toEqual({ ok: true, value: expect.any(String) });
   });
 });

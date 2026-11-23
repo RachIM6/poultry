@@ -10,18 +10,19 @@ import { balanceSheet, incomeStatement } from "@/modules/finance/domain/statemen
 import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
 import { fiscalYearOf, type Line } from "@/modules/finance/domain/entry";
 import { monthPeriod } from "@/modules/finance/domain/batch";
-import { ledgerAccounts, yearClose } from "@/modules/finance/infrastructure/ledger";
+import { ledgerAccounts, lockedMonths, yearClose } from "@/modules/finance/infrastructure/ledger";
 import { entryTags } from "@/modules/finance/application/tags";
 import type { EntryTags } from "@/modules/finance/domain/export";
 import { unpostedConsumption } from "@/modules/finance/domain/posting";
 import type { TreasuryKind } from "@/modules/finance/domain/treasury";
 
-// piece, receipt: a manual entry's (FCX3), from its ManualEntry row
-type Entry = { id: string; day: string; journal: string; label: string; reversesId: string | null; lines: Line[]; piece?: string | null; receipt?: string | null };
+// piece, receipt, reversed: a manual entry's (FCX3), from its ManualEntry row; reversed: cancelled already (FN5)
+type Entry = { id: string; day: string; journal: string; label: string; reversesId: string | null; lines: Line[]; piece?: string | null; receipt?: string | null; reversed?: boolean };
 
 export type Books = {
   books: "cash_book" | "ledger"; // FN16: what the entity's profile shows
   month: string;
+  lockedMonths: string[]; // FN5: the entity's locked months, "YYYY-MM", in order
   fiscalYear: { from: string; to: string };
   labels: Record<string, string>; // account number → its label in the chart
   cashBook: ReturnType<typeof cashBookOf>;
@@ -78,14 +79,16 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
     const reason = unpostedConsumption({ type: "consumption", id: c.id, day: c.day as FarmDay, amount: c.amountCentimes, takenBy: c.takenBy }, everything, chart);
     return reason ? [{ ...c, reason }] : [];
   });
-  const books: Books = { books: entity.accountingProfile.books, month, fiscalYear: year, labels, cashBook: cashBookOf(inMonth), tags: await entryTags(ctx, month), unposted };
+  const locked = [...(await lockedMonths(db, ctx, entity.id))].sort();
+  const books: Books = { books: entity.accountingProfile.books, month, lockedMonths: locked, fiscalYear: year, labels, cashBook: cashBookOf(inMonth), tags: await entryTags(ctx, month), unposted };
   if (entity.accountingProfile.books !== "ledger") return ok(books);
 
   const manual = new Map((await db.manualEntry.findMany({ where: { organizationId: ctx.organizationId, id: { in: inMonth.map((e) => e.id) } } })).map((m) => [m.id, m]));
+  const reversed = new Set((await db.journalEntry.findMany({ where: { organizationId: ctx.organizationId, reversesId: { in: [...manual.keys()] } }, select: { reversesId: true } })).map((r) => r.reversesId));
   const journals = new Map<string, Entry[]>();
   for (const e of inMonth) {
     const m = manual.get(e.id);
-    journals.set(e.journal, [...(journals.get(e.journal) ?? []), m ? { ...e, piece: m.piece, receipt: m.receiptFileId } : e]);
+    journals.set(e.journal, [...(journals.get(e.journal) ?? []), m ? { ...e, piece: m.piece, receipt: m.receiptFileId, reversed: reversed.has(e.id) } : e]);
   }
   const sinceYearStart = await entriesBetween(ctx, entity.id, year.from, period.to);
   const byAccount = new Map<string, NonNullable<Books["generalLedger"]>[number]["lines"]>();

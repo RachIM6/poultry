@@ -1,6 +1,7 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { leafAccounts, postingAccount, type ChartOfAccounts } from "@/modules/finance/domain/chart";
 import type { Line } from "@/modules/finance/domain/entry";
+import { ASSET_DEBTS } from "@/modules/finance/domain/assets";
 import { HENS_ADULTS, HENS_CULL_SALE, layPosting } from "@/modules/finance/domain/hens";
 import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 
@@ -105,7 +106,7 @@ export const POSTED_ACCOUNTS: readonly { op: string; account: string }[] = [
  * FN6: the entry a farm event makes, in PCA accounts, or null when there is nothing to post (zero amount). FN9: a
  * VAT-registered entity books the invoice's VAT apart; otherwise the whole total stays on the charge or the sale.
  * `classicHens` (FC6, T115: a ledger with the PCA, laying hens by the classic method): point-of-lay hens bought go on
- * 23711, culled hens sold on 7187, and the transfer to lay capitalises the pullets; otherwise as any batch.
+ * 23711 against 4481 (a fixed asset's debt, as FC1), culled hens sold on 7187, and the transfer to lay capitalises the pullets; otherwise as any batch.
  */
 export function postingOf(e: FarmEvent, vatRegistered = false, classicHens = false): Posting | null {
   if (e.type === "pay" ? e.gross <= 0n : e.amount <= 0n) return null;
@@ -162,7 +163,7 @@ export function postingOf(e: FarmEvent, vatRegistered = false, classicHens = fal
   }
   if (e.type === "chicks") {
     const hens = classicHens && e.layers;
-    return { journal: "AC", label: hens ? "Achat de poules" : "Achat de poussins", lines: [{ account: hens ? HENS_ADULTS : CHICKS, debit: e.amount, credit: 0n }, { account: SUPPLIERS, debit: 0n, credit: e.amount }] };
+    return { journal: "AC", label: hens ? "Achat de poules" : "Achat de poussins", lines: [{ account: hens ? HENS_ADULTS : CHICKS, debit: e.amount, credit: 0n }, { account: hens ? ASSET_DEBTS : SUPPLIERS, debit: 0n, credit: e.amount }] };
   }
   if (e.type === "lay") return classicHens ? layPosting(e.amount, e.capitalised) : null;
   const lines: Line[] = [{ account: CHARGE_BY_ITEM[e.itemKind] ?? CHARGE_BY_ITEM.other, debit: e.amount - vat, credit: 0n }];

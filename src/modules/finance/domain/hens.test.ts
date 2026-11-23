@@ -79,8 +79,8 @@ describe("laying hens, classic method (FC6, T115)", () => {
 
   it("books point-of-lay hens bought on 23711 and culled hens sold on 7187, only under the classic method", () => {
     const chicks = { type: "chicks" as const, id: "b", day: d("2026-06-01"), amount: 100n, layers: true };
-    expect(postingOf(chicks, false, true)!.lines[0].account).toBe("23711");
-    expect(postingOf(chicks, false, false)!.lines[0].account).toBe("612121");
+    expect(postingOf(chicks, false, true)!.lines.map((l) => l.account)).toEqual(["23711", "4481"]); // a fixed asset's debt (FC1)
+    expect(postingOf(chicks, false, false)!.lines.map((l) => l.account)).toEqual(["612121", "4411"]);
     expect(postingOf({ ...chicks, layers: false }, false, true)!.lines[0].account).toBe("612121");
     const sale = { type: "sale" as const, id: "s", day: d("2026-09-10"), amount: 100n, paid: 0n, method: "cash", kind: "live" as const, layers: true };
     expect(postingOf(sale, false, true)!.lines[1].account).toBe("7187");

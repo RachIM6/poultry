@@ -88,7 +88,7 @@ describe("laying hens and pullets (SPEC-finance FC6, T114, T115)", () => {
     ]);
     expect(await standing("flock", ids.ready)).toEqual([
       ["23711", 3_000_000n, 0n],
-      ["4411", 0n, 3_000_000n],
+      ["4481", 0n, 3_000_000n],
     ]);
     expect(await standing("flock", ids.pullets)).toEqual([
       ["4411", 0n, 900_000n],

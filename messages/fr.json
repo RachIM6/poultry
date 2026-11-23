@@ -1624,7 +1624,8 @@
     "minDays": "Jours minimum",
     "saveDowntime": "Enregistrer le minimum",
     "place": "Mettre en place le lot prévu le {date}",
-    "placeSave": "Mettre en place"
+    "placeSave": "Mettre en place",
+    "edit": "Modifier le lot prévu le {date}"
   },
   "Types": {
     "broiler": "Poulet de chair",

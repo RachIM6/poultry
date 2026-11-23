@@ -1,4 +1,5 @@
 import type { Tx } from "@/lib/db";
+import { farmInstant, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import type { EggCollectionDto, EggDiscardDto, EggDrawDto, EggGradingDto, EggItem } from "@/modules/eggs/schema";
 
@@ -31,17 +32,27 @@ const columns = (c: Pick<EggCollectionDto, "counts" | "sample">) => ({ ...c.coun
 /** Serializes every change to a batch's egg stock until the transaction ends, so two phones can't both take the last eggs. */
 export const lockEggs = (tx: Tx, batchId: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${batchId}, 2))`;
 
-/** What a batch's egg stock is made of (E2): its collections, gradings and discards. */
-export async function eggFlowsOf(tx: Tx, ctx: TenantContext, batchId: string) {
-  const where = { organizationId: ctx.organizationId, batchId };
+/** What a batch's egg stock is made of (E2): its collections, gradings, discards and draws. */
+export const eggFlowsOf = (tx: Tx, ctx: TenantContext, batchId: string) => flowsWhere(tx, { organizationId: ctx.organizationId, batchId });
+
+/**
+ * The organisation's egg stock as at the end of `day`: the collections laid by then, and the gradings, discards and draws
+ * recorded by then (they carry no day of their own: the farm day the server received them). `farmOf`: each batch's farm.
+ */
+export function eggFlowsOnDay(tx: Tx, ctx: TenantContext, day: FarmDay) {
+  return flowsWhere(tx, { organizationId: ctx.organizationId }, { day: { lte: date(day) } }, { createdAt: { lt: farmInstant(nextFarmDay(day), 0) } });
+}
+
+async function flowsWhere(tx: Tx, where: { organizationId: string; batchId?: string }, laid: { day?: { lte: Date } } = {}, recorded: { createdAt?: { lt: Date } } = {}) {
   const [collections, gradings, discards, drawn] = await Promise.all([
-    tx.eggCollection.findMany({ where }),
-    tx.eggGrading.findMany({ where }),
-    tx.eggDiscard.findMany({ where }),
-    tx.eggDraw.findMany({ where }),
+    tx.eggCollection.findMany({ where: { ...where, ...laid } }),
+    tx.eggGrading.findMany({ where: { ...where, ...recorded } }),
+    tx.eggDiscard.findMany({ where: { ...where, ...recorded } }),
+    tx.eggDraw.findMany({ where: { ...where, ...recorded } }),
   ]);
   const day = (d: Date) => d.toISOString().slice(0, 10);
   return {
+    farmOf: new Map([...collections, ...gradings, ...discards, ...drawn].map((r) => [r.batchId, r.farmId])),
     collections: collections.map(dto),
     gradings: gradings.map((g) => ({ batchId: g.batchId, laidOn: day(g.laidOn), grades: g.grades as Record<string, number> })),
     discards: discards.map((d) => ({ batchId: d.batchId, laidOn: day(d.laidOn), item: d.item as EggItem, eggs: d.eggs })),

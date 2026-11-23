@@ -2,3 +2,4 @@
 // ./schema for what the offline client needs (ADR-008).
 export { eggsSync } from "./sync";
 export { drawEggs } from "./application/draws";
+export { eggStockOnDay } from "./application/stock";

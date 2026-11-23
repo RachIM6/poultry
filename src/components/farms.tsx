@@ -8,7 +8,7 @@ import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
-import { FARM_MUTATIONS as M, FarmFields, HOUSE_TYPES, HouseFields, type FarmDto, type HouseDto } from "@/modules/farm-registry/schema";
+import { FARM_MUTATIONS as M, FarmFields, HOUSE_TYPES, HouseFields, type FarmDto, type HouseDto, type RegisterKeeper } from "@/modules/farm-registry/schema";
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
@@ -146,7 +146,9 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
   const locale = useLocale();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
-  const { id, ...current } = farm;
+  const { id, ...stored } = farm;
+  // A farm stored before the register's fields has none: not a change to send.
+  const current: FarmFields = { holder: null, vet: null, technicianName: null, chickImportApproval: null, registerKeepers: [], ...stored };
 
   return (
     <>
@@ -248,11 +250,17 @@ const read = (form: HTMLFormElement) => {
 function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSubmit: (f: FarmFields) => void; onCancel: () => void }) {
   const t = useTranslations("Farms");
   const [invalid, setInvalid] = useState(false);
+  // Arrêté 2126-05 art. 4: the register keepers, one row each; a row's inputs are named after its key.
+  const [keepers, setKeepers] = useState<{ key: string; keeper?: RegisterKeeper }[]>(() => (initial?.registerKeepers ?? []).map((keeper) => ({ key: uuidv7(), keeper })));
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const { text, num } = read(e.currentTarget);
     const [lat, lng, number, expiresOn] = [num("lat"), num("lng"), text("onssaNumber"), text("onssaExpiresOn")];
     const claim = num("doaClaim"); // SPEC-m3 B10: entered in %, stored per mille
+    const orNull = (k: string) => text(k) || null;
+    const registerKeepers = keepers
+      .map(({ key: k }) => ({ name: text(`${k}.name`), position: text(`${k}.position`), from: text(`${k}.from`), to: orNull(`${k}.to`) }))
+      .filter((k) => k.name || k.position || k.from || k.to); // a row left empty
     const parsed = FarmFields.safeParse({
       name: text("name"),
       region: text("region"),
@@ -261,6 +269,11 @@ function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSub
       gps: lat === undefined && lng === undefined ? null : { lat, lng },
       onssa: !number && !expiresOn ? null : { number, expiresOn },
       doaClaimThresholdPermille: claim === undefined ? null : Math.round(claim * 10),
+      holder: text("holderName") || text("holderAddress") ? { name: text("holderName"), address: orNull("holderAddress") } : null,
+      vet: text("vetName") || text("vetAddress") || text("vetPhone") ? { name: text("vetName"), address: orNull("vetAddress"), phone: orNull("vetPhone") } : null,
+      technicianName: orNull("technicianName"),
+      chickImportApproval: orNull("chickImportApproval"),
+      registerKeepers,
     });
     setInvalid(!parsed.success);
     if (parsed.success) onSubmit(parsed.data);
@@ -289,6 +302,29 @@ function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSub
           inputMode="decimal"
           dir="ltr"
         />
+      </fieldset>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1">{t("register")}</legend>
+        <Field name="holderName" label={t("holderName")} defaultValue={initial?.holder?.name} maxLength={120} />
+        <Field name="holderAddress" label={t("holderAddress")} defaultValue={initial?.holder?.address ?? undefined} maxLength={200} />
+        <Field name="vetName" label={t("vetName")} defaultValue={initial?.vet?.name} maxLength={120} />
+        <Field name="vetAddress" label={t("vetAddress")} defaultValue={initial?.vet?.address ?? undefined} maxLength={200} />
+        <Field name="vetPhone" label={t("vetPhone")} defaultValue={initial?.vet?.phone ?? undefined} type="tel" maxLength={32} dir="ltr" />
+        <Field name="technicianName" label={t("technicianName")} defaultValue={initial?.technicianName ?? undefined} maxLength={120} />
+        <Field name="chickImportApproval" label={t("chickImportApproval")} defaultValue={initial?.chickImportApproval ?? undefined} maxLength={60} dir="ltr" />
+      </fieldset>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1">{t("keepers")}</legend>
+        {keepers.map(({ key: k, keeper }) => (
+          <div key={k} className="flex flex-col gap-2 rounded-2xl border border-line p-3">
+            <Field name={`${k}.name`} label={t("keeperName")} defaultValue={keeper?.name} maxLength={120} />
+            <Field name={`${k}.position`} label={t("keeperPosition")} defaultValue={keeper?.position} maxLength={80} />
+            <Field name={`${k}.from`} label={t("keeperFrom")} defaultValue={keeper?.from} type="date" />
+            <Field name={`${k}.to`} label={t("keeperTo")} defaultValue={keeper?.to ?? undefined} type="date" />
+            <button type="button" onClick={() => setKeepers((ks) => ks.filter((x) => x.key !== k))} className={`${secondary} self-start py-2`}>{t("removeKeeper")}</button>
+          </div>
+        ))}
+        <button type="button" onClick={() => setKeepers((ks) => [...ks, { key: uuidv7() }])} className={`${secondary} self-start`}>{t("addKeeper")}</button>
       </fieldset>
       {invalid && <p role="alert">{t("invalid")}</p>}
       <div className="flex gap-3">

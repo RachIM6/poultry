@@ -34,11 +34,36 @@ model Farm {
   onssaNumber    String? // ONSSA authorization
   onssaExpiresOn DateTime?    @db.Date
   doaClaimThresholdPermille Int? // SPEC-m3 B10: dead on arrival above it = a claim to the hatchery; null = no alert (MQ6)
+  // The register's cover (arrêté 2126-05 of 15/12/2005, art. 3 and 4). All optional, as entered, never defaulted.
+  holderName          String? // the détenteur of the birds
+  holderAddress       String? // when different from the farm's
+  vetName             String? // the vétérinaire sanitaire in charge
+  vetAddress          String?
+  vetPhone            String?
+  technicianName      String?
+  chickImportApproval String? // agrément number, for a farm importing chicks
   createdAt      DateTime     @default(now()) @db.Timestamptz
   updatedAt      DateTime     @updatedAt @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   houses         House[]
+  registerKeepers RegisterKeeper[]
 
+  @@index([organizationId])
+}
+
+// Owner: farm-registry. Arrêté 2126-05 art. 4: who keeps (kept) the farm's register, and when. Written with the farm,
+// the whole list at once, in its order (`n`), like a sale's lines.
+model RegisterKeeper {
+  farmId         String    @db.Uuid
+  n              Int
+  organizationId String    @db.Uuid
+  name           String
+  position       String // their function on the farm
+  fromOn         DateTime  @db.Date
+  toOn           DateTime? @db.Date // null: still keeps it
+  farm           Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@id([farmId, n])
   @@index([organizationId])
 }
 
@@ -623,6 +648,10 @@ model Treatment {
   // SPEC-m3 H7: eggs, for layer batches (required there, as entered, never a default); null elsewhere.
   eggWithdrawalDays   Int?
   eggWithdrawalEndsOn DateTime? @db.Date
+  // The register (arrêté 2126-05 art. 4): how it was given and the prescription's reference. Optional, as entered.
+  route            String? // drinkingWater | feed | injection | spray | eyeDrop | other
+  routeNote        String? // what "other" was
+  prescriptionRef  String? // e.g. the ordonnance's number
   recordedBy       String   @db.Uuid
   createdAt        DateTime @default(now()) @db.Timestamptz
 
@@ -746,6 +775,7 @@ model Buyer {
   name                String
   phone               String?
   type                String // trader | abattoir | market | other
+  address             String? // the register (arrêté 2126-05 art. 4): where the birds go; optional, as entered
   // SPEC-finance FN11/FN12: set when one of their cheques or bills comes back unpaid; no sale on credit until the
   // owner lifts it.
   creditBlocked       Boolean  @default(false)
@@ -777,6 +807,9 @@ model Sale {
   creditApproval       String? // FN12: "pending" when it took the buyer past their credit limit, "approved" by the owner
   kind                 String    @default("live") // SPEC-m3: live (per kg) | eggs (birds, weights and price per kg are 0)
   takenBy              String? // SPEC-finance FC7: exploitant | associate | employee took it home; null = a sale
+  // The register (arrêté 2126-05 art. 4): live birds going to a farm or an establishment that isn't the buyer's
+  destinationName      String?
+  destinationAddress   String?
   recordedBy           String    @db.Uuid
   createdAt            DateTime  @default(now()) @db.Timestamptz
 

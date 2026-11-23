@@ -2,7 +2,7 @@ import { v5 as uuidv5 } from "uuid";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { planVaccinations } from "@/modules/health/domain/vaccination";
 import type { ProtocolItem } from "@/modules/reference-data/schema";
-import type { VACCINATION_METHODS } from "@/modules/reference-data/shared";
+import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 
 // What the phone's screens need from health, without Zod (ADR-009): the plan, the checks and the withdrawal rule the
 // phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
@@ -13,6 +13,10 @@ export type { PlanEditError } from "@/modules/health/domain/plan-edit";
 export { checkBatchDay, checkTreatment, eggWithdrawalEnd, eggWithdrawalUntil, eggWithdrawalWindows, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
 
 export type VaccinationMethod = (typeof VACCINATION_METHODS)[number];
+
+/** The register (arrêté 2126-05 art. 4): how a treatment was given; the vaccination methods' values, plus feed and other. */
+export const TREATMENT_ROUTES = [...VACCINATION_METHODS, "feed", "other"] as const;
+export type TreatmentRoute = (typeof TREATMENT_ROUTES)[number];
 
 export type VaccinationDto = {
   id: string;
@@ -47,6 +51,10 @@ export type TreatmentDto = {
   withdrawalEndsOn: string;
   eggWithdrawalDays?: number | null; // SPEC-m3 H7; absent from a record pulled before M3
   eggWithdrawalEndsOn?: string | null;
+  // The register (arrêté 2126-05 art. 4), optional; absent from a record pulled before them
+  route?: TreatmentRoute | null;
+  routeNote?: string | null; // what "other" was
+  prescriptionRef?: string | null; // e.g. the ordonnance's number
   byUserId: string;
 };
 

@@ -9,6 +9,7 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { BatchDto } from "@/modules/flock/shared";
 import {
   HEALTH_MUTATIONS as H,
+  TREATMENT_ROUTES,
   checkBatchDay,
   checkTreatment,
   eggWithdrawalEnd,
@@ -16,6 +17,7 @@ import {
   withdrawalEnd,
   withdrawalUntil,
   type TreatmentDto,
+  type TreatmentRoute,
   type VetVisitDto,
 } from "@/modules/health/shared";
 import { parseQuantity, type MovementDto, type StockItemDto } from "@/modules/inventory/shared";
@@ -122,6 +124,7 @@ function TreatmentForm({
   const t = useTranslations();
   const locale = useLocale();
   const [itemId, setItemId] = useState(medicines[0]?.id);
+  const [route, setRoute] = useState<TreatmentRoute | "">("");
   const [error, setError] = useState<string>();
   const item = medicines.find((m) => m.id === itemId);
   if (!item) return <p role="alert">{t("Treatment.noMedicine")}</p>;
@@ -146,8 +149,11 @@ function TreatmentForm({
       prescriber: get("prescriber"),
       withdrawalDays,
       eggWithdrawalDays,
+      route: route || null, // the register (arrêté 2126-05 art. 4), optional
+      routeNote: route === "other" ? get("routeNote") || null : null,
+      prescriptionRef: get("prescriptionRef") || null,
     };
-    if (Number.isNaN(withdrawalDays) || withdrawalDays > 365 || Number.isNaN(eggWithdrawalDays) || (eggWithdrawalDays ?? 0) > 365 || !payload.dose || !payload.reason || !payload.prescriber) return setError("errors.INVALID_INPUT");
+    if (Number.isNaN(withdrawalDays) || withdrawalDays > 365 || Number.isNaN(eggWithdrawalDays) || (eggWithdrawalDays ?? 0) > 365 || !payload.dose || !payload.reason || !payload.prescriber || (route === "other" && !payload.routeNote)) return setError("errors.INVALID_INPUT");
     const checked = checkTreatment({ placedOn: batch.placedOn as FarmDay, status: batch.status, species: batch.species }, payload, today()); // as the server
     if (!checked.ok) return setError(`errors.${checked.error}`);
     setError(undefined);
@@ -182,6 +188,16 @@ function TreatmentForm({
       <Labelled label={t("Treatment.endOn")}>{(id) => <input id={id} name="endOn" type="date" defaultValue={today()} required className={field} />}</Labelled>
       <Labelled label={t("Treatment.reason")}>{(id) => <input id={id} name="reason" required maxLength={200} className={field} />}</Labelled>
       <Labelled label={t("Treatment.prescriber")}>{(id) => <input id={id} name="prescriber" required maxLength={120} className={field} />}</Labelled>
+      <Labelled label={t("Treatment.prescriptionRef")}>{(id) => <input id={id} name="prescriptionRef" maxLength={60} dir="ltr" className={field} />}</Labelled>
+      <Labelled label={t("Treatment.route")}>
+        {(id) => (
+          <select id={id} value={route} onChange={(e) => setRoute(e.target.value as TreatmentRoute | "")} className={field}>
+            <option value="">—</option>
+            {TREATMENT_ROUTES.map((r) => <option key={r} value={r}>{t(`Treatment.routes.${r}`)}</option>)}
+          </select>
+        )}
+      </Labelled>
+      {route === "other" && <Labelled label={t("Treatment.routeNote")}>{(id) => <input id={id} name="routeNote" required maxLength={120} className={field} />}</Labelled>}
       <Labelled label={t("Treatment.withdrawalDays")} hint={t("Treatment.withdrawalHint")}>
         {(id) => <input id={id} name="withdrawalDays" inputMode="numeric" pattern="\d{1,3}" required dir="ltr" className={field} />}
       </Labelled>

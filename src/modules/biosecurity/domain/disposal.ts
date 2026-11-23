@@ -3,10 +3,12 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 // SPEC-m2-compliance BS6–BS7: what leaves the farm, dead birds (law 49-99 art. 12) and manure (art. 13).
 
 /**
- * The methods NEEDS-ANALYSIS §4 and SCOPE §13 name. The authorized list and distances wait for ONSSA (CQ4): anything
- * else is "other", described in words, never a method we made up.
+ * CQ4 (decided default, to review): the official means. Arrêté n° 2127-05 du 15 décembre 2005, art. 2: an incinerator
+ * or a concrete carcass pit with a watertight lid; law 49-99, art. 12: a place the administration authorizes. Anything
+ * else is "other", described in words. Routine burial is not offered: lawful only in an authorized place or under an
+ * outbreak order.
  */
-export const DISPOSAL_METHODS = ["incineration", "authorizedSite", "other"] as const;
+export const DISPOSAL_METHODS = ["incineration", "sealedPit", "authorizedSite", "other"] as const;
 export type DisposalMethod = (typeof DISPOSAL_METHODS)[number];
 
 export const MANURE_DESTINATIONS = ["stored", "spread", "sold", "given"] as const;
@@ -14,6 +16,13 @@ export type ManureDestination = (typeof MANURE_DESTINATIONS)[number];
 
 export const checkDisposal = (d: { method: DisposalMethod; methodNote: string | null }): Result<void, "DISPOSAL_METHOD_NOTE_REQUIRED"> =>
   d.method === "other" && !d.methodNote?.trim() ? fail("DISPOSAL_METHOD_NOTE_REQUIRED") : ok(undefined);
+
+/**
+ * CQ4: manure is spread only more than 500 m from any poultry farm or hatchery, unless composted (décret n° 2-04-684,
+ * art. 12; arrêté n° 2127-05, art. 4). Whoever records a spreading declares it.
+ */
+export const checkManure = (m: { destination: ManureDestination; spreadDeclared?: boolean }): Result<void, "SPREAD_DECLARATION_REQUIRED"> =>
+  m.destination === "spread" && !m.spreadDeclared ? fail("SPREAD_DECLARATION_REQUIRED") : ok(undefined);
 
 type DayBirds = { day: string; birds: number };
 export type DisposalGap = { day: string; dead: number; disposed: number; gap: number };

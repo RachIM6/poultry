@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T41 acceptance (browser part): dead birds disposed of and manure taken out, recorded offline, synced once; the
-// day's mortality shows next to the birds disposed (SPEC-m2-compliance BS6, BS7, CX1).
+// day's mortality shows next to the birds disposed (SPEC-m2-compliance BS6, BS7, CX1); spreading is declared (CQ4).
 test("disposal and manure are recorded offline, synced once, with the day's mortality alongside", async ({ page, context }) => {
   test.setTimeout(120_000);
   const e164 = await ownerWithFarm(page, "Élevage des Sorties");
@@ -30,7 +30,15 @@ test("disposal and manure are recorded offline, synced once, with the day's mort
   await page.getByLabel("Quantité (kg)").fill("18000");
   await page.getByLabel("Destination").selectOption({ label: "Stocké sur la ferme" });
   await page.getByRole("button", { name: "Enregistrer la sortie de fumier" }).click();
-  await expect(page.getByRole("list", { name: "Dernières sorties de fumier" }).getByRole("listitem")).toHaveText([/18\s000 kg, Stocké sur la ferme/]);
+  const manure = page.getByRole("list", { name: "Dernières sorties de fumier" }).getByRole("listitem");
+  await expect(manure).toHaveText([/18\s000 kg, Stocké sur la ferme/]);
+  // CQ4: spreading asks for the 500 m (or composted) declaration
+  await page.getByLabel("Quantité (kg)").fill("2000");
+  await page.getByLabel("Destination").selectOption({ label: "Épandu" });
+  await page.getByLabel("Épandu à plus de 500 m de tout élevage avicole et couvoir", { exact: false }).check();
+  await page.getByRole("button", { name: "Enregistrer la sortie de fumier" }).click();
+  await expect(manure).toHaveCount(2);
+  await expect(manure.filter({ hasText: /2\s000 kg, Épandu/ })).toHaveCount(1);
 
   const reload = await page.reload();
   expect(reload?.fromServiceWorker()).toBe(true);
@@ -45,5 +53,5 @@ test("disposal and manure are recorded offline, synced once, with the day's mort
        FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
       [e164],
     );
-  await expect.poll(server).toEqual([{ disposals: 1, manure: 1 }]);
+  await expect.poll(server).toEqual([{ disposals: 1, manure: 2 }]);
 });

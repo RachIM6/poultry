@@ -18,6 +18,7 @@ import {
   VISITOR_RECENT_FARM_HOURS,
   ZONES,
   checkDisposal,
+  checkManure,
   checkStep,
   disposalGaps,
   downtimeDay,
@@ -33,8 +34,8 @@ import {
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto, DailyEntryDto } from "@/modules/flock/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import type { LocalRecord } from "@/offline/db";
 import { downtimeOn, type DowntimeRule } from "@/modules/planning/shared";
+import type { LocalRecord } from "@/offline/db";
 
 // SPEC-m2-compliance §4 on static shells, offline: the logs a farm keeps on the phone.
 
@@ -383,7 +384,7 @@ function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps
         )}
       </Field>
       {method === "other" && <Field label={t("Disposal.methodNote")}>{(id) => <input id={id} name="methodNote" required maxLength={200} defaultValue={disposal?.methodNote ?? ""} className={field} />}</Field>}
-      <p className={`${warn} text-sm`}>{t("Disposal.toConfirm")}</p>
+      <p className="text-sm text-muted">{t("Disposal.sources")}</p>
       {error && <p role="alert">{t(error)}</p>}
       <Submit label={t("Disposal.save")} onCancel={onCancel} />
     </form>
@@ -427,6 +428,7 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
   const t = useTranslations();
   const [error, setError] = useState<string>();
   const [key, setKey] = useState(0);
+  const [destination, setDestination] = useState<ManureRemovalDto["destination"]>(removal?.destination ?? "stored");
   const today = farmDayOf(new Date());
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -436,6 +438,9 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
     const quantityKg = parseQuantity(get("quantity"), "unit");
     if (quantityKg === null) return setError("errors.INVALID_QUANTITY");
     if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
+    const spreadDeclared = destination === "spread" && data.get("spreadDeclared") === "on";
+    const checked = checkManure({ destination, spreadDeclared }); // CQ4, the server's rule too
+    if (!checked.ok) return setError(`errors.${checked.error}`);
     setError(undefined);
     const r: ManureRemovalDto = {
       id: removal?.id ?? uuidv7(),
@@ -444,10 +449,14 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
       houseId: get("house") || null,
       batchId: get("batch") || null,
       quantityKg,
-      destination: get("destination") as ManureRemovalDto["destination"],
+      destination,
       recipient: get("recipient") || null,
+      spreadDeclared,
     };
-    if ((await onSave(r)) && !removal) setKey((k) => k + 1);
+    if ((await onSave(r)) && !removal) {
+      setKey((k) => k + 1);
+      setDestination("stored");
+    }
   };
 
   return (
@@ -472,11 +481,17 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
       <Field label={t("Disposal.quantity")}>{(id) => <input id={id} name="quantity" inputMode="numeric" required dir="ltr" defaultValue={removal?.quantityKg} className={field} />}</Field>
       <Field label={t("Disposal.destination")}>
         {(id) => (
-          <select id={id} name="destination" defaultValue={removal?.destination} className={field}>
+          <select id={id} value={destination} onChange={(e) => setDestination(e.target.value as ManureRemovalDto["destination"])} className={field}>
             {MANURE_DESTINATIONS.map((k) => <option key={k} value={k}>{t(`Disposal.destinations.${k}`)}</option>)}
           </select>
         )}
       </Field>
+      {destination === "spread" && (
+        <label className={check}>
+          <input type="checkbox" name="spreadDeclared" required defaultChecked={removal?.spreadDeclared} className="size-6" />
+          {t("Disposal.spreadDeclared")}
+        </label>
+      )}
       <Field label={t("Disposal.recipient")}>{(id) => <input id={id} name="recipient" maxLength={120} defaultValue={removal?.recipient ?? ""} className={field} />}</Field>
       {error && <p role="alert">{t(error)}</p>}
       <Submit label={t("Disposal.saveManure")} onCancel={onCancel} />

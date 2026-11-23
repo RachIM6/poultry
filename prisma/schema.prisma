@@ -1551,7 +1551,7 @@ model Disposal {
   batchId        String?  @db.Uuid
   birds          Int
   weightGrams    Int?
-  method         String // incineration | authorizedSite | other (CQ4)
+  method         String // incineration | sealedPit | authorizedSite | other (CQ4)
   methodNote     String?
   recordedBy     String   @db.Uuid
   createdAt      DateTime @default(now()) @db.Timestamptz
@@ -1570,6 +1570,7 @@ model ManureRemoval {
   quantityKg     Int
   destination    String // stored | spread | sold | given
   recipient      String?
+  spreadDeclared Boolean  @default(false) // CQ4: spread more than 500 m from any poultry farm or hatchery, or composted
   recordedBy     String   @db.Uuid
   createdAt      DateTime @default(now()) @db.Timestamptz
 

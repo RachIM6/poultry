@@ -486,6 +486,7 @@
     "EGGS_IN_WITHDRAWAL": "Des œufs pondus pendant un délai d’attente sont encore dans ce stock : écartez-les avant de vendre.",
     "VISIT_DIRTY_ZONE_ONLY": "Ce visiteur est passé par un autre élevage : zone sale uniquement.",
     "DISPOSAL_METHOD_NOTE_REQUIRED": "Décrivez la méthode d’élimination.",
+    "SPREAD_DECLARATION_REQUIRED": "Confirmez que le fumier est épandu à plus de 500 m de tout élevage avicole et couvoir, ou qu’il est composté.",
     "DOWNTIME_BELOW_OFFICIAL": "Le vide sanitaire ne peut pas être inférieur à 20 jours (arrêté n° 2127-05, art. 4).",
     "STEP_ALREADY_DONE": "Cette étape est déjà notée.",
     "DISINFECTANT_REQUIRED": "Indiquez le produit désinfectant.",
@@ -1914,11 +1915,12 @@
     "method": "Méthode d’élimination",
     "methods": {
       "incineration": "Incinération",
-      "authorizedSite": "Site ou collecteur autorisé",
+      "sealedPit": "Fosse à cadavres bétonnée et étanche",
+      "authorizedSite": "Lieu autorisé par l’administration",
       "other": "Autre (à décrire)"
     },
     "methodNote": "Méthode utilisée",
-    "toConfirm": "Méthodes autorisées et distances à confirmer avec l’ONSSA (loi 49-99, art. 12).",
+    "sources": "Moyens prévus : incinérateur ou fosse à cadavres bétonnée et étanche (arrêté n° 2127-05, art. 2), lieu autorisé par l’administration (loi 49-99, art. 12). L’enfouissement n’est permis que dans un lieu autorisé ou sur ordre de l’administration.",
     "save": "Enregistrer l’élimination",
     "gaps": "Morts et éliminés, {days} derniers jours",
     "noGaps": "Aucune mortalité ni élimination sur cette période.",
@@ -1938,6 +1940,7 @@
       "given": "Donné"
     },
     "recipient": "Destinataire (facultatif)",
+    "spreadDeclared": "Épandu à plus de 500 m de tout élevage avicole et couvoir, ou fumier composté (décret n° 2-04-684, art. 12 ; arrêté n° 2127-05, art. 4)",
     "saveManure": "Enregistrer la sortie de fumier",
     "recentManure": "Dernières sorties de fumier",
     "manureLine": "{date} : {kg} kg, {destination}",

@@ -2,7 +2,7 @@
 // re-exports this file.
 export { VISIT_PURPOSES, VISITOR_RECENT_FARM_HOURS, ZONES, visitZone } from "@/modules/biosecurity/domain/visit";
 export type { VisitPurpose, Zone } from "@/modules/biosecurity/domain/visit";
-export { DISPOSAL_METHODS, MANURE_DESTINATIONS, checkDisposal, disposalGaps } from "@/modules/biosecurity/domain/disposal";
+export { DISPOSAL_METHODS, MANURE_DESTINATIONS, checkDisposal, checkManure, disposalGaps } from "@/modules/biosecurity/domain/disposal";
 export type { DisposalGap, DisposalMethod, ManureDestination } from "@/modules/biosecurity/domain/disposal";
 export { CLEANOUT_STEPS, checkStep, downtimeDay } from "@/modules/biosecurity/domain/cleanout";
 export type { CleanoutStep as CleanoutStepKey } from "@/modules/biosecurity/domain/cleanout";
@@ -47,6 +47,7 @@ export type ManureRemovalDto = {
   quantityKg: number;
   destination: ManureDestination;
   recipient: string | null;
+  spreadDeclared?: boolean; // CQ4: the 500 m (or composted) declaration for "spread"; absent before 23 Nov 2026
 };
 
 export const BIOSECURITY_MUTATIONS = {

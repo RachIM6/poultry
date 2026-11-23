@@ -19,6 +19,7 @@ import {
   RecordVisit,
   StartCleanout,
   checkDisposal,
+  checkManure,
   checkStep,
   type CleanoutDto,
   type CleanoutStepDto,
@@ -65,6 +66,7 @@ const manureDto = (m: ManureRemoval): ManureRemovalDto => ({
   quantityKg: m.quantityKg,
   destination: m.destination as ManureRemovalDto["destination"],
   recipient: m.recipient,
+  spreadDeclared: m.spreadDeclared,
 });
 const rodentDto = (r: RodentCheck): RodentCheckDto => ({ id: r.id, farmId: r.farmId, houseId: r.houseId, day: dayOf(r.day), action: r.action as RodentCheckDto["action"], product: r.product, proofFileId: r.proofFileId });
 
@@ -123,9 +125,12 @@ export const biosecuritySync: SyncRegistry = {
     [M.recordManure]: defineMutation({
       schema: RecordManure,
       action: "biosecurity.record",
-      async apply(tx, ctx, dto: ManureRemovalDto, meta) {
+      async apply(tx, ctx, fields: ManureRemovalDto, meta) {
+        const dto = { ...fields, spreadDeclared: fields.spreadDeclared ?? false };
         const place = await placeOf(tx, ctx, dto);
         if (!place.ok) return place;
+        const checked = checkManure(dto);
+        if (!checked.ok) return checked;
         if (await tx.manureRemoval.findUnique({ where: { id: dto.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
         await tx.manureRemoval.create({ data: { ...dto, organizationId: ctx.organizationId, day: day(dto.day), recordedBy: ctx.userId } });
         await recordChange(tx, ctx, "manureRemoval", dto.id, dto);
@@ -225,6 +230,8 @@ export const biosecuritySync: SyncRegistry = {
         const dto = { ...before, ...changes };
         const place = await placeOf(tx, ctx, dto);
         if (!place.ok) return place;
+        const checked = checkManure(dto); // a spreading recorded before the declaration existed needs it on correction
+        if (!checked.ok) return checked;
         await tx.manureRemoval.update({ where: { id }, data: days(changes) });
         await recordChange(tx, ctx, "manureRemoval", id, dto);
         await audit(tx, ctx, { entity: "ManureRemoval", entityId: id, action: "update", before: overwritten(before, changes), after: changes, ...meta });

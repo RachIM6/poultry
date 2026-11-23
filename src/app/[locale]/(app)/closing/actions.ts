@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
-import { closeFiscalYear, openFiscalYear, reopenFiscalYear, runClose, saveYearEndValues } from "@/modules/finance";
+import { closeFiscalYear, openFiscalYear, reopenFiscalYear, runClose, saveHensSchedules, saveYearEndValues } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 
 export type CloseState = { ok?: boolean; messageKey?: string; posted?: number };
@@ -26,6 +26,21 @@ export async function saveValuesAction(_: CloseState, form: FormData): Promise<C
   if (!saved.ok) return { messageKey: `errors.${saved.error}` };
   refresh();
   return { ok: true, messageKey: "Close.valuesSaved" };
+}
+
+/** FC6 (T115): each laying flock's life in months (`life:<batch>`) and cull value in dirhams (`cull:<batch>`). */
+export async function saveHensAction(_: CloseState, form: FormData): Promise<CloseState> {
+  const ctx = await getTenantContext(await headers());
+  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const values: Record<string, { life: string; cull: string }> = {};
+  for (const [k, v] of form) {
+    const [field, id] = k.split(":");
+    if ((field === "life" || field === "cull") && id) values[id] = { ...(values[id] ?? { life: "", cull: "" }), [field]: String(v) };
+  }
+  const saved = await saveHensSchedules(ctx.value, { year: Number(form.get("year")), values });
+  if (!saved.ok) return { messageKey: `errors.${saved.error}` };
+  refresh();
+  return { ok: true, messageKey: "Close.hensSaved" };
 }
 
 /** FCX6: closes the fiscal year (locks it, posts the next year's opening), or reopens it (`reopen`: its last month). */

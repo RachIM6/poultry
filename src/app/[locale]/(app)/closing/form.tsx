@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
-import { fiscalYearAction, openYearAction, runCloseAction, saveValuesAction } from "./actions";
+import { fiscalYearAction, openYearAction, runCloseAction, saveHensAction, saveValuesAction } from "./actions";
 import { primary, secondary } from "@/components/ui";
 
 /** SPEC-finance FCX4: the owner posts what the preview shows (again: FN7 posts only what changed); disabled while the month is locked. */
@@ -28,6 +28,20 @@ export function ValuesForm({ year, write, children }: { year: number; write: boo
       {children}
       {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
       {write && <button type="submit" disabled={pending} className={secondary}>{t("Close.saveValues")}</button>}
+    </form>
+  );
+}
+
+/** SPEC-finance FC6 (T115): the laying flocks inside a form; the owner saves each one's life and cull value. */
+export function HensForm({ year, write, children }: { year: number; write: boolean; children: React.ReactNode }) {
+  const t = useTranslations();
+  const [state, action, pending] = useActionState(saveHensAction, {});
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <input type="hidden" name="year" value={year} />
+      {children}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+      {write && <button type="submit" disabled={pending} className={secondary}>{t("Close.saveHens")}</button>}
     </form>
   );
 }

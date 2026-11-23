@@ -8,6 +8,10 @@ export type LegalForm = (typeof LEGAL_FORMS)[number];
 export const BOOKS = ["cash_book", "ledger"] as const;
 export type Books = (typeof BOOKS)[number];
 
+/** SPEC-finance FC6 (FQ7a): how laying hens and their pullets are booked; classic (fixed assets) by default. */
+export const HENS_METHODS = ["classic", "simplified"] as const;
+export type HensMethod = (typeof HENS_METHODS)[number];
+
 /**
  * ADR-010 §2: which books Dawra shows and exports, and the chart = one base + overlays. The engine is the same
  * double-entry ledger for every form. `coOwnerShares`: results are split between the co-owners of an indivision.

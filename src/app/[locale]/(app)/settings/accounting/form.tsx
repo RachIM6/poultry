@@ -13,6 +13,7 @@ type Props = {
   month: number;
   months: string[];
   vatRegistered: boolean;
+  hensMethod: string;
   locked: boolean;
 };
 
@@ -26,7 +27,7 @@ const Choice = ({ name, value, checked, title, desc, disabled }: { name: string;
   </label>
 );
 
-/** SPEC-finance FN1, FN9 (F-Profile): the books, the chart, the fiscal year and VAT, while the year has no entry. */
+/** SPEC-finance FN1, FN9 (F-Profile), FC6: the books, the chart, the fiscal year, VAT and the laying hens' method, while the year has no entry. */
 export function AccountingForm(p: Props) {
   const t = useTranslations("Accounting");
   const tAll = useTranslations();
@@ -60,6 +61,12 @@ export function AccountingForm(p: Props) {
           {t("vatRegistered")}
         </label>
         <p className="text-sm text-ink-2">{t("vatHint")}</p>
+      </fieldset>
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-2 text-lg font-semibold">{t("hens")}</legend>
+        {["classic", "simplified"].map((m) => (
+          <Choice key={m} name="hensMethod" value={m} checked={p.hensMethod === m} title={t(`hensMethods.${m}.title`)} desc={t(`hensMethods.${m}.desc`)} disabled={off} />
+        ))}
       </fieldset>
       {state.messageKey && <p role={state.ok ? "status" : "alert"}>{tAll(state.messageKey)}</p>}
       <button type="submit" disabled={off} className={primary}>{t("save")}</button>

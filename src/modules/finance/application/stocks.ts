@@ -14,7 +14,9 @@ import { stockOnDay, stockValueOnDay } from "@/modules/inventory";
 import { lastSales } from "@/modules/sales";
 import { batchResultsIn } from "@/modules/finance/application/batch-results";
 import { closePosted } from "@/modules/finance/application/count";
+import { hensAtClose } from "@/modules/finance/application/hens";
 import { countDay } from "@/modules/finance/domain/count";
+import { fiscalYearOf } from "@/modules/finance/domain/entry";
 import { batchesAtClose, eggsAtClose, stocksAtClose, yearEndBatches, yearEndProvision, yearEndStock, type BatchAtClose, type EggsAtClose, type StockAtClose } from "@/modules/finance/domain/stocks";
 import type { Posting } from "@/modules/finance/domain/posting";
 
@@ -99,7 +101,8 @@ export const SaveValues = z.object({ year: z.number().int(), values: z.record(z.
  * FC5, FQ20: saves the owner's current value of stock lines (the whole line, in dirhams); an empty one removes it, so
  * the line is at cost again. Only a line valued at cost takes one. FC4: the same for a meat batch open on the last
  * day (empty: back to the suggested value). FC5, FQ18 (T113): a farm's value per egg (in dirhams, to the centime), for
- * eggs that post (with the PCA). Owner only, audited per line. Once the year's close run has posted, frozen as the
+ * eggs that post (with the PCA). FC6 (T114): a layer or pullet batch's current value of one bird, under the simplified
+ * method. Owner only, audited per line. Once the year's close run has posted, frozen as the
  * count (FCX4), except a value given to a line the run now refuses without one (a batch or eggs of the last day
  * synced after it). Returns how many lines changed.
  */
@@ -114,15 +117,17 @@ export async function saveYearEndValues(ctx: TenantContext, input: unknown): Pro
     if (!entity) return fail("NOT_FOUND");
     const frozen = await closePosted(tx, ctx, entity.id, parsed.data.year);
     const day = countDay(parsed.data.year, entity.fiscalYearStartMonth);
-    const lines = new Map<string, { kind: "stock" | "batch" | "eggs"; current: bigint | null; missing?: boolean }>([
+    const hens = await hensAtClose(tx, ctx, entity, fiscalYearOf(day, entity.fiscalYearStartMonth));
+    const lines = new Map<string, { kind: "stock" | "batch" | "eggs" | "hens"; current: bigint | null; missing?: boolean }>([
       ...(await stockLinesAtClose(tx, ctx, entity, day)).flatMap((l) => (l.cost === null ? [] : [[l.id, { kind: "stock" as const, current: l.current }] as const])),
       ...(await batchLinesAtClose(tx, ctx, entity, day)).flatMap((b) => (b.valued ? [[b.id, { kind: "batch" as const, current: b.typed, missing: b.missing }] as const] : [])),
       ...(await eggLinesAtClose(tx, ctx, entity, day)).flatMap((e) => (e.posted ? [[e.farmId, { kind: "eggs" as const, current: e.perEgg, missing: e.missing }] as const] : [])),
+      ...(hens.method === "simplified" ? hens.lines.map((h) => [h.id, { kind: "hens" as const, current: h.perBird, missing: h.missing }] as const) : []),
     ]);
-    const changes: { id: string; kind: "stock" | "batch" | "eggs"; value: bigint | null }[] = [];
+    const changes: { id: string; kind: "stock" | "batch" | "eggs" | "hens"; value: bigint | null }[] = [];
     for (const [id, text] of Object.entries(parsed.data.values)) {
       const line = lines.get(id);
-      if (!line) return fail("INVALID_INPUT"); // not a valued stock line, meat batch or farm with eggs of this organisation
+      if (!line) return fail("INVALID_INPUT"); // not a valued stock line, meat batch, farm with eggs or flock of this organisation
       const value = text === "" ? null : parseCentimes(text);
       if (text !== "" && value === null) return fail("INVALID_INPUT");
       if (value === line.current) continue;

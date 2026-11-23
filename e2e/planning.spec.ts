@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 import { farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T96, T97 (SPEC-m5 PL1, PL2, PL5): batches planned offline on /planning, with the overlap and short-downtime
-// warnings; they survive a reload and sync once. The 14-day minimum is a test figure, NOT a husbandry one (NQ4).
+// warnings; they survive a reload and sync once. Without a rule the official 20 days apply (CQ3); the 30-day rule is a
+// test figure, NOT a husbandry one.
 test("batches planned offline show overlaps and a short downtime, survive a reload and sync once", async ({ page, context }) => {
   test.setTimeout(150_000);
   const e164 = await ownerWithFarm(page, "Élevage du Planning");
@@ -13,13 +14,14 @@ test("batches planned offline show overlaps and a short downtime, survive a relo
   await referenceCached(page);
   await expect(page.getByText("Lot en place depuis le", { exact: false })).toBeVisible();
 
+  await expect(page.getByText("Vide sanitaire minimum : 20 j (source : Arrêté n° 2127-05 du 15 décembre 2005, art. 4)")).toBeVisible();
   await page.getByRole("button", { name: "Saisir le vide sanitaire minimum" }).click();
   const rule = page.getByRole("form", { name: "Saisir le vide sanitaire minimum" });
-  await rule.getByLabel("Jours minimum").fill("14");
+  await rule.getByLabel("Jours minimum").fill("30");
   await rule.getByLabel("Source (document, date, page)").fill("Test E2E");
   await rule.getByLabel("En vigueur à partir du").fill(farmDaysAgo(0));
   await rule.getByRole("button", { name: "Enregistrer le minimum" }).click();
-  await expect(page.getByText("Vide sanitaire minimum : 14 j (source : Test E2E)")).toBeVisible();
+  await expect(page.getByText("Vide sanitaire minimum : 30 j (source : Test E2E)")).toBeVisible();
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -39,7 +41,7 @@ test("batches planned offline show overlaps and a short downtime, survive a relo
   await expect(lines).toHaveCount(4);
   await expect(lines.nth(2)).toContainText("Mis en place avant la vente du lot précédent.");
   await expect(lines.nth(3)).toContainText("10 j de vide sanitaire");
-  await expect(lines.nth(3)).toContainText("Vide sanitaire plus court que le minimum (14 j).");
+  await expect(lines.nth(3)).toContainText("Vide sanitaire plus court que le minimum (30 j).");
   await expect(lines.nth(3)).toContainText("Âge de vente non décidé");
 
   const reload = await page.reload(); // still offline: kept on the phone

@@ -14,7 +14,7 @@ describe("dead-bird disposal and manure through sync (SPEC-m2-compliance BS6, BS
   let a: TenantContext, b: TenantContext;
   const [farmId, otherFarm, houseId, batchId, feed] = [uuidv7(), uuidv7(), uuidv7(), uuidv7(), uuidv7()];
   const disposal = (over: object = {}) => ({ id: uuidv7(), farmId, day: "2026-11-05", batchId, birds: 6, weightGrams: 9800, method: "incineration", methodNote: null, ...over });
-  const manure = (over: object = {}) => ({ id: uuidv7(), farmId, day: "2026-11-03", houseId, batchId, quantityKg: 18000, destination: "stored", recipient: null, ...over });
+  const manure = (over: object = {}) => ({ id: uuidv7(), farmId, day: "2026-11-03", houseId, batchId, quantityKg: 18000, destination: "stored", recipient: null, spreadDeclared: false, ...over });
 
   beforeAll(async () => {
     [a, b] = await twoTenants();
@@ -44,9 +44,19 @@ describe("dead-bird disposal and manure through sync (SPEC-m2-compliance BS6, BS
     expect(pulled.map((c) => c.data)).toEqual([d, r]);
   });
 
-  it("'other' needs a description (CQ4)", async () => {
+  it("the official means (CQ4): a sealed pit as is, 'other' with a description, no made-up method", async () => {
+    expect(await statuses(a, m("biosecurity.recordDisposal", disposal({ method: "sealedPit" })))).toEqual(["applied"]);
     expect(await statuses(a, m("biosecurity.recordDisposal", disposal({ method: "other" })))).toEqual(["errors.DISPOSAL_METHOD_NOTE_REQUIRED"]);
     expect(await statuses(a, m("biosecurity.recordDisposal", disposal({ method: "other", methodNote: "fosse fermée, chaux vive" })))).toEqual(["applied"]);
+    expect(await statuses(a, m("biosecurity.recordDisposal", disposal({ method: "burial" })))).toEqual(["errors.INVALID_INPUT"]);
+  });
+
+  it("manure spread needs the 500 m (or composted) declaration (CQ4)", async () => {
+    const declared = manure({ destination: "spread", spreadDeclared: true });
+    expect(await statuses(a, m("biosecurity.recordManure", manure({ destination: "spread" })), m("biosecurity.recordManure", declared))).toEqual(["errors.SPREAD_DECLARATION_REQUIRED", "applied"]);
+    const unsaid = manure({ destination: "spread", spreadDeclared: undefined }); // a phone that never asked
+    expect(await statuses(a, m("biosecurity.recordManure", unsaid))).toEqual(["errors.SPREAD_DECLARATION_REQUIRED"]);
+    expect((await db.manureRemoval.findUniqueOrThrow({ where: { id: declared.id } })).spreadDeclared).toBe(true);
   });
 
   it("a house or batch must be on the farm given, and the batch in the house", async () => {

@@ -44,6 +44,7 @@ async function Content() {
         month={entity.fiscalYearStartMonth}
         months={months}
         vatRegistered={entity.vatRegistered}
+        hensMethod={entity.hensMethod}
         locked={locked}
       />
       <Link href="/settings/chart" className="py-2 underline underline-offset-4">{t("Chart.open")}</Link>

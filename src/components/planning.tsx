@@ -13,13 +13,14 @@ import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto } from "@/modules/flock/schema";
 import { HEALTH_MUTATIONS as H, planFor } from "@/modules/health/shared";
-import { downtimeOn, houseTimeline, PLANNING_MUTATIONS as P, saleDay, type DowntimeRule, type PlanDto, type Slot } from "@/modules/planning/shared";
+import { checkDowntimeRule, downtimeOn, houseTimeline, OFFICIAL_DOWNTIME, PLANNING_MUTATIONS as P, saleDay, type DowntimeRule, type PlanDto, type Slot } from "@/modules/planning/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
 import { cachedReference, localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
 // SPEC-m5 PL1, PL2, PL5 on the static /planning shell, offline: each house's open batch and planned batches in
-// order, the gaps between them, and the warnings. The minimum downtime is the owner's figure (§2, NQ4).
+// order, the gaps between them, and the warnings. The minimum downtime is the official 20 days or the owner's higher
+// figure (§2, NQ4, SPEC-m2-compliance CQ3).
 
 export const PlanningScreen = () => <Scoped>{(scope) => <Planning {...scope} />}</Scoped>;
 
@@ -79,11 +80,10 @@ function Planning(scope: Scope) {
       {message && <p role="status" className={done}>{t(message)}</p>}
       {farms.map((farm) => {
         const min = downtimeOn(rules, farm.id, today);
-        const rule = rules.filter((r) => r.farmId === farm.id && r.validFrom <= today).sort((x, y) => y.validFrom.localeCompare(x.validFrom))[0];
         return (
           <section key={farm.id} aria-label={farm.name} className="flex flex-col gap-3">
             {farms.length > 1 && <h2 className="text-[17px] font-semibold text-ink-2">{farm.name}</h2>}
-            <p className="text-[13px] text-ink-2">{rule ? t("Planning.downtime", { days: String(rule.minDays), source: rule.source }) : t("Planning.noDowntime")}</p>
+            <p className="text-[13px] text-ink-2">{t("Planning.downtime", { days: String(min.minDays), source: min.source })}</p>
             {houses.filter((h) => h.farmId === farm.id).map((house) => {
               const slots: Slot[] = [
                 ...batches.filter((b) => b.houseId === house.id).map((b) => {
@@ -99,7 +99,7 @@ function Planning(scope: Scope) {
                     <p className="text-ink-2">{t("Planning.empty")}</p>
                   ) : (
                     <ol aria-label={t("Planning.of", { house: house.name })} className="flex flex-col gap-2">
-                      {houseTimeline(slots, min).map((line) => {
+                      {houseTimeline(slots, min.minDays).map((line) => {
                         const plan = plans.find((p) => p.id === line.id);
                         return (
                           <li key={line.id} className="border-t border-line pt-2 first:border-t-0 first:pt-0">
@@ -109,7 +109,7 @@ function Planning(scope: Scope) {
                             </span>
                             <span className="block text-sm text-ink-2">{line.saleDay ? t("Planning.sale", { date: day(line.saleDay) }) : t("Planning.saleUnknown")}</span>
                             {line.overlaps && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.overlaps")}</span>}
-                            {line.shortDowntime && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.short", { days: String(min) })}</span>}
+                            {line.shortDowntime && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.short", { days: String(min.minDays) })}</span>}
                             {plan && manage && placing === plan.id && (
                               <PlaceForm plan={plan} today={today} protocols={of<ProtocolDto>("protocol")} onSave={(batch, sent, protocol) => place(plan, batch, sent, protocol)} onCancel={() => setPlacing(null)} />
                             )}
@@ -261,12 +261,17 @@ function PlanForm({ plan, houses, strains, today, onSave, onCancel }: { plan?: P
 function DowntimeForm({ farms, today, onSave }: { farms: FarmDto[]; today: string; onSave: (r: DowntimeRule) => Promise<void> }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string>();
   const id = { farm: useId(), days: useId(), source: useId(), from: useId() };
   if (!open) return <button type="button" onClick={() => setOpen(true)} className={secondary}>{t("Planning.enterDowntime")}</button>;
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);
-    await onSave({ id: uuidv7(), farmId: String(data.get("farm")), validFrom: String(data.get("from")), minDays: Number(data.get("days")), source: String(data.get("source")).trim() });
+    const rule = { id: uuidv7(), farmId: String(data.get("farm")), validFrom: String(data.get("from")), minDays: Number(data.get("days")), source: String(data.get("source")).trim() };
+    const checked = checkDowntimeRule(rule); // the server refuses it too
+    if (!checked.ok) return setError(`errors.${checked.error}`);
+    setError(undefined);
+    await onSave(rule);
     setOpen(false);
   };
   return (
@@ -282,11 +287,12 @@ function DowntimeForm({ farms, today, onSave }: { farms: FarmDto[]; today: strin
       )}
       {farms.length === 1 && <input type="hidden" name="farm" value={farms[0].id} />}
       <label htmlFor={id.days}>{t("Planning.minDays")}</label>
-      <input id={id.days} name="days" type="number" min={0} max={365} required className={field} />
+      <input id={id.days} name="days" type="number" min={OFFICIAL_DOWNTIME.minDays} max={365} required className={field} />
       <label htmlFor={id.source}>{t("Pay.source")}</label>
       <input id={id.source} name="source" required minLength={3} maxLength={300} className={field} />
       <label htmlFor={id.from}>{t("Pay.validFrom")}</label>
       <input id={id.from} name="from" type="date" required defaultValue={today} className={field} />
+      {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Planning.saveDowntime")}</button>
         <button type="button" onClick={() => setOpen(false)} className={secondary}>{t("Receivables.cancel")}</button>

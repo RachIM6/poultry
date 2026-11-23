@@ -7,11 +7,12 @@ import { Link } from "@/i18n/navigation";
 import { formatCount } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
-import type { CleanoutDto, DowntimeSettingDto } from "@/modules/biosecurity/shared";
+import type { CleanoutDto } from "@/modules/biosecurity/shared";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { ageOn, birdsOnHand, birdsStarted, canJoinHouse, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { TreatmentDto, VaccinationDto, VetVisitDto } from "@/modules/health/shared";
 import type { EggCollectionDto } from "@/modules/eggs/shared";
+import type { DowntimeRule } from "@/modules/planning/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
 import type { ProtocolDto } from "@/modules/reference-data/schema";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
@@ -78,7 +79,7 @@ function Batches(scope: Scope) {
   const locale = useLocale();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale", "batchCost", "eggCollection", "cleanout", "downtimeSetting").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "stockItem", "protocol", "vaccination", "treatment", "vetVisit", "soldBirds", "buyer", "sale", "batchCost", "eggCollection", "cleanout", "downtimeRule").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -261,14 +262,6 @@ function Batches(scope: Scope) {
   }
 
   const protocols = of<ProtocolDto>("protocol").sort((x, y) => x.name.localeCompare(y.name));
-  // SPEC-m2-compliance BS5: the house's last disinfection and the farm's own minimum, for the placement warning.
-  const downtimeOf = (h: HouseDto) => {
-    const last = batches.find((b) => b.houseId === h.id && b.status === "closed"); // closed ones: latest placement first
-    const cleanout = of<CleanoutDto>("cleanout").find((c) => c.afterBatchId === last?.id);
-    const disinfectedOn = (cleanout?.steps.find((s) => s.step === "disinfection")?.day ?? null) as FarmDay | null;
-    const minDays = of<DowntimeSettingDto>("downtimeSetting").find((x) => x.farmId === h.farmId)?.minDays ?? null;
-    return { disinfectedOn, minDays };
-  };
   const placed = (ok: boolean) => {
     setMessage(ok ? "Farms.saved" : "Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
     if (ok) setPlacing(false);
@@ -323,8 +316,8 @@ function Batches(scope: Scope) {
               label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
               busy: busy.has(h.id),
               open: batches.filter((b) => b.status === "open" && b.houseId === h.id),
-              ...downtimeOf(h),
             }))}
+            downtime={{ batches, cleanouts: of<CleanoutDto>("cleanout"), rules: of<DowntimeRule>("downtimeRule") }}
             strains={strains.map((s) => ({ id: s.id, name: strainName(s.id), productionTypes: s.productionTypes ?? ["broiler"] }))}
             protocols={protocols}
             db={db}

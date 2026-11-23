@@ -17,14 +17,13 @@ import {
   RecordManure,
   RecordRodentCheck,
   RecordVisit,
-  SetMinDowntime,
   StartCleanout,
   checkDisposal,
+  checkManure,
   checkStep,
   type CleanoutDto,
   type CleanoutStepDto,
   type CleanoutStepKey,
-  type DowntimeSettingDto,
   visitZone,
   type DisposalDto,
   type ManureRemovalDto,
@@ -67,6 +66,7 @@ const manureDto = (m: ManureRemoval): ManureRemovalDto => ({
   quantityKg: m.quantityKg,
   destination: m.destination as ManureRemovalDto["destination"],
   recipient: m.recipient,
+  spreadDeclared: m.spreadDeclared,
 });
 const rodentDto = (r: RodentCheck): RodentCheckDto => ({ id: r.id, farmId: r.farmId, houseId: r.houseId, day: dayOf(r.day), action: r.action as RodentCheckDto["action"], product: r.product, proofFileId: r.proofFileId });
 
@@ -125,9 +125,12 @@ export const biosecuritySync: SyncRegistry = {
     [M.recordManure]: defineMutation({
       schema: RecordManure,
       action: "biosecurity.record",
-      async apply(tx, ctx, dto: ManureRemovalDto, meta) {
+      async apply(tx, ctx, fields: ManureRemovalDto, meta) {
+        const dto = { ...fields, spreadDeclared: fields.spreadDeclared ?? false };
         const place = await placeOf(tx, ctx, dto);
         if (!place.ok) return place;
+        const checked = checkManure(dto);
+        if (!checked.ok) return checked;
         if (await tx.manureRemoval.findUnique({ where: { id: dto.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
         await tx.manureRemoval.create({ data: { ...dto, organizationId: ctx.organizationId, day: day(dto.day), recordedBy: ctx.userId } });
         await recordChange(tx, ctx, "manureRemoval", dto.id, dto);
@@ -163,20 +166,6 @@ export const biosecuritySync: SyncRegistry = {
         await tx.cleanoutStep.create({ data: { ...step, cleanoutId, day: day(step.day), recordedBy: ctx.userId } });
         await recordChange(tx, ctx, "cleanout", cleanoutId, await cleanoutDto(tx, cleanoutId));
         await audit(tx, ctx, { entity: "CleanoutStep", entityId: step.id, action: "create", after: { cleanoutId, ...step }, ...meta });
-        return ok(undefined);
-      },
-    }),
-    // BS5: a farm setting, so the farm's managers set it, like the farm itself.
-    [M.setMinDowntime]: defineMutation({
-      schema: SetMinDowntime,
-      action: "farms.manage",
-      async apply(tx, ctx, { farmId, minDays }, meta) {
-        if (!(await farmBelongsTo(tx, ctx, farmId))) return fail("NOT_FOUND");
-        const before = await tx.downtimeSetting.findUnique({ where: { farmId } });
-        await tx.downtimeSetting.upsert({ where: { farmId }, create: { farmId, organizationId: ctx.organizationId, minDays }, update: { minDays } });
-        const dto: DowntimeSettingDto = { id: farmId, farmId, minDays };
-        await recordChange(tx, ctx, "downtimeSetting", farmId, dto);
-        await audit(tx, ctx, { entity: "DowntimeSetting", entityId: farmId, action: "update", before: before && { minDays: before.minDays }, after: { minDays }, ...meta });
         return ok(undefined);
       },
     }),
@@ -241,6 +230,8 @@ export const biosecuritySync: SyncRegistry = {
         const dto = { ...before, ...changes };
         const place = await placeOf(tx, ctx, dto);
         if (!place.ok) return place;
+        const checked = checkManure(dto); // a spreading recorded before the declaration existed needs it on correction
+        if (!checked.ok) return checked;
         await tx.manureRemoval.update({ where: { id }, data: days(changes) });
         await recordChange(tx, ctx, "manureRemoval", id, dto);
         await audit(tx, ctx, { entity: "ManureRemoval", entityId: id, action: "update", before: overwritten(before, changes), after: changes, ...meta });
@@ -285,7 +276,6 @@ export const biosecuritySync: SyncRegistry = {
     disposal: (_ctx, data: DisposalDto) => data,
     manureRemoval: (_ctx, data: ManureRemovalDto) => data,
     cleanout: (_ctx, data: CleanoutDto) => data,
-    downtimeSetting: (_ctx, data: DowntimeSettingDto) => data,
     rodentCheck: (_ctx, data: RodentCheckDto) => data,
   },
 };

@@ -24,8 +24,9 @@ export { saveYearEndCount, yearEndCount, type CountSheet } from "./application/c
 export type { CountBatchLine, CountEggsLine, CountLine, CountStockLine } from "./domain/count";
 export { assetRegister, attachFixedAssetReceipt, createFixedAsset, disposeFixedAsset, payFixedAsset, updateFixedAsset, type AssetRegister, type AssetView, type AssetWriteError } from "./application/assets";
 export { ASSET_CATEGORIES, ASSET_ACCOUNTS, type AssetCategory, type ScheduleYear } from "./domain/assets";
-export { closeFiscalYear, closePreview, openFiscalYear, reopenFiscalYear, runClose, type CloseBatchView, type CloseEggsView, type CloseEntryView, type ClosePreview, type CloseStockView, type YearCloseError } from "./application/close";
+export { closeFiscalYear, closePreview, openFiscalYear, reopenFiscalYear, runClose, type CloseBatchView, type CloseEggsView, type CloseEntryView, type CloseHensView, type ClosePreview, type CloseStockView, type YearCloseError } from "./application/close";
 export { saveYearEndValues } from "./application/stocks";
+export { saveHensSchedules } from "./application/hens";
 export { createSubsidy, subsidyRegister, type SubsidyRegister, type SubsidyView, type SubsidyWriteError } from "./application/subsidies";
 export type { ReleaseYear } from "./domain/subsidies";
 export { confirmLoan, createLoan, discardLoan, loanRegister, payLoanInstallment, saveLoanSchedule, sendLoanReminders, type LoanRegister, type LoanRowView, type LoanView, type LoanWriteError } from "./application/loans";

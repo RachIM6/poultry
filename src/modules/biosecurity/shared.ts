@@ -2,9 +2,9 @@
 // re-exports this file.
 export { VISIT_PURPOSES, VISITOR_RECENT_FARM_HOURS, ZONES, visitZone } from "@/modules/biosecurity/domain/visit";
 export type { VisitPurpose, Zone } from "@/modules/biosecurity/domain/visit";
-export { DISPOSAL_METHODS, MANURE_DESTINATIONS, checkDisposal, disposalGaps } from "@/modules/biosecurity/domain/disposal";
+export { DISPOSAL_METHODS, MANURE_DESTINATIONS, checkDisposal, checkManure, disposalGaps } from "@/modules/biosecurity/domain/disposal";
 export type { DisposalGap, DisposalMethod, ManureDestination } from "@/modules/biosecurity/domain/disposal";
-export { CLEANOUT_STEPS, checkStep, downtimeDay, downtimeWarning } from "@/modules/biosecurity/domain/cleanout";
+export { CLEANOUT_STEPS, checkStep, downtimeDay } from "@/modules/biosecurity/domain/cleanout";
 export type { CleanoutStep as CleanoutStepKey } from "@/modules/biosecurity/domain/cleanout";
 import type { CleanoutStep } from "@/modules/biosecurity/domain/cleanout";
 import type { DisposalMethod, ManureDestination } from "@/modules/biosecurity/domain/disposal";
@@ -47,6 +47,7 @@ export type ManureRemovalDto = {
   quantityKg: number;
   destination: ManureDestination;
   recipient: string | null;
+  spreadDeclared?: boolean; // CQ4: the 500 m (or composted) declaration for "spread"; absent before 23 Nov 2026
 };
 
 export const BIOSECURITY_MUTATIONS = {
@@ -55,7 +56,6 @@ export const BIOSECURITY_MUTATIONS = {
   recordManure: "biosecurity.recordManure",
   startCleanout: "biosecurity.startCleanout",
   recordCleanoutStep: "biosecurity.recordCleanoutStep",
-  setMinDowntime: "biosecurity.setMinDowntime",
   recordRodentCheck: "biosecurity.recordRodentCheck",
   // D6: corrections, audited
   editVisit: "biosecurity.editVisit",
@@ -78,9 +78,6 @@ export type CleanoutStepDto = {
 
 /** BS4: the clean-out of a house after its batch `afterBatchId`, with the steps done so far. */
 export type CleanoutDto = { id: string; farmId: string; houseId: string; afterBatchId: string; startedOn: string; steps: CleanoutStepDto[] };
-
-/** BS5: the farm's own minimum downtime in days, or none (CQ3). Keyed by the farm. */
-export type DowntimeSettingDto = { id: string; farmId: string; minDays: number | null };
 
 /** BS8: what a rodent check did. */
 export const RODENT_ACTIONS = ["baitPlaced", "baitChecked"] as const;

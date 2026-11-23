@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // Checkpoint G (SPEC §9.2): the M1 offline journey, in each language on a phone: create a batch → 3 daily entries →
@@ -32,9 +33,9 @@ for (const locale of ["fr", "ar"] as const) {
       { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1200, capacity: 12000, type: "closed" } },
       { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Alf", phone: null } },
       { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
-      { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day: farmDaysAgo(5), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+      { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: farmDaysAgo(5), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
       { type: "inventory.createStockItem", payload: { id: ids.lot, farmId: ids.farm, productId: "vaccine-newcastle", kind: "vaccine", name: "Newcastle", unit: "dose", lot: "NDV-26", expiresOn: farmDaysAgo(-365) } },
-      { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.lot, day: farmDaysAgo(5), quantity: 2000, unitPriceCentimes: "20", paidCentimes: "0", dueOn: null } },
+      { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.lot, day: farmDaysAgo(5), quantity: 2000, unitPriceCentimes: "20", paidCentimes: "0", dueOn: null } },
       { type: "reference-data.copyProtocol", payload: { id: ids.protocol, templateId: "broiler-default", name: "Programme" } },
       // Made up for the test, NOT a schedule (OQ4): one vaccine on day 0.
       { type: "reference-data.updateProtocol", payload: { id: ids.protocol, changes: { items: [{ dayOfAge: 0, productId: "vaccine-newcastle", method: "spray" }] } } },

@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { Client } from "pg";
+import { v7 as uuidv7 } from "uuid";
 
 // The app's own database (the production build under test reads DATABASE_URL too).
 export async function query<T>(sql: string, params: unknown[]): Promise<T[]> {
@@ -141,7 +142,7 @@ export async function farmWithBatch(page: Page, strainId = "ross-308", placedOn 
     { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1200, capacity: 12000, type: "closed" } },
     { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Alf", phone: null } },
     { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day: placedOn, quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: placedOn, quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
     { type: "flock.placeBatch", payload: { id: ids.batch, houseId: ids.house, strainId, placedOn, chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null } },
   ]);
   return ids;

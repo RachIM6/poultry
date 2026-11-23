@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
@@ -15,7 +16,7 @@ test("the owner counts a stock item, reads its value at cost in the close previe
   const ids = { farm: crypto.randomUUID(), supplier: crypto.randomUUID(), feed: crypto.randomUUID() };
   const purchase = (day: string, unitPriceCentimes: string) => ({
     type: "inventory.recordPurchase",
-    payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day, quantity: 10_000_000, unitPriceCentimes, paidCentimes: "0", dueOn: null },
+    payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day, quantity: 10_000_000, unitPriceCentimes, paidCentimes: "0", dueOn: null },
   });
   await pushAs(page, [
     { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Atlas", region: "R", province: "P", commune: "C", gps: null, onssa: null } },

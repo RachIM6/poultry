@@ -101,4 +101,32 @@ describe("daily entry and automatic feed consumption (SPEC B2, S4, X2)", () => {
     expect(await consumption("2026-10-22")).toEqual([]);
     expect(await statuses(b, [day("2026-10-23", { dead: 1 })])).toEqual(["errors.NOT_FOUND"]);
   });
+
+  it("never lets another organisation take a future day's movement id and stall the farm's sync", async () => {
+    // Organisation B computes A's next daily entry ids (UUIDv5 from the batch and the day) and pushes them first.
+    const [farmB, itemB, supplierB] = [uuidv7(), uuidv7(), uuidv7()];
+    await push(b, [m(FARM_MUTATIONS.createFarm, { id: farmB, name: "B", region: "R", province: "P", commune: "C", gps: null, onssa: null })], farmRegistrySync);
+    expect(
+      await statuses(b, [
+        m(I.createSupplier, { id: supplierB, name: "Alf", phone: null }),
+        m(I.createStockItem, { id: itemB, farmId: farmB, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null }),
+        m(I.adjustStock, { id: dailyEntryId(batch, "2026-10-25"), stockItemId: itemB, day: "2026-10-25", quantity: 1, reason: "x" }),
+        m(I.recordPurchase, { id: uuidv7(), movementId: dailyEntryId(batch, "2026-10-26"), supplierId: supplierB, stockItemId: itemB, day: "2026-10-26", quantity: 1, unitPriceCentimes: "1", paidCentimes: "0", dueOn: null }),
+      ]),
+    ).toEqual(["applied", "applied", "errors.INVALID_INPUT", "errors.INVALID_INPUT"]); // a phone's movement id is a UUIDv7
+
+    // An id already in another organisation's ledger (any older path): A's day is refused, and the push goes on.
+    await db.stockMovement.create({
+      data: { id: dailyEntryId(batch, "2026-10-27"), organizationId: b.organizationId, farmId: farmB, stockItemId: itemB, kind: "adjustment", quantity: 1, day: new Date("2026-10-27T00:00:00Z"), reason: "x" },
+    });
+    expect(
+      await statuses(a, [
+        day("2026-10-25", { feed: feed(kg(70)) }),
+        day("2026-10-27", { feed: feed(kg(70)) }),
+        day("2026-10-28", { feed: feed(kg(70)) }),
+      ]),
+    ).toEqual(["applied", "errors.ALREADY_EXISTS", "applied"]);
+    expect(await consumption("2026-10-28")).toHaveLength(1);
+    expect(await db.stockMovement.findUniqueOrThrow({ where: { id: dailyEntryId(batch, "2026-10-27") } })).toMatchObject({ organizationId: b.organizationId, quantity: 1 });
+  });
 });

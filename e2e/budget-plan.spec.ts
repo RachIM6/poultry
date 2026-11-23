@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { ownerWithFarm, pushAs, scopeRemembered } from "./auth";
 
 // T35 acceptance: the break-even and the planned margin recompute when the feed price and the sale price change.
@@ -13,7 +14,7 @@ test("a budget copied from a closed batch recomputes its break-even and margin a
     { type: "farm-registry.createHouse", payload: { id: house, farmId: farm, name: "Bâtiment 1", areaM2: 1000, capacity: 10000, type: "closed" } },
     { type: "inventory.createSupplier", payload: { id: supplier, name: "Alf", phone: null } },
     { type: "inventory.createStockItem", payload: { id: feed, farmId: farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
-    { type: "inventory.recordPurchase", payload: { id: id(), movementId: id(), supplierId: supplier, stockItemId: feed, day: "2026-09-01", quantity: 4_000_000, unitPriceCentimes: "460", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: id(), movementId: uuidv7(), supplierId: supplier, stockItemId: feed, day: "2026-09-01", quantity: 4_000_000, unitPriceCentimes: "460", paidCentimes: "0", dueOn: null } },
     { type: "flock.placeBatch", payload: { id: batch, houseId: house, strainId: "ross-308", placedOn: "2026-09-01", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "550", dayOldWeightGrams: null } },
     { type: "flock.recordDay", payload: { batchId: batch, day: "2026-09-02", changes: { dead: 0, culled: 0, feed: { stockItemId: feed, grams: 3_000_000 } } } },
     { type: "sales.createBuyer", payload: { id: buyer, name: "Hamid", phone: null, type: "trader" } },

@@ -162,7 +162,7 @@ test("a layer batch's treatment withholds its eggs until the egg withdrawal ends
     { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment P1", areaM2: 1000, capacity: 6000, type: "closed" } },
     { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Véto", phone: null } },
     { type: "inventory.createStockItem", payload: { id: ids.medicine, farmId: ids.farm, productId: null, kind: "medicine", name: "Amoxicilline", unit: "ml", lot: "AMX-1", expiresOn: farmDaysAgo(-365) } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.medicine, day: farmDaysAgo(5), quantity: 1000, unitPriceCentimes: "50", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.medicine, day: farmDaysAgo(5), quantity: 1000, unitPriceCentimes: "50", paidCentimes: "0", dueOn: null } },
     {
       type: "flock.placeBatch",
       payload: { id: ids.batch, houseId: ids.house, species: "layer", strainId: "lohmann-brown", placedOn: farmDaysAgo(5), chicksPlaced: 6000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: 200 },

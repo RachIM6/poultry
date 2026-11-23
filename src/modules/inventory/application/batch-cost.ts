@@ -34,7 +34,7 @@ export async function batchConsumption(tx: Tx, ctx: TenantContext, batchId: stri
     const { costs } = valuate(
       ledger
         .filter((m) => m.stockItemId === item)
-        .map((m) => ({ id: m.id, day: dayOf(m.day), quantity: m.quantity, purchaseAmountCentimes: m.purchaseId ? paid.get(m.purchaseId) : undefined })),
+        .map((m) => ({ id: m.id, day: dayOf(m.day), quantity: m.quantity, createdAt: m.createdAt, purchaseAmountCentimes: m.purchaseId ? paid.get(m.purchaseId) : undefined })),
     );
     const kind = kindOf.get(item) ?? "other";
     const k = byKind.get(kind) ?? { quantity: 0n, centimes: 0n };

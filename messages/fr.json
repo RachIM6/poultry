@@ -889,6 +889,8 @@
     "journal": "Journal",
     "label": "Libellé",
     "account": "Caisse ou compte",
+    "counterAccount": "Contrepartie",
+    "batch": "Bande",
     "in": "Entrée",
     "out": "Sortie",
     "untagged": "Non précisé",

@@ -87,39 +87,46 @@ async function Treasury() {
       {movements.length === 0 ? (
         <p>{t("Treasury.none")}</p>
       ) : (
-        <table className={table}>
-          <thead>
-            <tr className="text-start">
-              <th className="p-2 text-start">{t("Treasury.day")}</th>
-              <th className="p-2 text-start">{t("Treasury.journal")}</th>
-              <th className="p-2 text-start">{t("Treasury.label")}</th>
-              <th className="p-2 text-start">{t("Treasury.account")}</th>
-              <th className="p-2 text-end">{t("Treasury.in")}</th>
-              <th className="p-2 text-end">{t("Treasury.out")}</th>
-              <th className="p-2 text-start">{t("Treasury.receipt")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {movements.map((m, i) => (
-              <tr key={i} className="border-t border-line">
-                <td className="p-2">{formatDay(m.day as FarmDay, lang)}</td>
-                <td className="p-2">{m.journal}</td>
-                <td className="p-2">{m.label}</td>
-                <td className="p-2">{nameOf(m.treasuryId)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{m.debitCentimes > 0n ? formatMoney(m.debitCentimes) : ""}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{m.creditCentimes > 0n ? formatMoney(m.creditCentimes) : ""}</td>
-                {/* FN10: an expense's receipt; other movements have none to attach */}
-                <td className="p-2">
-                  {m.receipt ? (
-                    <a href={`/api/files/${m.receipt}`} className="underline underline-offset-4">{t("Treasury.receiptView")}</a>
-                  ) : m.receipt === null ? (
-                    <span className="text-brick-fg">{t("Treasury.receiptMissing")}</span>
-                  ) : null}
-                </td>
+        <div className="relative overflow-x-auto">
+          <table className={table} aria-label={t("Treasury.movements")}>
+            <thead>
+              <tr className="text-start">
+                <th className="p-2 text-start">{t("Treasury.day")}</th>
+                <th className="p-2 text-start">{t("Treasury.journal")}</th>
+                <th className="p-2 text-start">{t("Treasury.label")}</th>
+                <th className="p-2 text-start">{t("Treasury.account")}</th>
+                <th className="p-2 text-start">{t("Treasury.counterAccount")}</th>
+                <th className="p-2 text-start">{t("Treasury.batch")}</th>
+                <th className="p-2 text-end">{t("Treasury.in")}</th>
+                <th className="p-2 text-end">{t("Treasury.out")}</th>
+                <th className="p-2 text-start">{t("Treasury.receipt")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {movements.map((m, i) => (
+                <tr key={i} className="border-t border-line">
+                  <td className="p-2">{formatDay(m.day as FarmDay, lang)}</td>
+                  <td className="p-2">{m.journal}</td>
+                  <td className="p-2">{m.label}</td>
+                  <td className="p-2">{nameOf(m.treasuryId)}</td>
+                  {/* FN10, as the cash book shows them (FN16): the account's label, its number when the chart has none */}
+                  <td className="p-2">{m.counterAccounts.map((c) => c.label || c.number).join(", ")}</td>
+                  <td className="p-2">{m.batch}</td>
+                  <td dir="ltr" className="p-2 text-end tabular-nums">{m.debitCentimes > 0n ? formatMoney(m.debitCentimes) : ""}</td>
+                  <td dir="ltr" className="p-2 text-end tabular-nums">{m.creditCentimes > 0n ? formatMoney(m.creditCentimes) : ""}</td>
+                  {/* FN10: an expense's receipt; other movements have none to attach */}
+                  <td className="p-2">
+                    {m.receipt ? (
+                      <a href={`/api/files/${m.receipt}`} className="underline underline-offset-4">{t("Treasury.receiptView")}</a>
+                    ) : m.receipt === null ? (
+                      <span className="text-brick-fg">{t("Treasury.receiptMissing")}</span>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </>
   );

@@ -14,11 +14,13 @@ import { issuedBillsDue, supplierDuesOf } from "@/modules/inventory";
 import { instrumentsToCollect } from "@/modules/sales";
 import { wagesDue } from "@/modules/workforce";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
+import { entryTags } from "@/modules/finance/application/tags";
 import { loanInstallmentsDue } from "@/modules/finance/application/loans";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { OPENING_PREFIX } from "@/modules/finance/domain/close";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
 import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
+import { batchOf } from "@/modules/finance/domain/export";
 import type { Posting } from "@/modules/finance/domain/posting";
 import { bankOnly, expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
 import { lockedMonths } from "@/modules/finance/infrastructure/ledger";
@@ -154,8 +156,21 @@ export async function recordTransfer(tx: Tx, ctx: TenantContext, cmd: z.output<t
 
 export type TreasuryOverview = {
   accounts: { id: string; kind: TreasuryKind; name: string; balanceCentimes: bigint }[];
-  // receipt: an expense's photo id, null when it has none yet; undefined for a movement that isn't an expense
-  movements: { day: string; journal: string; label: string; account: string; treasuryId: string | null; debitCentimes: bigint; creditCentimes: bigint; receipt?: string | null }[];
+  // counterAccounts: the entry's other lines' accounts, as the cash book shows them (FN16); batch: its house and
+  // placement day, as the books show it, or "". receipt: an expense's photo id, null when it has none yet; undefined
+  // for a movement that isn't an expense.
+  movements: {
+    day: string;
+    journal: string;
+    label: string;
+    account: string;
+    treasuryId: string | null;
+    counterAccounts: { number: string; label: string }[];
+    batch: string;
+    debitCentimes: bigint;
+    creditCentimes: bigint;
+    receipt?: string | null;
+  }[];
 };
 
 /**
@@ -174,17 +189,21 @@ async function treasuryBalances(ctx: TenantContext): Promise<Map<string | null, 
   return new Map(sums.map((x) => [x.treasuryId, (x._sum.debitCentimes ?? 0n) - (x._sum.creditCentimes ?? 0n)]));
 }
 
-/** FN10: each bank account's and cash box's balance, and this month's movements on 5141 / 5161 (owner, manager). */
+/**
+ * FN10: each bank account's and cash box's balance, and this month's movements on 5141 / 5161 with their journal,
+ * counter-accounts, batch and receipt (owner, manager, accountant).
+ */
 export async function treasuryOverview(ctx: TenantContext, month: string): Promise<Result<TreasuryOverview, "FORBIDDEN" | "INVALID_INPUT">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("INVALID_INPUT");
   const org = { organizationId: ctx.organizationId };
-  const [accounts, balance, lines] = await Promise.all([
+  const [accounts, balance, tags, lines] = await Promise.all([
     db.treasuryAccount.findMany({ where: org, orderBy: { name: "asc" } }),
     treasuryBalances(ctx),
+    entryTags(ctx, month), // the same month: the movements' entries are in it
     db.journalLine.findMany({
       where: { ...org, account: { in: ["5141", "5161"] }, entry: { day: { gte: date(`${month}-01`), lt: date(nextMonth(month)) } } },
-      include: { entry: { select: { day: true, journal: true, label: true, sourceModule: true, sourceId: true } } },
+      include: { entry: { select: { day: true, journal: true, label: true, sourceModule: true, sourceId: true, lines: { select: { account: true } } } } },
       orderBy: [{ entry: { day: "asc" } }, { entry: { createdAt: "asc" } }],
     }),
   ]);
@@ -192,6 +211,10 @@ export async function treasuryOverview(ctx: TenantContext, month: string): Promi
   const sourceIds = lines.flatMap((l) => (l.entry.sourceModule === "finance" && l.entry.sourceId && UUID.test(l.entry.sourceId) ? [l.entry.sourceId] : []));
   const expenses = await db.expense.findMany({ where: { ...org, id: { in: sourceIds } }, select: { id: true, receiptFileId: true } });
   const receipt = new Map(expenses.map((e) => [e.id, e.receiptFileId]));
+  // FN16's rule: a cash, bank or cheque account (51xx, 5115 too) is never a counter-account.
+  const counters = (l: (typeof lines)[number]) => [...new Set(l.entry.lines.map((x) => x.account).filter((a) => !a.startsWith("51")))];
+  const numbers = [...new Set(lines.flatMap(counters))];
+  const labels = new Map((await db.ledgerAccount.findMany({ where: { number: { in: numbers } }, select: { number: true, label: true } })).map((a) => [a.number, a.label]));
   return ok({
     accounts: accounts.map((x) => ({ id: x.id, kind: x.kind as TreasuryKind, name: x.name, balanceCentimes: balance.get(x.id) ?? 0n })),
     movements: lines.map((l) => ({
@@ -200,6 +223,8 @@ export async function treasuryOverview(ctx: TenantContext, month: string): Promi
       label: l.entry.label,
       account: l.account,
       treasuryId: l.treasuryId,
+      counterAccounts: counters(l).map((number) => ({ number, label: labels.get(number) ?? "" })),
+      batch: batchOf(tags, l.entryId),
       debitCentimes: l.debitCentimes,
       creditCentimes: l.creditCentimes,
       receipt: l.entry.sourceId ? receipt.get(l.entry.sourceId) : undefined,

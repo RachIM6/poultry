@@ -1855,7 +1855,11 @@
   },
   "Biosecurity": {
     "forbidden": "هذا السجل غير متاح لدورك.",
-    "farm": "الضيعة"
+    "farm": "الضيعة",
+    "edit": "تعديل",
+    "editNamed": "تعديل: {record}",
+    "saveEdit": "حفظ التصحيح",
+    "cancel": "إلغاء"
   },
   "Visitors": {
     "title": "دخول زائر",

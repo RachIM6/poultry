@@ -567,9 +567,10 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
     if (!checked.ok) return setError(`errors.${checked.error}`);
     if (step.day > today) return setError("errors.DAY_IN_FUTURE");
     setError(undefined);
+    const next: CleanoutDto = { ...cleanout, steps: done ? cleanout.steps.map((s) => (s.id === done.id ? step : s)) : [...cleanout.steps, step] };
     const saved = done
-      ? await correct(save, B.editCleanoutStep, "cleanout", done, step, { ...cleanout, steps: cleanout.steps.map((s) => (s.id === done.id ? step : s)) })
-      : await save({ type: B.recordCleanoutStep, payload: { ...step, cleanoutId: cleanout.id } }, "cleanout", { ...cleanout, steps: [...cleanout.steps, step] });
+      ? await correct(save, B.editCleanoutStep, "cleanout", done, step, next)
+      : await save({ type: B.recordCleanoutStep, payload: { ...step, cleanoutId: cleanout.id } }, "cleanout", next);
     if (saved) setOpen(undefined);
   };
 

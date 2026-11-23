@@ -89,6 +89,7 @@ describe("investment subsidies (SPEC-finance FC2, FQ17, T106)", () => {
       ["subsidy", "post", [["1319", "Subventions d’investissement inscrites au compte de produits et charges", 67_643n, 0n], ["7577", "Reprises sur subventions d’investissement de l’exercice", 0n, 67_643n]]],
       ["stock", "none", []], // T108: no stock in this file
       ["batch", "none", []], // T109: no batch either
+      ["hens", "none", []], // T114, T115: no layer or pullet batch
       ["provision", "none", []],
     ]);
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 2 });

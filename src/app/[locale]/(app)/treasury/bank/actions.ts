@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { parseCentimes } from "@/lib/kernel/money";
 import { addBankStatement, IMPORT_MAX_BYTES, importBankFile, matchBankLine, type BankImport } from "@/modules/finance";
-import { getTenantContext } from "@/modules/identity";
+import { getTenantContext, limitSignedIn } from "@/modules/identity";
 
 export type BankState = { messageKey?: string };
 
@@ -41,8 +41,10 @@ export type ImportState = { messageKey?: string; values?: { line: number }; prev
  * type and parses them; the size is also checked here before the file is read.
  */
 export async function importAction(_: ImportState, form: FormData): Promise<ImportState> {
-  const ctx = await getTenantContext(await headers());
+  const h = await headers();
+  const ctx = await getTenantContext(h);
   if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  if (await limitSignedIn("authenticated", h, ctx.value.userId)) return { messageKey: "errors.TOO_MANY_REQUESTS" }; // rate-limiting.md §3 default
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) return { messageKey: "errors.INVALID_INPUT" };
   if (file.size > IMPORT_MAX_BYTES) return { messageKey: "errors.IMPORT_TOO_LARGE" };

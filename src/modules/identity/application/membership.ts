@@ -4,6 +4,7 @@ import { farmDayOf } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Role, TenantContext } from "@/lib/tenant";
 import { getSession } from "@/modules/identity/application/login";
+import { SaveLocale } from "@/modules/identity/schema";
 
 /** SPEC-m5 PA2 (ADR-013): the organisation the user chose. Only a hint: it opens nothing unless it is a live membership. */
 export const ORG_COOKIE = "__Host-org";
@@ -88,6 +89,14 @@ export async function acceptInvitation(headers: Headers, invitationId: string, c
 export async function localesOf(userIds: string[]): Promise<Map<string, "ar" | "fr">> {
   const users = await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, locale: true } });
   return new Map(users.map((u) => [u.id, u.locale]));
+}
+
+/** SPEC I3: the language picked in the switcher is saved on the user, so pushes and the inbox follow it. */
+export async function saveLocale(userId: string, input: unknown): Promise<Result<void, "INVALID_INPUT">> {
+  const parsed = SaveLocale.safeParse(input);
+  if (!parsed.success) return fail("INVALID_INPUT");
+  await db.user.update({ where: { id: userId }, data: { locale: parsed.data.locale } });
+  return ok(undefined);
 }
 
 /**

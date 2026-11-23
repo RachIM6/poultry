@@ -70,6 +70,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
         locked: false,
         closedOn: null,
         frozen: false,
+        opening: null, // 2025 has no entry: the first year is opened by hand (FCX3)
         entries: [
           {
             kind: "depreciation",

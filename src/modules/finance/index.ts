@@ -14,6 +14,7 @@ export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./doma
 export { readBooks, type Books } from "./application/books";
 export { attachManualEntryReceipt, postManualEntry, type ManualEntryError } from "./application/manual";
 export type { IncomeStatement } from "./domain/statements";
+export { officialStatements, type OfficialStatements } from "./application/statements";
 export { chartView } from "./application/chart";
 export { exportBooks } from "./application/export";
 export { batchOf } from "./domain/export";

@@ -56,6 +56,7 @@ async function Content() {
         money && { href: "/threshold", label: t("Threshold.open") },
         money && { href: "/closing/count", label: t("Count.open") }, // SPEC-finance FC3, FCX2
         money && { href: "/closing", label: t("Close.open") }, // SPEC-finance FCX4
+        money && { href: "/closing/statements", label: t("Statements.open") }, // SPEC-finance FC8
         money && { href: "/assets", label: t("Assets.open") }, // SPEC-finance FC1, FCX2
         money && { href: "/loans", label: t("Loans.open") }, // SPEC-finance FC2, FCX2
         can(ctx.value, "finance.manage") && { href: "/settings/accounting", label: t("Accounting.open") },

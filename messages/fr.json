@@ -1049,6 +1049,57 @@
     "fixEggs": "Corriger le stock d’œufs",
     "frozen": "Comptage figé : les écritures de clôture de cet exercice sont comptabilisées."
   },
+  "Statements": {
+    "open": "États de synthèse",
+    "title": "États de synthèse (modèle simplifié)",
+    "year": "Exercice",
+    "previous": "Exercice précédent",
+    "forbidden": "Réservé au propriétaire, aux gérants et à l’expert-comptable.",
+    "cashBook": "Livre des recettes et dépenses : pas de bilan ni de compte de produits et charges. Passez à la comptabilité en partie double pour les établir.",
+    "draft": "PROJET",
+    "draftCaption": "Projet : l’exercice n’est pas clôturé.",
+    "closed": "Exercice clôturé le {day}.",
+    "period": "Exercice du {from} au {to}",
+    "modelCgnc": "CGNC, modèle simplifié",
+    "modelPca": "Plan comptable agricole, modèle simplifié",
+    "aboveLimit": "Le chiffre d’affaires dépasse 10 000 000 DH : le modèle normal s’applique (non disponible ici).",
+    "unmapped": "Comptes sans ligne dans le modèle : {accounts}. Le bilan ne s’équilibre pas tant qu’ils restent.",
+    "bilan": "Bilan",
+    "actif": "Actif",
+    "passif": "Passif",
+    "gross": "Brut",
+    "contra": "Amortissements et provisions",
+    "net": "Net",
+    "previousNet": "Net exercice précédent",
+    "total": "Total général",
+    "cpc": "Compte de produits et charges (hors taxes)",
+    "etic": {
+      "title": "État des informations complémentaires",
+      "hint": "Les tableaux que la comptabilité permet de remplir. Les autres (sûretés, TVA, capital, affectation des résultats) se complètent avec l’expert-comptable.",
+      "s1": "S1 · Tableau des immobilisations autres que financières",
+      "s1bis": "S1 bis · Tableau des amortissements",
+      "s1_1": "S1-1 · Tableau des actifs biologiques en immobilisations",
+      "s1ter": "S1 ter · État des actifs biologiques en stocks",
+      "gross": {
+        "start": "Montant brut début",
+        "increase": "Augmentation",
+        "decrease": "Diminution",
+        "end": "Montant brut fin"
+      },
+      "amort": {
+        "start": "Cumul début",
+        "increase": "Dotation de l’exercice",
+        "decrease": "Sur immobilisations sorties",
+        "end": "Cumul fin"
+      },
+      "stock": {
+        "start": "Stock initial",
+        "increase": "Entrées",
+        "decrease": "Sorties",
+        "end": "Stock final"
+      }
+    }
+  },
   "Close": {
     "open": "Préparer la clôture",
     "title": "Préparer la clôture",

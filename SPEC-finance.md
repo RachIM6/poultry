@@ -459,6 +459,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ29 | Bought stock with the PCA off: vaccines and medicines are bought on 6122 (612123's CGNC fallback). Are they in stock on 3121 / 61241 like feed, or on 31221 / 61242 like the other supplies? §5's "Bought stock by kind" covers only the PCA case. | FC5 (until then they follow their purchase family: 31221 / 61242) |
 | FQ30 | Bought stock of a VAT-registered entity: valued net of the purchases' VAT (as the charges were booked, FN9)? The batch cost (FN13) still uses amounts including VAT. | FC5 (until then net of VAT) |
 | FQ31 | Home consumption of a product the farm has not sold yet (first eggs of a grade, first birds by the head): FQ21's last sale price doesn't exist. Which value? | FC7 (until then such an entry, a worker's or one whose price was left empty, is valued 0: it counts in the batch's kg sold, posts nothing and is listed "non comptabilisé" on `/books`) |
+| FQ32 | 5 M DH tracker: which planned sales count next to the booked ones, so a sold batch isn't counted twice? | FN17 (decided default, 23 Nov 2026: a budget may be linked to an open batch of the organisation. A batch's latest linked budget counts its planned sales less that batch's sales recorded so far, never below 0, while the batch is open, and 0 once it is closed; a budget with no batch counts in full when saved during the fiscal year (a budget has no planned sale date). Linking to a planned batch (`planning`) is not offered) |
 
 ### Found for the accountant (T100)
 

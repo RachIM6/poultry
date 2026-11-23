@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { changeAccountingChoices, exportBooks, postPending, readBooks } from "@/modules/finance";
+import { changeAccountingChoices, exportBooks, exportFec, postPending, readBooks } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
 import { unzip } from "@/test/unzip";
@@ -105,6 +105,25 @@ describe("books (SPEC-finance FN16, T36)", () => {
     expect(cashCsv).toMatch(/\r\n20\/03\/2026;Vente;5161;[^;]+;3421 [^;]+;B1 · 01\/03\/2026;3000,00;0,00\r\n/);
     expect(cashCsv).toMatch(/\r\n21\/03\/2026;Dépense;5161;[^;]+;[^;]+;;0,00;1200,00\r\n/);
     expect(await exportBooks({ ...ledger, role: "worker" }, "2026-03")).toEqual({ ok: false, error: "FORBIDDEN" });
+  });
+
+  it("exports a month as a FEC for the accountant's software (FC10, T118)", async () => {
+    const fec = await exportFec(ledger, "2026-03");
+    if (!fec.ok) throw new Error(fec.error);
+    expect(fec.value.file).toBe("FEC20260331.txt");
+    const rows = fec.value.data.toString("utf8").split("\r\n").slice(0, -1).map((r) => r.split("\t"));
+    expect(rows[0].slice(0, 3)).toEqual(["JournalCode", "JournalLib", "EcritureNum"]);
+    // all six entries, numbered 1…6 in the order they were posted, each balanced
+    const nums = [...new Set(rows.slice(1).map((r) => r[2]))];
+    expect(nums).toEqual(["1", "2", "3", "4", "5", "6"]);
+    const cents = (s: string) => BigInt(s.replace(",", ""));
+    for (const n of nums) expect(rows.filter((r) => r[2] === n).reduce((s, r) => s + cents(r[11]) - cents(r[12]), 0n)).toBe(0n);
+    // the electricity expense's cash line, and the feed purchase with FN18's supplier and farm after the 18 fields
+    expect(rows).toContainEqual(["CA", "Caisse", expect.any(String), "20260321", "5161", "Caisses", "", "", expect.stringMatching(/^[0-9a-f-]{36}$/), "20260321", expect.any(String), "0,00", "1200,00", "", "", expect.stringMatching(/^\d{8}$/), "", "", "", "", "", ""]);
+    expect(rows).toContainEqual(expect.arrayContaining(["612122", "Achat", "9000,00", "0,00", "Alf", "F"]));
+
+    expect(await exportFec(cashBook, "2026-03")).toEqual({ ok: false, error: "NOT_FOUND" }); // no journals in a cash book
+    expect(await exportFec({ ...ledger, role: "worker" }, "2026-03")).toEqual({ ok: false, error: "FORBIDDEN" });
   });
 
   it("is for owners and managers only", async () => {

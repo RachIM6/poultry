@@ -71,7 +71,7 @@ export function EggSaleForm({
     const id = uuidv7();
     const payload = { id, batchId, day, takenBy: who, kind: "eggs" as const, lines: parsed.map((l, i) => ({ item: l.item, eggs: l.eggs, eggsPerTray: l.eggsPerTray, unitPriceCentimes: seller && lines[i].price ? String(l.unitPriceCentimes) : null })) };
     const sale: SaleDto = { id, batchId, buyerId: null, day, birds: 0, farmWeightGrams: 0, buyerWeightGrams: null, kind: "eggs", takenBy: who, ...(seller && amount !== null && { amountCentimes: String(amount) }) };
-    const draws: EggDrawDto[] = drawn.value.map((d, n) => ({ id: drawId(id, n), batchId, saleId: id, ...d }));
+    const draws: EggDrawDto[] = drawn.value.map((d, n) => ({ id: drawId(id, n), batchId, saleId: id, day, ...d }));
     await onSave({ type: S.recordConsumption, payload }, [{ entity: "sale", id, data: sale }, ...draws.map((d) => ({ entity: "eggDraw", id: d.id, data: d }))]);
   };
 
@@ -104,7 +104,7 @@ export function EggSaleForm({
       kind: "eggs",
       lines: parsed.map((l) => ({ ...l, unitPriceCentimes: String(l.unitPriceCentimes), amountCentimes: String(eggLineAmount(l)) })),
     };
-    const draws: EggDrawDto[] = drawn.value.map((d, n) => ({ id: drawId(id, n), batchId, saleId: id, ...d }));
+    const draws: EggDrawDto[] = drawn.value.map((d, n) => ({ id: drawId(id, n), batchId, saleId: id, day: payload.day, ...d }));
     await onSave({ type: S.recordEggSale, payload }, [{ entity: "sale", id, data: sale }, ...draws.map((d) => ({ entity: "eggDraw", id: d.id, data: d }))]);
   };
 

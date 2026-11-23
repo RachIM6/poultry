@@ -60,7 +60,7 @@ T114 hens, simplified        ← FQ7; after T100
 T115 hens, classic           ← FQ7, FQ8; after T100
 T116 official statements     ← FQ22
 T117 bank statement import   ← real statement samples
-T118 accountant import       ← FQ10
+T118 accountant import       ← FQ10 (decided by default 2026-11-23)
 ```
 
 ## Buildable now
@@ -272,6 +272,7 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **AC:**
 - [x] Eggs on the count sheet match `eggs` stock on the last day; the value is required before the run posts. _2026-11-22. `eggs.eggStockOnDay(tx, ctx, day)`: E2's `eggLots` per farm over the collections laid by the day and the gradings, discards and draws received by its end (they carry no day of their own). The sheet has one eggs line per farm (`YearEndCount` kind `eggs`, subject the farm), counted in whole eggs, fixed on `/eggs`. The owner types a value per egg on `/closing` (`YearEndValue` kind `eggs`: the value of one egg in centimes, typed in dirhams to the centime); the run refuses (`EGG_VALUE_MISSING`) and the year close says `CLOSE_RUN_PENDING` while eggs to post have none; counted 0, nothing. The "stock" entry carries D 3152 / C 7132 = counted (else book) eggs × the value, reversed on 1 January with it (T104). `finance/eggs-at-close.int.test.ts` (the day rule, the count, the refusal, 188 100 then 197 600 after a late collection by reversal and version 2, a rerun posting nothing, the reversal on 1 January 2026 and the à-nouveaux on 3152, the PCA off, a `cash_book` entity), `finance/domain/stocks.test.ts` "eggs at the close", browser `e2e/eggs-at-close.spec.ts` (also in Arabic)._
 - [x] 2026-11-23, fix: after the run has posted, a line of the last day synced late with no value (eggs collected on 31 Dec, a meat batch open that day) still takes its value, so the rerun and the year close are no longer refused forever (FCX4). _`finance/close-late-facts.int.test.ts`: the run posts, a turkey batch placed and 500 eggs collected on 31 Dec are synced, the run is `BATCH_VALUE_MISSING` then `EGG_VALUE_MISSING` and the year close `CLOSE_RUN_PENDING`; each value is taken once (audited), the rerun posts the batch's reversal and version 2, the provision and the eggs, and the year closes. Changing or clearing a value already saved, a value for a line that isn't missing (alone or mixed with a missing one, nothing saved) and the count stay `COUNT_FROZEN`. The rule is in `saveYearEndValues`: once frozen, a change is accepted only for a line currently `missing` and only to a value. `/closing` shows the field for those lines only. Counts need no exception: a new line without a count uses its book quantity._
+- [x] 2026-11-23, fix: the egg stock on the last day counts discards and draws on the farm day they happened, not the day the server received them, so a discard made offline on 31 Dec or a sale dated 31 Dec synced on 2 Jan leaves the 31 Dec book quantity. _`EggDiscard.day` (the phone's farm day, sent with `eggs.discardEggs`; a phone from before it falls back to the server's farm day, never before the laying day) and `EggDraw.day` (the sale's day, passed by `sales` to `drawEggs`), migration `egg_flow_day` backfilling existing rows with the farm day (Africa/Casablanca) of `createdAt`. `eggFlowsOnDay` takes collections, discards and draws by `day`, gradings by `laidOn` (a grading only moves eggs between items, so the farm's total doesn't depend on when it was done). A discard dated in the future or before its laying day is refused. `finance/eggs-at-close.int.test.ts` "counts a discard and a sale on the farm day they happened"._
 
   _Defaults: the value per egg is to the centime, so the line is exact (no rounding): FQ18 asks for the owner's estimate, not a computed cost, and half a centime per egg is below what that estimate can tell. With the PCA off nothing posts for the eggs and no value is asked: 3152 lands on 315, which has sub-accounts in the CGNC chart (FN4), so the preview says "Non comptabilisé (FQ25)" as FC7 does, until the accountant names the CGNC account. The close kind "Stocks achetés" is now "Stocks"._
 **Depends on:** T108. **Size:** S
@@ -302,9 +303,14 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** M per bank
 
 ### T118: Accountant import format (FC10)
-**Blocked by:** FQ10 (the firm's software, its import format and a sample file).
+**Blocked by:** nothing since 2026-11-23: FQ10 decided by default, to review.
 **Description:** One export per software next to FN18's CSV and Excel.
 **Size:** M per format
+**Note (2026-11-23):** studied in `docs/studies/accountant-import-format.md`. No vendor (Sage, EBP, Cegid, KHABIR) publishes its own import format; the CNC's Moroccan FEC (avis n° 24) lists the fields but no technical format. Built the one fully published file: the FEC of article A47 A-1 LPF, which Sage 100 and EBP import. `/books` "Fichier FEC pour le logiciel comptable" (`ledger` entities), `/api/finance/export?month=…&format=fec`.
+**AC:**
+- [x] A fixture month exports byte for byte (UTF-8, no BOM, tabs, CRLF), entries balanced, journals and accounts mapped. _`finance/domain/fec.test.ts`._
+- [x] The month of a ledger entity in the database, numbered in posting order; a cash book gets none; workers can't. _`finance/books.int.test.ts` "exports a month as a FEC for the accountant's software (FC10, T118)"._
+- [ ] The pilot's firm imports a month into its software.
 
 ## ✅ Checkpoint M6
 - [x] The PCA PDF is in the repository (or its download is allowed) and T100 is done: every candidate account is confirmed or replaced. _`docs/sources/plan-comptable-agricole-2015.pdf`; all eight candidates confirmed._

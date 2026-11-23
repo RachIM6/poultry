@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 const entityOf = async (e164: string) =>
@@ -34,7 +35,7 @@ test("the owner changes the accounting choices until the year has an entry", asy
     { type: "farm-registry.createFarm", payload: { id: farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
     { type: "inventory.createSupplier", payload: { id: supplier, name: "Alf", phone: null } },
     { type: "inventory.createStockItem", payload: { id: item, farmId: farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: supplier, stockItemId: item, day: new Date().toISOString().slice(0, 10), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: supplier, stockItemId: item, day: new Date().toISOString().slice(0, 10), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
   ]);
   await expect
     .poll(async () => (await query<{ n: number }>(`SELECT count(*)::int AS n FROM "JournalEntry" j JOIN "Membership" m ON m."organizationId" = j."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`, [e164]))[0].n)

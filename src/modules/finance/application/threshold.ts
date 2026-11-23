@@ -5,8 +5,10 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
+import { batchFacts } from "@/modules/flock";
 import { notify } from "@/modules/notifications";
-import { listBudgets } from "@/modules/finance/application/budget";
+import { salesByBatch } from "@/modules/sales";
+import { listBudgets, type SavedBudget } from "@/modules/finance/application/budget";
 import { budgetOf } from "@/modules/finance/domain/budget";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
 import { thresholdOn, thresholdUsage, type Threshold } from "@/modules/finance/domain/threshold";
@@ -31,7 +33,27 @@ async function bookedSales(ctx: TenantContext, legalEntityId: string, from: stri
 }
 
 /**
- * FN17: this fiscal year's agricultural sales booked plus those planned in the budgets saved during it, against the
+ * FN17, SPEC-finance §9 FQ32: what the budgets still plan to sell. A batch's latest budget counts what the batch hasn't
+ * sold yet while it is open, nothing once it is closed (its sales are booked); a budget with no batch counts when saved
+ * during the fiscal year.
+ */
+async function plannedSales(ctx: TenantContext, budgets: SavedBudget[], year: { from: string; to: string }): Promise<bigint> {
+  const sales = (b: SavedBudget) => budgetOf(b.inputs).plannedSalesCentimes;
+  const latest = new Map<string, SavedBudget>();
+  for (const b of budgets) if (b.batchId && !latest.has(b.batchId)) latest.set(b.batchId, b); // newest first
+  let total = budgets.filter((b) => !b.batchId && b.createdAt.slice(0, 10) >= year.from && b.createdAt.slice(0, 10) <= year.to).reduce((s, b) => s + sales(b), 0n);
+  if (latest.size === 0) return total;
+  const sold = await salesByBatch(db, ctx);
+  for (const [batchId, b] of latest) {
+    if ((await batchFacts(db, ctx, batchId))?.status !== "open") continue;
+    const left = sales(b) - (sold.get(batchId) ?? 0n);
+    if (left > 0n) total += left;
+  }
+  return total;
+}
+
+/**
+ * FN17: this fiscal year's agricultural sales booked plus those the budgets still plan (`plannedSales`), against the
  * threshold in force (configuration with a validity date, FQ5); the alert from 90 %; the last 3 years for the
  * "3 years in a row" rule. Owners and managers only.
  */
@@ -45,9 +67,7 @@ export async function thresholdTracker(ctx: TenantContext, clock: Clock = system
   const year = fiscalYearOf(today, entity.fiscalYearStartMonth);
 
   const budgets = await listBudgets(ctx);
-  const planned = budgets.ok
-    ? budgets.value.filter((b) => b.createdAt.slice(0, 10) >= year.from && b.createdAt.slice(0, 10) <= year.to).reduce((s, b) => s + budgetOf(b.inputs).plannedSalesCentimes, 0n)
-    : 0n;
+  const planned = budgets.ok ? await plannedSales(ctx, budgets.value, year) : 0n;
   const booked = await bookedSales(ctx, entity.id, year.from, year.to);
 
   const history: ThresholdTracker["history"] = [];

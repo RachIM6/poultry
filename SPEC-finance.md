@@ -103,7 +103,7 @@ Turn what the farm already records (purchases, consumption, sales, payments) int
 ### Views, tax helper, export
 - **FN16. Books per profile.** `cash_book`: receipts and expenses (lines on 51xx accounts) with category and batch, monthly totals. `ledger`: journals, general ledger by account, trial balance per period, and every `cash_book` view.
 - **FN17. 5 M DH tracker.** Agricultural sales booked in the fiscal year (712x) + planned sales from open batches and budgets, against the threshold; alert at 90 %; history of the last 3 years. Threshold and rule text are configuration with a validity date (FQ5).
-- **FN18. Export.** Per period: entries as CSV and Excel (date, journal, piece, account, account label, line label, debit, credit, party, farm, house, batch), trial balance, cash book, and attached receipts as a zip. The cabinet-specific import format is added in M6 (FQ10).
+- **FN18. Export.** Per period: entries as CSV and Excel (date, journal, piece, account, account label, line label, debit, credit, party, farm, house, batch), trial balance, cash book, and attached receipts as a zip. The FEC for the firm's software is added in M6 (FC10).
 
 ### Cross-cutting (finance)
 - **FX1.** Every amount is integer centimes (`bigint`); displayed `1 234,50 DH`; no float in any finance code path.
@@ -289,7 +289,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - **Current value, default (FQ20):** equal to cost, unless the owner enters a lower one for a damaged or expired lot (the count sheet flags expired lots). A provision for the difference: D 6196 / C 3912 Provisions pour dépréciation des matières et fournitures (§7 `stockAtCloseValue`).
     - Reversed on the next year's first day (FCX5): D the 6124 leaf / C the stock account, and D 3912 / C 7196.
   - **Eggs** (T113; `eggs` added to finance's dependencies by the product owner on 22 Nov 2026, CAPABILITY-MAP):
-    - quantity: the count, else the egg stock (SPEC-m3 E2) on the last day: the collections laid by then, and the gradings, discards and draws received by the end of that day (they carry no day of their own);
+    - quantity: the count, else the egg stock (SPEC-m3 E2) on the last day: each record on the farm day it happened, whenever the server received it: the collections laid by then, the discards (the phone's farm day) and the draws (the sale's day) of a day by then, and the gradings of eggs laid by then (a grading only moves eggs between items);
     - **default (FQ18): value per egg typed by the owner**, in dirhams to the centime, no computed cost. Value = quantity × value per egg, exact. The run refuses while eggs to post have no value; none counted, nothing posted;
     - D 3152 Produits finis (d’animaux) / C 7132, in the "stock" entry, reversed with it (FCX5). With the PCA off, 3152 lands on 315, which has sub-accounts: nothing posts for the eggs and no value is asked, listed "non comptabilisé (FQ25)" (§9).
   - **Out of scope:** any valuation method other than the weighted average cost (S5).
@@ -327,7 +327,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - A tick is audited, and can be undone until its month is locked.
   - **Statement import, blocked:** no bank file format is assumed. It waits for real statement samples from the pilot's banks (T117).
   - **Out of scope:** automatic matching rules, cash-box counts.
-- **FC10. Accountant import format, blocked** (FQ10; T118). Built per accounting software once a firm supplies its import format and a sample file. Until then the FN18 CSV and Excel export is the hand-off.
+- **FC10. Accountant import format** (FQ10; T118; decided default, to review). A `ledger` entity's month also downloads as a FEC, the "fichier des écritures comptables" of article A47 A-1 of the French LPF: the only journal-entry file found with a published specification, imported by EBP (Morocco edition) and Sage 100 (template seen in its French edition), and documented by Cegid. Its 18 fields are, in the same order, those of the Moroccan FEC of CNC avis n° 24 (2023), which fixes no technical format. Tab-separated, UTF-8 without BOM, CRLF, field names on the first line, dates `AAAAMMJJ`, decimal comma; FN18's party, farm, house and batch follow the 18 fields; named `FECAAAAMMJJ.txt` (the month's last day). Study, sources and every field choice: `docs/studies/accountant-import-format.md`. A vendor-specific format waits for a published specification.
 
 ## 6. Cooperative accounting (post-MVP, summary)
 
@@ -437,7 +437,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ7 | Laying hens: classic or simplified method by default? For the simplified method, confirm the valuation basis and the balance-sheet account the PCA text gives (§5 "Laying hens, what the text says": 23711 / 23712 or the text's 2371 / 2372); at the transfer to lay, does 23962 move to 23711? | FC6 (blocked, no default) |
 | FQ8 | Culled hens under the classic method: how is the remaining book value removed next to 7187? | FC6 (blocked, no default) |
 | FQ9 | Depreciation prorata: by month or by day? | FC1 (default in §5: by whole months) |
-| FQ10 | Import formats of the accounting software used by the firms | FN18, FC10 (blocked) |
+| FQ10 | Import formats of the accounting software used by the firms | FN18, FC10 (decided default, to review, 2026-11-23: the FEC of article A47 A-1 LPF, `docs/studies/accountant-import-format.md`; confirm the firm's software imports it, and whether a file per month suits it) |
 | FQ11 | Account for the individual exploitant's contributions and withdrawals, and counter-account of a `cash_book` entity's opening bank and cash balances | FN3, FN6, FCX3, FC7 (an individual's entry) |
 | FQ12 | Is there an official Arabic version of the CGNC and PCA account labels? | FX5 |
 | FQ13 | Journal for cheques and bills received (`EF` here): common practice? | FN6 |
@@ -459,6 +459,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ29 | Bought stock with the PCA off: vaccines and medicines are bought on 6122 (612123's CGNC fallback). Are they in stock on 3121 / 61241 like feed, or on 31221 / 61242 like the other supplies? §5's "Bought stock by kind" covers only the PCA case. | FC5 (until then they follow their purchase family: 31221 / 61242) |
 | FQ30 | Bought stock of a VAT-registered entity: valued net of the purchases' VAT (as the charges were booked, FN9)? The batch cost (FN13) still uses amounts including VAT. | FC5 (until then net of VAT) |
 | FQ31 | Home consumption of a product the farm has not sold yet (first eggs of a grade, first birds by the head): FQ21's last sale price doesn't exist. Which value? | FC7 (until then such an entry, a worker's or one whose price was left empty, is valued 0: it counts in the batch's kg sold, posts nothing and is listed "non comptabilisé" on `/books`) |
+| FQ32 | 5 M DH tracker: which planned sales count next to the booked ones, so a sold batch isn't counted twice? | FN17 (decided default, 23 Nov 2026: a budget may be linked to an open batch of the organisation. A batch's latest linked budget counts its planned sales less that batch's sales recorded so far, never below 0, while the batch is open, and 0 once it is closed; a budget with no batch counts in full when saved during the fiscal year (a budget has no planned sale date). Linking to a planned batch (`planning`) is not offered) |
 
 ### Found for the accountant (T100)
 

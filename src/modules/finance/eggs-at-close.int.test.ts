@@ -72,9 +72,9 @@ describe("eggs at the close (SPEC-finance FC5, FQ18, T113)", () => {
   }, 60_000); // three organisations and 15 mutations: above the 10 s hook default on a loaded Windows Docker
 
   it("puts each farm's eggs on the count sheet with eggs' stock on the last day: laid by then, discarded by then", async () => {
-    // The discard was received in 2026: the 20 cracked eggs were still there on 31 December 2025.
+    // The discard came from a phone without its day: the server's (2026): the 20 cracked eggs were still there on 31 December 2025.
     expect(await eggStockOnDay(db, owner, lastDay)).toEqual([{ farmId: ids.farm, eggs: 2000 }]);
-    await db.eggDiscard.update({ where: { id: ids.discard }, data: { createdAt: new Date("2025-12-31T15:00:00Z") } }); // received on the last day
+    await db.eggDiscard.update({ where: { id: ids.discard }, data: { day: new Date("2025-12-31") } }); // discarded on the last day
     expect(await eggStockOnDay(db, owner, lastDay)).toEqual([{ farmId: ids.farm, eggs: 1980 }]);
     expect(await eggStockOnDay(db, owner, "2026-12-31" as FarmDay)).toEqual([{ farmId: ids.farm, eggs: 2970 }]);
     expect(await eggStockOnDay(db, owner, "2025-12-19" as FarmDay)).toEqual([]);
@@ -86,6 +86,30 @@ describe("eggs at the close (SPEC-finance FC5, FQ18, T113)", () => {
     expect(await db.yearEndCount.findFirstOrThrow({ where: { subjectId: ids.farm } })).toMatchObject({ kind: "eggs", quantity: 1950 });
     expect(await saveYearEndCount(other, { year: 2025, counts: { [ids.farm]: "10" } })).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(await saveYearEndCount(owner, { year: 2025, counts: { [ids.farm]: "12,5" } })).toEqual({ ok: false, error: "INVALID_INPUT" }); // whole eggs
+  });
+
+  it("counts a discard and a sale on the farm day they happened, not the day they were synced", async () => {
+    const late = await tenant("+212600000004", "Ferme D");
+    const x = { farm: uuidv7(), house: uuidv7(), layers: uuidv7(), buyer: uuidv7() };
+    const discard = (eggs: number, day: string) => m("eggs.discardEggs", { id: uuidv7(), batchId: x.layers, laidOn: "2025-12-30", item: "ungraded", eggs, reason: "Cassés", day });
+    expect(
+      await statuses(
+        late,
+        ...layerFarm(x.farm, x.house, x.layers, "Ferme Doukkala"),
+        collect(x.layers, "2025-12-30", 1000),
+        m("sales.createBuyer", { id: x.buyer, name: "Grossiste", phone: null, type: "trader" }),
+        discard(50, "2025-12-31"),
+        m("sales.recordEggSale", { id: uuidv7(), batchId: x.layers, buyerId: x.buyer, day: "2025-12-31", lines: [{ item: "ungraded", eggs: 300, unitPriceCentimes: "3000" }], paymentMethod: "credit", paidCentimes: "0", instrument: null }),
+        discard(20, "2026-01-02"),
+      ),
+    ).toEqual(Array(8).fill("applied"));
+    // The phone was offline over the new year: all three reached the server on 2 January.
+    const synced = { createdAt: new Date("2026-01-02T09:00:00Z") };
+    await db.eggDiscard.updateMany({ where: { organizationId: late.organizationId }, data: synced });
+    await db.eggDraw.updateMany({ where: { organizationId: late.organizationId }, data: synced });
+    expect(await eggStockOnDay(db, late, lastDay)).toEqual([{ farmId: x.farm, eggs: 650 }]); // 1 000 − 50 − 300: the 20 of 2 January were still there
+    expect(await eggStockOnDay(db, late, "2026-01-02" as FarmDay)).toEqual([{ farmId: x.farm, eggs: 630 }]);
+    expect(await statuses(late, discard(1, "2025-12-29"), discard(1, "2099-01-01"))).toEqual(["errors.INVALID_INPUT", "errors.DAY_IN_FUTURE"]); // before the laying day; not yet come
   });
 
   it("refuses the run while eggs have no value per egg; values the counted eggs, none when counted 0", async () => {

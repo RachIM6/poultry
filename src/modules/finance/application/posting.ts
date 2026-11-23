@@ -2,22 +2,24 @@ import { v7 as uuidv7 } from "uuid";
 import { db, SYNC_TX, type Tx } from "@/lib/db";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
-import { listLegalEntities } from "@/modules/farm-registry";
-import { placementsChangedSince } from "@/modules/flock";
+import { listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
+import { batchPlaces, placementsChangedSince } from "@/modules/flock";
 import { issuedDebitsChangedSince, purchasesChangedSince, supplierPaymentsChangedSince } from "@/modules/inventory";
 import { instrumentStepsChangedSince, paymentsChangedSince, salesChangedSince } from "@/modules/sales";
 import { advancesChangedSince, payMonthsChangedSince, payPaymentsChangedSince } from "@/modules/workforce";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { freezeClosedBatches } from "@/modules/finance/application/batch-results";
+import { layEvents } from "@/modules/finance/application/hens";
 import { alertThresholdOnce } from "@/modules/finance/application/threshold";
 import { postEntry } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
+import { hensMethodOf } from "@/modules/finance/domain/hens";
 import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
 import { inChart, postingOf, samePosting, unpostedConsumption, type FarmEvent } from "@/modules/finance/domain/posting";
 import { ledgerAccounts, lockCursor, lockedMonths, moveCursor, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 
 type Change = { version: bigint; event: FarmEvent };
-type Source = { name: string; module: string; read: (tx: Tx, ctx: TenantContext, after: bigint) => Promise<Change[]> };
+type Source = { name: string; module: string; read: (tx: Tx, ctx: TenantContext, after: bigint, entity: LegalEntityDto) => Promise<Change[]> };
 
 const SOURCES: Source[] = [
   {
@@ -50,19 +52,28 @@ const SOURCES: Source[] = [
     read: async (tx, ctx, after) =>
       (await placementsChangedSince(tx, ctx, after)).map((b) => ({
         version: b.version,
-        event: { type: "chicks", id: b.id, day: b.placedOn, amount: b.chicksCentimes },
+        event: { type: "chicks", id: b.id, day: b.placedOn, amount: b.chicksCentimes, layers: b.species === "layer" && !b.fromBatchId }, // FC6: point-of-lay hens
       })),
+  },
+  {
+    // FC6 classic (T115): the transfer to lay (SPEC-m3 B13), once per layer batch, source `lay:<batch>`
+    name: "flock.transfer",
+    module: "flock",
+    read: async (tx, ctx, after, entity) => layEvents(tx, ctx, entity, await placementsChangedSince(tx, ctx, after)),
   },
   {
     name: "sales.sale",
     module: "sales",
-    read: async (tx, ctx, after) =>
-      (await salesChangedSince(tx, ctx, after)).map((s) => ({
+    read: async (tx, ctx, after) => {
+      const sales = await salesChangedSince(tx, ctx, after);
+      const batches = await batchPlaces(tx, ctx, [...new Set(sales.map((s) => s.batchId))]); // FC6: culled hens of a laying flock
+      return sales.map((s) => ({
         version: s.version,
         event: s.takenBy
           ? { type: "consumption", id: s.id, day: s.day, amount: s.amountCentimes, takenBy: s.takenBy } // FC7
-          : { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method, kind: s.kind, vat: s.vatCentimes },
-      })),
+          : { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method, kind: s.kind, vat: s.vatCentimes, layers: batches.get(s.batchId)?.species === "layer" },
+      }));
+    },
   },
   {
     name: "sales.payment",
@@ -131,12 +142,13 @@ export async function postPending(pusher: TenantContext): Promise<number> {
   for (const source of SOURCES) {
     posted += await db.$transaction(async (tx) => {
       const after = await lockCursor(tx, ctx, source.name);
-      const changes = await source.read(tx, ctx, after);
+      const changes = await source.read(tx, ctx, after, entity);
       if (changes.length === 0) return 0;
       const all = await ledgerAccounts(tx);
       const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
       const everything = chartOf(all, "cgnc", ["pca"]);
       const locked = await lockedMonths(tx, ctx, entity.id);
+      const classicHens = hensMethodOf(entity.accountingProfile, entity.hensMethod) === "classic"; // FC6
       const openDay = (day: FarmDay) => (locked.has(monthOf(day)) ? (`${firstOpenMonth(monthOf(day), locked)}-01` as FarmDay) : day);
 
       let n = 0;
@@ -147,7 +159,7 @@ export async function postPending(pusher: TenantContext): Promise<number> {
       };
       for (const { version, event } of changes) {
         // FC7: a home consumption that can't post (FQ11, FQ25, no value) is left out, and listed on /books instead
-        const rule = event.type === "consumption" && unpostedConsumption(event, everything, chart) ? null : postingOf(event, entity.vatRegistered);
+        const rule = event.type === "consumption" && unpostedConsumption(event, everything, chart) ? null : postingOf(event, entity.vatRegistered, classicHens);
         const posting = rule && inChart(rule, everything, chart);
         if (rule && !posting) throw new Error(`${source.name} ${event.id}: an account has no home in this chart`);
         const day = openDay(event.day);

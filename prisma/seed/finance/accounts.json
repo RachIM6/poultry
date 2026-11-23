@@ -580,6 +580,7 @@
     { "chart": "pca", "number": "61937", "label": "D.E.A des Animaux", "parent": "6193", "fallback": "61938" },
     { "chart": "cgnc", "number": "61938", "label": "D.E.A. des autres immobilisations corporelles", "parent": "6193" },
     { "chart": "cgnc", "number": "6194", "label": "Dotations d’exploitation aux provisions pour dépréciation des immobilisations", "parent": "619" },
+    { "chart": "cgnc", "number": "61943", "label": "D.E.P. pour dépréciation des immobilisations corporelles", "parent": "6194" },
     { "chart": "cgnc", "number": "6195", "label": "Dotations d’exploitation aux provisions pour risques et charges", "parent": "619" },
     { "chart": "cgnc", "number": "6196", "label": "Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant", "parent": "619" },
     { "chart": "cgnc", "number": "6198", "label": "Dotations d’exploitation des exercices antérieurs", "parent": "619" },

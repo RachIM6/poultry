@@ -517,6 +517,7 @@
     "CLOSE_RUN_PENDING": "Comptabilisez d’abord les écritures de clôture : l’aperçu en montre encore à passer.",
     "BATCH_VALUE_MISSING": "Saisissez la valeur actuelle des bandes en cours sans pesée ou sans vente avant de comptabiliser.",
     "EGG_VALUE_MISSING": "Saisissez la valeur par œuf des œufs en stock avant de comptabiliser.",
+    "HENS_VALUE_MISSING": "Saisissez les valeurs des poules pondeuses et poulettes (durée de ponte et valeur de réforme, ou valeur actuelle par sujet) avant de comptabiliser.",
     "YEAR_NOT_CLOSED": "Cet exercice n’est pas clôturé.",
     "NEXT_YEAR_CLOSED": "L’exercice suivant est clôturé : rouvrez-le d’abord.",
     "FIRST_DUE_BEFORE_DISBURSEMENT": "La première échéance doit venir après le déblocage.",
@@ -1124,6 +1125,7 @@
       "subsidy": "Quote-part des subventions d’investissement",
       "stock": "Stocks",
       "batch": "Bandes en cours (animaux)",
+      "hens": "Poules pondeuses et poulettes",
       "provision": "Provisions pour dépréciation"
     },
     "stocks": "Stocks au coût moyen pondéré",
@@ -1140,7 +1142,7 @@
     "batches": "Bandes en cours au coût engagé",
     "batchesHint": "Le coût engagé de chaque bande de chair ouverte au dernier jour de l’exercice (poussins, consommations, charges directes et réparties jusqu’à ce jour), réparti par tête entre les sujets présents et les sujets vendus. La valeur actuelle proposée : sujets présents × dernier poids moyen × dernier prix de vente au kilo de la ferme pour ce type (ou dernier prix par tête). Saisissez-la pour la remplacer ; sous le coût, la différence est provisionnée.",
     "birds": "Sujets présents",
-    "notValuedFq7": "Non valorisé (FQ7)",
+    "notValuedFq7": "Voir « Poules pondeuses et poulettes »",
     "valueRequired": "Valeur à saisir : ni pesée ni vente pour la proposer.",
     "eggs": "Œufs en stock",
     "eggsHint": "Les œufs comptés (sinon ceux des registres) au dernier jour de l’exercice, à la valeur par œuf que vous saisissez, en dirhams au centime : l’application ne calcule pas de coût de revient de l’œuf.",
@@ -1151,6 +1153,21 @@
     "eggsValue": "Valeur",
     "eggValueRequired": "Valeur par œuf à saisir.",
     "eggsNotPosted": "Non comptabilisé (FQ25) : sans le Plan Comptable Agricole, 3152 n’a pas de compte CGNC où passer.",
+    "hens": "Poules pondeuses et poulettes",
+    "hensClassicHint": "Méthode classique : les poulettes en élevage sont immobilisées en cours à leur coût de l’exercice (23962), puis le lot passe en 23711 au transfert en ponte ; les poules achetées prêtes à pondre y entrent à leur prix. Chaque lot en ponte s’amortit en linéaire sur la durée de ponte, en mois entiers, base = valeur d’entrée − valeur de réforme. Saisissez la durée et la valeur de réforme du lot entier : elles sont requises avant de comptabiliser. Les réformes de l’exercice sortent la part vendue (6187) ou perdue (6513).",
+    "hensSimplifiedHint": "Méthode simplifiée : les sujets comptés au dernier jour × leur valeur d’entrée par sujet (prix d’achat, ou coût de revient des poulettes), en 23711 / 7151 pour les poules et 23712 / 7152 pour les poulettes ; la valeur de l’exercice précédent est annulée. Saisissez la valeur actuelle d’un sujet, requise : en dessous de la valeur d’entrée, la différence est provisionnée (2937). Pas d’amortissement.",
+    "hensNotValued": "Non valorisés (FQ25) : sans le Plan Comptable Agricole, les comptes des animaux reproducteurs n’ont pas de compte CGNC où passer.",
+    "hensEntry": "Valeur d’entrée",
+    "hensLife": "Durée de ponte (mois)",
+    "hensLifeOf": "Durée de ponte en mois : {line}",
+    "hensCull": "Valeur de réforme",
+    "hensCullOf": "Valeur de réforme du lot : {line}",
+    "hensCharge": "Dotation",
+    "hensValue": "Valeur d’entrée des sujets",
+    "hensPerBird": "Valeur actuelle par sujet",
+    "hensPerBirdOf": "Valeur actuelle par sujet : {line}",
+    "saveHens": "Enregistrer les durées et valeurs de réforme",
+    "hensSaved": "Durées et valeurs de réforme enregistrées.",
     "actions": {
       "none": "Rien à passer pour cet exercice.",
       "unchanged": "Comptabilisée, sans changement.",
@@ -2174,6 +2191,17 @@
     "vat": "TVA",
     "vatRegistered": "Assujetti à la TVA",
     "vatHint": "La TVA saisie sur les achats et les ventes est alors comptée à part (3455, 4455). Régime à confirmer avec votre expert-comptable.",
+    "hens": "Poules pondeuses et poulettes",
+    "hensMethods": {
+      "classic": {
+        "title": "Méthode classique",
+        "desc": "Les poules sont des immobilisations amorties sur la durée de ponte ; les poulettes élevées sur place sont immobilisées en cours jusqu’au transfert en ponte. Méthode par défaut du Plan Comptable Agricole."
+      },
+      "simplified": {
+        "title": "Méthode simplifiée",
+        "desc": "Achats et ventes en charges et produits ; à la clôture, le cheptel compté est inscrit à sa valeur d’entrée et celle de l’exercice précédent annulée. Pas d’amortissement."
+      }
+    },
     "save": "Enregistrer",
     "saved": "Paramètres enregistrés."
   },

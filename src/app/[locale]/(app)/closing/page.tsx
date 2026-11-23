@@ -8,9 +8,9 @@ import { Link, redirect } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney } from "@/lib/format";
 import { addFarmDays } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
-import { closePreview, type CloseBatchView, type CloseStockView } from "@/modules/finance";
+import { closePreview, type CloseBatchView, type CloseHensView, type CloseStockView } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
-import { CloseForm, OpenYearForm, ValuesForm, YearForm } from "./form";
+import { CloseForm, HensForm, OpenYearForm, ValuesForm, YearForm } from "./form";
 
 // SPEC-finance FCX4 (T103), FCX2: "Préparer la clôture", online like /books. Each kind's year-end entry, OD on the
 // fiscal year's last day, as the run would post it; the owner posts it, the manager and the accountant read it.
@@ -19,6 +19,8 @@ import { CloseForm, OpenYearForm, ValuesForm, YearForm } from "./form";
 // FC4 (T109): the batches the "batch" entry values, the same way; the run refuses while one has no current value.
 // FC5 (T113): each farm's eggs in the "stock" entry, at the value per egg the owner types; required before the run posts.
 // FN3: until the previous year is closed, the owner opens this one from it as it stands, marked provisional for everyone.
+// FC6 (T114, T115): the layer and pullet batches by the hens' method; the owner types each laying flock's life and cull
+// value (classic) or the current value of a bird (simplified), required before the run posts.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function ClosingPage({ searchParams }: { searchParams: Search }) {
@@ -41,7 +43,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await closePreview(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
   if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
-  const { year, day, books, locked, closedOn, frozen, opening, entries, stocks, batches, eggs } = result.value;
+  const { year, day, books, locked, closedOn, frozen, opening, entries, stocks, batches, eggs, hens } = result.value;
   const todo = entries.some((e) => e.action === "post" || e.action === "repost" || e.action === "reverse");
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));
   const manage = can(ctx.value, "finance.manage");
@@ -165,6 +167,71 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
     </ValuesForm>
   );
 
+  // FC6 (T114, T115): with the PCA off nothing is valued (FQ25).
+  type Hen = CloseHensView["lines"][number];
+  const flock = (h: Hen) => `${h.houseName} · ${t(`Types.${h.species}`)}`;
+  const required = (h: Hen) => h.missing && <span className="block text-sm whitespace-normal text-alert-fg">{t("Close.valueRequired")}</span>;
+  const field = (name: string, value: string, label: string) => (
+    <input key={`${name}:${value}`} name={name} defaultValue={value} inputMode="decimal" dir="ltr" aria-label={label} className="w-28 rounded-lg border border-line bg-card px-2 py-1 text-end" />
+  );
+  const num = (text: string) => <td dir="ltr" className="p-2 text-end tabular-nums whitespace-nowrap">{text}</td>;
+  const hensRows = (cols: string[], cells: (h: Hen) => React.ReactNode) => (
+    <div className="relative overflow-x-auto">
+      <table className={table} aria-label={t("Close.hens")}>
+        <thead>
+          <tr>
+            <th className="p-2 text-start">{t("Count.batches")}</th>
+            {cols.map((c) => <th key={c} className="p-2 text-end">{t(c)}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {hens.lines.map((h) => (
+            <tr key={h.id} className="border-t border-line">
+              <td className="p-2">{flock(h)}<span className="block text-sm text-ink-2">{h.farm}</span></td>
+              {num(formatCount(h.onHand))}
+              {cells(h)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+  const hensTable =
+    hens.lines.length === 0 ? null : hens.method === "classic" ? (
+      <HensForm year={year} write={hens.lines.some((h) => h.species === "layer" && typeable(h))}>
+        <p className="text-sm text-ink-2">{t("Close.hensClassicHint")}</p>
+        {hensRows(["Close.birds", "Close.hensEntry", "Close.hensLife", "Close.hensCull", "Close.hensCharge"], (h) => (
+          <>
+            {num(money(h.entry))}
+            <td className="p-2 text-end tabular-nums whitespace-nowrap">
+              {h.species === "layer" && typeable(h) ? field(`life:${h.id}`, h.lifeMonths === null ? "" : String(h.lifeMonths), t("Close.hensLifeOf", { line: flock(h) })) : <bdi dir="ltr">{h.lifeMonths ?? ""}</bdi>}
+            </td>
+            <td className="p-2 text-end tabular-nums whitespace-nowrap">
+              {h.species === "layer" && typeable(h) ? field(`cull:${h.id}`, typed(h.cullValue), t("Close.hensCullOf", { line: flock(h) })) : <bdi dir="ltr">{h.cullValue === null ? "" : formatMoney(h.cullValue)}</bdi>}
+              {required(h)}
+            </td>
+            {num(money(h.charge))}
+          </>
+        ))}
+      </HensForm>
+    ) : hens.method === "simplified" ? (
+      <ValuesForm year={year} write={hens.lines.some(typeable)}>
+        <p className="text-sm text-ink-2">{t("Close.hensSimplifiedHint")}</p>
+        {hensRows(["Close.birds", "Close.hensValue", "Close.hensPerBird", "Close.provision"], (h) => (
+          <>
+            {num(money(h.value))}
+            <td className="p-2 text-end tabular-nums whitespace-nowrap">
+              {typeable(h) ? field(`value:${h.id}`, typed(h.perBird), t("Close.hensPerBirdOf", { line: flock(h) })) : <bdi dir="ltr">{h.perBird === null ? "" : formatMoney(h.perBird)}</bdi>}
+              {required(h)}
+            </td>
+            {num(money(h.provision))}
+          </>
+        ))}
+      </ValuesForm>
+    ) : (
+      <p className="text-sm text-ink-2">{t("Close.hensNotValued")}</p>
+    );
+
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Close.title")}</h1>
@@ -215,6 +282,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
           {e.kind === "stock" && stockTable}
           {e.kind === "stock" && eggTable}
           {e.kind === "batch" && batchTable}
+          {e.kind === "hens" && hensTable}
         </section>
       ))}
       {books === "ledger" && !todo && <p>{t("Close.nothing")}</p>}

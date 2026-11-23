@@ -64,7 +64,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
         m("inventory.recordPurchase", { id: uuidv7(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: "2025-10-25", quantity: 30_000_000, unitPriceCentimes: "480", paidCentimes: "0", dueOn: null }),
         m("sales.createBuyer", { id: ids.buyer, name: "Hamid", phone: null, type: "trader" }),
         place(ids.broiler, ids.b1, "broiler", "2025-11-01", 10_000, "600"),
-        place(ids.pullet, ids.b2, "pullet", "2025-09-01", 5_000, "900"), // FC6: not valued until FQ7
+        place(ids.pullet, ids.b2, "pullet", "2025-09-01", 5_000, "900"), // FC6: in the "hens" entry, not here
         place(ids.layer, ids.b3, "layer", "2025-06-01", 4_000, "1500"),
         m("flock.recordDay", { batchId: ids.broiler, day: "2025-11-20", changes: { dead: 400, culled: 0, feed: { stockItemId: ids.feed, grams: 12_500_000 } } }),
         m("flock.recordDay", { batchId: ids.broiler, day: "2025-12-20", changes: { dead: 0, culled: 0, feed: { stockItemId: ids.feed, grams: 12_500_000 } } }),
@@ -92,7 +92,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
     ).toEqual(Array(3).fill("applied"));
   });
 
-  it("§7.1 C: 144 400,00 at cost, current value 135 660,00, provision 8 740,00; pullets and layers listed, not valued (FQ7)", async () => {
+  it("§7.1 C: 144 400,00 at cost, current value 135 660,00, provision 8 740,00; pullets and layers listed, valued by FC6", async () => {
     const preview = await closePreview(owner, 2025, clock);
     if (!preview.ok) throw new Error(preview.error);
     expect(preview.value.entries.slice(3)).toEqual([
@@ -102,6 +102,16 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
         lines: [
           { account: "31322", label: "Animaux", debit: 14_440_000n, credit: 0n },
           { account: "7131", label: "Variation des stocks de produits en cours", debit: 0n, credit: 14_440_000n },
+        ],
+      },
+      {
+        // FC6 classic (T115): the pullets still rearing capitalise their cost to date; the layers bought, never posted
+        // here (no posting run), are not on 23711
+        kind: "hens",
+        action: "post",
+        lines: [
+          { account: "23962", label: "Immobilisations en cours - animaux", debit: 4_500_000n, credit: 0n },
+          { account: "71431", label: "Immobilisations corporelles agricoles produites", debit: 0n, credit: 4_500_000n },
         ],
       },
       {
@@ -120,7 +130,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
     ]);
 
     expect(preview.value.entries[2]).toMatchObject({ kind: "stock", lines: [{ account: "3121", debit: 2_400_000n }, {}] }); // the 5 t of feed left (T108)
-    expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 3 });
+    expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 4 });
     expect(await linesOf(`close:batch:${entity}:2025`)).toEqual([["2025-12-31", "31322", 14_440_000n, 0n], ["2025-12-31", "7131", 0n, 14_440_000n]]);
     expect(await linesOf(`close:provision:${entity}:2025`)).toEqual([["2025-12-31", "6196", 874_000n, 0n], ["2025-12-31", "3913", 0n, 874_000n]]);
     const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceId: `close:batch:${entity}:2025` } });
@@ -129,7 +139,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
 
   it("posts nothing when the close runs again with the same facts; the values are frozen with the count", async () => {
     expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 0 });
-    expect(await closePreview(owner, 2025, clock)).toMatchObject({ ok: true, value: { frozen: true, entries: [{}, {}, {}, { action: "unchanged" }, { action: "unchanged" }] } });
+    expect(await closePreview(owner, 2025, clock)).toMatchObject({ ok: true, value: { frozen: true, entries: [{}, {}, {}, { action: "unchanged" }, { action: "unchanged" }, { action: "unchanged" }] } });
     expect(await saveYearEndValues(owner, { year: 2025, values: { [ids.broiler]: "140 000" } })).toEqual({ ok: false, error: "COUNT_FROZEN" });
   });
 
@@ -154,7 +164,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
       expect(await saveYearEndValues({ ...other, role }, { year: 2025, values: { [ids.turkey]: "24 000" } }), role).toEqual({ ok: false, error: "FORBIDDEN" });
     }
     expect(await saveYearEndValues(other, { year: 2025, values: { [ids.broiler]: "24 000" } })).toEqual({ ok: false, error: "INVALID_INPUT" }); // not its batch
-    expect(await saveYearEndValues(owner, { year: 2026, values: { [ids.pullet]: "24 000" } })).toEqual({ ok: false, error: "INVALID_INPUT" }); // not valued (FQ7)
+    expect(await saveYearEndValues(owner, { year: 2026, values: { [ids.pullet]: "24 000" } })).toEqual({ ok: false, error: "INVALID_INPUT" }); // not a meat batch; classic hens take no value
     expect(await saveYearEndValues(other, { year: 2025, values: { [ids.turkey]: "24 000" } })).toEqual({ ok: true, value: 1 });
     expect(await db.yearEndValue.findFirst({ where: { organizationId: other.organizationId }, select: { kind: true, subjectId: true, valueCentimes: true } })).toEqual({ kind: "batch", subjectId: ids.turkey, valueCentimes: 2_400_000n });
     expect(await db.auditEvent.count({ where: { entity: "YearEndValue", organizationId: other.organizationId, action: "create" } })).toBe(1);

@@ -7,12 +7,13 @@ import { Link, redirect } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatKgValue } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
-import { yearEndCount, type CountBatchLine, type CountLine, type CountStockLine } from "@/modules/finance";
+import { yearEndCount, type CountBatchLine, type CountEggsLine, type CountLine, type CountStockLine } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { CountForm, PrintButton } from "./form";
 
 // SPEC-finance FC3 (T107): the year-end count sheet, per farm, printable on A4 with an empty "Compté" column and no
 // amount; then the quantities counted, entered online by the owner or a manager, and the gap per line. Online, like /books.
+// T113: each farm's egg stock (SPEC-m3 E2), one line, in eggs.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function CountPage({ searchParams }: { searchParams: Search }) {
@@ -44,7 +45,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
   const write = can(ctx.value, "finance.record") && !frozen; // the accountant reads (FCX1); frozen once the close posted (FCX4)
 
   const kg = (l: CountLine) => l.kind === "stock" && l.unit === "kg";
-  const unit = (l: CountLine) => (l.kind === "batch" ? t("Count.birdUnit") : t(`Stock.units.${l.unit}`));
+  const unit = (l: CountLine) => (l.kind === "batch" ? t("Count.birdUnit") : l.kind === "eggs" ? t("Count.eggUnit") : t(`Stock.units.${l.unit}`));
   const quantity = (n: number, l: CountLine) => (kg(l) ? formatKg(n) : `${formatCount(n)} ${unit(l)}`); // as the stock screen
   // The sign stays with its number in Arabic too.
   const gap = (l: CountLine) =>
@@ -54,7 +55,8 @@ async function CountView({ searchParams }: { searchParams: Search }) {
       </>
     );
   const typed = (l: CountLine) => (l.counted === null ? "" : kg(l) ? String(l.counted / 1000) : String(l.counted));
-  const label = (l: CountLine) => (l.kind === "batch" ? `${l.houseName} · ${t(`Types.${l.species}`)}` : `${l.name}${l.lot ? ` · ${l.lot}` : ""}`);
+  const label = (l: CountLine) => (l.kind === "batch" ? `${l.houseName} · ${t(`Types.${l.species}`)}` : l.kind === "eggs" ? t("Count.eggStock") : `${l.name}${l.lot ? ` · ${l.lot}` : ""}`);
+  const fix = { batch: "Count.fixDay", stock: "Count.fixStock", eggs: "Count.fixEggs" } as const;
 
   // The "Compté" cell: empty on paper; online, the owner's or a manager's field, or what was counted for the accountant.
   const counted = (l: CountLine) => (
@@ -71,7 +73,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
       <td className="text-end tabular-nums print:hidden">{gap(l)}</td>
       <td className="print:hidden">
         {write && l.gap !== null && l.gap !== 0 && (
-          <Link href={l.kind === "batch" ? `/batches#${l.id}` : "/stock"} className="underline underline-offset-4">{t(l.kind === "batch" ? "Count.fixDay" : "Count.fixStock")}</Link>
+          <Link href={l.kind === "batch" ? `/batches#${l.id}` : l.kind === "eggs" ? "/eggs" : "/stock"} className="underline underline-offset-4">{t(fix[l.kind])}</Link>
         )}
       </td>
     </>
@@ -105,6 +107,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
           {farms.map((f, i) => {
             const batches = f.lines.filter((l): l is CountBatchLine => l.kind === "batch");
             const stock = f.lines.filter((l): l is CountStockLine => l.kind === "stock");
+            const eggs = f.lines.filter((l): l is CountEggsLine => l.kind === "eggs");
             return (
               <section key={f.id} aria-label={f.name} className={`flex flex-col gap-4 ${i > 0 ? "print:break-before-page" : ""}`}>
                 <h2 className="text-xl font-semibold">{t("Count.sheet", { farm: f.name, day: formatDay(day, lang) })}</h2>
@@ -141,6 +144,24 @@ async function CountView({ searchParams }: { searchParams: Search }) {
                               {l.expiresOn ? formatDay(l.expiresOn as FarmDay, lang) : ""}
                               {l.expired && <strong className="ms-2">{t("Count.expired")}</strong>}
                             </td>
+                            <td className="tabular-nums">{quantity(l.book, l)}</td>
+                            {counted(l)}
+                            {after(l)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {eggs.length > 0 && (
+                  <div className="relative overflow-x-auto">
+                    <table className={sheet} aria-label={t("Count.eggs")}>
+                      <caption className="pb-1 text-start font-semibold">{t("Count.eggs")}</caption>
+                      {head(["Count.item", "Count.book"])}
+                      <tbody>
+                        {eggs.map((l) => (
+                          <tr key={l.id} className="break-inside-avoid">
+                            <td>{label(l)}</td>
                             <td className="tabular-nums">{quantity(l.book, l)}</td>
                             {counted(l)}
                             {after(l)}

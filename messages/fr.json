@@ -514,6 +514,7 @@
     "PREVIOUS_YEAR_OPEN": "Clôturez d’abord l’exercice précédent : ses soldes ouvrent celui-ci.",
     "CLOSE_RUN_PENDING": "Comptabilisez d’abord les écritures de clôture : l’aperçu en montre encore à passer.",
     "BATCH_VALUE_MISSING": "Saisissez la valeur actuelle des bandes en cours sans pesée ou sans vente avant de comptabiliser.",
+    "EGG_VALUE_MISSING": "Saisissez la valeur par œuf des œufs en stock avant de comptabiliser.",
     "YEAR_NOT_CLOSED": "Cet exercice n’est pas clôturé.",
     "NEXT_YEAR_CLOSED": "L’exercice suivant est clôturé : rouvrez-le d’abord.",
     "FIRST_DUE_BEFORE_DISBURSEMENT": "La première échéance doit venir après le déblocage.",
@@ -1042,6 +1043,10 @@
     "saved": "Comptage enregistré.",
     "birdUnit": "sujets",
     "fix": "Corriger",
+    "eggs": "Œufs",
+    "eggStock": "Stock d’œufs",
+    "eggUnit": "œufs",
+    "fixEggs": "Corriger le stock d’œufs",
     "frozen": "Comptage figé : les écritures de clôture de cet exercice sont comptabilisées."
   },
   "Close": {
@@ -1053,7 +1058,7 @@
     "kinds": {
       "depreciation": "Dotations aux amortissements",
       "subsidy": "Quote-part des subventions d’investissement",
-      "stock": "Stocks achetés",
+      "stock": "Stocks",
       "batch": "Bandes en cours (animaux)",
       "provision": "Provisions pour dépréciation"
     },
@@ -1073,6 +1078,15 @@
     "birds": "Sujets présents",
     "notValuedFq7": "Non valorisé (FQ7)",
     "valueRequired": "Valeur à saisir : ni pesée ni vente pour la proposer.",
+    "eggs": "Œufs en stock",
+    "eggsHint": "Les œufs comptés (sinon ceux des registres) au dernier jour de l’exercice, à la valeur par œuf que vous saisissez, en dirhams au centime : l’application ne calcule pas de coût de revient de l’œuf.",
+    "eggCount": "Œufs",
+    "farm": "Ferme",
+    "perEgg": "Valeur par œuf",
+    "perEggOf": "Valeur par œuf : {farm}",
+    "eggsValue": "Valeur",
+    "eggValueRequired": "Valeur par œuf à saisir.",
+    "eggsNotPosted": "Non comptabilisé (FQ25) : sans le Plan Comptable Agricole, 3152 n’a pas de compte CGNC où passer.",
     "actions": {
       "none": "Rien à passer pour cet exercice.",
       "unchanged": "Comptabilisée, sans changement.",

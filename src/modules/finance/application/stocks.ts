@@ -8,17 +8,18 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
+import { eggStockOnDay } from "@/modules/eggs";
 import { batchesForFinance, lastWeighings } from "@/modules/flock";
 import { stockOnDay, stockValueOnDay } from "@/modules/inventory";
 import { lastSales } from "@/modules/sales";
 import { batchResultsIn } from "@/modules/finance/application/batch-results";
 import { closePosted } from "@/modules/finance/application/count";
 import { countDay } from "@/modules/finance/domain/count";
-import { batchesAtClose, stocksAtClose, yearEndBatches, yearEndProvision, yearEndStock, type BatchAtClose, type StockAtClose } from "@/modules/finance/domain/stocks";
+import { batchesAtClose, eggsAtClose, stocksAtClose, yearEndBatches, yearEndProvision, yearEndStock, type BatchAtClose, type EggsAtClose, type StockAtClose } from "@/modules/finance/domain/stocks";
 import type { Posting } from "@/modules/finance/domain/posting";
 
-// SPEC-finance FC5 (T108): bought stock at the close; FC4 (T109): batches in progress. Reads inventory, flock and
-// sales through their index; writes only YearEndValue.
+// SPEC-finance FC5 (T108): bought stock at the close; FC4 (T109): batches in progress; FC5 (T113): eggs. Reads
+// inventory, flock, sales and eggs through their index; writes only YearEndValue.
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
 
@@ -67,11 +68,24 @@ export async function batchLinesAtClose(tx: Tx, ctx: TenantContext, entity: Lega
   );
 }
 
+/** FC5 (T113): each farm's eggs on the count day, book (eggs' E2) and counted quantities, and the owner's value per egg. */
+export async function eggLinesAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<EggsAtClose[]> {
+  const where = { organizationId: ctx.organizationId, legalEntityId: entity.id, day: date(day), kind: "eggs" };
+  const [stock, counted, perEgg] = await Promise.all([
+    eggStockOnDay(tx, ctx, day),
+    tx.yearEndCount.findMany({ where, select: { subjectId: true, quantity: true } }),
+    tx.yearEndValue.findMany({ where, select: { subjectId: true, valueCentimes: true } }),
+  ]);
+  const pca = entity.accountingProfile.overlays.includes("pca");
+  return eggsAtClose(stock, new Map(counted.map((c) => [c.subjectId, c.quantity])), new Map(perEgg.map((v) => [v.subjectId, v.valueCentimes])), pca);
+}
+
 /** The close run's "batch" kind (FCX4, FC4): D 31322 / C 7131. */
 export const closeBatches = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> => yearEndBatches(await batchLinesAtClose(tx, ctx, entity, day));
 
-/** The close run's "stock" kind (FCX4): D 31x / C the 6124 leaves. */
-export const closeStock = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> => yearEndStock(await stockLinesAtClose(tx, ctx, entity, day), entity.accountingProfile.overlays.includes("pca"));
+/** The close run's "stock" kind (FCX4): D 31x / C the 6124 leaves, and D 3152 / C 7132 for the eggs. */
+export const closeStock = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> =>
+  yearEndStock(await stockLinesAtClose(tx, ctx, entity, day), entity.accountingProfile.overlays.includes("pca"), await eggLinesAtClose(tx, ctx, entity, day));
 
 /** The close run's "provision" kind (FCX4): D 6196 / C 3912 for the stock lines, C 3913 for the batches, below cost. */
 export const closeProvision = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> =>
@@ -84,7 +98,8 @@ export const SaveValues = z.object({ year: z.number().int(), values: z.record(z.
 /**
  * FC5, FQ20: saves the owner's current value of stock lines (the whole line, in dirhams); an empty one removes it, so
  * the line is at cost again. Only a line valued at cost takes one. FC4: the same for a meat batch open on the last
- * day (empty: back to the suggested value). Owner only, audited per line. Refused once the year's close run has
+ * day (empty: back to the suggested value). FC5, FQ18 (T113): a farm's value per egg (in dirhams, to the centime), for
+ * eggs that post (with the PCA). Owner only, audited per line. Refused once the year's close run has
  * posted, as the count (FCX4). Returns how many lines changed.
  */
 export async function saveYearEndValues(ctx: TenantContext, input: unknown): Promise<Result<number, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "COUNT_FROZEN">> {
@@ -98,14 +113,15 @@ export async function saveYearEndValues(ctx: TenantContext, input: unknown): Pro
     if (!entity) return fail("NOT_FOUND");
     if (await closePosted(tx, ctx, entity.id, parsed.data.year)) return fail("COUNT_FROZEN");
     const day = countDay(parsed.data.year, entity.fiscalYearStartMonth);
-    const lines = new Map<string, { kind: "stock" | "batch"; current: bigint | null }>([
+    const lines = new Map<string, { kind: "stock" | "batch" | "eggs"; current: bigint | null }>([
       ...(await stockLinesAtClose(tx, ctx, entity, day)).flatMap((l) => (l.cost === null ? [] : [[l.id, { kind: "stock" as const, current: l.current }] as const])),
       ...(await batchLinesAtClose(tx, ctx, entity, day)).flatMap((b) => (b.valued ? [[b.id, { kind: "batch" as const, current: b.typed }] as const] : [])),
+      ...(await eggLinesAtClose(tx, ctx, entity, day)).flatMap((e) => (e.posted ? [[e.farmId, { kind: "eggs" as const, current: e.perEgg }] as const] : [])),
     ]);
-    const changes: { id: string; kind: "stock" | "batch"; value: bigint | null }[] = [];
+    const changes: { id: string; kind: "stock" | "batch" | "eggs"; value: bigint | null }[] = [];
     for (const [id, text] of Object.entries(parsed.data.values)) {
       const line = lines.get(id);
-      if (!line) return fail("INVALID_INPUT"); // not a valued stock line or meat batch of this organisation
+      if (!line) return fail("INVALID_INPUT"); // not a valued stock line, meat batch or farm with eggs of this organisation
       const value = text === "" ? null : parseCentimes(text);
       if (text !== "" && value === null) return fail("INVALID_INPUT");
       if (value !== line.current) changes.push({ id, kind: line.kind, value });

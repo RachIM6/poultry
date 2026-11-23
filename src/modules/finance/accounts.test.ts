@@ -8,7 +8,7 @@ import { EXPENSE_ACCOUNTS } from "@/modules/finance/domain/treasury";
 import { ASSET_ACCOUNTS, ASSET_DEBTS, DEPRECIATION_CHARGE, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
 import { LOAN_INTEREST, LOANS } from "@/modules/finance/domain/loans";
 import { SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE } from "@/modules/finance/domain/subsidies";
-import { IN_PROGRESS, IN_PROGRESS_PROVISION, IN_PROGRESS_VARIATION, PROVISION_CHARGE, PROVISION_REVERSAL, STOCK_ACCOUNTS, STOCK_PROVISION, stockAccountsOf } from "@/modules/finance/domain/stocks";
+import { EGGS_STOCK, EGGS_VARIATION, IN_PROGRESS, IN_PROGRESS_PROVISION, IN_PROGRESS_VARIATION, PROVISION_CHARGE, PROVISION_REVERSAL, STOCK_ACCOUNTS, STOCK_PROVISION, stockAccountsOf } from "@/modules/finance/domain/stocks";
 
 const seed = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
 const everything = chartOf(seed.accounts, "cgnc", ["pca"]);
@@ -129,6 +129,10 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
     }
     // T109 (FC4, FQ1): with the PCA off, 31322 lands on 3132 Encours de Production, a CGNC leaf; 7131 and 3913 are CGNC's.
     expect([IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION].map((a) => postingAccount(a, everything, cgncOnly))).toEqual(["3132", "7131", "3913"]);
+    // T113 (FC5, FQ25): the eggs post with the PCA only; without it 3152 lands on 315, which has sub-accounts.
+    for (const account of [EGGS_STOCK, EGGS_VARIATION]) expect(parents(withPca).has(account), account).toBe(false);
+    expect([EGGS_STOCK, EGGS_VARIATION].map((a) => postingAccount(a, everything, cgncOnly))).toEqual(["315", "7132"]);
+    expect(parents(cgncOnly).has("315")).toBe(true);
   });
 
   // T108 (FC5, FQ1): the stock account follows the purchase's family in each chart (FN6: 6121 → 3121 / 61241x,

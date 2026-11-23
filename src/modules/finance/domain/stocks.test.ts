@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { openingReversalOf } from "@/modules/finance/domain/close";
-import { batchInProgressValue, batchesAtClose, stockAtCloseValue, stocksAtClose, suggestedValue, yearEndBatches, yearEndProvision, yearEndStock } from "@/modules/finance/domain/stocks";
+import { batchInProgressValue, batchesAtClose, eggsAtClose, stockAtCloseValue, stocksAtClose, suggestedValue, yearEndBatches, yearEndProvision, yearEndStock } from "@/modules/finance/domain/stocks";
 
 const item = (id: string, kind: "feed" | "vaccine" | "litter" | "gas" | "other", onHand: number) => ({ id, farmId: "f1", kind, name: id, unit: "kg" as const, lot: null, onHand });
 
@@ -105,5 +105,20 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
     expect(batchInProgressValue(18_240_000n, 0, 2000, null)).toEqual({ cost: 0n, provision: 0n }); // all sold: nothing in progress
     expect(batchesAtClose([{ ...c, onHand: 0 }], new Map(), new Map(), new Map())[0].missing).toBe(false);
     expect(yearEndBatches([])).toBeNull();
+  });
+});
+
+describe("eggs at the close (SPEC-finance FC5, FQ18, T113)", () => {
+  const stock = [{ farmId: "f1", eggs: 12_000 }, { farmId: "f2", eggs: 3_000 }, { farmId: "f3", eggs: 500 }];
+  it("values the counted eggs, else the book ones, × the owner's value per egg; requires a value, not for eggs counted 0", () => {
+    const eggs = eggsAtClose(stock, new Map([["f1", 11_800], ["f3", 0]]), new Map([["f1", 95n]]), true);
+    expect(eggs.map((e) => [e.farmId, e.quantity, e.value, e.missing])).toEqual([["f1", 11_800, 1_121_000n, false], ["f2", 3_000, 0n, true], ["f3", 0, 0n, false]]);
+    expect(yearEndStock([], true, eggs)?.lines).toEqual([{ account: "3152", debit: 1_121_000n, credit: 0n }, { account: "7132", debit: 0n, credit: 1_121_000n }]);
+    expect(openingReversalOf(yearEndStock([], true, eggs)!.lines)).toEqual([{ account: "3152", debit: 0n, credit: 1_121_000n }, { account: "7132", debit: 1_121_000n, credit: 0n }]);
+  });
+  it("posts nothing for the eggs with the PCA off, and needs no value then (FQ25)", () => {
+    const eggs = eggsAtClose(stock, new Map(), new Map([["f1", 95n]]), false);
+    expect(eggs.map((e) => [e.posted, e.value, e.missing])).toEqual([[false, 0n, false], [false, 0n, false], [false, 0n, false]]);
+    expect(yearEndStock([], false, eggs)).toBeNull();
   });
 });

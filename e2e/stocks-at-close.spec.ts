@@ -33,9 +33,9 @@ test("the owner counts a stock item, reads its value at cost in the close previe
 
   // The preview: D 3121 / C 612412 at cost, the line with its quantity and value.
   await page.goto("/fr/closing?year=2026");
-  const stock = page.getByRole("region", { name: "Stocks achetés" });
+  const stock = page.getByRole("region", { name: "Stocks", exact: true });
   await expect(stock).toContainText("À comptabiliser.");
-  const entry = stock.getByRole("table", { name: "Écriture · Stocks achetés" }).getByRole("row");
+  const entry = stock.getByRole("table", { name: "Écriture · Stocks" }).getByRole("row");
   await expect(entry).toHaveCount(3);
   await expect(entry.nth(1)).toContainText(/^3121 Matières premières\s*98\s400,00/);
   await expect(entry.nth(2)).toContainText(/^612412 Variation des stocks de matières premières Agricoles – Animaux\s*98\s400,00/);
@@ -73,12 +73,12 @@ test("the owner counts a stock item, reads its value at cost in the close previe
   // The accountant reads the lines without a field or a button (FCX1).
   await query(`UPDATE "Membership" SET role = 'accountant' WHERE "organizationId" = ${orgOf}`, [e164]);
   await page.goto("/fr/closing?year=2026");
-  await expect(page.getByRole("region", { name: "Stocks achetés" }).getByRole("row").filter({ hasText: "Croissance" })).toContainText(/97\s300,00\sDH/);
+  await expect(page.getByRole("region", { name: "Stocks", exact: true }).getByRole("row").filter({ hasText: "Croissance" })).toContainText(/97\s300,00\sDH/);
   await expect(page.getByRole("button", { name: "Enregistrer les valeurs actuelles" })).toHaveCount(0);
 
   // Arabic, right to left: the tables scroll, not the page.
   await page.goto("/ar/closing?year=2026");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByRole("region", { name: "المخزونات المشتراة" })).toContainText("3121");
+  await expect(page.getByRole("region", { name: "المخزونات", exact: true })).toContainText("3121");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

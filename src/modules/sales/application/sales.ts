@@ -130,7 +130,7 @@ export async function recordEggSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typ
   if (!decided.ok) return decided;
 
   const withheld = await eggWithdrawalWindowsOf(tx, ctx, cmd.batchId);
-  const drawn = await drawEggs(tx, ctx, { saleId: cmd.id, batchId: cmd.batchId, wanted: cmd.lines.map((l) => ({ item: l.item as EggItem, eggs: l.eggs })), withheld });
+  const drawn = await drawEggs(tx, ctx, { saleId: cmd.id, batchId: cmd.batchId, day: cmd.day, wanted: cmd.lines.map((l) => ({ item: l.item as EggItem, eggs: l.eggs })), withheld });
   if (!drawn.ok) return drawn; // nothing written yet: eggs checks before it writes
 
   const sale: Required<SaleDto> = {

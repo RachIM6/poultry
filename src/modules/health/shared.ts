@@ -8,6 +8,8 @@ import type { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 // phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
 export { checkDone, remindedDueOn, statusOn } from "@/modules/health/domain/vaccination";
 export type { DoneError, Reminder, VaccinationStatus } from "@/modules/health/domain/vaccination";
+export { checkAdd, checkEdit, lineDueOn, moveLine } from "@/modules/health/domain/plan-edit";
+export type { PlanEditError } from "@/modules/health/domain/plan-edit";
 export { checkBatchDay, checkTreatment, eggWithdrawalEnd, eggWithdrawalUntil, eggWithdrawalWindows, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
 
 export type VaccinationMethod = (typeof VACCINATION_METHODS)[number];
@@ -54,6 +56,9 @@ export type VetVisitDto = { id: string; batchId: string; on: string; vetName: st
 export const HEALTH_MUTATIONS = {
   planVaccinations: "health.planVaccinations",
   recordVaccination: "health.recordVaccination",
+  addVaccination: "health.addVaccination",
+  moveVaccination: "health.moveVaccination",
+  cancelVaccination: "health.cancelVaccination",
   recordTreatment: "health.recordTreatment",
   recordVetVisit: "health.recordVetVisit",
 } as const;

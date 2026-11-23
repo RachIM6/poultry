@@ -213,7 +213,7 @@ function DiscardForm({ lot, lots, onSave, onCancel }: { lot: Lot; lots: Lot[]; o
     const data = new FormData(e.currentTarget);
     const eggs = Number(String(data.get("eggs") ?? "").trim());
     const reason = String(data.get("reason") ?? "").trim();
-    const discard: EggDiscardDto = { id: uuidv7(), batchId: lot.batchId, laidOn: lot.laidOn, item: lot.item, eggs, reason };
+    const discard: EggDiscardDto = { id: uuidv7(), batchId: lot.batchId, laidOn: lot.laidOn, item: lot.item, eggs, reason, day: today() };
     const checked = checkDiscard(lots, discard); // as the server
     if (!checked.ok || !reason) return setError(`errors.${checked.ok ? "INVALID_INPUT" : checked.error}`);
     onSave(discard);

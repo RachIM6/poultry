@@ -86,6 +86,7 @@ describe("phone + code login (SPEC I1–I2)", () => {
       userId: user.id,
       after: { everywhere: true, otherDevices: 1 },
     });
+    expect(await db.authEvent.findMany({ where: { action: "logout", userId: user.id } })).toMatchObject([{ reason: "everywhere", phone: "+2126•••••77" }]);
   });
 
   it("ends a session 90 days after login even if it kept sliding", async () => {

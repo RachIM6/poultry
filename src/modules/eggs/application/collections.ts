@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
@@ -91,15 +91,21 @@ export async function gradeEggs(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof 
   return ok(undefined);
 }
 
-/** SPEC-m3 E3, applied by the sync push: eggs of a lot thrown away, with the reason. */
-export async function discardEggs(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof DiscardEggs>, meta: Meta) {
+/** SPEC-m3 E3, applied by the sync push: eggs of a lot thrown away, with the reason, on the phone's farm day. */
+export async function discardEggs(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof DiscardEggs>, meta: Meta, clock: Clock = systemClock) {
+  // A phone from before `day` was sent (rollout): the server's farm day, as discards were counted until then, never
+  // before the lot's laying day (a phone a little ahead may have collected "tomorrow").
+  const serverDay = farmDayOf(clock.now());
+  const day = cmd.day ?? (serverDay < cmd.laidOn ? cmd.laidOn : serverDay);
+  if (daysBetween(day as FarmDay, todayOf(clock)) < 0) return fail("DAY_IN_FUTURE");
+  if (day < cmd.laidOn) return fail("INVALID_INPUT"); // eggs can't be thrown away before they were laid
   const batch = await layerBatch(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");
   if (await discardIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
   await lockEggs(tx, cmd.batchId);
   const checked = checkDiscard(eggLots(await eggFlowsOf(tx, ctx, cmd.batchId)), cmd);
   if (!checked.ok) return checked;
-  const dto: EggDiscardDto = cmd;
+  const dto: EggDiscardDto = { ...cmd, day };
   await saveDiscard(tx, ctx, batch.farmId, dto);
   await recordChange(tx, ctx, "eggDiscard", dto.id, dto);
   await audit(tx, ctx, { entity: "EggDiscard", entityId: dto.id, action: "create", after: dto, ...meta });

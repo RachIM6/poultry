@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, scopeRemembered } from "./auth";
 
 // T107 (SPEC-finance FC3): the year-end count sheet lists the farm's open batches and stock items on the fiscal year's
@@ -13,7 +14,7 @@ test("the year-end count sheet lists every open batch and stock item, prints wit
   await pushAs(page, [
     { type: "flock.recordDay", payload: { batchId: ids.batch, day: farmDaysAgo(9), changes: { dead: 5, culled: 0, feed: null } } },
     { type: "inventory.createStockItem", payload: { id: vaccine, farmId: ids.farm, productId: null, kind: "vaccine", name: "HB1", unit: "dose", lot: "L-77", expiresOn: farmDaysAgo(5) } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: vaccine, day: farmDaysAgo(10), quantity: 1000, unitPriceCentimes: "35", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: vaccine, day: farmDaysAgo(10), quantity: 1000, unitPriceCentimes: "35", paidCentimes: "0", dueOn: null } },
   ]);
 
   await page.goto("/fr/dashboard");

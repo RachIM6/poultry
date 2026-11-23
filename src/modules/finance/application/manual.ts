@@ -8,9 +8,10 @@ import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
+import { treasuryKindOfAccount } from "@/modules/finance/domain/treasury";
 import { ManualEntryInput } from "@/modules/finance/schema";
 
-export type ManualEntryError = PostError | "INVALID_INPUT" | "DAY_IN_FUTURE" | "CASH_BOOK_NO_MANUAL_ENTRY";
+export type ManualEntryError = PostError | "INVALID_INPUT" | "DAY_IN_FUTURE" | "CASH_BOOK_NO_MANUAL_ENTRY" | "TREASURY_ACCOUNT_REQUIRED" | "TREASURY_ACCOUNT_MISMATCH";
 
 /**
  * SPEC-finance FCX3: an `OD` entry the owner types, on any posting account of the entity's chart, also the first
@@ -28,7 +29,21 @@ export async function postManualEntry(ctx: TenantContext, input: unknown, clock:
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
   if (entity.accountingProfile.books !== "ledger") return fail("CASH_BOOK_NO_MANUAL_ENTRY");
-  const lines = e.lines.map((l) => ({ account: l.account, debit: BigInt(l.debit), credit: BigInt(l.credit) }));
+  // FN3, FN10, FC9: a 5141 line names one of the organisation's bank accounts, a 5161 line a cash box, like every
+  // other posting, so the balance per account and the bank reconciliation see it (an opening bank balance, FCX3).
+  const named = e.lines.flatMap((l) => (l.treasuryId ? [l.treasuryId] : []));
+  const kinds = new Map((await db.treasuryAccount.findMany({ where: { id: { in: named }, organizationId: ctx.organizationId }, select: { id: true, kind: true } })).map((a) => [a.id, a.kind]));
+  for (const l of e.lines) {
+    const kind = treasuryKindOfAccount(l.account);
+    if (!kind) {
+      if (l.treasuryId) return fail("INVALID_INPUT");
+      continue;
+    }
+    if (!l.treasuryId) return fail("TREASURY_ACCOUNT_REQUIRED");
+    if (!kinds.has(l.treasuryId)) return fail("NOT_FOUND"); // another organisation's
+    if (kinds.get(l.treasuryId) !== kind) return fail("TREASURY_ACCOUNT_MISMATCH");
+  }
+  const lines = e.lines.map((l) => ({ account: l.account, debit: BigInt(l.debit), credit: BigInt(l.credit), treasuryId: l.treasuryId }));
   const retry = (prior: { organizationId: string } | null) => (prior?.organizationId === ctx.organizationId ? ok(undefined) : fail("ALREADY_EXISTS"));
   return db.$transaction(async (tx) => {
     const prior = await tx.manualEntry.findUnique({ where: { id: e.id }, select: { organizationId: true } });

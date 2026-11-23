@@ -10,11 +10,13 @@ import { batchOf, readBooks, type IncomeStatement } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, table, warn } from "@/components/ui";
-import { ManualEntryForm } from "./form";
+import { ManualEntryForm, PeriodLockForm, ReverseEntryForm } from "./form";
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
 // FCX3: the owner's manual entry form; a cash_book entity sees it disabled (FQ11).
 // FCX6: the CPC and the bilan are a "Projet" until the year is closed, then "Exercice clôturé le …".
+// FN5: the month's lock, the owner locks or unlocks it (a closed year's months: its reopen, on /closing); the owner
+// cancels a manual entry from the journal.
 // FC7: the month's home consumptions that post nothing (FQ11, FQ25, no value) are listed, whatever the view.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 const VIEWS = ["cash", "journals", "ledger", "trial", "cpc", "bilan"] as const;
@@ -56,6 +58,9 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
   const closed = books.closedOn ? day(books.closedOn) : null;
   const account = (n: string) => `${n} ${books.labels[n] ?? ""}`;
   const href = (v: string, m: string) => ({ pathname: "/books", query: { view: v, month: m } });
+  const manage = can(ctx.value, "finance.manage");
+  const locked = books.lockedMonths.includes(month);
+  const lockedInYear = books.lockedMonths.filter((m) => m >= books.fiscalYear.from.slice(0, 7) && m <= books.fiscalYear.to.slice(0, 7));
 
   return (
     <>
@@ -68,7 +73,31 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
         <a href={`/api/finance/export?month=${month}`} download className="ms-auto underline underline-offset-4">{t("Books.export")}</a>
         {books.books === "ledger" && <a href={`/api/finance/export?month=${month}&format=fec`} download className="underline underline-offset-4">{t("Books.exportFec")}</a>}
       </nav>
-      {can(ctx.value, "finance.manage") && (
+      <section className={card} aria-labelledby="period-title">
+        <h2 id="period-title" className="font-semibold">{t("Books.period")}</h2>
+        <p>{t(locked ? "Books.monthIsLocked" : "Books.monthIsOpen")}</p>
+        {lockedInYear.length > 0 && (
+          <p className="text-sm text-ink-2">
+            {t("Books.lockedMonths")}{" "}
+            {lockedInYear.map((m, i) => (
+              <Fragment key={m}>
+                {i > 0 && ", "}
+                <Link href={href(view, m)} className="underline underline-offset-4" dir="ltr">{m}</Link>
+              </Fragment>
+            ))}
+          </p>
+        )}
+        {manage &&
+          (locked && closed ? (
+            <p className="text-sm text-ink-2">
+              {t("errors.FISCAL_YEAR_CLOSED")}{" "}
+              <Link href={{ pathname: "/closing", query: { year: books.fiscalYear.to.slice(0, 4) } }} className="underline underline-offset-4">{t("Close.open")}</Link>
+            </p>
+          ) : (
+            <PeriodLockForm month={month} locked={locked} />
+          ))}
+      </section>
+      {manage && (
         <details className={card}>
           <summary className="cursor-pointer font-semibold">{t("Books.manual")}</summary>
           {books.books === "ledger" ? (
@@ -147,22 +176,26 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           <section key={j.journal} className="flex flex-col gap-2">
             <h2 className="text-[17px] font-semibold text-ink-2">{t("Books.journal", { journal: j.journal })}</h2>
             {j.entries.map((e) => (
-              <table key={e.id} className={table}>
-                <caption className="text-start font-semibold">
-                  {day(e.day)} · {e.label}
-                  {e.piece && <> · {t("Books.pieceOf", { piece: e.piece })}</>}
-                  {e.receipt && <> · <a href={`/api/files/${e.receipt}`} className="underline underline-offset-4">{t("Books.receiptOf")}</a></>}
-                </caption>
-                <tbody>
-                  {e.lines.map((l, i) => (
-                    <tr key={i} className="border-t border-line">
-                      <td className="p-2"><bdi dir="ltr">{account(l.account)}</bdi></td>
-                      <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
-                      <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <Fragment key={e.id}>
+                <table className={table}>
+                  <caption className="text-start font-semibold">
+                    {day(e.day)} · {e.label}
+                    {e.piece && <> · {t("Books.pieceOf", { piece: e.piece })}</>}
+                    {e.receipt && <> · <a href={`/api/files/${e.receipt}`} className="underline underline-offset-4">{t("Books.receiptOf")}</a></>}
+                    {e.reversed && <> · {t("Books.reversedTag")}</>}
+                  </caption>
+                  <tbody>
+                    {e.lines.map((l, i) => (
+                      <tr key={i} className="border-t border-line">
+                        <td className="p-2"><bdi dir="ltr">{account(l.account)}</bdi></td>
+                        <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
+                        <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {manage && e.reversed !== undefined && <ReverseEntryForm entryId={e.id} name={`${day(e.day)} · ${e.label}`} reversed={e.reversed} />}
+              </Fragment>
             ))}
           </section>
         ))}

@@ -118,3 +118,25 @@ Other measurements:
 The margin is thin: 2.5 KB. Brotli at the host (T26) adds about 15 % more. A size check in CI would stop the next feature from quietly undoing it; that is a follow-up, not done here.
 
 **Result: both budgets are met on the emulated mid-range phone.** A real mid-range Android phone and a Lighthouse report are still owed: they need the device (pilot preparation, T26).
+
+### Margin won back (2026-11-23): precompiled messages
+
+By M3 and M2 compliance, `/fr/batches` had grown to 199.8 KB, 0.2 KB under the limit `e2e/budget.spec.ts` checks.
+
+What it loaded (gzip, per file, as served by `next start`):
+- react-dom 70.2 KB and the Next router runtime 45.6 + 7.6 + 4.3 + 3.5 + 1.9 KB, which every page loads;
+- Dexie 30.9 KB, with dexie-react-hooks, the app nav and next-intl's navigation (7.8 KB), for the whole signed-in group;
+- next-intl's message formatter, **11.8 KB, mostly the ICU message parser** (intl-messageformat and its parser), on every page;
+- the batch screen itself 13.0 KB: the list and the day form 5.2 KB, the flock rules 2.2 KB, sync 1.3 KB, uuid (v5 and v7) 1.6 KB, the `next/dynamic` loader 1.3 KB;
+- the lazy sections' loader 0.4 KB.
+
+The change: next-intl's `precompile` option (`next.config.ts`). The messages are compiled to icu-minify's compact form at build time, and the pages ship a small formatter instead of the parser. No new dependency (icu-minify comes with next-intl). Every one of the 3 640 messages in `fr.json` and `ar.json`, with sample values for each argument, plural and select branch, formats identically with the parser and precompiled (7 728 comparisons, 0 differences).
+
+| Budget | Before | After |
+|---|---|---|
+| `/fr/login` | 156.4 KB | **147.8 KB** |
+| `/fr/batches` (daily entry) | 199.8 KB | **191.3 KB** (8.5 KB of margin) |
+
+The compiled messages travel in the page's HTML, not in a script: the HTML grows by 0.6 KB gzip (31.1 → 31.7 KB), so the real saving on the first visit is about 7.9 KB, and the browser no longer parses ICU messages at run time.
+
+Further room, not taken: making Dexie lazy (it is needed for the first paint, so it would only move the bytes past the load event), and replacing uuid's SHA-1 with Web Crypto (async, so the deterministic ids would change shape in the code).

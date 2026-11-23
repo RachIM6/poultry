@@ -50,4 +50,8 @@ const nextConfig: NextConfig = {
 };
 
 // next-intl points at src/i18n/request.ts; Serwist keeps esbuild out of the server bundle (it builds src/sw.ts).
-export default createNextIntlPlugin()(withSerwist(nextConfig));
+// precompile: the ICU messages are compiled at build time, so the screens ship a small formatter instead of the ICU
+// parser (about 10 KB gzip off every page, SPEC §9.3).
+export default createNextIntlPlugin({
+  experimental: { messages: { path: "./messages", format: "json", locales: "infer", precompile: true } },
+})(withSerwist(nextConfig));

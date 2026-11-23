@@ -93,6 +93,9 @@ Done 2026-11-18 (branch `feat/t96-planning`, with T97), decisions taken without 
 - **Gaps and overlaps compare each slot with the one just before it** in placement order.
 - **Edit = save again while planned** (the server accepts it); the screen offers "Annuler" and a new plan, not an edit form yet.
 - Planning is hidden from both partner roles (allowlist test updated).
+
+Revised 2026-11-23 (branch `feat/downtime-disposal-official`), NQ4 decided default with sources (SPEC-m5 §2):
+- [x] Without a rule, the official 20 days (arrêté n° 2127-05, art. 4) apply; a rule below 20 is refused (`DOWNTIME_BELOW_OFFICIAL`), one entered lower before gives way. The warning always shows, and the placement form and `/cleanout` read the same figure. (`planning/domain/plan.test.ts`, `planning/plans.int.test.ts`, `e2e/planning.spec.ts`.)
 **Size:** M
 
 ### T97: /planning (PL2)

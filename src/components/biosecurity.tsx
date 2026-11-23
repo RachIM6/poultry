@@ -8,7 +8,6 @@ import { Field, FileUpload, Shell, of, useOnline, type Save, type Screen } from 
 import { card, danger, field, primary, secondary, warn } from "@/components/ui";
 import { formatCount, formatDateTime, formatDay, formatKg } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { can } from "@/lib/permissions";
 import {
   BIOSECURITY_MUTATIONS as B,
   CLEANOUT_STEPS,
@@ -19,6 +18,7 @@ import {
   VISITOR_RECENT_FARM_HOURS,
   ZONES,
   checkDisposal,
+  checkManure,
   checkStep,
   disposalGaps,
   downtimeDay,
@@ -26,7 +26,6 @@ import {
   type CleanoutDto,
   type CleanoutStepKey,
   type DisposalDto,
-  type DowntimeSettingDto,
   type ManureRemovalDto,
   type RodentCheckDto,
   type VisitDto,
@@ -35,6 +34,7 @@ import {
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto, DailyEntryDto } from "@/modules/flock/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
+import { downtimeOn, type DowntimeRule } from "@/modules/planning/shared";
 import type { LocalRecord } from "@/offline/db";
 
 // SPEC-m2-compliance §4 on static shells, offline: the logs a farm keeps on the phone.
@@ -384,7 +384,7 @@ function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps
         )}
       </Field>
       {method === "other" && <Field label={t("Disposal.methodNote")}>{(id) => <input id={id} name="methodNote" required maxLength={200} defaultValue={disposal?.methodNote ?? ""} className={field} />}</Field>}
-      <p className={`${warn} text-sm`}>{t("Disposal.toConfirm")}</p>
+      <p className="text-sm text-muted">{t("Disposal.sources")}</p>
       {error && <p role="alert">{t(error)}</p>}
       <Submit label={t("Disposal.save")} onCancel={onCancel} />
     </form>
@@ -428,6 +428,7 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
   const t = useTranslations();
   const [error, setError] = useState<string>();
   const [key, setKey] = useState(0);
+  const [destination, setDestination] = useState<ManureRemovalDto["destination"]>(removal?.destination ?? "stored");
   const today = farmDayOf(new Date());
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -437,6 +438,9 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
     const quantityKg = parseQuantity(get("quantity"), "unit");
     if (quantityKg === null) return setError("errors.INVALID_QUANTITY");
     if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
+    const spreadDeclared = destination === "spread" && data.get("spreadDeclared") === "on";
+    const checked = checkManure({ destination, spreadDeclared }); // CQ4, the server's rule too
+    if (!checked.ok) return setError(`errors.${checked.error}`);
     setError(undefined);
     const r: ManureRemovalDto = {
       id: removal?.id ?? uuidv7(),
@@ -445,10 +449,14 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
       houseId: get("house") || null,
       batchId: get("batch") || null,
       quantityKg,
-      destination: get("destination") as ManureRemovalDto["destination"],
+      destination,
       recipient: get("recipient") || null,
+      spreadDeclared,
     };
-    if ((await onSave(r)) && !removal) setKey((k) => k + 1);
+    if ((await onSave(r)) && !removal) {
+      setKey((k) => k + 1);
+      setDestination("stored");
+    }
   };
 
   return (
@@ -473,11 +481,17 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
       <Field label={t("Disposal.quantity")}>{(id) => <input id={id} name="quantity" inputMode="numeric" required dir="ltr" defaultValue={removal?.quantityKg} className={field} />}</Field>
       <Field label={t("Disposal.destination")}>
         {(id) => (
-          <select id={id} name="destination" defaultValue={removal?.destination} className={field}>
+          <select id={id} value={destination} onChange={(e) => setDestination(e.target.value as ManureRemovalDto["destination"])} className={field}>
             {MANURE_DESTINATIONS.map((k) => <option key={k} value={k}>{t(`Disposal.destinations.${k}`)}</option>)}
           </select>
         )}
       </Field>
+      {destination === "spread" && (
+        <label className={check}>
+          <input type="checkbox" name="spreadDeclared" required defaultChecked={removal?.spreadDeclared} className="size-6" />
+          {t("Disposal.spreadDeclared")}
+        </label>
+      )}
       <Field label={t("Disposal.recipient")}>{(id) => <input id={id} name="recipient" maxLength={120} defaultValue={removal?.recipient ?? ""} className={field} />}</Field>
       {error && <p role="alert">{t(error)}</p>}
       <Submit label={t("Disposal.saveManure")} onCancel={onCancel} />
@@ -486,7 +500,7 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
 }
 
 // BS4–BS5: a house between two batches. The clean-out follows the house's last closed batch.
-export const CleanoutScreen = () => <Shell {...log} entities={["farm", "house", "batch", "cleanout", "downtimeSetting"]} screen={Cleanouts} />;
+export const CleanoutScreen = () => <Shell {...log} entities={["farm", "house", "batch", "cleanout", "downtimeRule"]} screen={Cleanouts} />;
 
 function Cleanouts(props: Parameters<Screen>[0]) {
   const { records, save } = props;
@@ -500,12 +514,11 @@ function Cleanouts(props: Parameters<Screen>[0]) {
   const houses = of<HouseDto>(records, "house").filter((h) => h.farmId === farm.id).sort((x, y) => x.name.localeCompare(y.name));
   const batches = of<BatchDto>(records, "batch");
   const cleanouts = of<CleanoutDto>(records, "cleanout");
-  const minDays = of<DowntimeSettingDto>(records, "downtimeSetting").find((s) => s.farmId === farm.id)?.minDays ?? null;
+  const { minDays } = downtimeOn(of<DowntimeRule>(records, "downtimeRule"), farm.id, today); // planning's one figure (CQ3)
 
   return (
     <>
       <FarmPicker {...picker} />
-      {can(props, "farms.manage") && <MinDowntime key={farm.id} farmId={farm.id} minDays={minDays} save={save} />}
       {houses.map((house) => {
         const last = batches.filter((b) => b.houseId === house.id).sort((x, y) => y.placedOn.localeCompare(x.placedOn))[0];
         if (!last) return null;
@@ -535,9 +548,7 @@ function Cleanouts(props: Parameters<Screen>[0]) {
               <>
                 <p className="rounded-2xl bg-ink p-3 font-semibold text-shell" role="status">
                   {disinfectedOn
-                    ? minDays === null
-                      ? t("downtime", { day: downtimeDay(disinfectedOn as FarmDay, today) })
-                      : t("downtimeOf", { day: downtimeDay(disinfectedOn as FarmDay, today), min: minDays, end: day(addFarmDays(disinfectedOn as FarmDay, minDays)) })
+                    ? t("downtimeOf", { day: downtimeDay(disinfectedOn as FarmDay, today), min: minDays, end: day(addFarmDays(disinfectedOn as FarmDay, minDays)) })
                     : t("notDisinfected")}
                 </p>
                 <Steps cleanout={cleanout} day={day} save={save} />
@@ -616,24 +627,6 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
         );
       })}
     </ol>
-  );
-}
-
-function MinDowntime({ farmId, minDays, save }: { farmId: string; minDays: number | null; save: Save }) {
-  const t = useTranslations("Cleanout");
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const text = String(new FormData(e.currentTarget).get("minDays") ?? "").trim();
-    const value = text === "" ? null : Number(text);
-    if (value !== null && !(Number.isInteger(value) && value >= 1 && value <= 365)) return;
-    const s: DowntimeSettingDto = { id: farmId, farmId, minDays: value };
-    await save({ type: B.setMinDowntime, payload: { farmId, minDays: value } }, "downtimeSetting", s);
-  };
-  return (
-    <form onSubmit={submit} className="flex items-end gap-2">
-      <Field label={t("minDays")}>{(id) => <input id={id} name="minDays" inputMode="numeric" pattern="\d*" defaultValue={minDays ?? ""} dir="ltr" className={field} />}</Field>
-      <button type="submit" className={secondary}>{t("saveMin")}</button>
-    </form>
   );
 }
 

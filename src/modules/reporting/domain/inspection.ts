@@ -1,4 +1,4 @@
-import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { CleanoutDto, RodentCheckDto } from "@/modules/biosecurity/shared";
 import { documentState, type DocumentDto } from "@/modules/documents/shared";
 import type { BatchDto, ProductionType } from "@/modules/flock/shared";
@@ -14,9 +14,6 @@ import { batchMonths } from "@/modules/reporting/domain/register";
  */
 export const INSPECTION_LOOKBACK_MONTHS = { meat: 12, laying: 24 } as const;
 export const lookbackMonths = (species: ProductionType) => (species === "layer" || species === "pullet" ? INSPECTION_LOOKBACK_MONTHS.laying : INSPECTION_LOOKBACK_MONTHS.meat);
-
-/** Arrêté n° 2127-05, art. 4: at least 20 days of downtime between two successive batches. */
-export const MIN_DOWNTIME_DAYS = 20;
 
 /** The first farm day `months` calendar months back, so 5 Nov 2026 − 12 → 5 Nov 2025. The logs look back 12 months. */
 // ponytail: a 31st or 29 Feb rolls one day into the next month; a day more or less of history is harmless here.
@@ -37,6 +34,7 @@ export type Missing =
   | { key: "noDisinfection"; batchId: string }
   | { key: "rodentProof"; day: string }
   | { key: "downtime"; batchId: string; days: number }
+  | { key: "downtimeOccupied"; batchId: string; houseId: string }
   | { key: "newcastle" | "newcastleLot"; batchId: string };
 
 /** `check`: the app can't tell; the keeper checks it on site and ticks it on paper (self-declaration). */
@@ -71,9 +69,15 @@ type Input = {
   vetVisits: VetVisitDto[];
   vaccinations: VaccinationDto[];
   stockItems: { id: string; lot: string | null }[];
+  /**
+   * Arrêté n° 2127-05, art. 4 (CQ3): planning's one rule for a batch's placement, given by the app layer (reporting
+   * doesn't depend on planning): too few days since the farm's (or, for layers, the house's) last end, or another
+   * house still holding a batch of the previous cycle.
+   */
+  downtimeOf: (b: BatchDto) => { kind: "short"; elapsedDays: number } | { kind: "occupied"; houseId: string } | null;
 };
 
-export function inspectionChecklist({ today, farm, documents, batches, cleanouts, rodentChecks, vetVisits, vaccinations, stockItems }: Input): CheckLine[] {
+export function inspectionChecklist({ today, farm, documents, batches, cleanouts, rodentChecks, vetVisits, vaccinations, stockItems, downtimeOf }: Input): CheckLine[] {
   const since = inspectionSince(today);
   const docs = documents.filter((d) => d.farmId === null || d.farmId === farm.id);
   const valid = (category: DocumentDto["category"]) => docs.some((d) => d.category === category && documentState(d.expiresOn, today) !== "expired");
@@ -101,12 +105,10 @@ export function inspectionChecklist({ today, farm, documents, batches, cleanouts
 
   const rodents: Missing[] = checks.length === 0 ? [{ key: "noRodentCheck" }] : checks.filter((r) => !r.proofFileId).map((r) => ({ key: "rodentProof", day: r.day }));
 
-  // Art. 4: per house, from the previous batch's closing to the next placement. The text counts it per farm (per
-  // house for egg farms) and doesn't say from which day (CQ3): a short gap is missing, a long one still to confirm.
-  const downtime: Missing[] = pack.flatMap((b) => {
-    const before = farmBatches.filter((p) => p.houseId === b.houseId && p.closedOn && p.closedOn <= b.placedOn && p.id !== b.id).sort((x, y) => (y.closedOn ?? "").localeCompare(x.closedOn ?? ""))[0];
-    const days = before && daysBetween(before.closedOn as FarmDay, b.placedOn as FarmDay);
-    return before && days < MIN_DOWNTIME_DAYS ? [{ key: "downtime" as const, batchId: b.id, days }] : [];
+  // Art. 4, CQ3: a short downtime or a previous-cycle batch is missing; a long one is still to confirm on site.
+  const downtime: Missing[] = pack.flatMap((b): Missing[] => {
+    const w = downtimeOf(b);
+    return !w ? [] : w.kind === "short" ? [{ key: "downtime", batchId: b.id, days: w.elapsedDays }] : [{ key: "downtimeOccupied", batchId: b.id, houseId: w.houseId }];
   });
 
   // S6 art. 13–14: Newcastle vaccination is compulsory, each one recorded with its lot number. Missing: none planned,

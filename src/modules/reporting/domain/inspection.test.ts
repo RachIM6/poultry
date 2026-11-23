@@ -18,6 +18,7 @@ const complete = {
   vetVisits: [visit("b13", "2026-09-25"), visit("b13", "2026-10-22"), visit("b13", "2026-11-02")],
   vaccinations: [nd("b13")],
   stockItems: [{ id: "s-nd", lot: "ND-771" }],
+  downtimeOf: () => null,
 } as Parameters<typeof inspectionChecklist>[0];
 const states = (lines: ReturnType<typeof inspectionChecklist>) => Object.fromEntries(lines.map((l) => [l.key, l.state]));
 const missingOf = (lines: ReturnType<typeof inspectionChecklist>) => lines.flatMap((l) => l.missing);
@@ -94,11 +95,14 @@ describe("inspection pack", () => {
     expect(inspectionChecklist({ ...complete, vaccinations: [nd("b13", { done: null })] }).find((l) => l.key === "newcastle")?.missing).toEqual([{ key: "newcastle", batchId: "b13" }]);
   });
 
-  it("downtime under 20 days in the same house is missing (arrêté n° 2127-05 art. 4)", () => {
+  it("downtime: planning's rule (arrêté n° 2127-05 art. 4, CQ3) marks a short one or a previous-cycle batch missing", () => {
+    // planning's batchDowntime is tested in planning/domain/plan.test.ts; the screen passes it in (reporting doesn't depend on planning)
     const next = batch({ id: "b14", status: "open", placedOn: "2026-11-20", closedOn: undefined });
-    const later = { ...complete, today: "2026-11-25" as FarmDay, vetVisits: [...complete.vetVisits, visit("b14", "2026-11-21")], vaccinations: [nd("b13"), nd("b14", { dueOn: "2026-11-27", done: null })] };
-    expect(inspectionChecklist({ ...later, batches: [batch(), next] }).find((l) => l.key === "downtime")).toMatchObject({ state: "missing", missing: [{ key: "downtime", batchId: "b14", days: 17 }] });
-    expect(inspectionChecklist({ ...later, batches: [batch(), { ...next, placedOn: "2026-11-23" }] }).find((l) => l.key === "downtime")).toMatchObject({ state: "check", missing: [] }); // 20 days
-    expect(inspectionChecklist({ ...later, batches: [batch(), { ...next, houseId: "h2" }] }).find((l) => l.key === "downtime")?.missing).toEqual([]);
+    const later = { ...complete, today: "2026-11-25" as FarmDay, batches: [batch(), next], vetVisits: [...complete.vetVisits, visit("b14", "2026-11-21")], vaccinations: [nd("b13"), nd("b14", { dueOn: "2026-11-27", done: null })] };
+    const short = (b: BatchDto) => (b.id === "b14" ? { kind: "short" as const, elapsedDays: 17 } : null);
+    const busy = (b: BatchDto) => (b.id === "b14" ? { kind: "occupied" as const, houseId: "h2" } : null);
+    expect(inspectionChecklist({ ...later, downtimeOf: short }).find((l) => l.key === "downtime")).toMatchObject({ state: "missing", missing: [{ key: "downtime", batchId: "b14", days: 17 }] });
+    expect(inspectionChecklist({ ...later, downtimeOf: busy }).find((l) => l.key === "downtime")?.missing).toEqual([{ key: "downtimeOccupied", batchId: "b14", houseId: "h2" }]);
+    expect(inspectionChecklist(later).find((l) => l.key === "downtime")).toMatchObject({ state: "check", missing: [] });
   });
 });

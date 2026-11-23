@@ -15,6 +15,7 @@ import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto } from "@/modules/flock/shared";
 import type { VaccinationDto, VetVisitDto } from "@/modules/health/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
+import { batchDowntime, type DowntimeRule } from "@/modules/planning/shared";
 import { inPack, inspectionChecklist, inspectionSince, type Missing } from "@/modules/reporting/shared";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
@@ -23,7 +24,7 @@ import { startSync } from "@/offline/sync";
 // records, offline. Owners and managers (the vault is theirs). The checklist's lines come from the texts, each with its
 // source (CQ2); registers are kept for their retention period (CQ5), the logs for 12 months.
 
-const ENTITIES = [...REGISTER_ENTITIES, "visit", "cleanout", "manureRemoval", "rodentCheck"];
+const ENTITIES = [...REGISTER_ENTITIES, "visit", "cleanout", "manureRemoval", "rodentCheck", "downtimeRule"];
 
 const onHashChange = (notify: () => void) => (window.addEventListener("hashchange", notify), () => window.removeEventListener("hashchange", notify));
 const useHash = () => useSyncExternalStore(onHashChange, () => decodeURIComponent(window.location.hash.slice(1)), () => "");
@@ -71,6 +72,7 @@ function Pack(scope: Scope) {
   const documents = all<DocumentDto>("document").filter((d) => d.farmId === null || d.farmId === farm.id).sort(byExpiry);
   const cleanouts = all<CleanoutDto>("cleanout").filter((c) => c.farmId === farm.id && inPeriod(c.startedOn));
   const rodentChecks = all<RodentCheckDto>("rodentCheck").filter((r) => r.farmId === farm.id && inPeriod(r.day));
+  const disinfected = new Map(all<CleanoutDto>("cleanout").flatMap((c) => c.steps.filter((s) => s.step === "disinfection").map((s) => [c.afterBatchId, s.day] as const)));
   const checklist = inspectionChecklist({
     today,
     farm,
@@ -81,6 +83,8 @@ function Pack(scope: Scope) {
     vetVisits: all<VetVisitDto>("vetVisit"),
     vaccinations: all<VaccinationDto>("vaccination"),
     stockItems: all<StockItemDto>("stockItem"),
+    // CQ3: planning's one rule, from the disinfection day else the removal
+    downtimeOf: (b) => batchDowntime(all<DowntimeRule>("downtimeRule"), b, all<BatchDto>("batch").filter((x) => x.farmId === b.farmId), disinfected),
   });
   const missing = checklist.flatMap((l) => l.missing);
   const of = <T extends { farmId: string; day: string },>(entity: string) => all<T>(entity).filter((x) => x.farmId === farm.id && inPeriod(x.day)).sort((x, y) => y.day.localeCompare(x.day));
@@ -93,6 +97,7 @@ function Pack(scope: Scope) {
   const missingText = (m: Missing) =>
     m.key === "vetVisa" ? t("Inspection.missing.vetVisa", { month: month(m.month), batch: batchLabel(m.batchId) })
       : m.key === "downtime" ? t("Inspection.missing.downtime", { days: m.days, batch: batchLabel(m.batchId) })
+      : m.key === "downtimeOccupied" ? t("Inspection.missing.downtimeOccupied", { house: houseName(m.houseId), batch: batchLabel(m.batchId) })
       : m.key === "noDisinfection" || m.key === "newcastle" || m.key === "newcastleLot" ? t(`Inspection.missing.${m.key}`, { batch: batchLabel(m.batchId) })
       : m.key === "rodentProof" ? t("Inspection.missing.rodentProof", { date: day(m.day) })
       : t(`Inspection.missing.${m.key}`);

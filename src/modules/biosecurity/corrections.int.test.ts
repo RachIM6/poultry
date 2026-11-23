@@ -73,7 +73,10 @@ describe("corrections of biosecurity records (SPEC-m2-compliance D6, BS9, CX2)",
     const fix = m("biosecurity.editManure", { id: r.id, changes: { quantityKg: 17500, destination: "sold", recipient: "Ferme Ouled Said" } });
     expect(await statuses(worker(), fix, fix)).toEqual(["applied", "applied"]);
     expect(await updates(r.id)).toEqual([{ before: { quantityKg: 18000, destination: "stored", recipient: null }, after: { quantityKg: 17500, destination: "sold", recipient: "Ferme Ouled Said" } }]);
-    expect(await last(a, "manureRemoval", r.id)).toEqual({ ...r, quantityKg: 17500, destination: "sold", recipient: "Ferme Ouled Said" });
+    expect(await last(a, "manureRemoval", r.id)).toEqual({ ...r, quantityKg: 17500, destination: "sold", recipient: "Ferme Ouled Said", spreadDeclared: false });
+    // CQ4: corrected to "spread", it needs the 500 m (or composted) declaration
+    expect(await statuses(worker(), m("biosecurity.editManure", { id: r.id, changes: { destination: "spread" } }))).toEqual(["errors.SPREAD_DECLARATION_REQUIRED"]);
+    expect(await statuses(worker(), m("biosecurity.editManure", { id: r.id, changes: { destination: "spread", spreadDeclared: true } }))).toEqual(["applied"]);
     expect(await statuses(worker(), m("biosecurity.editManure", { id: r.id, changes: { houseId: otherHouse } }))).toEqual(["errors.NOT_FOUND"]);
     expect(await statuses(vet(), m("biosecurity.editManure", { id: r.id, changes: { quantityKg: 1 } }))).toEqual(["errors.FORBIDDEN"]);
     expect(await statuses(b, m("biosecurity.editManure", { id: r.id, changes: { quantityKg: 1 } }))).toEqual(["errors.NOT_FOUND"]);

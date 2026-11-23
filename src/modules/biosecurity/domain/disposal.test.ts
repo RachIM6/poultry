@@ -1,12 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { checkDisposal, disposalGaps } from "./disposal";
+import { checkDisposal, checkManure, DISPOSAL_METHODS, disposalGaps } from "./disposal";
 
-// SPEC-m2-compliance BS6, §8 fixture.
+// SPEC-m2-compliance BS6, BS7, CQ4, §8 fixture.
 describe("dead-bird disposal", () => {
   it("'other' needs a description of the method; the named methods don't", () => {
     expect(checkDisposal({ method: "other", methodNote: null })).toEqual({ ok: false, error: "DISPOSAL_METHOD_NOTE_REQUIRED" });
     expect(checkDisposal({ method: "other", methodNote: "fosse fermée, chaux vive" }).ok).toBe(true);
     expect(checkDisposal({ method: "incineration", methodNote: null }).ok).toBe(true);
+    expect(checkDisposal({ method: "sealedPit", methodNote: null }).ok).toBe(true);
+  });
+
+  it("offers the official means only, never routine burial (CQ4)", () => {
+    expect(DISPOSAL_METHODS).toEqual(["incineration", "sealedPit", "authorizedSite", "other"]);
+  });
+
+  it("manure spread needs the 500 m (or composted) declaration; other destinations don't", () => {
+    expect(checkManure({ destination: "spread", spreadDeclared: false })).toEqual({ ok: false, error: "SPREAD_DECLARATION_REQUIRED" });
+    expect(checkManure({ destination: "spread" })).toEqual({ ok: false, error: "SPREAD_DECLARATION_REQUIRED" }); // a record sent before the declaration existed
+    expect(checkManure({ destination: "spread", spreadDeclared: true }).ok).toBe(true);
+    expect(checkManure({ destination: "stored" }).ok).toBe(true);
   });
 
   it("puts each day's dead and culled birds next to the birds disposed, newest day first", () => {

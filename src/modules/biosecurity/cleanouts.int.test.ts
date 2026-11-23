@@ -55,16 +55,12 @@ describe("clean-out and downtime through sync (SPEC-m2-compliance BS4, BS5, BS9,
     expect(pulled.at(-1)).toEqual({ id, farmId, houseId, afterBatchId: closed, startedOn: "2026-11-03", steps: [manure, disinfection].map((s) => ({ ...s, cleanoutId: undefined })) });
   });
 
-  it("the farm's minimum downtime is the owner's or manager's to set, not a worker's", async () => {
-    expect(await statuses({ ...a, role: "worker" }, m("biosecurity.setMinDowntime", { farmId, minDays: 14 }))).toEqual(["errors.FORBIDDEN"]);
-    expect(await statuses(a, m("biosecurity.setMinDowntime", { farmId, minDays: 14 }))).toEqual(["applied"]);
-    const setting = (await pull(a, 0, registry)).changes.filter((c) => c.entity === "downtimeSetting").at(-1);
-    expect(setting?.data).toEqual({ id: farmId, farmId, minDays: 14 });
+  it("the minimum downtime is no longer a biosecurity setting: planning's rule is the one figure (CQ3)", async () => {
+    expect(await statuses(a, m("biosecurity.setMinDowntime", { farmId, minDays: 14 }))).toEqual(["errors.UNKNOWN_MUTATION"]);
   });
 
   it("keeps organisations apart", async () => {
     expect(await statuses(b, m("biosecurity.startCleanout", { id: uuidv7(), houseId, afterBatchId: closed, startedOn: "2026-11-03" }))).toEqual(["errors.NOT_FOUND"]);
-    expect(await statuses(b, m("biosecurity.setMinDowntime", { farmId, minDays: 1 }))).toEqual(["errors.NOT_FOUND"]);
-    expect((await pull(b, 0, registry)).changes.filter((c) => ["cleanout", "downtimeSetting"].includes(c.entity))).toEqual([]);
+    expect((await pull(b, 0, registry)).changes.filter((c) => c.entity === "cleanout")).toEqual([]);
   });
 });

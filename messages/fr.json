@@ -2196,6 +2196,11 @@
     "inVault": "Dans le coffre de documents",
     "toAttach": "À joindre",
     "holderVisa": "Visa du détenteur (art. 16) : nom, date et signature",
+    "chickImportApproval": "Numéro d’agrément d’importateur de poussins",
+    "keeperValue": "{name}, {position}, du {from} au {to}",
+    "keeperSince": "{name}, {position}, depuis le {from}",
+    "prescriptionRef": "N° d’ordonnance",
+    "destination": "Exploitation ou établissement de destination, s’il n’est pas l’acheteur",
     "retention": "À conserver sur l’exploitation au moins un an après l’enlèvement pour la volaille de chair, deux ans pour les reproducteurs et les poules pondeuses (arrêté n° 2126-05, art. 9)."
   },
   "Report": {

@@ -43,7 +43,9 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   const { year, day, books, locked, closedOn, frozen, entries, stocks, batches, eggs } = result.value;
   const todo = entries.some((e) => e.action === "post" || e.action === "repost" || e.action === "reverse");
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));
-  const owner = can(ctx.value, "finance.manage") && !frozen; // the manager and the accountant read (FCX1)
+  const manage = can(ctx.value, "finance.manage");
+  const owner = manage && !frozen; // the manager and the accountant read (FCX1)
+  const typeable = (l: { missing: boolean }) => owner || (manage && l.missing); // after the run: a value still missing (FCX4)
   const quantity = (l: CloseStockView) => (l.unit === "kg" ? formatKg(l.quantity) : `${formatCount(l.quantity)} ${t(`Stock.units.${l.unit}`)}`);
   const label = (l: CloseStockView) => `${t(`Stock.kinds.${l.kind}`)} · ${l.name}${l.lot ? ` · ${l.lot}` : ""}`;
   const typed = (c: bigint | null) => (c === null ? "" : `${c / 100n},${String(c % 100n).padStart(2, "0")}`);
@@ -86,7 +88,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   // FC4 (T109): the meat batches open on the last day, at cost by head, against the suggested or typed current value.
   const batchLabel = (b: CloseBatchView) => `${b.houseName} · ${t(`Types.${b.species}`)}`;
   const batchTable = batches.length > 0 && (
-    <ValuesForm year={year} write={owner && batches.some((b) => b.valued)}>
+    <ValuesForm year={year} write={batches.some((b) => b.valued && typeable(b))}>
       <p className="text-sm text-ink-2">{t("Close.batchesHint")}</p>
       {frozen && <p className="text-sm font-semibold">{t("Close.valuesFrozen")}</p>}
       <div className="relative overflow-x-auto">
@@ -107,7 +109,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
                 <td dir="ltr" className="p-2 text-end tabular-nums whitespace-nowrap">{formatCount(b.onHand)}</td>
                 <td dir="ltr" className="p-2 text-end tabular-nums whitespace-nowrap">{b.valued ? formatMoney(b.cost) : <span dir="auto">{t("Close.notValuedFq7")}</span>}</td>
                 <td className="p-2 text-end tabular-nums whitespace-nowrap">
-                  {owner && b.valued ? (
+                  {b.valued && typeable(b) ? (
                     <input key={`${b.id}:${b.typed}`} name={`value:${b.id}`} defaultValue={typed(b.typed)} placeholder={typed(b.suggested)} inputMode="decimal" dir="ltr" aria-label={t("Close.currentValueOf", { line: batchLabel(b) })} className="w-32 rounded-lg border border-line bg-card px-2 py-1 text-end" />
                   ) : (
                     <bdi dir="ltr">{b.current === null ? "" : formatMoney(b.current)}</bdi>
@@ -125,7 +127,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
 
   // FC5, FQ18 (T113): the eggs counted (else in the books) × the owner's value per egg; with the PCA off, nothing posts (FQ25).
   const eggTable = eggs.length > 0 && (
-    <ValuesForm year={year} write={owner && eggs.some((e) => e.posted)}>
+    <ValuesForm year={year} write={eggs.some((e) => e.posted && typeable(e))}>
       <p className="text-sm text-ink-2">{t("Close.eggsHint")}</p>
       {frozen && <p className="text-sm font-semibold">{t("Close.valuesFrozen")}</p>}
       <div className="relative overflow-x-auto">
@@ -146,7 +148,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
                 <td className="p-2 text-end tabular-nums whitespace-nowrap">
                   {!e.posted ? (
                     <span className="whitespace-normal">{t("Close.eggsNotPosted")}</span>
-                  ) : owner ? (
+                  ) : typeable(e) ? (
                     <input key={`${e.farmId}:${e.perEgg}`} name={`value:${e.farmId}`} defaultValue={typed(e.perEgg)} inputMode="decimal" dir="ltr" aria-label={t("Close.perEggOf", { farm: e.farm })} className="w-24 rounded-lg border border-line bg-card px-2 py-1 text-end" />
                   ) : (
                     <bdi dir="ltr">{e.perEgg === null ? "" : formatMoney(e.perEgg)}</bdi>

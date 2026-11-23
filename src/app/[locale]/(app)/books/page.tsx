@@ -78,7 +78,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           <datalist id="ledger-accounts">
             {books.postingAccounts?.map((a) => <option key={a.number} value={a.number}>{`${a.number} ${a.label}`}</option>)}
           </datalist>
-          <ManualEntryForm today={today} accounts="ledger-accounts" blocked={books.books !== "ledger"} />
+          <ManualEntryForm today={today} accounts="ledger-accounts" treasuries={books.treasuryAccounts ?? []} blocked={books.books !== "ledger"} />
         </details>
       )}
       {books.unposted.length > 0 && (

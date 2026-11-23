@@ -34,11 +34,36 @@ model Farm {
   onssaNumber    String? // ONSSA authorization
   onssaExpiresOn DateTime?    @db.Date
   doaClaimThresholdPermille Int? // SPEC-m3 B10: dead on arrival above it = a claim to the hatchery; null = no alert (MQ6)
+  // The register's cover (arrêté 2126-05 of 15/12/2005, art. 3 and 4). All optional, as entered, never defaulted.
+  holderName          String? // the détenteur of the birds
+  holderAddress       String? // when different from the farm's
+  vetName             String? // the vétérinaire sanitaire in charge
+  vetAddress          String?
+  vetPhone            String?
+  technicianName      String?
+  chickImportApproval String? // agrément number, for a farm importing chicks
   createdAt      DateTime     @default(now()) @db.Timestamptz
   updatedAt      DateTime     @updatedAt @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   houses         House[]
+  registerKeepers RegisterKeeper[]
 
+  @@index([organizationId])
+}
+
+// Owner: farm-registry. Arrêté 2126-05 art. 4: who keeps (kept) the farm's register, and when. Written with the farm,
+// the whole list at once, in its order (`n`), like a sale's lines.
+model RegisterKeeper {
+  farmId         String    @db.Uuid
+  n              Int
+  organizationId String    @db.Uuid
+  name           String
+  position       String // their function on the farm
+  fromOn         DateTime  @db.Date
+  toOn           DateTime? @db.Date // null: still keeps it
+  farm           Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@id([farmId, n])
   @@index([organizationId])
 }
 

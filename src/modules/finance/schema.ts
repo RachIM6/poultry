@@ -59,7 +59,8 @@ export const ManualEntryInput = z.object({
   day: z.iso.date(),
   label: z.string().trim().min(1).max(200),
   piece: z.string().trim().max(40).transform((x) => x || null).nullable().default(null),
-  lines: z.array(z.object({ account: z.string().trim().regex(/^[1-8]\d{0,7}$/), debit: centimes, credit: centimes })).max(200),
+  // treasuryId: the bank account (5141) or cash box (5161) the line moves, FN3; none on other accounts
+  lines: z.array(z.object({ account: z.string().trim().regex(/^[1-8]\d{0,7}$/), debit: centimes, credit: centimes, treasuryId: z.uuid().nullable().default(null) })).max(200),
 });
 
 // FC1 (T102), the owner's asset register. The category and the rules between fields are checked by

@@ -74,3 +74,24 @@ export async function saveMatch(tx: Tx, ctx: TenantContext, statementId: string,
 
 export const deleteMatch = (tx: Tx, ctx: TenantContext, statementId: string, lineId: string) =>
   tx.bankMatch.deleteMany({ where: { journalLineId: lineId, statementId, organizationId: ctx.organizationId } });
+
+// T117: the lines of an imported statement file.
+
+export async function statementOn(tx: Tx, ctx: TenantContext, treasuryId: string, endDay: FarmDay) {
+  const s = await tx.bankStatement.findFirst({ where: { organizationId: ctx.organizationId, treasuryId, endDay: date(endDay) } });
+  return s && toStatement(s);
+}
+
+export const importedHashesOf = async (tx: Tx, ctx: TenantContext, statementId: string) =>
+  (await tx.bankStatementLine.findMany({ where: { organizationId: ctx.organizationId, statementId }, select: { hash: true } })).map((l) => l.hash);
+
+type ImportedRow = { id: string; day: FarmDay; amountCentimes: bigint; label: string; reference: string; hash: string };
+
+/** Lines already there (same statement and hash) are skipped, also under a race: the count is of the new ones. */
+export async function saveImportedLines(tx: Tx, ctx: TenantContext, statementId: string, rows: readonly ImportedRow[]) {
+  const { count } = await tx.bankStatementLine.createMany({ data: rows.map((r) => ({ ...r, day: date(r.day), organizationId: ctx.organizationId, statementId })), skipDuplicates: true });
+  return count;
+}
+
+export const importedLinesOf = async (tx: Tx, ctx: TenantContext, statementId: string) =>
+  (await tx.bankStatementLine.findMany({ where: { organizationId: ctx.organizationId, statementId }, orderBy: [{ day: "asc" }, { id: "asc" }] })).map((l) => ({ id: l.id, day: dayOf(l.day), amount: l.amountCentimes, label: l.label, reference: l.reference }));

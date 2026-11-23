@@ -52,19 +52,19 @@ describe("Birds sold (SPEC B5)", () => {
   const today = day("2026-11-21");
 
   it("lets birds leave alive while some are on hand, between placement and today", () => {
-    expect(batch.checkBirdsSold(today, 2000, 9_000, today).ok).toBe(true);
-    expect(batch.checkBirdsSold(today, 2964, 9_000, today).ok).toBe(true); // the last ones
-    expect(batch.checkBirdsSold(today, 2965, 9_000, today)).toEqual({ ok: false, error: "MORE_BIRDS_THAN_ON_HAND" });
-    expect(batch.checkBirdsSold(today, 0, 0, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
-    expect(batch.checkBirdsSold(day("2026-10-13"), 1, 0, today)).toEqual({ ok: false, error: "DAY_BEFORE_PLACEMENT" });
-    expect(batch.checkBirdsSold(day("2026-11-22"), 1, 0, today)).toEqual({ ok: false, error: "DAY_IN_FUTURE" });
-    expect(Batch.rehydrate(placement, "closed").checkBirdsSold(today, 1, 0, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
+    expect(batch.checkBirdsSold(today, 2000, 2964, today).ok).toBe(true); // 9 000 already out
+    expect(batch.checkBirdsSold(today, 2964, 2964, today).ok).toBe(true); // the last ones
+    expect(batch.checkBirdsSold(today, 2965, 2964, today)).toEqual({ ok: false, error: "MORE_BIRDS_THAN_ON_HAND" });
+    expect(batch.checkBirdsSold(today, 0, 11_964, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(batch.checkBirdsSold(day("2026-10-13"), 1, 11_964, today)).toEqual({ ok: false, error: "DAY_BEFORE_PLACEMENT" });
+    expect(batch.checkBirdsSold(day("2026-11-22"), 1, 11_964, today)).toEqual({ ok: false, error: "DAY_IN_FUTURE" });
+    expect(Batch.rehydrate(placement, "closed").checkBirdsSold(today, 1, 11_964, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
   });
 
   it("counts birds sold against a day's dead and culled", () => {
     const entry = { dead: 10, deathCause: "heat" as const, culled: 0, feed: null, waterMl: null, note: null };
-    expect(batch.checkDay(today, entry, 11_954, today).ok).toBe(true); // 11 954 out elsewhere (dead + sold) + 10
-    expect(batch.checkDay(today, entry, 11_955, today)).toEqual({ ok: false, error: "MORE_DEAD_THAN_ON_HAND" });
+    expect(batch.checkDay(today, entry, 10, today).ok).toBe(true); // 11 954 out elsewhere (dead + sold): 10 on hand
+    expect(batch.checkDay(today, entry, 9, today)).toEqual({ ok: false, error: "MORE_DEAD_THAN_ON_HAND" });
   });
 });
 
@@ -78,7 +78,7 @@ describe("Closing (SPEC B6)", () => {
     expect(batch.close(today, today).ok).toBe(true);
     expect(batch.status).toBe("closed");
     expect(batch.close(today, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
-    expect(batch.checkBirdsSold(today, 1, 0, today)).toEqual({ ok: false, error: "BATCH_CLOSED" }); // read-only now
+    expect(batch.checkBirdsSold(today, 1, 11_964, today)).toEqual({ ok: false, error: "BATCH_CLOSED" }); // read-only now
   });
 });
 

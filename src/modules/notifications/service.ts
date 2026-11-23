@@ -152,7 +152,7 @@ export const notificationsSync: SyncRegistry = {
         const row = await tx.notification.findFirst({ where: { id, userId: ctx.userId, organizationId: ctx.organizationId } });
         if (!row) return fail("NOT_FOUND");
         if (row.readAt) return ok(undefined);
-        const updated = await tx.notification.update({ where: { id }, data: { readAt: new Date() } });
+        const updated = await tx.notification.update({ where: { id }, data: { readAt: systemClock.now() } });
         await recordChange(tx, ctx, "notification", id, toDto(updated));
         return ok(undefined);
       },

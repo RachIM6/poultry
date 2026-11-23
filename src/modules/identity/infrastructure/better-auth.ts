@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { parseCookies } from "better-auth/cookies";
 import { phoneNumber } from "better-auth/plugins";
 import { db } from "@/lib/db";
 import { sendCode } from "./sms";
@@ -41,3 +43,9 @@ export const auth = betterAuth({
     }),
   ],
 });
+
+/** The session dimension's rate-limit key (rate-limiting.md §2 "sid:<hash>"): the session cookie's hash, never the token. */
+export async function sessionKey(headers: Headers): Promise<string | undefined> {
+  const token = parseCookies(headers.get("cookie") ?? "").get((await auth.$context).authCookies.sessionToken.name);
+  return token ? createHash("sha256").update(token).digest("base64url") : undefined;
+}

@@ -110,8 +110,15 @@ test("turkeys placed by sex become two batches side by side", async ({ page, con
   await expect(page.getByText("Dinde · mâles · Ferme Sidi Hajjaj · Bâtiment D1 · BUT 6")).toBeVisible();
 
   await page.getByRole("link", { name: "Saisir le jour" }).first().click();
-  await page.getByRole("link", { name: /Même lot, (mâles : 1 496|femelles : 1 500) sujets/ }).click();
-  await expect(page.getByRole("link", { name: /Même lot, (mâles : 1 496|femelles : 1 500) sujets/ })).toBeVisible();
+  // Both sexes side by side with their birds and cumulative FCR (none before a weighing); the other sex opens its day.
+  const sexes = page.getByRole("region", { name: "Même lot, par sexe" });
+  await expect(sexes.getByText(/^1.500 sujets$/)).toBeVisible();
+  await expect(sexes.getByText(/^1.496 sujets$/)).toBeVisible();
+  await expect(sexes.getByText("IC —")).toHaveCount(2);
+  const other = sexes.getByRole("link");
+  const before = (await other.textContent())!;
+  await other.click();
+  await expect(other).not.toHaveText(before); // the link now leads back to the first sex
 
   await context.unroute("**");
   await context.setOffline(false);
@@ -274,13 +281,16 @@ test("a beldi band sold by the head: 6 roosters and 4 hens, 790,00 DH", async ({
   await expect.poll(sold).toEqual([{ kind: "perHead", amount: "79000", birds: 10 }]);
 });
 
-// T66 acceptance (SPEC-m3 D1, P-Owner): the home shows every type: broilers by day, layers with their laying rate and
-// yesterday's eggs, beldi bands in weeks.
+// T66 acceptance (SPEC-m3 D1, P-Owner): the home shows every type: broilers by day with their FCR, pullets with their
+// uniformity, layers with their laying rate and yesterday's eggs, beldi bands in weeks.
 test("the home shows a broiler batch, a layer batch with yesterday's eggs and a beldi band", async ({ page }) => {
   test.setTimeout(120_000);
   await ownerWithFarm(page, "Élevage Vue d’Ensemble");
   await scopeRemembered(page);
-  const ids = { farm: crypto.randomUUID(), b1: crypto.randomUUID(), p1: crypto.randomUUID(), run: crypto.randomUUID(), layers: crypto.randomUUID() };
+  const ids = {
+    farm: crypto.randomUUID(), b1: crypto.randomUUID(), p1: crypto.randomUUID(), run: crypto.randomUUID(), layers: crypto.randomUUID(),
+    p2: crypto.randomUUID(), broilers: crypto.randomUUID(), pullets: crypto.randomUUID(), supplier: crypto.randomUUID(), feed: crypto.randomUUID(),
+  };
   const place = (id: string, houseId: string, species: string, strainId: string, birds: number, age: number) => ({
     type: "flock.placeBatch",
     payload: { id, houseId, species, strainId, placedOn: farmDaysAgo(3), chicksPlaced: birds, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: age },
@@ -291,13 +301,24 @@ test("the home shows a broiler batch, a layer batch with yesterday's eggs and a 
     house(ids.b1, "Bâtiment 2"),
     house(ids.p1, "Bâtiment P1"),
     house(ids.run, "Parcours"),
-    place(crypto.randomUUID(), ids.b1, "broiler", "ross-308", 12000, 0),
+    place(ids.broilers, ids.b1, "broiler", "ross-308", 12000, 0),
+    house(ids.p2, "Bâtiment P2"),
+    place(ids.pullets, ids.p2, "pullet", "lohmann-brown", 4800, 77),
     place(ids.layers, ids.p1, "layer", "lohmann-brown", 6000, 266),
     place(crypto.randomUUID(), ids.run, "beldi", "unspecified-beldi", 140, 147),
     // P-EggCollect's collection, yesterday: 1 713 eggs.
     { type: "eggs.recordCollection", payload: { id: uuidv7(), batchId: ids.layers, day: farmDaysAgo(1), counts: { normal: 1642, cracked: 18, dirty: 31, doubleYolk: 6, floor: 12, broken: 4 }, sample: null } },
+    // Broilers: 600 kg of feed, then 12 000 birds at 100 g = 1 200 kg → IC 0,50. Pullets: mean 1 000 g, 5 of 6 within ±10 %.
+    { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Provende Atlas", phone: null } },
+    { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: farmDaysAgo(10), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+    { type: "flock.recordDay", payload: { batchId: ids.broilers, day: farmDaysAgo(1), changes: { dead: 0, feed: { stockItemId: ids.feed, grams: 600_000 } } } },
+    { type: "flock.recordWeighing", payload: { id: uuidv7(), batchId: ids.broilers, day: farmDaysAgo(1), sample: { totalGrams: 10_000, count: 100 } } },
+    { type: "flock.recordWeighing", payload: { id: uuidv7(), batchId: ids.pullets, day: farmDaysAgo(1), sample: { weightsGrams: [950, 1000, 1050, 1100, 880, 1020] } } },
   ]);
   await page.goto("/fr/dashboard");
+  await expect(page.getByText("IC 0,50", { exact: true })).toBeVisible();
+  await expect(page.getByText("Homogénéité 83,3 %", { exact: true })).toBeVisible();
   await expect(page.getByText(/Œufs ramassés hier/).locator("..")).toContainText(/1.713/);
   await expect(page.getByText(/Ponte 28,5 % · 1.713 œufs le dernier jour ramassé/)).toBeVisible(); // 1 713 ÷ 6 000 = 28,549…
   await expect(page.getByText("Jour 3 sur 42")).toBeVisible();

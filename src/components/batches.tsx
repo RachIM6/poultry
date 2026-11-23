@@ -44,6 +44,7 @@ const BatchHeader = dynamic(() => import("@/components/batch-dashboard").then((m
 const BatchNotes = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchNotes));
 const OpenBatchCard = dynamic(() => import("@/components/batch-dashboard").then((m) => m.OpenBatchCard));
 const RegisterLinks = dynamic(() => import("@/components/register-links").then((m) => m.RegisterLinks));
+const TurkeySexes = dynamic(() => import("@/components/turkey-sexes").then((m) => m.TurkeySexes));
 
 // SPEC B1 on the static /batches shell: from and to the phone's database (ADR-003). The one-open-batch rule is checked
 // here for a quick answer and enforced by the server, which rejects the second of two phones placing offline.
@@ -183,10 +184,9 @@ function Batches(scope: Scope) {
           birds={t("Day.onHand", { birds: formatCount(onHand(open)) })}
           next={nextVaccine(open.id)}
         />
+        {open.sex && open.sex !== "mixed" && <TurkeySexes batch={open} batches={batches} entries={entries} weighings={of<WeighingDto>("weighing")} sold={of<SoldBirdsDto>("soldBirds")} />}
         <BatchNotes
           batch={open}
-          other={open.sex && open.sex !== "mixed" ? batches.find((b) => b.status === "open" && b.houseId === open.houseId && b.species === open.species && b.id !== open.id) : undefined}
-          onHand={onHand}
           areaM2={houses.find((h) => h.id === open.houseId)?.areaM2}
           claimPermille={farms.get(open.farmId)?.doaClaimThresholdPermille}
         />

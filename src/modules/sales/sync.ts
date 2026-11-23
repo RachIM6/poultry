@@ -1,7 +1,7 @@
 import { can, withoutMoney } from "@/lib/permissions";
 import { defineMutation, type SyncRegistry } from "@/lib/sync/server";
 import { recordConsumption } from "@/modules/sales/application/consumption";
-import { approveCredit, createBuyer, recordEggSale, recordHeadSale, recordPayment, recordSale, setCreditLimit, setInstrumentState, unblockBuyer } from "@/modules/sales/application/sales";
+import { approveCredit, createBuyer, recordEggSale, recordHeadSale, recordPayment, recordSale, setBuyerAddress, setCreditLimit, setInstrumentState, unblockBuyer } from "@/modules/sales/application/sales";
 import {
   CreateBuyer,
   RecordPayment,
@@ -12,6 +12,7 @@ import {
   SALE_MONEY,
   SALES_MUTATIONS as M,
   ApproveCredit,
+  SetBuyerAddress,
   SetCreditLimit,
   SetInstrumentState,
   UnblockBuyer,
@@ -27,6 +28,7 @@ import {
 export const salesSync: SyncRegistry = {
   mutations: {
     [M.createBuyer]: defineMutation({ schema: CreateBuyer, action: "sales.manage", apply: (tx, ctx, cmd, meta) => createBuyer(tx, ctx, cmd, meta) }),
+    [M.setBuyerAddress]: defineMutation({ schema: SetBuyerAddress, action: "sales.manage", apply: (tx, ctx, cmd, meta) => setBuyerAddress(tx, ctx, cmd, meta) }),
     [M.recordSale]: defineMutation({ schema: RecordSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => recordSale(tx, ctx, cmd, meta) }),
     [M.recordHeadSale]: defineMutation({ schema: RecordHeadSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => recordHeadSale(tx, ctx, cmd, meta) }),
     [M.recordConsumption]: defineMutation({ schema: RecordConsumption, action: "flock.record", apply: (tx, ctx, cmd, meta) => recordConsumption(tx, ctx, cmd, meta) }),

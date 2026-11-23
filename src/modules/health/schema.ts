@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TREATMENT_ROUTES } from "@/modules/health/shared";
 import { ProtocolItem, VACCINATION_METHODS } from "@/modules/reference-data/schema";
 
 // SPEC H1–H6, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009), re-exported here so
@@ -29,19 +30,25 @@ export const CancelVaccination = z.object({ id: z.uuid() });
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 
-export const RecordTreatment = z.object({
-  id: z.uuidv7(), // a phone's id; never a daily entry's UUIDv5, whose consumption movement the entry may replace (T25)
-  batchId: z.uuid(),
-  stockItemId: z.uuid(), // the medicine lot, deducted from stock
-  quantity: z.int32().positive(), // the item's base unit
-  dose: text(120), // as prescribed, e.g. "1 ml par litre d'eau"
-  startOn: z.iso.date(), // farm days
-  endOn: z.iso.date(),
-  reason: text(200),
-  prescriber: text(120),
-  withdrawalDays: z.int32().min(0).max(365), // from the label or the prescription: never a default (OQ4)
-  eggWithdrawalDays: z.int32().min(0).max(365).nullable().default(null), // SPEC-m3 H7: required for layers (domain)
-});
+export const RecordTreatment = z
+  .object({
+    id: z.uuidv7(), // a phone's id; never a daily entry's UUIDv5, whose consumption movement the entry may replace (T25)
+    batchId: z.uuid(),
+    stockItemId: z.uuid(), // the medicine lot, deducted from stock
+    quantity: z.int32().positive(), // the item's base unit
+    dose: text(120), // as prescribed, e.g. "1 ml par litre d'eau"
+    startOn: z.iso.date(), // farm days
+    endOn: z.iso.date(),
+    reason: text(200),
+    prescriber: text(120),
+    withdrawalDays: z.int32().min(0).max(365), // from the label or the prescription: never a default (OQ4)
+    eggWithdrawalDays: z.int32().min(0).max(365).nullable().default(null), // SPEC-m3 H7: required for layers (domain)
+    // The register (arrêté 2126-05 art. 4): optional, as entered; "other" says what in routeNote
+    route: z.enum(TREATMENT_ROUTES).nullable().default(null),
+    routeNote: text(120).nullable().default(null),
+    prescriptionRef: text(60).nullable().default(null),
+  })
+  .refine((t) => (t.route === "other") === (t.routeNote !== null), "a note for other, and only for other");
 
 export const RecordVetVisit = z.object({
   id: z.uuid(),

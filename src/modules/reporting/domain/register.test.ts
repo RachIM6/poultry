@@ -49,7 +49,34 @@ describe("buildRegister", () => {
       chicksPlaced: 10000,
       deadOnArrival: 0,
       closedOn: "2026-11-03",
+      // a farm stored before the register's fields: lines left to fill by hand
+      holder: null,
+      vet: null,
+      technician: null,
+      chickImportApproval: null,
+      keepers: [],
     });
+  });
+
+  it("cover (art. 3): the holder, vet sanitaire, technician, agrément and keepers set on the farm", () => {
+    // Made-up people: the fields are the arrêté's, the values only test the mechanics.
+    const farm = {
+      ...input().farm,
+      holder: { name: "Ahmed Bennani", address: "12 rue des Oliviers, Settat" },
+      vet: { name: "Dr Naïma R.", address: "Cabinet vétérinaire, Berrechid", phone: "0612345678" },
+      technicianName: "Youssef Amrani",
+      chickImportApproval: "AGR-IMP-0042",
+      registerKeepers: [{ name: "Karim Idrissi", position: "Chef d’élevage", from: "2026-01-01", to: null }],
+    };
+    expect(buildRegister(input({ farm })).cover).toMatchObject({
+      holder: farm.holder,
+      vet: farm.vet,
+      technician: "Youssef Amrani",
+      chickImportApproval: "AGR-IMP-0042",
+      keepers: farm.registerKeepers,
+    });
+    const blank = { ...farm, holder: null, vet: null, technicianName: null, chickImportApproval: null, registerKeepers: [] };
+    expect(buildRegister(input({ farm: blank })).cover).toMatchObject({ holder: null, vet: null, technician: null, chickImportApproval: null, keepers: [] });
   });
 
   it("supervision sheet (art. 2): the farm's vet contract from the vault", () => {
@@ -99,8 +126,16 @@ describe("buildRegister", () => {
       { age: 18, dueOn: "2026-10-09", product: "Newcastle (rappel)", method: "drinkingWater", done: null },
     ]);
     expect(r.treatments).toEqual([
-      { product: "Enrofloxacine 10 %", lot: "E771", dose: "1 ml/L", startOn: "2026-10-22", endOn: "2026-10-26", reason: "boiterie", prescriber: "Dr Naïma R.", withdrawalEndsOn: "2026-10-31" },
+      // route and prescription reference: none on a treatment recorded before them
+      { product: "Enrofloxacine 10 %", lot: "E771", dose: "1 ml/L", startOn: "2026-10-22", endOn: "2026-10-26", reason: "boiterie", prescriber: "Dr Naïma R.", prescriptionRef: null, route: null, routeNote: null, withdrawalEndsOn: "2026-10-31" },
     ]);
+  });
+
+  it("treatments (art. 4): the route of administration and the prescription's reference, as entered", () => {
+    const treatments = [{ ...input().treatments[0], route: "drinkingWater" as const, routeNote: null, prescriptionRef: "ORD-2026-118" }];
+    expect(buildRegister(input({ treatments })).treatments[0]).toMatchObject({ route: "drinkingWater", routeNote: null, prescriptionRef: "ORD-2026-118" });
+    const other = [{ ...treatments[0], route: "other" as const, routeNote: "au pinceau" }];
+    expect(buildRegister(input({ treatments: other })).treatments[0]).toMatchObject({ route: "other", routeNote: "au pinceau" });
   });
 
   it("vet visas (art. 7): each recorded visit, then one blank row per month of the batch's life", () => {
@@ -117,9 +152,15 @@ describe("buildRegister", () => {
 
   it("birds out with the buyer and origin document number, disposals, lab reports during the batch", () => {
     const r = buildRegister(input());
-    expect(r.birdsOut).toEqual([{ day: "2026-11-01", birds: 4000, liveWeightGrams: 9_840_000, buyer: "Abattoir Doukkala", originNumber: "0199A1B2" }]);
+    expect(r.birdsOut).toEqual([{ day: "2026-11-01", birds: 4000, liveWeightGrams: 9_840_000, buyer: "Abattoir Doukkala", buyerAddress: null, destination: null, originNumber: "0199A1B2" }]);
     expect(r.disposals).toEqual([{ day: "2026-10-26", birds: 4, weightGrams: 9800, method: "other", methodNote: "fosse fermée" }]);
     expect(r.labReports).toEqual([{ title: "Sérologie Gumboro", issuedOn: "2026-10-12", fileId: null }]);
+  });
+
+  it("birds out (art. 4): the buyer's address and, when not the buyer's, where the birds went", () => {
+    const destination = { name: "Abattoir Atlas, site de Berrechid", address: "Zone industrielle, Berrechid" };
+    const r = buildRegister(input({ buyers: [{ id: "abattoir", name: "Abattoir Doukkala", address: "Route d’El Jadida, Safi" }], sales: [{ ...input().sales[0], destination }] }));
+    expect(r.birdsOut[0]).toMatchObject({ buyer: "Abattoir Doukkala", buyerAddress: "Route d’El Jadida, Safi", destination });
   });
 
   it("annexes (art. 2, 5): the copies to file, lab reports in the vault once scanned", () => {
@@ -136,7 +177,7 @@ describe("buildRegister", () => {
 
   it("a worker's phone has no sales: birds out still show, without buyer; no money ever reaches the register", () => {
     const r = buildRegister(input({ sales: [], buyers: [] }));
-    expect(r.birdsOut[0]).toMatchObject({ buyer: null, originNumber: "0199A1B2" });
+    expect(r.birdsOut[0]).toMatchObject({ buyer: null, buyerAddress: null, destination: null, originNumber: "0199A1B2" });
     expect(JSON.stringify(buildRegister(input()))).not.toMatch(/Centimes|1330|13087200|27080000/);
   });
 });

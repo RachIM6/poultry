@@ -24,6 +24,7 @@ export type BuyerDto = {
   type: (typeof BUYER_TYPES)[number];
   creditBlocked?: boolean;
   creditLimitCentimes?: string | null; // FN12, money: owners and managers only
+  address?: string | null; // the register (arrêté 2126-05 art. 4); absent from a buyer pulled before it
 };
 
 /** FN11: one step of a received cheque or bill. Its id is a UUIDv7 from the phone, so ids sort by time. */
@@ -55,6 +56,8 @@ export type SaleDto = {
   kind?: "live" | "eggs" | "perHead"; // SPEC-m3 V6, V7; absent = live
   lines?: SaleLineDto[]; // an egg sale's
   takenBy?: Taker | null; // FC7: who took the birds or eggs home; absent or null = a sale
+  // The register (arrêté 2126-05 art. 4): where live birds went when not to the buyer; absent before it, null for eggs
+  destination?: { name: string; address: string | null } | null;
 };
 /** SPEC-m3 V6, V7: a line of an egg sale, or of a per-head sale (then `eggs` counts birds and `eggsPerTray` is 1).
  * Money in centimes, as strings. */
@@ -73,6 +76,7 @@ export type PaymentDto = {
 
 export const SALES_MUTATIONS = {
   createBuyer: "sales.createBuyer",
+  setBuyerAddress: "sales.setBuyerAddress",
   recordSale: "sales.recordSale",
   recordEggSale: "sales.recordEggSale",
   recordHeadSale: "sales.recordHeadSale",

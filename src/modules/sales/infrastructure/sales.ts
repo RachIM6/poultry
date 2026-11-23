@@ -12,7 +12,7 @@ export const saleIdTaken = async (tx: Tx, id: string) => (await tx.sale.count({ 
 export const ownBuyer = async (tx: Tx, ctx: TenantContext, id: string) => (await tx.buyer.count({ where: { id, organizationId: ctx.organizationId } })) === 1;
 
 export async function saveBuyer(tx: Tx, ctx: TenantContext, b: BuyerDto) {
-  await tx.buyer.create({ data: { id: b.id, name: b.name, phone: b.phone, type: b.type, organizationId: ctx.organizationId } }); // no block, no limit yet
+  await tx.buyer.create({ data: { id: b.id, name: b.name, phone: b.phone, type: b.type, address: b.address ?? null, organizationId: ctx.organizationId } }); // no block, no limit yet
 }
 
 export const paymentIdTaken = async (tx: Tx, id: string) => (await tx.buyerPayment.count({ where: { id } })) > 0;
@@ -65,14 +65,23 @@ export async function setCreditBlocked(tx: Tx, ctx: TenantContext, buyerId: stri
   return buyerDto(b);
 }
 
-export const buyerDto = (b: { id: string; name: string; phone: string | null; type: string; creditBlocked: boolean; creditLimitCentimes: bigint | null }): BuyerDto => ({
+export const buyerDto = (b: { id: string; name: string; phone: string | null; type: string; creditBlocked: boolean; creditLimitCentimes: bigint | null; address: string | null }): BuyerDto => ({
   id: b.id,
   name: b.name,
   phone: b.phone,
   type: b.type as BuyerDto["type"],
   creditBlocked: b.creditBlocked,
   creditLimitCentimes: b.creditLimitCentimes === null ? null : String(b.creditLimitCentimes),
+  address: b.address,
 });
+
+/** The register: the buyer's address as stored, or null when the buyer isn't this organisation's. */
+export const buyerAddress = (tx: Tx, ctx: TenantContext, buyerId: string) =>
+  tx.buyer.findFirst({ where: { id: buyerId, organizationId: ctx.organizationId }, select: { address: true } });
+
+export async function setBuyerAddress(tx: Tx, ctx: TenantContext, buyerId: string, address: string | null): Promise<BuyerDto> {
+  return buyerDto(await tx.buyer.update({ where: { id: buyerId, organizationId: ctx.organizationId }, data: { address } }));
+}
 
 /** FN12: the buyer's credit limit (null: none) and block. */
 export const creditTerms = async (tx: Tx, ctx: TenantContext, buyerId: string) =>
@@ -106,6 +115,7 @@ export async function approveSaleCredit(tx: Tx, ctx: TenantContext, saleId: stri
     creditApproval: "approved",
     kind: s.kind as "live" | "eggs" | "perHead",
     takenBy: null, // a consumption has no credit to approve
+    destination: s.destinationName ? { name: s.destinationName, address: s.destinationAddress } : null,
     lines: lines.map((l) => ({ item: l.item, eggs: l.eggs, eggsPerTray: l.eggsPerTray, unitPriceCentimes: String(l.unitPriceCentimes), amountCentimes: String(l.amountCentimes) })),
   };
 }
@@ -167,10 +177,12 @@ export async function recentSales(tx: Tx, ctx: TenantContext, kind: "live" | "eg
 }
 
 export async function saveSale(tx: Tx, ctx: TenantContext, s: Required<SaleDto>) {
-  const { instrument, lines, ...rest } = s;
+  const { instrument, lines, destination, ...rest } = s;
   await tx.sale.create({
     data: {
       ...rest,
+      destinationName: destination?.name ?? null,
+      destinationAddress: destination?.address ?? null,
       organizationId: ctx.organizationId,
       day: date(s.day),
       pricePerKgCentimes: BigInt(s.pricePerKgCentimes),

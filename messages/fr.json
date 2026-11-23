@@ -138,7 +138,7 @@
     "back": "Toutes les fermes",
     "saved": "Enregistré sur ce téléphone. L’envoi se fait dès qu’il y a du réseau.",
     "saveFailed": "Impossible d’enregistrer : la mémoire du téléphone est peut-être pleine.",
-    "invalid": "Vérifiez les champs. La position GPS et l’autorisation ONSSA se remplissent en entier ou pas du tout.",
+    "invalid": "Vérifiez les champs. La position GPS et l’autorisation ONSSA se remplissent en entier ou pas du tout. Le détenteur et le vétérinaire demandent un nom ; chaque personne du registre, un nom, une fonction et une date de début.",
     "notFound": "Cette ferme n’est pas (ou plus) sur ce téléphone.",
     "houses": "Bâtiments",
     "noHouses": "Aucun bâtiment.",
@@ -154,7 +154,22 @@
     "houseSummary": "{area} m² · {capacity} oiseaux · {type}",
     "farmSummary": "{commune}, {province} · bâtiments : {count}",
     "onssaUntil": "Autorisation ONSSA {number}, valable jusqu’au {date}",
-    "doaClaim": "Seuil de réclamation au couvoir (% de morts à l’arrivée, facultatif)"
+    "doaClaim": "Seuil de réclamation au couvoir (% de morts à l’arrivée, facultatif)",
+    "register": "Registre d’élevage (facultatif)",
+    "holderName": "Détenteur des animaux",
+    "holderAddress": "Adresse du détenteur (si différente de la ferme)",
+    "vetName": "Vétérinaire sanitaire",
+    "vetAddress": "Adresse du vétérinaire",
+    "vetPhone": "Téléphone du vétérinaire",
+    "technicianName": "Technicien",
+    "chickImportApproval": "N° d’agrément d’importateur de poussins",
+    "keepers": "Personnes qui tiennent le registre",
+    "keeperName": "Nom",
+    "keeperPosition": "Fonction",
+    "keeperFrom": "Depuis le",
+    "keeperTo": "Jusqu’au (vide : encore aujourd’hui)",
+    "addKeeper": "Ajouter une personne",
+    "removeKeeper": "Retirer cette personne"
   },
   "Protocol": {
     "title": "Programme de vaccination",
@@ -628,7 +643,18 @@
     "withdrawalLine": "Délai d’attente {days} j : jusqu’au {date} inclus",
     "eggWithdrawal": "Œufs à retirer de la vente jusqu’au {date} inclus",
     "eggWithdrawalDays": "Délai d’attente œufs (jours)",
-    "eggWithdrawalLine": "Œufs retirés {days} jours, jusqu’au {date}"
+    "eggWithdrawalLine": "Œufs retirés {days} jours, jusqu’au {date}",
+    "prescriptionRef": "N° d’ordonnance (facultatif)",
+    "route": "Mode d’administration (facultatif)",
+    "routes": {
+      "drinkingWater": "Eau de boisson",
+      "spray": "Nébulisation",
+      "eyeDrop": "Goutte oculaire ou nasale",
+      "injection": "Injection",
+      "feed": "Aliment",
+      "other": "Autre"
+    },
+    "routeNote": "Précisez le mode d’administration"
   },
   "VetVisit": {
     "title": "Visites vétérinaires",
@@ -650,6 +676,10 @@
     "buyerName": "Nom de l’acheteur",
     "buyerPhone": "Téléphone (facultatif)",
     "buyerType": "Type d’acheteur",
+    "buyerAddress": "Adresse de l’acheteur (facultatif)",
+    "destination": "Destination des oiseaux, si ce n’est pas l’acheteur (facultatif)",
+    "destinationName": "Ferme ou établissement",
+    "destinationAddress": "Adresse (facultatif)",
     "types": {
       "trader": "Négociant",
       "abattoir": "Abattoir",
@@ -2183,6 +2213,11 @@
     "inVault": "Dans le coffre de documents",
     "toAttach": "À joindre",
     "holderVisa": "Visa du détenteur (art. 16) : nom, date et signature",
+    "chickImportApproval": "Numéro d’agrément d’importateur de poussins",
+    "keeperValue": "{name}, {position}, du {from} au {to}",
+    "keeperSince": "{name}, {position}, depuis le {from}",
+    "prescriptionRef": "N° d’ordonnance",
+    "destination": "Exploitation ou établissement de destination, s’il n’est pas l’acheteur",
     "retention": "À conserver sur l’exploitation au moins un an après l’enlèvement pour la volaille de chair, deux ans pour les reproducteurs et les poules pondeuses (arrêté n° 2126-05, art. 9)."
   },
   "Report": {

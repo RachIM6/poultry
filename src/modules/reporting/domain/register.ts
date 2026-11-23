@@ -11,11 +11,20 @@ import { originNumber, type SaleDto } from "@/modules/sales/shared";
 // annexes art. 5). What the app doesn't record is left for the keeper to fill by hand, never invented (CQ1). No money
 // field is ever read into the output.
 
+/** Art. 3, 4: the farm's register fields as farm-registry's FarmDto carries them; absent from a farm stored before them. */
+type FarmRegisterFields = {
+  holder?: { name: string; address: string | null } | null;
+  vet?: { name: string; address: string | null; phone: string | null } | null;
+  technicianName?: string | null;
+  chickImportApproval?: string | null;
+  registerKeepers?: { name: string; position: string; from: string; to: string | null }[];
+};
+
 /** What the register needs, in the DTO shapes the phone stores. Farm, house, catalogue and egg figures come from
  * modules `reporting` doesn't depend on, so they are plain fields here. */
 export type RegisterInput = {
   today: string; // farm day: how far an open batch's months of visas run
-  farm: { name: string; commune: string; province: string; region: string; onssa: { number: string; expiresOn: string } | null };
+  farm: { name: string; commune: string; province: string; region: string; onssa: { number: string; expiresOn: string } | null } & FarmRegisterFields;
   house: { name: string; areaM2: number } | null;
   strainName: string;
   batch: BatchDto;
@@ -26,7 +35,7 @@ export type RegisterInput = {
   vetVisits: VetVisitDto[];
   soldBirds: SoldBirdsDto[];
   sales: SaleDto[]; // none on a worker's phone
-  buyers: { id: string; name: string }[];
+  buyers: { id: string; name: string; address?: string | null }[];
   disposals: DisposalDto[];
   documents: DocumentDto[]; // the vault: lab reports and the vet contract (owners' and managers' phones only)
   products: { id: string; name: string }[]; // catalogue names in the page's language
@@ -126,6 +135,12 @@ export function buildRegister(i: RegisterInput) {
       chicksPlaced: batch.chicksPlaced,
       deadOnArrival: batch.deadOnArrival,
       closedOn: batch.closedOn ?? null,
+      // Art. 3: as entered on the farm's settings; null or none is a line the keeper fills by hand
+      holder: i.farm.holder ?? null,
+      vet: i.farm.vet ?? null,
+      technician: i.farm.technicianName ?? null,
+      chickImportApproval: i.farm.chickImportApproval ?? null,
+      keepers: i.farm.registerKeepers ?? [],
     },
     // Art. 2: the supervision sheet; the vet contract is the vault's, when this phone has it.
     vetContracts: docs.filter((d) => d.category === "vetContract").map((d) => ({ title: d.title, issuedOn: d.issuedOn, expiresOn: d.expiresOn })),
@@ -149,12 +164,25 @@ export function buildRegister(i: RegisterInput) {
       endOn: t.endOn,
       reason: t.reason,
       prescriber: t.prescriber,
+      prescriptionRef: t.prescriptionRef ?? null,
+      route: t.route ?? null,
+      routeNote: t.routeNote ?? null,
       withdrawalEndsOn: t.withdrawalEndsOn,
     })),
     visas,
+    // Art. 4: who the birds went to (name and address) and, when not the buyer's, the farm or establishment they went to.
     birdsOut: sold.map((s) => {
-      const buyerId = i.sales.find((x) => x.id === s.id)?.buyerId;
-      return { day: s.day, birds: s.birds, liveWeightGrams: s.liveWeightGrams, buyer: i.buyers.find((b) => b.id === buyerId)?.name ?? null, originNumber: originNumber(s.id) };
+      const sale = i.sales.find((x) => x.id === s.id);
+      const buyer = i.buyers.find((b) => b.id === sale?.buyerId);
+      return {
+        day: s.day,
+        birds: s.birds,
+        liveWeightGrams: s.liveWeightGrams,
+        buyer: buyer?.name ?? null,
+        buyerAddress: buyer?.address ?? null,
+        destination: sale?.destination ?? null,
+        originNumber: originNumber(s.id),
+      };
     }),
     disposals: i.disposals.filter((d) => d.batchId === batch.id).sort(byDay).map((d) => ({ day: d.day, birds: d.birds, weightGrams: d.weightGrams, method: d.method, methodNote: d.methodNote })),
     labReports,

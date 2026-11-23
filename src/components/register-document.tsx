@@ -134,6 +134,10 @@ export function RegisterDocument({ register: r, printButton = true }: { register
   const code = (c: string) => <bdi dir="ltr">{c}</bdi>; // a code keeps its order in Arabic
   const c = r.cover;
   const species = tr(`Types.${c.species}`);
+  const vet = c.vet ? [c.vet.name, c.vet.address, c.vet.phone && code(c.vet.phone)].filter(Boolean).map((x, i) => <span key={i} className="block">{x}</span>) : undefined;
+  const keepers = c.keepers.length > 0
+    ? c.keepers.map((k, i) => <span key={i} className="block">{t(k.to ? "keeperValue" : "keeperSince", { name: k.name, position: k.position, from: day(k.from), to: k.to ? day(k.to) : "" })}</span>)
+    : undefined;
 
   return (
     <article className="flex flex-col gap-4">
@@ -150,9 +154,10 @@ export function RegisterDocument({ register: r, printButton = true }: { register
           <Line label={t("farmName")}>{c.farmName}</Line>
           <Line label={t("farmAddress")}>{c.address}</Line>
           <Line label={t("hatchery")}>{c.hatchery} · {code(c.deliveryNote)}</Line>
-          <Line label={t("holder")} lines={2} />
-          <Line label={t("keepers")} lines={2} />
-          <Line label={t("vetSanitary")} lines={2} />
+          <Line label={t("holder")} lines={2}>{c.holder ? [c.holder.name, c.holder.address].filter(Boolean).join(", ") : undefined}</Line>
+          <Line label={t("keepers")} lines={2}>{keepers}</Line>
+          <Line label={t("vetSanitary")} lines={2}>{vet}</Line>
+          {c.chickImportApproval && <Line label={t("chickImportApproval")}>{code(c.chickImportApproval)}</Line>}
           <Line label={t("houses")}>{c.house ? `${c.house}${c.areaM2 ? ` · ${formatCount(c.areaM2)} m²` : ""}` : undefined}</Line>
           <Line label={t("speciesStrain")}>{species} · {c.strain}</Line>
           <Line label={t("placedOn")}>{day(c.placedOn)}</Line>
@@ -163,13 +168,13 @@ export function RegisterDocument({ register: r, printButton = true }: { register
 
       <Section title={t("supervision")}>
         <dl className="grid gap-x-6 text-sm sm:grid-cols-2 print:grid-cols-2">
-          <Line label={t("vetSanitary")} lines={2} />
+          <Line label={t("vetSanitary")} lines={2}>{vet}</Line>
           <Line label={t("vetContract")}>
             {r.vetContracts.length > 0
               ? r.vetContracts.map((v) => <span key={v.title} className="block">{t("vetContractValue", { title: v.title, from: v.issuedOn ? day(v.issuedOn) : "…", to: v.expiresOn ? day(v.expiresOn) : "…" })}</span>)
               : undefined}
           </Line>
-          <Line label={t("technician")} lines={2} />
+          <Line label={t("technician")} lines={2}>{c.technician ?? undefined}</Line>
         </dl>
       </Section>
 
@@ -204,8 +209,19 @@ export function RegisterDocument({ register: r, printButton = true }: { register
       <Section title={t("treatments")}>
         <Table
           none={t("none")}
-          head={[t("commercialName"), t("lot"), t("dose"), t("startOn"), t("endOn"), t("reason"), t("prescriber"), t("withdrawalEnd")]}
-          rows={r.treatments.map((x) => [x.product, x.lot ? code(x.lot) : "", x.dose, day(x.startOn), day(x.endOn), x.reason, x.prescriber, day(x.withdrawalEndsOn)])}
+          head={[t("commercialName"), t("lot"), t("dose"), t("method"), t("startOn"), t("endOn"), t("reason"), t("prescriber"), t("prescriptionRef"), t("withdrawalEnd")]}
+          rows={r.treatments.map((x) => [
+            x.product,
+            x.lot ? code(x.lot) : "",
+            x.dose,
+            x.route === "other" ? (x.routeNote ?? "") : x.route ? tr(`Treatment.routes.${x.route}`) : "",
+            day(x.startOn),
+            day(x.endOn),
+            x.reason,
+            x.prescriber,
+            x.prescriptionRef ? code(x.prescriptionRef) : "",
+            day(x.withdrawalEndsOn),
+          ])}
         />
       </Section>
 
@@ -229,8 +245,15 @@ export function RegisterDocument({ register: r, printButton = true }: { register
       <Section title={t("birdsOut")}>
         <Table
           none={t("none")}
-          head={[t("date"), t("birds"), t("recipient"), t("weightKg"), t("originDocument")]}
-          rows={r.birdsOut.map((o) => [day(o.day), formatCount(o.birds), o.buyer ?? "", formatKgValue(o.liveWeightGrams), code(o.originNumber)])}
+          head={[t("date"), t("birds"), t("recipient"), t("destination"), t("weightKg"), t("originDocument")]}
+          rows={r.birdsOut.map((o) => [
+            day(o.day),
+            formatCount(o.birds),
+            [o.buyer, o.buyerAddress].filter(Boolean).join(", "),
+            o.destination ? [o.destination.name, o.destination.address].filter(Boolean).join(", ") : "",
+            formatKgValue(o.liveWeightGrams),
+            code(o.originNumber),
+          ])}
         />
       </Section>
 

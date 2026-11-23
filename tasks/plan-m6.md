@@ -58,7 +58,7 @@ T100 close accounts         ← the PCA PDF, now in docs/sources/
 T113 eggs at close           ← unblocked 22 Nov 2026 (finance → eggs approved); after T108
 T114 hens, simplified        ← FQ7; after T100
 T115 hens, classic           ← FQ7, FQ8; after T100
-T116 official statements     ← FQ22
+T116 official statements     ← unblocked 23 Nov 2026 (FQ22 decided defaults, to review); done
 T117 bank statement import   ← real statement samples
 T118 accountant import       ← FQ10 (decided by default 2026-11-23)
 ```
@@ -278,23 +278,27 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Depends on:** T108. **Size:** S
 
 ### T114: Laying hens, simplified method (FC6)
-**Blocked by:** FQ7 (no safe default: choosing the method is the accountant's), and T100 (715 and the valuation basis, read from the PCA text: SPEC-finance §5 "Laying hens, what the text says"; 23711 / 23712 against the text's 2371 / 2372 is part of FQ7).
+**Blocked by:** T100 (715 and the valuation basis, read from the PCA text: SPEC-finance §5 "Laying hens, what the text says"). FQ7 has a decided default, to review (SPEC-finance §5 FC6, §9 "Decided defaults": classic by default, simplified by the owner's choice, 23711 / 23712).
 **Description:** The method choice per category in the accounting settings (locked once the year has an entry, like FN1). The close run values the laying flock per the PCA text, through 7151 / 7152.
 **Size:** M
 
 ### T115: Laying hens and pullets, classic method (FC6)
-**Blocked by:** FQ7 and FQ8 (removing culled hens' remaining book value: no safe default), and T100 (23962, 71431, 23711, 28371, 7187).
+**Blocked by:** T100 (23962, 71431, 23711, 28371, 7187). FQ7 and FQ8 have decided defaults, to review (SPEC-finance §5 FC6, §9 "Decided defaults").
 **Description:**
 - Own pullets capitalised: D 23962 / C 71431, at the transfer to lay and at year end.
 - Point-of-lay hens bought: D 23711.
-- Depreciation over the laying period (life and cull value typed by the owner): D 6193 / C 28371.
+- Depreciation over the laying period (life and cull value typed by the owner): D 61937 / C 28371.
 - Culled hens sold: C 7187.
-- The removal entry, per FQ8's answer.
+- The removal entry at the cull (FQ8 default): D 28371 + D 6187 / C 23711.
 **Size:** L
 
 ### T116: Official statements (FC8)
-**Blocked by:** FQ22 (the official simplified model and its line ↔ account mapping, the PCA biological-asset tables, the revenue limit).
-**Description:** Bilan, CPC and ETIC in the simplified CGNC model, printable PDF, "Projet" until the year close.
+**Unblocked 2026-11-23:** the product owner asked for the most logical reading of the official texts, built now, each choice recorded as a decided default to review (SPEC-finance §9 "Official statements (T116)", FQ22). Sources: CGNC Tome I scan pp. 13, 51–52, 54–55, 67–68, 155–157, 171–173, 316–339; PCA Annexe B, PDF pp. 179–187, and pp. 17–19 (revenue limit).
+**Description:** `/closing/statements`. Bilan, CPC and the ETIC tables the ledger fills (S1, S1 bis; S1-1 and S1 ter with the PCA overlay), in the simplified CGNC model or its PCA variant, with N-1. "Projet" until the year close. Printable from the browser (print CSS: the repo generates no PDF, and no dependency was added).
+**AC:**
+- [x] Every class 1–7 posting account of both seeded charts lands on exactly one bilan or CPC line. On a fixture ledger the bilan balances and its result equals the CPC's net and the draft's (U16). _`finance/domain/official-statements.test.ts`._
+- [x] A seeded fiscal year with known entries gives the expected lines: the closed year final, the open one a draft with N-1 and its ETIC from the à-nouveaux; nothing for a `cash_book` entity; workers refused. _`finance/statements.int.test.ts` (runs in CI)._
+- [x] SPEC-finance FC8 and §9 FQ22 updated with the decided defaults and their pages.
 **Size:** L
 
 ### T117: Bank statement import (FC9)

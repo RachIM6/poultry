@@ -24,7 +24,7 @@ describe("stocks at the close (SPEC-finance FC5, FQ20, T108)", () => {
     expect(stocksAtClose([item("feed", "feed", 3_000_000)], values, new Map([["feed", 0]]), new Map())[0].cost).toBeNull(); // counted none
   });
 
-  it("posts D 31x / C the matching 6124 leaf per kind, never 6124; the provision D 6196 / C 3912, taken back on 7196 at the opening", () => {
+  it("posts D 31x / C the matching 6124 leaf per kind, never 6124; the provision D 61961 / C 3912, taken back on 7196 at the opening", () => {
     const lines = stocksAtClose(
       [item("feed", "feed", 1000), item("vaccine", "vaccine", 1000), item("litter", "litter", 1000), item("gas", "gas", 1000), item("other", "other", 1000)],
       new Map([["feed", 9_840_000n], ["vaccine", 50_000n], ["litter", 20_000n], ["gas", 30_000n], ["other", 1_000n]]),
@@ -43,7 +43,7 @@ describe("stocks at the close (SPEC-finance FC5, FQ20, T108)", () => {
       ],
     });
     const provision = yearEndProvision(lines);
-    expect(provision?.lines).toEqual([{ account: "6196", debit: 110_000n, credit: 0n }, { account: "3912", debit: 0n, credit: 110_000n }]);
+    expect(provision?.lines).toEqual([{ account: "61961", debit: 110_000n, credit: 0n }, { account: "3912", debit: 0n, credit: 110_000n }]);
     expect(openingReversalOf(provision!.lines)).toEqual([{ account: "7196", debit: 0n, credit: 110_000n }, { account: "3912", debit: 110_000n, credit: 0n }]);
     expect(openingReversalOf(yearEndStock(lines, true)!.lines.slice(0, 1))).toEqual([{ account: "3121", debit: 0n, credit: 9_890_000n }]);
     // Without the PCA the vaccine was bought on 6122: stocked with the consumables (inChart then maps 612412 → 61241).
@@ -65,18 +65,18 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
     const [line] = batchesAtClose([c], new Map([["c", weighing]]), new Map([["f1:broiler", sale]]), new Map());
     expect(line).toMatchObject({ valued: true, cost: 14_440_000n, suggested: 13_566_000n, typed: null, current: 13_566_000n, provision: 874_000n, missing: false });
     const entry = yearEndBatches([line]);
-    expect(entry).toEqual({ journal: "OD", label: "Encours de production : animaux", lines: [{ account: "31322", debit: 14_440_000n, credit: 0n }, { account: "7131", debit: 0n, credit: 14_440_000n }] });
+    expect(entry).toEqual({ journal: "OD", label: "Encours de production : animaux", lines: [{ account: "31322", debit: 14_440_000n, credit: 0n }, { account: "71311", debit: 0n, credit: 14_440_000n }] });
     const provision = yearEndProvision([], [line]);
-    expect(provision?.lines).toEqual([{ account: "6196", debit: 874_000n, credit: 0n }, { account: "3913", debit: 0n, credit: 874_000n }]);
-    // FCX5: D 7131 / C 31322 and D 3913 / C 7196.
-    expect(openingReversalOf(entry!.lines)).toEqual([{ account: "31322", debit: 0n, credit: 14_440_000n }, { account: "7131", debit: 14_440_000n, credit: 0n }]);
+    expect(provision?.lines).toEqual([{ account: "61961", debit: 874_000n, credit: 0n }, { account: "3913", debit: 0n, credit: 874_000n }]);
+    // FCX5: D 71311 / C 31322 and D 3913 / C 7196.
+    expect(openingReversalOf(entry!.lines)).toEqual([{ account: "31322", debit: 0n, credit: 14_440_000n }, { account: "71311", debit: 14_440_000n, credit: 0n }]);
     expect(openingReversalOf(provision!.lines)).toEqual([{ account: "7196", debit: 0n, credit: 874_000n }, { account: "3913", debit: 874_000n, credit: 0n }]);
   });
 
-  it("one provision entry for the stocks and the batches: D 6196 for both, C 3912 and C 3913", () => {
+  it("one provision entry for the stocks and the batches: D 61961 for both, C 3912 and C 3913", () => {
     const stock = stocksAtClose([item("feed", "feed", 1000)], new Map([["feed", 9_840_000n]]), new Map(), new Map([["feed", 9_730_000n]]));
     const [line] = batchesAtClose([c], new Map([["c", weighing]]), new Map([["f1:broiler", sale]]), new Map());
-    expect(yearEndProvision(stock, [line])?.lines).toEqual([{ account: "6196", debit: 984_000n, credit: 0n }, { account: "3912", debit: 0n, credit: 110_000n }, { account: "3913", debit: 0n, credit: 874_000n }]);
+    expect(yearEndProvision(stock, [line])?.lines).toEqual([{ account: "61961", debit: 984_000n, credit: 0n }, { account: "3912", debit: 0n, credit: 110_000n }, { account: "3913", debit: 0n, credit: 874_000n }]);
   });
 
   it("takes the owner's value over the suggested one; a value above cost leaves the batch at cost; a sale by the head needs no weighing", () => {
@@ -113,8 +113,8 @@ describe("eggs at the close (SPEC-finance FC5, FQ18, T113)", () => {
   it("values the counted eggs, else the book ones, × the owner's value per egg; requires a value, not for eggs counted 0", () => {
     const eggs = eggsAtClose(stock, new Map([["f1", 11_800], ["f3", 0]]), new Map([["f1", 95n]]), true);
     expect(eggs.map((e) => [e.farmId, e.quantity, e.value, e.missing])).toEqual([["f1", 11_800, 1_121_000n, false], ["f2", 3_000, 0n, true], ["f3", 0, 0n, false]]);
-    expect(yearEndStock([], true, eggs)?.lines).toEqual([{ account: "3152", debit: 1_121_000n, credit: 0n }, { account: "7132", debit: 0n, credit: 1_121_000n }]);
-    expect(openingReversalOf(yearEndStock([], true, eggs)!.lines)).toEqual([{ account: "3152", debit: 0n, credit: 1_121_000n }, { account: "7132", debit: 1_121_000n, credit: 0n }]);
+    expect(yearEndStock([], true, eggs)?.lines).toEqual([{ account: "3152", debit: 1_121_000n, credit: 0n }, { account: "71321", debit: 0n, credit: 1_121_000n }]);
+    expect(openingReversalOf(yearEndStock([], true, eggs)!.lines)).toEqual([{ account: "3152", debit: 0n, credit: 1_121_000n }, { account: "71321", debit: 1_121_000n, credit: 0n }]);
   });
   it("posts nothing for the eggs with the PCA off, and needs no value then (FQ25)", () => {
     const eggs = eggsAtClose(stock, new Map(), new Map([["f1", 95n]]), false);

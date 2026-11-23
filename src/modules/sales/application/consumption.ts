@@ -28,7 +28,7 @@ export async function recordConsumption(tx: Tx, ctx: TenantContext, cmd: z.infer
   if (await saleIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
   const last = lastPrices(await recentSales(tx, ctx, cmd.kind, cmd.day), cmd.kind, cmd.day);
   const priceOf = (typed: string | null, item: string) => (typed !== null && can(ctx, "money.read") ? BigInt(typed) : (last.get(item) ?? 0n));
-  const base = { id: cmd.id, batchId: cmd.batchId, buyerId: null, day: cmd.day, buyerWeightGrams: null, paymentMethod: "none" as const, paidCentimes: "0", vatCentimes: "0", instrument: null, creditApproval: null, kind: cmd.kind, takenBy: cmd.takenBy };
+  const base = { id: cmd.id, batchId: cmd.batchId, buyerId: null, day: cmd.day, buyerWeightGrams: null, paymentMethod: "none" as const, paidCentimes: "0", vatCentimes: "0", instrument: null, creditApproval: null, kind: cmd.kind, takenBy: cmd.takenBy, destination: null };
   let sale: Required<SaleDto>;
 
   if (cmd.kind === "eggs") {

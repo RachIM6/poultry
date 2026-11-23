@@ -24,7 +24,7 @@ export const STOCK_ACCOUNTS: Record<ItemKind, { stock: string; variation: string
  */
 export const stockAccountsOf = (kind: ItemKind, pca: boolean) => (!pca && (kind === "vaccine" || kind === "medicine") ? STOCK_ACCOUNTS.litter : STOCK_ACCOUNTS[kind]);
 
-export const PROVISION_CHARGE = "6196"; // Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant
+export const PROVISION_CHARGE = "61961"; // D.E.P. pour dépréciation des stocks (6196 is subdivided, FN4; CGNC scan p. 297, PCA p. 103)
 export const STOCK_PROVISION = "3912"; // Provisions pour dépréciation des matières et fournitures
 export const PROVISION_REVERSAL = "7196"; // Reprises sur provisions pour dépréciation de l’actif circulant
 
@@ -59,7 +59,7 @@ const sorted = (m: Map<string, bigint>) => [...m].filter(([, a]) => a > 0n).sort
 // SPEC-finance FC5 (T113): eggs in stock, the counted (else book) quantity × the value per egg the owner types (FQ18:
 // no computed cost), in the "stock" entry.
 export const EGGS_STOCK = "3152"; // Produits finis (d’animaux)
-export const EGGS_VARIATION = "7132"; // Variation des stocks de biens produits
+export const EGGS_VARIATION = "71321"; // Variation des stocks de produits finis (7132 is subdivided, FN4; CGNC scan p. 305)
 
 /**
  * A farm's eggs at the close. `perEgg`: the owner's value of one egg, in centimes. `posted` false: the PCA is off, so 3152
@@ -78,7 +78,7 @@ export function eggsAtClose(stock: readonly { farmId: string; eggs: number }[], 
 
 /**
  * FC5: D each stock account / C each 6124 leaf, at cost; `pca`: the entity's chart has the overlay. With it, the eggs:
- * D 3152 / C 7132 (T113). Null when nothing is valued.
+ * D 3152 / C 71321 (T113). Null when nothing is valued.
  */
 export function yearEndStock(lines: readonly StockAtClose[], pca: boolean, eggs: readonly EggsAtClose[] = []): Posting | null {
   const debits = new Map<string, bigint>();
@@ -99,7 +99,7 @@ export function yearEndStock(lines: readonly StockAtClose[], pca: boolean, eggs:
 
 /**
  * FC4, FC5: one provision entry for the stock lines and the batches in progress whose current value is below cost,
- * D 6196 / C 3912 and C 3913. Null when there is none.
+ * D 61961 / C 3912 and C 3913. Null when there is none.
  */
 export function yearEndProvision(lines: readonly StockAtClose[], batches: readonly BatchAtClose[] = []): Posting | null {
   const stock = lines.reduce((s, l) => s + l.provision, 0n);
@@ -117,7 +117,7 @@ export function yearEndProvision(lines: readonly StockAtClose[], batches: readon
 // split by head (FQ19), against a current value from the last weighing and the last sale price (FQ20).
 
 export const IN_PROGRESS = "31322"; // Animaux (3132 Encours de Production); 3132 with the PCA off
-export const IN_PROGRESS_VARIATION = "7131"; // Variation des stocks de produits en cours
+export const IN_PROGRESS_VARIATION = "71311"; // Variation des stocks de biens produits en cours (7131 is subdivided, FN4; CGNC scan p. 305)
 export const IN_PROGRESS_PROVISION = "3913"; // Provisions pour dépréciation des produits en cours
 
 /** FC4's scope: the types sold as meat. Pullets and layers are FC6, not valued until FQ7 (T114, T115). */
@@ -167,7 +167,7 @@ export function batchesAtClose(batches: readonly BatchIn[], weighings: ReadonlyM
   });
 }
 
-/** FC4: D 31322 / C 7131 at cost for the batches valued. Null when nothing is. */
+/** FC4: D 31322 / C 71311 at cost for the batches valued. Null when nothing is. */
 export function yearEndBatches(batches: readonly BatchAtClose[]): Posting | null {
   const total = batches.reduce((s, b) => s + b.cost, 0n);
   if (total === 0n) return null;

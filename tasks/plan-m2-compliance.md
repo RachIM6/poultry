@@ -11,7 +11,7 @@ Taken as safe defaults (SPEC-m2-compliance §3, to report to the owner):
 - **The register is built on the phone** from synced records, in a precached static shell: it prints offline, on the farm.
 - **Files in PostgreSQL** (`StoredFile`, bytea, ≤ 5 MB, PDF/JPEG/PNG/WebP by magic bytes), one upload route handler: ADR-011.
 - **Biosecurity records are offline mutations**; a proof photo is attached online, later, to the same record. The sync protocol doesn't change.
-- **No official content invented**: register layout, retention and the inspection checklist wait for CQ1, CQ2, CQ5–CQ7 (the minimum downtime and disposal methods were taken from the official texts on 23 Nov 2026: CQ3, CQ4); printed pages carry « Présentation provisoire, à valider avec l'ONSSA ».
+- **No official content invented**: register layout, retention and the inspection checklist follow the official texts since 2026-11-23 (CQ1, CQ2, CQ5–CQ7); so do the minimum downtime and the disposal methods (CQ3, CQ4).
 
 ## Dependency graph
 
@@ -139,6 +139,11 @@ Done 2026-11-16 (branch `feat/t47-register-pdf`):
 - `/register#<batch id>` is a precached static shell outside the app shell (like `/origin`), so the tab bar never prints. Links in both languages on the batch screen (`register-links.tsx`, its own file so `/batches` doesn't load the builder).
 - Layout: the canvas's C-Register frame (cover boxes, then one table per section, signature boxes for the farmer and the vet), with « Présentation provisoire, à valider avec l’ONSSA » at the bottom until CQ1.
 - "Registre sanitaire de suivi du lot · loi n° 49-99, article 3" is the only legal reference printed, from NEEDS-ANALYSIS §4.
+Updated 2026-11-23 (branch `feat/official-register`), to the official texts (docs/sources/onssa/, SPEC-m2-compliance §9 CQ1, CQ7):
+- The register is the « Registre de suivi sanitaire » of arrêté n° 2126-05: legal line « Arrêté n° 2126-05 (décret n° 2-04-684, art. 8) », no « provisoire » mention, pages numbered "n / N" (print CSS `@page`), sections in art. 2's order (cover art. 3, supervision sheet, chronological rows art. 4, medicines, vaccinations per arrêté n° 3308-17 art. 14, lots leaving, lab investigations, vet visas art. 7, pièces à joindre art. 2 and 5), « Visa du détenteur » (art. 16), the retention line (art. 9).
+- Daily rows: cumulative mortality (dead and culled), one feed column per feed type (stock item name), daily eggs for layer batches, the day's note, vet visit, lab report, vaccination and treatment.
+- Blank lines to fill by hand: détenteur, register keepers, vet sanitaire, technician. **Follow-ups** (data the app doesn't hold, not printed): agrément number (chick importers), a treatment's route of administration (health), the buyer's or destination establishment's name and address (sales), a treatment's prescription reference beyond the prescriber (health), the vet sanitaire and the détenteur on the farm record (farm-registry).
+
 **Size:** M
 
 ### T48: Batch report (RP3)
@@ -166,11 +171,16 @@ Done 2026-11-16 (branch `feat/t49-inspection-pack`), decisions taken without ask
 - **"Missing" today:** no ONSSA authorization (on the farm or as a valid vault document), an expired one, no valid vet contract (law 49-99 art. 7), any expired vault document, a closed batch of the period without a noted disinfection, a rodent check without its photo. Provisional (CQ2).
 - **Period:** the last `INSPECTION_LOOKBACK_MONTHS` (12), a choice, not a retention rule (CQ5); open batches always.
 - **Files are linked, not merged** into the PDF (CQ6). Each batch's register is the same component as `/register`, one per page.
+Updated 2026-11-23 (branch `feat/official-register`), SPEC-m2-compliance §9 CQ2, CQ5, CQ6:
+- The checklist is built from the texts: eleven lines, each with its source, state « conforme d'après les saisies », « à compléter » or « à vérifier sur place »; missing details under « À compléter » (a month without a vet visit, downtime under 20 days in a house, Newcastle vaccination missing or without lot, plus the earlier ones). An expired vault document is no longer a checklist line (no text requires it); the documents table still shows its state.
+- Registers stay in the pack 12 months after closing for meat batches, 24 for layers and pullets (arrêté n° 2126-05 art. 9); logs 12 months.
+- **Follow-up:** store the fixed-installations self-declaration once per farm instead of ticking it on paper.
+
 **Size:** M
 
 ### ✅ Checkpoint M2-compliance
-- [ ] CQ1: the owner has provided the official register template, and RP1–RP2 follow it; the provisional mention is removed.
-- [ ] A private vet or ONSSA contact has reviewed the register, the disposal methods (CQ4) and the inspection checklist (CQ2).
+- [x] CQ1: RP1–RP2 follow arrêté n° 2126-05 (no annexed template exists; the contents are the article list); the provisional mention is removed (2026-11-23).
+- [ ] A private vet or ONSSA contact has reviewed the register, the disposal methods (CQ4) and the inspection checklist (CQ2), built from the texts on 2026-11-23.
 - [ ] SPEC-m2-compliance §10 criteria met.
 
 ## Risks

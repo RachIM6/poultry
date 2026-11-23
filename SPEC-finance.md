@@ -73,22 +73,24 @@ Turn what the farm already records (purchases, consumption, sales, payments) int
   | Issued bill paid at due date | 4415 | 5141 | BQ |
   | Live-bird sale (`sales`) | 3421 buyer | 712121 | VT |
   | Receipt, cash or transfer | 5161 / 5141 | 3421 | CA / BQ |
-  | Cheque received | **5111** | 3421 | EF |
+  | Cheque received | **51111** Chèques en portefeuille | 3421 | EF |
+  | Cheque remitted to bank | 51112 Chèques à l’encaissement | 51111 | EF |
   | Bill received (traite) | 3425 | 3421 | EF |
-  | Bill at due date, remitted to bank | 5113 | 3425 | EF |
-  | Cheque or bill cashed | 5141 | 5111 / 5113 | BQ |
-  | Cheque or bill unpaid | **3424** | 5141 or 5111 / 5113 | BQ / EF |
+  | Bill at due date, remitted to bank | 51132 Effets à l’encaissement | 3425 | EF |
+  | Cheque or bill cashed | 5141 | 51111 / 51112 / 51132 | BQ |
+  | Cheque or bill unpaid | **3424** | 5141 or 51111 / 51112 / 51132 / 3425 | BQ / EF |
   | Quick expense: electricity · water | 612512 · 612511 | 5161 / 5141 / 4411 | CA / BQ / AC |
   | Quick expense: vet fees · insurance · catching crew or transport | 6136 · 6134 · 612612 | idem | idem |
+  | Quick expense: bank fees (FC9) | 61473 | 5141 | BQ |
   | Cash deposited to bank (two entries) | 5115, then 5141 | 5161, then 5115 | CA, then BQ |
   | Cash withdrawn from bank (two entries) | 5115, then 5161 | 5141, then 5115 | BQ, then CA |
   | Staff advance | 3431 | 5161 | CA |
   | Owner or partner contribution / withdrawal | 5141 · 4463 (company) or exploitant account (FQ11) | the other | BQ |
 
-  Daily feed consumption, mortality and stock adjustments create **no entry** (FN13 uses them).
+  Where the CGNC subdivides an account, the rule posts to its leaf (FN4; §9 "FN4 sweep"). Daily feed consumption, mortality and stock adjustments create **no entry** (FN13 uses them).
 - **FN7. Posting pipeline.** After each sync push, and on demand, finance reads records changed since its cursor through `inventory`, `flock` and `sales` `index.ts` (`listChangedSince(cursor)`) and posts them. The unique key `(sourceModule, sourceId, sourceVersion)` makes a replay a no-op. A source record edited later gets a reversal and a new entry. Posting runs on the server only.
 - **FN8. Overrides.** The owner can override the account of a default rule for one entity (e.g. a specific expense category). The override applies to new entries only and is audited.
-- **FN9. VAT.** Purchases and sales store the invoice total and an optional VAT amount. If the entity is VAT-registered and the VAT is recoverable, the VAT goes to 34552 (purchases; 3455 for now, the PCA nomenclature has no 34552, see plan T39) and 4455 (sales); otherwise the full amount goes to the charge. Default: not registered, until FQ4 is answered.
+- **FN9. VAT.** Purchases and sales store the invoice total and an optional VAT amount. If the entity is VAT-registered and the VAT is recoverable, the VAT goes to 34552 État – TVA récupérable sur les charges (purchases and quick expenses; 34551 … sur immobilisations for a fixed asset, FC1; §9 "FN4 sweep") and 4455 (sales); otherwise the full amount goes to the charge. Default: not registered, until FQ4 is answered.
 
 ### Cash, portfolio, third parties
 - **FN10. Treasury screen.** Balance per bank account and cash box, movements of the month with journal, counter-account, batch and "receipt attached" flag. Total available = Σ 5141 + Σ 5161.
@@ -133,28 +135,28 @@ Numbers and labels as printed in the PCA nomenclature (chapter 5, pages 53–71)
 | Net book value of tangible assets disposed of (FC1) | 6513 VNA des immobilisations corporelles cédées |
 | Proceeds of tangible-asset disposals (FC1) | 7513 Produits des cessions des immobilisations corporelles |
 | Depreciation charge (FC1, FC6) | a sub-account of 6193 Dotations d’exploitation aux amortissements des immobilisations corporelles, by asset kind (CGNC scan p. 296; PCA pp. 123–124): 61932 D.E.A. des constructions, 61933 D.E.A. des installations techniques, matériel et outillage, 61934 D.E.A. du matériel de transport, 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers, 61937 D.E.A des Animaux (FC6, PCA; 61938 with the PCA off). 6193 itself takes no line (FN4) |
-| Loans (FC2) | 1481 Emprunts auprès des établissements de crédit; 6311 Intérêts des emprunts et dettes |
+| Loans (FC2) | 1481 Emprunts auprès des établissements de crédit; 63111 Intérêts des emprunts (under 6311 Intérêts des emprunts et dettes, FN4) |
 | Investment subsidies (FC2) | 1311 Subventions d’investissement reçues; 1319 Subventions d’investissement inscrites au compte de produits et charges; 7577 Reprises sur subventions d’investissement de l’exercice |
-| Batches in progress (FC4) | 31322 Animaux (under 3132 Encours de Production); 7131 Variation des stocks de produits en cours; 6196 Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant; 3913 Provisions pour dépréciation des produits en cours |
+| Batches in progress (FC4) | 31322 Animaux (under 3132 Encours de Production); 71311 Variation des stocks de biens produits en cours (under 7131); 61961 D.E.P. pour dépréciation des stocks (under 6196 Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant, FN4); 3913 Provisions pour dépréciation des produits en cours |
 | Reversals of current-asset provisions (FC4, FC5) | 7196 Reprises sur provisions pour dépréciation de l’actif circulant |
 | Provision on materials and supplies (FC5) | 3912 Provisions pour dépréciation des matières et fournitures |
-| Own products in stock, eggs (FC5) | 3152 Produits finis (d’animaux); 7132 Variation des stocks de biens produits |
+| Own products in stock, eggs (FC5) | 3152 Produits finis (d’animaux); 71321 Variation des stocks de produits finis (under 7132 Variation des stocks de biens produits, FN4) |
 | Hens, classic method (FC6) | 23711 Animaux Reproducteurs Adultes; 23712 Animaux Reproducteurs Jeunes de Renouvellement; 23962 Immobilisations en cours - animaux; 71431 Immobilisations corporelles agricoles produites; 28371 Amortissements des animaux reproducteurs; 7187 Produits de cessions courantes d'éléments d'actif |
 | Hens, simplified method (FC6) | 715 Variation d’inventaire: 7151 … Animaux reproducteurs immobilisés Adulte, 7152 … Jeunes de renouvellement |
 | Home consumption (FC7) | 7140 Production Autoconsommée, under 714 Production Autoconsommée et Immobilisations produites par l’entreprise pour elle-même |
-| Bank services (FC9) | 6147 Services bancaires |
+| Bank services (FC9) | 61473 Frais et commissions sur services bancaires (under 6147 Services bancaires, FN4) |
 
 **Fixed-asset categories (FC1), default:**
 
 | Category | Asset account | Depreciation | Charge |
 |---|---|---|---|
 | Land | 23111 Terrains nus d’exploitation (23121 Terrains aménagés d’exploitation for prepared land); 2311 / 2312 with the PCA off | none | none |
-| Buildings, poultry houses included | 23211 Bâtiments d’exploitation (2321 with the PCA off); 23231 on someone else's land | 2832 Amortissements des constructions | 61932 D.E.A. des constructions |
-| Technical installations, equipment and tools | 233111 Installations techniques Agricoles sur sol propre (233112 on someone else's land; 2331 with the PCA off); 2332 Matériel et outillage for movable equipment and tools | 2833 Amortissements des installations techniques, matériel et outillage | 61933 D.E.A. des installations techniques, matériel et outillage |
+| Buildings, poultry houses included | 23211 Bâtiments d’exploitation (2321 with the PCA off); 23231 on someone else's land | 28321 Amortissements des bâtiments (28323 … des constructions sur terrains d’autrui for 23231) | 61932 D.E.A. des constructions |
+| Technical installations, equipment and tools | 233111 Installations techniques Agricoles sur sol propre (233112 on someone else's land; 2331 with the PCA off); 23321 Matériel (under 2332 Matériel et outillage) for movable equipment | 28331 Amortissements des installations techniques (28332 … du matériel et outillage for 23321) | 61933 D.E.A. des installations techniques, matériel et outillage |
 | Transport equipment | 2340 Matériel de transport | 2834 Amortissements du matériel de transport | 61934 D.E.A. du matériel de transport |
-| Furniture and office equipment | 2351 Mobilier de bureau, 2352 Matériel de bureau, 2355 Matériel informatique, 2358 Autres mobilier, matériel de bureau et aménagements divers | 2835 Amortissements du mobilier, matériel de bureau et aménagements divers | 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers |
+| Furniture and office equipment | 2351 Mobilier de bureau, 2352 Matériel de bureau, 2355 Matériel informatique, 2358 Autres mobilier, matériel de bureau et aménagements divers | 28351 … du mobilier de bureau, 28352 … du matériel de bureau, 28355 … du matériel informatique, 28358 … des autres mobilier, matériel de bureau et aménagements divers (under 2835), one per asset account | 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers |
 
-The "d’exploitation / hors exploitation" split follows the text: "hors exploitation" land is land not used by the farm (chapter 6, account 231, p. 84). Each depreciation and charge account above is a leaf, in both charts. 6193 is not: the CGNC subdivides it by asset kind, each 6193x paired with its 283x (scan p. 296), so a category's charge goes on the sub-account that matches its depreciation account (§9 "Decided defaults"). 61938 D.E.A. des autres immobilisations corporelles (with 2838) has no category yet.
+The "d’exploitation / hors exploitation" split follows the text: "hors exploitation" land is land not used by the farm (chapter 6, account 231, p. 84). Each depreciation and charge account above is a leaf, in both charts. 6193 is not: the CGNC subdivides it by asset kind, each 6193x paired with its 283x (scan p. 296), so a category's charge goes on the sub-account that matches its depreciation account (§9 "Decided defaults"). 61938 D.E.A. des autres immobilisations corporelles (with 2838) has no category yet. The CGNC also subdivides 2332, 2832, 2833 and 2835 (scan pp. 266, 271–272), so the asset and depreciation accounts above are their leaves; 2834 has none (§9 "FN4 sweep").
 
 **Bought stock by kind (FC5), default.** The stock account follows the purchase account's family (FN6), and the variation account is the matching 6124 leaf:
 
@@ -222,16 +224,16 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - transport equipment;
     - furniture and office equipment.
 
-    Land, buildings, technical installations and transport equipment map to their accounts in 231x–234x; furniture and office equipment to 2351–2358. Each has its matching depreciation account in 2832–2835 (table in "Accounts from the PCA nomenclature").
-  - **Acquisition posting:** D asset account (+ D 3455 for the VAT when registered, FN9) / C 5161 (`CA`), 5141 (`BQ`, an issued cheque on its issue day) or, on credit, 4481 Dettes sur acquisition d’immobilisations (`OD`; 1486 vs 4481: §9). A later payment of an asset bought on credit: D that account / C 5161 or 5141. An asset in the opening balance posts nothing: its cost and accumulated depreciation come with the opening entry (FCX3).
+    Land, buildings, technical installations and transport equipment map to their accounts in 231x–234x; furniture and office equipment to 2351–2358. Each has its matching depreciation account, a leaf of 2832–2835 or 2834 (table in "Accounts from the PCA nomenclature").
+  - **Acquisition posting:** D asset account (+ D 34551 for the VAT when registered, FN9) / C 5161 (`CA`), 5141 (`BQ`, an issued cheque on its issue day) or, on credit, 4481 Dettes sur acquisition d’immobilisations (`OD`; 1486 vs 4481: §9). A later payment of an asset bought on credit: D that account / C 5161 or 5141. An asset in the opening balance posts nothing: its cost and accumulated depreciation come with the opening entry (FCX3).
   - **Depreciation:** straight-line only. Depreciable base = cost − residual value.
     - **Default prorata (FQ9), to confirm with the accountant: by whole months.** The month the asset is put into service counts in full; the month of its disposal doesn't.
     - Months used in a fiscal year: from the in-service month (included) to the disposal month (excluded) or the year end, never beyond the life.
     - The charge of a year is cumulative(end) − cumulative(start), with cumulative(m) = base × min(m, life) ÷ life, rounded half up to the centime. Rounded once per cumulative figure, so the charges always add up to the base exactly (§7.1 fixture A).
     - An asset in the opening balance spreads what is left (base − accumulated depreciation entered) the same way over the life months left.
-  - **Year-end posting** (close run): D 61932–61935 / C 2832–2835, one debit line per charge account and one credit line per depreciation account, paired as the CGNC pairs them (61932 / 2832 … 61935 / 2835; table above).
+  - **Year-end posting** (close run): D 61932–61935 / C the depreciation leaves (283xx, 2834), one debit line per charge account and one credit line per depreciation account, paired as the CGNC pairs them (61932 / 2832x … 61935 / 2835x; table above).
   - **Disposal** (sold or scrapped): day, price (0 when scrapped), received in cash or at the bank. On the disposal day (`OD`):
-    - the depreciation of the year up to the disposal month: D the asset's charge account (61932–61935) / C its depreciation account (2832–2835);
+    - the depreciation of the year up to the disposal month: D the asset's charge account (61932–61935) / C its depreciation account (283xx, 2834);
     - the asset leaves: D that depreciation account (accumulated), D 6513 VNA des immobilisations corporelles cédées, C asset account (cost);
     - the price: D 5161 / 5141 / C 7513 Produits des cessions des immobilisations corporelles.
 
@@ -251,7 +253,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - Before confirming, the owner can change any row's capital and interest so the schedule matches the bank's table to the centime; the capital must add up to the principal. Confirmed rows are fixed (§7.1 fixture B).
   - **Postings:**
     - Disbursement: D 5141 (that bank account) / C 1481, `BQ`.
-    - An installment marked paid by the owner or a manager (on or after its due day, as "Débité" in FN11): D 1481 capital, D 6311 interest / C 5141, `BQ`, on the day entered (default: the due day).
+    - An installment marked paid by the owner or a manager (on or after its due day, as "Débité" in FN11): D 1481 capital, D 63111 interest / C 5141, `BQ`, on the day entered (default: the due day).
   - **Reminders and cash:** a reminder to owners and managers on the due day, once (a money notification, as for issued cheques). The `/treasury` 4-week cash schedule counts unpaid installments as outflows on their due day.
   - **Year end, default (FQ16):** no accrued interest. If the accountant wants it, it is a manual entry (FCX3).
   - **Investment subsidy:** label, granting body (free text), amount, day received, bank account, and the depreciable assets of the register it finances (one or more).
@@ -279,19 +281,19 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - **Default (FQ20), when none is entered:** birds on hand × the last average weighing (grams) × the farm's last sale price per kg for that production type (`sales`), or × the last price per head for a type sold by the head.
     - Without a weighing or a sale, the owner must enter a value.
   - **Posting** (close run):
-    - D 31322 / C 7131 at cost;
-    - when the current value is below cost, a provision for the difference: D 6196 / C 3913;
-    - reversed on the next year's first day (FCX5): D 7131 / C 31322, and D 3913 / C 7196 Reprises sur provisions pour dépréciation de l’actif circulant.
+    - D 31322 / C 71311 at cost;
+    - when the current value is below cost, a provision for the difference: D 61961 / C 3913;
+    - reversed on the next year's first day (FCX5): D 71311 / C 31322, and D 3913 / C 7196 Reprises sur provisions pour dépréciation de l’actif circulant.
 - **FC5. Stocks** (FQ18, FQ20).
   - **Bought stock** (feed, vaccines, medicines, litter, gas, other, packaging included):
     - **Value:** counted quantity (else the book quantity) × the weighted average cost on the last day (S5, `inventory.valuate`), per item and farm.
     - **Accounts:** by kind (table "Bought stock by kind" above): D 3121, 31221, 31223 or a 3123 leaf / C the matching 6124 leaf, 612412, 61242 or 61243. Never C 6124 itself: it has sub-accounts (FN4).
-    - **Current value, default (FQ20):** equal to cost, unless the owner enters a lower one for a damaged or expired lot (the count sheet flags expired lots). A provision for the difference: D 6196 / C 3912 Provisions pour dépréciation des matières et fournitures (§7 `stockAtCloseValue`).
+    - **Current value, default (FQ20):** equal to cost, unless the owner enters a lower one for a damaged or expired lot (the count sheet flags expired lots). A provision for the difference: D 61961 / C 3912 Provisions pour dépréciation des matières et fournitures (§7 `stockAtCloseValue`).
     - Reversed on the next year's first day (FCX5): D the 6124 leaf / C the stock account, and D 3912 / C 7196.
   - **Eggs** (T113; `eggs` added to finance's dependencies by the product owner on 22 Nov 2026, CAPABILITY-MAP):
     - quantity: the count, else the egg stock (SPEC-m3 E2) on the last day: each record on the farm day it happened, whenever the server received it: the collections laid by then, the discards (the phone's farm day) and the draws (the sale's day) of a day by then, and the gradings of eggs laid by then (a grading only moves eggs between items);
     - **default (FQ18): value per egg typed by the owner**, in dirhams to the centime, no computed cost. Value = quantity × value per egg, exact. The run refuses while eggs to post have no value; none counted, nothing posted;
-    - D 3152 Produits finis (d’animaux) / C 7132, in the "stock" entry, reversed with it (FCX5). With the PCA off, 3152 lands on 315, which has sub-accounts: nothing posts for the eggs and no value is asked, listed "non comptabilisé (FQ25)" (§9).
+    - D 3152 Produits finis (d’animaux) / C 71321, in the "stock" entry, reversed with it (FCX5). With the PCA off, 3152 lands on 315, which has sub-accounts: nothing posts for the eggs and no value is asked, listed "non comptabilisé (FQ25)" (§9).
   - **Out of scope:** any valuation method other than the weighted average cost (S5).
 - **FC6. Laying hens and pullets: decided default, to review** (FQ7, FQ8, §9 "Decided defaults"; T114, T115). Page numbers are the PCA 2015's, as printed.
   - **Method (FQ7a): classic by default.** The PCA treats breeding animals "au même titre que les immobilisations corporelles" (p. 88); the simplified method applies "par dérogation" (p. 89). One method per category of breeding animals, never both for the same category (p. 88). The owner may choose the simplified method for a fiscal year before the year's first entry ("permanence des méthodes", like FN1), stored with the other accounting choices. Ledger entities only.
@@ -301,7 +303,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - balance-sheet accounts 23711 Animaux Reproducteurs Adultes and 23712 … Jeunes de Renouvellement, never 2371 / 2372 (FQ7b);
     - own pullets' rearing cost (the pullet batch's FN13 cost to date): at year end for pullets still rearing, D 23962 / C 71431 (pp. 89–90);
     - at the transfer to lay (SPEC-m3 B13): D 23962 / C 71431 for the cost not yet capitalised, then D 23711 / C 23962 for the batch's whole balance on 23962 (FQ7c: an asset in progress is cleared into its asset account on completion, p. 90);
-    - point-of-lay hens bought: D 23711 (+ D 3455 for the VAT, FN9) / C 4481, 5141 or 5161, instead of 612121 (CGNC p. 147);
+    - point-of-lay hens bought: D 23711 (+ D 34551 for the VAT, FN9) / C 4481, 5141 or 5161, instead of 612121 (CGNC p. 147);
     - depreciation: straight line from the entry into 23711, base = entry value − the cull value typed by the owner, life = the laying period in months typed by the owner, FC1's whole-month prorata (pp. 36–37). D 61937 D.E.A des Animaux / C 28371 Amortissements des animaux reproducteurs (pp. 58, 124; §7 `straightLine`);
     - culled hens sold: C 7187 Produits de cessions courantes d’éléments d’actif instead of 712121 (p. 132);
     - removal at the cull (FQ8): D 28371 (accumulated) + D 6187 VNA des éléments d’actif cédés (cessions courantes) (net book value) / C 23711 (gross), never 6513 (p. 123). A whole flock lost without a sale: the net book value goes to 6513 (CGNC p. 147). A partial cull of share s: s of the gross and of the accumulated depreciation leave, and the schedule goes on over (1 − s). A provision on 2937, if any: D 2937 / C 7194 on the cull day.
@@ -316,7 +318,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
   - **Batch result:** it counts with the batch's sales and kg sold at that value (FN13).
   - **Posting** (`OD`), credit 7140 Production Autoconsommée, under 714 Production Autoconsommée et Immobilisations produites par l’entreprise pour elle-même (confirmed by T100). With the PCA off, 7140 lands on 714, which has sub-accounts: §9. Debit:
     - 4463 for an associate of a company;
-    - **default (FQ21):** 6171 for an employee;
+    - **default (FQ21):** 61713 Indemnités et avantages divers for an employee (a benefit in kind, under 6171);
     - the exploitant's account for an individual, **blocked by FQ11**. Until then the record is kept and listed as "non comptabilisé (FQ11)" on `/books`, for the month of its day.
   - **With the PCA off** no line goes on 714 (FN4) and no account is invented: the record is listed as "non comptabilisé (FQ25)" the same way. The debit follows who took it, whatever the legal form; a `cash_book` entity posts it too, as its sales.
   - **Out of scope:** the payroll side of a benefit in kind (CNSS, income tax).
@@ -336,10 +338,15 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
   - **Manual** (buildable now; the bank-fees category is T119), per bank account (T32), by the owner or a manager:
     - enter a statement: end day and closing balance as printed;
     - tick each 5141 line of that account that is on it;
-    - book the lines on the statement but not in the books where they belong: bank fees through a new quick-expense category "Frais bancaires", D 6147 Services bancaires / C 5141, `BQ` (T119); the rest through its own form or a manual entry (FCX3).
+    - book the lines on the statement but not in the books where they belong: bank fees through a new quick-expense category "Frais bancaires", D 61473 Frais et commissions sur services bancaires / C 5141, `BQ` (T119); the rest through its own form or a manual entry (FCX3).
     - The screen shows the statement balance, the book balance on the end day, the unticked book lines and the difference. The account is "rapproché" when the difference is 0.
     - A tick is audited, and can be undone until its month is locked.
-  - **Statement import, blocked:** no bank file format is assumed. It waits for real statement samples from the pilot's banks (T117).
+  - **Statement import** (T117; decided default, to review, §9 "Bank statement import (T117)"), on the same screen, by the owner or a manager:
+    - **MT940** (SWIFT customer statement), the one format both offered by Moroccan banks (Attijariwafa, Crédit du Maroc, Bank of Africa) and published field by field; **CSV** exports read with the owner's column mapping (separator, header lines, date column and format, label, a signed amount or a debit and a credit column, decimal comma), for banks that only give spreadsheets. No second file format: AMB 120 is offered but unpublished; CFONB 120 and camt.053 aren't offered by the banks found. Study and sources: `docs/studies/bank-statement-formats.md`.
+    - A preview first, nothing saved; then each statement in the file becomes the account's statement of its end day (created, or one typed by hand with the same closing balance), and its lines are stored as printed. MT940: opening + Σ lines = closing on every page, MAD only, one account per file. CSV: the owner types the end day and closing balance.
+    - Idempotent: a line is keyed by its statement and a hash of what the bank printed (with its rank among identical lines), so the same file again adds nothing; a file contradicting a statement already there is refused whole.
+    - Each imported line is shown with the book line of the same amount it pairs with (ticked on this statement, else the nearest one still to tick, up to the end day), or "absente des livres". The owner ticks it (above); nothing is ticked automatically.
+    - The file is untrusted: 512 KB at most, a text extension, no binary, UTF-8 or Windows-1252, parsed field by field, never executed.
   - **Out of scope:** automatic matching rules, cash-box counts.
 - **FC10. Accountant import format** (FQ10; T118; decided default, to review). A `ledger` entity's month also downloads as a FEC, the "fichier des écritures comptables" of article A47 A-1 of the French LPF: the only journal-entry file found with a published specification, imported by EBP (Morocco edition) and Sage 100 (template seen in its French edition), and documented by Cegid. Its 18 fields are, in the same order, those of the Moroccan FEC of CNC avis n° 24 (2023), which fixes no technical format. Tab-separated, UTF-8 without BOM, CRLF, field names on the first line, dates `AAAAMMJJ`, decimal comma; FN18's party, farm, house and batch follow the 18 fields; named `FECAAAAMMJJ.txt` (the month's last day). Study, sources and every field choice: `docs/studies/accountant-import-format.md`. A vendor-specific format waits for a published specification.
 
@@ -380,7 +387,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 1. Base = 4 735 000 centimes. Months used: 2026 = September to December = 4 (September counts in full); 2027–2032 = 12 each; 2033 = 84 − 4 − 6 × 12 = 8 (January to August).
 2. cumulative(m) = 4 735 000 × m ÷ 84, half up:
 
-| Year | m at year end | 4 735 000 × m ÷ 84, centimes | cumulative, centimes | Charge, DH (D 61933 / C 2833) |
+| Year | m at year end | 4 735 000 × m ÷ 84, centimes | cumulative, centimes | Charge, DH (D 61933 / C 28332) |
 |---|---|---|---|---|
 | 2026 | 4 | 225 476,19 | 225 476 | 2 254,76 |
 | 2027 | 16 | 901 904,76 | 901 905 | 6 764,29 |
@@ -409,13 +416,13 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | 6 | 30/06/2028 | 16 666,65 | 231,25 (231,2497…) | 16 666,65 | 16 897,90 | 0,00 |
 
 4. Totals: capital 100 000,00; interest 4 856,25 (the same as 100 000,00 × 0,013875 × (6 + 5 + 4 + 3 + 2 + 1) ÷ 6); installments 104 856,25.
-5. Entries: disbursement D 5141 / C 1481 100 000,00 (`BQ`). Installment 1 paid: D 1481 16 666,67, D 6311 1 387,50 / C 5141 18 054,17 (`BQ`). At 31 Dec 2027: 1481 = 33 333,32 credit; 6311 for 2027 = 4 162,50; 2028 = 693,75.
+5. Entries: disbursement D 5141 / C 1481 100 000,00 (`BQ`). Installment 1 paid: D 1481 16 666,67, D 63111 1 387,50 / C 5141 18 054,17 (`BQ`). At 31 Dec 2027: 1481 = 33 333,32 credit; 63111 for 2027 = 4 162,50; 2028 = 693,75.
 
 **C. A batch in progress at year end (FC4, defaults FQ19, FQ20).** Broiler batch open on 31 Dec: 10 000 chicks placed, 2 000 sold before 31 Dec, 400 dead, 7 600 on hand (counted). Cost engaged to 31 Dec 182 400,00; last average weighing 2 100 g; the farm's last sale price 8,50 DH/kg.
 1. At cost: 18 240 000 × 7 600 ÷ (7 600 + 2 000) = 14 440 000 → 144 400,00.
 2. Current value: 7 600 × 2 100 g = 15 960 kg; × 8,50 = 135 660,00.
 3. Provision = 144 400,00 − 135 660,00 = 8 740,00.
-4. Close run, 31 Dec (`OD`): D 31322 / C 7131 144 400,00; D 6196 / C 3913 8 740,00. Next 1 Jan (`OD`, FCX5): D 7131 / C 31322 144 400,00; D 3913 / C 7196 8 740,00.
+4. Close run, 31 Dec (`OD`): D 31322 / C 71311 144 400,00; D 61961 / C 3913 8 740,00. Next 1 Jan (`OD`, FCX5): D 71311 / C 31322 144 400,00; D 3913 / C 7196 8 740,00.
 
 ## 8. Success criteria
 
@@ -455,17 +462,17 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ11 | Account for the individual exploitant's contributions and withdrawals, and counter-account of a `cash_book` entity's opening bank and cash balances | FN3, FN6, FCX3, FC7 (an individual's entry) |
 | FQ12 | Is there an official Arabic version of the CGNC and PCA account labels? | FX5 |
 | FQ13 | Journal for cheques and bills received (`EF` here): common practice? | FN6 |
-| FQ14 | Payroll postings: the validated month in OD on its last day (6171 / 6174 against 3431, 4441, 4432), wages paid D 4432; advances beyond a worker's pay left on 3431? | plan-m4 pay |
+| FQ14 | Payroll postings: the validated month in OD on its last day (61711 / 61741 against 3431, 4441, 4432), wages paid D 4432; advances beyond a worker's pay left on 3431? | plan-m4 pay |
 | FQ15 | Cash book refused for companies and GIEs (law 9-88): right, and for which other forms? | FN1 |
 | FQ16 | Loans: interest per period as annual rate ÷ periods per year, or counted by days as some banks do? Interest accrued at year end (intérêts courus) booked by Dawra, and on which account? | FC2 (default in §5: per period, not accrued) |
 | FQ17 | Investment subsidies: booked when granted (a receivable) or when received? Released through 1319 / 7577? Treatment of a subsidy on land or on no depreciable asset? | FC2 (default in §5: when received, released to 7577, refused on land) |
 | FQ18 | Eggs in stock at year end: how is their production cost per egg computed? | FC5 (default in §5: value per egg typed by the owner) |
 | FQ19 | Cost of a meat batch in progress at year end: only FN13's costs, or also depreciation and overheads? Split between birds sold before the close and birds on hand: by head or by weight? | FC4 (default in §5: FN13 cost, by head) |
 | FQ20 | Current value for the provision test of batches in progress and stocks: what evidence is accepted (last sale price × last weighing, market price, the owner's estimate)? | FC4, FC5 (default in §5: last weighing × last sale price; stocks at cost unless lowered) |
-| FQ21 | Home consumption: 7140 Production Autoconsommée is in the PCA (T100); which account with the PCA off, where 714 has sub-accounts? Valued at cost or at selling price? An employee's share on 6171? | FC7 (default in §5: last sale price, 6171) |
+| FQ21 | Home consumption: 7140 Production Autoconsommée is in the PCA (T100); which account with the PCA off, where 714 has sub-accounts? Valued at cost or at selling price? An employee's share on 6171 (61713 Indemnités et avantages divers)? | FC7 (default in §5: last sale price, 61713) |
 | FQ22 | The official simplified model (bilan, CPC, ETIC) and the PCA's biological-asset tables: the text, each line's accounts, and the revenue limit of the simplified model (10 M DH?) | FC8 official statements (decided defaults, to review: "Official statements (T116)" below) |
 | FQ23 | An asset bought on credit: 4481 Dettes sur acquisition d’immobilisations (passif circulant) or 1486 Fournisseurs d’immobilisations (dettes de financement), and from what term? | FC1 (default in §5: 4481) |
-| FQ24 | The PCA subdivides four accounts the M2 rules post to: 3421 (34211, 34212, 34217, 34218), 3424, 4411 (44111, 44117, 44118) and 6136 (61361, 61365 → 613651 Honoraires des vétérinaires, 613657, 61367). Which leaf should each rule use, and do the Agrégés / Agrégateur sub-ledgers matter for the pilot? | FN6 rules (T100 left these sub-accounts out) |
+| FQ24 | The PCA subdivides four accounts the M2 rules post to: 3421 (34211, 34212, 34217, 34218), 3424, 4411 (44111, 44117, 44118) and 6136 (61361, 61365 → 613651 Honoraires des vétérinaires, 613657, 61367). Which leaf should each rule use, and do the Agrégés / Agrégateur sub-ledgers matter for the pilot? The same for three CGNC splits left out the same way (§9 "FN4 sweep"): 3121 (31211 / 31212, groupe A / B), 5161 (51611 Caisse centrale, 51613 / 51614 succursale A / B) and 6134 (61341, 61343, 61345, 61348, by the policy's kind). | FN6 rules (T100 and the FN4 sweep left these sub-accounts out) |
 | FQ25 | With the PCA off, these PCA accounts land on a CGNC account that has sub-accounts, so no line can go there: 3152 → 315, 7140 → 714, 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71, and 7187 → 718 (culled hens, FC6; not in the CGNC, §9). Also 31322 (batches in progress) → 3132, which the seed keeps `cgnc` though the CGNC has no 3132 (§9). Which CGNC account for each? | FC5 eggs, FC6, FC7 with the PCA off |
 | FQ26 | Packaging in stock: 31231 Emballages perdus, 31232 Emballages récupérables non identifiables or 31233 Emballages à usage mixte (egg trays, sacks)? | FC5 |
 | FQ27 | A `cash_book` entity's cash or bank payment for a fixed asset: which category or line in the cash book (FN16)? | FC1 (until then a `cash_book` entity keeps the register and the schedules only, and posts nothing) |
@@ -480,11 +487,35 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 Decided from the official texts on the owner's instruction (2026-11-23), built or specified, and to review with the accountant. PCA pages are as printed in `docs/sources/plan-comptable-agricole-2015.pdf`; CGNC pages are scan pages of the Tome I (below).
 
 - **6193 is subdivided; FC1 posts to its sub-accounts** (FN4). The CGNC lists 61931 D.E.A. des terrains, 61932 D.E.A. des constructions, 61933 D.E.A. des installations techniques, matériel et outillage, 61934 D.E.A. du matériel de transport, 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers and 61938 D.E.A des autres immobilisations corporelles under 6193 (scan p. 296; OCR lines 1948–1964). PCA chapter 6 repeats them and adds 61936 D.E.A des Plantations and 61937 D.E.A des Animaux (pp. 123–124). Seeded: the six CGNC ones `cgnc`; 61936 and 61937 `pca`, both falling back to 61938, since plantations (236) and animals (237) are PCA rubriques with no CGNC account and 238 Autres immobilisations corporelles is the CGNC's catch-all (its depreciation 2838, its charge 61938). These come from chapter 6, an exception to "Chapter 6 only" below: the CGNC prints the subdivision itself. FC1's charge follows the asset's depreciation account: 2832 → 61932, 2833 → 61933, 2834 → 61934, 2835 → 61935 (2838 → 61938 when a category uses it; land is not depreciated). The year-end entry has one debit line per charge account. Until this change every depreciation posted on 6193, a parent; no pilot has run, so no production entry needs moving.
+- **FN4 sweep: every rule account is a posting account, checked against the CGNC** (2026-11-23). Every account a posting rule uses (FN6, FN9, FN11, FC1–FC9, payroll, loans, subsidies, the close and the à-nouveaux) was checked against the CGNC normal model (scan pages below, read on the page image) and the PCA. Where the CGNC subdivides one, the sub-accounts are seeded `cgnc` with the printed labels and the rule posts to the leaf that matches its meaning; `accounts.test.ts` proves every rule account is a leaf in both charts. The PCA nomenclature lists all of these undivided; its chapter 6 repeats several subdivisions, as #187 found for 6193.
+  - 6196 → 61961 D.E.P. pour dépréciation des stocks, 61964 … des créances de l’actif circulant (scan p. 297; PCA pp. 103, 124). FC4 / FC5 provisions on 3912 and 3913 post to 61961: "Les comptes 3911 à 3915 sont crédités par le débit du compte 61961" (PCA p. 103). The opening reversal (FCX5) still takes them back on 7196, a leaf (scan p. 307).
+  - 6311 → 63111 Intérêts des emprunts, 63113, 63114, 63115, 63118 (scan p. 298; PCA p. 124). FC2's bank-loan interest posts to 63111.
+  - 6171 → 61711 Appointements et salaires, 61712, 61713 Indemnités et avantages divers, 61714, 61715; 6174 → 61741 Cotisations de sécurité sociale, 61742–61745 (scan p. 294; PCA pp. 121–122). The pay's gross posts to 61711, the employer's CNSS contribution to 61741, and an employee's home consumption (FC7, FQ21) to 61713, since personnel pay is "en numéraire ou en nature" (PCA p. 121). This replaces T100's "Chapter 6 only" exclusion of 61711–61715 (§9 below): the CGNC nomenclature prints them.
+  - 6147 → 61471, 61472, 61473 Frais et commissions sur services bancaires (scan p. 293; PCA p. 120). FC9's bank fees post to 61473.
+  - 3455 → 34551 État – TVA récupérable sur immobilisations, 34552 … sur les charges (scan p. 279). FN9's VAT on purchases and quick expenses posts to 34552 (as FN9 intended), an asset's VAT (FC1) to 34551. PCA chapter 6 describes 3455 as one account (pp. 100, 104, 107); the leaves roll up to it.
+  - 5111 → 51111 Chèques en portefeuille, 51112 Chèques à l’encaissement; 5113 → 51131 Effets échus à encaisser, 51132 Effets à l’encaissement (scan p. 286). FN11 knows the instrument's state: a cheque received posts to 51111, remitted to the bank D 51112 / C 51111 (a remittance now posts an `EF` entry), cashed D 5141 / C 51112; a bill remitted D 51132 / C 3425. PCA p. 110 says 5111 holds "à la fois" both states: the two leaves add up to it.
+  - 7131 → 71311 Variation des stocks de biens produits en cours, 71312, 71317; 7132 → 71321 Variation des stocks de produits finis, 71322, 71327 (scan p. 305). Batches in progress (FC4, 31322 under 3132 Encours de production) post to 71311; eggs (FC5, 3152 Produits finis) to 71321.
+  - 2332 → 23321 Matériel, 23324 Outillage (scan p. 266). The equipment category's asset account is 23321; 23324 has no category yet, like 61938.
+  - 2832 → 28321 … des bâtiments, 28323 … des constructions sur terrains d’autrui, 28325, 28327, 28328; 2833 → 28331 … des installations techniques, 28332 … du matériel et outillage, 28333, 28338; 2835 → 28351 … du mobilier de bureau, 28352 … du matériel de bureau, 28355 … du matériel informatique, 28356, 28358 … des autres mobilier, matériel de bureau et aménagements divers (scan pp. 271–272). Each category's depreciation account is the leaf of its kind (table in §5); its charge stays the 6193x of the 283x (61932–61935), one debit line per charge account. 2834 has no sub-account. `/assets` still groups the categories by the 4-digit account.
+  - Also seeded, though no rule posts there, so a manual entry (FCX3) uses the CGNC's leaves: 6191 → 61911, 61912 (scan p. 295); 6192 → 61921, 61922, 61923, 61928; 6194 → 61942, 61943; 6195 → 61955, 61957 (p. 296); 6198 → 61981, 61984 (p. 297); 7197 → 71971–71978; 7198 → 71981, 71984 (p. 307). 7196 is not subdivided (p. 307).
+  - **Left leaves on purpose, as T100 did for FQ24.** 3121 → 31211 / 31212 Matières premières (groupe A / B) (scan p. 275) and 5161 → 51611 Caisse centrale, 51613 / 51614 Caisse (succursale ou agence A / B) (scan p. 287) are the entity's own groups or branches, the same kind as 34211 / 34212 and 44111 / 44112 "catégorie A / B" (pp. 278, 282). 6134 → 61341 Assurances multirisques, 61343 … Risques d’exploitation, 61345 … Matériel de transport, 61348 Autres assurances (scan p. 291; PCA p. 117) splits by the policy's kind, which a quick expense doesn't record, as 6136 does (FQ24). These sub-accounts are not seeded, so the rules keep posting to 3121, 5161 and 6134 (FQ24).
+  - Unchanged: the rule accounts the PCA relabels from a CGNC number (§9 "CGNC numbers the PCA relabels") keep T100's `pca` tags, so their CGNC parents (6121, 6122, 6125, 6126 …) stay leaves without the PCA, though the CGNC subdivides 6126 into 61261–61263 (scan p. 290).
+  - Every other rule account is a leaf in the CGNC: 1191, 1199, 1311, 1319, 1481, 2340, 2834, 31221, 31223, 3424, 3425, 3431, 3912, 3913, 4415, 4432, 4441, 4455, 4463, 4481, 5115, 5141, 6513, 7196, 7513, 7577 (scan pp. 258, 266, 272, 275, 278, 281–287, 307; OCR lines 528–561, 2086 and 2489–2509 for 1311, 1319, 1481, 6513, 7513 and 7577). The PCA accounts (612xxx, 712xxx, 23111, 23231, 233111, 31322, 3152, 7140 …) are leaves in the seed.
 - **FQ7a. Method: classic by default.** Breeding animals are treated "au même titre que les immobilisations corporelles" (p. 88); the simplified method applies "par dérogation aux principes du CGNC" (p. 89). One method per category of breeding animals, never both (p. 88). The owner may choose the simplified method before the year's first entry; ledger entities only (FC6).
 - **FQ7b. Balance-sheet accounts 23711 (adults) / 23712 (young replacement stock), never 2371 / 2372.** 2371 is subdivided (p. 56), so it takes no line (FN4), and 2372 is Animaux de service (pp. 56, 89). The 4-digit numbers of p. 131 read as a drafting error: their labels are those of 23711 / 23712, and of 7151 / 7152 (p. 69).
 - **FQ7c. Yes: at the transfer to lay, 23962 is cleared into 23711.** An asset in progress on 239 is cleared to its asset account on completion (p. 90).
 - **FQ8. Removal at the cull: D 28371 (accumulated) + D 6187 (net book value) / C 23711 (gross).** 6187 records "la valeur nette comptable restante au moment de la cession des animaux reproducteurs" (p. 123), next to 7187 for the price (p. 132); never 6513 for a cull. A whole flock lost without a sale: the net book value goes to 6513 (CGNC p. 147). A partial cull removes the culled share of the gross and of the accumulated depreciation. A provision on 2937, if any, is reversed D 2937 / C 7194 on the cull day.
 - The entries of both methods are in §5 FC6.
+
+### Bank statement import (T117): decided default, to review (2026-11-23)
+
+The owner asked (2026-11-23) not to wait for the pilot's statement files: study the published formats, build, list the choices here. Study, sources (URLs, read 2026-11-23) and every reading choice: `docs/studies/bank-statement-formats.md`.
+
+- **MT940 built**, from bank-published implementations of the SWIFT standard (ING format description v6.0, 1 Aug 2023; Citi Handlowy MT940 export guide, 25 Jan 2023); SWIFT's own handbook is behind a login. Offered by Attijariwafa (SWIFT, EBICS), Crédit du Maroc (e-Corporate download) and Bank of Africa (Trans Doc).
+- **No second format.** AMB 120 (Attijariwafa, Crédit du Maroc) has no published specification; it may be CFONB 120, but no source says so. camt.053 and CFONB 120 are offered by no Moroccan bank found. To do when a bank gives its AMB 120 specification.
+- **CSV with the owner's mapping**, no bank layout assumed. XLS isn't read: saved as CSV first.
+- **Reading:** 20YY years; the booking (entry) date when given, else the value date; C / RD +, D / RC −, a D balance negative; MAD only, 2 decimals; each page balances; pages joined; one account per file; the statement is the account's statement of the closing day (T111's key), and a CSV's end day and closing balance are typed by the owner.
+- **Fixtures are synthetic** (`src/modules/finance/fixtures/bank/`): to check against the pilot's first real files (their :86: layout, entry dates).
 
 ### Official statements (T116): decided defaults, to review (FQ22, 2026-11-23)
 
@@ -525,7 +556,7 @@ The CGNC is checked against the Code Général de la Normalisation Comptable, To
   - under 3424 Clients douteux ou litigieux: "34211 Clients douteux ou litigieux" and "34217 Clients douteux ou litigieux Agrégés". These are misprints that repeat 3421's numbers (p. 60), and the text gives no other number for them;
   - under 4411 Fournisseurs: 44111 Fournisseurs, 44117 Fournisseurs Agrégés, 44118 Fournisseur Agrégateur;
   - under 6136 Rémunérations d’intermédiaires et honoraires: 61361 Commissions et courtages, 61365 Honoraires, 613651 Honoraires des vétérinaires, 613657 Autres Honoraires, 61367 Frais d’actes et contentieux.
-- **Chapter 6 only.** Subdivisions that chapter 6 cites but the nomenclature doesn't list are not seeded. Example: 61711–61715 under 6171 (p. 121), which would also make the salaries rule's account a parent.
+- **Chapter 6 only.** Subdivisions that chapter 6 cites but the nomenclature doesn't list are not seeded. Example: 61711–61715 under 6171 (p. 121), which would also make the salaries rule's account a parent. Superseded where the CGNC nomenclature prints the subdivision itself: 6193 (#187) and the FN4 sweep's accounts, 61711–61715 included ("Decided defaults").
 - **Misprints in the nomenclature, corrected from chapter 6:**
   - "152. Provisions pour charges" (p. 54) is 155: its accounts are 1551–1558, and chapter 6 heads it "155. PROVISIONS POUR CHARGES" (p. 79);
   - "240. Prêts immobilisés" (p. 57) is 241: its accounts are 2411–2418, and chapter 6 says "241. Prêts immobilisés" (p. 90);

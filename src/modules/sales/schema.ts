@@ -10,12 +10,22 @@ export * from "@/modules/sales/shared";
 const text = (max: number) => z.string().trim().min(1).max(max);
 const centimes = z.string().regex(/^\d{1,15}$/); // integer centimes; JSON has no bigint
 
+// The register (arrêté 2126-05 art. 4): optional, as entered; blank is none.
+const address = z.string().trim().max(200).transform((s) => s || null).nullable().default(null);
+
 export const CreateBuyer = z.object({
   id: z.uuid(),
   name: text(120),
   phone: z.string().trim().max(32).transform((s) => s || null).nullable(),
   type: z.enum(BUYER_TYPES),
+  address,
 });
+
+/** The register: a known buyer's address, set or corrected from the sale form; null clears it. */
+export const SetBuyerAddress = z.object({ buyerId: z.uuid(), address });
+
+/** The register: live birds going to a farm or an establishment that isn't the buyer's, when it isn't. */
+const destination = z.object({ name: text(120), address: text(200).nullable() }).nullable().default(null);
 
 export const RecordSale = z.object({
   id: z.uuid(),
@@ -30,6 +40,7 @@ export const RecordSale = z.object({
   paidCentimes: centimes,
   vatCentimes: centimes.default("0"), // SPEC-finance FN9: the invoice's VAT, part of the total
   instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(), // cheque or bill of exchange
+  destination,
 });
 
 /** SPEC-m3 V6: eggs of a layer batch, by item, priced per tray. */
@@ -67,6 +78,7 @@ export const RecordHeadSale = z.object({
   paidCentimes: centimes,
   vatCentimes: centimes.default("0"),
   instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(),
+  destination,
 });
 
 /**

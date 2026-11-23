@@ -63,9 +63,9 @@ describe("home consumption in the books (SPEC-finance FC7, FQ11, FQ21, FQ25)", (
     await postPending(other); // FQ25 leaves the entry out instead of blocking the pipeline
   });
 
-  it("posts an associate's D 4463 / C 7140 and an employee's D 6171 / C 7140 in OD; a sale as before", async () => {
+  it("posts an associate's D 4463 / C 7140 and an employee's D 61713 / C 7140 in OD; a sale as before", async () => {
     expect(await linesOf(taken.associate)).toEqual([["OD", "4463", 30_000n, 0n], ["OD", "7140", 0n, 30_000n]]);
-    expect(await linesOf(taken.employee)).toEqual([["OD", "6171", 28_000n, 0n], ["OD", "7140", 0n, 28_000n]]);
+    expect(await linesOf(taken.employee)).toEqual([["OD", "61713", 28_000n, 0n], ["OD", "7140", 0n, 28_000n]]);
     expect((await linesOf(ids.sale)).sort()).toEqual([["VT", "3421", 0n, 1_500_000n], ["VT", "3421", 1_500_000n, 0n], ["VT", "5161", 1_500_000n, 0n], ["VT", "712121", 0n, 1_500_000n]].sort());
   });
 

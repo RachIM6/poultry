@@ -6,8 +6,8 @@ import { daysBetween, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { checkTick, checkUntick, reconciliation, type MatchError } from "@/modules/finance/domain/bank";
-import { bankAccountsOf, bankLineIn, bankLinesUpTo, deleteMatch, saveMatch, saveStatement, statementIn, statementsOf } from "@/modules/finance/infrastructure/bank";
+import { checkTick, checkUntick, pairImported, reconciliation, type MatchError } from "@/modules/finance/domain/bank";
+import { bankAccountsOf, bankLineIn, bankLinesUpTo, deleteMatch, importedLinesOf, saveMatch, saveStatement, statementIn, statementsOf } from "@/modules/finance/infrastructure/bank";
 import { lockedMonths } from "@/modules/finance/infrastructure/ledger";
 import { AddBankStatement, BankMatchInput } from "@/modules/finance/schema";
 
@@ -66,6 +66,8 @@ export type BankReconciliation = {
     reconciled: boolean;
     // the lines up to the end day not at the bank before it: ticked on this statement, or not (on a later one: tickedOn)
     lines: { id: string; day: string; journal: string; label: string; debitCentimes: bigint; creditCentimes: bigint; ticked: boolean; tickedOn: string | null }[];
+    // T117: the lines of an imported statement file, each with the book line it pairs with (ticked here, or to tick)
+    imported: { id: string; day: string; label: string; amountCentimes: bigint; lineId: string | null; ticked: boolean }[];
   } | null;
 };
 
@@ -81,6 +83,8 @@ export async function bankReconciliation(ctx: TenantContext, accountId?: string,
     if (!s) return ok({ ...base, statement: null });
     const lines = await bankLinesUpTo(tx, ctx, s.treasuryId, s.endDay);
     const r = reconciliation(s, lines);
+    const imported = await importedLinesOf(tx, ctx, s.id);
+    const pairs = pairImported(s, imported, lines);
     const unticked = new Set(r.unticked.map((l) => l.id));
     return ok({
       ...base,
@@ -95,6 +99,7 @@ export async function bankReconciliation(ctx: TenantContext, accountId?: string,
         lines: lines
           .filter((l) => unticked.has(l.id) || l.match?.statementId === s.id)
           .map((l) => ({ id: l.id, day: l.day, journal: l.journal, label: l.label, debitCentimes: l.debitCentimes, creditCentimes: l.creditCentimes, ticked: l.match?.statementId === s.id, tickedOn: l.match && l.match.statementId !== s.id ? l.match.endDay : null })),
+        imported: imported.map((i) => ({ id: i.id, day: i.day, label: i.label, amountCentimes: i.amount, lineId: pairs.get(i.id)?.lineId ?? null, ticked: pairs.get(i.id)?.ticked ?? false })),
       },
     });
   });

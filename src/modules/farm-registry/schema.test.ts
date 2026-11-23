@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accountingProfileOf, booksAllowed, LEGAL_FORMS, parseOnboarding } from "./schema";
+import { accountingProfileOf, booksAllowed, LEGAL_FORMS, parseOnboarding, RegisterKeeper } from "./schema";
 
 describe("accountingProfileOf (SPEC F1, SPEC-finance FN1, ADR-010 §2)", () => {
   it.each([
@@ -47,5 +47,15 @@ describe("parseOnboarding", () => {
     ["form from the prototype", { name: "Ferme", form: "toString", locale: "ar" }],
   ])("rejects %s", (_, body) => {
     expect(parseOnboarding(body)).toEqual({ ok: false, error: "INVALID_INPUT" });
+  });
+});
+
+describe("RegisterKeeper (arrêté 2126-05 art. 4)", () => {
+  const keeper = { name: "Karim Idrissi", position: "Chef d’élevage", from: "2026-07-01", to: null };
+  it("takes an open or a closed period, never one ending before it starts", () => {
+    expect(RegisterKeeper.safeParse(keeper).success).toBe(true);
+    expect(RegisterKeeper.safeParse({ ...keeper, to: "2026-07-01" }).success).toBe(true);
+    expect(RegisterKeeper.safeParse({ ...keeper, to: "2026-06-30" }).success).toBe(false);
+    expect(RegisterKeeper.safeParse({ ...keeper, position: " " }).success).toBe(false);
   });
 });

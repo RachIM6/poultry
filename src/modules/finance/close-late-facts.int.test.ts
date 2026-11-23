@@ -59,7 +59,7 @@ describe("a line with no value appearing after the close run posted (SPEC-financ
 
   it("takes the value of a line now missing, so the run posts again and the year closes; every other value stays frozen", async () => {
     expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 1 }); // the batch entry alone
-    expect(await linesOf(`close:batch:${entity}:2025`)).toEqual([["31322", 480_000n, 0n], ["7131", 0n, 480_000n]]);
+    expect(await linesOf(`close:batch:${entity}:2025`)).toEqual([["31322", 480_000n, 0n], ["71311", 0n, 480_000n]]);
 
     // Synced after the run: a turkey batch placed on the last day (no weighing, no sale) and 500 eggs collected that day.
     expect(await statuses(owner, place(ids.turkey, ids.b3, "turkey", "but-6", "2025-12-31", 100, "2500"), m("eggs.recordCollection", { id: uuidv7(), batchId: ids.layers, day: "2025-12-31", counts: { normal: 500, cracked: 0, dirty: 0, doubleYolk: 0, floor: 0, broken: 0 }, sample: null }))).toEqual(["applied", "applied"]);
@@ -92,14 +92,14 @@ describe("a line with no value appearing after the close run posted (SPEC-financ
     expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 4 });
     expect(await linesOf(`close:batch:${entity}:2025`)).toEqual([
       ["31322", 480_000n, 0n],
-      ["7131", 0n, 480_000n],
-      ["7131", 480_000n, 0n], // Annulation
+      ["71311", 0n, 480_000n],
+      ["71311", 480_000n, 0n], // Annulation
       ["31322", 0n, 480_000n],
       ["31322", 730_000n, 0n], // version 2: 4 800,00 + 2 500,00
-      ["7131", 0n, 730_000n],
+      ["71311", 0n, 730_000n],
     ]);
-    expect(await linesOf(`close:provision:${entity}:2025`)).toEqual([["6196", 50_000n, 0n], ["3913", 0n, 50_000n]]); // 2 500,00 − 2 000,00
-    expect(await linesOf(`close:stock:${entity}:2025`)).toEqual([["3152", 45_000n, 0n], ["7132", 0n, 45_000n]]); // 500 × 0,90
+    expect(await linesOf(`close:provision:${entity}:2025`)).toEqual([["61961", 50_000n, 0n], ["3913", 0n, 50_000n]]); // 2 500,00 − 2 000,00
+    expect(await linesOf(`close:stock:${entity}:2025`)).toEqual([["3152", 45_000n, 0n], ["71321", 0n, 45_000n]]); // 500 × 0,90
     expect(await closeFiscalYear(owner, { year: 2025 }, clock)).toMatchObject({ ok: true });
   });
 });

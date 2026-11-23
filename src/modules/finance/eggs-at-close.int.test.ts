@@ -129,7 +129,7 @@ describe("eggs at the close (SPEC-finance FC5, FQ18, T113)", () => {
       action: "post",
       lines: [
         { account: "3152", label: "Produits finis (d’animaux)", debit: 185_250n, credit: 0n }, // 1 950 × 0,95
-        { account: "7132", label: "Variation des stocks de biens produits", debit: 0n, credit: 185_250n },
+        { account: "71321", label: "Variation des stocks de produits finis", debit: 0n, credit: 185_250n },
       ],
     });
     expect(await saveYearEndCount(owner, { year: 2025, counts: { [ids.farm]: "0" } })).toEqual({ ok: true, value: 1 });
@@ -139,9 +139,9 @@ describe("eggs at the close (SPEC-finance FC5, FQ18, T113)", () => {
     expect(await saveYearEndCount(owner, { year: 2025, counts: { [ids.farm]: "" } })).toEqual({ ok: true, value: 1 }); // back to the book: 1 980
   });
 
-  it("posts D 3152 / C 7132 in the stock entry; the same facts post nothing, changed ones a reversal and a new version", async () => {
+  it("posts D 3152 / C 71321 in the stock entry; the same facts post nothing, changed ones a reversal and a new version", async () => {
     expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 1 });
-    expect(await linesOf(`close:stock:${entity}:2025`)).toEqual([["2025-12-31", "3152", 188_100n, 0n], ["2025-12-31", "7132", 0n, 188_100n]]); // 1 980 × 0,95
+    expect(await linesOf(`close:stock:${entity}:2025`)).toEqual([["2025-12-31", "3152", 188_100n, 0n], ["2025-12-31", "71321", 0n, 188_100n]]); // 1 980 × 0,95
     expect(await db.journalEntry.findFirstOrThrow({ where: { sourceId: `close:stock:${entity}:2025` } })).toMatchObject({ journal: "OD", label: "Stocks de fin d’exercice", sourceVersion: 1 });
     expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 0 });
     expect(await saveYearEndValues(owner, { year: 2025, values: { [ids.farm]: "1,00" } })).toEqual({ ok: false, error: "COUNT_FROZEN" });
@@ -152,17 +152,17 @@ describe("eggs at the close (SPEC-finance FC5, FQ18, T113)", () => {
     expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 2 });
     expect(await linesOf(`close:stock:${entity}:2025`)).toEqual([
       ["2025-12-31", "3152", 188_100n, 0n],
-      ["2025-12-31", "7132", 0n, 188_100n],
-      ["2025-12-31", "7132", 188_100n, 0n], // Annulation
+      ["2025-12-31", "71321", 0n, 188_100n],
+      ["2025-12-31", "71321", 188_100n, 0n], // Annulation
       ["2025-12-31", "3152", 0n, 188_100n],
       ["2025-12-31", "3152", 197_600n, 0n], // version 2: 2 080 × 0,95
-      ["2025-12-31", "7132", 0n, 197_600n],
+      ["2025-12-31", "71321", 0n, 197_600n],
     ]);
   });
 
   it("reverses the eggs on the next year's first day with the year close (FCX5)", async () => {
     expect(await closeFiscalYear(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 2 }); // the à-nouveaux and the stock reversal
-    expect(await linesOf(`reversal:close:stock:${entity}:2025`)).toEqual([["2026-01-01", "7132", 197_600n, 0n], ["2026-01-01", "3152", 0n, 197_600n]]);
+    expect(await linesOf(`reversal:close:stock:${entity}:2025`)).toEqual([["2026-01-01", "71321", 197_600n, 0n], ["2026-01-01", "3152", 0n, 197_600n]]);
     const opened = await db.journalLine.findMany({ where: { entry: { sourceId: `opening:${entity}:2026-01-01` }, account: "3152" }, select: { debitCentimes: true, creditCentimes: true } });
     expect(opened).toEqual([{ debitCentimes: 197_600n, creditCentimes: 0n }]);
     expect(await closeFiscalYear(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 0 });
@@ -173,7 +173,7 @@ describe("eggs at the close (SPEC-finance FC5, FQ18, T113)", () => {
     expect(await saveYearEndValues(other, { year: 2025, values: { [ids.otherFarm]: "0,90" } })).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(await saveYearEndValues(other, { year: 2025, values: { [ids.farm]: "0,90" } })).toEqual({ ok: false, error: "INVALID_INPUT" }); // not its farm
     expect(await runClose(other, { year: 2025 }, clock)).toEqual({ ok: true, value: 0 });
-    expect(await db.journalLine.count({ where: { entry: { legalEntityId: otherEntity }, account: { in: ["3152", "315", "7132"] } } })).toBe(0);
+    expect(await db.journalLine.count({ where: { entry: { legalEntityId: otherEntity }, account: { in: ["3152", "315", "71321"] } } })).toBe(0);
   });
 
   it("keeps a cash_book entity without a close: its eggs are counted, nothing is valued or posted (FCX4)", async () => {

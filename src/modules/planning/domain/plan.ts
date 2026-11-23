@@ -71,10 +71,14 @@ export const downtimeByHouse = (species: string) => species === "layer";
 export type HouseCycle = { houseId: string; endedOn: string | null; openSince: string | null };
 type BatchEnd = { id: string; houseId: string; placedOn: string; status: string; closedOn?: string };
 
-/** The farm's houses from flock's batches and the clean-outs' disinfection days, keyed by the batch each follows. */
-export function houseCycles(houseIds: readonly string[], batches: readonly BatchEnd[], disinfectedAfter: ReadonlyMap<string, string>): HouseCycle[] {
+/**
+ * The farm's houses from flock's batches and the clean-outs' disinfection days, keyed by the batch each follows; as
+ * they stood on `asOf` when given (batches placed by then, closed only if closed by then).
+ */
+export function houseCycles(houseIds: readonly string[], batches: readonly BatchEnd[], disinfectedAfter: ReadonlyMap<string, string>, asOf?: string): HouseCycle[] {
+  const then = asOf === undefined ? batches : batches.filter((b) => b.placedOn <= asOf).map((b) => ({ ...b, status: b.closedOn && b.closedOn <= asOf ? "closed" : "open" }));
   return houseIds.map((houseId) => {
-    const own = batches.filter((b) => b.houseId === houseId);
+    const own = then.filter((b) => b.houseId === houseId);
     const openSince = own.flatMap((b) => (b.status === "open" ? [b.placedOn] : [])).sort()[0] ?? null;
     const last = own.filter((b) => b.status === "closed").sort((a, b) => b.placedOn.localeCompare(a.placedOn))[0];
     return { houseId, openSince, endedOn: openSince !== null || !last ? null : (disinfectedAfter.get(last.id) ?? last.closedOn ?? null) };
@@ -82,6 +86,17 @@ export function houseCycles(houseIds: readonly string[], batches: readonly Batch
 }
 
 export type DowntimeWarning = { kind: "short"; elapsedDays: number; minDays: number } | { kind: "occupied"; houseId: string };
+
+/**
+ * CQ3 for a batch already placed (the inspection checklist, SPEC-m2-compliance RP4): the warning its placement
+ * deserved, from the farm as it stood that day.
+ */
+export function batchDowntime(rules: readonly DowntimeRule[], batch: BatchEnd & { farmId: string; species: string }, farmBatches: readonly BatchEnd[], disinfectedAfter: ReadonlyMap<string, string>): DowntimeWarning | null {
+  const others = farmBatches.filter((b) => b.id !== batch.id);
+  const houses = [...new Set([batch.houseId, ...others.map((b) => b.houseId)])];
+  const { minDays } = downtimeOn(rules, batch.farmId, batch.placedOn);
+  return placementDowntime(minDays, downtimeByHouse(batch.species), houseCycles(houses, others, disinfectedAfter, batch.placedOn), batch.houseId, batch.placedOn);
+}
 
 /**
  * BS5, CQ3: placing a batch too soon gives a warning, never a block. Farm-wide, the downtime counts from the farm's

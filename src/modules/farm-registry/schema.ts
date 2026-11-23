@@ -54,6 +54,12 @@ export function parseOnboarding(body: unknown): Result<OnboardingInput, "INVALID
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 
+/** Arrêté 2126-05 art. 4: who keeps the farm's register (name, function), from and to which day; `to` null: still. */
+export const RegisterKeeper = z
+  .object({ name: text(120), position: text(80), from: z.iso.date(), to: z.iso.date().nullable() })
+  .refine((k) => k.to === null || k.from <= k.to, "ends before it starts");
+export type RegisterKeeper = z.infer<typeof RegisterKeeper>;
+
 export const FarmFields = z.object({
   name: text(120),
   region: text(80),
@@ -63,6 +69,13 @@ export const FarmFields = z.object({
   onssa: z.object({ number: text(40), expiresOn: z.iso.date() }).nullable(), // ONSSA authorization
   // SPEC-m3 B10: the hatchery contract's dead-on-arrival threshold, per mille. Optional, never defaulted (MQ6).
   doaClaimThresholdPermille: z.int32().min(1).max(1000).nullable().optional(),
+  // The register's cover (arrêté 2126-05 of 15/12/2005, art. 3 and 4): all optional, as entered, never defaulted. Absent
+  // from a farm stored before them.
+  holder: z.object({ name: text(120), address: text(200).nullable() }).nullable().optional(), // address: if not the farm's
+  vet: z.object({ name: text(120), address: text(200).nullable(), phone: text(32).nullable() }).nullable().optional(), // sanitaire
+  technicianName: text(120).nullable().optional(),
+  chickImportApproval: text(60).nullable().optional(), // agrément number, for a farm importing chicks
+  registerKeepers: z.array(RegisterKeeper).max(20).optional(), // the whole list, in order
 });
 export type FarmFields = z.infer<typeof FarmFields>;
 

@@ -80,14 +80,14 @@ export async function eggLinesAtClose(tx: Tx, ctx: TenantContext, entity: LegalE
   return eggsAtClose(stock, new Map(counted.map((c) => [c.subjectId, c.quantity])), new Map(perEgg.map((v) => [v.subjectId, v.valueCentimes])), pca);
 }
 
-/** The close run's "batch" kind (FCX4, FC4): D 31322 / C 7131. */
+/** The close run's "batch" kind (FCX4, FC4): D 31322 / C 71311. */
 export const closeBatches = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> => yearEndBatches(await batchLinesAtClose(tx, ctx, entity, day));
 
-/** The close run's "stock" kind (FCX4): D 31x / C the 6124 leaves, and D 3152 / C 7132 for the eggs. */
+/** The close run's "stock" kind (FCX4): D 31x / C the 6124 leaves, and D 3152 / C 71321 for the eggs. */
 export const closeStock = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> =>
   yearEndStock(await stockLinesAtClose(tx, ctx, entity, day), entity.accountingProfile.overlays.includes("pca"), await eggLinesAtClose(tx, ctx, entity, day));
 
-/** The close run's "provision" kind (FCX4): D 6196 / C 3912 for the stock lines, C 3913 for the batches, below cost. */
+/** The close run's "provision" kind (FCX4): D 61961 / C 3912 for the stock lines, C 3913 for the batches, below cost. */
 export const closeProvision = async (tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<Posting | null> =>
   yearEndProvision(await stockLinesAtClose(tx, ctx, entity, day), await batchLinesAtClose(tx, ctx, entity, day));
 

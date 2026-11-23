@@ -13,7 +13,7 @@ export const EXPENSE_ACCOUNTS = {
   vet_fees: "6136", // Rémunérations d'intermédiaires et honoraires
   insurance: "6134", // Primes d'assurances
   catching: "612612", // Travaux et façons, productions animales: catching crew or transport of the birds
-  bank_fees: "6147", // Services bancaires (FC9, T119)
+  bank_fees: "61473", // Frais et commissions sur services bancaires (FC9, T119; 6147 is subdivided, FN4: CGNC scan p. 293)
 } as const;
 export type ExpenseCategory = keyof typeof EXPENSE_ACCOUNTS;
 export const EXPENSE_CATEGORIES = Object.keys(EXPENSE_ACCOUNTS) as ExpenseCategory[];
@@ -33,9 +33,11 @@ const SOURCE: Record<PaidFrom, { account: string; journal: Posting["journal"] }>
 
 export type TaggedLine = Line;
 
-// FN9: the PCA nomenclature lists 3455 "Etat - TVA récupérable" without the CGNC's 34552 split (FQ4). Defined here, not
-// in posting.ts: prisma/seed.ts loads this file under plain node, where only type imports of other files work.
-export const VAT_RECOVERABLE = "3455";
+// FN9: the VAT on charges. The PCA nomenclature lists 3455 "Etat - TVA récupérable" undivided (p. 60), but the CGNC splits
+// it (scan p. 279), so a line goes on a leaf (FN4): 34552 sur les charges here, 34551 sur immobilisations for an asset
+// (FC1). Defined here, not in posting.ts: prisma/seed.ts loads this file under plain node, where only type imports of
+// other files work.
+export const VAT_RECOVERABLE = "34552"; // État – TVA récupérable sur les charges
 
 /** FN6: a quick expense, D its charge / C the cash box, the bank or the supplier. FN9: a registered entity's VAT apart. */
 export function expensePosting(

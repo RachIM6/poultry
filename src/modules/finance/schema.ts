@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EXPENSE_CATEGORIES, PAID_FROM, TREASURY_KINDS } from "./shared.ts";
+import { CSV_DATE_FORMATS, CSV_SEPARATORS, EXPENSE_CATEGORIES, PAID_FROM, TREASURY_KINDS } from "./shared.ts";
 
 export * from "./shared.ts";
 
@@ -46,6 +46,40 @@ export const RecordExpense = z.object({
 
 /** FC9: a bank statement as printed: its account, last day and closing balance (integer centimes, negative when overdrawn). */
 export const AddBankStatement = z.object({ treasuryId: z.uuid(), endDay: z.iso.date(), closingCentimes: z.string().regex(/^-?\d{1,15}$/) });
+
+const column = z.int().min(1).max(100); // as the owner counts them, from 1
+
+/**
+ * FC9, T117: a statement file for one bank account, MT940 or a CSV export read with the owner's mapping (a signed amount
+ * column, or a debit and a credit column), with the end day and closing balance the owner reads on it. `dryRun`: the
+ * preview, nothing saved.
+ */
+export const ImportBankFile = z.object({
+  treasuryId: z.uuid(),
+  format: z.enum(["mt940", "csv"]),
+  fileName: z.string().max(255),
+  bytes: z.instanceof(Uint8Array),
+  csv: z
+    .object({
+      mapping: z
+        .object({
+          separator: z.enum(CSV_SEPARATORS),
+          skipLines: z.int().min(0).max(50),
+          dateColumn: column,
+          dateFormat: z.enum(CSV_DATE_FORMATS),
+          labelColumn: column,
+          amountColumn: column.nullable(),
+          debitColumn: column.nullable(),
+          creditColumn: column.nullable(),
+          decimalComma: z.boolean(),
+        })
+        .refine((m) => (m.amountColumn === null) === (m.debitColumn !== null && m.creditColumn !== null), "a signed amount column, or a debit and a credit column"),
+      endDay: z.iso.date(),
+      closingCentimes: z.string().regex(/^-?\d{1,15}$/),
+    })
+    .nullable(),
+  dryRun: z.boolean(),
+}).refine((x) => (x.format === "csv") === (x.csv !== null), "the CSV mapping goes with a CSV file only");
 
 /** FC9: ticking (or unticking) a 5141 line on a statement. */
 export const BankMatchInput = z.object({ statementId: z.uuid(), lineId: z.uuid(), ticked: z.boolean() });

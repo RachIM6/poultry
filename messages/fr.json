@@ -1855,7 +1855,11 @@
   },
   "Biosecurity": {
     "forbidden": "Ce registre n’est pas disponible pour votre rôle.",
-    "farm": "Ferme"
+    "farm": "Ferme",
+    "edit": "Modifier",
+    "editNamed": "Modifier : {record}",
+    "saveEdit": "Enregistrer la correction",
+    "cancel": "Annuler"
   },
   "Visitors": {
     "title": "Entrée d’un visiteur",

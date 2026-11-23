@@ -214,6 +214,21 @@ model Invitation {
   @@index([phoneNumber])
 }
 
+// Owner: identity. poultry-auth §6: login and abuse events (code requested, verify failure, login, logout, rate-limit
+// block, captcha failure). Not AuditEvent: most happen before any organisation is known, and AuditEvent is
+// organisation-scoped and written with the change it records (ADR-006). Membership, invitation and session-revoke
+// events stay in AuditEvent. Only what §6 lists: never a code, session id, captcha payload or full phone number.
+model AuthEvent {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  at        DateTime @default(now()) @db.Timestamptz
+  action    String // identity/infrastructure/auth-events.ts AuthAction
+  reason    String? // outcome, e.g. eligible, wrong_code, requestCode:phone
+  userId    String?  @db.Uuid // when known: login, logout
+  phone     String? // masked: +2126•••••12
+  ip        String? // coarse: /24 or /64 subnet, absent without TRUSTED_PROXY_HOPS
+  userAgent String? // truncated
+}
+
 enum MemberRole {
   owner
   manager

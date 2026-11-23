@@ -17,6 +17,7 @@ import { CloseForm, ValuesForm, YearForm } from "./form";
 // FCX6 (T104): whether the year is closed, for everyone who reads it; the owner closes or reopens it.
 // FC5 (T108): the stock lines the "stock" entry values, where the owner types a lower current value until the run posts.
 // FC4 (T109): the batches the "batch" entry values, the same way; the run refuses while one has no current value.
+// FC5 (T113): each farm's eggs in the "stock" entry, at the value per egg the owner types; required before the run posts.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function ClosingPage({ searchParams }: { searchParams: Search }) {
@@ -39,7 +40,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await closePreview(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
   if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
-  const { year, day, books, locked, closedOn, frozen, entries, stocks, batches } = result.value;
+  const { year, day, books, locked, closedOn, frozen, entries, stocks, batches, eggs } = result.value;
   const todo = entries.some((e) => e.action === "post" || e.action === "repost" || e.action === "reverse");
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));
   const owner = can(ctx.value, "finance.manage") && !frozen; // the manager and the accountant read (FCX1)
@@ -122,6 +123,45 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
     </ValuesForm>
   );
 
+  // FC5, FQ18 (T113): the eggs counted (else in the books) × the owner's value per egg; with the PCA off, nothing posts (FQ25).
+  const eggTable = eggs.length > 0 && (
+    <ValuesForm year={year} write={owner && eggs.some((e) => e.posted)}>
+      <p className="text-sm text-ink-2">{t("Close.eggsHint")}</p>
+      {frozen && <p className="text-sm font-semibold">{t("Close.valuesFrozen")}</p>}
+      <div className="relative overflow-x-auto">
+        <table className={table} aria-label={t("Close.eggs")}>
+          <thead>
+            <tr>
+              <th className="p-2 text-start">{t("Close.farm")}</th>
+              <th className="p-2 text-end">{t("Close.eggCount")}</th>
+              <th className="p-2 text-end">{t("Close.perEgg")}</th>
+              <th className="p-2 text-end">{t("Close.eggsValue")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {eggs.map((e) => (
+              <tr key={e.farmId} className="border-t border-line">
+                <td className="p-2">{e.farm}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums whitespace-nowrap">{formatCount(e.quantity)}</td>
+                <td className="p-2 text-end tabular-nums whitespace-nowrap">
+                  {!e.posted ? (
+                    <span className="whitespace-normal">{t("Close.eggsNotPosted")}</span>
+                  ) : owner ? (
+                    <input key={`${e.farmId}:${e.perEgg}`} name={`value:${e.farmId}`} defaultValue={typed(e.perEgg)} inputMode="decimal" dir="ltr" aria-label={t("Close.perEggOf", { farm: e.farm })} className="w-24 rounded-lg border border-line bg-card px-2 py-1 text-end" />
+                  ) : (
+                    <bdi dir="ltr">{e.perEgg === null ? "" : formatMoney(e.perEgg)}</bdi>
+                  )}
+                  {e.missing && <span className="block text-sm whitespace-normal text-alert-fg">{t("Close.eggValueRequired")}</span>}
+                </td>
+                <td dir="ltr" className="p-2 text-end tabular-nums whitespace-nowrap">{money(e.value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </ValuesForm>
+  );
+
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Close.title")}</h1>
@@ -162,6 +202,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
             </div>
           )}
           {e.kind === "stock" && stockTable}
+          {e.kind === "stock" && eggTable}
           {e.kind === "batch" && batchTable}
         </section>
       ))}

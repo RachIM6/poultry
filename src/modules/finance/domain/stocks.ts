@@ -56,8 +56,31 @@ export function stocksAtClose(items: readonly ItemIn[], values: ReadonlyMap<stri
 const sum = (into: Map<string, bigint>, account: string, amount: bigint) => into.set(account, (into.get(account) ?? 0n) + amount);
 const sorted = (m: Map<string, bigint>) => [...m].filter(([, a]) => a > 0n).sort(([a], [b]) => a.localeCompare(b));
 
-/** FC5: D each stock account / C each 6124 leaf, at cost; `pca`: the entity's chart has the overlay. Null when nothing is valued. */
-export function yearEndStock(lines: readonly StockAtClose[], pca: boolean): Posting | null {
+// SPEC-finance FC5 (T113): eggs in stock, the counted (else book) quantity × the value per egg the owner types (FQ18:
+// no computed cost), in the "stock" entry.
+export const EGGS_STOCK = "3152"; // Produits finis (d’animaux)
+export const EGGS_VARIATION = "7132"; // Variation des stocks de biens produits
+
+/**
+ * A farm's eggs at the close. `perEgg`: the owner's value of one egg, in centimes. `posted` false: the PCA is off, so 3152
+ * lands on 315, which has sub-accounts: nothing posts until the accountant names a CGNC account (FQ25, FN4).
+ * `missing`: eggs to post without a value, so the run refuses to post.
+ */
+export type EggsAtClose = { farmId: string; book: number; quantity: number; perEgg: bigint | null; value: bigint; posted: boolean; missing: boolean };
+
+export function eggsAtClose(stock: readonly { farmId: string; eggs: number }[], counted: ReadonlyMap<string, number>, perEgg: ReadonlyMap<string, bigint>, pca: boolean): EggsAtClose[] {
+  return stock.map(({ farmId, eggs }) => {
+    const quantity = counted.get(farmId) ?? eggs;
+    const value = perEgg.get(farmId) ?? null;
+    return { farmId, book: eggs, quantity, perEgg: value, value: pca && value !== null ? BigInt(quantity) * value : 0n, posted: pca, missing: pca && quantity > 0 && value === null };
+  });
+}
+
+/**
+ * FC5: D each stock account / C each 6124 leaf, at cost; `pca`: the entity's chart has the overlay. With it, the eggs:
+ * D 3152 / C 7132 (T113). Null when nothing is valued.
+ */
+export function yearEndStock(lines: readonly StockAtClose[], pca: boolean, eggs: readonly EggsAtClose[] = []): Posting | null {
   const debits = new Map<string, bigint>();
   const credits = new Map<string, bigint>();
   for (const l of lines) {
@@ -65,6 +88,10 @@ export function yearEndStock(lines: readonly StockAtClose[], pca: boolean): Post
     const { stock, variation } = stockAccountsOf(l.kind, pca);
     sum(debits, stock, l.cost);
     sum(credits, variation, l.cost);
+  }
+  for (const e of eggs) {
+    sum(debits, EGGS_STOCK, e.value);
+    sum(credits, EGGS_VARIATION, e.value);
   }
   const out: Line[] = [...sorted(debits).map(([account, debit]) => ({ account, debit, credit: 0n })), ...sorted(credits).map(([account, credit]) => ({ account, debit: 0n, credit }))];
   return out.length ? { journal: "OD", label: "Stocks de fin d’exercice", lines: out } : null;

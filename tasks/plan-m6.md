@@ -55,7 +55,7 @@ T100 close accounts         ← the PCA PDF, now in docs/sources/
  ├── T105 loans
  ├── T112 home consumption   (an individual's entry also ← FQ11)
  └── T119 bank fees category (after T111)
-T113 eggs at close           ← owner's OK on finance → eggs (CAPABILITY-MAP); after T108
+T113 eggs at close           ← unblocked 22 Nov 2026 (finance → eggs approved); after T108
 T114 hens, simplified        ← FQ7; after T100
 T115 hens, classic           ← FQ7, FQ8; after T100
 T116 official statements     ← FQ22
@@ -267,10 +267,12 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** S
 
 ### T113: Eggs at close (FC5, eggs)
-**Blocked by:** the owner's OK to add `eggs` to finance's dependencies (CAPABILITY-MAP; "ask first", SPEC §7), and T100 (3152 Produits finis (d’animaux), 7132; with the PCA off, FQ25). Default FQ18 decided (value per egg typed by the owner).
+**Blocked by:** none. The product owner approved `eggs` in finance's dependencies on 22 Nov 2026 (CAPABILITY-MAP, `eslint.config.mjs`); T100 seeded 3152 Produits finis (d’animaux) and 7132. With the PCA off, still FQ25 (below). Default FQ18 decided (value per egg typed by the owner).
 **Description:** Egg stock (SPEC-m3 E2) on the count sheet with its book quantity. The close run values counted eggs × the typed value: D 3152 / C 7132, reversed by T104.
-**AC (when unblocked):**
-- [ ] Eggs on the count sheet match `eggs` stock on the last day; the value is required before the run posts.
+**AC:**
+- [x] Eggs on the count sheet match `eggs` stock on the last day; the value is required before the run posts. _2026-11-22. `eggs.eggStockOnDay(tx, ctx, day)`: E2's `eggLots` per farm over the collections laid by the day and the gradings, discards and draws received by its end (they carry no day of their own). The sheet has one eggs line per farm (`YearEndCount` kind `eggs`, subject the farm), counted in whole eggs, fixed on `/eggs`. The owner types a value per egg on `/closing` (`YearEndValue` kind `eggs`: the value of one egg in centimes, typed in dirhams to the centime); the run refuses (`EGG_VALUE_MISSING`) and the year close says `CLOSE_RUN_PENDING` while eggs to post have none; counted 0, nothing. The "stock" entry carries D 3152 / C 7132 = counted (else book) eggs × the value, reversed on 1 January with it (T104). `finance/eggs-at-close.int.test.ts` (the day rule, the count, the refusal, 188 100 then 197 600 after a late collection by reversal and version 2, a rerun posting nothing, the reversal on 1 January 2026 and the à-nouveaux on 3152, the PCA off, a `cash_book` entity), `finance/domain/stocks.test.ts` "eggs at the close", browser `e2e/eggs-at-close.spec.ts` (also in Arabic)._
+
+  _Defaults: the value per egg is to the centime, so the line is exact (no rounding): FQ18 asks for the owner's estimate, not a computed cost, and half a centime per egg is below what that estimate can tell. With the PCA off nothing posts for the eggs and no value is asked: 3152 lands on 315, which has sub-accounts in the CGNC chart (FN4), so the preview says "Non comptabilisé (FQ25)" as FC7 does, until the accountant names the CGNC account. The close kind "Stocks achetés" is now "Stocks"._
 **Depends on:** T108. **Size:** S
 
 ### T114: Laying hens, simplified method (FC6)

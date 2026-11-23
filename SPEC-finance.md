@@ -266,7 +266,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
   - **Count sheet,** printable from the browser (A4, in the user's locale), per farm. Each line has an empty "Compté" column, and the sheet carries no amount:
     - each open batch: house, production type, birds on hand (`flock`);
     - each stock item: kind, unit, lot and expiry, book quantity (`inventory`), expired lots flagged;
-    - the egg stock, once T113 is unblocked.
+    - the egg stock (T113): one line per farm, in eggs, with its book quantity (SPEC-m3 E2 on that day).
   - **Entering the count:** owner or manager, online, a counted quantity per line. Saved by finance (`YearEndCount`: legal entity, fiscal year, lines), editable until the close run posts, audited.
   - **Gap** = counted − book, shown per line. Finance never writes another module's data: the screen links to the stock adjustment (S3, reason "inventaire") and to the daily entry (mortality), so the user corrects the books where they are kept. FC4 and FC5 value the counted quantities.
   - **Out of scope:** a count on another day, counting on a worker's phone, barcodes.
@@ -287,10 +287,10 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - **Accounts:** by kind (table "Bought stock by kind" above): D 3121, 31221, 31223 or a 3123 leaf / C the matching 6124 leaf, 612412, 61242 or 61243. Never C 6124 itself: it has sub-accounts (FN4).
     - **Current value, default (FQ20):** equal to cost, unless the owner enters a lower one for a damaged or expired lot (the count sheet flags expired lots). A provision for the difference: D 6196 / C 3912 Provisions pour dépréciation des matières et fournitures (§7 `stockAtCloseValue`).
     - Reversed on the next year's first day (FCX5): D the 6124 leaf / C the stock account, and D 3912 / C 7196.
-  - **Eggs, blocked** (T113): finance doesn't depend on `eggs` (CAPABILITY-MAP), and adding a dependency is "ask first" (SPEC §7). Once allowed:
-    - quantity from the egg stock (SPEC-m3 E2) or the count;
-    - **default (FQ18): value per egg typed by the owner**, no computed cost;
-    - D 3152 Produits finis (d’animaux) / C 7132. With the PCA off, 3152 lands on 315, which has sub-accounts: §9.
+  - **Eggs** (T113; `eggs` added to finance's dependencies by the product owner on 22 Nov 2026, CAPABILITY-MAP):
+    - quantity: the count, else the egg stock (SPEC-m3 E2) on the last day: the collections laid by then, and the gradings, discards and draws received by the end of that day (they carry no day of their own);
+    - **default (FQ18): value per egg typed by the owner**, in dirhams to the centime, no computed cost. Value = quantity × value per egg, exact. The run refuses while eggs to post have no value; none counted, nothing posted;
+    - D 3152 Produits finis (d’animaux) / C 7132, in the "stock" entry, reversed with it (FCX5). With the PCA off, 3152 lands on 315, which has sub-accounts: nothing posts for the eggs and no value is asked, listed "non comptabilisé (FQ25)" (§9).
   - **Out of scope:** any valuation method other than the weighted average cost (S5).
 - **FC6. Laying hens and pullets: blocked** (FQ7, FQ8; T114, T115).
   - **Method, no default (FQ7):** one per production category, chosen by the owner for the fiscal year before its first entry ("permanence des méthodes", like FN1) and stored with the other accounting choices.

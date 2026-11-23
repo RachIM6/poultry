@@ -8,24 +8,26 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { legalEntityIn, listLegalEntities, placeNames } from "@/modules/farm-registry";
+import { eggStockOnDay } from "@/modules/eggs";
 import { batchesForFinance } from "@/modules/flock";
 import { stockOnDay } from "@/modules/inventory";
 import { CLOSE_KINDS, closeSource } from "@/modules/finance/domain/close";
 import { countDay, countLines, countYearOf, parseCounted, type CountLine } from "@/modules/finance/domain/count";
 
-// SPEC-finance FC3: the year-end count. Reads flock and inventory through their index; writes only YearEndCount.
+// SPEC-finance FC3: the year-end count. Reads flock, inventory and eggs (T113) through their index; writes only YearEndCount.
 
 export type CountSheet = { year: number; day: FarmDay; frozen: boolean; farms: { id: string; name: string; lines: CountLine[] }[] };
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
 
 async function sheet(tx: Tx, ctx: TenantContext, entityId: string, day: FarmDay) {
-  const [batches, items, saved] = await Promise.all([
+  const [batches, items, eggs, saved] = await Promise.all([
     batchesForFinance(tx, ctx),
     stockOnDay(tx, ctx, day),
+    eggStockOnDay(tx, ctx, day),
     tx.yearEndCount.findMany({ where: { organizationId: ctx.organizationId, legalEntityId: entityId, day: date(day) } }),
   ]);
-  return { lines: countLines(day, batches, items, new Map(saved.map((s) => [s.subjectId, s.quantity]))), saved: new Map(saved.map((s) => [s.subjectId, s])) };
+  return { lines: countLines(day, batches, items, new Map(saved.map((s) => [s.subjectId, s.quantity])), eggs), saved: new Map(saved.map((s) => [s.subjectId, s])) };
 }
 
 /** FCX4 (T103): once the year's close run has posted, its count is frozen. */

@@ -31,7 +31,8 @@ export const REVERSED_AT_OPENING: Record<CloseKind, boolean> = { depreciation: f
 export const openingReversalOf = (lines: readonly Line[]): Line[] => reversalOf(lines).map((l) => (l.account === PROVISION_CHARGE ? { ...l, account: PROVISION_REVERSAL } : l));
 
 /** FN3, FCX6: the à-nouveaux's source id, by the first day of the fiscal year it opens (FN7 versions). */
-export const openingSource = (legalEntityId: string, firstDay: string) => `opening:${legalEntityId}:${firstDay}`;
+export const OPENING_PREFIX = "opening:";
+export const openingSource = (legalEntityId: string, firstDay: string) => `${OPENING_PREFIX}${legalEntityId}:${firstDay}`;
 
 /** FCX5: the source id of a close entry's reversal at the next opening. */
 export const reversalSource = (kind: CloseKind, legalEntityId: string, year: number) => `reversal:${closeSource(kind, legalEntityId, year)}`;

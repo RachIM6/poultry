@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, ownerWithFarm, query } from "./auth";
+import { farmDaysAgo, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 
@@ -10,6 +10,9 @@ test("the owner types a three-line opening entry; it shows in the journal and th
   const e164 = await ownerWithFarm(page, "Élevage de l’Ouverture");
   await query(`UPDATE "LegalEntity" SET books = 'ledger' WHERE "organizationId" = (SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`, [e164]);
   const year = farmDaysAgo(0).slice(0, 4); // the fiscal year starts in January by default
+  // FN3: the 5141 line names the bank account it opens.
+  await scopeRemembered(page);
+  await pushAs(page, [{ type: "finance.createTreasuryAccount", payload: { id: crypto.randomUUID(), kind: "bank", name: "Banque Populaire" } }]);
 
   await page.goto("/fr/books");
   await page.getByText("Écriture manuelle", { exact: true }).click();
@@ -22,6 +25,7 @@ test("the owner types a three-line opening entry; it shows in the journal and th
   await form.getByLabel("Débit, ligne 1").fill("80 000");
   await form.getByLabel("Compte, ligne 2").fill("5141");
   await form.getByLabel("Débit, ligne 2").fill("20000,00");
+  await form.getByLabel("Compte bancaire ou caisse, ligne 2").selectOption({ label: "Banque Populaire" });
   const difference = form.getByText("Débit − crédit :");
   await expect(difference).toContainText(/100\s000,00/); // live, before the credit line
   await form.getByLabel("Compte, ligne 3").fill("1111");
@@ -48,4 +52,8 @@ test("the owner types a three-line opening entry; it shows in the journal and th
   await expect(trial.getByRole("row").filter({ hasText: /^5141 / })).toContainText(/20\s000,00/);
   await expect(trial.getByRole("row").filter({ hasText: /^1111 / })).toContainText(/-100\s000,00/);
   await expect(trial.getByRole("row").last()).toContainText("Balance équilibrée");
+
+  // FN10: the opening bank balance is the bank account's balance on /treasury.
+  await page.goto("/fr/treasury");
+  await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").filter({ hasText: "Banque Populaire" })).toContainText(/20[\s.]000,00\sDH/);
 });

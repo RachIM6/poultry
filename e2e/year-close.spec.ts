@@ -47,8 +47,8 @@ test("the owner runs the close, closes the year, reads « Exercice clôturé le 
   // The 2026 à-nouveaux: OD on 1 January, classes 1–5 carried forward and the 2025 loss (the depreciation) on 1199.
   await page.goto("/fr/books?view=journals&month=2026-01");
   const opening = page.getByRole("table").filter({ hasText: "1 janvier 2026 · À-nouveaux" });
-  await expect(opening.getByRole("row").filter({ hasText: /^2332 / })).toContainText(/47\s350,00/);
-  await expect(opening.getByRole("row").filter({ hasText: /^2833 / })).toContainText(/2\s254,76/);
+  await expect(opening.getByRole("row").filter({ hasText: /^23321 / })).toContainText(/47\s350,00/);
+  await expect(opening.getByRole("row").filter({ hasText: /^28332 / })).toContainText(/2\s254,76/);
   await expect(opening.getByRole("row").filter({ hasText: /^5161 / })).toContainText(/47\s350,00/);
   await expect(opening.getByRole("row").filter({ hasText: /^1199 / })).toContainText(/2\s254,76/);
 

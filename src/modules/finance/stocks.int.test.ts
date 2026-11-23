@@ -90,7 +90,7 @@ describe("stocks at the close (SPEC-finance FC5, FQ20, T108)", () => {
         kind: "provision",
         action: "post",
         lines: [
-          { account: "6196", label: "Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant", debit: 110_000n, credit: 0n },
+          { account: "61961", label: "D.E.P. pour dépréciation des stocks", debit: 110_000n, credit: 0n },
           { account: "3912", label: "Provisions pour dépréciation des matières et fournitures", debit: 0n, credit: 110_000n },
         ],
       },
@@ -104,7 +104,7 @@ describe("stocks at the close (SPEC-finance FC5, FQ20, T108)", () => {
 
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 2 });
     expect(await linesOf(`close:stock:${entity}:2026`)).toEqual([["2026-12-31", "3121", 9_840_000n, 0n], ["2026-12-31", "612412", 0n, 9_840_000n]]);
-    expect(await linesOf(`close:provision:${entity}:2026`)).toEqual([["2026-12-31", "6196", 110_000n, 0n], ["2026-12-31", "3912", 0n, 110_000n]]);
+    expect(await linesOf(`close:provision:${entity}:2026`)).toEqual([["2026-12-31", "61961", 110_000n, 0n], ["2026-12-31", "3912", 0n, 110_000n]]);
     const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceId: `close:stock:${entity}:2026` } });
     expect(entry).toMatchObject({ journal: "OD", label: "Stocks de fin d’exercice", sourceVersion: 1, createdBy: owner.userId });
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 }); // the same facts

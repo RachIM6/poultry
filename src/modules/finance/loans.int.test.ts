@@ -123,7 +123,7 @@ describe("loans (SPEC-finance FC2, T105)", () => {
     expect(await payLoanInstallment(manager, { loanId, number: 1, day: "2027-03-31" }, clock)).toEqual(OK); // marked again
     expect(await linesOf(`loan:${loanId}:installment:1`)).toEqual([
       ["BQ", "2027-04-02", "1481", 1_666_667n, 0n, null],
-      ["BQ", "2027-04-02", "6311", 138_750n, 0n, null],
+      ["BQ", "2027-04-02", "63111", 138_750n, 0n, null],
       ["BQ", "2027-04-02", "5141", 0n, 1_805_417n, bank],
     ]);
     expect(await entriesOf(loanId)).toBe(2); // the disbursement and installment 1
@@ -207,13 +207,13 @@ describe("loans (SPEC-finance FC2, T105)", () => {
     expect(theirs.ok && theirs.value.loans).toEqual([]);
   });
 
-  it("lands on 5141, 1481 and 6311 with the PCA off too", async () => {
+  it("lands on 5141, 1481 and 63111 with the PCA off too", async () => {
     const l = loanB(otherBank);
     expect(await createLoan(other, l, clock)).toEqual(OK);
     expect(await confirmLoan(other, { loanId: l.id }, clock)).toEqual(OK);
     expect(await payLoanInstallment(other, { loanId: l.id, number: 1, day: "2027-03-31" }, clock)).toEqual(OK);
     expect((await linesOf(`loan:${l.id}:disbursement`)).map((x) => x[2])).toEqual(["5141", "1481"]);
-    expect((await linesOf(`loan:${l.id}:installment:1`)).map((x) => [x[2], x[3], x[4]])).toEqual([["1481", 1_666_667n, 0n], ["6311", 138_750n, 0n], ["5141", 0n, 1_805_417n]]);
+    expect((await linesOf(`loan:${l.id}:installment:1`)).map((x) => [x[2], x[3], x[4]])).toEqual([["1481", 1_666_667n, 0n], ["63111", 138_750n, 0n], ["5141", 0n, 1_805_417n]]);
   });
 
   it("works for a cash_book entity: the disbursement and the installment show in its cash book", async () => {
@@ -229,7 +229,7 @@ describe("loans (SPEC-finance FC2, T105)", () => {
       ["2027-01-15", "Déblocage d’emprunt : Crédit Agricole du Maroc", "5141", ["1481"], 10_000_000n, 0n],
     ]);
     expect(march.value.cashBook.rows.map((r) => [r.day, r.label, r.account, r.counterAccounts, r.receipt, r.expense])).toEqual([
-      ["2027-03-31", "Échéance d’emprunt n° 1 : Crédit Agricole du Maroc", "5141", ["1481", "6311"], 0n, 1_805_417n],
+      ["2027-03-31", "Échéance d’emprunt n° 1 : Crédit Agricole du Maroc", "5141", ["1481", "63111"], 0n, 1_805_417n],
     ]);
   });
 
@@ -240,7 +240,7 @@ describe("loans (SPEC-finance FC2, T105)", () => {
     expect(await confirmLoan(owner, { loanId: l.id }, clock)).toEqual(OK);
     expect(await linesOf(`loan:${l.id}:disbursement`)).toEqual([]);
     expect(await payLoanInstallment(owner, { loanId: l.id, number: 1, day: "2027-02-28" }, clock)).toEqual(OK);
-    expect((await linesOf(`loan:${l.id}:installment:1`)).map((x) => [x[2], x[3], x[4]])).toEqual([["1481", 1_250_000n, 0n], ["6311", 69_375n, 0n], ["5141", 0n, 1_319_375n]]);
+    expect((await linesOf(`loan:${l.id}:installment:1`)).map((x) => [x[2], x[3], x[4]])).toEqual([["1481", 1_250_000n, 0n], ["63111", 69_375n, 0n], ["5141", 0n, 1_319_375n]]);
   });
 
   it("counts the unpaid installments of confirmed loans in the /treasury cash schedule", async () => {

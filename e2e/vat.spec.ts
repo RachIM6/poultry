@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T39 (SPEC-finance FN9): a purchase's VAT, entered on the form, is booked apart for a VAT-registered entity.
-test("a VAT-registered farm's purchase and quick expense book their VAT on 3455", async ({ page }) => {
+test("a VAT-registered farm's purchase and quick expense book their VAT on 34552", async ({ page }) => {
   test.setTimeout(90_000);
   const e164 = await ownerWithFarm(page, "Élevage de la TVA");
   await scopeRemembered(page);
@@ -35,7 +35,7 @@ test("a VAT-registered farm's purchase and quick expense book their VAT on 3455"
         [e164],
       )
     ).map((l) => `${l.account} ${l.debit} ${l.credit}`);
-  await expect.poll(lines).toEqual(["3455 20000 0", "4411 0 120000", "612122 100000 0"]);
+  await expect.poll(lines).toEqual(["34552 20000 0", "4411 0 120000", "612122 100000 0"]);
 
   // A quick expense's bill: 1 200,00 DH of electricity, 200,00 of it VAT.
   const box = crypto.randomUUID();
@@ -46,5 +46,5 @@ test("a VAT-registered farm's purchase and quick expense book their VAT on 3455"
   await page.getByLabel("Dont TVA (DH, facultatif)").fill("200");
   await page.getByLabel("Payé avec").selectOption({ label: "Caisse · Caisse ferme" });
   await page.getByRole("button", { name: "Enregistrer la dépense" }).click();
-  await expect.poll(lines).toEqual(["3455 20000 0", "3455 20000 0", "4411 0 120000", "5161 0 120000", "612122 100000 0", "612512 100000 0"]);
+  await expect.poll(lines).toEqual(["34552 20000 0", "34552 20000 0", "4411 0 120000", "5161 0 120000", "612122 100000 0", "612512 100000 0"]);
 });

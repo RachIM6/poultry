@@ -30,12 +30,12 @@ describe("official statements (SPEC-finance FC8, T116)", () => {
     await post("2025-02-01", "BQ", [line("2328", 12_000_000n, 0n), line("5141", 0n, 12_000_000n)]);
     await post("2025-06-10", "VT", [line("3421", 9_000_000n, 0n), line("712121", 0n, 9_000_000n)]);
     await post("2025-06-12", "AC", [line("612122", 5_000_000n, 0n), line("4411", 0n, 5_000_000n)]);
-    await post("2025-12-31", "OD", [line("6193", 600_000n, 0n), line("2832", 0n, 600_000n)]);
+    await post("2025-12-31", "OD", [line("61932", 600_000n, 0n), line("28321", 0n, 600_000n)]);
     // 2026: the à-nouveaux, then hens bought and the client paying.
     expect(await openFiscalYear(ledger, entity, "2026-01-01" as FarmDay)).toMatchObject({ ok: true });
     await post("2026-03-01", "BQ", [line("23711", 4_000_000n, 0n), line("5141", 0n, 4_000_000n)]);
     await post("2026-04-01", "BQ", [line("5141", 9_000_000n, 0n), line("3421", 0n, 9_000_000n)]);
-    await post("2026-12-31", "OD", [line("6193", 1_000_000n, 0n), line("2832", 0n, 600_000n), line("28371", 0n, 400_000n)]);
+    await post("2026-12-31", "OD", [line("61932", 1_000_000n, 0n), line("28321", 0n, 600_000n), line("28371", 0n, 400_000n)]);
     await db.fiscalYearClose.create({ data: { organizationId: ledger.organizationId, legalEntityId: entity, day: new Date("2025-12-31T00:00:00Z"), closedBy: ledger.userId, closedAt: new Date("2026-02-15T10:00:00Z") } });
   });
 

@@ -98,7 +98,7 @@ describe("loanSchedule (SPEC-finance FC2, §7, default FQ16)", () => {
 });
 
 describe("loan entries (FC2, §7.1 B step 5)", () => {
-  it("disbursement D 5141 / C 1481; installment 1 D 1481 16 666,67, D 6311 1 387,50 / C 5141 18 054,17, BQ", () => {
+  it("disbursement D 5141 / C 1481; installment 1 D 1481 16 666,67, D 63111 1 387,50 / C 5141 18 054,17, BQ", () => {
     expect(disbursementPosting("BMCE", 10_000_000n, "bank-1")).toEqual({
       journal: "BQ",
       label: "Déblocage d’emprunt : BMCE",
@@ -110,14 +110,14 @@ describe("loan entries (FC2, §7.1 B step 5)", () => {
       label: "Échéance d’emprunt n° 1 : BMCE",
       lines: [
         { account: "1481", debit: 1_666_667n, credit: 0n },
-        { account: "6311", debit: 138_750n, credit: 0n },
+        { account: "63111", debit: 138_750n, credit: 0n },
         { account: "5141", debit: 0n, credit: 1_805_417n, treasuryId: "bank-1" },
       ],
     });
   });
 
   it("leaves out a line of nothing: a deferral row is interest only, a row of nothing posts nothing", () => {
-    expect(installmentPosting("BMCE", { number: 1, capital: 0n, interest: 46_250n }, "bank-1")?.lines.map((l) => l.account)).toEqual(["6311", "5141"]);
+    expect(installmentPosting("BMCE", { number: 1, capital: 0n, interest: 46_250n }, "bank-1")?.lines.map((l) => l.account)).toEqual(["63111", "5141"]);
     expect(installmentPosting("BMCE", { number: 1, capital: 0n, interest: 0n }, "bank-1")).toBeNull();
   });
 

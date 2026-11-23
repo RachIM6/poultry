@@ -82,7 +82,7 @@ describe("fixed assets (SPEC-finance FC1, T102)", () => {
       expect(await createFixedAsset(owner, a, clock), paidWith).toEqual({ ok: true, value: undefined });
       expect(await createFixedAsset(owner, a, clock), paidWith).toEqual({ ok: true, value: undefined }); // the same form again
       expect(await linesOf(`asset:${a.id}:acq`), paidWith).toEqual([
-        [1, journal, "2026-09-18", "2332", 4_735_000n, 0n, null],
+        [1, journal, "2026-09-18", "23321", 4_735_000n, 0n, null],
         [1, journal, "2026-09-18", account, 0n, 4_735_000n, treasuryId],
       ]);
       expect(await db.fixedAsset.findUnique({ where: { id: a.id } })).toMatchObject({ farmId: farm, houseId: house, costCentimes: 4_735_000n, paidWith });
@@ -104,12 +104,12 @@ describe("fixed assets (SPEC-finance FC1, T102)", () => {
     expect(await createFixedAsset(owner, { ...truck, id: uuidv7(), opening: null }, clock)).toEqual({ ok: false, error: "INVALID_INPUT" });
   });
 
-  it("keeps a VAT-registered entity's VAT on 3455 and lands PCA accounts on their CGNC account with the PCA off", async () => {
+  it("keeps a VAT-registered entity's VAT on 34551 and lands PCA accounts on their CGNC account with the PCA off", async () => {
     const a = generator({ category: "installation", amountCentimes: "5682000", vatCentimes: "947000", paidWith: "transfer", treasuryId: otherBank });
     expect(await createFixedAsset(other, a, clock)).toEqual({ ok: true, value: undefined });
     expect(await linesOf(`asset:${a.id}:acq`)).toEqual([
       [1, "BQ", "2026-09-18", "2331", 4_735_000n, 0n, null], // 233111 → 2331 without the PCA
-      [1, "BQ", "2026-09-18", "3455", 947_000n, 0n, null],
+      [1, "BQ", "2026-09-18", "34551", 947_000n, 0n, null],
       [1, "BQ", "2026-09-18", "5141", 0n, 5_682_000n, otherBank],
     ]);
     expect(await db.fixedAsset.findUnique({ where: { id: a.id } })).toMatchObject({ amountCentimes: 5_682_000n, vatCentimes: 947_000n, costCentimes: 4_735_000n });
@@ -136,10 +136,10 @@ describe("fixed assets (SPEC-finance FC1, T102)", () => {
     expect(await disposeFixedAsset(owner, sale, clock)).toEqual({ ok: true, value: undefined }); // the same form again
     expect(await linesOf(`asset:${a.id}:disposal`)).toEqual([
       [1, "OD", "2028-03-15", "61933", 112_738n, 0n, null], // cumulative(18) − cumulative(16) = 1 014 643 − 901 905
-      [1, "OD", "2028-03-15", "2833", 0n, 112_738n, null],
+      [1, "OD", "2028-03-15", "28332", 0n, 112_738n, null],
       [2, "OD", "2028-03-15", "6513", 3_720_357n, 0n, null], // 37 203,57
-      [2, "OD", "2028-03-15", "2833", 1_014_643n, 0n, null], // 10 146,43
-      [2, "OD", "2028-03-15", "2332", 0n, 4_735_000n, null],
+      [2, "OD", "2028-03-15", "28332", 1_014_643n, 0n, null], // 10 146,43
+      [2, "OD", "2028-03-15", "23321", 0n, 4_735_000n, null],
       [3, "OD", "2028-03-15", "5141", 3_000_000n, 0n, bank],
       [3, "OD", "2028-03-15", "7513", 0n, 3_000_000n, null],
     ]);

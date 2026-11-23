@@ -30,11 +30,9 @@ export default function AssetsPage() {
   );
 }
 
-// The categories by FC1 group: land, then each depreciation account's.
-const GROUPS = [...new Set(ASSET_CATEGORIES.map((c) => ASSET_ACCOUNTS[c].depreciation ?? "land"))].map((group) => ({
-  group,
-  categories: ASSET_CATEGORIES.filter((c) => (ASSET_ACCOUNTS[c].depreciation ?? "land") === group),
-}));
+// The categories by FC1 group: land, then each 4-digit depreciation account's (2832–2835; the categories post to its leaves).
+const groupOf = (c: (typeof ASSET_CATEGORIES)[number]) => ASSET_ACCOUNTS[c].depreciation?.slice(0, 4) ?? "land";
+const GROUPS = [...new Set(ASSET_CATEGORIES.map(groupOf))].map((group) => ({ group, categories: ASSET_CATEGORIES.filter((c) => groupOf(c) === group) }));
 
 async function AssetsView() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);

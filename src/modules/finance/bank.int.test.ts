@@ -134,7 +134,7 @@ describe("bank reconciliation, manual matching (SPEC-finance FC9, FCX1, T111)", 
     expect((await addBankStatement(a, { treasuryId: bank, endDay: "2026-03-20", closingCentimes: "-150000" }, clock)).ok).toBe(true); // overdrawn
   });
 
-  it("T119: a statement with a fee line reaches 0 once the fee is booked as \"Frais bancaires\", D 6147 / C 5141 in BQ", async () => {
+  it("T119: a statement with a fee line reaches 0 once the fee is booked as \"Frais bancaires\", D 61473 / C 5141 in BQ", async () => {
     // The two-week fixture again, on a second account, and the bank took 45,00 of fees on the 14th: 43 455,00 printed.
     const second = uuidv7();
     const key: Record<string, string> = { deposit: uuidv7(), power: uuidv7(), water: uuidv7(), withdrawal: uuidv7(), fee: uuidv7() };
@@ -160,7 +160,7 @@ describe("bank reconciliation, manual matching (SPEC-finance FC9, FCX1, T111)", 
 
     await applied(a, spent(key.fee, "2026-03-14", "bank_fees", "4500"));
     const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceId: key.fee }, include: { lines: { orderBy: { debitCentimes: "desc" } } } });
-    expect([entry.journal, entry.lines.map((l) => [l.account, l.debitCentimes, l.creditCentimes, l.treasuryId])]).toEqual(["BQ", [["6147", 4_500n, 0n, null], ["5141", 0n, 4_500n, second]]]);
+    expect([entry.journal, entry.lines.map((l) => [l.account, l.debitCentimes, l.creditCentimes, l.treasuryId])]).toEqual(["BQ", [["61473", 4_500n, 0n, null], ["5141", 0n, 4_500n, second]]]);
     expect((await read(a, second, added.value)).statement).toMatchObject({ bookCentimes: 4_345_500n, differenceCentimes: -4_500n, reconciled: false }); // booked, not ticked yet
     expect((await matchBankLine(a, { statementId: added.value, lineId: await lineOn(key.fee), ticked: true })).ok).toBe(true);
     expect((await read(a, second, added.value)).statement).toMatchObject({ closingCentimes: 4_345_500n, bookCentimes: 4_345_500n, tickedCentimes: 4_345_500n, differenceCentimes: 0n, reconciled: true });

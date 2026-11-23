@@ -5,7 +5,7 @@ import { chartOf, postingAccount, rollUp } from "@/modules/finance";
 import { operationAccounts } from "@/modules/finance/domain/operations";
 import { POSTED_ACCOUNTS } from "@/modules/finance/domain/posting";
 import { EXPENSE_ACCOUNTS } from "@/modules/finance/domain/treasury";
-import { ASSET_ACCOUNTS, ASSET_DEBTS, DEPRECIATION_CHARGES, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
+import { ASSET_ACCOUNTS, ASSET_DEBTS, ASSET_VAT_RECOVERABLE, DEPRECIATION_CHARGES, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
 import { LOAN_INTEREST, LOANS } from "@/modules/finance/domain/loans";
 import { SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE } from "@/modules/finance/domain/subsidies";
 import { EGGS_STOCK, EGGS_VARIATION, IN_PROGRESS, IN_PROGRESS_PROVISION, IN_PROGRESS_VARIATION, PROVISION_CHARGE, PROVISION_REVERSAL, STOCK_ACCOUNTS, STOCK_PROVISION, stockAccountsOf } from "@/modules/finance/domain/stocks";
@@ -23,8 +23,9 @@ const RULE_ACCOUNTS: [string, string][] = [
   ["712121", "7121"], ["712128", "7121"], ["71213", "7121"],
   ["4411", "4411"], ["4415", "4415"], ["4463", "4463"],
   ["3421", "3421"], ["3424", "3424"], ["3425", "3425"], ["3431", "3431"],
-  ["5111", "5111"], ["5113", "5113"], ["5115", "5115"], ["5141", "5141"], ["5161", "5161"],
-  ["6134", "6134"], ["6136", "6136"],
+  ["51111", "51111"], ["51112", "51112"], ["51132", "51132"], ["5115", "5115"], ["5141", "5141"], ["5161", "5161"],
+  ["6134", "6134"], ["6136", "6136"], ["61473", "61473"], ["34552", "34552"],
+  ["61711", "61711"], ["61713", "61713"], ["61741", "61741"], ["4432", "4432"], ["4441", "4441"],
 ];
 
 describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
@@ -79,6 +80,29 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
       expect(postingAccount(number, everything, cgncOnly), number).toBe("61938");
     }
   });
+  // FN4 sweep (SPEC-finance §9 "Decided defaults"): the CGNC sub-accounts of the rule accounts, as printed (scan pages).
+  it("subdivides the rule accounts the CGNC subdivides, as it prints them", () => {
+    const children = (parent: string) => [...cgncOnly.values()].filter((a) => a.parent === parent).map((a) => a.number);
+    const printed: [string, string[]][] = [
+      ["2332", ["23321", "23324"]], // p. 266
+      ["2832", ["28321", "28323", "28325", "28327", "28328"]], // p. 271
+      ["2833", ["28331", "28332", "28333", "28338"]], // pp. 271–272
+      ["2835", ["28351", "28352", "28355", "28356", "28358"]], // p. 272
+      ["3455", ["34551", "34552"]], // p. 279
+      ["5111", ["51111", "51112"]], ["5113", ["51131", "51132"]], // p. 286
+      ["6147", ["61471", "61472", "61473"]], // p. 293
+      ["6171", ["61711", "61712", "61713", "61714", "61715"]], ["6174", ["61741", "61742", "61743", "61744", "61745"]], // p. 294
+      ["6191", ["61911", "61912"]], // p. 295
+      ["6192", ["61921", "61922", "61923", "61928"]], ["6194", ["61942", "61943"]], ["6195", ["61955", "61957"]], // p. 296
+      ["6196", ["61961", "61964"]], ["6198", ["61981", "61984"]], // p. 297
+      ["6311", ["63111", "63113", "63114", "63115", "63118"]], // p. 298
+      ["7131", ["71311", "71312", "71317"]], ["7132", ["71321", "71322", "71327"]], // p. 305
+      ["7197", ["71971", "71972", "71973", "71975", "71976", "71978"]], ["7198", ["71981", "71984"]], // p. 307
+    ];
+    for (const [parent, subs] of printed) expect(children(parent), parent).toEqual(subs);
+    // Left out on purpose, like FQ24's: entity-defined groups (A / B, branches) or a split the rule has no data for.
+    for (const leaf of ["3121", "5161", "6134"]) expect(children(leaf), leaf).toEqual([]);
+  });
   it("gives every operation of the chart screen an account in both charts (F-Chart)", () => {
     for (const row of operationAccounts(seed.accounts)) expect([row.op, row.pca?.number, row.cgnc?.number].every(Boolean), row.op).toBe(true);
   });
@@ -124,26 +148,40 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
   });
 
   // FN4 refuses a line on an account with sub-accounts, so a rule's account must stay a leaf in the chart it posts to.
-  // T100 left out the PCA sub-accounts of 3421, 3424, 4411 and 6136 for this reason (SPEC-finance §9).
+  // T100 left out the PCA sub-accounts of 3421, 3424, 4411 and 6136 for this reason (SPEC-finance §9), and the FN4
+  // sweep the CGNC ones of 3121, 5161 and 6134; every other rule account the CGNC subdivides posts to a leaf.
   it("keeps every account a posting rule uses a posting account, in both charts", () => {
     const parents = (chart: typeof withPca) => new Set([...chart.values()].map((a) => a.parent));
     // T102 (FC1): every asset and depreciation account of the categories, and the acquisition and disposal accounts.
-    const assets = [...Object.values(ASSET_ACCOUNTS).flatMap((a) => [a.asset, a.depreciation ?? []].flat()), ...Object.values(DEPRECIATION_CHARGES), ASSET_DEBTS, NET_BOOK_VALUE_DISPOSED, DISPOSAL_PROCEEDS];
+    const assets = [...Object.values(ASSET_ACCOUNTS).flatMap((a) => [a.asset, a.depreciation ?? []].flat()), ...Object.values(DEPRECIATION_CHARGES), ASSET_DEBTS, ASSET_VAT_RECOVERABLE, NET_BOOK_VALUE_DISPOSED, DISPOSAL_PROCEEDS];
     // T108 (FC5): the stock and variation accounts by kind, the provision and its reversal. T109 (FC4): the batches in progress.
     const stocks = [...Object.values(STOCK_ACCOUNTS).flatMap((a) => [a.stock, a.variation]), PROVISION_CHARGE, STOCK_PROVISION, PROVISION_REVERSAL, IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION];
-    const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets, LOANS, LOAN_INTEREST, SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE, ...stocks]; // T105, T106 (FC2): the loans' and subsidies'
-    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "61932", "61934", "6513", "7513", "1481", "6311", "1311", "1319", "7577", "3121", "31221", "31223", "612412", "61242", "6196", "3912", "7196", "31322", "7131", "3913", "6147"]));
+    // The rule accounts no exported constant names: the FN6 rows above (in posting.ts: an employee's home consumption
+    // 61713, a remitted cheque 51112, the pay's 4432 / 4441, an associate's 4463), 5115 (treasury transfers) and the
+    // à-nouveaux' 1191 / 1199 (entry.ts).
+    const unexported = [...RULE_ACCOUNTS.map(([account]) => account), "4463", "5115", "1191", "1199"];
+    const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets, LOANS, LOAN_INTEREST, SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE, ...stocks, ...unexported]; // T105, T106 (FC2): the loans' and subsidies'
+    expect(rules).toEqual(expect.arrayContaining([
+      "3421", "3424", "4411", "6136", "6134", "3121", "5161", // FQ24 and its kind: left leaves on purpose
+      "23111", "233111", "23321", "2358", "28321", "28323", "28331", "28332", "2834", "28351", "28358", "4481", "34551", "61932", "61934", "6513", "7513",
+      "1481", "63111", "1311", "1319", "7577", "31221", "31223", "612412", "61242", "61961", "3912", "7196", "31322", "71311", "3913",
+      "61473", "34552", "51111", "51112", "51132", "61711", "61713", "61741",
+    ]));
     for (const account of rules) {
       expect(withPca.has(account), account).toBe(true);
       expect(parents(withPca).has(account), account).toBe(false);
       expect(parents(cgncOnly).has(postingAccount(account, everything, cgncOnly)), account).toBe(false);
     }
     // T109 (FC4, FQ1): with the PCA off, 31322 lands on 3132 Encours de Production, a CGNC leaf; 7131 and 3913 are CGNC's.
-    expect([IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION].map((a) => postingAccount(a, everything, cgncOnly))).toEqual(["3132", "7131", "3913"]);
+    expect([IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION].map((a) => postingAccount(a, everything, cgncOnly))).toEqual(["3132", "71311", "3913"]);
     // T113 (FC5, FQ25): the eggs post with the PCA only; without it 3152 lands on 315, which has sub-accounts.
     for (const account of [EGGS_STOCK, EGGS_VARIATION]) expect(parents(withPca).has(account), account).toBe(false);
-    expect([EGGS_STOCK, EGGS_VARIATION].map((a) => postingAccount(a, everything, cgncOnly))).toEqual(["315", "7132"]);
+    expect([EGGS_STOCK, EGGS_VARIATION].map((a) => postingAccount(a, everything, cgncOnly))).toEqual(["315", "71321"]);
     expect(parents(cgncOnly).has("315")).toBe(true);
+    // FC7 (FQ21, FQ25): home consumption is credited to 7140 with the PCA only; without it 7140 lands on 714, a parent.
+    expect(parents(withPca).has("7140")).toBe(false);
+    expect(postingAccount("7140", everything, cgncOnly)).toBe("714");
+    expect(parents(cgncOnly).has("714")).toBe(true);
   });
 
   // T108 (FC5, FQ1): the stock account follows the purchase's family in each chart (FN6: 6121 → 3121 / 61241x,

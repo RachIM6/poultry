@@ -6,7 +6,7 @@ const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u
 // T109 (SPEC-finance FC4, FQ19, FQ20): a broiler batch still open on 31 December 2025 (flock refuses days not yet
 // come): 10 000 chicks at 6,00, 2 000 sold, 400 dead, 7 600 on hand. At cost by head: 60 000,00 × 7 600 ÷ 9 600 =
 // 47 500,00 on 31322. Never weighed, so no current value is suggested: the run refuses until the owner types one,
-// 45 000,00, for a provision of 2 500,00 (D 6196 / C 3913). §7.1 C, the as-of day, the PCA off and the reversals in
+// 45 000,00, for a provision of 2 500,00 (D 61961 / C 3913). §7.1 C, the as-of day, the PCA off and the reversals in
 // detail: src/modules/finance/batches-at-close.int.test.ts.
 test("the owner reads an open batch at cost in the close preview, types its current value, and posts it with its provision", async ({ page }) => {
   test.setTimeout(120_000);
@@ -29,14 +29,14 @@ test("the owner reads an open batch at cost in the close preview, types its curr
     },
   ]);
 
-  // The preview: D 31322 / C 7131 at cost, the batch with its birds on hand and no value to suggest.
+  // The preview: D 31322 / C 71311 at cost, the batch with its birds on hand and no value to suggest.
   await page.goto("/fr/closing?year=2025");
   const section = page.getByRole("region", { name: "Bandes en cours (animaux)" });
   await expect(section).toContainText("À comptabiliser.");
   const entry = section.getByRole("table", { name: "Écriture · Bandes en cours (animaux)" }).getByRole("row");
   await expect(entry).toHaveCount(3);
   await expect(entry.nth(1)).toContainText(/^31322 Animaux\s*47\s500,00/);
-  await expect(entry.nth(2)).toContainText(/^7131 Variation des stocks de produits en cours\s*47\s500,00/);
+  await expect(entry.nth(2)).toContainText(/^71311 Variation des stocks de biens produits en cours\s*47\s500,00/);
   const line = section.getByRole("table", { name: "Bandes en cours au coût engagé" }).getByRole("row").filter({ hasText: "B1" });
   await expect(line).toContainText(/B1 · Poulet de chair\s*Ferme Atlas\s*7\s600\s*47\s500,00\sDH/);
   await expect(line).toContainText("Valeur à saisir : ni pesée ni vente pour la proposer.");
@@ -46,14 +46,14 @@ test("the owner reads an open batch at cost in the close preview, types its curr
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Saisissez la valeur actuelle" })).toHaveText("Saisissez la valeur actuelle des bandes en cours sans pesée ou sans vente avant de comptabiliser.");
 
-  // The owner's 45 000,00: a provision of 2 500,00, D 6196 / C 3913.
+  // The owner's 45 000,00: a provision of 2 500,00, D 61961 / C 3913.
   await section.getByRole("textbox", { name: "Valeur actuelle : B1 · Poulet de chair" }).fill("45 000");
   await section.getByRole("button", { name: "Enregistrer les valeurs actuelles" }).click();
   await expect(section.getByRole("status")).toHaveText("Valeurs actuelles enregistrées.");
   await expect(line).toContainText(/2\s500,00\sDH$/);
   await expect(line).not.toContainText("Valeur à saisir");
   const provisionRows = page.getByRole("region", { name: "Provisions pour dépréciation" }).getByRole("table", { name: "Écriture · Provisions pour dépréciation" }).getByRole("row");
-  await expect(provisionRows.nth(1)).toContainText(/^6196 Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant\s*2\s500,00/);
+  await expect(provisionRows.nth(1)).toContainText(/^61961 D\.E\.P\. pour dépréciation des stocks\s*2\s500,00/);
   await expect(provisionRows.nth(2)).toContainText(/^3913 Provisions pour dépréciation des produits en cours\s*2\s500,00/);
 
   // Posted, then frozen.
@@ -66,7 +66,7 @@ test("the owner reads an open batch at cost in the close preview, types its curr
   await page.goto("/fr/books?view=journals&month=2025-12");
   const posted = page.getByRole("table").filter({ hasText: "31 décembre 2025 · Encours de production : animaux" });
   await expect(posted.getByRole("row").filter({ hasText: /^31322 / })).toContainText(/47\s500,00/);
-  await expect(posted.getByRole("row").filter({ hasText: /^7131 / })).toContainText(/47\s500,00/);
+  await expect(posted.getByRole("row").filter({ hasText: /^71311 / })).toContainText(/47\s500,00/);
 
   // Arabic, right to left: the tables scroll, not the page.
   await page.goto("/ar/closing?year=2025");

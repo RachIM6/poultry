@@ -46,8 +46,8 @@ describe("cheques and bills received (SPEC-finance FN6, FN11, FN12, T31)", () =>
     expect(await statuses(a, step(ids.sale, "cashed"))).toEqual(["errors.INVALID_TRANSITION"]); // unpaid is final
 
     await postPending(a);
-    expect(await linesOf(ids.sale)).toEqual([["3421", 1_200_000n, 0n], ["3421", 0n, 500_000n], ["5111", 500_000n, 0n], ["712121", 0n, 1_200_000n]]);
-    expect(await linesOf(unpaid.payload.id)).toEqual([["3424", 500_000n, 0n], ["5111", 0n, 500_000n]]);
+    expect(await linesOf(ids.sale)).toEqual([["3421", 1_200_000n, 0n], ["3421", 0n, 500_000n], ["51111", 500_000n, 0n], ["712121", 0n, 1_200_000n]]);
+    expect(await linesOf(unpaid.payload.id)).toEqual([["3424", 500_000n, 0n], ["51111", 0n, 500_000n]]);
 
     // FN12: no more credit, but a sale paid in full is fine; the 5 000,00 is owed again (7 000,00 + 5 000,00).
     expect(await statuses(a, sale(uuidv7(), "credit", "0"))).toEqual(["errors.BUYER_CREDIT_BLOCKED"]);
@@ -64,13 +64,13 @@ describe("cheques and bills received (SPEC-finance FN6, FN11, FN12, T31)", () =>
     expect(await statuses(a, sale(uuidv7(), "credit", "0"))).toEqual(["applied"]);
   });
 
-  it("posts a later cheque cashed: D 5141 / C 5111", async () => {
+  it("posts a later cheque cashed: D 5141 / C 51111", async () => {
     expect(await statuses(a, m("sales.recordPayment", { id: ids.payment, buyerId: ids.buyer, day: "2026-03-12", amountCentimes: "300000", method: "cheque" }))).toEqual(["applied"]);
     const cashed = step(ids.payment, "cashed", "2026-03-14");
     expect(await statuses(a, cashed)).toEqual(["applied"]);
     await postPending(a);
-    expect(await linesOf(ids.payment)).toEqual([["3421", 0n, 300_000n], ["5111", 300_000n, 0n]]);
-    expect(await linesOf(cashed.payload.id)).toEqual([["5111", 0n, 300_000n], ["5141", 300_000n, 0n]]);
+    expect(await linesOf(ids.payment)).toEqual([["3421", 0n, 300_000n], ["51111", 300_000n, 0n]]);
+    expect(await linesOf(cashed.payload.id)).toEqual([["51111", 0n, 300_000n], ["5141", 300_000n, 0n]]);
   });
 
   it("keeps another organisation's instruments out of reach", async () => {

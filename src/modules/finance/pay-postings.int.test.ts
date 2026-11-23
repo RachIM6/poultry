@@ -64,7 +64,7 @@ describe("pay postings", () => {
     const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceId: id } });
     expect([entry.journal, entry.day.toISOString().slice(0, 10)]).toEqual(["OD", "2026-09-30"]);
     // gross 450,00 + 150,00; advances taken back 50,00 + 150,00 (Omar's other 150,00 stays on 3431); owed 400,00
-    expect(await linesOf({ sourceId: id })).toEqual([["3431", 0n, 20_000n], ["4432", 0n, 40_000n], ["6171", 60_000n, 0n]]);
+    expect(await linesOf({ sourceId: id })).toEqual([["3431", 0n, 20_000n], ["4432", 0n, 40_000n], ["61711", 60_000n, 0n]]);
   });
 
   it("shares the month's labour cost over that farm's batches only (FN14)", async () => {

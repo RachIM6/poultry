@@ -57,7 +57,7 @@ describe("default posting rules (SPEC-finance FN6)", () => {
   it("posts a live-bird sale to the buyer, with what was received at once (FN6)", () => {
     const sale = (method: string, paid: bigint) => postingOf({ type: "sale", id: "s", day, amount: 1_000_000n, paid, method });
     expect(sale("credit", 0n)).toEqual({ journal: "VT", label: "Vente", lines: [{ account: "3421", debit: 1_000_000n, credit: 0n }, { account: "712121", debit: 0n, credit: 1_000_000n }] });
-    expect(sale("cheque", 600_000n)?.lines.slice(2)).toEqual([{ account: "5111", debit: 600_000n, credit: 0n }, { account: "3421", debit: 0n, credit: 600_000n }]);
+    expect(sale("cheque", 600_000n)?.lines.slice(2)).toEqual([{ account: "51111", debit: 600_000n, credit: 0n }, { account: "3421", debit: 0n, credit: 600_000n }]);
     expect(sale("bill", 600_000n)?.lines[2].account).toBe("3425");
     expect(sale("cash", 1_000_000n)?.lines[2].account).toBe("5161");
     expect(postingOf({ type: "receipt", id: "p", day, amount: 5n, method: "transfer" })).toMatchObject({ journal: "BQ", lines: [{ account: "5141", debit: 5n }, { account: "3421", credit: 5n }] });
@@ -73,14 +73,15 @@ describe("default posting rules (SPEC-finance FN6)", () => {
     expect(postingOf({ type: "sale", id: "s", day, amount: 79_000n, paid: 0n, method: "credit", kind: "perHead" })?.lines[1].account).toBe("712121");
   });
 
-  it("follows a received cheque or bill (FN11): cashed D 5141 / C 5111, unpaid D 3424, remitted bill D 5113 / C 3425", () => {
+  it("follows a received cheque or bill (FN11): cashed D 5141 / C 51111, unpaid D 3424, remitted D 51112 / C 51111 or D 51132 / C 3425", () => {
     const step = (kind: "cheque" | "bill", from: string, to: string) => postingOf({ type: "instrument", id: "i", day, amount: 600_000n, kind, from, to })?.lines.map((l) => [l.account, l.debit, l.credit]);
-    expect(step("cheque", "in_portfolio", "cashed")).toEqual([["5141", 600_000n, 0n], ["5111", 0n, 600_000n]]);
-    expect(step("cheque", "in_portfolio", "unpaid")).toEqual([["3424", 600_000n, 0n], ["5111", 0n, 600_000n]]);
-    expect(step("cheque", "in_portfolio", "remitted")).toBeUndefined(); // still on 5111: nothing to post
-    expect(step("bill", "in_portfolio", "remitted")).toEqual([["5113", 600_000n, 0n], ["3425", 0n, 600_000n]]);
-    expect(step("bill", "remitted", "cashed")).toEqual([["5141", 600_000n, 0n], ["5113", 0n, 600_000n]]);
-    expect(step("bill", "remitted", "unpaid")).toEqual([["3424", 600_000n, 0n], ["5113", 0n, 600_000n]]);
+    expect(step("cheque", "in_portfolio", "cashed")).toEqual([["5141", 600_000n, 0n], ["51111", 0n, 600_000n]]);
+    expect(step("cheque", "in_portfolio", "unpaid")).toEqual([["3424", 600_000n, 0n], ["51111", 0n, 600_000n]]);
+    expect(step("cheque", "in_portfolio", "remitted")).toEqual([["51112", 600_000n, 0n], ["51111", 0n, 600_000n]]);
+    expect(step("cheque", "remitted", "cashed")).toEqual([["5141", 600_000n, 0n], ["51112", 0n, 600_000n]]);
+    expect(step("bill", "in_portfolio", "remitted")).toEqual([["51132", 600_000n, 0n], ["3425", 0n, 600_000n]]);
+    expect(step("bill", "remitted", "cashed")).toEqual([["5141", 600_000n, 0n], ["51132", 0n, 600_000n]]);
+    expect(step("bill", "remitted", "unpaid")).toEqual([["3424", 600_000n, 0n], ["51132", 0n, 600_000n]]);
   });
 
   it("tells a change that leaves the books alone from one that doesn't", () => {
@@ -95,10 +96,10 @@ describe("VAT (SPEC-finance FN9)", () => {
   const purchase = { type: "purchase", id: "p", day, itemKind: "feed", amount: 1_200_000n, paid: 200_000n, vat: 200_000n } as const;
   const sale = { type: "sale", id: "s", day, amount: 1_100_000n, paid: 0n, method: "credit", vat: 100_000n } as const;
 
-  it("puts a registered entity's recoverable VAT on 3455, the rest on the charge", () => {
+  it("puts a registered entity's recoverable VAT on 34552, the rest on the charge", () => {
     expect(postingOf(purchase, true)?.lines).toEqual([
       { account: "612122", debit: 1_000_000n, credit: 0n },
-      { account: "3455", debit: 200_000n, credit: 0n },
+      { account: "34552", debit: 200_000n, credit: 0n },
       { account: "4411", debit: 0n, credit: 1_000_000n },
       { account: "5161", debit: 0n, credit: 200_000n },
     ]);
@@ -139,11 +140,11 @@ describe("pay (SPEC-m4 WF10, WF12; accounts to confirm with the accountant)", ()
     expect(postingOf({ type: "advance", id: "a", day, amount: 50_000n })).toEqual({ journal: "CA", label: "Avance sur salaire", lines: [{ account: "3431", debit: 50_000n, credit: 0n }, { account: "5161", debit: 0n, credit: 50_000n }] });
   });
 
-  it("books a validated month: gross on 6171, advances back off 3431, the net owed on 4432", () => {
+  it("books a validated month: gross on 61711, advances back off 3431, the net owed on 4432", () => {
     expect(postingOf({ type: "pay", id: "p", day, gross: 400_000n, advances: 50_000n, employeeContribution: null, employerContribution: null, net: 350_000n })).toEqual({
       journal: "OD",
       label: "Paie du mois",
-      lines: [{ account: "6171", debit: 400_000n, credit: 0n }, { account: "3431", debit: 0n, credit: 50_000n }, { account: "4432", debit: 0n, credit: 350_000n }],
+      lines: [{ account: "61711", debit: 400_000n, credit: 0n }, { account: "3431", debit: 0n, credit: 50_000n }, { account: "4432", debit: 0n, credit: 350_000n }],
     });
   });
 
@@ -155,17 +156,17 @@ describe("pay (SPEC-m4 WF10, WF12; accounts to confirm with the accountant)", ()
   it("takes back only the advances the pay covers when they exceed it: the rest stays owed on 3431, the entry balances", () => {
     // 100,00 earned, 150,00 advanced: net −50,00 (payFor), nothing owed to the worker
     expect(postingOf({ type: "pay", id: "p", day, gross: 10_000n, advances: 15_000n, employeeContribution: null, employerContribution: null, net: -5_000n })?.lines).toEqual([
-      { account: "6171", debit: 10_000n, credit: 0n },
+      { account: "61711", debit: 10_000n, credit: 0n },
       { account: "3431", debit: 0n, credit: 10_000n },
     ]);
   });
 
-  it("adds the CNSS contributions once the rates are entered: employee's off the net, employer's on 6174", () => {
+  it("adds the CNSS contributions once the rates are entered: employee's off the net, employer's on 61741", () => {
     expect(postingOf({ type: "pay", id: "p", day, gross: 400_000n, advances: 0n, employeeContribution: 18_000n, employerContribution: 85_000n, net: 382_000n })?.lines).toEqual([
-      { account: "6171", debit: 400_000n, credit: 0n },
+      { account: "61711", debit: 400_000n, credit: 0n },
       { account: "4441", debit: 0n, credit: 18_000n },
       { account: "4432", debit: 0n, credit: 382_000n },
-      { account: "6174", debit: 85_000n, credit: 0n },
+      { account: "61741", debit: 85_000n, credit: 0n },
       { account: "4441", debit: 0n, credit: 85_000n },
     ]);
   });

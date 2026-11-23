@@ -2,27 +2,27 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
 import type { Journal, Posting } from "@/modules/finance/domain/posting";
-import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 
 // SPEC-finance FC1 (T102), pure: the fixed-asset register's rules and the straight-line schedule.
 
 /**
  * FC1 "Fixed-asset categories, default": each category's asset account (PCA; `inChart` lands it on the CGNC fallback
- * with the PCA off) and its depreciation account. Land has none: it is never depreciated.
+ * with the PCA off) and its depreciation account. Land has none: it is never depreciated. The CGNC subdivides 2332,
+ * 2832, 2833 and 2835 (scan pp. 266, 271–272), so each category posts to the leaf of its kind (FN4); 2834 has none.
  */
 export const ASSET_ACCOUNTS = {
   land: { asset: "23111", depreciation: null }, // Terrains nus d'exploitation
   prepared_land: { asset: "23121", depreciation: null }, // Terrains aménagés d'exploitation
-  building: { asset: "23211", depreciation: "2832" }, // Bâtiments d'exploitation, poultry houses included
-  building_on_other_land: { asset: "23231", depreciation: "2832" }, // Constructions sur terrains d'autrui d'exploitation
-  installation: { asset: "233111", depreciation: "2833" }, // Installations techniques Agricoles sur sol propre
-  installation_on_other_land: { asset: "233112", depreciation: "2833" }, // ... sur terrain d'autrui
-  equipment: { asset: "2332", depreciation: "2833" }, // Matériel et outillage: movable equipment and tools
+  building: { asset: "23211", depreciation: "28321" }, // Bâtiments d'exploitation, poultry houses included / … des bâtiments
+  building_on_other_land: { asset: "23231", depreciation: "28323" }, // Constructions sur terrains d'autrui d'exploitation
+  installation: { asset: "233111", depreciation: "28331" }, // Installations techniques Agricoles sur sol propre
+  installation_on_other_land: { asset: "233112", depreciation: "28331" }, // ... sur terrain d'autrui
+  equipment: { asset: "23321", depreciation: "28332" }, // Matériel: movable equipment (23324 Outillage has no category yet)
   transport: { asset: "2340", depreciation: "2834" }, // Matériel de transport
-  office_furniture: { asset: "2351", depreciation: "2835" }, // Mobilier de bureau
-  office_equipment: { asset: "2352", depreciation: "2835" }, // Matériel de bureau
-  computer: { asset: "2355", depreciation: "2835" }, // Matériel informatique
-  other_furniture: { asset: "2358", depreciation: "2835" }, // Autres mobilier, matériel de bureau et aménagements divers
+  office_furniture: { asset: "2351", depreciation: "28351" }, // Mobilier de bureau
+  office_equipment: { asset: "2352", depreciation: "28352" }, // Matériel de bureau
+  computer: { asset: "2355", depreciation: "28355" }, // Matériel informatique
+  other_furniture: { asset: "2358", depreciation: "28358" }, // Autres mobilier, matériel de bureau et aménagements divers
 } as const satisfies Record<string, { asset: string; depreciation: string | null }>;
 export type AssetCategory = keyof typeof ASSET_ACCOUNTS;
 export const ASSET_CATEGORIES = Object.keys(ASSET_ACCOUNTS) as AssetCategory[];
@@ -30,15 +30,21 @@ export const isAssetCategory = (c: string): c is AssetCategory => Object.hasOwn(
 
 type DepreciationAccount = NonNullable<(typeof ASSET_ACCOUNTS)[AssetCategory]["depreciation"]>;
 /**
- * FC1: the charge account of each depreciation account, paired as the CGNC pairs them (6193 is subdivided, so a line
- * goes on its sub-account, FN4; CGNC Tome I scan p. 296). 2838 → 61938 "autres" has no category yet.
+ * FC1: the charge account of each depreciation account, paired as the CGNC pairs 6193x with 283x (6193 is subdivided,
+ * so a line goes on its sub-account, FN4; CGNC Tome I scan p. 296). 2838 → 61938 "autres" has no category yet.
  */
 export const DEPRECIATION_CHARGES = {
-  "2832": "61932", // D.E.A. des constructions
-  "2833": "61933", // D.E.A. des installations techniques, matériel et outillage
+  "28321": "61932", // D.E.A. des constructions
+  "28323": "61932",
+  "28331": "61933", // D.E.A. des installations techniques, matériel et outillage
+  "28332": "61933",
   "2834": "61934", // D.E.A. du matériel de transport
-  "2835": "61935", // D.E.A. des mobilier, matériel de bureau et aménagements divers
+  "28351": "61935", // D.E.A. des mobilier, matériel de bureau et aménagements divers
+  "28352": "61935",
+  "28355": "61935",
+  "28358": "61935",
 } as const satisfies Record<DepreciationAccount, string>;
+export const ASSET_VAT_RECOVERABLE = "34551"; // État – TVA récupérable sur immobilisations (3455 is subdivided, FN4; CGNC scan p. 279)
 export const NET_BOOK_VALUE_DISPOSED = "6513"; // VNA des immobilisations corporelles cédées
 export const DISPOSAL_PROCEEDS = "7513"; // Produits des cessions des immobilisations corporelles
 export const ASSET_DEBTS = "4481"; // Dettes sur acquisition d'immobilisations (FQ23: 1486 is the other reading)
@@ -116,8 +122,8 @@ export function straightLine(a: DepreciableAsset, fiscalYearStartMonth: number):
 
 /**
  * FC1 year-end posting (the close run, T103): each asset's straight-line charge for the fiscal year starting on
- * `yearFrom`, D each charge account (61932–61935) / C its depreciation account (2832–2835), one line each. The disposal
- * year is left out: the disposal posted its months (`toDisposal`). Null when there is nothing to post.
+ * `yearFrom`, D each charge account (61932–61935) / C each depreciation account (283xx), one line per account. The
+ * disposal year is left out: the disposal posted its months (`toDisposal`). Null when there is nothing to post.
  */
 export function yearEndDepreciation(assets: readonly (DepreciableAsset & { category: AssetCategory })[], yearFrom: FarmDay, fiscalYearStartMonth: number): Posting | null {
   const byAccount = new Map<DepreciationAccount, bigint>();
@@ -128,13 +134,12 @@ export function yearEndDepreciation(assets: readonly (DepreciableAsset & { categ
   }
   const shares = [...byAccount].sort(([a], [b]) => a.localeCompare(b));
   if (shares.length === 0) return null; // every charge kept is above zero
+  const charges = new Map<string, bigint>(); // two depreciation leaves can share a charge account (28321, 28323 → 61932)
+  for (const [account, amount] of shares) charges.set(DEPRECIATION_CHARGES[account], (charges.get(DEPRECIATION_CHARGES[account]) ?? 0n) + amount);
   return {
     journal: "OD",
     label: "Dotations aux amortissements de l’exercice",
-    lines: [
-      ...shares.map(([account, debit]) => ({ account: DEPRECIATION_CHARGES[account], debit, credit: 0n })),
-      ...shares.map(([account, credit]) => ({ account, debit: 0n, credit })),
-    ],
+    lines: [...[...charges].map(([account, debit]) => ({ account, debit, credit: 0n })), ...shares.map(([account, credit]) => ({ account, debit: 0n, credit }))],
   };
 }
 
@@ -148,7 +153,7 @@ export type AssetError =
   | "ACCUMULATED_ABOVE_BASE"
   | "OPENING_LIFE_OVER";
 
-/** FN9: the VAT stays out of the cost when the entity is VAT-registered (it goes to 3455), else it is part of it. */
+/** FN9: the VAT stays out of the cost when the entity is VAT-registered (it goes to 34551), else it is part of it. */
 export const assetCost = (amount: bigint, vat: bigint, vatRegistered: boolean) => (vatRegistered ? amount - vat : amount);
 
 /**
@@ -173,7 +178,7 @@ export function checkAsset(a: DepreciableAsset & { category: string; acquiredOn:
 
 type Registered = { category: AssetCategory; label: string; cost: bigint; amount: bigint };
 
-/** FC1 acquisition: D the asset account (+ D 3455 for a registered entity's VAT) / C 5161, 5141 or 4481. */
+/** FC1 acquisition: D the asset account (+ D 34551 for a registered entity's VAT) / C 5161, 5141 or 4481. */
 export function acquisitionPosting(a: Registered & { paidWith: AssetPaidWith; treasuryId: string | null }): Posting {
   const paid = PAID[a.paidWith];
   const vat = a.amount - a.cost;
@@ -182,7 +187,7 @@ export function acquisitionPosting(a: Registered & { paidWith: AssetPaidWith; tr
     label: `Acquisition : ${a.label}`,
     lines: [
       { account: ASSET_ACCOUNTS[a.category].asset, debit: a.cost, credit: 0n },
-      ...(vat > 0n ? [{ account: VAT_RECOVERABLE, debit: vat, credit: 0n }] : []),
+      ...(vat > 0n ? [{ account: ASSET_VAT_RECOVERABLE, debit: vat, credit: 0n }] : []),
       { account: paid.account, debit: 0n, credit: a.amount, treasuryId: a.paidWith === "credit" ? null : a.treasuryId },
     ],
   };

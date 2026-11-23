@@ -45,14 +45,14 @@ test("the owner counts a stock item, reads its value at cost in the close previe
   await expect(page.getByRole("region", { name: "Provisions pour dépréciation" })).toContainText("Rien à passer pour cet exercice.");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // fits the phone
 
-  // §7 stockAtCloseValue: the owner's 97 300,00, a provision of 1 100,00 (D 6196 / C 3912).
+  // §7 stockAtCloseValue: the owner's 97 300,00, a provision of 1 100,00 (D 61961 / C 3912).
   await stock.getByRole("textbox", { name: "Valeur actuelle : Aliment · Croissance" }).fill("97 300");
   await stock.getByRole("button", { name: "Enregistrer les valeurs actuelles" }).click();
   await expect(stock.getByRole("status")).toHaveText("Valeurs actuelles enregistrées.");
   await expect(line).toContainText(/1\s100,00\sDH$/);
   const provision = page.getByRole("region", { name: "Provisions pour dépréciation" });
   const provisionRows = provision.getByRole("table", { name: "Écriture · Provisions pour dépréciation" }).getByRole("row");
-  await expect(provisionRows.nth(1)).toContainText(/^6196 Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant\s*1\s100,00/);
+  await expect(provisionRows.nth(1)).toContainText(/^61961 D\.E\.P\. pour dépréciation des stocks\s*1\s100,00/);
   await expect(provisionRows.nth(2)).toContainText(/^3912 Provisions pour dépréciation des matières et fournitures\s*1\s100,00/);
 
   // Posted: both entries, then the values are frozen with the count.
@@ -69,7 +69,7 @@ test("the owner counts a stock item, reads its value at cost in the close previe
   await expect(posted.getByRole("row").filter({ hasText: /^3121 / })).toContainText(/98\s400,00/);
   await expect(posted.getByRole("row").filter({ hasText: /^612412 / })).toContainText(/98\s400,00/);
   const provisioned = page.getByRole("table").filter({ hasText: "31 décembre 2026 · Provisions pour dépréciation de l’actif circulant" });
-  await expect(provisioned.getByRole("row").filter({ hasText: /^6196 / })).toContainText(/1\s100,00/);
+  await expect(provisioned.getByRole("row").filter({ hasText: /^61961 / })).toContainText(/1\s100,00/);
 
   // The accountant reads the lines without a field or a button (FCX1).
   await query(`UPDATE "Membership" SET role = 'accountant' WHERE "organizationId" = ${orgOf}`, [e164]);

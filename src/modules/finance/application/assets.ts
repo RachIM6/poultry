@@ -109,7 +109,7 @@ const lockAsset = async (tx: Tx, ctx: TenantContext, id: string) => {
 };
 
 /**
- * SPEC-finance FC1: the owner registers an asset. Acquired: posts D the asset account (+ 3455) / C 5161, 5141 or 4481
+ * SPEC-finance FC1: the owner registers an asset. Acquired: posts D the asset account (+ 34551) / C 5161, 5141 or 4481
  * on its day, source `asset:<id>:acq`. In the opening balance: posts nothing, the opening entry carries it (FCX3).
  * The id comes from the form: the same form twice registers and posts once. A `cash_book` entity: the register only.
  */

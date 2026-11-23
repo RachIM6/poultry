@@ -45,14 +45,16 @@ const BANK = "5141";
 const BILLS_PAYABLE = "4415"; // Fournisseurs - effets à payer
 // SPEC-m4 pay, ⚠️ to confirm with the accountant (plan-m4 "Later"): CGNC accounts from the PCA nomenclature.
 const STAFF_ADVANCES = "3431"; // Avances et acomptes au personnel
-const SALARIES = "6171"; // Rémunération du personnel
-const SOCIAL_CHARGES = "6174"; // Charges sociales
+// 6171 and 6174 are subdivided (FN4; CGNC scan p. 294, PCA pp. 121–122): the pay goes on their leaves.
+const SALARIES = "61711"; // Appointements et salaires
+const SOCIAL_CHARGES = "61741"; // Cotisations de sécurité sociale: the employer's CNSS contribution
 const WAGES_DUE = "4432"; // Rémunérations dues au personnel
 const CNSS = "4441"; // Caisse Nationale de la Sécurité Sociale
 // SPEC-finance FC7: home consumption, credited to 7140 Production Autoconsommée (714 with the PCA off, FQ25), debited to
-// the associate's current account or, FQ21's default, the employee's pay; the exploitant's account waits for FQ11.
+// the associate's current account or, FQ21's default, the employee's pay as a benefit in kind (61713 Indemnités et
+// avantages divers: pay "en numéraire ou en nature", PCA p. 121); the exploitant's account waits for FQ11.
 const SELF_CONSUMED = "7140";
-const TAKEN_BY: Partial<Record<string, string>> = { associate: "4463", employee: SALARIES }; // 4463 Comptes courants des associés créditeurs
+const TAKEN_BY: Partial<Record<string, string>> = { associate: "4463", employee: "61713" }; // 4463 Comptes courants des associés créditeurs
 // FN6: where a later payment to a supplier comes from; an issued cheque leaves the bank on its issue date.
 const PAID_OUT: Record<string, { account: string; journal: Journal }> = {
   cash: { account: "5161", journal: "CA" },
@@ -65,13 +67,14 @@ const VAT_COLLECTED = "4455"; // Etat, TVA facturée
 const RECEIVED: Record<string, { account: string; journal: Journal }> = {
   cash: { account: "5161", journal: "CA" },
   transfer: { account: BANK, journal: "BQ" },
-  cheque: { account: "5111", journal: "EF" }, // Chèques à encaisser
+  cheque: { account: "51111", journal: "EF" }, // Chèques en portefeuille
   bill: { account: "3425", journal: "EF" }, // Clients - effet à recevoir
 };
-// FN11: the account holding a received instrument in each state (a cheque stays on 5111 until cashed).
+// FN11: the account holding a received instrument in each state. 5111 and 5113 are subdivided by that state (FN4; CGNC
+// scan p. 286): 51111 Chèques en portefeuille, 51112 Chèques à l’encaissement, 51132 Effets à l’encaissement.
 const HELD: Record<string, Record<string, string>> = {
-  cheque: { in_portfolio: "5111", remitted: "5111" },
-  bill: { in_portfolio: "3425", remitted: "5113" }, // Effets à encaisser
+  cheque: { in_portfolio: "51111", remitted: "51112" },
+  bill: { in_portfolio: "3425", remitted: "51132" }, // a bill in portfolio stays a receivable, 3425 Clients - effets à recevoir
 };
 const line = (account: string, debit: bigint, credit: bigint): Line => ({ account, debit, credit });
 
@@ -97,6 +100,7 @@ export const POSTED_ACCOUNTS: readonly { op: string; account: string }[] = [
   { op: "bank", account: BANK },
   { op: "cheques", account: RECEIVED.cheque.account },
   { op: "bills", account: RECEIVED.bill.account },
+  { op: "chequesRemitted", account: HELD.cheque.remitted },
   { op: "billsRemitted", account: HELD.bill.remitted },
   { op: "vatRecoverable", account: VAT_RECOVERABLE },
   { op: "vatCollected", account: VAT_COLLECTED },
@@ -157,7 +161,7 @@ export function postingOf(e: FarmEvent, vatRegistered = false, classicHens = fal
   if (e.type === "instrument") {
     const from = HELD[e.kind][e.from];
     const to = e.to === "cashed" ? BANK : e.to === "unpaid" ? DOUBTFUL : HELD[e.kind][e.to];
-    if (!from || !to || from === to) return null; // a cheque remitted to the bank stays on 5111: nothing to post
+    if (!from || !to || from === to) return null;
     const label = { remitted: "Remise à l’encaissement", cashed: "Encaissement", unpaid: "Impayé" }[e.to] ?? "";
     return { journal: e.to === "remitted" ? "EF" : "BQ", label, lines: [line(to, e.amount, 0n), line(from, 0n, e.amount)] };
   }

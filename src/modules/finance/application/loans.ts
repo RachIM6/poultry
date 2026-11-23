@@ -155,7 +155,7 @@ export async function discardLoan(ctx: TenantContext, input: unknown): Promise<R
 
 /**
  * FC2: the owner or a manager marks an installment paid, on the day the bank debited it, on or after its due day (as
- * "Débité" in FN11). Posts D 1481 capital, D 6311 interest / C 5141 (source `loan:<id>:installment:<number>`). The whole
+ * "Débité" in FN11). Posts D 1481 capital, D 63111 interest / C 5141 (source `loan:<id>:installment:<number>`). The whole
  * installment only: a partial payment is out of scope. Marking it again posts nothing.
  */
 export async function payLoanInstallment(ctx: TenantContext, input: unknown, clock: Clock = systemClock): Promise<Result<void, LoanWriteError>> {

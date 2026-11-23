@@ -102,7 +102,7 @@ describe("the year close and the opening (SPEC-finance FCX5, FCX6, T104)", () =>
     expect(opening).toMatchObject({ journal: "OD", label: "À-nouveaux", sourceVersion: 1, day: new Date("2027-01-01T00:00:00Z") });
     await expectOpeningEqualsClosing(entity, "2026-01-01", "2026-12-31", "2027-01-01");
     // §7.1 A, paid in cash: the generator at cost, its 2026 depreciation, the cash out; the loss is the depreciation.
-    expect(await netOf(entity, "2027-01-01", `opening:${entity}:2027-01-01`)).toEqual({ "1199": 225_476n, "2332": 4_735_000n, "2833": -225_476n, "5161": -4_735_000n });
+    expect(await netOf(entity, "2027-01-01", `opening:${entity}:2027-01-01`)).toEqual({ "1199": 225_476n, "23321": 4_735_000n, "28332": -225_476n, "5161": -4_735_000n });
     expect(await db.journalEntry.count({ where: { sourceId: { startsWith: "reversal:" } } })).toBe(0);
 
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
@@ -139,7 +139,7 @@ describe("the year close and the opening (SPEC-finance FCX5, FCX6, T104)", () =>
       ["À-nouveaux", 2, null],
     ]);
     await expectOpeningEqualsClosing(entity, "2026-01-01", "2026-12-31", "2027-01-01");
-    expect(await netOf(entity, "2027-01-01", `opening:${entity}:2027-01-01`)).toMatchObject({ "1199": 315_667n, "2833": -315_667n });
+    expect(await netOf(entity, "2027-01-01", `opening:${entity}:2027-01-01`)).toMatchObject({ "1199": 315_667n, "28332": -315_667n });
     expect(await db.lockedPeriod.count({ where: { legalEntityId: entity } })).toBe(12);
   });
 

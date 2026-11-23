@@ -101,7 +101,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
         action: "post",
         lines: [
           { account: "31322", label: "Animaux", debit: 14_440_000n, credit: 0n },
-          { account: "7131", label: "Variation des stocks de produits en cours", debit: 0n, credit: 14_440_000n },
+          { account: "71311", label: "Variation des stocks de biens produits en cours", debit: 0n, credit: 14_440_000n },
         ],
       },
       {
@@ -118,7 +118,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
         kind: "provision",
         action: "post",
         lines: [
-          { account: "6196", label: "Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant", debit: 874_000n, credit: 0n },
+          { account: "61961", label: "D.E.P. pour dépréciation des stocks", debit: 874_000n, credit: 0n },
           { account: "3913", label: "Provisions pour dépréciation des produits en cours", debit: 0n, credit: 874_000n },
         ],
       },
@@ -131,8 +131,8 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
 
     expect(preview.value.entries[2]).toMatchObject({ kind: "stock", lines: [{ account: "3121", debit: 2_400_000n }, {}] }); // the 5 t of feed left (T108)
     expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 4 });
-    expect(await linesOf(`close:batch:${entity}:2025`)).toEqual([["2025-12-31", "31322", 14_440_000n, 0n], ["2025-12-31", "7131", 0n, 14_440_000n]]);
-    expect(await linesOf(`close:provision:${entity}:2025`)).toEqual([["2025-12-31", "6196", 874_000n, 0n], ["2025-12-31", "3913", 0n, 874_000n]]);
+    expect(await linesOf(`close:batch:${entity}:2025`)).toEqual([["2025-12-31", "31322", 14_440_000n, 0n], ["2025-12-31", "71311", 0n, 14_440_000n]]);
+    expect(await linesOf(`close:provision:${entity}:2025`)).toEqual([["2025-12-31", "61961", 874_000n, 0n], ["2025-12-31", "3913", 0n, 874_000n]]);
     const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceId: `close:batch:${entity}:2025` } });
     expect(entry).toMatchObject({ journal: "OD", label: "Encours de production : animaux", sourceVersion: 1, createdBy: owner.userId });
   });
@@ -143,9 +143,9 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
     expect(await saveYearEndValues(owner, { year: 2025, values: { [ids.broiler]: "140 000" } })).toEqual({ ok: false, error: "COUNT_FROZEN" });
   });
 
-  it("reverses both on the next year's first day with the year close (FCX5): D 7131 / C 31322 and D 3913 / C 7196", async () => {
+  it("reverses both on the next year's first day with the year close (FCX5): D 71311 / C 31322 and D 3913 / C 7196", async () => {
     expect(await closeFiscalYear(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 4 }); // the à-nouveaux, the stock's reversal and these two
-    expect(await linesOf(`reversal:close:batch:${entity}:2025`)).toEqual([["2026-01-01", "7131", 14_440_000n, 0n], ["2026-01-01", "31322", 0n, 14_440_000n]]);
+    expect(await linesOf(`reversal:close:batch:${entity}:2025`)).toEqual([["2026-01-01", "71311", 14_440_000n, 0n], ["2026-01-01", "31322", 0n, 14_440_000n]]);
     expect(await linesOf(`reversal:close:provision:${entity}:2025`)).toEqual([["2026-01-01", "3913", 874_000n, 0n], ["2026-01-01", "7196", 0n, 874_000n]]);
     const opened = await db.journalLine.findMany({ where: { entry: { sourceId: `opening:${entity}:2026-01-01` } }, select: { account: true, debitCentimes: true, creditCentimes: true } });
     expect(opened.filter((l) => l.account === "31322" || l.account === "3913").map((l) => [l.account, l.debitCentimes - l.creditCentimes]).sort()).toEqual([["31322", 14_440_000n], ["3913", -874_000n]]);
@@ -170,8 +170,8 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
     expect(await db.auditEvent.count({ where: { entity: "YearEndValue", organizationId: other.organizationId, action: "create" } })).toBe(1);
 
     expect(await runClose(other, { year: 2025 }, clock)).toEqual({ ok: true, value: 2 });
-    expect(await linesOf(`close:batch:${otherEntity}:2025`)).toEqual([["2025-12-31", "3132", 2_500_000n, 0n], ["2025-12-31", "7131", 0n, 2_500_000n]]); // 31322's CGNC fallback
-    expect(await linesOf(`close:provision:${otherEntity}:2025`)).toEqual([["2025-12-31", "6196", 100_000n, 0n], ["2025-12-31", "3913", 0n, 100_000n]]);
+    expect(await linesOf(`close:batch:${otherEntity}:2025`)).toEqual([["2025-12-31", "3132", 2_500_000n, 0n], ["2025-12-31", "71311", 0n, 2_500_000n]]); // 31322's CGNC fallback
+    expect(await linesOf(`close:provision:${otherEntity}:2025`)).toEqual([["2025-12-31", "61961", 100_000n, 0n], ["2025-12-31", "3913", 0n, 100_000n]]);
     expect(await linesOf(`close:batch:${entity}:2025`)).toHaveLength(2); // each organisation its own batches
   });
 });

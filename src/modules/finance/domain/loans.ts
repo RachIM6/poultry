@@ -5,7 +5,7 @@ import type { Posting } from "@/modules/finance/domain/posting";
 // SPEC-finance FC2 (T105), pure: a loan's schedule (§7 `loanSchedule`, §7.1 B) and its entries.
 
 export const LOANS = "1481"; // Emprunts auprès des établissements de crédit
-export const LOAN_INTEREST = "6311"; // Intérêts des emprunts et dettes
+export const LOAN_INTEREST = "63111"; // Intérêts des emprunts (6311 is subdivided, FN4; CGNC scan p. 298)
 const BANK = "5141";
 
 export const LOAN_FREQUENCIES = ["monthly", "quarterly"] as const;
@@ -66,7 +66,7 @@ export const disbursementPosting = (lender: string, principal: bigint, treasuryI
   lines: [{ account: BANK, debit: principal, credit: 0n, treasuryId }, { account: LOANS, debit: 0n, credit: principal }],
 });
 
-/** FC2 installment paid: D 1481 capital, D 6311 interest / C 5141, `BQ`. Null for a row of nothing. */
+/** FC2 installment paid: D 1481 capital, D 63111 interest / C 5141, `BQ`. Null for a row of nothing. */
 export function installmentPosting(lender: string, row: Pick<ScheduleRow, "number" | "capital" | "interest">, treasuryId: string): Posting | null {
   const total = row.capital + row.interest;
   if (total === 0n) return null;

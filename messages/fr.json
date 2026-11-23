@@ -2310,7 +2310,7 @@
     "yearStart": "Début d’exercice",
     "vat": "TVA",
     "vatRegistered": "Assujetti à la TVA",
-    "vatHint": "La TVA saisie sur les achats et les ventes est alors comptée à part (3455, 4455). Régime à confirmer avec votre expert-comptable.",
+    "vatHint": "La TVA saisie sur les achats et les ventes est alors comptée à part (34552, 4455). Régime à confirmer avec votre expert-comptable.",
     "hens": "Poules pondeuses et poulettes",
     "hensMethods": {
       "classic": {
@@ -2349,6 +2349,7 @@
       "bank": "Banque",
       "cheques": "Chèques reçus à encaisser",
       "bills": "Effets reçus",
+      "chequesRemitted": "Chèques remis à l’encaissement",
       "billsRemitted": "Effets remis à l’encaissement",
       "vatRecoverable": "TVA récupérable",
       "vatCollected": "TVA facturée",

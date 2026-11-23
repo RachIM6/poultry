@@ -82,7 +82,7 @@ describe("opening a fiscal year before the previous one is closed (SPEC-finance 
 
     const an = await db.journalEntry.findFirstOrThrow({ where: { sourceId: opening() } });
     expect(an).toMatchObject({ journal: "OD", label: "À-nouveaux", sourceVersion: 1, day: new Date("2027-01-01T00:00:00Z"), reversesId: null });
-    expect(await netOf(entity, "2027-01-01", opening())).toEqual({ "1191": -350_000n, "2332": 4_735_000n, "4411": -450_000n, "5161": -3_935_000n });
+    expect(await netOf(entity, "2027-01-01", opening())).toEqual({ "1191": -350_000n, "23321": 4_735_000n, "4411": -450_000n, "5161": -3_935_000n });
     await expectOpeningEqualsClosing();
     expect(await db.auditEvent.count({ where: { entity: "JournalEntry", entityId: an.id, action: "create", userId: owner.userId } })).toBe(1);
     expect(await closePreview(owner, 2027, clock)).toMatchObject({ ok: true, value: { opening: "provisional", closedOn: null } });

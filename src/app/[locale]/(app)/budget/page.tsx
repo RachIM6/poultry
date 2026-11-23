@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { BudgetPlanner } from "@/components/budget";
 import { redirect } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
-import { budgetBases, budgetOf, listBudgets } from "@/modules/finance";
+import { budgetBases, budgetBatches, budgetOf, listBudgets } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { saveBudgetAction } from "./actions";
 import { BackLink } from "@/components/app-nav";
@@ -31,12 +31,12 @@ const asText = <T extends Record<string, bigint>>(o: T) => Object.fromEntries(Ob
 async function Budget() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
-  const [bases, saved] = await Promise.all([budgetBases(ctx.value), listBudgets(ctx.value)]);
-  if (!bases.ok || !saved.ok) return <p>{t("Expenses.forbidden")}</p>;
+  const [bases, batches, saved] = await Promise.all([budgetBases(ctx.value), budgetBatches(ctx.value), listBudgets(ctx.value)]);
+  if (!bases.ok || !batches.ok || !saved.ok) return <p>{t("Expenses.forbidden")}</p>;
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Budget.title")}</h1>
-      <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs) }))} save={saveBudgetAction} />
+      <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs) }))} batches={batches.value} save={saveBudgetAction} />
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Budget.saved")}</h2>
       {saved.value.length === 0 ? (
         <p>{t("Budget.none")}</p>

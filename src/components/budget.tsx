@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useActionState, useId, useState, type ReactNode } from "react";
+import { v7 as uuidv7 } from "uuid";
 import { formatKg, formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
 import { budgetOf, type BudgetInputs } from "@/modules/finance/shared";
@@ -56,12 +57,17 @@ function parse(t: Text): BudgetInputs | null {
   return Object.values(v).every((x) => x !== null) ? (v as BudgetInputs) : null;
 }
 
-export function BudgetPlanner({ bases, save }: { bases: Base[]; save: (state: SaveState, form: FormData) => Promise<SaveState> }) {
+export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches: { batchId: string; label: string }[]; save: (state: SaveState, form: FormData) => Promise<SaveState> }) {
   const t = useTranslations("Budget");
   const tr = useTranslations();
+  const [id, setId] = useState(() => uuidv7()); // SPEC §7: a double submit sends the same id, saved once
   const [basedOn, setBasedOn] = useState(bases[0]?.batchId ?? "");
   const [text, setText] = useState<Text>(bases[0] ? toText(bases[0].inputs) : EMPTY);
-  const [state, action, pending] = useActionState(save, {});
+  const [state, action, pending] = useActionState(async (s: SaveState, form: FormData) => {
+    const saved = await save(s, form);
+    if (saved.ok) setId(uuidv7()); // the next budget is a new one
+    return saved;
+  }, {});
   const inputs = parse(text);
   const b = inputs && budgetOf(inputs);
 
@@ -83,6 +89,16 @@ export function BudgetPlanner({ bases, save }: { bases: Base[]; save: (state: Sa
         )}
       </Field>
       <input type="hidden" name="basedOn" value={basedOn} />
+      <input type="hidden" name="id" value={id} />
+      {/* FN17: a budget linked to an open batch plans only what it hasn't sold yet (SPEC-finance §9 FQ32). */}
+      <Field label={t("batch")}>
+        {(fieldId) => (
+          <select id={fieldId} name="batchId" defaultValue="" className={field}>
+            <option value="">{t("noBatch")}</option>
+            {batches.map((x) => <option key={x.batchId} value={x.batchId}>{x.label}</option>)}
+          </select>
+        )}
+      </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label={t("chicks")}>{(id) => <input id={id} value={text.chicks} onChange={set("chicks")} inputMode="numeric" dir="ltr" className={field} />}</Field>
         <Field label={t("chickPrice")}>{(id) => <input id={id} value={text.chickPriceCentimes} onChange={set("chickPriceCentimes")} inputMode="decimal" dir="ltr" className={field} />}</Field>

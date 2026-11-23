@@ -86,16 +86,18 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
   });
 
   it("opens a fiscal year with the à-nouveaux entry: classes 1–5 carried forward, the result on 1191, once", async () => {
-    // Entity B, year 2025: the feed bought on credit (4 500,00), 3 000,00 of it paid by bank, birds sold 8 000,00 cash.
-    const inB = (lines: Line[], day: string) =>
+    // Entity B (a ledger), year 2025: the feed bought on credit (4 500,00), 3 000,00 of it paid by bank, birds sold 8 000,00 cash.
+    const ledger = { books: "ledger" as const, pcaOverlay: null, fiscalYearStartMonth: 1 };
+    expect(await changeAccountingChoices(b, entityB, ledger, fixedClock("2025-01-01T10:00:00Z"))).toEqual({ ok: true, value: undefined });
+    const inB =(lines: Line[], day: string) =>
       db.$transaction((tx) => postEntry(tx, b, { id: uuidv7(), legalEntityId: entityB, journal: "OD", day: d(day), label: "x", reversesId: null, lines }));
     await inB(feedPurchase, "2025-02-01");
     await inB([line("4411", 300_000n, 0n), line("5141", 0n, 300_000n)], "2025-03-01");
     await inB([line("5161", 800_000n, 0n), line("712121", 0n, 800_000n)], "2025-09-01");
 
-    const opened = await openFiscalYear(b, entityB, d("2026-01-15"));
-    if (!opened.ok || !opened.value) throw new Error(String(opened.ok || opened.error));
-    const an = await db.journalEntry.findUniqueOrThrow({ where: { id: opened.value }, include: { lines: { orderBy: { account: "asc" } } } });
+    const jan15 = fixedClock("2026-01-15T10:00:00Z");
+    expect(await openFiscalYear(b, { year: 2026 }, jan15)).toEqual({ ok: true, value: 1 });
+    const an = await db.journalEntry.findFirstOrThrow({ where: { sourceId: `opening:${entityB}:2026-01-01` }, include: { lines: { orderBy: { account: "asc" } } } });
     expect(an.day.toISOString().slice(0, 10)).toBe("2026-01-01");
     expect(an.lines.map((l) => [l.account, l.debitCentimes, l.creditCentimes])).toEqual([
       ["1191", 0n, 350_000n], // 8 000,00 sold − 4 500,00 of feed
@@ -103,7 +105,7 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
       ["5141", 0n, 300_000n],
       ["5161", 800_000n, 0n],
     ]);
-    expect(await openFiscalYear(b, entityB, d("2026-03-01"))).toEqual({ ok: true, value: opened.value === null ? null : expect.any(String) });
+    expect(await openFiscalYear(b, { year: 2026 }, jan15)).toEqual({ ok: true, value: 0 });
     expect(await db.journalEntry.count({ where: { legalEntityId: entityB, label: "À-nouveaux" } })).toBe(1);
   });
 

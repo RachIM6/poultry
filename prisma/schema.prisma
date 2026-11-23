@@ -588,7 +588,7 @@ model Vaccination {
   id               String    @id @db.Uuid
   organizationId   String    @db.Uuid
   batchId          String    @db.Uuid
-  protocolId       String    @db.Uuid // the farm's protocol it came from
+  protocolId       String?   @db.Uuid // the farm's protocol it came from; null for a line added by hand (SPEC-m5 PA4)
   dayOfAge         Int
   dueOn            DateTime  @db.Date // farm day
   productId        String // a vaccine of the catalogue
@@ -1181,6 +1181,7 @@ model Budget {
   organizationId         String   @db.Uuid
   name                   String
   basedOn                String?  @db.Uuid
+  batchId                String?  @db.Uuid // FN17: the open flock batch it plans (§9 FQ32); null: a batch not placed yet
   chicks                 Int
   chickPriceCentimes     BigInt
   feedGrams              BigInt

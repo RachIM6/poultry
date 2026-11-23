@@ -51,7 +51,7 @@ describe("the opening reversals of the reversible close kinds (SPEC-finance FCX5
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 2 });
     expect(await reversalLines()).toEqual([
       ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "2833", 225_476n, 0n],
-      ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "6193", 0n, 225_476n],
+      ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "61933", 0n, 225_476n],
     ]);
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
     expect(await db.journalEntry.count({ where: { legalEntityId: entity, day: jan1 } })).toBe(2);
@@ -66,21 +66,21 @@ describe("the opening reversals of the reversible close kinds (SPEC-finance FCX5
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 4 }); // à-nouveaux and reversal: each cancelled, then version 2
     expect(await reversalLines()).toEqual([
       ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "2833", 225_476n, 0n],
-      ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "6193", 0n, 225_476n],
-      ["Annulation", null, "OD", "2027-01-01", "6193", 225_476n, 0n],
+      ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "61933", 0n, 225_476n],
+      ["Annulation", null, "OD", "2027-01-01", "61933", 225_476n, 0n],
       ["Annulation", null, "OD", "2027-01-01", "2833", 0n, 225_476n],
       ["Extourne des écritures de clôture", 2, "OD", "2027-01-01", "2833", 315_667n, 0n],
-      ["Extourne des écritures de clôture", 2, "OD", "2027-01-01", "6193", 0n, 315_667n],
+      ["Extourne des écritures de clôture", 2, "OD", "2027-01-01", "61933", 0n, 315_667n],
     ]);
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
     // 2027 opens on the 2026 closing, then the reversal takes the depreciation back out of the balance sheet.
     const books = await readBooks(owner, "2027-01");
     if (!books.ok) throw new Error(books.error);
     expect(books.value.trialBalance?.balanced).toBe(true);
-    expect(books.value.trialBalance?.rows.filter((r) => ["2833", "6193", "1199"].includes(r.account)).map((r) => [r.account, r.balance])).toEqual([
+    expect(books.value.trialBalance?.rows.filter((r) => ["2833", "61933", "1199"].includes(r.account)).map((r) => [r.account, r.balance])).toEqual([
       ["1199", 315_667n],
       ["2833", 0n],
-      ["6193", -315_667n],
+      ["61933", -315_667n],
     ]);
   });
 });

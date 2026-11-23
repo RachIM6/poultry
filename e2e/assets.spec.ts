@@ -70,7 +70,7 @@ test("the owner registers an asset, reads its schedule by year and disposes of i
   await expect(asset.getByText("Céder ou mettre au rebut", { exact: true })).toHaveCount(0);
   await page.goto("/fr/books?view=journals&month=2026-11");
   const journal = (label: string, account: string) => page.getByRole("table").filter({ hasText: label }).getByRole("row").filter({ hasText: new RegExp(`^${account} `) });
-  await expect(journal("Dotation aux amortissements : Groupe électrogène", "6193")).toContainText(/1\s127,38/);
+  await expect(journal("Dotation aux amortissements : Groupe électrogène", "61933")).toContainText(/1\s127,38/);
   await expect(journal("Cession : Groupe électrogène", "6513")).toContainText(/46\s222,62/);
   await expect(journal("Prix de cession : Groupe électrogène", "7513")).toContainText(/30\s000,00/);
 

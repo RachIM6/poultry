@@ -31,12 +31,12 @@ test("the owner previews and posts the year's depreciation, finds it in the jour
   await page.goto("/fr/closing?year=2026");
   await expect(page.getByText(/^Les écritures de fin d’exercice, en opérations diverses \(OD\) au 31 décembre 2026/)).toBeVisible();
 
-  // §7.1 A, 2026: 4 months of 84, D 6193 / C 2833 2 254,76.
+  // §7.1 A, 2026: 4 months of 84, D 61933 / C 2833 2 254,76.
   const depreciation = page.getByRole("region", { name: "Dotations aux amortissements" });
   await expect(depreciation).toContainText("À comptabiliser.");
   const rows = depreciation.getByRole("table", { name: "Écriture · Dotations aux amortissements" }).getByRole("row");
   await expect(rows).toHaveCount(3);
-  await expect(rows.nth(1)).toContainText(/^6193 Dotations d’exploitation aux amortissements des immobilisations corporelles\s*2\s254,76/);
+  await expect(rows.nth(1)).toContainText(/^61933 D\.E\.A\. des installations techniques, matériel et outillage\s*2\s254,76/);
   await expect(rows.nth(2)).toContainText(/^2833 Amortissements des installations techniques, matériel et outillage\s*2\s254,76/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // fits the phone
 
@@ -48,7 +48,7 @@ test("the owner previews and posts the year's depreciation, finds it in the jour
   // OD on the fiscal year's last day.
   await page.goto("/fr/books?view=journals&month=2026-12");
   const entry = page.getByRole("table").filter({ hasText: "31 décembre 2026 · Dotations aux amortissements de l’exercice" });
-  await expect(entry.getByRole("row").filter({ hasText: /^6193 / })).toContainText(/2\s254,76/);
+  await expect(entry.getByRole("row").filter({ hasText: /^61933 / })).toContainText(/2\s254,76/);
   await expect(entry.getByRole("row").filter({ hasText: /^2833 / })).toContainText(/2\s254,76/);
 
   // Running it again with the same facts posts nothing.

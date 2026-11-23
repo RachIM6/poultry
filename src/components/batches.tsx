@@ -219,6 +219,8 @@ function Batches(scope: Scope) {
           lots={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "vaccine")}
           birdsOnHand={onHand(open)}
           userId={userId}
+          protocols={of<ProtocolDto>("protocol")}
+          manage={can(scope, "health.manage")}
           write={write}
         />
         <Treatments

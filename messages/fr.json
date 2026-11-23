@@ -511,6 +511,8 @@
     "CASH_BOOK_NO_CLOSE": "Pas de clôture dans le livre des recettes et dépenses : il n’a pas de bilan.",
     "COUNT_FROZEN": "Les écritures de clôture de cet exercice sont comptabilisées : le comptage ne peut plus changer.",
     "YEAR_NOT_ENDED": "L’exercice n’est pas terminé : il se clôture après son dernier jour.",
+    "YEAR_NOT_BEGUN": "Cet exercice n’a pas commencé : il s’ouvre à son premier jour.",
+    "CASH_BOOK_NO_OPENING": "Pas d’à-nouveaux dans le livre des recettes et dépenses : il n’a pas de bilan.",
     "PREVIOUS_YEAR_OPEN": "Clôturez d’abord l’exercice précédent : ses soldes ouvrent celui-ci.",
     "CLOSE_RUN_PENDING": "Comptabilisez d’abord les écritures de clôture : l’aperçu en montre encore à passer.",
     "BATCH_VALUE_MISSING": "Saisissez la valeur actuelle des bandes en cours sans pesée ou sans vente avant de comptabiliser.",
@@ -1167,7 +1169,12 @@
     "yearClosed": "Exercice clôturé. Écritures d’ouverture passées : {count}.",
     "reopen": "Rouvrir l’exercice",
     "reopenHint": "Déverrouille le dernier mois pour corriger les écritures de clôture. Clôturez ensuite de nouveau : les à-nouveaux suivront.",
-    "reopened": "Exercice rouvert : le dernier mois est déverrouillé."
+    "reopened": "Exercice rouvert : le dernier mois est déverrouillé.",
+    "openYear": "Ouvrir l’exercice {year}",
+    "refreshOpening": "Reprendre les à-nouveaux de {previous}",
+    "openYearHint": "Sans attendre la clôture de {previous} : passe au premier jour de l’exercice les à-nouveaux (comptes de classes 1 à 5) depuis les écritures de {previous} telles qu’elles sont. La clôture de {previous} les passera de nouveau si les chiffres ont changé.",
+    "openingProvisional": "Ouverture provisoire : les à-nouveaux reprennent l’exercice {previous} tel qu’il est, tant qu’il n’est pas clôturé.",
+    "opened": "Exercice ouvert. Écritures d’ouverture passées : {count}."
   },
   "Assets": {
     "open": "Immobilisations",

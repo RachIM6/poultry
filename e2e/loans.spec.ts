@@ -64,7 +64,7 @@ test("the owner creates a loan, confirms its schedule, marks the first installme
   await expect(book.getByRole("row").filter({ hasText: "Déblocage d’emprunt : Crédit Agricole du Maroc" })).toContainText(/5141.*100\s000,00\sDH/);
   await page.goto("/fr/books?month=2026-03");
   const installment = book.getByRole("row").filter({ hasText: "Échéance d’emprunt n° 1 : Crédit Agricole du Maroc" });
-  await expect(installment).toContainText(/Emprunts auprès des établissements de crédit, Intérêts des emprunts et dettes/);
+  await expect(installment).toContainText(/Emprunts auprès des établissements de crédit, Intérêts des emprunts(?! et dettes)/); // 63111's label
   await expect(installment).toContainText(/5141.*18\s054,17\sDH/);
 
   // The accountant reads the schedule without its forms; a worker gets nothing (FX2).

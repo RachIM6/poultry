@@ -8,7 +8,7 @@ import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { mergeDay } from "@/modules/flock/domain/daily-entry";
 import { loadBatch } from "@/modules/flock/infrastructure/batches";
-import { findEntry, outOnOtherDays, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
+import { birdsOnHandBesides, findEntry, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
 import { dailyEntryId, type DailyEntryDto, type RecordDay } from "@/modules/flock/schema";
 import { recordConsumption, removeConsumption } from "@/modules/inventory";
 
@@ -31,7 +31,7 @@ export async function recordDay(
   const previous = await findEntry(tx, ctx, id);
   const merged = mergeDay(previous, cmd.changes);
   const today = nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
-  const checked = batch.checkDay(cmd.day as FarmDay, merged, await outOnOtherDays(tx, cmd.batchId, cmd.day), today);
+  const checked = batch.checkDay(cmd.day as FarmDay, merged, await birdsOnHandBesides(tx, ctx, batch, cmd.day), today);
   if (!checked.ok) return checked;
 
   if ("feed" in cmd.changes) {

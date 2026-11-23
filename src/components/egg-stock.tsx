@@ -7,7 +7,7 @@ import { v7 as uuidv7 } from "uuid";
 import dynamic from "next/dynamic";
 import { card, field, primary, secondary } from "@/components/ui";
 import { can } from "@/lib/permissions";
-import type { TreatmentDto } from "@/modules/health/shared";
+import { eggWithdrawalWindows, type TreatmentDto } from "@/modules/health/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay } from "@/lib/format";
@@ -86,6 +86,14 @@ function EggStock({ userId, organizationId, role }: Scope) {
   const trays = (eggs: number) => formatCount(Math.floor(eggs / TRAY));
   const houses = of<HouseDto>("house");
   const house = (batchId: string) => houses.find((h) => h.id === batches.find((b) => b.id === batchId)?.houseId)?.name ?? "";
+  const treatments = of<TreatmentDto>("treatment");
+  // V6, H7: the last day of the withdrawal a lot was laid in, if any; its eggs are discarded, never sold
+  const withheldUntil = (l: Lot) =>
+    eggWithdrawalWindows(treatments.filter((x) => x.batchId === l.batchId).map((x) => ({ startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay, eggWithdrawalDays: x.eggWithdrawalDays ?? null })))
+      .filter((w) => w.from <= l.laidOn && l.laidOn <= w.to)
+      .map((w) => w.to)
+      .sort()
+      .at(-1);
   const keyOf = (l: Lot) => `${l.batchId}|${l.laidOn}|${l.item}`;
 
   const save = async (mutation: { type: string; payload: { id: string } }, entity: string, data: unknown) => saveAll(mutation, [{ entity, id: mutation.payload.id, data }]);
@@ -117,7 +125,7 @@ function EggStock({ userId, organizationId, role }: Scope) {
             buyers={of<BuyerDto>("buyer")}
             sales={of<SaleDto>("sale")}
             seller={can({ userId, organizationId, role }, "sales.manage")}
-            treatments={of<TreatmentDto>("treatment")}
+            treatments={treatments}
             itemName={itemName}
             onSave={saveAll}
             onCancel={() => setSelling(false)}
@@ -155,9 +163,12 @@ function EggStock({ userId, organizationId, role }: Scope) {
         <h2 id="lots" className="text-lg font-semibold">{t("EggStock.lots")}</h2>
         {lots.length === 0 && <p>{t("EggStock.none")}</p>}
         <ul className="flex flex-col gap-2">
-          {lots.map((l) => (
+          {lots.map((l) => {
+            const until = withheldUntil(l);
+            return (
             <li key={keyOf(l)} className={card}>
               <span>{t("EggStock.lot", { day: formatDay(l.laidOn as FarmDay, locale), house: house(l.batchId), item: itemName(l.item), eggs: formatCount(l.eggs) })}</span>
+              {until && <span className="self-start rounded-2xl bg-alert-soft px-3 py-1 text-sm font-semibold text-alert-fg">{t("EggStock.withheld", { day: formatDay(until, locale) })}</span>}
               <span className="flex gap-2">
                 {l.item === "ungraded" && grades.length > 0 && <button type="button" className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "grade" })}>{t("EggStock.grade")}</button>}
                 <button type="button" className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "discard" })}>{t("EggStock.discard")}</button>
@@ -169,7 +180,8 @@ function EggStock({ userId, organizationId, role }: Scope) {
                 <DiscardForm lot={l} lots={lots} onCancel={() => setAction(null)} onSave={(d) => save({ type: M.discardEggs, payload: d }, "eggDiscard", d)} />
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       </section>
     </>

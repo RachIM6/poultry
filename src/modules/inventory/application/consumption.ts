@@ -40,7 +40,7 @@ export async function recordConsumption(
     reason: null,
     purchaseId: null,
   };
-  if (same) await updateMovementQuantity(tx, c.id, movement.quantity, c.day);
+  if (same) await updateMovementQuantity(tx, ctx, c.id, movement.quantity, c.day);
   else await insertMovement(tx, ctx, movement, c.batchId); // the batch is charged its cost (S5, B6)
   await recordChange(tx, ctx, "movement", movement.id, movement);
   await alertIfLow(tx, ctx, item, movement.quantity - (same?.quantity ?? 0)); // S6 on the change only
@@ -50,6 +50,6 @@ export async function recordConsumption(
 /** The record no longer consumes anything (feed cleared): its movement goes, and the phones drop it on pull. */
 export async function removeConsumption(tx: Tx, ctx: TenantContext, id: string) {
   if (!(await findMovement(tx, ctx, id))) return;
-  await deleteMovement(tx, id);
+  await deleteMovement(tx, ctx, id);
   await recordChange(tx, ctx, "movement", id, null);
 }

@@ -19,7 +19,7 @@ Proposed. To be confirmed by the sync spike (tasks T8–T9).
    - checks permissions and the tenant;
    - validates with the **same Zod schemas**;
    - applies each mutation **idempotently**: the mutation id is unique, and a replay returns the stored result;
-   - returns one result per mutation (`applied` / `rejected` with a `messageKey`).
+   - returns one result per mutation (`applied` / `rejected` with a `messageKey`, and since 2026-11-23 optional `messageValues` for its message, backward compatible).
 4. **Pull:** each change on the server increments a per-organisation **`version` counter** stored on the row. `GET /api/sync/pull?since=<version>` returns the rows changed since the client's cursor, including tombstones for deletions.
 5. **Conflicts:**
    - Append-only records cannot conflict.

@@ -6,7 +6,9 @@ import { addFarmDays, farmDayOf } from "@/lib/kernel/farm-day";
 import type { PushedMutation } from "@/lib/sync/protocol";
 import { pull, push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
+import { drawEggs } from "@/modules/eggs";
 import { EGG_MUTATIONS as E, eggLots, type EggCollectionDto, type EggDrawDto, type EggGradingDto } from "@/modules/eggs/schema";
+import { eggWithdrawalWindowsOf } from "@/modules/health";
 import { SALES_MUTATIONS as S, type SaleDto } from "@/modules/sales/schema";
 import { twoTenants } from "@/test/tenant";
 
@@ -63,6 +65,11 @@ describe("egg sales (SPEC-m3 V6)", () => {
       data: { id: uuidv7(), organizationId: a.organizationId, batchId: ids.layers, stockItemId: item.id, quantity: 1, dose: "d", startOn: date(newer), endOn: date(newer), reason: "r", prescriber: "p", withdrawalDays: 0, withdrawalEndsOn: date(newer), eggWithdrawalDays: 2, eggWithdrawalEndsOn: date(addFarmDays(newer, 2)), recordedBy: a.userId },
     });
     expect(await statuses(a, sale([{ item: "grade:m", eggs: 10, unitPriceCentimes: "3300" }]))).toEqual(["errors.EGGS_IN_WITHDRAWAL"]);
+    // The server's refusal names the laying days to discard first (the sale's own path, short of the sync wire)
+    const refused = await db.$transaction(async (tx) =>
+      drawEggs(tx, a, { saleId: uuidv7(), batchId: ids.layers, day: today, wanted: [{ item: "grade:m", eggs: 10 }], withheld: await eggWithdrawalWindowsOf(tx, a, ids.layers) }),
+    );
+    expect(refused).toEqual({ ok: false, error: "EGGS_IN_WITHDRAWAL", days: [newer] });
     expect(await statuses(a, m(E.discardEggs, { id: uuidv7(), batchId: ids.layers, laidOn: newer, item: "grade:m", eggs: 450, reason: "Délai d’attente" }))).toEqual(["applied"]);
     expect(await statuses(a, sale([{ item: "grade:m", eggs: 1, unitPriceCentimes: "3300" }]))).toEqual(["errors.NOT_ENOUGH_EGGS"]);
     expect(await db.eggDraw.count()).toBe(2); // nothing drawn by the refused sales

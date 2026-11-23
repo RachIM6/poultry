@@ -80,19 +80,23 @@ export function stockByAge(lots: readonly Lot[], today: FarmDay): Record<(typeof
 
 export type Draw = { laidOn: string; item: EggItem; eggs: number };
 export type DrawError = "NOT_ENOUGH_EGGS" | "EGGS_IN_WITHDRAWAL" | "INVALID_QUANTITY";
+/** `days`: the laying days to discard first (withheld lots FIFO reaches before the sale is filled), oldest first. */
+export type DrawRefusal = { ok: false; error: Exclude<DrawError, "EGGS_IN_WITHDRAWAL"> } | { ok: false; error: "EGGS_IN_WITHDRAWAL"; days: string[] };
 
 /**
  * SPEC-m3 V6: the eggs a sale takes from a batch, oldest laying day first (FIFO), item by item. Refused when the stock
- * is short, or when an egg it would take was laid inside a withdrawal window (H7): those must be discarded first.
- * ⚠️ MQ4: the rule waits for a vet's review.
+ * is short, or when an egg it would take was laid inside a withdrawal window (H7): those must be discarded first, and the
+ * refusal names their laying days. ⚠️ MQ4: the rule waits for a vet's review.
  */
 export function drawFifo(
   lots: readonly Lot[],
   batchId: string,
   wanted: readonly { item: EggItem; eggs: number }[],
   withheld: readonly { from: string; to: string }[],
-): Result<Draw[], DrawError> {
+): { ok: true; value: Draw[] } | DrawRefusal {
   const draws: Draw[] = [];
+  const days = new Set<string>();
+  let short = false;
   const left = new Map(lots.filter((l) => l.batchId === batchId).map((l) => [`${l.laidOn}|${l.item}`, l.eggs]));
   for (const w of wanted) {
     if (!Number.isSafeInteger(w.eggs) || w.eggs <= 0) return fail("INVALID_QUANTITY");
@@ -101,13 +105,17 @@ export function drawFifo(
       if (need === 0) break;
       const have = l.batchId === batchId && l.item === w.item ? (left.get(`${l.laidOn}|${l.item}`) ?? 0) : 0;
       if (have <= 0) continue;
-      if (withheld.some((x) => x.from <= l.laidOn && l.laidOn <= x.to)) return fail("EGGS_IN_WITHDRAWAL");
+      if (withheld.some((x) => x.from <= l.laidOn && l.laidOn <= x.to)) {
+        days.add(l.laidOn); // to discard first: FIFO goes on as if it already were
+        continue;
+      }
       const take = Math.min(have, need);
       left.set(`${l.laidOn}|${l.item}`, have - take);
       draws.push({ laidOn: l.laidOn, item: w.item, eggs: take });
       need -= take;
     }
-    if (need > 0) return fail("NOT_ENOUGH_EGGS");
+    if (need > 0) short = true;
   }
-  return ok(draws);
+  if (days.size > 0) return { ok: false, error: "EGGS_IN_WITHDRAWAL", days: [...days].sort() };
+  return short ? fail("NOT_ENOUGH_EGGS") : ok(draws);
 }

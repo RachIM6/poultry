@@ -1,13 +1,12 @@
 import { isSameOriginRequest } from "@/lib/security/csrf";
-import { clientNet } from "@/lib/security/rate-limit";
-import { verifyCode } from "@/modules/identity";
+import { clientOf, verifyCode } from "@/modules/identity";
 
 export async function POST(req: Request) {
   if (!isSameOriginRequest(req)) return Response.json({ ok: false, messageKey: "errors.FORBIDDEN" }, { status: 403 });
   const body = (await req.json().catch(() => null)) as { phone?: unknown; code?: unknown; locale?: unknown; captcha?: unknown } | null;
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const locale = body?.locale === "fr" ? "fr" : "ar";
-  const result = await verifyCode(str(body?.phone), str(body?.code), locale, clientNet(req.headers), body?.captcha);
+  const result = await verifyCode(str(body?.phone), str(body?.code), locale, clientOf(req.headers), body?.captcha);
 
   if (result.ok) return Response.json({ ok: true }, { headers: result.value }); // carries the Set-Cookie
   if (result.error === "CAPTCHA_REQUIRED") return Response.json({ ok: false, messageKey: "errors.CAPTCHA_REQUIRED" }, { status: 400 });

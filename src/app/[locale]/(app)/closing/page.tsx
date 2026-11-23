@@ -10,7 +10,7 @@ import { addFarmDays } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import { closePreview, type CloseBatchView, type CloseStockView } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
-import { CloseForm, ValuesForm, YearForm } from "./form";
+import { CloseForm, OpenYearForm, ValuesForm, YearForm } from "./form";
 
 // SPEC-finance FCX4 (T103), FCX2: "Préparer la clôture", online like /books. Each kind's year-end entry, OD on the
 // fiscal year's last day, as the run would post it; the owner posts it, the manager and the accountant read it.
@@ -18,6 +18,7 @@ import { CloseForm, ValuesForm, YearForm } from "./form";
 // FC5 (T108): the stock lines the "stock" entry values, where the owner types a lower current value until the run posts.
 // FC4 (T109): the batches the "batch" entry values, the same way; the run refuses while one has no current value.
 // FC5 (T113): each farm's eggs in the "stock" entry, at the value per egg the owner types; required before the run posts.
+// FN3: until the previous year is closed, the owner opens this one from it as it stands, marked provisional for everyone.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function ClosingPage({ searchParams }: { searchParams: Search }) {
@@ -40,7 +41,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await closePreview(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
   if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
-  const { year, day, books, locked, closedOn, frozen, entries, stocks, batches, eggs } = result.value;
+  const { year, day, books, locked, closedOn, frozen, opening, entries, stocks, batches, eggs } = result.value;
   const todo = entries.some((e) => e.action === "post" || e.action === "repost" || e.action === "reverse");
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));
   const manage = can(ctx.value, "finance.manage");
@@ -177,6 +178,14 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
       {books !== "ledger" && <p className={warn}>{t("Close.cashBook")}</p>}
       {closedOn && <p className={done}>{t("Close.closedOn", { day: formatDay(closedOn, lang) })}</p>}
       {locked && !closedOn && <p className={warn}>{t("Close.locked")}</p>}
+      {opening === "provisional" && <p className={warn}>{t("Close.openingProvisional", { previous: year - 1 })}</p>}
+      {opening && can(ctx.value, "finance.manage") && (
+        <OpenYearForm
+          year={year}
+          label={opening === "due" ? t("Close.openYear", { year }) : t("Close.refreshOpening", { previous: year - 1 })}
+          hint={t("Close.openYearHint", { previous: year - 1 })}
+        />
+      )}
       {entries.map((e) => (
         <section key={e.kind} aria-label={t(`Close.kinds.${e.kind}`)} className={card}>
           <h2 className="text-xl font-semibold">{t(`Close.kinds.${e.kind}`)}</h2>

@@ -1,5 +1,5 @@
 // Public API of the `finance` module (CAPABILITY-MAP.md, ADR-010). Other modules and app code import only from here.
-export { accountingSettings, changeAccountingChoices, openFiscalYear, postEntry, reverseEntry, setPeriodLocked, type PostError } from "./application/ledger";
+export { accountingSettings, changeAccountingChoices, postEntry, reverseEntry, setPeriodLocked, type PostError } from "./application/ledger";
 export { chartOf, postingAccount, rollUp, type ChartOfAccounts } from "./domain/chart";
 export { type Line } from "./domain/entry";
 export type { EntryRow } from "./infrastructure/ledger";
@@ -22,7 +22,7 @@ export { saveYearEndCount, yearEndCount, type CountSheet } from "./application/c
 export type { CountBatchLine, CountEggsLine, CountLine, CountStockLine } from "./domain/count";
 export { assetRegister, attachFixedAssetReceipt, createFixedAsset, disposeFixedAsset, payFixedAsset, updateFixedAsset, type AssetRegister, type AssetView, type AssetWriteError } from "./application/assets";
 export { ASSET_CATEGORIES, ASSET_ACCOUNTS, type AssetCategory, type ScheduleYear } from "./domain/assets";
-export { closeFiscalYear, closePreview, reopenFiscalYear, runClose, type CloseBatchView, type CloseEggsView, type CloseEntryView, type ClosePreview, type CloseStockView, type YearCloseError } from "./application/close";
+export { closeFiscalYear, closePreview, openFiscalYear, reopenFiscalYear, runClose, type CloseBatchView, type CloseEggsView, type CloseEntryView, type ClosePreview, type CloseStockView, type YearCloseError } from "./application/close";
 export { saveYearEndValues } from "./application/stocks";
 export { createSubsidy, subsidyRegister, type SubsidyRegister, type SubsidyView, type SubsidyWriteError } from "./application/subsidies";
 export type { ReleaseYear } from "./domain/subsidies";

@@ -118,7 +118,7 @@ M6 closes a fiscal year in Dawra: what the farm owns and owes at year end (fixed
 
 **Accounts.** T100 seeded the PCA nomenclature (chapter 5 of the text, classes 1–8; copy in `docs/sources/plan-comptable-agricole-2015.pdf`) into `prisma/seed/finance/accounts.json`, labels as printed. Every account this section names is in the seed with its printed label (`accounts.test.ts`). An account the PCA text doesn't have blocks its rule until the accountant answers; no number is invented (ADR-010 §2). Fourteen printed rows are left out (§9 "Found for the accountant").
 - **Posting accounts only (FN4).** A line can't go on an account with sub-accounts. Where the nomenclature subdivides an account, a rule posts to a leaf: for example 6124 has 61241 (→ 612411–612413), 61242 and 61243, so FC5 posts to those, never to 6124.
-- **PCA off.** A PCA account posts to its `fallback`, the nearest CGNC ancestor (FN2). Where that ancestor has sub-accounts in the CGNC chart, it can't take the line either: 3152 → 315, 7140 → 714, and the hens accounts 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71, 7187 → 718. A rule using them with the PCA off needs a CGNC account from the accountant (§9).
+- **PCA off.** A PCA account posts to its `fallback`, the nearest CGNC ancestor (FN2). Where that ancestor has sub-accounts in the CGNC chart, it can't take the line either: 3152 → 315, 7140 → 714, and the hens accounts 23711 → 23, 28371 → 283, 23962 → 239, 7151 / 7152 → 71, 7187 → 718. A rule using them with the PCA off needs a CGNC account from the accountant (§9). Exception: 61936 / 61937 (D.E.A of plantations and animals) fall back to 61938, the CGNC's "autres immobilisations corporelles" leaf, not to 6193 (§9 "Decided defaults").
 
 **Candidates (confirmed by T100).** The numbers this section first gave as candidates are all in the nomenclature with the role assumed: 4481, 6513, 7513, 1319, 3912, 7196, 6147, and 2351–2358 for furniture and office equipment (labels in "Accounts from the PCA nomenclature" below).
 
@@ -132,7 +132,7 @@ Numbers and labels as printed in the PCA nomenclature (chapter 5, pages 53–71)
 | Debts on fixed-asset acquisitions (FC1) | 4481 Dettes sur acquisition d’immobilisations (1486 Fournisseurs d’immobilisations also exists in class 1: §9) |
 | Net book value of tangible assets disposed of (FC1) | 6513 VNA des immobilisations corporelles cédées |
 | Proceeds of tangible-asset disposals (FC1) | 7513 Produits des cessions des immobilisations corporelles |
-| Depreciation charge (FC1, FC6) | 6193 Dotations d’exploitation aux amortissements des immobilisations corporelles |
+| Depreciation charge (FC1, FC6) | a sub-account of 6193 Dotations d’exploitation aux amortissements des immobilisations corporelles, by asset kind (CGNC scan p. 296; PCA pp. 123–124): 61932 D.E.A. des constructions, 61933 D.E.A. des installations techniques, matériel et outillage, 61934 D.E.A. du matériel de transport, 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers, 61937 D.E.A des Animaux (FC6, PCA; 61938 with the PCA off). 6193 itself takes no line (FN4) |
 | Loans (FC2) | 1481 Emprunts auprès des établissements de crédit; 6311 Intérêts des emprunts et dettes |
 | Investment subsidies (FC2) | 1311 Subventions d’investissement reçues; 1319 Subventions d’investissement inscrites au compte de produits et charges; 7577 Reprises sur subventions d’investissement de l’exercice |
 | Batches in progress (FC4) | 31322 Animaux (under 3132 Encours de Production); 7131 Variation des stocks de produits en cours; 6196 Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant; 3913 Provisions pour dépréciation des produits en cours |
@@ -146,15 +146,15 @@ Numbers and labels as printed in the PCA nomenclature (chapter 5, pages 53–71)
 
 **Fixed-asset categories (FC1), default:**
 
-| Category | Asset account | Depreciation |
-|---|---|---|
-| Land | 23111 Terrains nus d’exploitation (23121 Terrains aménagés d’exploitation for prepared land); 2311 / 2312 with the PCA off | none |
-| Buildings, poultry houses included | 23211 Bâtiments d’exploitation (2321 with the PCA off); 23231 on someone else's land | 2832 Amortissements des constructions |
-| Technical installations, equipment and tools | 233111 Installations techniques Agricoles sur sol propre (233112 on someone else's land; 2331 with the PCA off); 2332 Matériel et outillage for movable equipment and tools | 2833 Amortissements des installations techniques, matériel et outillage |
-| Transport equipment | 2340 Matériel de transport | 2834 Amortissements du matériel de transport |
-| Furniture and office equipment | 2351 Mobilier de bureau, 2352 Matériel de bureau, 2355 Matériel informatique, 2358 Autres mobilier, matériel de bureau et aménagements divers | 2835 Amortissements du mobilier, matériel de bureau et aménagements divers |
+| Category | Asset account | Depreciation | Charge |
+|---|---|---|---|
+| Land | 23111 Terrains nus d’exploitation (23121 Terrains aménagés d’exploitation for prepared land); 2311 / 2312 with the PCA off | none | none |
+| Buildings, poultry houses included | 23211 Bâtiments d’exploitation (2321 with the PCA off); 23231 on someone else's land | 2832 Amortissements des constructions | 61932 D.E.A. des constructions |
+| Technical installations, equipment and tools | 233111 Installations techniques Agricoles sur sol propre (233112 on someone else's land; 2331 with the PCA off); 2332 Matériel et outillage for movable equipment and tools | 2833 Amortissements des installations techniques, matériel et outillage | 61933 D.E.A. des installations techniques, matériel et outillage |
+| Transport equipment | 2340 Matériel de transport | 2834 Amortissements du matériel de transport | 61934 D.E.A. du matériel de transport |
+| Furniture and office equipment | 2351 Mobilier de bureau, 2352 Matériel de bureau, 2355 Matériel informatique, 2358 Autres mobilier, matériel de bureau et aménagements divers | 2835 Amortissements du mobilier, matériel de bureau et aménagements divers | 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers |
 
-The "d’exploitation / hors exploitation" split follows the text: "hors exploitation" land is land not used by the farm (chapter 6, account 231, p. 84). Each depreciation account above is a leaf.
+The "d’exploitation / hors exploitation" split follows the text: "hors exploitation" land is land not used by the farm (chapter 6, account 231, p. 84). Each depreciation and charge account above is a leaf, in both charts. 6193 is not: the CGNC subdivides it by asset kind, each 6193x paired with its 283x (scan p. 296), so a category's charge goes on the sub-account that matches its depreciation account (§9 "Decided defaults"). 61938 D.E.A. des autres immobilisations corporelles (with 2838) has no category yet.
 
 **Bought stock by kind (FC5), default.** The stock account follows the purchase account's family (FN6), and the variation account is the matching 6124 leaf:
 
@@ -177,7 +177,7 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
   - at the count, the breeding stock's value is debited to the breeding-animal accounts and credited to 7151 / 7152;
   - the previous year's value is reversed, debited to 7151 / 7152 and credited to the breeding-animal accounts;
   - no depreciation.
-- **The text is inconsistent** on the balance-sheet account. Chapter 6 names "2371 Animaux reproducteurs adultes" and "2372 Animaux reproducteurs jeunes de renouvellement", but in the nomenclature 2371 is Animaux Reproducteurs (23711 Adultes, 23712 Jeunes de Renouvellement) and 2372 is Animaux de service. The default reading is 23711 / 23712, to confirm (§9, FQ7).
+- **The text is inconsistent** on the balance-sheet account. Chapter 6 names "2371 Animaux reproducteurs adultes" and "2372 Animaux reproducteurs jeunes de renouvellement" (p. 131), but in the nomenclature 2371 is Animaux Reproducteurs (23711 Adultes, 23712 Jeunes de Renouvellement) and 2372 is Animaux de service (p. 56). Decided default, to review (FQ7b, §9 "Decided defaults"): 23711 / 23712.
 
 ### Close rules (all FC)
 - **FCX1. Roles.**
@@ -229,9 +229,9 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - Months used in a fiscal year: from the in-service month (included) to the disposal month (excluded) or the year end, never beyond the life.
     - The charge of a year is cumulative(end) − cumulative(start), with cumulative(m) = base × min(m, life) ÷ life, rounded half up to the centime. Rounded once per cumulative figure, so the charges always add up to the base exactly (§7.1 fixture A).
     - An asset in the opening balance spreads what is left (base − accumulated depreciation entered) the same way over the life months left.
-  - **Year-end posting** (close run): D 6193 / C 2832–2835, one line per depreciation account.
+  - **Year-end posting** (close run): D 61932–61935 / C 2832–2835, one debit line per charge account and one credit line per depreciation account, paired as the CGNC pairs them (61932 / 2832 … 61935 / 2835; table above).
   - **Disposal** (sold or scrapped): day, price (0 when scrapped), received in cash or at the bank. On the disposal day (`OD`):
-    - the depreciation of the year up to the disposal month: D 6193 / C the asset's depreciation account (2832–2835);
+    - the depreciation of the year up to the disposal month: D the asset's charge account (61932–61935) / C its depreciation account (2832–2835);
     - the asset leaves: D that depreciation account (accumulated), D 6513 VNA des immobilisations corporelles cédées, C asset account (cost);
     - the price: D 5161 / 5141 / C 7513 Produits des cessions des immobilisations corporelles.
 
@@ -293,16 +293,23 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - **default (FQ18): value per egg typed by the owner**, in dirhams to the centime, no computed cost. Value = quantity × value per egg, exact. The run refuses while eggs to post have no value; none counted, nothing posted;
     - D 3152 Produits finis (d’animaux) / C 7132, in the "stock" entry, reversed with it (FCX5). With the PCA off, 3152 lands on 315, which has sub-accounts: nothing posts for the eggs and no value is asked, listed "non comptabilisé (FQ25)" (§9).
   - **Out of scope:** any valuation method other than the weighted average cost (S5).
-- **FC6. Laying hens and pullets: blocked** (FQ7, FQ8; T114, T115).
-  - **Method, no default (FQ7):** one per production category, chosen by the owner for the fiscal year before its first entry ("permanence des méthodes", like FN1) and stored with the other accounting choices.
-  - **Until FQ7 is answered:** layer and pullet batches are posted by the FN6 rules as today (chicks expensed, eggs and culled hens sold on 71213 / 712121). The close run lists them as "non valorisés (FQ7)", and the accountant books them by manual entry (FCX3).
-  - **Classic method** (blocked by FQ7 and FQ8):
-    - own pullets' rearing cost (the pullet batch's FN13 cost): D 23962 / C 71431, at the transfer to lay (SPEC-m3 B13) and at year end for pullets still rearing. The move from 23962 to 23711 at the transfer is to confirm (FQ7);
-    - point-of-lay hens bought: D 23711 instead of 612121;
-    - hens depreciated straight-line over the laying period, in months, typed by the owner, with the expected cull value as residual value; prorata as FC1. D 6193 / C 28371 (§7 `straightLine`);
-    - culled hens sold: C 7187 instead of 712121;
-    - removing the remaining book value of culled hens: FQ8, no default.
-  - **Simplified method** (blocked by FQ7): no depreciation; the flock's value at year end and its variation through 7151 / 7152. The valuation basis and the balance-sheet account the text gives are in "Laying hens, what the text says" above; the accountant confirms them, including 23711 / 23712 against the text's 2371 / 2372 (FQ7).
+- **FC6. Laying hens and pullets: decided default, to review** (FQ7, FQ8, §9 "Decided defaults"; T114, T115). Page numbers are the PCA 2015's, as printed.
+  - **Method (FQ7a): classic by default.** The PCA treats breeding animals "au même titre que les immobilisations corporelles" (p. 88); the simplified method applies "par dérogation" (p. 89). One method per category of breeding animals, never both for the same category (p. 88). The owner may choose the simplified method for a fiscal year before the year's first entry ("permanence des méthodes", like FN1), stored with the other accounting choices. Ledger entities only.
+  - **Until T114 / T115 are built:** layer and pullet batches are posted by the FN6 rules as today (chicks expensed, eggs and culled hens sold on 71213 / 712121). The close run lists them as "non valorisés (FQ7)", and the accountant books them by manual entry (FCX3).
+  - **PCA off:** the hens accounts are PCA-only (23711, 23712, 23962, 28371, 7151 / 7152, 7187; §5 "PCA off"), so FC6 stays "non valorisés" until FQ25 is answered.
+  - **Classic method** (T115; FQ7b, FQ7c, FQ8):
+    - balance-sheet accounts 23711 Animaux Reproducteurs Adultes and 23712 … Jeunes de Renouvellement, never 2371 / 2372 (FQ7b);
+    - own pullets' rearing cost (the pullet batch's FN13 cost to date): at year end for pullets still rearing, D 23962 / C 71431 (pp. 89–90);
+    - at the transfer to lay (SPEC-m3 B13): D 23962 / C 71431 for the cost not yet capitalised, then D 23711 / C 23962 for the batch's whole balance on 23962 (FQ7c: an asset in progress is cleared into its asset account on completion, p. 90);
+    - point-of-lay hens bought: D 23711 (+ D 3455 for the VAT, FN9) / C 4481, 5141 or 5161, instead of 612121 (CGNC p. 147);
+    - depreciation: straight line from the entry into 23711, base = entry value − the cull value typed by the owner, life = the laying period in months typed by the owner, FC1's whole-month prorata (pp. 36–37). D 61937 D.E.A des Animaux / C 28371 Amortissements des animaux reproducteurs (pp. 58, 124; §7 `straightLine`);
+    - culled hens sold: C 7187 Produits de cessions courantes d’éléments d’actif instead of 712121 (p. 132);
+    - removal at the cull (FQ8): D 28371 (accumulated) + D 6187 VNA des éléments d’actif cédés (cessions courantes) (net book value) / C 23711 (gross), never 6513 (p. 123). A whole flock lost without a sale: the net book value goes to 6513 (CGNC p. 147). A partial cull of share s: s of the gross and of the accumulated depreciation leave, and the schedule goes on over (1 − s). A provision on 2937, if any: D 2937 / C 7194 on the cull day.
+  - **Simplified method** (T114), on the fiscal year's last day:
+    - D 23711 / C 7151 for the laying flocks and D 23712 / C 7152 for the pullets certain to lay: birds counted (FC3) × entry value per bird (acquisition cost, or FN13 production cost for birds reared on the farm; p. 52);
+    - the previous year's value reversed in the same run: D 7151 / C 23711 and D 7152 / C 23712 (p. 131, "Parallèlement");
+    - a provision D 6194 / C 2937 for max(0, entry value − current value), the current value typed by the owner and required (p. 52). 6194 is subdivided like 6193 (61942, 61943; CGNC scan p. 296, PCA p. 124) but seeded as a leaf: T114 seeds them and posts to 61943 D.E.P. pour dépréciation des immobilisations corporelles (FN4);
+    - no depreciation (p. 89).
 - **FC7. Home consumption** (FQ21, FQ11).
   - **Recording:** birds or eggs taken by the exploitant, an associate or an employee are recorded on the sale forms (V2, V6, V7) with the kind "Consommation" and who took them. Offline, like a sale. The withdrawal blocks (V3, V6) apply for food safety, and birds on hand and the FIFO egg draws move as for a sale. No buyer, payment or receivable.
   - **Value:** quantity × a price, typed as on a sale. **Default (FQ21): prefilled with the farm's last sale price for the same product;** the owner can change it. Workers never see it (I5): they record the quantities, and the server values their entry at that last sale price. A product never sold yet has no price: FQ31.
@@ -366,7 +373,7 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 1. Base = 4 735 000 centimes. Months used: 2026 = September to December = 4 (September counts in full); 2027–2032 = 12 each; 2033 = 84 − 4 − 6 × 12 = 8 (January to August).
 2. cumulative(m) = 4 735 000 × m ÷ 84, half up:
 
-| Year | m at year end | 4 735 000 × m ÷ 84, centimes | cumulative, centimes | Charge, DH (D 6193 / C 2833) |
+| Year | m at year end | 4 735 000 × m ÷ 84, centimes | cumulative, centimes | Charge, DH (D 61933 / C 2833) |
 |---|---|---|---|---|
 | 2026 | 4 | 225 476,19 | 225 476 | 2 254,76 |
 | 2027 | 16 | 901 904,76 | 901 905 | 6 764,29 |
@@ -434,8 +441,8 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ4 | VAT on feed, chicks, live birds, eggs; when is a farm VAT-registered? | FN9, FC1 (an asset's VAT) |
 | FQ5 | Exact conditions of the 5 M DH agricultural exemption (3-year rule) and the cooperative IS threshold | FN17 |
 | FQ6 | An individual taxed on real net income (RNR): ledger required? | FN1 |
-| FQ7 | Laying hens: classic or simplified method by default? For the simplified method, confirm the valuation basis and the balance-sheet account the PCA text gives (§5 "Laying hens, what the text says": 23711 / 23712 or the text's 2371 / 2372); at the transfer to lay, does 23962 move to 23711? | FC6 (blocked, no default) |
-| FQ8 | Culled hens under the classic method: how is the remaining book value removed next to 7187? | FC6 (blocked, no default) |
+| FQ7 | Laying hens: classic or simplified method by default? For the simplified method, confirm the valuation basis and the balance-sheet account the PCA text gives (§5 "Laying hens, what the text says": 23711 / 23712 or the text's 2371 / 2372); at the transfer to lay, does 23962 move to 23711? | FC6 (decided default, to review: classic, 23711 / 23712, yes; "Decided defaults" below) |
+| FQ8 | Culled hens under the classic method: how is the remaining book value removed next to 7187? | FC6 (decided default, to review: D 28371 + D 6187 / C 23711; "Decided defaults" below) |
 | FQ9 | Depreciation prorata: by month or by day? | FC1 (default in §5: by whole months) |
 | FQ10 | Import formats of the accounting software used by the firms | FN18, FC10 (decided default, to review, 2026-11-23: the FEC of article A47 A-1 LPF, `docs/studies/accountant-import-format.md`; confirm the firm's software imports it, and whether a file per month suits it) |
 | FQ11 | Account for the individual exploitant's contributions and withdrawals, and counter-account of a `cash_book` entity's opening bank and cash balances | FN3, FN6, FCX3, FC7 (an individual's entry) |
@@ -460,6 +467,17 @@ Computed by hand in centimes, then checked with a bigint script. Lives, prices a
 | FQ30 | Bought stock of a VAT-registered entity: valued net of the purchases' VAT (as the charges were booked, FN9)? The batch cost (FN13) still uses amounts including VAT. | FC5 (until then net of VAT) |
 | FQ31 | Home consumption of a product the farm has not sold yet (first eggs of a grade, first birds by the head): FQ21's last sale price doesn't exist. Which value? | FC7 (until then such an entry, a worker's or one whose price was left empty, is valued 0: it counts in the batch's kg sold, posts nothing and is listed "non comptabilisé" on `/books`) |
 | FQ32 | 5 M DH tracker: which planned sales count next to the booked ones, so a sold batch isn't counted twice? | FN17 (decided default, 23 Nov 2026: a budget may be linked to an open batch of the organisation. A batch's latest linked budget counts its planned sales less that batch's sales recorded so far, never below 0, while the batch is open, and 0 once it is closed; a budget with no batch counts in full when saved during the fiscal year (a budget has no planned sale date). Linking to a planned batch (`planning`) is not offered) |
+
+### Decided defaults, to review
+
+Decided from the official texts on the owner's instruction (2026-11-23), built or specified, and to review with the accountant. PCA pages are as printed in `docs/sources/plan-comptable-agricole-2015.pdf`; CGNC pages are scan pages of the Tome I (below).
+
+- **6193 is subdivided; FC1 posts to its sub-accounts** (FN4). The CGNC lists 61931 D.E.A. des terrains, 61932 D.E.A. des constructions, 61933 D.E.A. des installations techniques, matériel et outillage, 61934 D.E.A. du matériel de transport, 61935 D.E.A. des mobilier, matériel de bureau et aménagements divers and 61938 D.E.A des autres immobilisations corporelles under 6193 (scan p. 296; OCR lines 1948–1964). PCA chapter 6 repeats them and adds 61936 D.E.A des Plantations and 61937 D.E.A des Animaux (pp. 123–124). Seeded: the six CGNC ones `cgnc`; 61936 and 61937 `pca`, both falling back to 61938, since plantations (236) and animals (237) are PCA rubriques with no CGNC account and 238 Autres immobilisations corporelles is the CGNC's catch-all (its depreciation 2838, its charge 61938). These come from chapter 6, an exception to "Chapter 6 only" below: the CGNC prints the subdivision itself. FC1's charge follows the asset's depreciation account: 2832 → 61932, 2833 → 61933, 2834 → 61934, 2835 → 61935 (2838 → 61938 when a category uses it; land is not depreciated). The year-end entry has one debit line per charge account. Until this change every depreciation posted on 6193, a parent; no pilot has run, so no production entry needs moving.
+- **FQ7a. Method: classic by default.** Breeding animals are treated "au même titre que les immobilisations corporelles" (p. 88); the simplified method applies "par dérogation aux principes du CGNC" (p. 89). One method per category of breeding animals, never both (p. 88). The owner may choose the simplified method before the year's first entry; ledger entities only (FC6).
+- **FQ7b. Balance-sheet accounts 23711 (adults) / 23712 (young replacement stock), never 2371 / 2372.** 2371 is subdivided (p. 56), so it takes no line (FN4), and 2372 is Animaux de service (pp. 56, 89). The 4-digit numbers of p. 131 read as a drafting error: their labels are those of 23711 / 23712, and of 7151 / 7152 (p. 69).
+- **FQ7c. Yes: at the transfer to lay, 23962 is cleared into 23711.** An asset in progress on 239 is cleared to its asset account on completion (p. 90).
+- **FQ8. Removal at the cull: D 28371 (accumulated) + D 6187 (net book value) / C 23711 (gross).** 6187 records "la valeur nette comptable restante au moment de la cession des animaux reproducteurs" (p. 123), next to 7187 for the price (p. 132); never 6513 for a cull. A whole flock lost without a sale: the net book value goes to 6513 (CGNC p. 147). A partial cull removes the culled share of the gross and of the accumulated depreciation. A provision on 2937, if any, is reversed D 2937 / C 7194 on the cull day.
+- The entries of both methods are in §5 FC6.
 
 ### Found for the accountant (T100)
 

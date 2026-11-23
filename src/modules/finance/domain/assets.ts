@@ -28,7 +28,17 @@ export type AssetCategory = keyof typeof ASSET_ACCOUNTS;
 export const ASSET_CATEGORIES = Object.keys(ASSET_ACCOUNTS) as AssetCategory[];
 export const isAssetCategory = (c: string): c is AssetCategory => Object.hasOwn(ASSET_ACCOUNTS, c);
 
-export const DEPRECIATION_CHARGE = "6193"; // Dotations d'exploitation aux amortissements des immobilisations corporelles
+type DepreciationAccount = NonNullable<(typeof ASSET_ACCOUNTS)[AssetCategory]["depreciation"]>;
+/**
+ * FC1: the charge account of each depreciation account, paired as the CGNC pairs them (6193 is subdivided, so a line
+ * goes on its sub-account, FN4; CGNC Tome I scan p. 296). 2838 → 61938 "autres" has no category yet.
+ */
+export const DEPRECIATION_CHARGES = {
+  "2832": "61932", // D.E.A. des constructions
+  "2833": "61933", // D.E.A. des installations techniques, matériel et outillage
+  "2834": "61934", // D.E.A. du matériel de transport
+  "2835": "61935", // D.E.A. des mobilier, matériel de bureau et aménagements divers
+} as const satisfies Record<DepreciationAccount, string>;
 export const NET_BOOK_VALUE_DISPOSED = "6513"; // VNA des immobilisations corporelles cédées
 export const DISPOSAL_PROCEEDS = "7513"; // Produits des cessions des immobilisations corporelles
 export const ASSET_DEBTS = "4481"; // Dettes sur acquisition d'immobilisations (FQ23: 1486 is the other reading)
@@ -106,23 +116,25 @@ export function straightLine(a: DepreciableAsset, fiscalYearStartMonth: number):
 
 /**
  * FC1 year-end posting (the close run, T103): each asset's straight-line charge for the fiscal year starting on
- * `yearFrom`, D 6193 for the total / C each depreciation account (2832–2835) for its share. The disposal year is left
- * out: the disposal posted its months (`toDisposal`). Null when there is nothing to post.
+ * `yearFrom`, D each charge account (61932–61935) / C its depreciation account (2832–2835), one line each. The disposal
+ * year is left out: the disposal posted its months (`toDisposal`). Null when there is nothing to post.
  */
 export function yearEndDepreciation(assets: readonly (DepreciableAsset & { category: AssetCategory })[], yearFrom: FarmDay, fiscalYearStartMonth: number): Posting | null {
-  const byAccount = new Map<string, bigint>();
+  const byAccount = new Map<DepreciationAccount, bigint>();
   for (const a of assets) {
     const account = ASSET_ACCOUNTS[a.category].depreciation;
     const year = straightLine(a, fiscalYearStartMonth).find((y) => y.from === yearFrom);
     if (account && year && !year.toDisposal && year.charge > 0n) byAccount.set(account, (byAccount.get(account) ?? 0n) + year.charge);
   }
-  const credits = [...byAccount].sort(([a], [b]) => a.localeCompare(b));
-  const total = credits.reduce((s, [, c]) => s + c, 0n);
-  if (total === 0n) return null;
+  const shares = [...byAccount].sort(([a], [b]) => a.localeCompare(b));
+  if (shares.length === 0) return null; // every charge kept is above zero
   return {
     journal: "OD",
     label: "Dotations aux amortissements de l’exercice",
-    lines: [{ account: DEPRECIATION_CHARGE, debit: total, credit: 0n }, ...credits.map(([account, credit]) => ({ account, debit: 0n, credit }))],
+    lines: [
+      ...shares.map(([account, debit]) => ({ account: DEPRECIATION_CHARGES[account], debit, credit: 0n })),
+      ...shares.map(([account, credit]) => ({ account, debit: 0n, credit })),
+    ],
   };
 }
 
@@ -184,7 +196,7 @@ export function assetPaymentPosting(label: string, amount: bigint, paidWith: Exc
 
 /**
  * FC1 disposal, on its day (OD), in this order: the depreciation of the fiscal year up to the disposal month
- * (D 6193 / C 283x), the asset leaving (D 283x accumulated, D 6513 net book value / C the asset account, its cost),
+ * (D 6193x / C 283x), the asset leaving (D 283x accumulated, D 6513 net book value / C the asset account, its cost),
  * and the price (D 5161 / 5141 / C 7513). A part with nothing to post is left out; each keeps its place (source version).
  */
 export function disposalPostings(
@@ -201,7 +213,7 @@ export function disposalPostings(
   const charge = d ? accumulated - d.accumulatedAt(yearStart) : 0n;
   const out: { version: number; posting: Posting }[] = [];
   if (charge > 0n && depreciationAccount) {
-    const lines = [{ account: DEPRECIATION_CHARGE, debit: charge, credit: 0n }, { account: depreciationAccount, debit: 0n, credit: charge }];
+    const lines = [{ account: DEPRECIATION_CHARGES[depreciationAccount], debit: charge, credit: 0n }, { account: depreciationAccount, debit: 0n, credit: charge }];
     out.push({ version: 1, posting: { journal: "OD", label: `Dotation aux amortissements : ${a.label}`, lines } });
   }
   out.push({

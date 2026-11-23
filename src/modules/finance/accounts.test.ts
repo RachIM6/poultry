@@ -5,7 +5,7 @@ import { chartOf, postingAccount, rollUp } from "@/modules/finance";
 import { operationAccounts } from "@/modules/finance/domain/operations";
 import { POSTED_ACCOUNTS } from "@/modules/finance/domain/posting";
 import { EXPENSE_ACCOUNTS } from "@/modules/finance/domain/treasury";
-import { ASSET_ACCOUNTS, ASSET_DEBTS, DEPRECIATION_CHARGE, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
+import { ASSET_ACCOUNTS, ASSET_DEBTS, DEPRECIATION_CHARGES, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
 import { LOAN_INTEREST, LOANS } from "@/modules/finance/domain/loans";
 import { SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE } from "@/modules/finance/domain/subsidies";
 import { EGGS_STOCK, EGGS_VARIATION, IN_PROGRESS, IN_PROGRESS_PROVISION, IN_PROGRESS_VARIATION, PROVISION_CHARGE, PROVISION_REVERSAL, STOCK_ACCOUNTS, STOCK_PROVISION, stockAccountsOf } from "@/modules/finance/domain/stocks";
@@ -71,6 +71,14 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
     }
     expect(cgncOnly.has("7385")).toBe(true); // printed p. 308, read "1385" by the OCR
   });
+  // CGNC scan p. 296 subdivides 6193 into 61931–61935 and 61938; PCA pp. 123–124 adds 61936 and 61937.
+  it("subdivides 6193 as the CGNC does, the PCA's plantations and animals landing on 61938 without the PCA", () => {
+    expect([...cgncOnly.values()].filter((a) => a.parent === "6193").map((a) => a.number)).toEqual(["61931", "61932", "61933", "61934", "61935", "61938"]);
+    for (const number of ["61936", "61937"]) {
+      expect(cgncOnly.has(number), number).toBe(false);
+      expect(postingAccount(number, everything, cgncOnly), number).toBe("61938");
+    }
+  });
   it("gives every operation of the chart screen an account in both charts (F-Chart)", () => {
     for (const row of operationAccounts(seed.accounts)) expect([row.op, row.pca?.number, row.cgnc?.number].every(Boolean), row.op).toBe(true);
   });
@@ -99,6 +107,9 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
       ["61242", "Variation des stocks de Matières et Fournitures consommables"], ["61243", "Variation des stocks d’emballage"],
       ["6147", "Services bancaires"], ["6171", "Rémunération du personnel"],
       ["6193", "Dotations d’exploitation aux amortissements des immobilisations corporelles"],
+      ["61932", "D.E.A. des constructions"], ["61933", "D.E.A. des installations techniques, matériel et outillage"],
+      ["61934", "D.E.A. du matériel de transport"], ["61935", "D.E.A. des mobilier, matériel de bureau et aménagements divers"],
+      ["61937", "D.E.A des Animaux"], ["61938", "D.E.A. des autres immobilisations corporelles"],
       ["6196", "Dotations d’exploitation aux provisions pour dépréciations de l’actif circulant"],
       ["6311", "Intérêts des emprunts et dettes"], ["6513", "VNA des immobilisations corporelles cédées"],
       ["712121", "Ventes d’animaux"], ["71213", "Ventes de produits d’animaux"],
@@ -117,11 +128,11 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
   it("keeps every account a posting rule uses a posting account, in both charts", () => {
     const parents = (chart: typeof withPca) => new Set([...chart.values()].map((a) => a.parent));
     // T102 (FC1): every asset and depreciation account of the categories, and the acquisition and disposal accounts.
-    const assets = [...Object.values(ASSET_ACCOUNTS).flatMap((a) => [a.asset, a.depreciation ?? []].flat()), ASSET_DEBTS, DEPRECIATION_CHARGE, NET_BOOK_VALUE_DISPOSED, DISPOSAL_PROCEEDS];
+    const assets = [...Object.values(ASSET_ACCOUNTS).flatMap((a) => [a.asset, a.depreciation ?? []].flat()), ...Object.values(DEPRECIATION_CHARGES), ASSET_DEBTS, NET_BOOK_VALUE_DISPOSED, DISPOSAL_PROCEEDS];
     // T108 (FC5): the stock and variation accounts by kind, the provision and its reversal. T109 (FC4): the batches in progress.
     const stocks = [...Object.values(STOCK_ACCOUNTS).flatMap((a) => [a.stock, a.variation]), PROVISION_CHARGE, STOCK_PROVISION, PROVISION_REVERSAL, IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION];
     const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets, LOANS, LOAN_INTEREST, SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE, ...stocks]; // T105, T106 (FC2): the loans' and subsidies'
-    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "6193", "6513", "7513", "1481", "6311", "1311", "1319", "7577", "3121", "31221", "31223", "612412", "61242", "6196", "3912", "7196", "31322", "7131", "3913", "6147"]));
+    expect(rules).toEqual(expect.arrayContaining(["3421", "3424", "4411", "6136", "23111", "233111", "2332", "2358", "2832", "2835", "4481", "61932", "61934", "6513", "7513", "1481", "6311", "1311", "1319", "7577", "3121", "31221", "31223", "612412", "61242", "6196", "3912", "7196", "31322", "7131", "3913", "6147"]));
     for (const account of rules) {
       expect(withPca.has(account), account).toBe(true);
       expect(parents(withPca).has(account), account).toBe(false);

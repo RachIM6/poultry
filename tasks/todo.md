@@ -429,7 +429,7 @@ Done ahead of the host choice (2026-11-11, branch `feat/t26-pilot-hardening`): t
 
 Also done without the host (2026-11-14; OQ1 hosting and OQ2 SMS set aside by the product owner, branch `feat/t26-pilot-prep`):
 - [x] Content-Security-Policy (T25 S3), without nonces so the offline shells stay static: inline scripts are allowed, everything else is this origin only (`next.config.ts`, `e2e/login.spec.ts`).
-- [x] JS size check in CI: `e2e/budget.spec.ts` fails if `/fr/login` or `/fr/batches` loads more than 200 KB of compressed JS (now 154.3 and 196.4 KB).
+- [x] JS size check in CI: `e2e/budget.spec.ts` fails if `/fr/login` or `/fr/batches` loads more than 200 KB of compressed JS (now 147.8 and 191.3 KB, after precompiling the messages on 2026-11-23; `docs/t25-security-and-performance.md` §2).
 - [x] Demo farm: `pnpm db:seed:demo` (after `pnpm db:seed`) creates a demo owner (`DEMO_PHONE`, default +212600000099), a farm, two houses, stock and a 21-day batch with daily entries and two weighings, through the app's own mutations. Made-up figures, demo only.
 - [x] Quick guides: `docs/quick-guide-fr.md`, `docs/quick-guide-ar.md` (the Arabic one needs a native review).
 

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { v7 as uuidv7 } from "uuid";
 import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
@@ -20,7 +21,7 @@ test("the owner counts the eggs, types a value per egg, and posts them in the st
       type: "flock.placeBatch",
       payload: { id: ids.batch, houseId: ids.house, species: "layer", strainId: "lohmann-brown", placedOn: "2025-11-01", chicksPlaced: 6000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: 273 },
     },
-    { type: "eggs.recordCollection", payload: { id: crypto.randomUUID(), batchId: ids.batch, day: "2025-12-30", counts: { normal: 1200, cracked: 0, dirty: 0, doubleYolk: 0, floor: 0, broken: 0 }, sample: null } },
+    { type: "eggs.recordCollection", payload: { id: uuidv7(), batchId: ids.batch, day: "2025-12-30", counts: { normal: 1200, cracked: 0, dirty: 0, doubleYolk: 0, floor: 0, broken: 0 }, sample: null } },
   ]);
 
   // The count sheet (FC3): the farm's eggs with their book quantity, no amount; then the count.

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { changeAccountingChoices, exportBooks, exportFec, postPending, readBooks } from "@/modules/finance";
+import { batchOf, changeAccountingChoices, exportBooks, exportFec, postPending, readBooks, treasuryOverview } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
 import { unzip } from "@/test/unzip";
@@ -80,6 +80,23 @@ describe("books (SPEC-finance FN16, T36)", () => {
       ["2026-03-22", "5141", 100_000n, 0n], // …and arrived
     ]);
     expect(books.value.cashBook).toMatchObject({ receipts: 400_000n, expenses: 520_000n });
+  });
+
+  it("shows each treasury movement's counter-accounts and batch as the cash book does (FN10)", async () => {
+    const accountant = { ...cashBook, role: "accountant" as const }; // money.read: the accountant reads them too
+    const [overview, books] = await Promise.all([treasuryOverview(accountant, "2026-03"), readBooks(cashBook, "2026-03")]);
+    if (!overview.ok) throw new Error(overview.error);
+    if (!books.ok) throw new Error(books.error);
+    const movements = overview.value.movements;
+    const treasury = movements.map((x) => JSON.stringify([x.day, x.account, x.counterAccounts.map((c) => c.number), x.batch]));
+    const cash = books.value.cashBook.rows.map((r) => JSON.stringify([r.day, r.account, [...new Set(r.counterAccounts)], batchOf(books.value.tags, r.entryId)]));
+    expect(treasury.sort()).toEqual(cash.sort());
+    // The sale: the buyer's account with its label, and its batch; the transfer's two legs go through 5115 only.
+    const sale = movements.find((x) => x.day === "2026-03-20");
+    expect(sale?.counterAccounts).toContainEqual({ number: "3421", label: "Clients" });
+    expect(sale?.batch).toBe("B1 · 01/03/2026");
+    expect(movements.filter((x) => x.day === "2026-03-22").map((x) => [x.account, x.counterAccounts, x.batch]).sort()).toEqual([["5141", [], ""], ["5161", [], ""]]);
+    expect(movements.flatMap((x) => x.counterAccounts).every((c) => c.label !== "")).toBe(true);
   });
 
   it("exports a month for the accountant: CSV and Excel in one zip (FN18, T38)", async () => {

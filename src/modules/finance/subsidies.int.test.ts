@@ -85,7 +85,7 @@ describe("investment subsidies (SPEC-finance FC2, FQ17, T106)", () => {
 
     const preview = await closePreview(owner, 2026, clock);
     expect(preview.ok && preview.value.entries.map((e) => [e.kind, e.action, e.lines.map((l) => [l.account, l.label, l.debit, l.credit])])).toEqual([
-      ["depreciation", "post", [["61933", expect.any(String), 225_476n, 0n], ["2833", expect.any(String), 0n, 225_476n]]],
+      ["depreciation", "post", [["61933", expect.any(String), 225_476n, 0n], ["28332", expect.any(String), 0n, 225_476n]]],
       ["subsidy", "post", [["1319", "Subventions d’investissement inscrites au compte de produits et charges", 67_643n, 0n], ["7577", "Reprises sur subventions d’investissement de l’exercice", 0n, 67_643n]]],
       ["stock", "none", []], // T108: no stock in this file
       ["batch", "none", []], // T109: no batch either

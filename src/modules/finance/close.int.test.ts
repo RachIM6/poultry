@@ -58,7 +58,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     expect(await changeAccountingChoices(other, otherEntity, { books: "ledger", pcaOverlay: false, fiscalYearStartMonth: 1 })).toMatchObject({ ok: true }); // FN2: CGNC only
   });
 
-  it("§7.1 A's 2026 run posts D 61933 / C 2833 2 254,76 on 31 Dec 2026, shown first as a preview", async () => {
+  it("§7.1 A's 2026 run posts D 61933 / C 28332 2 254,76 on 31 Dec 2026, shown first as a preview", async () => {
     expect(await createFixedAsset(owner, generator(), clock)).toEqual({ ok: true, value: undefined });
     const preview = await closePreview(owner, 2026, clock);
     expect(preview).toEqual({
@@ -77,7 +77,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
             action: "post",
             lines: [
               { account: "61933", label: "D.E.A. des installations techniques, matériel et outillage", debit: 225_476n, credit: 0n },
-              { account: "2833", label: "Amortissements des installations techniques, matériel et outillage", debit: 0n, credit: 225_476n },
+              { account: "28332", label: "Amortissements du matériel et outillage", debit: 0n, credit: 225_476n },
             ],
           },
           ...NOTHING_ELSE,
@@ -92,7 +92,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 1 });
     expect(await closeLines(entity, 2026)).toEqual([
       [1, "OD", "2026-12-31", "61933", 225_476n, 0n, null],
-      [1, "OD", "2026-12-31", "2833", 0n, 225_476n, null],
+      [1, "OD", "2026-12-31", "28332", 0n, 225_476n, null],
     ]);
     const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceId: `close:depreciation:${entity}:2026` } });
     expect(entry).toMatchObject({ label: "Dotations aux amortissements de l’exercice", legalEntityId: entity, createdBy: owner.userId });
@@ -109,11 +109,11 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 2 }); // 4 735 000 × 4 ÷ 60 = 315 666,67
     expect(await closeLines(entity, 2026)).toEqual([
       [1, "OD", "2026-12-31", "61933", 225_476n, 0n, null],
-      [1, "OD", "2026-12-31", "2833", 0n, 225_476n, null],
-      [null, "OD", "2026-12-31", "2833", 225_476n, 0n, 1], // the reversal of version 1, on the same day
+      [1, "OD", "2026-12-31", "28332", 0n, 225_476n, null],
+      [null, "OD", "2026-12-31", "28332", 225_476n, 0n, 1], // the reversal of version 1, on the same day
       [null, "OD", "2026-12-31", "61933", 0n, 225_476n, 1],
       [2, "OD", "2026-12-31", "61933", 315_667n, 0n, null],
-      [2, "OD", "2026-12-31", "2833", 0n, 315_667n, null],
+      [2, "OD", "2026-12-31", "28332", 0n, 315_667n, null],
     ]);
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
 
@@ -122,7 +122,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "reverse", lines: [{ debit: 315_667n }, { credit: 315_667n }] }, ...NOTHING_ELSE] } });
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 1 });
     expect((await closeLines(entity, 2026)).slice(6)).toEqual([
-      [null, "OD", "2026-12-31", "2833", 315_667n, 0n, 2],
+      [null, "OD", "2026-12-31", "28332", 315_667n, 0n, 2],
       [null, "OD", "2026-12-31", "61933", 0n, 315_667n, 2],
     ]);
     expect(await db.journalEntry.count({ where: { sourceId: `close:depreciation:${entity}:2026` } })).toBe(2); // no third version
@@ -132,7 +132,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
 
   it("posts one line per charge and depreciation account with the PCA off; land and assets disposed of in the year stay out", async () => {
     const assets = [
-      generator({ category: "installation" }), // 2 254,76 on 2833
+      generator({ category: "installation" }), // 2 254,76 on 28331
       generator({ label: "Camion", category: "transport", acquiredOn: "2026-01-10", inServiceOn: "2026-01-10", amountCentimes: "1200000", lifeMonths: 60 }), // 12 months: 2 400,00 on 2834
       generator({ label: "Terrain", category: "land", lifeMonths: null, amountCentimes: "30000000" }),
       generator({ label: "Bascule" }),
@@ -143,7 +143,7 @@ describe("the close run, depreciation first (SPEC-finance FCX4, FC1, T103)", () 
     expect(await closeLines(otherEntity, 2026)).toEqual([
       [1, "OD", "2026-12-31", "61934", 240_000n, 0n, null],
       [1, "OD", "2026-12-31", "61933", 225_476n, 0n, null],
-      [1, "OD", "2026-12-31", "2833", 0n, 225_476n, null],
+      [1, "OD", "2026-12-31", "28331", 0n, 225_476n, null],
       [1, "OD", "2026-12-31", "2834", 0n, 240_000n, null],
     ]);
     expect(await closeLines(entity, 2026)).toHaveLength(8); // each organisation its own assets and entries

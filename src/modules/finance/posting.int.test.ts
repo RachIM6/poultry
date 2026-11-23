@@ -148,9 +148,9 @@ describe("posting pipeline (SPEC-finance FN6–FN7, T30)", () => {
     expect(pushed.results.at(-1)).toMatchObject({ messageKey: "errors.VAT_MORE_THAN_AMOUNT" });
 
     await postPending(c);
-    expect(await linesOf({ sourceId: purchaseId })).toEqual([["3455", 20_000n, 0n], ["4411", 0n, 120_000n], ["612122", 100_000n, 0n]]);
+    expect(await linesOf({ sourceId: purchaseId })).toEqual([["34552", 20_000n, 0n], ["4411", 0n, 120_000n], ["612122", 100_000n, 0n]]);
     expect(await linesOf({ sourceId: saleId })).toEqual([["3421", 300_000n, 0n], ["4455", 0n, 50_000n], ["712121", 0n, 250_000n]]);
-    expect(await linesOf({ sourceId: expenseId })).toEqual([["3455", 20_000n, 0n], ["5161", 0n, 120_000n], ["612512", 100_000n, 0n]]);
+    expect(await linesOf({ sourceId: expenseId })).toEqual([["34552", 20_000n, 0n], ["5161", 0n, 120_000n], ["612512", 100_000n, 0n]]);
   });
   it("posts later supplier payments, never beyond what is owed (S2, FN6)", async () => {
     const d = await tenant("+212600000004", "Ferme Fournisseurs");

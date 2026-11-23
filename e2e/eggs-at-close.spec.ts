@@ -5,7 +5,7 @@ import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
 
 // T113 (SPEC-finance FC5, FQ18): 1 200 eggs laid on 30 December 2025 (eggs refuse days not yet come), 1 180 counted.
-// The run refuses until the owner types a value per egg, 0,95 DH; then it posts D 3152 / C 7132 1 121,00 in the stock
+// The run refuses until the owner types a value per egg, 0,95 DH; then it posts D 3152 / C 71321 1 121,00 in the stock
 // entry, found in the journal on 31 December. The day rule, the PCA off, the reruns and the reversal in detail:
 // src/modules/finance/eggs-at-close.int.test.ts.
 test("the owner counts the eggs, types a value per egg, and posts them in the stock entry", async ({ page }) => {
@@ -43,7 +43,7 @@ test("the owner counts the eggs, types a value per egg, and posts them in the st
   await expect(page.getByRole("alert").filter({ hasText: "Saisissez la valeur par œuf" })).toHaveText("Saisissez la valeur par œuf des œufs en stock avant de comptabiliser.");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // fits the phone
 
-  // FQ18: the owner's value per egg; the stock entry, D 3152 / C 7132 at 1 180 × 0,95.
+  // FQ18: the owner's value per egg; the stock entry, D 3152 / C 71321 at 1 180 × 0,95.
   await stock.getByRole("textbox", { name: "Valeur par œuf : Ferme Atlas" }).fill("0,95");
   await stock.getByRole("button", { name: "Enregistrer les valeurs actuelles" }).click();
   await expect(stock.getByRole("status")).toHaveText("Valeurs actuelles enregistrées.");
@@ -51,7 +51,7 @@ test("the owner counts the eggs, types a value per egg, and posts them in the st
   const entry = stock.getByRole("table", { name: "Écriture · Stocks" }).getByRole("row");
   await expect(entry).toHaveCount(3);
   await expect(entry.nth(1)).toContainText(/^3152 Produits finis \(d’animaux\)\s*1\s121,00/);
-  await expect(entry.nth(2)).toContainText(/^7132 Variation des stocks de biens produits\s*1\s121,00/);
+  await expect(entry.nth(2)).toContainText(/^71321 Variation des stocks de produits finis\s*1\s121,00/);
 
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
   await expect(page.getByText("Écritures comptabilisées : 1.")).toBeVisible();
@@ -61,7 +61,7 @@ test("the owner counts the eggs, types a value per egg, and posts them in the st
   await page.goto("/fr/books?view=journals&month=2025-12");
   const posted = page.getByRole("table").filter({ hasText: "31 décembre 2025 · Stocks de fin d’exercice" });
   await expect(posted.getByRole("row").filter({ hasText: /^3152 / })).toContainText(/1\s121,00/);
-  await expect(posted.getByRole("row").filter({ hasText: /^7132 / })).toContainText(/1\s121,00/);
+  await expect(posted.getByRole("row").filter({ hasText: /^71321 / })).toContainText(/1\s121,00/);
 
   // Arabic, right to left: the eggs line, and the page doesn't scroll sideways.
   await page.goto("/ar/closing?year=2025");

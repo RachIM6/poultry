@@ -50,7 +50,7 @@ describe("the opening reversals of the reversible close kinds (SPEC-finance FCX5
   it("posts the reversal once, OD on the next year's first day, with the à-nouveaux; a second close posts nothing", async () => {
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 2 });
     expect(await reversalLines()).toEqual([
-      ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "2833", 225_476n, 0n],
+      ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "28332", 225_476n, 0n],
       ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "61933", 0n, 225_476n],
     ]);
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
@@ -65,11 +65,11 @@ describe("the opening reversals of the reversible close kinds (SPEC-finance FCX5
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 2 });
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 4 }); // à-nouveaux and reversal: each cancelled, then version 2
     expect(await reversalLines()).toEqual([
-      ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "2833", 225_476n, 0n],
+      ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "28332", 225_476n, 0n],
       ["Extourne des écritures de clôture", 1, "OD", "2027-01-01", "61933", 0n, 225_476n],
       ["Annulation", null, "OD", "2027-01-01", "61933", 225_476n, 0n],
-      ["Annulation", null, "OD", "2027-01-01", "2833", 0n, 225_476n],
-      ["Extourne des écritures de clôture", 2, "OD", "2027-01-01", "2833", 315_667n, 0n],
+      ["Annulation", null, "OD", "2027-01-01", "28332", 0n, 225_476n],
+      ["Extourne des écritures de clôture", 2, "OD", "2027-01-01", "28332", 315_667n, 0n],
       ["Extourne des écritures de clôture", 2, "OD", "2027-01-01", "61933", 0n, 315_667n],
     ]);
     expect(await closeFiscalYear(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
@@ -77,9 +77,9 @@ describe("the opening reversals of the reversible close kinds (SPEC-finance FCX5
     const books = await readBooks(owner, "2027-01");
     if (!books.ok) throw new Error(books.error);
     expect(books.value.trialBalance?.balanced).toBe(true);
-    expect(books.value.trialBalance?.rows.filter((r) => ["2833", "61933", "1199"].includes(r.account)).map((r) => [r.account, r.balance])).toEqual([
+    expect(books.value.trialBalance?.rows.filter((r) => ["28332", "61933", "1199"].includes(r.account)).map((r) => [r.account, r.balance])).toEqual([
       ["1199", 315_667n],
-      ["2833", 0n],
+      ["28332", 0n],
       ["61933", -315_667n],
     ]);
   });

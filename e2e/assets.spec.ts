@@ -51,10 +51,10 @@ test("the owner registers an asset, reads its schedule by year and disposes of i
   const receipt = await page.request.get((await asset.getByRole("link", { name: "facture" }).getAttribute("href"))!);
   expect(Buffer.from(await receipt.body()).equals(PNG)).toBe(true);
 
-  // FC1: D 2332 / C 5161 (CA) on the day of acquisition.
+  // FC1: D 23321 / C 5161 (CA) on the day of acquisition.
   await page.goto("/fr/books?view=journals&month=2026-09");
   const entry = page.getByRole("table").filter({ hasText: "Acquisition : Groupe électrogène" });
-  await expect(entry.getByRole("row").filter({ hasText: /^2332 / })).toContainText(/47\s350,00/);
+  await expect(entry.getByRole("row").filter({ hasText: /^23321 / })).toContainText(/47\s350,00/);
   await expect(entry.getByRole("row").filter({ hasText: /^5161 / })).toContainText(/47\s350,00/);
 
   // Disposed of on 15 Nov 2026: September and October are used, cumulative(2) = 1 127,38, posted by the disposal.

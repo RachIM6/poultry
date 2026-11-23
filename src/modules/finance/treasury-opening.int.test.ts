@@ -36,7 +36,7 @@ describe("an opening bank balance by manual entry, on /treasury, the reconciliat
     const manual = (day: string, label: string, lines: object[]) => postManualEntry(owner, { id: uuidv7(), day, label, piece: null, lines }, clock);
     // 20 000,00 at the bank on the accountant's last balance sheet, then 150,00 of bank fees in June.
     expect(await manual("2025-01-01", "Soldes d’ouverture", [{ account: "5141", debit: "2000000", credit: "0", treasuryId: bank }, { account: "1111", debit: "0", credit: "2000000" }])).toEqual({ ok: true, value: undefined });
-    expect(await manual("2025-06-10", "Frais bancaires", [{ account: "6147", debit: "15000", credit: "0" }, { account: "5141", debit: "0", credit: "15000", treasuryId: bank }])).toEqual({ ok: true, value: undefined });
+    expect(await manual("2025-06-10", "Frais bancaires", [{ account: "61473", debit: "15000", credit: "0" }, { account: "5141", debit: "0", credit: "15000", treasuryId: bank }])).toEqual({ ok: true, value: undefined });
   });
 
   it("shows on the bank account's balance and lets the reconciliation reach 0", async () => {

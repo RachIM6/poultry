@@ -117,7 +117,7 @@ describe("manual entries (SPEC-finance FCX3, FN3, T101)", () => {
   });
 
   it("attaches a receipt once, to the organisation's own manual entry, for the owner (ADR-011)", async () => {
-    const e = entry({ day: "2026-03-05", label: "Intérêts courus", piece: null, lines: [line("6311", "12000", "0"), line("4493", "0", "12000")] });
+    const e = entry({ day: "2026-03-05", label: "Intérêts courus", piece: null, lines: [line("63111", "12000", "0"), line("4493", "0", "12000")] });
     expect(await postManualEntry(owner, e, clock)).toEqual({ ok: true, value: undefined });
     const file = uuidv7();
     expect(await attachManualEntryReceipt({ ...owner, role: "manager" }, e.id, file)).toEqual({ ok: false, error: "FORBIDDEN" });
@@ -130,7 +130,7 @@ describe("manual entries (SPEC-finance FCX3, FN3, T101)", () => {
   });
 
   it("answers two submits of the same form at once as a retry: one entry, no error", async () => {
-    const e = entry({ day: "2026-05-04", label: "Frais de dossier", piece: null, lines: [line("6311", "1000", "0"), line("4493", "0", "1000")] });
+    const e = entry({ day: "2026-05-04", label: "Frais de dossier", piece: null, lines: [line("63111", "1000", "0"), line("4493", "0", "1000")] });
     expect(await Promise.all([postManualEntry(owner, e, clock), postManualEntry(owner, e, clock)])).toEqual([
       { ok: true, value: undefined },
       { ok: true, value: undefined },
@@ -140,16 +140,16 @@ describe("manual entries (SPEC-finance FCX3, FN3, T101)", () => {
   });
 
   it("puts a manual entry's typed piece in the export's Pièce column, its id when it has none (FN18)", async () => {
-    const lines = [line("6311", "5000", "0"), line("4493", "0", "5000")];
+    const lines = [line("63111", "5000", "0"), line("4493", "0", "5000")];
     const typed = entry({ day: "2026-04-02", label: "Régularisation", piece: "FAC-2026-117", lines });
     const untyped = entry({ day: "2026-04-03", label: "Intérêts courus", piece: null, lines });
     for (const e of [typed, untyped]) expect(await postManualEntry(owner, e, clock)).toEqual({ ok: true, value: undefined });
     const exported = await exportBooks(owner, "2026-04");
     if (!exported.ok) throw new Error(exported.error);
     const csv = unzip(exported.value.zip).get("ecritures-2026-04.csv")!;
-    expect(csv).toMatch(/\r\n02\/04\/2026;OD;FAC-2026-117;6311;/);
+    expect(csv).toMatch(/\r\n02\/04\/2026;OD;FAC-2026-117;63111;/);
     expect(csv).toMatch(/\r\n02\/04\/2026;OD;FAC-2026-117;4493;/);
     expect(csv).not.toContain(typed.id);
-    expect(csv).toContain(`\r\n03/04/2026;OD;${untyped.id};6311;`);
+    expect(csv).toContain(`\r\n03/04/2026;OD;${untyped.id};63111;`);
   });
 });

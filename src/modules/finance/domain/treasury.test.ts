@@ -12,7 +12,7 @@ describe("quick expenses and transfers (SPEC-finance FN6)", () => {
     expect(expensePosting({ category: "bank_fees", amount: 4_500n, paidFrom: "bank", treasuryId: "bp" })).toEqual({
       journal: "BQ",
       label: "Dépense",
-      lines: [{ account: "6147", debit: 4_500n, credit: 0n }, { account: "5141", debit: 0n, credit: 4_500n, treasuryId: "bp" }],
+      lines: [{ account: "61473", debit: 4_500n, credit: 0n }, { account: "5141", debit: 0n, credit: 4_500n, treasuryId: "bp" }],
     }); // FC9 (T119)
     expect(expensePosting({ category: "catching", amount: 5n, paidFrom: "credit", treasuryId: "ignored" })).toMatchObject({
       journal: "AC",
@@ -29,10 +29,10 @@ describe("quick expenses and transfers (SPEC-finance FN6)", () => {
 
 describe("quick expense VAT (SPEC-finance FN9)", () => {
   const bill = { category: "electricity", amount: 120_000n, paidFrom: "cash", treasuryId: "box", vat: 20_000n } as const;
-  it("books a registered entity's VAT on 3455 and the rest on the charge", () => {
+  it("books a registered entity's VAT on 34552 and the rest on the charge", () => {
     expect(expensePosting(bill, true).lines).toEqual([
       { account: "612512", debit: 100_000n, credit: 0n },
-      { account: "3455", debit: 20_000n, credit: 0n },
+      { account: "34552", debit: 20_000n, credit: 0n },
       { account: "5161", debit: 0n, credit: 120_000n, treasuryId: "box" },
     ]);
   });

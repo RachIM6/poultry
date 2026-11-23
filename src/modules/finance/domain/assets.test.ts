@@ -51,8 +51,8 @@ describe("straightLine (SPEC-finance FC1, FQ9, §7)", () => {
     ]);
     const postings = disposalPostings({ ...registered, ...sold }, 3_000_000n, "bank", null, 1);
     expect(postings.map((p) => [p.version, p.posting.journal, lines(p.posting)])).toEqual([
-      [1, "OD", [["61933", 112_738n, 0n], ["2833", 0n, 112_738n]]],
-      [2, "OD", [["2833", 1_014_643n, 0n], ["6513", 3_720_357n, 0n], ["2332", 0n, 4_735_000n]]], // 10 146,43 + 37 203,57 = 47 350,00
+      [1, "OD", [["61933", 112_738n, 0n], ["28332", 0n, 112_738n]]],
+      [2, "OD", [["28332", 1_014_643n, 0n], ["6513", 3_720_357n, 0n], ["23321", 0n, 4_735_000n]]], // 10 146,43 + 37 203,57 = 47 350,00
       [3, "OD", [["5141", 3_000_000n, 0n], ["7513", 0n, 3_000_000n]]],
     ]);
     expect(postings.every((p) => balanced(p.posting))).toBe(true);
@@ -108,8 +108,8 @@ describe("straightLine (SPEC-finance FC1, FQ9, §7)", () => {
         const postings = disposalPostings({ ...registered, ...a, disposedOn: at(disposal) }, BigInt(next(2)) * cost, "cash", null, 1);
         expect(postings.every((p) => balanced(p.posting)), `run ${run}`).toBe(true);
         const exit = postings.find((p) => p.version === 2)!.posting.lines;
-        expect(sum(exit.filter((l) => l.account === "2833").map((l) => l.debit)), `run ${run}`).toBe(already + sum(schedule.map((y) => y.charge)));
-        expect(exit.at(-1), `run ${run}`).toMatchObject({ account: "2332", credit: cost });
+        expect(sum(exit.filter((l) => l.account === "28332").map((l) => l.debit)), `run ${run}`).toBe(already + sum(schedule.map((y) => y.charge)));
+        expect(exit.at(-1), `run ${run}`).toMatchObject({ account: "23321", credit: cost });
       }
     }
   });
@@ -142,20 +142,20 @@ describe("the asset register's rules (SPEC-finance FC1)", () => {
 describe("the asset postings (SPEC-finance FC1, FN9)", () => {
   it("posts each acquisition method's entry", () => {
     const acquisition = (paidWith: "cash" | "transfer" | "cheque" | "credit") => acquisitionPosting({ ...registered, paidWith, treasuryId: "t" });
-    expect([acquisition("cash").journal, lines(acquisition("cash"))]).toEqual(["CA", [["2332", 4_735_000n, 0n], ["5161", 0n, 4_735_000n]]]);
-    expect([acquisition("transfer").journal, lines(acquisition("transfer"))]).toEqual(["BQ", [["2332", 4_735_000n, 0n], ["5141", 0n, 4_735_000n]]]);
-    expect([acquisition("cheque").journal, lines(acquisition("cheque"))]).toEqual(["BQ", [["2332", 4_735_000n, 0n], ["5141", 0n, 4_735_000n]]]);
-    expect([acquisition("credit").journal, lines(acquisition("credit"))]).toEqual(["OD", [["2332", 4_735_000n, 0n], ["4481", 0n, 4_735_000n]]]);
+    expect([acquisition("cash").journal, lines(acquisition("cash"))]).toEqual(["CA", [["23321", 4_735_000n, 0n], ["5161", 0n, 4_735_000n]]]);
+    expect([acquisition("transfer").journal, lines(acquisition("transfer"))]).toEqual(["BQ", [["23321", 4_735_000n, 0n], ["5141", 0n, 4_735_000n]]]);
+    expect([acquisition("cheque").journal, lines(acquisition("cheque"))]).toEqual(["BQ", [["23321", 4_735_000n, 0n], ["5141", 0n, 4_735_000n]]]);
+    expect([acquisition("credit").journal, lines(acquisition("credit"))]).toEqual(["OD", [["23321", 4_735_000n, 0n], ["4481", 0n, 4_735_000n]]]);
     expect(acquisition("cash").lines.at(-1)?.treasuryId).toBe("t");
     expect(acquisition("credit").lines.at(-1)?.treasuryId).toBeNull();
   });
 
-  it("keeps a registered entity's VAT out of the cost, on 3455; otherwise the VAT is part of the cost", () => {
+  it("keeps a registered entity's VAT out of the cost, on 34551; otherwise the VAT is part of the cost", () => {
     const [amount, vat] = [5_682_000n, 947_000n]; // 47 350,00 + 20 %
     expect(assetCost(amount, vat, false)).toBe(amount);
     expect(lines(acquisitionPosting({ ...registered, amount, cost: assetCost(amount, vat, true), paidWith: "transfer", treasuryId: null }))).toEqual([
-      ["2332", 4_735_000n, 0n],
-      ["3455", 947_000n, 0n],
+      ["23321", 4_735_000n, 0n],
+      ["34551", 947_000n, 0n],
       ["5141", 0n, 5_682_000n],
     ]);
   });
@@ -174,9 +174,9 @@ describe("the asset postings (SPEC-finance FC1, FN9)", () => {
 describe("the close run's depreciation (SPEC-finance FC1, FCX4, T103)", () => {
   const equipment = { ...generator, category: "equipment" as const };
 
-  it("§7.1 A's 2026 run: D 61933 / C 2833 2 254,76", () => {
+  it("§7.1 A's 2026 run: D 61933 / C 28332 2 254,76", () => {
     const posting = yearEndDepreciation([equipment], day("2026-01-01"), 1);
-    expect(posting && [posting.journal, lines(posting)]).toEqual(["OD", [["61933", 225_476n, 0n], ["2833", 0n, 225_476n]]]);
+    expect(posting && [posting.journal, lines(posting)]).toEqual(["OD", [["61933", 225_476n, 0n], ["28332", 0n, 225_476n]]]);
     expect(yearEndDepreciation([equipment], day("2034-01-01"), 1)).toBeNull(); // the life is over
   });
 
@@ -189,7 +189,8 @@ describe("the close run's depreciation (SPEC-finance FC1, FCX4, T103)", () => {
     expect(posting && lines(posting)).toEqual([
       ["61933", 265_476n, 0n], // the generator's 2 254,76 and the scale's 400,00
       ["61934", 240_000n, 0n], // 12 months of 60: 2 400,00
-      ["2833", 0n, 265_476n],
+      ["28331", 0n, 40_000n], // the scale: an installation
+      ["28332", 0n, 225_476n], // the generator: equipment
       ["2834", 0n, 240_000n],
     ]);
   });
@@ -198,7 +199,7 @@ describe("the close run's depreciation (SPEC-finance FC1, FCX4, T103)", () => {
     const building = { cost: 2_400_000n, residual: 0n, lifeMonths: 240, inServiceOn: day("2026-01-05"), disposedOn: null, opening: null, category: "building" as const }; // 24 000,00 × 12 ÷ 240 = 1 200,00
     const vehicle = { cost: 1_200_000n, residual: 0n, lifeMonths: 60, inServiceOn: day("2026-01-10"), disposedOn: null, opening: null, category: "transport" as const };
     const posting = yearEndDepreciation([vehicle, building], day("2026-01-01"), 1);
-    expect(posting && lines(posting)).toEqual([["61932", 120_000n, 0n], ["61934", 240_000n, 0n], ["2832", 0n, 120_000n], ["2834", 0n, 240_000n]]);
+    expect(posting && lines(posting)).toEqual([["61932", 120_000n, 0n], ["61934", 240_000n, 0n], ["28321", 0n, 120_000n], ["2834", 0n, 240_000n]]);
     const sold = disposalPostings({ ...vehicle, label: "Camionnette", amount: 1_200_000n, disposedOn: day("2027-04-02") }, 0n, "cash", null, 1);
     expect(lines(sold[0]!.posting)).toEqual([["61934", 60_000n, 0n], ["2834", 0n, 60_000n]]); // January–March 2027
   });

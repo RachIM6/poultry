@@ -100,7 +100,7 @@ describe("home consumption on the sale forms (SPEC-finance FC7)", () => {
     expect(await statuses(worker, m(S.recordSale, { id: uuidv7(), batchId: ids.broilers, buyerId: ids.buyer, day: today, birds: 1, farmWeightGrams: 2000, buyerWeightGrams: null, pricePerKgCentimes: "1500", paymentMethod: "cash", paidCentimes: "0", instrument: null }))).toEqual(["errors.FORBIDDEN"]);
     expect((await db.sale.findUniqueOrThrow({ where: { id } })).amountCentimes).toBe(6000n); // 4 kg × 15,00, the last sale's
     const seen = (await pulled<SaleDto>(worker, "sale")).filter((s) => s.takenBy);
-    expect(seen.find((s) => s.id === id)).toEqual({ id, batchId: ids.broilers, buyerId: null, day: today, birds: 2, farmWeightGrams: 4_000, buyerWeightGrams: null, kind: "live", takenBy: "employee" });
+    expect(seen.find((s) => s.id === id)).toEqual({ id, batchId: ids.broilers, buyerId: null, day: today, birds: 2, farmWeightGrams: 4_000, buyerWeightGrams: null, kind: "live", takenBy: "employee", destination: null });
     expect(JSON.stringify(seen)).not.toMatch(/Centimes|paymentMethod|lines/);
   });
 

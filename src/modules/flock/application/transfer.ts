@@ -11,7 +11,7 @@ import { closeBatchOn } from "@/modules/flock/application/close-batch";
 import { Batch, canJoinHouse } from "@/modules/flock/domain/batch";
 import { EMPTY_DAY, mergeDay } from "@/modules/flock/domain/daily-entry";
 import { batchIdTaken, loadBatch, lockHouse, openInHouse, saveNewBatch } from "@/modules/flock/infrastructure/batches";
-import { findEntry, outOnOtherDays, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
+import { birdsOnHandBesides, findEntry, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
 import { TRANSFER_REASON, dailyEntryId, type TransferToLaying } from "@/modules/flock/schema";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
@@ -31,7 +31,7 @@ export async function transferToLaying(tx: Tx, ctx: TenantContext, cmd: z.infer<
 
   const entryId = dailyEntryId(cmd.batchId, cmd.day);
   const previous = (await findEntry(tx, ctx, entryId)) ?? EMPTY_DAY;
-  const onHand = pullets.birdsStarted - (await outOnOtherDays(tx, ctx, cmd.batchId, cmd.day)) - previous.dead - previous.culled;
+  const onHand = await birdsOnHandBesides(tx, ctx, pullets); // every day, the transfer day's entry (`previous`) included
   const checked = pullets.checkTransfer(day, cmd.hens, onHand, today);
   if (!checked.ok) return checked;
 

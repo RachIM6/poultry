@@ -8,8 +8,8 @@ import { farmRegistrySync } from "@/modules/farm-registry";
 import { FARM_MUTATIONS } from "@/modules/farm-registry/schema";
 import { flockSync, recordBirdsSold } from "@/modules/flock";
 import { FLOCK_MUTATIONS as F, type BatchDto } from "@/modules/flock/schema";
-import { closingTotals } from "@/modules/flock/infrastructure/batches";
-import { outOnOtherDays } from "@/modules/flock/infrastructure/daily-entries";
+import { closingTotals, loadBatch } from "@/modules/flock/infrastructure/batches";
+import { birdsOnHandBesides } from "@/modules/flock/infrastructure/daily-entries";
 import { inventorySync } from "@/modules/inventory";
 import { INVENTORY_MUTATIONS as I } from "@/modules/inventory/schema";
 import { twoTenants } from "@/test/tenant";
@@ -94,6 +94,10 @@ describe("closing a batch and its cost per kg (SPEC B6)", () => {
   it("sums only its own organisation's costs, sales and deaths (ADR-006)", async () => {
     const totals = await db.$transaction((tx) => Promise.all([closingTotals(tx, a, batch), closingTotals(tx, b, batch)]));
     expect(totals).toEqual([{ otherCentimes: 20_000n, soldGrams: 2_000_000 }, { otherCentimes: 0n, soldGrams: 0 }]);
-    expect(await db.$transaction((tx) => Promise.all([outOnOtherDays(tx, a, batch), outOnOtherDays(tx, b, batch)]))).toEqual([1000, 0]);
+    const onHand = await db.$transaction(async (tx) => {
+      const loaded = (await loadBatch(tx, a, batch))!; // 1 000 started, all sold
+      return Promise.all([birdsOnHandBesides(tx, a, loaded), birdsOnHandBesides(tx, b, loaded)]);
+    });
+    expect(onHand).toEqual([0, 1000]); // b sees none of a's sales
   });
 });

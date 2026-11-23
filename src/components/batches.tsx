@@ -9,7 +9,7 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import type { CleanoutDto, DowntimeSettingDto } from "@/modules/biosecurity/shared";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ageOn, birdsStarted, canJoinHouse, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { ageOn, birdsOnHand, birdsStarted, canJoinHouse, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { TreatmentDto, VaccinationDto, VetVisitDto } from "@/modules/health/shared";
 import type { EggCollectionDto } from "@/modules/eggs/shared";
 import type { StockItemDto } from "@/modules/inventory/shared";
@@ -99,8 +99,7 @@ function Batches(scope: Scope) {
   const entries = of<DailyEntryDto>("dailyEntry");
   const entriesOf = (batchId: string) => entries.filter((e) => e.batchId === batchId);
   const soldOf = (batchId: string) => of<SoldBirdsDto>("soldBirds").filter((s) => s.batchId === batchId);
-  const soldBirds = (batchId: string) => soldOf(batchId).reduce((n, s) => n + s.birds, 0); // B5
-  const onHand = (b: BatchDto) => birdsStarted(b) - soldBirds(b.id) - entriesOf(b.id).reduce((n, e) => n + e.dead + e.culled, 0);
+  const onHand = (b: BatchDto) => birdsOnHand(birdsStarted(b), entriesOf(b.id), soldOf(b.id)); // B5: sold count too
 
   // tasks/plan-ui.md U4: the 42-day strip on each card and on the batch page (Batch.dc.html).
   const vaccinationsOf = (batchId: string) => of<VaccinationDto>("vaccination").filter((v) => v.batchId === batchId);
@@ -201,7 +200,7 @@ function Batches(scope: Scope) {
         <DayForm
           batch={open}
           entries={entriesOf(open.id)}
-          soldBirds={soldBirds(open.id)}
+          sold={soldOf(open.id)}
           feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
           write={write}
         />

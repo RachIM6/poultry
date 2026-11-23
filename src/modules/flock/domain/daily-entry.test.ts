@@ -33,23 +33,23 @@ describe("Batch.checkDay (SPEC B2)", () => {
   const entry = { ...EMPTY_DAY, dead: 4, culled: 1 };
 
   it("accepts a day between placement and today, until the batch is closed", () => {
-    expect(batch.checkDay(day("2026-10-14"), entry, 0, today).ok).toBe(true);
-    expect(batch.checkDay(today, entry, 0, today).ok).toBe(true);
-    expect(Batch.rehydrate(placement, "closed").checkDay(today, entry, 0, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
-    expect(batch.checkDay(day("2026-10-13"), entry, 0, today)).toEqual({ ok: false, error: "DAY_BEFORE_PLACEMENT" });
-    expect(batch.checkDay(day("2026-11-07"), entry, 0, today)).toEqual({ ok: false, error: "DAY_IN_FUTURE" });
+    expect(batch.checkDay(day("2026-10-14"), entry, 990, today).ok).toBe(true);
+    expect(batch.checkDay(today, entry, 990, today).ok).toBe(true);
+    expect(Batch.rehydrate(placement, "closed").checkDay(today, entry, 990, today)).toEqual({ ok: false, error: "BATCH_CLOSED" });
+    expect(batch.checkDay(day("2026-10-13"), entry, 990, today)).toEqual({ ok: false, error: "DAY_BEFORE_PLACEMENT" });
+    expect(batch.checkDay(day("2026-11-07"), entry, 990, today)).toEqual({ ok: false, error: "DAY_IN_FUTURE" });
   });
 
   it("never takes out more birds than the batch has, counting the other days", () => {
-    // 1 000 placed − 10 dead on arrival = 990 started
-    expect(batch.checkDay(today, { ...EMPTY_DAY, dead: 5, culled: 0 }, 985, today).ok).toBe(true);
-    expect(batch.checkDay(today, { ...EMPTY_DAY, dead: 5, culled: 1 }, 985, today)).toEqual({ ok: false, error: "MORE_DEAD_THAN_ON_HAND" });
+    // 1 000 placed − 10 dead on arrival = 990 started; 985 out on the other days leaves 5 on hand
+    expect(batch.checkDay(today, { ...EMPTY_DAY, dead: 5, culled: 0 }, 5, today).ok).toBe(true);
+    expect(batch.checkDay(today, { ...EMPTY_DAY, dead: 5, culled: 1 }, 5, today)).toEqual({ ok: false, error: "MORE_DEAD_THAN_ON_HAND" });
   });
 
   it("refuses negative counts and an empty feed quantity", () => {
-    expect(batch.checkDay(today, { ...entry, dead: -1 }, 0, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
-    expect(batch.checkDay(today, { ...entry, waterMl: 1.5 }, 0, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
-    expect(batch.checkDay(today, { ...entry, feed: { ...feed, grams: 0 } }, 0, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(batch.checkDay(today, { ...entry, dead: -1 }, 990, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(batch.checkDay(today, { ...entry, waterMl: 1.5 }, 990, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    expect(batch.checkDay(today, { ...entry, feed: { ...feed, grams: 0 } }, 990, today)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
   });
 });
 

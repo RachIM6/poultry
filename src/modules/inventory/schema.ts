@@ -24,10 +24,11 @@ export const CreateStockItem = z.object({
   lowStockThreshold: z.int32().positive().nullable().default(null), // S6: base units; no alert when unset
 });
 export const SetThreshold = z.object({ stockItemId: z.uuid(), lowStockThreshold: z.int32().positive().nullable() });
-// The purchase and its stock movement are created together; both ids come from the device.
+// The purchase and its stock movement are created together; both ids come from the device. A phone's movement id is a
+// UUIDv7, never a UUIDv5 another organisation can compute ahead (the movement of a daily entry or a vaccination).
 export const RecordPurchase = z.object({
   id: z.uuid(),
-  movementId: z.uuid(),
+  movementId: z.uuidv7(),
   supplierId: z.uuid(),
   stockItemId: z.uuid(),
   day,
@@ -48,7 +49,7 @@ export const RecordSupplierPayment = z.object({
 });
 export const DebitIssued = z.object({ id: z.uuidv7(), instrumentId: z.uuid(), day }); // FN11: issued → debited
 export const AdjustStock = z.object({
-  id: z.uuid(),
+  id: z.uuidv7(), // the movement's, as in RecordPurchase
   stockItemId: z.uuid(),
   day,
   quantity: z.int32().refine((q) => q !== 0), // signed: + found, − lost

@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { db, SYNC_TX, type Tx } from "@/lib/db";
 import type { Result } from "@/lib/kernel/result";
 import { can, type Action } from "@/lib/permissions";
@@ -60,7 +61,21 @@ export async function push(ctx: TenantContext, mutations: PushedMutation[], regi
   return { results };
 }
 
+/**
+ * A uniqueness violation the handler didn't check for (poultry-ddd §5: a rejection, never a 500) rolls its transaction
+ * back. Tried once more, in case a concurrent write won a race the retry now sees; a second one is the mutation's own,
+ * so it is recorded as rejected instead of holding the phone's outbox forever.
+ */
 function applyOnce(ctx: TenantContext, m: PushedMutation, registry: SyncRegistry): Promise<MutationResult> {
+  const attempt = () => claimed(ctx, m, (tx) => decide(tx, ctx, m, registry));
+  return attempt()
+    .catch((error) => (isTakenKey(error) ? attempt() : Promise.reject(error)))
+    .catch((error) => (isTakenKey(error) ? claimed(ctx, m, async () => rejected("ALREADY_EXISTS")) : Promise.reject(error)));
+}
+
+const isTakenKey = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+
+function claimed(ctx: TenantContext, m: PushedMutation, decide: (tx: Tx) => Promise<MutationResult>): Promise<MutationResult> {
   return db.$transaction(async (tx) => {
     // Claims the id first: a concurrent push of the same id waits here until this one commits, then sees it.
     const claimed = await tx.$executeRaw`
@@ -72,7 +87,7 @@ function applyOnce(ctx: TenantContext, m: PushedMutation, registry: SyncRegistry
       // Another organisation's id: never replay its result (or reveal it), never apply.
       return done.organizationId === ctx.organizationId ? (done.result as MutationResult) : rejected("FORBIDDEN");
     }
-    const result = await decide(tx, ctx, m, registry);
+    const result = await decide(tx);
     await tx.mutation.update({ where: { id: m.id }, data: { result } });
     return result;
   }, SYNC_TX);

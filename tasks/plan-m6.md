@@ -59,7 +59,7 @@ T113 eggs at close           ← unblocked 22 Nov 2026 (finance → eggs approve
 T114 hens, simplified        ← FQ7; after T100
 T115 hens, classic           ← FQ7, FQ8; after T100
 T116 official statements     ← unblocked 23 Nov 2026 (FQ22 decided defaults, to review); done
-T117 bank statement import   ← real statement samples
+T117 bank statement import   ← unblocked 23 Nov 2026 (published formats, decided default, to review); done
 T118 accountant import       ← FQ10 (decided by default 2026-11-23)
 ```
 
@@ -319,9 +319,14 @@ It posts nothing. Freezing the count once the close run posts is T103's AC.
 **Size:** L
 
 ### T117: Bank statement import (FC9)
-**Blocked by:** real statement files from the pilot's banks. No format is assumed.
-**Description:** One importer per bank, with sample files as fixtures, feeding T111's matching.
-**Size:** M per bank
+**Blocked by:** nothing since 2026-11-23: the owner asked to build from the published formats, a decided default to review (SPEC-finance §9 "Bank statement import (T117)").
+**Description:** Import statement files onto a bank account on `/treasury/bank`, feeding T111's matching.
+**Size:** M
+**Note (2026-11-23):** studied in `docs/studies/bank-statement-formats.md`. Moroccan banks name MT940 (Attijariwafa, Crédit du Maroc, Bank of Africa), AMB 120 (unpublished) and CSV / XLS exports; none names camt.053 or CFONB 120. Built: MT940 from bank-published SWIFT implementations, and CSV with the owner's column mapping; no second file format. Preview, then import; idempotent (statement = account + end day, line = hash of what the bank printed); each imported line proposes the book line to tick. Fixtures are synthetic.
+**AC:**
+- [x] MT940 fixtures parse byte for byte: envelope and CRLF, several statements, a statement over two pages, :86: continuation lines, RC / RD, overdraft, entry date across the new year; opening + lines ≠ closing and other format errors refused with their line. CSV mapping: debit / credit and signed columns, quotes, thousands separators, date formats. Pairing with book lines. _`finance/bank-import.test.ts`._
+- [x] Import, preview, idempotency (same file, LF copy), conflicts refused whole, a CSV onto a statement typed by hand, file checks, permissions and tenants; ticking the proposed lines reconciles the statement. _`finance/bank-import.int.test.ts` (runs in CI)._
+- [ ] Checked against real statement files of the pilot's banks.
 
 ### T118: Accountant import format (FC10)
 **Blocked by:** nothing since 2026-11-23: FQ10 decided by default, to review.

@@ -985,8 +985,26 @@ model BankStatement {
   createdBy       String      @db.Uuid
   createdAt       DateTime    @default(now()) @db.Timestamptz
   matches         BankMatch[]
+  lines           BankStatementLine[]
 
   @@unique([treasuryId, endDay])
+  @@index([organizationId])
+}
+
+// Owner: finance. FC9, T117: a line of an imported statement file, as the bank printed it (signed: credit +, debit −).
+// Keyed by its statement (account + end day) and a hash of the line, so importing the same file again adds nothing.
+model BankStatementLine {
+  id             String        @id @db.Uuid
+  organizationId String        @db.Uuid
+  statementId    String        @db.Uuid
+  day            DateTime      @db.Date // farm day: the bank's booking date
+  amountCentimes BigInt
+  label          String
+  reference      String
+  hash           String
+  statement      BankStatement @relation(fields: [statementId], references: [id])
+
+  @@unique([statementId, hash])
   @@index([organizationId])
 }
 

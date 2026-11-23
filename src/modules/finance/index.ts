@@ -8,6 +8,7 @@ export { postPending } from "./application/posting";
 export { financeSync } from "./sync";
 export { attachExpenseReceipt, cashForecast, treasuryOverview, type TreasuryOverview } from "./application/treasury";
 export { addBankStatement, bankReconciliation, matchBankLine, type BankReconciliation } from "./application/bank";
+export { IMPORT_MAX_BYTES, importBankFile, type BankImport, type ImportFailure } from "./application/bank-import";
 export { batchResults, freezeClosedBatches, type BatchResultRow } from "./application/batch-results";
 export { budgetBases, budgetBatches, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";

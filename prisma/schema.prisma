@@ -648,6 +648,10 @@ model Treatment {
   // SPEC-m3 H7: eggs, for layer batches (required there, as entered, never a default); null elsewhere.
   eggWithdrawalDays   Int?
   eggWithdrawalEndsOn DateTime? @db.Date
+  // The register (arrêté 2126-05 art. 4): how it was given and the prescription's reference. Optional, as entered.
+  route            String? // drinkingWater | feed | injection | spray | eyeDrop | other
+  routeNote        String? // what "other" was
+  prescriptionRef  String? // e.g. the ordonnance's number
   recordedBy       String   @db.Uuid
   createdAt        DateTime @default(now()) @db.Timestamptz
 

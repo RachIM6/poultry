@@ -117,4 +117,30 @@ describe("treatments, withdrawal and vet visits (SPEC H3–H6, S4)", () => {
     expect(pulled).toMatchObject({ eggWithdrawalDays: 7, eggWithdrawalEndsOn: "2026-11-09" });
     await db.$transaction(async (tx) => expect(await eggWithdrawalWindowsOf(tx, a, layers)).toEqual([{ from: "2026-10-30", to: "2026-11-09" }]));
   });
+
+  it("the register (arrêté 2126-05 art. 4): route and prescription reference, optional, as entered; replayed once", async () => {
+    const given = treatment({ quantity: 100, route: "drinkingWater", prescriptionRef: "ORD-2026-118" });
+    const id = (given.payload as { id: string }).id;
+    expect(
+      await statuses(a, [
+        treatment({ quantity: 100, route: "other" }), // other says what
+        treatment({ quantity: 100, route: "feed", routeNote: "granulés" }), // a note only for other
+        treatment({ quantity: 100, route: "pill" }),
+        treatment({ quantity: 100, prescriptionRef: "x".repeat(61) }),
+      ]),
+    ).toEqual(Array(4).fill("INVALID_INPUT"));
+
+    const worker = { ...a, role: "worker" as const }; // every member records what was given (H3, I5)
+    expect(await statuses(worker, [given])).toEqual(["applied"]);
+    expect(await statuses(worker, [given])).toEqual(["applied"]); // the same mutation again: its stored result
+    expect(await db.treatment.count({ where: { id } })).toBe(1);
+    expect(await db.stockMovement.count({ where: { id } })).toBe(1);
+    expect(await db.auditEvent.findFirstOrThrow({ where: { entity: "Treatment", entityId: id } })).toMatchObject({ mutationId: given.id, after: { route: "drinkingWater", prescriptionRef: "ORD-2026-118" } });
+    expect((await pulled<TreatmentDto>(a, "treatment")).find((x) => x.id === id)).toMatchObject({ route: "drinkingWater", routeNote: null, prescriptionRef: "ORD-2026-118" });
+
+    const other = treatment({ quantity: 100, route: "other", routeNote: "au pinceau" });
+    expect(await statuses(a, [other])).toEqual(["applied"]);
+    expect(await db.treatment.findUniqueOrThrow({ where: { id: (other.payload as { id: string }).id } })).toMatchObject({ route: "other", routeNote: "au pinceau", prescriptionRef: null });
+    expect(await pulled(b, "treatment")).toEqual([]);
+  });
 });

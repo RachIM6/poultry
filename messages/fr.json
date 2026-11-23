@@ -631,7 +631,18 @@
     "withdrawalLine": "Délai d’attente {days} j : jusqu’au {date} inclus",
     "eggWithdrawal": "Œufs à retirer de la vente jusqu’au {date} inclus",
     "eggWithdrawalDays": "Délai d’attente œufs (jours)",
-    "eggWithdrawalLine": "Œufs retirés {days} jours, jusqu’au {date}"
+    "eggWithdrawalLine": "Œufs retirés {days} jours, jusqu’au {date}",
+    "prescriptionRef": "N° d’ordonnance (facultatif)",
+    "route": "Mode d’administration (facultatif)",
+    "routes": {
+      "drinkingWater": "Eau de boisson",
+      "spray": "Nébulisation",
+      "eyeDrop": "Goutte oculaire ou nasale",
+      "injection": "Injection",
+      "feed": "Aliment",
+      "other": "Autre"
+    },
+    "routeNote": "Précisez le mode d’administration"
   },
   "VetVisit": {
     "title": "Visites vétérinaires",

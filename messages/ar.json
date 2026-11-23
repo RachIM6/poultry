@@ -631,7 +631,18 @@
     "withdrawalLine": "مدة الانتظار {days} يوم: حتى {date} (ضمنه)",
     "eggWithdrawal": "البيض ممنوع من البيع حتى {date} ضمناً",
     "eggWithdrawalDays": "مدة سحب البيض (أيام)",
-    "eggWithdrawalLine": "سحب البيض {days} أيام، حتى {date}"
+    "eggWithdrawalLine": "سحب البيض {days} أيام، حتى {date}",
+    "prescriptionRef": "رقم الوصفة الطبية (اختياري)",
+    "route": "طريقة الإعطاء (اختياري)",
+    "routes": {
+      "drinkingWater": "ماء الشرب",
+      "spray": "الرش",
+      "eyeDrop": "قطرة في العين أو الأنف",
+      "injection": "الحقن",
+      "feed": "العلف",
+      "other": "أخرى"
+    },
+    "routeNote": "حدد طريقة الإعطاء"
   },
   "VetVisit": {
     "title": "زيارات الطبيب البيطري",

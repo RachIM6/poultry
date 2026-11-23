@@ -19,7 +19,7 @@ describe("5 M DH tracker: budgets linked to a batch (FN17, FQ32)", () => {
   const sale = (batchId: string, birds: number, grams: number) =>
     m("sales.recordSale", { id: uuidv7(), batchId, buyerId: ids.buyer, day: "2026-03-01", birds, farmWeightGrams: grams, buyerWeightGrams: null, pricePerKgCentimes: "1500", paymentMethod: "credit", paidCentimes: "0", instrument: null });
   // planned sales: plannedGrams × 15,00 DH/kg
-  const budget = (name: string, plannedGrams: string, batchId: string | null) => ({ name, basedOn: null, batchId, chicks: "1000", chickPriceCentimes: "550", feedGrams: "0", feedPricePerKgCentimes: "460", otherCostCentimes: "0", plannedGrams, salePricePerKgCentimes: "1500" });
+  const budget = (name: string, plannedGrams: string, batchId: string | null) => ({ id: uuidv7(), name, basedOn: null, batchId, chicks: "1000", chickPriceCentimes: "550", feedGrams: "0", feedPricePerKgCentimes: "460", otherCostCentimes: "0", plannedGrams, salePricePerKgCentimes: "1500" });
   const saved = async (ctx: TenantContext, input: unknown, createdAt: string) => {
     const r = await saveBudget(ctx, input);
     if (!r.ok) throw new Error(r.error);

@@ -31,7 +31,7 @@ export async function transferToLaying(tx: Tx, ctx: TenantContext, cmd: z.infer<
 
   const entryId = dailyEntryId(cmd.batchId, cmd.day);
   const previous = (await findEntry(tx, ctx, entryId)) ?? EMPTY_DAY;
-  const onHand = pullets.birdsStarted - (await outOnOtherDays(tx, cmd.batchId, cmd.day)) - previous.dead - previous.culled;
+  const onHand = pullets.birdsStarted - (await outOnOtherDays(tx, ctx, cmd.batchId, cmd.day)) - previous.dead - previous.culled;
   const checked = pullets.checkTransfer(day, cmd.hens, onHand, today);
   if (!checked.ok) return checked;
 

@@ -214,7 +214,7 @@ export async function payFixedAsset(ctx: TenantContext, input: unknown, clock: C
     if (!row) return fail("NOT_FOUND");
     if (row.paidWith !== "credit") return fail("INVALID_INPUT");
     const source = paymentSource(row.id, p.id);
-    if (await sourceAlreadyPosted(tx, { module: "finance", id: source, version: 1 })) return ok(undefined); // a retry
+    if (await sourceAlreadyPosted(tx, ctx, { module: "finance", id: source, version: 1 })) return ok(undefined); // a retry
     const amount = BigInt(p.amountCentimes);
     if (amount > (await owedOn(tx, ctx, [row.id])).get(row.id)!) return fail("PAID_MORE_THAN_OWED");
     const fits = await treasuryFits(tx, ctx, p.treasuryId, treasuryKindOf(p.paidWith));

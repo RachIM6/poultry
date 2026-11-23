@@ -109,8 +109,9 @@ export async function standingEntryFor(tx: Tx, ctx: TenantContext, module: strin
   return { id: e.id, journal: e.journal, day: dayOf(e.day), lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes, treasuryId: l.treasuryId })) };
 }
 
-export async function sourceAlreadyPosted(tx: Tx, source: { module: string; id: string; version: number }) {
-  return (await tx.journalEntry.count({ where: { sourceModule: source.module, sourceId: source.id, sourceVersion: source.version } })) > 0;
+export async function sourceAlreadyPosted(tx: Tx, ctx: TenantContext, source: { module: string; id: string; version: number }) {
+  const where = { organizationId: ctx.organizationId, sourceModule: source.module, sourceId: source.id, sourceVersion: source.version };
+  return (await tx.journalEntry.count({ where })) > 0;
 }
 
 /** FN7: a source record's highest version posted, 0 when none: its next version is this + 1. */

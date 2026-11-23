@@ -31,7 +31,7 @@ export async function recordDay(
   const previous = await findEntry(tx, ctx, id);
   const merged = mergeDay(previous, cmd.changes);
   const today = nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
-  const checked = batch.checkDay(cmd.day as FarmDay, merged, await outOnOtherDays(tx, cmd.batchId, cmd.day), today);
+  const checked = batch.checkDay(cmd.day as FarmDay, merged, await outOnOtherDays(tx, ctx, cmd.batchId, cmd.day), today);
   if (!checked.ok) return checked;
 
   if ("feed" in cmd.changes) {

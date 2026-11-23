@@ -18,7 +18,7 @@ export async function recordBirdsSold(tx: Tx, ctx: TenantContext, s: SoldBirdsDt
   const batch = await loadBatch(tx, ctx, s.batchId);
   if (!batch) return fail("NOT_FOUND");
   const today = nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
-  const out = await outOnOtherDays(tx, s.batchId);
+  const out = await outOnOtherDays(tx, ctx, s.batchId);
   const checked = batch.checkBirdsSold(s.day as FarmDay, s.birds, out, today);
   if (!checked.ok) return checked;
 

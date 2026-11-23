@@ -47,7 +47,7 @@ export async function postEntry(tx: Tx, ctx: TenantContext, e: EntryRow): Promis
   if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
   const entity = await legalEntityIn(tx, ctx, e.legalEntityId);
   if (!entity) return fail("NOT_FOUND");
-  if (e.source && (await sourceAlreadyPosted(tx, e.source))) return ok(undefined);
+  if (e.source && (await sourceAlreadyPosted(tx, ctx, e.source))) return ok(undefined);
   if ((await lockedMonths(tx, ctx, e.legalEntityId)).has(monthOf(e.day))) return fail("PERIOD_LOCKED");
   const { base, overlays } = entity.accountingProfile;
   const checked = checkEntry(e.lines, chartOf(await ledgerAccounts(tx), base, overlays));

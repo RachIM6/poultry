@@ -24,7 +24,7 @@ export async function closeBatchOn(tx: Tx, ctx: TenantContext, batch: Batch, day
   const closed = batch.close(day, todayOf(clock));
   if (!closed.ok) return closed;
   const p = batch.placement;
-  const [consumedCentimes, { otherCentimes, soldGrams }] = await Promise.all([batchConsumptionCost(tx, ctx, p.id), closingTotals(tx, p.id)]);
+  const [consumedCentimes, { otherCentimes, soldGrams }] = await Promise.all([batchConsumptionCost(tx, ctx, p.id), closingTotals(tx, ctx, p.id)]);
   const cost = batchCost({ chicksCentimes: BigInt(p.chicksPlaced) * p.chickUnitPriceCentimes, consumedCentimes, otherCentimes, soldGrams });
   const dto = await saveClosing(tx, batch, { closedOn: day, closeReason: reason, soldGrams, costCentimes: cost.totalCentimes, costPerKgCentimes: cost.perKgCentimes });
   await recordChange(tx, ctx, "batch", dto.id, dto);

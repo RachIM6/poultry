@@ -32,9 +32,10 @@ export async function findEntry(tx: Tx, ctx: TenantContext, id: string): Promise
 }
 
 /** Dead + culled on the batch's other days (all days without `day`), plus every bird sold (B5). */
-export async function outOnOtherDays(tx: Tx, batchId: string, day?: string): Promise<number> {
-  const sum = await tx.dailyEntry.aggregate({ where: { batchId, ...(day && { NOT: { day: date(day) } }) }, _sum: { dead: true, culled: true } });
-  const sold = await tx.soldBirds.aggregate({ where: { batchId }, _sum: { birds: true } });
+export async function outOnOtherDays(tx: Tx, ctx: TenantContext, batchId: string, day?: string): Promise<number> {
+  const where = { batchId, organizationId: ctx.organizationId };
+  const sum = await tx.dailyEntry.aggregate({ where: { ...where, ...(day && { NOT: { day: date(day) } }) }, _sum: { dead: true, culled: true } });
+  const sold = await tx.soldBirds.aggregate({ where, _sum: { birds: true } });
   return (sum._sum.dead ?? 0) + (sum._sum.culled ?? 0) + (sold._sum.birds ?? 0);
 }
 

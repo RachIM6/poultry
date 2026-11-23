@@ -7,6 +7,7 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { accountingSettings, changeAccountingChoices, openFiscalYear, postEntry, reverseEntry, setPeriodLocked, type EntryRow, type Line } from "@/modules/finance";
+import { sourceAlreadyPosted } from "@/modules/finance/infrastructure/ledger";
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant, twoTenants } from "@/test/tenant";
 
@@ -138,5 +139,8 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
     expect(await reverseEntry(b, entryOfA.id, d("2025-08-01"), "x")).toEqual({ ok: false, error: "NOT_FOUND" });
     expect(await setPeriodLocked(b, entityA, "2025-08", true)).toEqual({ ok: false, error: "NOT_FOUND" });
     expect(await post({ ...a, role: "worker" }, { day: d("2025-08-01") })).toEqual({ ok: false, error: "FORBIDDEN" });
+    const source = { module: "flock", id: uuidv7(), version: 1 };
+    expect(await post(a, { day: d("2027-02-03"), lines: [line("6121", 100n, 0n), line("4411", 0n, 100n)], source })).toEqual({ ok: true, value: undefined }); // PCA off since the test above
+    expect(await db.$transaction((tx) => Promise.all([sourceAlreadyPosted(tx, a, source), sourceAlreadyPosted(tx, b, source)]))).toEqual([true, false]);
   });
 });

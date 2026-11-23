@@ -8,7 +8,7 @@ export type { EggCategory, EggCounts, EggSample } from "@/modules/eggs/domain/co
 import type { EggCounts, EggSample } from "@/modules/eggs/domain/collection";
 
 export { AGE_BUCKETS, checkDiscard, checkGrading, drawFifo, eggLots, stockByAge, stockByItem } from "@/modules/eggs/domain/stock";
-export type { EggItem, Lot } from "@/modules/eggs/domain/stock";
+export type { DrawRefusal, EggItem, Lot } from "@/modules/eggs/domain/stock";
 import type { EggItem } from "@/modules/eggs/domain/stock";
 
 export { layerKpis } from "@/modules/eggs/domain/kpi";

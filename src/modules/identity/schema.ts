@@ -11,3 +11,4 @@ export const InviteMember = z
 export const ChangeRole = z.object({ membershipId: z.uuid(), role: z.enum(ROLES) });
 export const RemoveMember = z.object({ membershipId: z.uuid() });
 export const CancelInvitation = z.object({ invitationId: z.uuid() });
+export const SaveLocale = z.object({ locale: z.enum(["ar", "fr"]) }); // ADR-004: no Darija in v1

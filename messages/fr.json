@@ -664,6 +664,10 @@
     "buyerName": "Nom de l’acheteur",
     "buyerPhone": "Téléphone (facultatif)",
     "buyerType": "Type d’acheteur",
+    "buyerAddress": "Adresse de l’acheteur (facultatif)",
+    "destination": "Destination des oiseaux, si ce n’est pas l’acheteur (facultatif)",
+    "destinationName": "Ferme ou établissement",
+    "destinationAddress": "Adresse (facultatif)",
     "types": {
       "trader": "Négociant",
       "abattoir": "Abattoir",

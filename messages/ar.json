@@ -664,6 +664,10 @@
     "buyerName": "اسم المشتري",
     "buyerPhone": "الهاتف (اختياري)",
     "buyerType": "نوع المشتري",
+    "buyerAddress": "عنوان المشتري (اختياري)",
+    "destination": "وجهة الطيور، إذا لم تكن عند المشتري (اختياري)",
+    "destinationName": "الضيعة أو المؤسسة",
+    "destinationAddress": "العنوان (اختياري)",
     "types": {
       "trader": "تاجر",
       "abattoir": "مجزرة",

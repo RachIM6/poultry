@@ -16,11 +16,13 @@ import { formatMoney } from "@/lib/format";
 import { notify } from "@/modules/notifications";
 import { checkTransition } from "@/modules/sales/domain/instruments";
 import {
+  buyerAddress,
   buyerIdTaken,
   buyerLedger,
   approveSaleCredit,
   creditTerms,
   instrumentsWhere,
+  setBuyerAddress as saveBuyerAddress,
   setCreditLimit as saveCreditLimit,
   lockBuyer,
   ownBuyer,
@@ -44,6 +46,7 @@ import type {
   RecordPayment,
   RecordSale,
   SaleDto,
+  SetBuyerAddress,
   SetCreditLimit,
   SetInstrumentState,
   UnblockBuyer,
@@ -58,6 +61,16 @@ export async function createBuyer(tx: Tx, ctx: TenantContext, cmd: z.output<type
   await saveBuyer(tx, ctx, buyer);
   await recordChange(tx, ctx, "buyer", buyer.id, buyer);
   await audit(tx, ctx, { entity: "Buyer", entityId: buyer.id, action: "create", after: buyer, ...meta });
+  return ok(undefined);
+}
+
+/** The register (arrêté 2126-05 art. 4): a known buyer's address, set or corrected from the sale form. */
+export async function setBuyerAddress(tx: Tx, ctx: TenantContext, cmd: z.output<typeof SetBuyerAddress>, meta: Meta) {
+  const before = await buyerAddress(tx, ctx, cmd.buyerId);
+  if (!before) return fail("NOT_FOUND");
+  const buyer = await saveBuyerAddress(tx, ctx, cmd.buyerId, cmd.address);
+  await recordChange(tx, ctx, "buyer", buyer.id, buyer);
+  await audit(tx, ctx, { entity: "Buyer", entityId: buyer.id, action: "address", before, after: { address: cmd.address }, ...meta });
   return ok(undefined);
 }
 
@@ -150,6 +163,7 @@ export async function recordEggSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typ
     creditApproval: decided.value.creditApproval,
     kind: "eggs",
     takenBy: null,
+    destination: null,
     lines: lines.map((l) => ({ ...l, unitPriceCentimes: String(l.unitPriceCentimes), amountCentimes: String(eggLineAmount(l)) })),
   };
   await saveSale(tx, ctx, sale);
@@ -264,6 +278,7 @@ export async function recordHeadSale(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
     creditApproval: decided.value.creditApproval,
     kind: "perHead",
     takenBy: null,
+    destination: cmd.destination,
     lines: lines.map((l) => ({ item: l.item, eggs: l.birds, eggsPerTray: 1, unitPriceCentimes: String(l.pricePerHeadCentimes), amountCentimes: String(BigInt(l.birds) * l.pricePerHeadCentimes) })),
   };
   await saveSale(tx, ctx, sale);

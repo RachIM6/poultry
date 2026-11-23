@@ -166,6 +166,19 @@ function SaleForm({
   const amount = farmGrams !== null && pricePerKg !== null ? saleAmount(farmGrams, pricePerKg) : null;
   const gap = farmGrams !== null && buyerGrams !== null ? weighingGap(farmGrams, buyerGrams) : null;
   const withInstrument = method === "cheque" || method === "bill";
+  const buyer = buyers.find((b) => b.id === buyerId);
+
+  // The register (arrêté 2126-05 art. 4): the buyer's address, typed with a new buyer or set for a known one, and where
+  // the birds go when not to the buyer. Optional; an address without a name is refused.
+  const newBuyerOf = (get: (k: string) => string) =>
+    buyerId === "new" ? { id: uuidv7(), name: get("buyerName"), phone: get("buyerPhone") || null, type: get("buyerType") as BuyerDto["type"], address: get("buyerAddress") || null } : null;
+  const destinationOf = (get: (k: string) => string) => (get("destinationName") ? { name: get("destinationName"), address: get("destinationAddress") || null } : get("destinationAddress") ? undefined : null);
+  const saveBuyer = (newBuyer: ReturnType<typeof newBuyerOf>, get: (k: string) => string) => {
+    if (newBuyer) return write({ type: S.createBuyer, payload: newBuyer }, [{ entity: "buyer", id: newBuyer.id, data: newBuyer }]);
+    const address = get("buyerAddress") || null;
+    if (!buyer || address === (buyer.address ?? null)) return true;
+    return write({ type: S.setBuyerAddress, payload: { buyerId, address } }, [{ entity: "buyer", id: buyerId, data: { ...buyer, address } }]);
+  };
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -178,8 +191,9 @@ function SaleForm({
     if (vat === null) return setError("errors.INVALID_INPUT");
     if (perHead) return submitPerHead(day, paid, vat, get);
     const birds = /^\d+$/.test(get("birds")) ? Number(get("birds")) : NaN;
-    const newBuyer = buyerId === "new" ? { id: uuidv7(), name: get("buyerName"), phone: get("buyerPhone") || null, type: get("buyerType") as BuyerDto["type"] } : null;
-    if (farmGrams === null || pricePerKg === null || paid === null || (buyerKg && buyerGrams === null) || (newBuyer && !newBuyer.name)) return setError("errors.INVALID_INPUT");
+    const newBuyer = newBuyerOf(get);
+    const destination = destinationOf(get);
+    if (farmGrams === null || pricePerKg === null || paid === null || (buyerKg && buyerGrams === null) || (newBuyer && !newBuyer.name) || destination === undefined) return setError("errors.INVALID_INPUT");
     const instrument = withInstrument && get("instrumentNumber") && get("instrumentDueOn") ? { number: get("instrumentNumber"), dueOn: get("instrumentDueOn") } : null;
 
     // As the server: the withdrawal on the sale day (health's rule), the sale itself, then the birds on hand (flock).
@@ -193,7 +207,7 @@ function SaleForm({
     if (!birdsOk.ok) return setError(`errors.${birdsOk.error}`);
     setError(undefined);
 
-    if (newBuyer && !(await write({ type: S.createBuyer, payload: newBuyer }, [{ entity: "buyer", id: newBuyer.id, data: newBuyer }]))) return;
+    if (!(await saveBuyer(newBuyer, get))) return;
     const payload = {
       id: uuidv7(),
       batchId: batch.id,
@@ -207,6 +221,7 @@ function SaleForm({
       paidCentimes: String(paid),
       vatCentimes: String(vat),
       instrument,
+      destination,
     };
     const sale: SaleDto = { ...payload, amountCentimes: String(checked.value.amountCentimes) };
     const sold: SoldBirdsDto = { id: payload.id, batchId: batch.id, day, birds, liveWeightGrams: farmGrams };
@@ -221,8 +236,9 @@ function SaleForm({
   // SPEC-m3 V7: the same checks as the server: withdrawal, lines, birds on hand.
   const submitPerHead = async (day: FarmDay, paid: bigint | null, vat: bigint, get: (k: string) => string) => {
     const weighed = farmKg ? farmGrams : null;
-    const newBuyer = buyerId === "new" ? { id: uuidv7(), name: get("buyerName"), phone: get("buyerPhone") || null, type: get("buyerType") as BuyerDto["type"] } : null;
-    if (paid === null || (farmKg && weighed === null) || (newBuyer && !newBuyer.name)) return setError("errors.INVALID_INPUT");
+    const newBuyer = newBuyerOf(get);
+    const destination = destinationOf(get);
+    if (paid === null || (farmKg && weighed === null) || (newBuyer && !newBuyer.name) || destination === undefined) return setError("errors.INVALID_INPUT");
     const instrument = withInstrument && get("instrumentNumber") && get("instrumentDueOn") ? { number: get("instrumentNumber"), dueOn: get("instrumentDueOn") } : null;
     const checked = checkHeadSale(
       { lines: headLines, farmWeightGrams: weighed, paymentMethod: method, paidCentimes: paid, vatCentimes: vat, instrument },
@@ -235,9 +251,9 @@ function SaleForm({
     if (!birdsOk.ok) return setError(`errors.${birdsOk.error}`);
     setError(undefined);
 
-    if (newBuyer && !(await write({ type: S.createBuyer, payload: newBuyer }, [{ entity: "buyer", id: newBuyer.id, data: newBuyer }]))) return;
+    if (!(await saveBuyer(newBuyer, get))) return;
     const lines = headLines.map((l) => ({ item: l.item, birds: l.birds, pricePerHeadCentimes: String(l.pricePerHeadCentimes) }));
-    const payload = { id: uuidv7(), batchId: batch.id, buyerId: newBuyer?.id ?? buyerId, day, lines, farmWeightGrams: weighed, paymentMethod: method, paidCentimes: String(paid), vatCentimes: String(vat), instrument };
+    const payload = { id: uuidv7(), batchId: batch.id, buyerId: newBuyer?.id ?? buyerId, day, lines, farmWeightGrams: weighed, paymentMethod: method, paidCentimes: String(paid), vatCentimes: String(vat), instrument, destination };
     const sale: SaleDto = {
       ...payload,
       birds,
@@ -355,6 +371,20 @@ function SaleForm({
               </select>
             )}
           </Field>
+        </>
+      )}
+      {!takenBy && (
+        <>
+          <div className="col-span-2">
+            <Input key={buyerId} label={t("Sale.buyerAddress")} name="buyerAddress" defaultValue={buyer?.address ?? ""} maxLength={200} />
+          </div>
+          <details className="col-span-2">
+            <summary>{t("Sale.destination")}</summary>
+            <div className="mt-2 flex flex-col gap-2.5">
+              <Input label={t("Sale.destinationName")} name="destinationName" maxLength={120} />
+              <Input label={t("Sale.destinationAddress")} name="destinationAddress" maxLength={200} />
+            </div>
+          </details>
         </>
       )}
       <Input label={t("Sale.day")} name="day" type="date" defaultValue={today()} required />

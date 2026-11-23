@@ -11,9 +11,11 @@ import { twoTenants } from "@/test/tenant";
 import { unzip } from "@/test/unzip";
 
 const clock = fixedClock("2026-06-15T10:00:00Z");
-const line = (account: string, debit: string, credit: string) => ({ account, debit, credit });
+const line = (account: string, debit: string, credit: string, treasuryId?: string) => ({ account, debit, credit, treasuryId });
+const [bank, box] = [uuidv7(), uuidv7()]; // the owner's bank account and cash box (FN3)
+const bankLine = (debit: string, credit: string) => line("5141", debit, credit, bank);
 // The first year's opening balances, from the accountant's last balance sheet: a truck and the bank against the capital.
-const opening = [line("2340", "8000000", "0"), line("5141", "2000000", "0"), line("1111", "0", "10000000")];
+const opening = [line("2340", "8000000", "0"), bankLine("2000000", "0"), line("1111", "0", "10000000")];
 const entry = (more: object = {}) => ({ id: uuidv7(), day: "2026-01-01", label: "Soldes d’ouverture", piece: "Bilan 2025", lines: opening, ...more });
 
 describe("manual entries (SPEC-finance FCX3, FN3, T101)", () => {
@@ -26,6 +28,7 @@ describe("manual entries (SPEC-finance FCX3, FN3, T101)", () => {
     [owner, cashBook] = await twoTenants();
     entity = (await listLegalEntities(owner))[0].id;
     expect(await changeAccountingChoices(owner, entity, { books: "ledger", pcaOverlay: null, fiscalYearStartMonth: 1 })).toMatchObject({ ok: true });
+    await db.treasuryAccount.createMany({ data: [{ id: bank, organizationId: owner.organizationId, kind: "bank", name: "Banque" }, { id: box, organizationId: owner.organizationId, kind: "cash", name: "Caisse" }] });
   });
 
   it("posts a balanced entry on any leaf account once (OD, source finance:<id>), audited", async () => {
@@ -41,11 +44,11 @@ describe("manual entries (SPEC-finance FCX3, FN3, T101)", () => {
 
   it("refuses unbalanced, one-line and parent-account entries (FN4)", async () => {
     const refused = [
-      [[line("5141", "10000", "0"), line("1111", "0", "9999")], "UNBALANCED"],
-      [[line("5141", "10000", "0")], "TOO_FEW_LINES"],
+      [[bankLine("10000", "0"), line("1111", "0", "9999")], "UNBALANCED"],
+      [[bankLine("10000", "0")], "TOO_FEW_LINES"],
       [[line("2321", "10000", "0"), line("1111", "0", "10000")], "UNKNOWN_ACCOUNT"], // 2321 Bâtiments has sub-accounts
       [[line("5999", "10000", "0"), line("1111", "0", "10000")], "UNKNOWN_ACCOUNT"], // no such account
-      [[line("5141", "10000", "10000"), line("1111", "0", "0")], "ONE_SIDE_PER_LINE"],
+      [[bankLine("10000", "10000"), line("1111", "0", "0")], "ONE_SIDE_PER_LINE"],
     ] as const;
     for (const [lines, error] of refused) {
       const e = entry({ lines });
@@ -55,6 +58,28 @@ describe("manual entries (SPEC-finance FCX3, FN3, T101)", () => {
     }
     expect(await postManualEntry(owner, entry({ label: " " }), clock)).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(await postManualEntry(owner, entry({ day: "2026-06-17" }), clock)).toEqual({ ok: false, error: "DAY_IN_FUTURE" });
+  });
+
+  it("names the bank account of a 5141 line and the cash box of a 5161 line, and stores it on the line (FN3)", async () => {
+    const other = uuidv7();
+    await db.treasuryAccount.create({ data: { id: other, organizationId: cashBook.organizationId, kind: "bank", name: "Autre" } });
+    const refused = [
+      [[line("5141", "10000", "0"), line("1111", "0", "10000")], "TREASURY_ACCOUNT_REQUIRED"],
+      [[line("5161", "10000", "0"), line("1111", "0", "10000")], "TREASURY_ACCOUNT_REQUIRED"],
+      [[line("5141", "10000", "0", box), line("1111", "0", "10000")], "TREASURY_ACCOUNT_MISMATCH"], // a cash box on the bank
+      [[line("5161", "10000", "0", bank), line("1111", "0", "10000")], "TREASURY_ACCOUNT_MISMATCH"],
+      [[line("5141", "10000", "0", other), line("1111", "0", "10000")], "NOT_FOUND"], // another organisation's
+      [[bankLine("10000", "0"), line("1111", "0", "10000", bank)], "INVALID_INPUT"], // 1111 moves no bank account
+    ] as const;
+    for (const [lines, error] of refused) {
+      const e = entry({ lines });
+      expect(await postManualEntry(owner, e, clock), error).toEqual({ ok: false, error });
+      expect(await posted(e.id)).toBe(0);
+    }
+    const e = entry({ day: "2026-06-01", lines: [line("5161", "50000", "0", box), line("1111", "0", "50000")] });
+    expect(await postManualEntry(owner, e, clock)).toEqual({ ok: true, value: undefined });
+    const lines = await db.journalLine.findMany({ where: { entryId: e.id }, orderBy: { account: "asc" } });
+    expect(lines.map((l) => [l.account, l.treasuryId])).toEqual([["1111", null], ["5161", box]]);
   });
 
   it("is the owner's: manager, accountant and worker are refused; the accountant reads the entry on /books", async () => {

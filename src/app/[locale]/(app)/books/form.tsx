@@ -8,18 +8,21 @@ import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
 import { field, primary, secondary } from "@/components/ui";
+import { treasuryKindOfAccount, type TreasuryAccountDto } from "@/modules/finance/shared";
 import { postManualEntryAction, type PostState } from "./actions";
 
 /**
  * SPEC-finance FCX3: the owner's manual entry, with a live Σdebit − Σcredit. The accounts come from the server-rendered
  * <datalist id={accounts}>, not from this bundle. The id is made once per entry, so sending it again posts nothing twice.
+ * FN3: a line on 5141 or 5161 names the bank account or cash box it moves.
  */
-export function ManualEntryForm({ today, accounts, blocked }: { today: string; accounts: string; blocked: boolean }) {
+export function ManualEntryForm({ today, accounts, treasuries, blocked }: { today: string; accounts: string; treasuries: TreasuryAccountDto[]; blocked: boolean }) {
   const t = useTranslations();
   const router = useRouter();
   const [id, setId] = useState(() => uuidv7());
   const [rows, setRows] = useState(2);
   const [diff, setDiff] = useState(0n);
+  const [typed, setTyped] = useState<string[]>([]); // each row's account, for its bank account or cash box
   const [state, setState] = useState<PostState>({});
   const [pending, startTransition] = useTransition();
 
@@ -27,6 +30,7 @@ export function ManualEntryForm({ today, accounts, blocked }: { today: string; a
     const data = new FormData(form);
     const total = (k: string) => data.getAll(k).reduce((s: bigint, v) => s + (parseCentimes(String(v)) ?? 0n), 0n);
     setDiff(total("debit") - total("credit"));
+    setTyped(data.getAll("account").map((v) => String(v).trim()));
   };
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -52,6 +56,7 @@ export function ManualEntryForm({ today, accounts, blocked }: { today: string; a
       setId(uuidv7());
       setRows(2);
       setDiff(0n);
+      setTyped([]);
     });
   };
 
@@ -81,6 +86,7 @@ export function ManualEntryForm({ today, accounts, blocked }: { today: string; a
             <input name="account" list={accounts} aria-label={t("Books.lineAccount", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
             <input name="debit" inputMode="decimal" aria-label={t("Books.lineDebit", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
             <input name="credit" inputMode="decimal" aria-label={t("Books.lineCredit", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
+            <TreasurySelect kind={treasuryKindOfAccount(typed[i] ?? "")} row={i} treasuries={treasuries} />
           </div>
         ))}
         <button type="button" onClick={() => setRows((r) => r + 1)} className={secondary}>{t("Books.addLine")}</button>
@@ -100,5 +106,19 @@ export function ManualEntryForm({ today, accounts, blocked }: { today: string; a
         <button type="submit" disabled={pending} className={primary}>{t("Books.manualPost")}</button>
       </fieldset>
     </form>
+  );
+}
+
+/** FN3: the bank account (5141) or cash box (5161) of one line, sent as `treasury-<row>`; none for other accounts. */
+function TreasurySelect({ kind, row, treasuries }: { kind: TreasuryAccountDto["kind"] | null; row: number; treasuries: TreasuryAccountDto[] }) {
+  const t = useTranslations();
+  if (!kind) return null;
+  const options = treasuries.filter((a) => a.kind === kind);
+  if (options.length === 0) return <p className="col-span-3 text-sm text-brick-fg">{t("Books.treasuryNone")}</p>;
+  return (
+    <select name={`treasury-${row}`} required defaultValue="" aria-label={t("Books.lineTreasury", { n: row + 1 })} className={`${field} col-span-3`}>
+      <option value="" disabled>{t(kind === "bank" ? "Books.treasuryBank" : "Books.treasuryCash")}</option>
+      {options.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+    </select>
   );
 }

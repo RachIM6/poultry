@@ -20,7 +20,7 @@ export async function postManualEntryAction(form: FormData): Promise<PostState> 
     if (!account && !debits[i] && !credits[i]) continue; // a row left empty
     const [debit, credit] = [debits[i], credits[i]].map((a) => (a ? parseCentimes(a) : 0n));
     if (debit === null || credit === null) return { messageKey: "errors.INVALID_INPUT" };
-    lines.push({ account, debit: String(debit), credit: String(credit) });
+    lines.push({ account, debit: String(debit), credit: String(credit), treasuryId: form.get(`treasury-${i}`) || null }); // FN3: on 5141 / 5161
   }
   const day = String(form.get("day") ?? "");
   const posted = await postManualEntry(ctx.value, { id: form.get("id"), day, label: form.get("label"), piece: form.get("piece"), lines });

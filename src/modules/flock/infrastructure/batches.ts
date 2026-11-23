@@ -164,8 +164,8 @@ export async function batchInHouseOn(tx: Tx, ctx: TenantContext, houseId: string
   return r && { productionType: r.species, age: ageOfBatch({ placedOn: r.placedOn.toISOString().slice(0, 10), ageAtPlacementDays: r.ageAtPlacementDays }, day as FarmDay) };
 }
 
-/** For finance's export (SPEC-finance FN18): each batch's farm, house and placement day, by id. */
+/** For finance's export (SPEC-finance FN18): each batch's farm, house, placement day and type (FC6), by id. */
 export async function batchPlaces(tx: Tx, ctx: TenantContext, ids: string[]) {
-  const rows = await tx.batch.findMany({ where: { organizationId: ctx.organizationId, id: { in: ids } }, select: { id: true, farmId: true, houseId: true, placedOn: true } });
-  return new Map(rows.map((r) => [r.id, { farmId: r.farmId, houseId: r.houseId, placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay }]));
+  const rows = await tx.batch.findMany({ where: { organizationId: ctx.organizationId, id: { in: ids } }, select: { id: true, farmId: true, houseId: true, placedOn: true, species: true } });
+  return new Map(rows.map((r) => [r.id, { farmId: r.farmId, houseId: r.houseId, placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay, species: r.species as ProductionType }]));
 }

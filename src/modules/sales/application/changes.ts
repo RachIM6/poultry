@@ -8,8 +8,9 @@ import type { InstrumentStatusDto, PaymentDto, SaleDto, Taker } from "@/modules/
 // For finance (SPEC-finance FN7): sales records changed after `after` (this organisation's change-log version), oldest
 // first, as the facts finance posts. Amounts in centimes.
 
-// takenBy: a home consumption (SPEC-finance FC7), posted by its own rule; null for a sale
-export type SaleChange = { version: bigint; id: string; day: FarmDay; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint; method: string; kind: "live" | "eggs" | "perHead"; takenBy: Taker | null };
+// takenBy: a home consumption (SPEC-finance FC7), posted by its own rule; null for a sale. batchId: SPEC-finance FC6
+// (culled hens of a laying flock).
+export type SaleChange = { version: bigint; id: string; batchId: string; day: FarmDay; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint; method: string; kind: "live" | "eggs" | "perHead"; takenBy: Taker | null };
 export type PaymentChange = { version: bigint; id: string; day: FarmDay; amountCentimes: bigint; method: string };
 export type InstrumentStep = { version: bigint; id: string; day: FarmDay; kind: InstrumentKind; from: InstrumentState; to: InstrumentStatusDto["state"]; amountCentimes: bigint };
 
@@ -19,7 +20,7 @@ const changes = async (tx: Tx, ctx: TenantContext, entity: string, after: bigint
 export async function salesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<SaleChange[]> {
   return (await changes(tx, ctx, "sale", after, limit)).map((c) => {
     const s = c.data as unknown as SaleDto & Required<Omit<SaleDto, "vatCentimes">>; // vatCentimes: absent before T39
-    return { version: c.version, id: s.id, day: s.day as FarmDay, amountCentimes: BigInt(s.amountCentimes), paidCentimes: BigInt(s.paidCentimes), vatCentimes: BigInt(s.vatCentimes ?? 0), method: s.paymentMethod, kind: s.kind ?? "live", takenBy: s.takenBy ?? null };
+    return { version: c.version, id: s.id, batchId: s.batchId, day: s.day as FarmDay, amountCentimes: BigInt(s.amountCentimes), paidCentimes: BigInt(s.paidCentimes), vatCentimes: BigInt(s.vatCentimes ?? 0), method: s.paymentMethod, kind: s.kind ?? "live", takenBy: s.takenBy ?? null };
   });
 }
 

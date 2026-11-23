@@ -1,0 +1,2 @@
+# Fixtures are compared byte for byte: keep their CRLF and encoding as written.
+* -text

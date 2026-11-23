@@ -339,7 +339,12 @@ With the PCA off, 612412 lands on 61241 Variation des stocks de Matières Premi�
     - book the lines on the statement but not in the books where they belong: bank fees through a new quick-expense category "Frais bancaires", D 6147 Services bancaires / C 5141, `BQ` (T119); the rest through its own form or a manual entry (FCX3).
     - The screen shows the statement balance, the book balance on the end day, the unticked book lines and the difference. The account is "rapproché" when the difference is 0.
     - A tick is audited, and can be undone until its month is locked.
-  - **Statement import, blocked:** no bank file format is assumed. It waits for real statement samples from the pilot's banks (T117).
+  - **Statement import** (T117; decided default, to review, §9 "Bank statement import (T117)"), on the same screen, by the owner or a manager:
+    - **MT940** (SWIFT customer statement), the one format both offered by Moroccan banks (Attijariwafa, Crédit du Maroc, Bank of Africa) and published field by field; **CSV** exports read with the owner's column mapping (separator, header lines, date column and format, label, a signed amount or a debit and a credit column, decimal comma), for banks that only give spreadsheets. No second file format: AMB 120 is offered but unpublished; CFONB 120 and camt.053 aren't offered by the banks found. Study and sources: `docs/studies/bank-statement-formats.md`.
+    - A preview first, nothing saved; then each statement in the file becomes the account's statement of its end day (created, or one typed by hand with the same closing balance), and its lines are stored as printed. MT940: opening + Σ lines = closing on every page, MAD only, one account per file. CSV: the owner types the end day and closing balance.
+    - Idempotent: a line is keyed by its statement and a hash of what the bank printed (with its rank among identical lines), so the same file again adds nothing; a file contradicting a statement already there is refused whole.
+    - Each imported line is shown with the book line of the same amount it pairs with (ticked on this statement, else the nearest one still to tick, up to the end day), or "absente des livres". The owner ticks it (above); nothing is ticked automatically.
+    - The file is untrusted: 512 KB at most, a text extension, no binary, UTF-8 or Windows-1252, parsed field by field, never executed.
   - **Out of scope:** automatic matching rules, cash-box counts.
 - **FC10. Accountant import format** (FQ10; T118; decided default, to review). A `ledger` entity's month also downloads as a FEC, the "fichier des écritures comptables" of article A47 A-1 of the French LPF: the only journal-entry file found with a published specification, imported by EBP (Morocco edition) and Sage 100 (template seen in its French edition), and documented by Cegid. Its 18 fields are, in the same order, those of the Moroccan FEC of CNC avis n° 24 (2023), which fixes no technical format. Tab-separated, UTF-8 without BOM, CRLF, field names on the first line, dates `AAAAMMJJ`, decimal comma; FN18's party, farm, house and batch follow the 18 fields; named `FECAAAAMMJJ.txt` (the month's last day). Study, sources and every field choice: `docs/studies/accountant-import-format.md`. A vendor-specific format waits for a published specification.
 
@@ -485,6 +490,16 @@ Decided from the official texts on the owner's instruction (2026-11-23), built o
 - **FQ7c. Yes: at the transfer to lay, 23962 is cleared into 23711.** An asset in progress on 239 is cleared to its asset account on completion (p. 90).
 - **FQ8. Removal at the cull: D 28371 (accumulated) + D 6187 (net book value) / C 23711 (gross).** 6187 records "la valeur nette comptable restante au moment de la cession des animaux reproducteurs" (p. 123), next to 7187 for the price (p. 132); never 6513 for a cull. A whole flock lost without a sale: the net book value goes to 6513 (CGNC p. 147). A partial cull removes the culled share of the gross and of the accumulated depreciation. A provision on 2937, if any, is reversed D 2937 / C 7194 on the cull day.
 - The entries of both methods are in §5 FC6.
+
+### Bank statement import (T117): decided default, to review (2026-11-23)
+
+The owner asked (2026-11-23) not to wait for the pilot's statement files: study the published formats, build, list the choices here. Study, sources (URLs, read 2026-11-23) and every reading choice: `docs/studies/bank-statement-formats.md`.
+
+- **MT940 built**, from bank-published implementations of the SWIFT standard (ING format description v6.0, 1 Aug 2023; Citi Handlowy MT940 export guide, 25 Jan 2023); SWIFT's own handbook is behind a login. Offered by Attijariwafa (SWIFT, EBICS), Crédit du Maroc (e-Corporate download) and Bank of Africa (Trans Doc).
+- **No second format.** AMB 120 (Attijariwafa, Crédit du Maroc) has no published specification; it may be CFONB 120, but no source says so. camt.053 and CFONB 120 are offered by no Moroccan bank found. To do when a bank gives its AMB 120 specification.
+- **CSV with the owner's mapping**, no bank layout assumed. XLS isn't read: saved as CSV first.
+- **Reading:** 20YY years; the booking (entry) date when given, else the value date; C / RD +, D / RC −, a D balance negative; MAD only, 2 decimals; each page balances; pages joined; one account per file; the statement is the account's statement of the closing day (T111's key), and a CSV's end day and closing balance are typed by the owner.
+- **Fixtures are synthetic** (`src/modules/finance/fixtures/bank/`): to check against the pilot's first real files (their :86: layout, entry dates).
 
 ### Official statements (T116): decided defaults, to review (FQ22, 2026-11-23)
 

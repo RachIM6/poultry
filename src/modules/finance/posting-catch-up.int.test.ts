@@ -3,9 +3,10 @@ import { v7 as uuidv7 } from "uuid";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
-import { push } from "@/lib/sync/server";
+import { push, recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { batchResults, catchUpBooks, officialStatements, postAllPending, postPending, readBooks, treasuryOverview } from "@/modules/finance";
+import { pendingOrganizations } from "@/modules/finance/infrastructure/ledger";
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant, twoTenants } from "@/test/tenant";
 
@@ -126,5 +127,29 @@ describe("postings catch up without a new push (SPEC-finance FN7, §9 \"Postings
     for (const id of ids) expect(await entriesOf(id)).toHaveLength(1);
     expect(await db.journalEntry.count({ where: { organizationId: c.organizationId } })).toBe(3); // no reversal either
     expect(errors).not.toHaveBeenCalled();
+  });
+
+  it("leaves an organisation pending no more when its read drops its last changes", async () => {
+    const d = await tenant("+212600000004");
+    await setUp(d);
+    const id = await purchase(d);
+    // a received cheque's step and an issued debit whose cheque isn't found: their reads drop them
+    await db.$transaction(async (tx) => {
+      await recordChange(tx, d, "instrumentStatus", uuidv7(), { id: uuidv7(), instrumentId: uuidv7(), state: "cashed", day: "2026-03-03" });
+      await recordChange(tx, d, "issuedDebit", uuidv7(), { id: uuidv7(), instrumentId: uuidv7(), day: "2026-03-03" });
+    });
+    const sources = [
+      { name: "inventory.purchase", entity: "purchase" },
+      { name: "sales.instrument", entity: "instrumentStatus" },
+      { name: "inventory.issuedDebit", entity: "issuedDebit" },
+    ];
+    expect(await pendingOrganizations(db, sources, 1, d.organizationId)).toEqual([d.organizationId]);
+
+    expect(await postPending(d)).toBe(1); // the purchase; the dropped changes post nothing
+    expect(await entriesOf(id)).toHaveLength(1);
+    expect(await pendingOrganizations(db, sources, 1, d.organizationId)).toEqual([]);
+    const { version } = await db.syncVersion.findUniqueOrThrow({ where: { organizationId: d.organizationId } });
+    const cursors = await db.postingCursor.findMany({ where: { organizationId: d.organizationId, source: { in: ["sales.instrument", "inventory.issuedDebit"] } } });
+    expect(Object.fromEntries(cursors.map((c) => [c.source, c.version]))).toEqual({ "sales.instrument": version - 1n, "inventory.issuedDebit": version });
   });
 });

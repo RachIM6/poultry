@@ -6,7 +6,8 @@ import { instrumentsWhere } from "@/modules/sales/infrastructure/sales";
 import type { InstrumentStatusDto, PaymentDto, SaleDto, Taker } from "@/modules/sales/shared";
 
 // For finance (SPEC-finance FN7): sales records changed after `after` (this organisation's change-log version), oldest
-// first, as the facts finance posts. Amounts in centimes.
+// first, as the facts finance posts, with `readTo`: the last version read (deletions and dropped changes included), where
+// finance's cursor moves (§9 "Postings catch up"). Amounts in centimes.
 
 // takenBy: a home consumption (SPEC-finance FC7), posted by its own rule; null for a sale. batchId: SPEC-finance FC6
 // (culled hens of a laying flock).
@@ -14,26 +15,32 @@ export type SaleChange = { version: bigint; id: string; batchId: string; day: Fa
 export type PaymentChange = { version: bigint; id: string; day: FarmDay; amountCentimes: bigint; method: string };
 export type InstrumentStep = { version: bigint; id: string; day: FarmDay; kind: InstrumentKind; from: InstrumentState; to: InstrumentStatusDto["state"]; amountCentimes: bigint };
 
-const changes = async (tx: Tx, ctx: TenantContext, entity: string, after: bigint, limit: number) =>
-  (await tx.change.findMany({ where: { organizationId: ctx.organizationId, entity, version: { gt: after } }, orderBy: { version: "asc" }, take: limit })).filter((c) => c.data !== null);
+const changes = async (tx: Tx, ctx: TenantContext, entity: string, after: bigint, limit: number) => {
+  const all = await tx.change.findMany({ where: { organizationId: ctx.organizationId, entity, version: { gt: after } }, orderBy: { version: "asc" }, take: limit });
+  return { rows: all.filter((c) => c.data !== null), readTo: all.at(-1)?.version ?? after };
+};
 
-export async function salesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<SaleChange[]> {
-  return (await changes(tx, ctx, "sale", after, limit)).map((c) => {
+export async function salesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: SaleChange[]; readTo: bigint }> {
+  const { rows, readTo } = await changes(tx, ctx, "sale", after, limit);
+  const items = rows.map((c) => {
     const s = c.data as unknown as SaleDto & Required<Omit<SaleDto, "vatCentimes">>; // vatCentimes: absent before T39
     return { version: c.version, id: s.id, batchId: s.batchId, day: s.day as FarmDay, amountCentimes: BigInt(s.amountCentimes), paidCentimes: BigInt(s.paidCentimes), vatCentimes: BigInt(s.vatCentimes ?? 0), method: s.paymentMethod, kind: s.kind ?? "live", takenBy: s.takenBy ?? null };
   });
+  return { items, readTo };
 }
 
-export async function paymentsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<PaymentChange[]> {
-  return (await changes(tx, ctx, "buyerPayment", after, limit)).map((c) => {
+export async function paymentsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: PaymentChange[]; readTo: bigint }> {
+  const { rows, readTo } = await changes(tx, ctx, "buyerPayment", after, limit);
+  const items = rows.map((c) => {
     const p = c.data as unknown as PaymentDto;
     return { version: c.version, id: p.id, day: p.day as FarmDay, amountCentimes: BigInt(p.amountCentimes), method: p.method };
   });
+  return { items, readTo };
 }
 
 /** FN11: each step of a received cheque or bill, with the state it left (it decides the account credited). */
-export async function instrumentStepsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<InstrumentStep[]> {
-  const rows = await changes(tx, ctx, "instrumentStatus", after, limit);
+export async function instrumentStepsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: InstrumentStep[]; readTo: bigint }> {
+  const { rows, readTo } = await changes(tx, ctx, "instrumentStatus", after, limit);
   const steps = rows.map((c) => ({ version: c.version, s: c.data as unknown as InstrumentStatusDto }));
   const ids = [...new Set(steps.map((x) => x.s.instrumentId))];
   const where = { organizationId: ctx.organizationId, id: { in: ids } };
@@ -46,12 +53,13 @@ export async function instrumentStepsChangedSince(tx: Tx, ctx: TenantContext, af
     ...sales.map((s) => [s.id, { kind: s.paymentMethod as InstrumentKind, amount: s.paidCentimes }] as const),
     ...payments.map((p) => [p.id, { kind: p.method as InstrumentKind, amount: p.amountCentimes }] as const),
   ]);
-  return steps.flatMap(({ version, s }) => {
+  const items = steps.flatMap(({ version, s }) => {
     const i = instrument.get(s.instrumentId);
     if (!i) return [];
     const before = all.filter((x) => x.instrumentId === s.instrumentId && x.id < s.id).sort((x, y) => x.id.localeCompare(y.id)).at(-1);
     return [{ version, id: s.id, day: s.day as FarmDay, kind: i.kind, from: (before?.state ?? "in_portfolio") as InstrumentState, to: s.state, amountCentimes: i.amount }];
   });
+  return { items, readTo };
 }
 
 /** For finance (SPEC-finance FN13): what each batch's sales came to, in centimes (the farm-weight amount); `asOf` (FC4): up to that day. */

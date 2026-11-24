@@ -148,7 +148,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
         {batches.map(({ b, age, days, birds, house, strain, weight, figure, missing }) => (
           <Link key={b.id} href={{ pathname: "/batches", hash: b.id }} className="flex flex-col gap-3">
             <span className="flex items-baseline justify-between gap-3">
-              <span className="text-lg font-semibold">{house} · {strain}</span>
+              <span className="text-lg font-semibold"><bdi>{house}</bdi> · <bdi>{strain}</bdi></span>
               {farming && <span className="text-[15px] text-sand">{t("Today.birds", { count: formatCount(birds) })}</span>}
             </span>
             {farming && <BatchStrip days={days} onDark label={t("Today.stripLabel", { day: String(age), missing: String(missing.length) })} />}

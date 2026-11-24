@@ -20,6 +20,7 @@ export { attachManualEntryReceipt, postManualEntry, type ManualEntryError } from
 export type { IncomeStatement } from "./domain/statements";
 export { officialStatements, type OfficialStatements } from "./application/statements";
 export { chartView } from "./application/chart";
+export { postingOverrides, setPostingOverride, type PostingOverrides } from "./application/overrides";
 export { exportBooks, exportFec } from "./application/export";
 export { batchOf } from "./domain/export";
 export { alertThresholdOnce, thresholdTracker, type ThresholdTracker } from "./application/threshold";

@@ -109,6 +109,12 @@ export async function standingEntryFor(tx: Tx, ctx: TenantContext, module: strin
   return { id: e.id, journal: e.journal, day: dayOf(e.day), lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes, treasuryId: l.treasuryId })) };
 }
 
+/** FN8: when a source record's first entry was posted, null if never. */
+export async function firstPostedAt(tx: Tx, ctx: TenantContext, module: string, sourceId: string): Promise<Date | null> {
+  const e = await tx.journalEntry.findFirst({ where: { organizationId: ctx.organizationId, sourceModule: module, sourceId }, orderBy: { sourceVersion: "asc" }, select: { createdAt: true } });
+  return e?.createdAt ?? null;
+}
+
 export async function sourceAlreadyPosted(tx: Tx, ctx: TenantContext, source: { module: string; id: string; version: number }) {
   const where = { organizationId: ctx.organizationId, sourceModule: source.module, sourceId: source.id, sourceVersion: source.version };
   return (await tx.journalEntry.count({ where })) > 0;

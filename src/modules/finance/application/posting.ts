@@ -12,11 +12,12 @@ import { freezeClosedBatches } from "@/modules/finance/application/batch-results
 import { layEvents } from "@/modules/finance/application/hens";
 import { alertThresholdOnce } from "@/modules/finance/application/threshold";
 import { postEntry } from "@/modules/finance/application/ledger";
+import { overridesFor } from "@/modules/finance/application/overrides";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { hensMethodOf } from "@/modules/finance/domain/hens";
 import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
 import { inChart, postingOf, samePosting, unpostedConsumption, type FarmEvent } from "@/modules/finance/domain/posting";
-import { ledgerAccounts, lockCursor, lockedMonths, moveCursor, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
+import { firstPostedAt, ledgerAccounts, lockCursor, lockedMonths, moveCursor, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 
 type Change = { version: bigint; event: FarmEvent };
 type Source = { name: string; module: string; read: (tx: Tx, ctx: TenantContext, after: bigint, entity: LegalEntityDto) => Promise<Change[]> };
@@ -148,6 +149,7 @@ export async function postPending(pusher: TenantContext): Promise<number> {
       const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
       const everything = chartOf(all, "cgnc", ["pca"]);
       const locked = await lockedMonths(tx, ctx, entity.id);
+      const override = await overridesFor(tx, ctx, entity, chart);
       const classicHens = hensMethodOf(entity.accountingProfile, entity.hensMethod) === "classic"; // FC6
       const openDay = (day: FarmDay) => (locked.has(monthOf(day)) ? (`${firstOpenMonth(monthOf(day), locked)}-01` as FarmDay) : day);
 
@@ -160,7 +162,9 @@ export async function postPending(pusher: TenantContext): Promise<number> {
       for (const { version, event } of changes) {
         // FC7: a home consumption that can't post (FQ25, no value) is left out, and listed on /books instead
         const rule = event.type === "consumption" && unpostedConsumption(event, everything, chart) ? null : postingOf(event, entity.vatRegistered, classicHens);
-        const posting = rule && inChart(rule, everything, chart);
+        // FN8: the owner's overrides in force when the source was first posted (a new source: today's)
+        const overridden = rule && override ? override(rule, await firstPostedAt(tx, ctx, source.module, event.id)) : rule;
+        const posting = overridden && inChart(overridden, everything, chart);
         if (rule && !posting) throw new Error(`${source.name} ${event.id}: an account has no home in this chart`);
         const day = openDay(event.day);
         const standing = await standingEntryFor(tx, ctx, source.module, event.id);

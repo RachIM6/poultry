@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { Batch, ageOfBatch, birdsStarted, canJoinHouse, doaClaim, type Placement } from "./batch";
+import { Batch, ageOfBatch, birdsPlaced, birdsStarted, canJoinHouse, doaClaim, type Placement } from "./batch";
 
 const day = (d: string) => d as FarmDay;
 const placement: Placement = {
@@ -115,6 +115,11 @@ describe("every production type (SPEC-m3 B7, B8)", () => {
 describe("chick arrival (SPEC-m3 B10)", () => {
   // P-ChickArrival's example: 10 000 billed + 200 free, 14 dead on arrival.
   const delivery = { ...placement, chicksPlaced: 10_000, freeChicks: 200, deadOnArrival: 14 };
+
+  it("places the billed chicks plus the free supplement", () => {
+    expect(birdsPlaced(delivery)).toBe(10_200);
+    expect(birdsPlaced({ chicksPlaced: 1000 })).toBe(1000); // a batch pulled before M3
+  });
 
   it("starts with the billed chicks plus the free supplement, less the dead on arrival", () => {
     expect(birdsStarted(delivery)).toBe(10_186);

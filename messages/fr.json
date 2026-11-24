@@ -563,7 +563,9 @@
     "IMPORT_AFTER_END": "Une opération est datée après la fin du relevé (ligne {line}).",
     "IMPORT_TOO_LARGE": "Fichier trop volumineux : 512 Ko au plus.",
     "IMPORT_FILE_TYPE": "Type de fichier refusé : un fichier texte .sta, .940, .mt940, .fin ou .txt pour le MT940, .csv ou .txt pour le CSV.",
-    "IMPORT_CONFLICT": "Un relevé de cette date existe déjà avec un autre solde ou d’autres opérations : rien n’a été importé."
+    "IMPORT_CONFLICT": "Un relevé de cette date existe déjà avec un autre solde ou d’autres opérations : rien n’a été importé.",
+    "NOT_OVERRIDABLE": "Ce compte ne peut pas être remplacé : seuls les comptes de charges et de produits le peuvent.",
+    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge."
   },
   "Weighing": {
     "title": "Pesée",
@@ -2225,6 +2227,7 @@
     "placedOn": "Date de mise en place des volailles",
     "placed": "Nombre de volailles mises en place",
     "placedValue": "{birds} (dont {dead} morts à l’arrivée)",
+    "placedFreeValue": "{birds} (dont {free} gratuits et {dead} morts à l’arrivée)",
     "removedOn": "Date d’enlèvement",
     "supervision": "Encadrement technique, sanitaire et médical (art. 2)",
     "vetContract": "Contrat d’encadrement sanitaire",
@@ -2284,6 +2287,7 @@
     "age": "Âge",
     "days": "{days} jours",
     "placed": "Poussins placés",
+    "placedFree": "{birds} dont {free} gratuits",
     "dead": "Morts et éliminés",
     "sold": "Vendus",
     "feed": "Aliment consommé",
@@ -2436,6 +2440,7 @@
     "activeCgnc": "Votre entité utilise le PCGE sans le plan agricole (en gras).",
     "pca": "PCA",
     "cgnc": "PCGE",
+    "override": "Remplacé",
     "review": "Ces imputations sont celles proposées à l’expert-comptable, à valider avant la clôture.",
     "ops": {
       "chicks": "Achat de poussins",
@@ -2465,5 +2470,18 @@
       "associates": "Apports et retraits des associés",
       "exploitant": "Apports et retraits de l’exploitant"
     }
+  },
+  "Overrides": {
+    "open": "Remplacer un compte",
+    "title": "Remplacer un compte",
+    "intro": "Chaque opération est imputée à un compte par défaut. Vous pouvez choisir un autre compte de détail de la même classe, par exemple pour une catégorie de dépense. Le changement vaut pour les nouvelles écritures seulement : les écritures déjà passées, et leurs corrections, gardent leur compte.",
+    "rule": "Opération",
+    "account": "Nouveau compte",
+    "default": "Par défaut",
+    "override": "Remplacé par",
+    "notApplied": "Ce compte n’est plus un compte de détail de votre plan : le compte par défaut s’applique.",
+    "reset": "Revenir au compte par défaut",
+    "save": "Enregistrer",
+    "saved": "Compte enregistré pour les nouvelles écritures."
   }
 }

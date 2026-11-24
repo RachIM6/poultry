@@ -41,9 +41,12 @@ describe("buildBatchReport", () => {
     expect(r.health).toEqual({ vaccinesDone: 1, vaccinesPlanned: 2, treatments: 1, lastWithdrawalEnd: "2026-10-31" });
   });
 
-  it("a closed batch's FCR and EPEF are both its final ones (feed ÷ kg sold), not the last weighing's estimate", () => {
+  it("a closed batch's FCR, EPEF and average weight are its final ones (on the kg sold), not the last weighing's", () => {
     const weighings: WeighingDto[] = [{ id: "w", batchId: "b13", day: "2026-10-26", count: 100, totalGrams: 200_000, weightsGrams: [] }]; // day 35, 2 kg
-    const k = buildBatchReport({ ...input, weighings }).kpis;
+    const r = buildBatchReport({ ...input, weighings, standardAt: () => ({ bodyWeightGrams: 2500 }) });
+    const k = r.kpis;
+    expect(k.avgWeightGrams).toBeCloseTo(2_370_000 / 960, 9); // 2,469 kg sold per bird, the weight the EPEF uses
+    expect(r.standard).toBeNull(); // nothing weighed is shown, so no gap to the standard under it
     expect(k.fcr).toBeCloseTo(4000 / 2370, 9);
     // Livability 96 % × 2,46875 kg sold per bird / (43 days × 4 000 / 2 370) × 100 = 326,56
     expect(k.epef).toBeCloseTo(326.5639, 3);

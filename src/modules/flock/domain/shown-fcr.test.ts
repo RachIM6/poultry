@@ -15,18 +15,18 @@ const sold = [{ day: "2026-10-13", birds: 970, liveWeightGrams: 2_425_000 }];
 describe("the FCR and EPEF a batch's screens show", () => {
   it("a closed batch: its final figures, feed ÷ kg sold at closing, never the last weighing's estimate", () => {
     const f = closedBatchFigures(b, entries, sold);
-    expect(shownFcrEpef({ ...b, status: "closed" }, weighed, entries, sold)).toEqual({ fcr: f.fcr, epef: f.epef });
+    expect(shownFcrEpef({ ...b, status: "closed" }, weighed, entries, sold)).toEqual({ fcr: f.fcr, epef: f.epef, avgWeightGrams: 2500 }); // 2 425 kg ÷ 970: the weight the EPEF uses, not the 2 000 g weighed
     expect(f.fcr).toBeCloseTo(4200 / 2425, 9);
     expect(weighed?.fcr).not.toBeCloseTo(f.fcr!, 2); // the estimate differs: the point of the rule
   });
 
   it("an open batch: the estimate at its latest weighing, none before it", () => {
     const open = { ...b, status: "open", closedOn: undefined };
-    expect(shownFcrEpef(open, weighed, entries, sold)).toEqual({ fcr: weighed!.fcr, epef: weighed!.epef });
-    expect(shownFcrEpef(open, null, entries, sold)).toEqual({ fcr: null, epef: null });
+    expect(shownFcrEpef(open, weighed, entries, sold)).toEqual({ fcr: weighed!.fcr, epef: weighed!.epef, avgWeightGrams: 2000 });
+    expect(shownFcrEpef(open, null, entries, sold)).toEqual({ fcr: null, epef: null, avgWeightGrams: null });
   });
 
-  it("a closed batch with nothing sold has no FCR nor EPEF (0 would read as perfect)", () => {
-    expect(shownFcrEpef({ ...b, status: "closed" }, weighed, entries, [])).toEqual({ fcr: null, epef: null });
+  it("a closed batch with nothing sold has no FCR, EPEF nor sold weight (0 would read as perfect)", () => {
+    expect(shownFcrEpef({ ...b, status: "closed" }, weighed, entries, [])).toEqual({ fcr: null, epef: null, avgWeightGrams: null });
   });
 });

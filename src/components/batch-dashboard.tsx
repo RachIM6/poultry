@@ -35,7 +35,7 @@ export function BatchDashboard({
   const started = { placedOn, birdsStarted: birdsStarted(batch), dayOldWeightGrams: batch.dayOldWeightGrams, ageAtPlacementDays: batch.ageAtPlacementDays };
   const k = batchKpis(started, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
   const w = k.weighed;
-  const { fcr, epef } = shownFcrEpef({ ...started, status: batch.status, closedOn: batch.closedOn }, w, entries, sold); // closed: feed ÷ kg sold, as /compare
+  const { fcr, epef, avgWeightGrams } = shownFcrEpef({ ...started, status: batch.status, closedOn: batch.closedOn }, w, entries, sold); // closed: feed ÷ kg sold, as /compare
   const standard = w && curve ? standardAt(curve, w.ageDays) : null;
   const none = "—";
   const water = waterPerFeed(entries);
@@ -43,7 +43,7 @@ export function BatchDashboard({
     [t("Kpi.mortality"), `${formatPercent(k.mortalityPercent)} %`],
     [t("Kpi.feedPerBird"), k.feedPerBirdGrams === null ? none : formatKg(Math.round(k.feedPerBirdGrams))],
     [t("Kpi.waterFeed"), water ? formatDecimal(water.ratio, 1) : none, water ? t("Kpi.waterFeedOn", { day: String(ageOfBatch(batch, water.day as FarmDay)) }) : undefined], // SPEC-m3 B14
-    [
+    batch.status === "closed" ? [t("Kpi.weightSold"), avgWeightGrams === null ? none : formatKg(Math.round(avgWeightGrams))] : [
       w ? t("Kpi.weight", { age: String(w.ageDays) }) : t("Kpi.weightNone"),
       w ? formatKg(w.averageGrams) : none,
       w ? (standard ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(w.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) }) : t("Weighing.noStandard")) : undefined,

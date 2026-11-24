@@ -64,7 +64,8 @@ export function buildBatchReport(i: Input) {
   return {
     kpis,
     // RP3: the latest weighing against the strain's standard at its age; nothing without a curve (OQ5), never invented.
-    standard: w && standard ? { bodyWeightGrams: standard.bodyWeightGrams, gapPercent: versusStandard(w.averageGrams, standard.bodyWeightGrams) } : null,
+    // A closed batch shows the average sold instead (shownFcrEpef), so no weighing to compare.
+    standard: w && standard && batch.status !== "closed" ? { bodyWeightGrams: standard.bodyWeightGrams, gapPercent: versusStandard(w.averageGrams, standard.bodyWeightGrams) } : null,
     health: {
       vaccinesDone: vaccinations.filter((v) => v.done).length,
       vaccinesPlanned: vaccinations.length,

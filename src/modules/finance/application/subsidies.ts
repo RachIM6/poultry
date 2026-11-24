@@ -1,7 +1,7 @@
 import { audit } from "@/lib/audit";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -21,7 +21,7 @@ export type SubsidyWriteError = SubsidyError | PostError | "DAY_IN_FUTURE";
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
 const dayOf = (d: Date) => d.toISOString().slice(0, 10) as FarmDay;
-const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0;
+const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, latestRecordableDay(clock)) < 0;
 const receiptSource = (id: string) => `subsidy:${id}:receipt`;
 const financed = (a: FixedAsset) => ({ ...facts(a), category: a.category as AssetCategory });
 const factsOf = (s: Subsidy & { assets: { asset: FixedAsset }[] }): Facts => ({ amount: s.amountCentimes, receivedOn: dayOf(s.receivedOn), assets: s.assets.map((x) => financed(x.asset)) });

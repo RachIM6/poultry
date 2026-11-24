@@ -37,7 +37,7 @@ describe("climate readings through sync (SPEC-m4 CL2)", () => {
 
   it("refuses another organisation's house, a future day and values out of the input bounds", async () => {
     expect(await statuses(b, [m(M.recordReading, reading())])).toEqual(["errors.NOT_FOUND"]);
-    expect(await statuses(a, [m(M.recordReading, reading({ day: farmDayOf(new Date(Date.now() + 86_400_000)) }))])).toEqual(["errors.DAY_IN_FUTURE"]);
+    expect(await statuses(a, [m(M.recordReading, reading({ day: farmDayOf(new Date(Date.now() + 2 * 86_400_000)) }))])).toEqual(["errors.DAY_IN_FUTURE"]);
     expect(await statuses(a, [m(M.recordReading, reading({ temperatureTenths: 601 })), m(M.recordReading, reading({ humidity: 101 })), m(M.recordReading, reading({ time: "25:00" }))])).toEqual([
       "errors.INVALID_INPUT",
       "errors.INVALID_INPUT",

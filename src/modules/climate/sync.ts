@@ -1,6 +1,6 @@
 import { audit } from "@/lib/audit";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf, farmMinutesOf } from "@/lib/kernel/farm-day";
+import { farmMinutesOf, latestRecordableDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import { checkBands, outOfRange, targetFor, verdicts } from "@/modules/climate/domain/targets";
@@ -37,7 +37,7 @@ export const climateSync: SyncRegistry = {
       async apply(tx, ctx, r, meta) {
         const house = await houseOf(tx, ctx, r.houseId);
         if (!house) return fail("NOT_FOUND");
-        if (r.day > farmDayOf(clock.now())) return fail("DAY_IN_FUTURE");
+        if (r.day > latestRecordableDay(clock)) return fail("DAY_IN_FUTURE");
         if (await tx.climateReading.findUnique({ where: { id: r.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
         const dto: ReadingDto = { ...r, farmId: house.farmId, byUserId: ctx.userId };
         await tx.climateReading.create({ data: { ...dto, day: new Date(`${r.day}T00:00:00Z`), organizationId: ctx.organizationId } });

@@ -24,6 +24,20 @@ export type ExpenseDto = {
   receiptFileId?: string | null; // FN10: the receipt photo, attached online once the expense is on the server
 };
 export type TransferDto = { id: string; day: string; amountCentimes: string; fromId: string; toId: string };
+/**
+ * FN13's batch result as text, for a screen (SPEC-finance §9 "One cost per kg"): the batch report, the batch screen's
+ * closing card and /compare all read this one, so their cost per kg is /results'. Money: never sent to workers.
+ */
+export type BatchResultDto = {
+  id: string;
+  salesCentimes: string;
+  costCentimes: string;
+  marginCentimes: string;
+  soldGrams: number;
+  costPerKgCentimes: string | null;
+  marginPerKgCentimes: string | null;
+  marginPermille: string | null;
+};
 
 export const FINANCE_MUTATIONS = {
   createTreasuryAccount: "finance.createTreasuryAccount",

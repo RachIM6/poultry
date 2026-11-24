@@ -92,6 +92,18 @@ describe("default posting rules (SPEC-finance FN6)", () => {
   });
 });
 
+describe("home consumption (SPEC-finance FC7, FQ11)", () => {
+  const taken = (takenBy: "exploitant" | "associate" | "employee", individual: boolean) =>
+    postingOf({ type: "consumption", id: "c", day, amount: 30_000n, takenBy, individual })?.lines.map((l) => [l.account, l.debit, l.credit]);
+
+  it("debits the individual exploitant's 1117 Capital personnel, another legal form's 4463, against 7140", () => {
+    expect(taken("exploitant", true)).toEqual([["1117", 30_000n, 0n], ["7140", 0n, 30_000n]]);
+    expect(taken("exploitant", false)).toEqual([["4463", 30_000n, 0n], ["7140", 0n, 30_000n]]);
+    expect(taken("associate", true)?.[0][0]).toBe("4463");
+    expect(taken("employee", false)?.[0][0]).toBe("61713");
+  });
+});
+
 describe("VAT (SPEC-finance FN9)", () => {
   const purchase = { type: "purchase", id: "p", day, itemKind: "feed", amount: 1_200_000n, paid: 200_000n, vat: 200_000n } as const;
   const sale = { type: "sale", id: "s", day, amount: 1_100_000n, paid: 0n, method: "credit", vat: 100_000n } as const;

@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
@@ -13,7 +13,6 @@ import type { RecordTreatment, RecordVetVisit, TreatmentDto, VetVisitDto } from 
 import { recordConsumption } from "@/modules/inventory";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
-const todayOf = (clock: Clock) => nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
 
 /**
  * SPEC H3 + S4, applied by the sync push: a treatment of the batch, its withdrawal end computed by the domain rule, and
@@ -24,7 +23,7 @@ export async function recordTreatment(tx: Tx, ctx: TenantContext, cmd: z.infer<t
   if (!batch) return fail("NOT_FOUND");
   if (await treatmentIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
   const t = { ...cmd, startOn: cmd.startOn as FarmDay, endOn: cmd.endOn as FarmDay };
-  const checked = checkTreatment(batch, t, todayOf(clock));
+  const checked = checkTreatment(batch, t, latestRecordableDay(clock));
   if (!checked.ok) return checked;
 
   const consumed = await recordConsumption(tx, ctx, {
@@ -53,7 +52,7 @@ export async function recordVetVisit(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
   const batch = await batchFacts(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");
   if (await visitIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
-  const checked = checkBatchDay(batch, cmd.on as FarmDay, todayOf(clock));
+  const checked = checkBatchDay(batch, cmd.on as FarmDay, latestRecordableDay(clock));
   if (!checked.ok) return checked;
 
   const dto: VetVisitDto = { ...cmd, byUserId: ctx.userId };

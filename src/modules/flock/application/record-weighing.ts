@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
@@ -21,7 +21,7 @@ export async function recordWeighing(
 ) {
   const batch = await loadBatch(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");
-  const today = nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
+  const today = latestRecordableDay(clock);
   const checked = batch.checkWeighing(cmd.day as FarmDay, cmd.sample, today);
   if (!checked.ok) return checked;
   if (await weighingIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");

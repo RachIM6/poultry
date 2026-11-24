@@ -2,7 +2,7 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import { leafAccounts, postingAccount, type ChartOfAccounts } from "@/modules/finance/domain/chart";
 import type { Line } from "@/modules/finance/domain/entry";
 import { ASSET_DEBTS, ASSET_VAT_RECOVERABLE } from "@/modules/finance/domain/assets";
-import { ASSOCIATES, EXPLOITANT } from "@/modules/finance/domain/contribution";
+import { ASSOCIATES, EXPLOITANT, ownerAccountOf } from "@/modules/finance/domain/contribution";
 import { HENS_ADULTS, HENS_CULL_SALE, layPosting } from "@/modules/finance/domain/hens";
 import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 
@@ -13,7 +13,7 @@ export type FarmEvent =
   | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead"; vat?: bigint; layers?: boolean } // SPEC V2, SPEC-m3 V6, V7; layers: from a laying flock (FC6)
   | { type: "lay"; id: string; day: FarmDay; amount: bigint; capitalised: bigint } // FC6: a pullet batch's FN13 cost at its transfer to lay, and at the last year end
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
-  | { type: "consumption"; id: string; day: FarmDay; amount: bigint; takenBy: "exploitant" | "associate" | "employee" } // FC7, at its value
+  | { type: "consumption"; id: string; day: FarmDay; amount: bigint; takenBy: "exploitant" | "associate" | "employee"; individual: boolean } // FC7, at its value; individual: the entity's legal form (FQ11)
   | { type: "supplierPayment"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment to a supplier (S2)
   | { type: "issuedDebit"; id: string; day: FarmDay; amount: bigint; kind: "cheque" | "bill" } // FN11: the bank debited what was issued
   | { type: "advance"; id: string; day: FarmDay; amount: bigint } // SPEC-m4 WF10: paid in cash
@@ -53,9 +53,10 @@ const WAGES_DUE = "4432"; // Rémunérations dues au personnel
 const CNSS = "4441"; // Caisse Nationale de la Sécurité Sociale
 // SPEC-finance FC7: home consumption, credited to 7140 Production Autoconsommée (714 with the PCA off, FQ25), debited to
 // the associate's current account or, FQ21's default, the employee's pay as a benefit in kind (61713 Indemnités et
-// avantages divers: pay "en numéraire ou en nature", PCA p. 121); the exploitant's account waits for FQ11.
+// avantages divers: pay "en numéraire ou en nature", PCA p. 121); the exploitant's, FQ11 (§9): a withdrawal in kind on
+// 1117 Capital personnel for an individual, 4463 for any other legal form, as its contributions (contribution.ts).
 const SELF_CONSUMED = "7140";
-const TAKEN_BY: Partial<Record<string, string>> = { associate: "4463", employee: "61713" }; // 4463 Comptes courants des associés créditeurs
+const TAKEN_BY = { associate: ASSOCIATES, employee: "61713" }; // 4463 Comptes courants des associés créditeurs
 // FN6: where a later payment to a supplier comes from; an issued cheque leaves the bank on its issue date.
 const PAID_OUT: Record<string, { account: string; journal: Journal }> = {
   cash: { account: "5161", journal: "CA" },
@@ -127,8 +128,8 @@ export function postingOf(e: FarmEvent, vatRegistered = false, classicHens = fal
     return { journal: "VT", label: eggs ? "Vente d’œufs" : "Vente", lines };
   }
   if (e.type === "consumption") {
-    const debit = TAKEN_BY[e.takenBy];
-    return debit ? { journal: "OD", label: "Autoconsommation", lines: [line(debit, e.amount, 0n), line(SELF_CONSUMED, 0n, e.amount)] } : null;
+    const debit = e.takenBy === "exploitant" ? ownerAccountOf(e.individual) : TAKEN_BY[e.takenBy];
+    return { journal: "OD", label: "Autoconsommation", lines: [line(debit, e.amount, 0n), line(SELF_CONSUMED, 0n, e.amount)] };
   }
   if (e.type === "advance") {
     // M4 records no payment method for an advance: from the cash box, as farms pay them (⚠️ like a purchase's paid part)
@@ -195,12 +196,12 @@ export function inChart(p: Posting, everything: ChartOfAccounts, chart: ChartOfA
 
 /**
  * FC7: why a home consumption posts nothing, or null when it posts. "noValue": the farm never sold the product, so it
- * is worth 0 (FQ21); "FQ11": the exploitant's account isn't known yet; "FQ25": without the PCA, 7140 lands on 714, which
- * has sub-accounts, so no line can go there and no account is invented (FN4).
+ * is worth 0 (FQ21); "FQ25": without the PCA, 7140 lands on 714, which has sub-accounts, so no line can go there and no
+ * account is invented (FN4).
  */
-export function unpostedConsumption(e: Extract<FarmEvent, { type: "consumption" }>, everything: ChartOfAccounts, chart: ChartOfAccounts): "noValue" | "FQ11" | "FQ25" | null {
+export function unpostedConsumption(e: Extract<FarmEvent, { type: "consumption" }>, everything: ChartOfAccounts, chart: ChartOfAccounts): "noValue" | "FQ25" | null {
   const rule = postingOf(e);
-  if (!rule) return e.amount > 0n ? "FQ11" : "noValue";
+  if (!rule) return "noValue";
   const leaves = new Set(leafAccounts(chart).map((a) => a.number));
   return inChart(rule, everything, chart)?.lines.every((l) => leaves.has(l.account)) ? null : "FQ25";
 }

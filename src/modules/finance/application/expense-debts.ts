@@ -2,7 +2,7 @@ import { v7 as uuidv7 } from "uuid";
 import { audit } from "@/lib/audit";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -18,7 +18,7 @@ import { CreditExpensePayment } from "@/modules/finance/schema";
 // SPEC-finance §9 "Credit expenses": a quick expense recorded on credit (C 4411, FN6) is paid later from /treasury, as
 // a placement's chicks are (placements.ts): same cap, same posting, its own source `expense:<expense>:pay:<payment>`.
 
-const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0;
+const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, latestRecordableDay(clock)) < 0;
 const paymentsOf = (expenseId: string) => `expense:${expenseId}:pay:`;
 const dayOf = (d: Date) => d.toISOString().slice(0, 10) as FarmDay;
 

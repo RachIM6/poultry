@@ -1,6 +1,6 @@
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
@@ -17,7 +17,7 @@ import type { SoldBirdsDto } from "@/modules/flock/schema";
 export async function recordBirdsSold(tx: Tx, ctx: TenantContext, s: SoldBirdsDto, meta: { mutationId: string; deviceCreatedAt: Date }, clock: Clock = systemClock) {
   const batch = await loadBatch(tx, ctx, s.batchId);
   if (!batch) return fail("NOT_FOUND");
-  const today = nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
+  const today = latestRecordableDay(clock);
   const onHand = await birdsOnHandBesides(tx, ctx, batch);
   const checked = batch.checkBirdsSold(s.day as FarmDay, s.birds, onHand, today);
   if (!checked.ok) return checked;

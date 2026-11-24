@@ -21,7 +21,7 @@ L’élevage avicole, jour après jour. L’application marche **sans réseau** 
 - **Stock et achats** : articles, achats, fournisseurs et ce qu’il reste à leur payer.
 - **Ventes** : poids et prix ; la vente est refusée pendant un délai d’attente. Chaque vente a son **Document d’origine des volailles** à imprimer, en français ou en arabe.
 - **Créances des acheteurs** : ce que chacun doit, les chèques et traites à encaisser (rappel le jour de l’échéance).
-- La vente des derniers oiseaux **clôture la bande** et fixe son coût par kg.
+- La vente des derniers oiseaux **clôture la bande**. Son coût par kg, le même que dans « Résultats des bandes », s’affiche en ligne.
 - Les ouvriers ne voient jamais les prix, coûts ni montants.
 
 ## 4. Réseau et sécurité

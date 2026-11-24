@@ -20,7 +20,7 @@ const TABS = [
 // from the phone's database (who signed in last), so the shell stays static; the server still checks every page.
 const WIDE: { href: string; key: string; action: Action; icon: string }[] = [
   { href: "/receivables", key: "sales", action: "sales.manage", icon: "M3 7h18v10H3zM7 12h4" },
-  { href: "/books", key: "finance", action: "finance.record", icon: "M4 20V4M4 20h16M8 16l4-5 3 3 5-7" },
+  { href: "/books", key: "finance", action: "money.read", icon: "M4 20V4M4 20h16M8 16l4-5 3 3 5-7" },
   { href: "/settings/members", key: "members", action: "members.manage", icon: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6" },
 ];
 

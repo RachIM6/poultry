@@ -221,7 +221,7 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 - B6. Closing a batch:
   - **automatic** when birds on hand reach 0;
   - **manual** with a reason.
-  - The final KPIs and the **cost per kg sold** (chicks + consumed inputs + other costs entered) are then locked.
+  - The final KPIs and the **cost per kg sold** (chicks + consumed inputs + other costs entered) are then locked. Screens show FN13's cost per kg instead, which also counts the batch's expenses (SPEC-finance §9 "One cost per kg").
 
 ### `health`
 - H1. Creating a batch generates its **vaccination plan** from the farm's protocol (due day = age).

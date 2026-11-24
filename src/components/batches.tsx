@@ -158,7 +158,7 @@ function Batches(scope: Scope) {
         <BatchHeader title={title(shown)} />
         <RegisterLinks batchId={shown.id} report={can(scope, "money.read")} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
-        <ClosedSummary batch={shown} />
+        <ClosedSummary batch={shown} money={can(scope, "money.read")} />
         {shown.species === "layer" ? (
           <LayerDashboard batch={shown} entries={entriesOf(shown.id)} sold={soldOf(shown.id)} collections={collectionsOf(shown.id)} curve={layingCurve(shown)} />
         ) : (

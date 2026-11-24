@@ -2,8 +2,9 @@ import { expect, test } from "@playwright/test";
 import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
 
 // T24 acceptance, the whole lifecycle: a batch placed, fed, then all its birds sold offline. The last sale closes it on
-// the phone at once; after the sync the locked cost per kg arrives; the house is free again. Since SPEC-finance FN13 a
-// cost of the batch is a quick expense charged to it: the batch screen links to /expenses, no other-cost form.
+// the phone at once; after the sync its cost per kg arrives, FN13's, read online as /results shows it (SPEC-finance §9
+// "One cost per kg"); the house is free again. Since FN13 a cost of the batch is a quick expense charged to it: the
+// batch screen links to /expenses, no other-cost form.
 test("selling the last birds offline closes the batch; its cost per kg arrives with the sync and the house is free", async ({ page, context }) => {
   test.setTimeout(120_000);
   await ownerWithFarm(page, "Élevage de la Clôture");
@@ -41,7 +42,7 @@ test("selling the last birds offline closes the batch; its cost per kg arrives w
 
   await context.unroute("**");
   await context.setOffline(false);
-  // Chicks 4 500 DH + feed 450 DH = 4 950 DH, over 2 000 kg sold = 2,475 → 2,48 DH/kg.
+  // FN13: chicks 4 500 DH + feed 450 DH = 4 950 DH (no direct or shared expense), over 2 000 kg sold = 2,475 → 2,48 DH/kg.
   await expect(summary).toContainText(/Coût par kg vendu : 2,48\sDH/, { timeout: 30_000 });
   await expect(summary).toContainText("Vendu : 2 000 kg");
   await pushAs(page, [

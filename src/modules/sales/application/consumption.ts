@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import { recordChange } from "@/lib/sync/server";
@@ -32,7 +32,7 @@ export async function recordConsumption(tx: Tx, ctx: TenantContext, cmd: z.infer
   let sale: Required<SaleDto>;
 
   if (cmd.kind === "eggs") {
-    if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
+    if (daysBetween(cmd.day as FarmDay, latestRecordableDay(clock)) < 0) return fail("DAY_IN_FUTURE");
     const lines = cmd.lines.map((l) => ({ ...l, unitPriceCentimes: priceOf(l.unitPriceCentimes, l.item) }));
     const withheld = await eggWithdrawalWindowsOf(tx, ctx, cmd.batchId);
     const drawn = await drawEggs(tx, ctx, { saleId: cmd.id, batchId: cmd.batchId, day: cmd.day, wanted: lines.map((l) => ({ item: l.item as EggItem, eggs: l.eggs })), withheld });

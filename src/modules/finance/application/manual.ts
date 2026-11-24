@@ -2,12 +2,13 @@ import { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
+import { cashBookAccount } from "@/modules/finance/domain/contribution";
 import { treasuryKindOfAccount } from "@/modules/finance/domain/treasury";
 import { ManualEntryInput } from "@/modules/finance/schema";
 
@@ -17,7 +18,8 @@ export type ManualEntryError = PostError | "INVALID_INPUT" | "DAY_IN_FUTURE" | "
  * SPEC-finance FCX3: an `OD` entry the owner types, on any posting account of the entity's chart, also the first
  * year's opening balances (FN3). Posted through `postEntry` (FN4 checks, audit), source `finance:<id>`: the same id
  * twice posts once. Dated by its author: a locked month refuses it, it is never moved (unlike FN5 corrections).
- * A `cash_book` entity has none: the counter-account of its opening bank and cash balances waits for FQ11.
+ * A `cash_book` entity has no balance sheet: its entry carries only its opening bank and cash balances (5141, 5161),
+ * against 1117 Capital personnel for an individual exploitant, 4463 for any other legal form (FN3, FQ11).
  */
 export async function postManualEntry(ctx: TenantContext, input: unknown, clock: Clock = systemClock): Promise<Result<void, ManualEntryError>> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
@@ -25,10 +27,10 @@ export async function postManualEntry(ctx: TenantContext, input: unknown, clock:
   if (!parsed.success) return fail("INVALID_INPUT");
   const e = parsed.data;
   const day = e.day as FarmDay;
-  if (daysBetween(day, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
+  if (daysBetween(day, latestRecordableDay(clock)) < 0) return fail("DAY_IN_FUTURE");
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
-  if (entity.accountingProfile.books !== "ledger") return fail("CASH_BOOK_NO_MANUAL_ENTRY");
+  if (entity.accountingProfile.books !== "ledger" && !e.lines.every((l) => cashBookAccount(l.account, entity.form === "individual"))) return fail("CASH_BOOK_NO_MANUAL_ENTRY");
   // FN3, FN10, FC9: a 5141 line names one of the organisation's bank accounts, a 5161 line a cash box, like every
   // other posting, so the balance per account and the bank reconciliation see it (an opening bank balance, FCX3).
   const named = e.lines.flatMap((l) => (l.treasuryId ? [l.treasuryId] : []));

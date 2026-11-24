@@ -37,7 +37,8 @@ export type BatchDto = {
   status: "open" | "closed";
   chickUnitPriceCentimes?: string; // money (SPEC I5): absent for workers
   chickVatCentimes?: string | null; // money: SPEC-finance FN9, the delivery's VAT on top of the price; absent before it
-  // B6, once closed: the locked figures (the cost ones are money).
+  // B6, once closed: the locked figures (the cost ones are money). The cost ones are not shown: a screen shows FN13's
+  // cost per kg, the same as /results (SPEC-finance §9 "One cost per kg").
   closedOn?: string;
   closeReason?: string | null; // null: closed by the sale of its last birds
   soldGrams?: number;

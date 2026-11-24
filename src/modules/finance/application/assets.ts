@@ -2,7 +2,7 @@ import { v7 as uuidv7 } from "uuid";
 import { audit } from "@/lib/audit";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, farmDayOf, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -44,7 +44,7 @@ export type AssetWriteError =
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
 const dayOf = (d: Date) => d.toISOString().slice(0, 10) as FarmDay;
-const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0;
+const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, latestRecordableDay(clock)) < 0;
 const acquisitionSource = (id: string) => `asset:${id}:acq`;
 const paymentSource = (id: string, paymentId: string) => `asset:${id}:pay:${paymentId}`;
 const disposalSource = (id: string) => `asset:${id}:disposal`; // versions 1–3: depreciation, exit, price

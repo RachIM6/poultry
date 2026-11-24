@@ -3,10 +3,12 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { useBatchResults } from "@/components/batch-results";
 import { field } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatDecimal, formatKg, formatMoney, formatPercent } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
+import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { birdsStarted, closedBatchFigures, doaClaim, hatcheryFigures, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { PRODUCTION_TYPES, type ProductionType } from "@/modules/reference-data/shared";
@@ -14,7 +16,8 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
 
 // SPEC-m3 D2 on the static /compare shell (P-Compare): closed batches of one production type side by side, from the
-// phone's records, offline. The cost per kg is money: absent for workers (I5).
+// phone's records, offline. The cost per kg is FN13's, read from the server when online, the same as /results
+// (SPEC-finance §9 "One cost per kg"); offline, and for workers (I5), it shows "—".
 
 export function CompareScreen() {
   const t = useTranslations("Sync");
@@ -39,6 +42,8 @@ function Compare({ userId, organizationId, role }: Scope) {
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "soldBirds").toArray(), [userId, organizationId]);
   const [type, setType] = useState<ProductionType>("broiler");
+  const closedKey = (records ?? []).filter((r) => r.entity === "batch" && (r.data as BatchDto).status === "closed").map((r) => `${r.id}:${(r.data as BatchDto).soldGrams}`).join();
+  const results = useBatchResults(can({ userId, organizationId, role }, "money.read"), closedKey);
   if (!records) return null;
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
@@ -50,6 +55,7 @@ function Compare({ userId, organizationId, role }: Scope) {
     .sort((a, b) => (b.closedOn ?? "").localeCompare(a.closedOn ?? ""));
   const none = "—";
   const rows = closed.map((b) => {
+    const perKg = results?.find((r) => r.id === b.id)?.costPerKgCentimes;
     const f = closedBatchFigures({ ...b, closedOn: b.closedOn!, birdsStarted: birdsStarted(b) }, entries.filter((e) => e.batchId === b.id), sold.filter((s) => s.batchId === b.id));
     const cells: Record<(typeof COLUMNS)[number], string> = {
       hatchery: b.hatchery,
@@ -58,7 +64,7 @@ function Compare({ userId, organizationId, role }: Scope) {
       age: t("Compare.days", { days: String(f.ageDays) }),
       fcr: f.fcr === null ? none : formatDecimal(f.fcr, 2),
       epef: f.epef === null ? none : formatDecimal(f.epef, 0),
-      costPerKg: b.costPerKgCentimes ? formatMoney(BigInt(b.costPerKgCentimes)) : none,
+      costPerKg: perKg ? formatMoney(BigInt(perKg)) : none,
       dayOld: b.dayOldWeightGrams === null ? none : `${b.dayOldWeightGrams} g`,
       day7: `${formatPercent(f.day7MortalityPercent)} %`,
     };

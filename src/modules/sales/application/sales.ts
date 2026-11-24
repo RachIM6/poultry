@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import { recordChange } from "@/lib/sync/server";
@@ -135,7 +135,7 @@ async function askOwnerToApprove(tx: Tx, ctx: TenantContext, buyerId: string, cr
 export async function recordEggSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof RecordEggSale>, meta: Meta, clock: Clock = systemClock) {
   if (await saleIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
   if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
-  if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
+  if (daysBetween(cmd.day as FarmDay, latestRecordableDay(clock)) < 0) return fail("DAY_IN_FUTURE");
   const lines = cmd.lines.map((l) => ({ ...l, unitPriceCentimes: BigInt(l.unitPriceCentimes) }));
   const checked = checkEggSale({ ...cmd, lines, paidCentimes: BigInt(cmd.paidCentimes), vatCentimes: BigInt(cmd.vatCentimes) });
   if (!checked.ok) return checked;
@@ -178,7 +178,7 @@ export async function recordEggSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typ
 export async function recordPayment(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof RecordPayment>, meta: Meta, clock: Clock = systemClock) {
   if (await paymentIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
   if (!(await ownBuyer(tx, ctx, cmd.buyerId))) return fail("NOT_FOUND");
-  if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE"); // a phone may run a little ahead
+  if (daysBetween(cmd.day as FarmDay, latestRecordableDay(clock)) < 0) return fail("DAY_IN_FUTURE");
   await lockBuyer(tx, cmd.buyerId);
   const { sales, payments, unpaid } = await buyerLedger(tx, ctx, cmd.buyerId);
   const checked = checkPayment(BigInt(cmd.amountCentimes), buyerBalances(sales, payments, unpaid).get(cmd.buyerId) ?? 0n);
@@ -201,7 +201,7 @@ export async function setInstrumentState(tx: Tx, ctx: TenantContext, cmd: z.infe
   if (await statusIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
   const [instrument] = await instrumentsWhere(tx, ctx, { id: cmd.instrumentId });
   if (!instrument) return fail("NOT_FOUND");
-  if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
+  if (daysBetween(cmd.day as FarmDay, latestRecordableDay(clock)) < 0) return fail("DAY_IN_FUTURE");
   await lockBuyer(tx, instrument.buyerId);
   const [current] = await instrumentsWhere(tx, ctx, { id: cmd.instrumentId }); // read again under the lock
   const checked = checkTransition(current.state, cmd.state);

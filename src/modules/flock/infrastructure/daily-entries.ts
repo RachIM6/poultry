@@ -46,6 +46,9 @@ export async function saveSoldBirds(tx: Tx, ctx: TenantContext, s: SoldBirdsDto)
   await tx.soldBirds.create({ data: { ...s, organizationId: ctx.organizationId, day: date(s.day) } });
 }
 
+export const findSoldBirds = (tx: Tx, ctx: TenantContext, id: string) => tx.soldBirds.findFirst({ where: { id, organizationId: ctx.organizationId }, select: { batchId: true } });
+export const deleteSoldBirds = (tx: Tx, ctx: TenantContext, id: string) => tx.soldBirds.delete({ where: { id, organizationId: ctx.organizationId } });
+
 export async function saveEntry(tx: Tx, ctx: TenantContext, e: DailyEntryDto): Promise<DailyEntryDto> {
   const { feed, ...rest } = e;
   const data = { ...rest, day: date(e.day), feedStockItemId: feed?.stockItemId ?? null, feedGrams: feed?.grams ?? null };

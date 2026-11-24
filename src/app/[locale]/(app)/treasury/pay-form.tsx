@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useActionState, type ReactNode } from "react";
+import { OfflineHint, useOnline } from "@/components/online";
 import { danger, secondary } from "@/components/ui";
 import type { TreasuryFormState } from "./actions";
 
@@ -9,11 +10,13 @@ import type { TreasuryFormState } from "./actions";
 export function TreasuryForm({ action: send, submit, children }: { action: (state: TreasuryFormState, form: FormData) => Promise<TreasuryFormState>; submit: string; children: ReactNode }) {
   const t = useTranslations();
   const [state, action, pending] = useActionState(send, {});
+  const online = useOnline();
   return (
     <form action={action} className="flex flex-col gap-3">
       {children}
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
-      <button type="submit" disabled={pending} className={secondary}>{submit}</button>
+      <OfflineHint online={online} />
+      <button type="submit" disabled={pending || !online} className={secondary}>{submit}</button>
     </form>
   );
 }

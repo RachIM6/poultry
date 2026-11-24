@@ -193,6 +193,7 @@ export function PlacementForm({
       <Field name="deliveryNote" label={t("Batches.deliveryNote")} required maxLength={60} dir="ltr" />
       <Field name="price" label={t("Batches.chickPrice")} inputMode="decimal" required dir="ltr" />
       <Field name="vat" label={t("Batches.chickVat")} inputMode="decimal" dir="ltr" />
+      <p className="text-sm text-ink-2">{t("Batches.paidOnDelivery")}</p>
       <Field name="dayOldWeight" label={t("Batches.dayOldWeight")} inputMode="numeric" pattern="\d+" dir="ltr" />
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-1 font-semibold">{t("Batches.arrival")}</legend>

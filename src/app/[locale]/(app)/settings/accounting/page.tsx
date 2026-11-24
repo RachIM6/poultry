@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
 import { Link, redirect } from "@/i18n/navigation";
+import { formatDay } from "@/lib/format";
 import { accountingSettings } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { AccountingForm } from "./form";
@@ -25,7 +26,7 @@ async function Content() {
   const settings = await accountingSettings(ctx.value);
   if (!settings.ok) return redirect({ href: "/dashboard", locale: lang }); // not the owner; the action re-checks can()
   if (!settings.value) return <p>{t("Accounting.none")}</p>;
-  const { entity, books, locked } = settings.value;
+  const { entity, books, locked, nextYearFrom } = settings.value;
   const months = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat(lang === "ar" ? "ar-MA" : "fr", { month: "long", timeZone: "UTC" }).format(Date.UTC(2026, i, 1)));
   return (
     <>
@@ -35,7 +36,12 @@ async function Content() {
         <span className="font-semibold">{entity.name}</span> · {t(`Onboarding.forms.${entity.form}`)}
       </p>
       {entity.form === "cooperative" && <p className="text-sm text-ink-2">{t("Accounting.coop")}</p>}
-      {locked && <p role="note" className="rounded-lg border border-line p-3">{t("errors.FISCAL_YEAR_HAS_ENTRIES")}</p>}
+      {locked && (
+        <div role="note" className="flex flex-col gap-2 rounded-lg border border-line p-3">
+          <p>{t("errors.FISCAL_YEAR_HAS_ENTRIES")}</p>
+          <p>{t("Accounting.lockedHow", { day: formatDay(nextYearFrom, lang) })}</p>
+        </div>
+      )}
       <AccountingForm
         legalEntityId={entity.id}
         books={entity.accountingProfile.books}

@@ -7,6 +7,7 @@ import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
+import { OfflineHint, unsent, useOnline } from "@/components/online";
 import { danger, field, primary, secondary } from "@/components/ui";
 import { treasuryKindOfAccount, type TreasuryAccountDto } from "@/modules/finance/shared";
 import { periodLockAction, postManualEntryAction, reverseEntryAction, type PostState } from "./actions";
@@ -32,6 +33,7 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
   const [said, setSaid] = useState(""); // WCAG 4.1.3: the balance, said on leaving an amount, not on each keystroke
   const [state, setState] = useState<PostState>({});
   const [pending, startTransition] = useTransition();
+  const online = useOnline();
 
   const sum = (form: HTMLFormElement) => {
     const data = new FormData(form);
@@ -51,7 +53,7 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
     const receipt = data.get("receipt");
     data.delete("receipt"); // ADR-011: through the upload route, after the entry exists
     startTransition(async () => {
-      const posted = await postManualEntryAction(data);
+      const posted = await unsent(postManualEntryAction(data));
       if (posted.ok && receipt instanceof File && receipt.size > 0) {
         const res = await fetch(`/api/files?purpose=receipt&manualEntry=${id}`, { method: "POST", body: receipt, headers: { "x-requested-with": "poultry" } }).catch(() => null);
         if (!res?.ok) {
@@ -123,7 +125,8 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
             {state.ok && state.month && <Link href={{ pathname: "/books", query: { view: "journals", month: state.month } }} className="underline underline-offset-4">{t("Books.manualSee")}</Link>}
           </p>
         )}
-        <button type="submit" disabled={pending} className={primary}>{t("Books.manualPost")}</button>
+        <OfflineHint online={online} />
+        <button type="submit" disabled={pending || !online} className={primary}>{t("Books.manualPost")}</button>
       </fieldset>
     </form>
   );
@@ -147,10 +150,11 @@ function TreasurySelect({ kind, row, treasuries, selected }: { kind: TreasuryAcc
 export function ReverseEntryForm({ entryId, name, reversed }: { entryId: string; name: string; reversed: boolean }) {
   const t = useTranslations();
   const [state, action, pending] = useActionState(reverseEntryAction, {});
+  const online = useOnline();
   return (
     <form action={action} onSubmit={(e) => !confirm(t("Books.reverseConfirm", { name })) && e.preventDefault()} className="flex flex-col items-start gap-2">
       <input type="hidden" name="entryId" value={entryId} />
-      {!reversed && <button type="submit" disabled={pending} aria-label={t("Books.reverseOf", { name })} className={secondary}>{t("Books.reverse")}</button>}
+      {!reversed && <button type="submit" disabled={pending || !online} aria-label={t("Books.reverseOf", { name })} className={secondary}>{t("Books.reverse")}</button>}
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
     </form>
   );
@@ -160,11 +164,13 @@ export function ReverseEntryForm({ entryId, name, reversed }: { entryId: string;
 export function PeriodLockForm({ month, locked }: { month: string; locked: boolean }) {
   const t = useTranslations();
   const [state, action, pending] = useActionState(periodLockAction, {});
+  const online = useOnline();
   return (
     <form action={action} className="flex flex-col items-start gap-2">
       <input type="hidden" name="month" value={month} />
       <input type="hidden" name="locked" value={locked ? "0" : "1"} />
-      <button type="submit" disabled={pending} className={secondary}>{t(locked ? "Books.unlockMonth" : "Books.lockMonth")}</button>
+      <OfflineHint online={online} />
+      <button type="submit" disabled={pending || !online} className={secondary}>{t(locked ? "Books.unlockMonth" : "Books.lockMonth")}</button>
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
     </form>
   );

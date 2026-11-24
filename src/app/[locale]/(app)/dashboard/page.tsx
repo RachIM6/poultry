@@ -7,10 +7,11 @@ import { Today } from "@/components/today";
 import { Link, redirect } from "@/i18n/navigation";
 import { can } from "@/lib/permissions";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { batchResults, catchUpBooks, thresholdTracker, treasuryOverview } from "@/modules/finance";
+import { accountingChoicesOpen, batchResults, catchUpBooks, thresholdTracker, treasuryOverview } from "@/modules/finance";
 import { formatMoney } from "@/lib/format";
 import { farmDayOf } from "@/lib/kernel/farm-day";
 import { getTenantContext } from "@/modules/identity";
+import { ChoicesBanner } from "./choices-banner";
 
 // "Aujourd'hui" (tasks/plan-ui.md U3, Today.dc.html): the batches and the day's tasks, from the phone's database.
 export default function Dashboard() {
@@ -30,6 +31,8 @@ async function Content() {
   // FN17: from 90 % of the exemption threshold, the owner and the manager see it first thing.
   const tracker = can(ctx.value, "money.read") ? await thresholdTracker(ctx.value) : null;
   const nearThreshold = tracker?.ok && tracker.value?.usage.alert ? tracker.value.usage.percent : null;
+  // FN1: the owner makes the accounting choices before the first entry locks them for the year.
+  const choicesOpen = entity && (await accountingChoicesOpen(ctx.value, entity));
   // WebOverview.dc.html "Argent": the cash at hand and the last closed batch, for those who see money (FX2).
   let money: React.ReactNode = null;
   if (can(ctx.value, "money.read")) {
@@ -67,11 +70,14 @@ async function Content() {
       sync={<SyncBadge userId={userId} organizationId={organizationId} role={role} />}
       money={money}
       alert={
-        nearThreshold !== null && (
-          <Link href="/threshold" role="alert" className="rounded-2xl bg-alert-soft p-4 font-semibold text-alert-fg">
-            {t("Threshold.alert", { percent: String(nearThreshold) })}
-          </Link>
-        )
+        <>
+          {nearThreshold !== null && (
+            <Link href="/threshold" role="alert" className="rounded-2xl bg-alert-soft p-4 font-semibold text-alert-fg">
+              {t("Threshold.alert", { percent: String(nearThreshold) })}
+            </Link>
+          )}
+          {choicesOpen && <ChoicesBanner />}
+        </>
       }
     />
   );

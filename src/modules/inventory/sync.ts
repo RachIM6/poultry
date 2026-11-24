@@ -1,8 +1,9 @@
 import { can, withoutMoney } from "@/lib/permissions";
 import { defineMutation, type SyncRegistry } from "@/lib/sync/server";
-import { adjustStock, createStockItem, createSupplier, debitIssued, recordPurchase, recordSupplierPayment, setThreshold } from "@/modules/inventory/application/stock";
+import { adjustStock, cancelPurchase, createStockItem, createSupplier, debitIssued, recordPurchase, recordSupplierPayment, setThreshold } from "@/modules/inventory/application/stock";
 import {
   AdjustStock,
+  CancelPurchase,
   CreateStockItem,
   CreateSupplier,
   DebitIssued,
@@ -29,6 +30,7 @@ export const inventorySync: SyncRegistry = {
     [M.setThreshold]: defineMutation({ schema: SetThreshold, action: "stock.manage", apply: setThreshold }),
     [M.recordSupplierPayment]: defineMutation({ schema: RecordSupplierPayment, action: "stock.manage", apply: (tx, ctx, cmd, meta) => recordSupplierPayment(tx, ctx, cmd, meta) }),
     [M.debitIssued]: defineMutation({ schema: DebitIssued, action: "stock.manage", apply: (tx, ctx, cmd, meta) => debitIssued(tx, ctx, cmd, meta) }),
+    [M.cancelPurchase]: defineMutation({ schema: CancelPurchase, action: "stock.manage", apply: (tx, ctx, cmd, meta) => cancelPurchase(tx, ctx, cmd, meta) }),
   },
   entities: {
     supplier: (_ctx, data: SupplierDto) => data,

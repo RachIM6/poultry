@@ -571,7 +571,11 @@
     "IMPORT_FILE_TYPE": "Type de fichier refusé : un fichier texte .sta, .940, .mt940, .fin ou .txt pour le MT940, .csv ou .txt pour le CSV.",
     "IMPORT_CONFLICT": "Un relevé de cette date existe déjà avec un autre solde ou d’autres opérations : rien n’a été importé.",
     "NOT_OVERRIDABLE": "Ce compte ne peut pas être remplacé : seuls les comptes de charges et de produits le peuvent.",
-    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge."
+    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge.",
+    "BATCH_HAS_DATA": "Le bâtiment ne peut plus changer : cette bande a déjà des saisies.",
+    "PLACEMENT_AFTER_DATA": "La mise en place ne peut pas suivre le premier jour saisi (saisie du jour, pesée ou vente).",
+    "PLACEMENT_OVERLAPS_PREVIOUS": "Le bâtiment était encore occupé par la bande précédente à cette date.",
+    "FEWER_BIRDS_THAN_RECORDED": "Moins de sujets que les morts, réformes et ventes déjà saisis."
   },
   "Weighing": {
     "title": "Pesée",
@@ -1910,6 +1914,14 @@
     "save": "Transférer",
     "noHouse": "Aucun bâtiment ne peut accueillir les poules : chacun a déjà une bande en cours.",
     "sameHouse": "{house} (le même bâtiment)"
+  },
+  "Correct": {
+    "open": "Corriger la mise en place",
+    "openLabel": "Corriger la mise en place : {batch}",
+    "hint": "Pour une erreur de saisie. L’effectif, la mortalité et les indicateurs suivent la correction.",
+    "houseLocked": "Le bâtiment ne change plus : cette bande a déjà des saisies.",
+    "save": "Enregistrer la correction",
+    "noChange": "Aucune modification."
   },
   "Eggs": {
     "title": "Ramassage des œufs",

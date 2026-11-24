@@ -28,6 +28,42 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch, chi
   await tx.batch.create({
     data: { ...p, chickVatCentimes, organizationId: ctx.organizationId, placedOn: date(p.placedOn), status: batch.status },
   });
+  return dtoOf(batch, chickVatCentimes);
+}
+
+/** B1: the open batch's placement as corrected (the fields a correction may change), with its VAT. */
+export async function saveCorrection(tx: Tx, batch: Batch, chickVatCentimes: bigint | null): Promise<BatchDto> {
+  const p = batch.placement;
+  const { houseId, strainId, chicksPlaced, freeChicks, deadOnArrival, hatchery, deliveryNote, chickUnitPriceCentimes } = p;
+  const data = { houseId, strainId, chicksPlaced, freeChicks, deadOnArrival, hatchery, deliveryNote, chickUnitPriceCentimes, chickVatCentimes, placedOn: date(p.placedOn) };
+  await tx.batch.update({ where: { id: p.id }, data });
+  return dtoOf(batch, chickVatCentimes);
+}
+
+/** The placement's VAT as stored (SPEC-finance FN9), null when none was typed. */
+export const placementVat = async (tx: Tx, ctx: TenantContext, id: string) =>
+  (await tx.batch.findFirst({ where: { id, organizationId: ctx.organizationId }, select: { chickVatCentimes: true } }))?.chickVatCentimes ?? null;
+
+/** B1: what bounds a correction: the batch's entries, weighings and birds sold, and the closings of a house's batches. */
+export async function recordedFor(tx: Tx, ctx: TenantContext, batchId: string, houseId: string) {
+  const where = { batchId, organizationId: ctx.organizationId };
+  const day = (r: { day: Date }) => r.day.toISOString().slice(0, 10);
+  const [entries, weighings, sold, closed] = await Promise.all([
+    tx.dailyEntry.findMany({ where, select: { day: true, dead: true, culled: true } }),
+    tx.weighing.findMany({ where, select: { day: true } }),
+    tx.soldBirds.findMany({ where, select: { day: true, birds: true } }),
+    tx.batch.findMany({ where: { organizationId: ctx.organizationId, houseId, status: "closed" }, select: { id: true, houseId: true, closedOn: true } }),
+  ]);
+  return {
+    entries: entries.map((e) => ({ ...e, day: day(e) })),
+    weighings: weighings.map((w) => ({ day: day(w) })),
+    sold: sold.map((s) => ({ ...s, day: day(s) })),
+    closed: closed.map((b) => ({ ...b, closedOn: b.closedOn?.toISOString().slice(0, 10) ?? null })),
+  };
+}
+
+const dtoOf = (batch: Batch, chickVatCentimes: bigint | null): BatchDto => {
+  const p = batch.placement;
   return {
     id: p.id,
     farmId: p.farmId,
@@ -51,7 +87,7 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch, chi
     chickUnitPriceCentimes: String(p.chickUnitPriceCentimes),
     chickVatCentimes: chickVatCentimes === null ? null : String(chickVatCentimes),
   };
-}
+};
 
 /**
  * The Batch aggregate, or null outside the caller's organisation. Taken under the batch's lock until the transaction

@@ -13,6 +13,8 @@ export { Batch, ageOfBatch, ageOn, birdsPlaced, birdsStarted, canJoinHouse, doaC
 export type { BatchStatus, PlacementError } from "@/modules/flock/domain/batch";
 export { batchCost, chicksCost } from "@/modules/flock/domain/closing";
 export { birdsOnHand } from "@/modules/flock/domain/birds";
+export { correctPlacement, houseFreeFrom, recordedOf } from "@/modules/flock/domain/correction"; // B1, the correction form's chunk
+export type { CorrectionError, PlacementCorrection } from "@/modules/flock/domain/correction";
 
 /** What pull returns and the phone stores. */
 export type BatchDto = {
@@ -62,6 +64,7 @@ export const FLOCK_MUTATIONS = {
   closeBatch: "flock.closeBatch",
   recordBatchCost: "flock.recordBatchCost",
   transferToLaying: "flock.transferToLaying",
+  correctPlacement: "flock.correctPlacement",
 } as const;
 
 // SPEC B2: the daily entry.

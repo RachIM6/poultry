@@ -33,6 +33,7 @@ const LayerDashboard = dynamic(() => import("@/components/layer-dashboard").then
 const BatchCosts = dynamic(() => import("@/components/closing").then((m) => m.BatchCosts));
 const CloseBatchForm = dynamic(() => import("@/components/closing").then((m) => m.CloseBatchForm));
 const TransferForm = dynamic(() => import("@/components/closing").then((m) => m.TransferForm));
+const CorrectPlacement = dynamic(() => import("@/components/correct-placement").then((m) => m.CorrectPlacement));
 const ClosedSummary = dynamic(() => import("@/components/closing").then((m) => m.ClosedSummary));
 const Sales = dynamic(() => import("@/components/sales").then((m) => m.Sales));
 const Treatments = dynamic(() => import("@/components/treatments").then((m) => m.Treatments));
@@ -255,6 +256,9 @@ function Batches(scope: Scope) {
             }))}
             write={write}
           />
+        )}
+        {can(scope, "flock.manage") && !open.fromBatchId && (
+          <CorrectPlacement batch={open} title={title(open)} houses={houses} batches={batches} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} strains={strains} write={write} />
         )}
         {can(scope, "flock.manage") && <CloseBatchForm batch={open} write={write} />}
       </>

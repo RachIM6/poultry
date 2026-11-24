@@ -1,15 +1,21 @@
+import { connection } from "next/server";
+import { locale } from "next/root-params";
 import { useTranslations } from "next-intl";
+import { Suspense } from "react";
 import { BrandLockup } from "@/components/brand";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LoginForm } from "@/components/login-form";
 import { ClientMessages } from "@/i18n/client-messages";
+import { redirect } from "@/i18n/navigation";
 import type { MessagePath } from "@/i18n/pick";
+import { smsEnabled } from "@/modules/identity";
 
 // What this page's client components read (src/i18n/client-messages.tsx).
 const MESSAGES: MessagePath[] = ["LocaleSwitcher", "Login", "errors"];
 
-// M1-LoginPhone.dc.html / M1-LoginCode.dc.html (tasks/plan-ui.md U3).
-export default function Login() {
+// M1-LoginPhone.dc.html / M1-LoginCode.dc.html (tasks/plan-ui.md U3). ADR-015: SMS code login, only with
+// AUTH_SMS_ENABLED=true (dormant until an SMS provider exists); otherwise this sends to the password login.
+export default function LoginWithCode() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
@@ -22,8 +28,17 @@ export default function Login() {
           <p className="text-lg text-ink-2">{t("App.tagline")}</p>
         </div>
         <h1 className="sr-only">{t("Login.title")}</h1>
-        <LoginForm />
+        <Suspense>
+          <CodeLogin />
+        </Suspense>
       </main>
     </ClientMessages>
   );
+}
+
+// The setting is read when the page is served, not when it is built.
+async function CodeLogin() {
+  await connection();
+  if (!smsEnabled()) return redirect({ href: "/login", locale: await locale() });
+  return <LoginForm />;
 }

@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { BrandLockup } from "@/components/brand";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LogoutButton } from "@/components/logout-button";
+import { JoinCodeForm } from "@/components/join-code-form";
 import { OnboardingForm } from "@/components/onboarding-form";
 import { redirect } from "@/i18n/navigation";
 import { LEGAL_FORMS } from "@/modules/farm-registry";
@@ -40,6 +41,11 @@ async function Form() {
       <h1 className="text-[28px] font-semibold leading-tight">{t("title")}</h1>
       <p className="text-ink-2">{t("intro")}</p>
       <OnboardingForm forms={LEGAL_FORMS} />
+      <section aria-labelledby="join-title" className="flex flex-col gap-3 border-t border-line pt-6">
+        <h2 id="join-title" className="text-[17px] font-semibold text-ink-2">{t("joinTitle")}</h2>
+        <p className="text-sm text-muted">{t("joinIntro")}</p>
+        <JoinCodeForm />
+      </section>
       <LogoutButton />
     </>
   );

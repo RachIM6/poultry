@@ -64,13 +64,13 @@ const SOURCES: Source[] = [
   {
     name: "sales.sale",
     module: "sales",
-    read: async (tx, ctx, after) => {
+    read: async (tx, ctx, after, entity) => {
       const sales = await salesChangedSince(tx, ctx, after);
       const batches = await batchPlaces(tx, ctx, [...new Set(sales.map((s) => s.batchId))]); // FC6: culled hens of a laying flock
       return sales.map((s) => ({
         version: s.version,
         event: s.takenBy
-          ? { type: "consumption", id: s.id, day: s.day, amount: s.amountCentimes, takenBy: s.takenBy } // FC7
+          ? { type: "consumption", id: s.id, day: s.day, amount: s.amountCentimes, takenBy: s.takenBy, individual: entity.form === "individual" } // FC7
           : { type: "sale", id: s.id, day: s.day, amount: s.amountCentimes, paid: s.paidCentimes, method: s.method, kind: s.kind, vat: s.vatCentimes, layers: batches.get(s.batchId)?.species === "layer" },
       }));
     },
@@ -158,7 +158,7 @@ export async function postPending(pusher: TenantContext): Promise<number> {
         n++;
       };
       for (const { version, event } of changes) {
-        // FC7: a home consumption that can't post (FQ11, FQ25, no value) is left out, and listed on /books instead
+        // FC7: a home consumption that can't post (FQ25, no value) is left out, and listed on /books instead
         const rule = event.type === "consumption" && unpostedConsumption(event, everything, chart) ? null : postingOf(event, entity.vatRegistered, classicHens);
         const posting = rule && inChart(rule, everything, chart);
         if (rule && !posting) throw new Error(`${source.name} ${event.id}: an account has no home in this chart`);

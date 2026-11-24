@@ -16,7 +16,7 @@ import { periodLockAction, postManualEntryAction, reverseEntryAction, type PostS
  * <datalist id={accounts}>, not from this bundle. The id is made once per entry, so sending it again posts nothing twice.
  * FN3: a line on 5141 or 5161 names the bank account or cash box it moves.
  */
-export function ManualEntryForm({ today, accounts, treasuries, blocked }: { today: string; accounts: string; treasuries: TreasuryAccountDto[]; blocked: boolean }) {
+export function ManualEntryForm({ today, accounts, treasuries }: { today: string; accounts: string; treasuries: TreasuryAccountDto[] }) {
   const t = useTranslations();
   const router = useRouter();
   const [id, setId] = useState(() => uuidv7());
@@ -63,7 +63,7 @@ export function ManualEntryForm({ today, accounts, treasuries, blocked }: { toda
   return (
     <form onSubmit={submit} onInput={(e) => sum(e.currentTarget)} className="flex flex-col gap-3">
       <input type="hidden" name="id" value={id} />
-      <fieldset disabled={blocked} className="flex flex-col gap-3">
+      <fieldset className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           {t("Books.day")}
           <input type="date" name="day" defaultValue={today} max={today} required className={field} />

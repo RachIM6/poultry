@@ -524,7 +524,7 @@
     "LINE_ALREADY_TICKED": "Cette opération est déjà pointée sur un relevé.",
     "TREASURY_ACCOUNT_REQUIRED": "Une ligne sur 5141 ou 5161 indique son compte bancaire ou sa caisse.",
     "TREASURY_ACCOUNT_MISMATCH": "Choisissez un compte bancaire pour un paiement par banque (virement, chèque), une caisse pour un paiement en espèces.",
-    "CASH_BOOK_NO_MANUAL_ENTRY": "Pas d’écriture manuelle dans le livre des recettes et dépenses : le compte de contrepartie attend la réponse de l’expert-comptable.",
+    "CASH_BOOK_NO_MANUAL_ENTRY": "Dans le livre des recettes et dépenses, l’écriture manuelle ne porte que sur la banque (5141), la caisse (5161) et le compte de l’exploitant (1117) ou des associés (4463).",
     "LIFE_REQUIRED": "Saisissez la durée d’utilisation en mois (plus de 0), selon l’expert-comptable ou les règles fiscales.",
     "LAND_NOT_DEPRECIATED": "Un terrain ne s’amortit pas : il n’a pas de durée.",
     "IN_SERVICE_BEFORE_ACQUISITION": "La mise en service ne peut pas précéder l’acquisition.",
@@ -1112,7 +1112,7 @@
     "batch": "Bande",
     "manual": "Écriture manuelle",
     "manualOpening": "Opérations diverses (OD), sur les comptes de détail du plan comptable. Soldes d’ouverture du premier exercice : datez l’écriture du {from}.",
-    "manualCashBook": "Pas d’écriture manuelle dans le livre des recettes et dépenses : le compte de contrepartie des soldes d’ouverture de la banque et de la caisse attend la réponse de l’expert-comptable.",
+    "manualCashBook": "Soldes d’ouverture de la banque (5141) et de la caisse (5161), en contrepartie du compte proposé : 1117 Capital personnel pour un exploitant individuel, 4463 pour les associés. Datez l’écriture du {from}.",
     "piece": "N° de pièce",
     "lineAccount": "Compte, ligne {n}",
     "lineDebit": "Débit, ligne {n}",
@@ -1147,7 +1147,6 @@
     "unpostedBirds": "{n} oiseaux",
     "unpostedEggs": "{n} œufs",
     "unpostedReason": {
-      "FQ11": "non comptabilisé (FQ11)",
       "FQ25": "non comptabilisé (FQ25)",
       "noValue": "non comptabilisé (aucune vente du produit, valeur 0)"
     }

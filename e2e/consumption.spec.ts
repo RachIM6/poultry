@@ -4,7 +4,7 @@ import { farmDaysAgo, farmWithBatch, login, ownerWithFarm, pushAs, query, random
 
 // T112 acceptance (browser part, SPEC-finance FC7): offline, a home consumption on the sale form is prefilled with the
 // last sale's price, refused during a withdrawal, then recorded for a day before it, lowering birds on hand; it syncs
-// once, with no buyer and no payment. The exploitant's own posts nothing and /books lists it (FQ11). Withdrawal days are
+// once, with no buyer and no payment. The exploitant's own posts on 1117 Capital personnel (FQ11). Withdrawal days are
 // made up for the test (OQ4).
 test("an offline home consumption is refused during a withdrawal, then recorded and synced once", async ({ page, context }) => {
   test.setTimeout(120_000);
@@ -59,12 +59,18 @@ test("an offline home consumption is refused during a withdrawal, then recorded 
     );
   await expect.poll(server).toEqual([{ buyer: null, takenBy: "employee", amount: "14500", method: "none", birds: 5 }]);
 
-  // FQ11: what the individual exploitant takes posts nothing, and the books say so
-  await pushAs(page, [{ type: "sales.recordConsumption", payload: { id: uuidv7(), batchId: ids.batch, day: farmDaysAgo(4), takenBy: "exploitant", kind: "live", birds: 2, farmWeightGrams: 4_000, pricePerKgCentimes: null } }]);
+  // FQ11: what the individual exploitant takes is a withdrawal in kind, D 1117 Capital personnel / C 7140, and nothing
+  // is left unposted on the books
+  const exploitant = uuidv7();
+  await pushAs(page, [{ type: "sales.recordConsumption", payload: { id: exploitant, batchId: ids.batch, day: farmDaysAgo(4), takenBy: "exploitant", kind: "live", birds: 2, farmWeightGrams: 4_000, pricePerKgCentimes: null } }]);
+  const lines = async () =>
+    await query<{ account: string; debit: string; credit: string }>(
+      `SELECT l.account, l."debitCentimes"::text AS debit, l."creditCentimes"::text AS credit FROM "JournalLine" l JOIN "JournalEntry" j ON j.id = l."entryId" WHERE j."sourceId" = $1 ORDER BY l."debitCentimes" DESC`,
+      [exploitant],
+    );
+  await expect.poll(lines).toEqual([{ account: "1117", debit: "5800", credit: "0" }, { account: "7140", debit: "0", credit: "5800" }]); // 4 kg × 14,50
   await page.goto(`/fr/books?month=${farmDaysAgo(4).slice(0, 7)}`);
-  const unposted = page.getByRole("region", { name: "Consommations non comptabilisées" });
-  await expect(unposted.getByRole("listitem")).toHaveCount(1);
-  await expect(unposted).toContainText(/L’exploitant · 2 oiseaux · 58,00\sDH\s:\snon comptabilisé \(FQ11\)/); // 4 kg × 14,50
+  await expect(page.getByRole("region", { name: "Consommations non comptabilisées" })).toHaveCount(0);
 });
 
 // T112, I5: a worker records a consumption with no price field and no value, sees none of the farm's sales to buyers,

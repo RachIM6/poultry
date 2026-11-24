@@ -1,5 +1,5 @@
 import type { Posting } from "@/modules/finance/domain/posting";
-import type { TreasuryKind } from "@/modules/finance/domain/treasury";
+import { treasuryKindOfAccount, type TreasuryKind } from "@/modules/finance/domain/treasury";
 
 // SPEC-finance FN6, FQ11 (§9 "Associate contributions"): money an associate or the exploitant brings in or takes out, pure.
 
@@ -15,6 +15,9 @@ export type AssociateDirection = "contribution" | "withdrawal";
 
 /** The individual exploitant's own account; every other legal form's associates' current accounts. */
 export const ownerAccountOf = (individual: boolean) => (individual ? EXPLOITANT : ASSOCIATES);
+
+/** FN3, FQ11: a `cash_book` entity's manual entry is its opening bank and cash balances, against the owner's account. */
+export const cashBookAccount = (account: string, individual: boolean) => treasuryKindOfAccount(account) !== null || account === ownerAccountOf(individual);
 
 const CASH: Record<TreasuryKind, { account: string; journal: Posting["journal"] }> = { bank: { account: "5141", journal: "BQ" }, cash: { account: "5161", journal: "CA" } };
 

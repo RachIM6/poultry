@@ -63,20 +63,18 @@ describe("home consumption in the books (SPEC-finance FC7, FQ11, FQ21, FQ25)", (
     await postPending(other); // FQ25 leaves the entry out instead of blocking the pipeline
   });
 
-  it("posts an associate's D 4463 / C 7140 and an employee's D 61713 / C 7140 in OD; a sale as before", async () => {
+  it("posts an associate's D 4463 / C 7140, an employee's D 61713 / C 7140 and the individual exploitant's D 1117 / C 7140 (FQ11) in OD; a sale as before", async () => {
     expect(await linesOf(taken.associate)).toEqual([["OD", "4463", 30_000n, 0n], ["OD", "7140", 0n, 30_000n]]);
     expect(await linesOf(taken.employee)).toEqual([["OD", "61713", 28_000n, 0n], ["OD", "7140", 0n, 28_000n]]);
+    expect(await linesOf(taken.exploitant)).toEqual([["OD", "1117", 30_000n, 0n], ["OD", "7140", 0n, 30_000n]]);
     expect((await linesOf(ids.sale)).sort()).toEqual([["VT", "3421", 0n, 1_500_000n], ["VT", "3421", 1_500_000n, 0n], ["VT", "5161", 1_500_000n, 0n], ["VT", "712121", 0n, 1_500_000n]].sort());
   });
 
-  it("posts nothing for the exploitant (FQ11), without a value, or with the PCA off (FQ25), and lists them on /books", async () => {
-    for (const id of [taken.exploitant, taken.unvalued, taken.cgnc]) expect(await linesOf(id)).toEqual([]);
+  it("posts nothing without a value or with the PCA off (FQ25), and lists them on /books", async () => {
+    for (const id of [taken.unvalued, taken.cgnc]) expect(await linesOf(id)).toEqual([]);
     const month = today.slice(0, 7);
     const books = await readBooks(owner, month);
-    expect(books.ok && books.value.unposted.map((u) => [u.id, u.takenBy, u.reason, u.birds, u.amountCentimes])).toEqual([
-      [taken.exploitant, "exploitant", "FQ11", 10, 30_000n],
-      [taken.unvalued, "associate", "noValue", 2, 0n],
-    ]);
+    expect(books.ok && books.value.unposted.map((u) => [u.id, u.takenBy, u.reason, u.birds, u.amountCentimes])).toEqual([[taken.unvalued, "associate", "noValue", 2, 0n]]);
     const cgnc = await readBooks(other, month);
     expect(cgnc.ok && cgnc.value.unposted.map((u) => [u.id, u.reason])).toEqual([[taken.cgnc, "FQ25"]]);
     expect(await postPending(other)).toBe(0); // and it stays out

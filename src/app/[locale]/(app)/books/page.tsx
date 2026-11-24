@@ -9,15 +9,15 @@ import { can } from "@/lib/permissions";
 import { batchOf, readBooks, type IncomeStatement } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
-import { card, table, warn } from "@/components/ui";
+import { card, table } from "@/components/ui";
 import { ManualEntryForm, PeriodLockForm, ReverseEntryForm } from "./form";
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
-// FCX3: the owner's manual entry form; a cash_book entity sees it disabled (FQ11).
+// FCX3: the owner's manual entry form; a cash_book entity's carries its opening bank and cash balances (FN3, FQ11).
 // FCX6: the CPC and the bilan are a "Projet" until the year is closed, then "Exercice clôturé le …".
 // FN5: the month's lock, the owner locks or unlocks it (a closed year's months: its reopen, on /closing); the owner
 // cancels a manual entry from the journal.
-// FC7: the month's home consumptions that post nothing (FQ11, FQ25, no value) are listed, whatever the view.
+// FC7: the month's home consumptions that post nothing (FQ25, no value) are listed, whatever the view.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 const VIEWS = ["cash", "journals", "ledger", "trial", "cpc", "bilan"] as const;
 
@@ -100,15 +100,11 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       {manage && (
         <details className={card}>
           <summary className="cursor-pointer font-semibold">{t("Books.manual")}</summary>
-          {books.books === "ledger" ? (
-            <p className="text-sm text-ink-2">{t("Books.manualOpening", { from: day(books.fiscalYear.from) })}</p>
-          ) : (
-            <p className={warn}>{t("Books.manualCashBook")}</p>
-          )}
+          <p className="text-sm text-ink-2">{t(books.books === "ledger" ? "Books.manualOpening" : "Books.manualCashBook", { from: day(books.fiscalYear.from) })}</p>
           <datalist id="ledger-accounts">
             {books.postingAccounts?.map((a) => <option key={a.number} value={a.number}>{`${a.number} ${a.label}`}</option>)}
           </datalist>
-          <ManualEntryForm today={today} accounts="ledger-accounts" treasuries={books.treasuryAccounts ?? []} blocked={books.books !== "ledger"} />
+          <ManualEntryForm today={today} accounts="ledger-accounts" treasuries={books.treasuryAccounts ?? []} />
         </details>
       )}
       {books.unposted.length > 0 && (

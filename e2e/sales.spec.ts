@@ -64,4 +64,18 @@ test("an offline sale is refused during a withdrawal, then recorded for a day be
       [e164],
     );
   await expect.poll(server).toEqual([{ amount: "870000", birds: 300, status: "open" }]);
+
+  // SPEC-finance §9 "Cancelled records": the price corrected, then the sale cancelled after a confirmation.
+  await sales.nth(0).getByRole("button", { name: /^Corriger le prix : .*Abattoir Atlas · 300 oiseaux/ }).click();
+  await sales.nth(0).getByLabel("Prix au kg (DH)").fill("15");
+  await sales.nth(0).getByRole("button", { name: "Enregistrer le prix" }).click();
+  await expect(sales.nth(0)).toContainText(/9.000,00\sDH · Espèces · reçu 8.700,00\sDH/);
+  await outboxEmpty(page);
+  await expect.poll(server).toEqual([{ amount: "900000", birds: 300, status: "open" }]);
+  page.once("dialog", (dialog) => dialog.accept());
+  await sales.nth(0).getByRole("button", { name: /^Annuler : .*Abattoir Atlas · 300 oiseaux/ }).click();
+  await expect(sales).toHaveCount(0);
+  await expect(page.getByText("Oiseaux présents : 1 000")).toBeVisible(); // B5: the birds are back
+  await outboxEmpty(page);
+  await expect.poll(server).toEqual([]);
 });

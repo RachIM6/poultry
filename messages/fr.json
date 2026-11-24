@@ -360,7 +360,12 @@
     "issuedLine": "{kind} n° {number} : {amount}, échéance le {date}",
     "debited": "Débité",
     "instrumentNumber": "N° du chèque ou de l’effet (facultatif)",
-    "instrumentDueOn": "Date convenue"
+    "instrumentDueOn": "Date convenue",
+    "purchases": "Achats récents",
+    "purchaseLine": "{date} · {item} · {quantity} · {amount}",
+    "void": "Annuler l’achat",
+    "voidOf": "Annuler l’achat : {purchase}",
+    "voidConfirm": "Annuler l’achat {purchase} ? Le stock reprend sa quantité d’avant et son écriture est contre-passée."
   },
   "Batches": {
     "title": "Bandes",
@@ -571,7 +576,12 @@
     "IMPORT_FILE_TYPE": "Type de fichier refusé : un fichier texte .sta, .940, .mt940, .fin ou .txt pour le MT940, .csv ou .txt pour le CSV.",
     "IMPORT_CONFLICT": "Un relevé de cette date existe déjà avec un autre solde ou d’autres opérations : rien n’a été importé.",
     "NOT_OVERRIDABLE": "Ce compte ne peut pas être remplacé : seuls les comptes de charges et de produits le peuvent.",
-    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge."
+    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge.",
+    "SALE_HAS_PAYMENT": "Un paiement couvre déjà cette vente, ou son chèque ou sa traite a déjà circulé : elle ne peut plus être annulée ni réduite.",
+    "PURCHASE_HAS_PAYMENT": "Un paiement au fournisseur couvre déjà cet achat, ou la banque a débité son chèque ou sa traite : il ne peut plus être annulé.",
+    "STOCK_ALREADY_USED": "Une partie de ce stock a déjà été utilisée : l’achat ne peut plus être annulé. Corrigez plutôt le stock par un ajustement.",
+    "EXPENSE_PAID": "Un paiement a déjà été enregistré pour cette dépense : elle ne peut plus être corrigée ni annulée.",
+    "EXPENSE_IN_CLOSED_BATCH": "Cette dépense compte dans le résultat d’une bande clôturée : elle ne peut plus changer."
   },
   "Weighing": {
     "title": "Pesée",
@@ -759,7 +769,16 @@
     },
     "consumptionLine": "{date} · Consommation · {who} · {birds} oiseaux",
     "value": "Valeur : {amount}",
-    "saveConsumption": "Enregistrer la consommation"
+    "saveConsumption": "Enregistrer la consommation",
+    "eggLine": "{date} · {buyer} · {eggs} œufs",
+    "correct": "Corriger le prix",
+    "correctOf": "Corriger le prix : {sale}",
+    "correctHint": "Seuls les prix et la TVA changent ici. Pour une quantité, un acheteur ou une date, annulez la vente puis ressaisissez-la.",
+    "linePrice": "Prix · {what} (DH)",
+    "saveCorrection": "Enregistrer le prix",
+    "void": "Annuler la vente",
+    "voidOf": "Annuler : {sale}",
+    "voidConfirm": "Annuler {sale} ? Les oiseaux ou les œufs reviennent et son écriture est contre-passée. Vous pourrez la ressaisir."
   },
   "Receivables": {
     "title": "Créances",
@@ -902,7 +921,15 @@
     "receiptOf": "Voir le reçu : {expense}",
     "receiptMissing": "Reçu à ajouter (après envoi, avec du réseau)",
     "receiptAdd": "Ajouter le reçu",
-    "bankFeesAccount": "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord."
+    "bankFeesAccount": "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord.",
+    "correct": "Corriger",
+    "correctOf": "Corriger la dépense : {expense}",
+    "correcting": "Correction : {expense}",
+    "saveCorrection": "Enregistrer la correction",
+    "keep": "Ne pas corriger",
+    "void": "Annuler",
+    "voidOf": "Annuler la dépense : {expense}",
+    "voidConfirm": "Annuler la dépense {expense} ? Son écriture est contre-passée."
   },
   "Treasury": {
     "title": "Trésorerie",

@@ -5,8 +5,8 @@ import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { batchFacts } from "@/modules/flock";
-import { checkAdd, checkEdit, moveLine } from "@/modules/health/domain/plan-edit";
-import { deleteLine, findVaccination, saveLine, saveMove, vaccinationIdTaken } from "@/modules/health/infrastructure/vaccinations";
+import { checkAdd, checkEdit, moveLine, movedWithPlacement } from "@/modules/health/domain/plan-edit";
+import { deleteLine, findVaccination, saveLine, saveMove, undoneLines, vaccinationIdTaken } from "@/modules/health/infrastructure/vaccinations";
 import type { AddVaccination, CancelVaccination, MoveVaccination, VaccinationDto } from "@/modules/health/schema";
 import { areVaccines } from "@/modules/reference-data";
 
@@ -58,5 +58,24 @@ export async function cancelVaccination(tx: Tx, ctx: TenantContext, cmd: z.infer
   if (!(await deleteLine(tx, ctx, line.id))) return fail("ALREADY_DONE"); // given on another phone since it was read
   await recordChange(tx, ctx, "vaccination", line.id, null);
   await audit(tx, ctx, { entity: "Vaccination", entityId: line.id, action: "cancel", before: line, ...meta });
+  return ok(undefined);
+}
+
+/**
+ * SPEC B1, right after flock corrected the batch's placement day, in the same transaction (flock may not call health,
+ * so the sync registry chains the two). Each line not yet done moves with the placement and is announced again for its
+ * new day (H2); a line given keeps its day.
+ */
+export async function moveWithPlacement(tx: Tx, ctx: TenantContext, batchId: string, meta: Meta) {
+  const batch = await batchFacts(tx, ctx, batchId);
+  if (!batch) throw new Error(`batch ${batchId} not found right after its correction`); // a programming error: roll back
+  const lines = await undoneLines(tx, ctx, batchId);
+  for (const line of movedWithPlacement(lines, batch)) {
+    const dto = await saveMove(tx, ctx, line.id, { dayOfAge: line.dayOfAge, dueOn: line.dueOn, remindAgain: true });
+    if (!dto) continue; // given on another phone since it was read: it keeps its day
+    await recordChange(tx, ctx, "vaccination", dto.id, dto);
+    const before = lines.find((l) => l.id === line.id)!;
+    await audit(tx, ctx, { entity: "Vaccination", entityId: dto.id, action: "move", before: { dayOfAge: before.dayOfAge, dueOn: before.dueOn }, after: { dayOfAge: dto.dayOfAge, dueOn: dto.dueOn }, ...meta });
+  }
   return ok(undefined);
 }

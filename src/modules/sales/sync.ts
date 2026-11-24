@@ -1,6 +1,7 @@
 import { can, withoutMoney } from "@/lib/permissions";
 import { defineMutation, type SyncRegistry } from "@/lib/sync/server";
 import { recordConsumption } from "@/modules/sales/application/consumption";
+import { cancelSale, correctSale } from "@/modules/sales/application/corrections";
 import { approveCredit, createBuyer, recordEggSale, recordHeadSale, recordPayment, recordSale, setBuyerAddress, setCreditLimit, setInstrumentState, unblockBuyer } from "@/modules/sales/application/sales";
 import {
   CreateBuyer,
@@ -12,6 +13,8 @@ import {
   SALE_MONEY,
   SALES_MUTATIONS as M,
   ApproveCredit,
+  CancelSale,
+  CorrectSale,
   SetBuyerAddress,
   SetCreditLimit,
   SetInstrumentState,
@@ -40,9 +43,12 @@ export const salesSync: SyncRegistry = {
     // FN12, FX2: credit limits and approvals are the owner's.
     [M.setCreditLimit]: defineMutation({ schema: SetCreditLimit, action: "finance.manage", apply: (tx, ctx, cmd, meta) => setCreditLimit(tx, ctx, cmd, meta) }),
     [M.approveCredit]: defineMutation({ schema: ApproveCredit, action: "finance.manage", apply: (tx, ctx, cmd, meta) => approveCredit(tx, ctx, cmd, meta) }),
+    // SPEC-finance §9 "Cancelled records": a sale typed wrong, by those who record sales (consumptions included).
+    [M.cancelSale]: defineMutation({ schema: CancelSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => cancelSale(tx, ctx, cmd, meta) }),
+    [M.correctSale]: defineMutation({ schema: CorrectSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => correctSale(tx, ctx, cmd, meta) }),
   },
   entities: {
-    buyer: (ctx, data: BuyerDto) => withoutMoney(ctx, data, ["creditLimitCentimes"]),
+    buyer: (ctx, data: BuyerDto) => withoutMoney(ctx, data, ["creditLimitCentimes", "creditBlocked"]), // FN12: credit is money (I5)
     sale: (ctx, data: SaleDto) => withoutMoney(ctx, data, SALE_MONEY),
     buyerPayment: (ctx, data: PaymentDto) => withoutMoney(ctx, data, ["amountCentimes", "method", "instrument"]),
     instrumentStatus: (ctx, data: InstrumentStatusDto) => (can(ctx, "money.read") ? data : undefined),

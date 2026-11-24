@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { checkAdd, checkEdit, lineDueOn, moveLine } from "@/modules/health/domain/plan-edit";
+import { checkAdd, checkEdit, lineDueOn, moveLine, movedWithPlacement } from "@/modules/health/domain/plan-edit";
 import { planVaccinations } from "@/modules/health/domain/vaccination";
 
 const day = (d: string) => d as FarmDay;
@@ -44,5 +44,20 @@ describe("editing a batch's vaccination plan (SPEC H1, SPEC-m5 PA4)", () => {
     expect(moveLine({ ...line, done }, open, 16)).toEqual({ ok: false, error: "ALREADY_DONE" });
     expect(moveLine(line, closed, 16)).toEqual({ ok: false, error: "BATCH_CLOSED" });
     expect(moveLine(line, started, 3)).toEqual({ ok: false, error: "DAY_BEFORE_PLACEMENT" });
+  });
+
+  it("B1: a corrected placement moves each line not yet done by the same days, by its day of age; a line given stays", () => {
+    const lines = [
+      { id: "given", dayOfAge: 0, dueOn: "2026-10-25", done },
+      { id: "planned", dayOfAge: 14, dueOn: "2026-11-08", done: null },
+      { id: "byHand", dayOfAge: 16, dueOn: "2026-11-10", done: null }, // moved by hand from day 14: keeps its day 16
+    ];
+    expect(movedWithPlacement(lines, { ...open, placedOn: day("2026-10-28") })).toEqual([
+      { id: "planned", dayOfAge: 14, dueOn: "2026-11-11", done: null },
+      { id: "byHand", dayOfAge: 16, dueOn: "2026-11-13", done: null },
+    ]);
+    expect(movedWithPlacement(lines, { ...open, placedOn: day("2026-10-23") }).map((l) => l.dueOn)).toEqual(["2026-11-06", "2026-11-08"]);
+    expect(movedWithPlacement(lines, open)).toEqual([]); // the same day: nothing moves
+    expect(movedWithPlacement([{ dayOfAge: 14, dueOn: "2026-11-01", done: null }], { ...started, placedOn: day("2026-10-26") })).toEqual([{ dayOfAge: 14, dueOn: "2026-11-02", done: null }]); // arrived 7 days old
   });
 });

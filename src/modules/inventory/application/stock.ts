@@ -11,19 +11,23 @@ import { alertIfLow } from "@/modules/inventory/application/alerts";
 import { checkAdjustment, checkItem, checkPurchase } from "@/modules/inventory/domain/stock";
 import { checkSupplierPayment } from "@/modules/inventory/domain/suppliers";
 import {
+  deletePurchase,
   findItem,
+  findPurchase,
   idTaken,
   insertItem,
   insertMovement,
   insertPurchase,
   insertSupplier,
   insertSupplierPayment,
+  issuedDebited,
   issuedOfOrg,
   lockedSupplierBalance,
+  onHandOf,
   supplierExists,
   updateThreshold,
 } from "@/modules/inventory/infrastructure/repository";
-import type { AdjustStock, CreateStockItem, CreateSupplier, DebitIssued, IssuedDebitDto, RecordPurchase, RecordSupplierPayment, SetThreshold, SupplierPaymentDto } from "@/modules/inventory/schema";
+import type { AdjustStock, CancelPurchase, CreateStockItem, CreateSupplier, DebitIssued, IssuedDebitDto, RecordPurchase, RecordSupplierPayment, SetThreshold, SupplierPaymentDto } from "@/modules/inventory/schema";
 import { checkDebit } from "@/modules/inventory/domain/issued";
 import { isCatalogueProduct } from "@/modules/reference-data";
 
@@ -77,6 +81,29 @@ export async function recordPurchase(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
   await recordChange(tx, ctx, "purchase", purchase.id, purchase);
   await recordChange(tx, ctx, "movement", movement.id, movement);
   await audit(tx, ctx, { entity: "Purchase", entityId: purchase.id, action: "create", after: purchase, ...meta });
+  return ok(undefined);
+}
+
+/**
+ * SPEC-finance §9 "Cancelled records", applied by the sync push: a purchase typed wrong is cancelled (then typed again).
+ * Its stock movement goes with it, so the stock and its value come back; finance reverses its entry (FN7). Refused while
+ * the stock on hand is below what it brought in (some was used), once the bank debited the cheque or bill it was paid
+ * with, or once later payments to the supplier cover it. Every check before the first write.
+ */
+export async function cancelPurchase(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof CancelPurchase>, meta: Meta) {
+  const found = await findPurchase(tx, ctx, cmd.purchaseId);
+  if (!found) return fail("NOT_FOUND");
+  const { purchase, movements } = found;
+  if (await issuedDebited(tx, ctx, purchase.id)) return fail("PURCHASE_HAS_PAYMENT");
+  const credit = BigInt(purchase.amountCentimes) - BigInt(purchase.paidCentimes);
+  if ((await lockedSupplierBalance(tx, ctx, purchase.supplierId)) < credit) return fail("PURCHASE_HAS_PAYMENT");
+  const brought = movements.reduce((n, m) => n + m.quantity, 0);
+  if ((await onHandOf(tx, ctx, purchase.stockItemId)) < brought) return fail("STOCK_ALREADY_USED");
+
+  await deletePurchase(tx, ctx, purchase.id);
+  for (const m of movements) await recordChange(tx, ctx, "movement", m.id, null);
+  await recordChange(tx, ctx, "purchase", purchase.id, null);
+  await audit(tx, ctx, { entity: "Purchase", entityId: purchase.id, action: "cancel", before: { ...purchase, movements }, ...meta });
   return ok(undefined);
 }
 

@@ -25,6 +25,12 @@ describe("an entry (SPEC-finance FN4)", () => {
     expect(checkEntry([...lines], chart)).toEqual({ ok: false, error });
   });
 
+  it("accepts the demo farm's sale of 131 856,00 DH: D 3421 / C 712121 (SPEC-finance §7 entryIsBalanced)", () => {
+    const sales = [acc("3", null), acc("34", "3"), acc("342", "34"), acc("3421", "342"), acc("7", null), acc("71", "7"), acc("712", "71"), acc("7121", "712"), acc("71212", "7121", "pca"), acc("712121", "71212", "pca")];
+    const withPca = chartOf(sales, "cgnc", ["pca"]);
+    expect(checkEntry([line("3421", 13_185_600n, 0n), line("712121", 0n, 13_185_600n)], withPca)).toEqual({ ok: true, value: undefined });
+  });
+
   it("reverses with the sides swapped, same accounts and amounts", () => {
     expect(reversalOf([line("6121", 450_000n, 0n), line("4411", 0n, 450_000n)])).toEqual([line("6121", 0n, 450_000n), line("4411", 450_000n, 0n)]);
   });

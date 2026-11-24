@@ -41,3 +41,15 @@ export function moveLine(line: { done: unknown; dueOn: string }, batch: Batch, d
   if (!dueOn.ok) return dueOn;
   return ok({ dayOfAge, dueOn: dueOn.value, remindAgain: dueOn.value !== line.dueOn });
 }
+
+/**
+ * SPEC B1: the batch's placement day corrected. A line keeps its day of age, so each line not yet done (one moved by
+ * hand too) is due that many days after the new placement; a line given keeps the day it was given (H2). Returns the
+ * lines whose due day changes, on their new day.
+ */
+export function movedWithPlacement<L extends { done: unknown; dayOfAge: number; dueOn: string }>(lines: readonly L[], batch: Batch): (L & { dueOn: FarmDay })[] {
+  return lines.flatMap((line) => {
+    const dueOn = line.done ? null : lineDueOn(batch, line.dayOfAge);
+    return dueOn?.ok && dueOn.value !== line.dueOn ? [{ ...line, dueOn: dueOn.value }] : [];
+  });
+}

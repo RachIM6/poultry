@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { saveOverrideAction } from "./actions";
+import { OfflineHint, useOnline } from "@/components/online";
 import { card, danger, field, primary } from "@/components/ui";
 
 type Account = { number: string; label: string };
@@ -18,6 +19,7 @@ const Named = ({ a }: { a: Account | null }) => <bdi dir="ltr" lang="fr">{a ? `$
 export function OverridesForm({ rows, choices }: Props) {
   const t = useTranslations();
   const [state, action, pending] = useActionState(saveOverrideAction, {});
+  const online = useOnline();
   const [rule, setRule] = useState(rows[0]?.ruleAccount ?? "");
   const opLabel = (op: string) => (op.startsWith("expense.") ? t(`Expenses.categories.${op.slice(8)}`) : t(`Chart.ops.${op}`));
   return (
@@ -38,7 +40,7 @@ export function OverridesForm({ rows, choices }: Props) {
                 <form action={action}>
                   <input type="hidden" name="ruleAccount" value={r.ruleAccount} />
                   <input type="hidden" name="account" value="" />
-                  <button type="submit" disabled={pending} aria-label={t("Overrides.resetOf", { rule: opLabel(r.op) })} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">{t("Overrides.reset")}</button>
+                  <button type="submit" disabled={pending || !online} aria-label={t("Overrides.resetOf", { rule: opLabel(r.op) })} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">{t("Overrides.reset")}</button>
                 </form>
               </>
             )}
@@ -60,7 +62,8 @@ export function OverridesForm({ rows, choices }: Props) {
           </select>
         </label>
         {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
-        <button type="submit" disabled={pending} className={primary}>{t("Overrides.save")}</button>
+        <OfflineHint online={online} />
+        <button type="submit" disabled={pending || !online} className={primary}>{t("Overrides.save")}</button>
       </form>
     </>
   );

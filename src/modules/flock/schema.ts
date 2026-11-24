@@ -30,6 +30,26 @@ export const PlaceBatch = z.object({
   litterTempTenths: z.int32().min(0).max(600).nullable().default(null),
 });
 
+/** B1: corrects an open batch's placement; only the fields that changed are sent (the server merges them). */
+export const CorrectPlacement = z.object({
+  batchId: z.uuid(),
+  changes: z
+    .object({
+      houseId: z.uuid(),
+      strainId: z.string().min(1).max(60),
+      placedOn: z.iso.date(),
+      chicksPlaced: z.int32().positive(),
+      freeChicks: z.int32().min(0),
+      deadOnArrival: z.int32().min(0),
+      hatchery: text(120),
+      deliveryNote: text(60),
+      chickUnitPriceCentimes: z.string().regex(/^\d{1,12}$/),
+      chickVatCentimes: z.string().regex(/^\d{1,12}$/).nullable(), // SPEC-finance FN9; null: none
+    })
+    .partial()
+    .refine((c) => Object.keys(c).length > 0, "no change"),
+});
+
 /** SPEC-m3 B13: pullets move to a laying house, which starts a layer batch with their age. */
 export const TransferToLaying = z.object({ batchId: z.uuid(), day: z.iso.date(), newBatchId: z.uuid(), houseId: z.uuid(), hens: z.int32().positive() });
 

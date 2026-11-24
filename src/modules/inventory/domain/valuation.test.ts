@@ -29,6 +29,13 @@ describe("weighted average valuation (SPEC S5)", () => {
     expect(result).toMatchObject({ onHand: kg(500), valueCentimes: 220_000n });
   });
 
+  it("averages 9 200,00 DH for 2 000 kg and 36 950,00 DH for 8 000 kg to 4,615 DH/kg (SPEC-finance §7 weightedAverageCost)", () => {
+    const tonne = use("2026-11-03", kg(1000));
+    const result = valuate([buy("2026-11-01", kg(2000), 920_000n), buy("2026-11-02", kg(8000), 3_695_000n), tonne]);
+    expect(result.costs.get(tonne.id)).toBe(461_500n); // 1 000 kg × 4,615 = 4 615,00 DH
+    expect(result).toMatchObject({ onHand: kg(9000), valueCentimes: 4_153_500n });
+  });
+
   it("uses ledger order, not the order movements arrived on the phone", () => {
     const early = buy("2026-11-01", kg(100), 40_000n);
     const late = buy("2026-11-03", kg(100), 60_000n);

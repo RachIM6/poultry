@@ -122,23 +122,25 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
 
   const etic = (key: "s1" | "s1bis" | "s1_1" | "s1ter", rows: Ledger["etic"]["s1"] | undefined) =>
     rows && (
-      <table key={key} className={sheet}>
-        <caption className="pb-1 text-start font-semibold">{t(`etic.${key}`)}</caption>
-        <thead>
-          <tr>
-            <th />
-            {(["start", "increase", "decrease", "end"] as const).map((c) => <th key={c} className="text-end!">{t(`etic.${key === "s1bis" ? "amort" : key === "s1ter" ? "stock" : "gross"}.${c}`)}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((x) => (
-            <tr key={x.key}>
-              <td>{label(x)}</td>
-              {[x.start, x.increase, x.decrease, x.end].map((v, i) => <td key={i} dir="ltr" className={num}>{money(v)}</td>)}
+      <div key={key} className="relative overflow-x-auto">
+        <table className={sheet}>
+          <caption className="pb-1 text-start font-semibold">{t(`etic.${key}`)}</caption>
+          <thead>
+            <tr>
+              <th />
+              {(["start", "increase", "decrease", "end"] as const).map((c) => <th key={c} className="text-end!">{t(`etic.${key === "s1bis" ? "amort" : key === "s1ter" ? "stock" : "gross"}.${c}`)}</th>)}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((x) => (
+              <tr key={x.key}>
+                <td>{label(x)}</td>
+                {[x.start, x.increase, x.decrease, x.end].map((v, i) => <td key={i} dir="ltr" className={num}>{money(v)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
 
   return (

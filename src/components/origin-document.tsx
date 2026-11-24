@@ -15,6 +15,7 @@ import { primary } from "@/components/ui";
 
 // SPEC V5 on the static /origin shell: the origin document of one sale (/origin#<sale id>), built from the phone's own
 // records so it prints offline, in the page's language (law 49-99 art. 10). Print CSS only, no PDF library (T23).
+// The buyer's address and where the birds went when not to the buyer (arrêté 2126-05 art. 4), when recorded.
 
 const onHashChange = (notify: () => void) => (window.addEventListener("hashchange", notify), () => window.removeEventListener("hashchange", notify));
 const useHash = () => useSyncExternalStore(onHashChange, () => decodeURIComponent(window.location.hash.slice(1)), () => "");
@@ -102,7 +103,14 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
         <Row label={t("buyerName")}>{buyer?.name ?? "—"}</Row>
         <Row label={t("buyerType")}>{buyer ? tr(`Sale.types.${buyer.type}`) : "—"}</Row>
         <Row label={t("buyerPhone")}>{buyer?.phone ? <span dir="ltr">{buyer.phone}</span> : "—"}</Row>
+        {buyer?.address && <Row label={t("address")}>{buyer.address}</Row>}
       </Part>
+      {sale.destination && (
+        <Part title={t("destination")}>
+          <Row label={t("destinationName")}>{sale.destination.name}</Row>
+          {sale.destination.address && <Row label={t("address")}>{sale.destination.address}</Row>}
+        </Part>
+      )}
       <div className="grid break-inside-avoid grid-cols-2 gap-4">
         {[t("signFarm"), t("signBuyer")].map((label) => (
           <div key={label} className="flex h-36 flex-col rounded border border-current p-2">

@@ -813,6 +813,8 @@
     "buyerName": "Nom",
     "buyerType": "Type",
     "buyerPhone": "Téléphone",
+    "destination": "Destination des volailles",
+    "destinationName": "Exploitation ou établissement",
     "signFarm": "Signature et cachet de l’éleveur",
     "signBuyer": "Signature de l’acheteur",
     "print": "Imprimer",

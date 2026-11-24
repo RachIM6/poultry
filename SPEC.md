@@ -252,6 +252,8 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 - X2. Two devices editing the same farm converge after sync. For the same daily entry, the last write received by the server wins, and the overwritten version stays in the audit log.
 - X3. **Tenant isolation:** no API returns or accepts data from another organisation. Integration tests prove it for every endpoint.
 - X4. Accessibility basics: touch targets ≥ 44 px, WCAG AA contrast, labels on every input, works at 200% zoom.
+  - Zoom, decided default, to review: "works at 200% zoom" means WCAG 1.4.10 reflow, no sideways page scroll at 320 CSS px wide (1280 px at 400 %). 200 % of a 412 px phone (206 px) is not required.
+  - `e2e/a11y.spec.ts` checks the targets (a link inside running text is exempt, WCAG 2.5.8), the accessible names and the 320 px reflow on every main screen in `fr` and `ar`; `e2e/no-overflow.spec.ts` checks the 412 px phone width. Contrast is not automated.
 
 ## 9. Success criteria (M1 done)
 

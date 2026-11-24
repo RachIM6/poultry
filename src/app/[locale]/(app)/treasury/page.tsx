@@ -10,6 +10,7 @@ import { associateAccount, cashForecast, creditExpensesToPay, placementsToPay, t
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, field, table } from "@/components/ui";
+import { Num } from "@/components/num";
 import { payCreditExpenseAction, payPlacementAction, recordAssociateAction } from "./actions";
 import { TreasuryForm } from "./pay-form";
 
@@ -57,9 +58,9 @@ async function Treasury() {
     </label>
   );
   // A debt's pay form (placement, credit expense): day, amount, how, from which cash box or bank account.
-  const payForm = (action: typeof payPlacementAction, hidden: ReactNode) => (
+  const payForm = (action: typeof payPlacementAction, name: string, hidden: ReactNode) => (
     <details className="rounded-2xl border border-line p-3">
-      <summary className="cursor-pointer">{t("Treasury.pay")}</summary>
+      <summary aria-label={t("Treasury.payOf", { name })} className="min-h-11 cursor-pointer py-2.5">{t("Treasury.pay")}</summary>
       <div className="pt-3">
         <TreasuryForm action={action} submit={t("Assets.paySave")}>
           {hidden}
@@ -122,9 +123,9 @@ async function Treasury() {
             {forecast.value.weeks.map((w) => (
               <tr key={w.from} className={`border-t border-line ${w.afterCentimes < 0n ? "font-semibold text-brick-fg" : ""}`}>
                 <td className="whitespace-nowrap p-2">{dayMonth(w.from, lang)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(w.afterCentimes)}</td>
+                <Num>{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</Num>
+                <Num>{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</Num>
+                <Num>{formatMoney(w.afterCentimes)}</Num>
               </tr>
             ))}
           </tbody>
@@ -141,7 +142,7 @@ async function Treasury() {
               <p className="font-semibold">{p.hatchery}</p>
               <p className="text-sm text-ink-2">{p.place} · {t("Treasury.placedOn", { day: formatDay(p.placedOn, lang) })} · <bdi dir="ltr">{p.account}</bdi></p>
               <p>{t("Treasury.owed", { amount: formatMoney(p.owed) })}</p>
-              {payForm(payPlacementAction, <input type="hidden" name="batchId" value={p.batchId} />)}
+              {payForm(payPlacementAction, p.hatchery, <input type="hidden" name="batchId" value={p.batchId} />)}
             </article>
           ))}
         </section>
@@ -156,7 +157,7 @@ async function Treasury() {
               <p className="font-semibold">{t(`Expenses.categories.${e.category}`)}</p>
               <p className="text-sm text-ink-2">{formatDay(e.day, lang)}{e.note && <> · {e.note}</>} · <bdi dir="ltr">{e.account}</bdi></p>
               <p>{t("Treasury.owed", { amount: formatMoney(e.owed) })}</p>
-              {payForm(payCreditExpenseAction, <input type="hidden" name="expenseId" value={e.expenseId} />)}
+              {payForm(payCreditExpenseAction, `${t(`Expenses.categories.${e.category}`)} · ${formatDay(e.day, lang)}`, <input type="hidden" name="expenseId" value={e.expenseId} />)}
             </article>
           ))}
         </section>
@@ -192,7 +193,7 @@ async function Treasury() {
         </section>
       )}
       {/* SPEC-finance FC9: ticking each bank account's lines against its statements */}
-      <Link href="/treasury/bank" className="py-2 underline underline-offset-4">{t("Bank.open")}</Link>
+      <Link href="/treasury/bank" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Bank.open")}</Link>
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Treasury.movements")}</h2>
       {movements.length === 0 ? (
         <p>{t("Treasury.none")}</p>
@@ -222,12 +223,12 @@ async function Treasury() {
                   {/* FN10, as the cash book shows them (FN16): the account's label, its number when the chart has none */}
                   <td className="p-2">{m.counterAccounts.map((c) => c.label || c.number).join(", ")}</td>
                   <td className="p-2">{m.batch}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{m.debitCentimes > 0n ? formatMoney(m.debitCentimes) : ""}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{m.creditCentimes > 0n ? formatMoney(m.creditCentimes) : ""}</td>
+                  <Num>{m.debitCentimes > 0n ? formatMoney(m.debitCentimes) : ""}</Num>
+                  <Num>{m.creditCentimes > 0n ? formatMoney(m.creditCentimes) : ""}</Num>
                   {/* FN10: an expense's receipt; other movements have none to attach */}
                   <td className="p-2">
                     {m.receipt ? (
-                      <a href={`/api/files/${m.receipt}`} className="underline underline-offset-4">{t("Treasury.receiptView")}</a>
+                      <a href={`/api/files/${m.receipt}`} aria-label={t("Treasury.receiptViewOf", { line: `${formatDay(m.day as FarmDay, lang)} · ${m.label}` })} className="underline underline-offset-4">{t("Treasury.receiptView")}</a>
                     ) : m.receipt === null ? (
                       <span className="text-brick-fg">{t("Treasury.receiptMissing")}</span>
                     ) : null}

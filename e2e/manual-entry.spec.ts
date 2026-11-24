@@ -31,6 +31,7 @@ test("the owner types a three-line opening entry; it shows in the journal and th
   await form.getByLabel("Compte, ligne 3").fill("1111");
   await form.getByLabel("Crédit, ligne 3").fill("100000");
   await expect(difference).toContainText(/\s0,00\sDH/);
+  await expect(difference).toContainText("Écriture équilibrée"); // said in words, not by colour only
   await form.getByLabel("Justificatif (facultatif)").setInputFiles({ name: "bilan.png", mimeType: "image/png", buffer: PNG });
   await form.getByRole("button", { name: "Passer l’écriture" }).click();
   await expect(form.getByText("Écriture enregistrée.")).toBeVisible();

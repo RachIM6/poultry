@@ -18,18 +18,25 @@ describe("batch result (SPEC-finance FN13, §7)", () => {
 });
 
 describe("comparison with the last batches (FN13)", () => {
-  it("gives mortality, FCR, feed price and sale price per kg, as integers", () => {
+  it("gives mortality, FCR, feed price and sale price per kg", () => {
     // 10 000 started, 420 lost; 31 200 kg of feed for 4 500 000,00 DH; 18 000 kg sold for 2 700 000,00 DH
-    expect(batchComparison({ started: 10_000, lost: 420, feedGrams: 31_200_000n, feedCentimes: 14_040_000n, soldGrams: 18_000_000n, salesCentimes: 27_000_000n })).toEqual({
+    expect(batchComparison({ started: 10_000, lost: 420, eatenGrams: 31_200_000, feedGrams: 31_200_000n, feedCentimes: 14_040_000n, soldGrams: 18_000_000n, salesCentimes: 27_000_000n })).toEqual({
       lostPermille: 42n, // 4,2 %
-      fcrMilli: 1733n, // 1,733
+      fcr: 31_200 / 18_000, // 1,7333…, unrounded: the screen rounds it as every other one (formatDecimal, 2 decimals)
       feedPricePerKgCentimes: 450n, // 4,50 DH
       pricePerKgCentimes: 1500n, // 15,00 DH
     });
   });
 
+  it("the FCR is the feed the batch ate (its daily entries), the feed price the valued consumptions", () => {
+    // 1 738 kg eaten for 1 000 kg sold: 1,738, unrounded: /results shows 1,74 with formatDecimal, as the batch screen (the old ‰ display cut it to 1,73)
+    const c = batchComparison({ started: 100, lost: 0, eatenGrams: 1_738_000, feedGrams: 1_700_000n, feedCentimes: 765_000n, soldGrams: 1_000_000n, salesCentimes: 0n });
+    expect(c.fcr).toBe(1.738);
+    expect(c.feedPricePerKgCentimes).toBe(450n); // 7 650,00 DH for the 1 700 kg valued
+  });
+
   it("has nothing to say before anything was eaten or sold", () => {
-    expect(batchComparison({ started: 0, lost: 0, feedGrams: 0n, feedCentimes: 0n, soldGrams: 0n, salesCentimes: 0n })).toEqual({ lostPermille: null, fcrMilli: null, feedPricePerKgCentimes: null, pricePerKgCentimes: null });
+    expect(batchComparison({ started: 0, lost: 0, eatenGrams: 0, feedGrams: 0n, feedCentimes: 0n, soldGrams: 0n, salesCentimes: 0n })).toEqual({ lostPermille: null, fcr: null, feedPricePerKgCentimes: null, pricePerKgCentimes: null });
   });
 });
 

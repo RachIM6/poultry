@@ -52,7 +52,7 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
 
   await page.goto("/fr/treasury");
   await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").first()).toContainText(/Caisse · Caisse ferme\s*-1.200,00\sDH/);
-  await expect(page.getByRole("row").filter({ hasText: "Dépense" }).getByRole("link", { name: "Voir", exact: true })).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: "Dépense" }).getByRole("link", { name: /^Voir le reçu : / })).toBeVisible(); // WCAG 2.4.6: which receipt
 
   // T34: shared across this month's batches (the default), it is all this batch's.
   await page.goto("/fr/results");

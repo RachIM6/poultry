@@ -7,7 +7,7 @@ import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
-import { field, primary, secondary } from "@/components/ui";
+import { danger, field, primary, secondary } from "@/components/ui";
 import { treasuryKindOfAccount, type TreasuryAccountDto } from "@/modules/finance/shared";
 import { periodLockAction, postManualEntryAction, reverseEntryAction, type PostState } from "./actions";
 
@@ -28,6 +28,8 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
   const [diff, setDiff] = useState(() => (prefill && parseCentimes(prefill.debit)) || 0n);
   const [pre, setPre] = useState(prefill);
   const [typed, setTyped] = useState<string[]>(prefill ? ["5141"] : []); // each row's account, for its bank account or cash box
+  const [unread, setUnread] = useState<string[]>([]); // the amounts that don't read, "debit-0", "credit-1"
+  const [said, setSaid] = useState(""); // WCAG 4.1.3: the balance, said on leaving an amount, not on each keystroke
   const [state, setState] = useState<PostState>({});
   const [pending, startTransition] = useTransition();
 
@@ -36,7 +38,11 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
     const total = (k: string) => data.getAll(k).reduce((s: bigint, v) => s + (parseCentimes(String(v)) ?? 0n), 0n);
     setDiff(total("debit") - total("credit"));
     setTyped(data.getAll("account").map((v) => String(v).trim()));
+    const bad = (k: string) => data.getAll(k).flatMap((v, i) => (String(v).trim() !== "" && parseCentimes(String(v)) === null ? [`${k}-${i}`] : []));
+    setUnread([...bad("debit"), ...bad("credit")]);
   };
+  const balance = diff === 0n ? t("Books.entryBalanced") : t("Books.entryUnbalanced");
+  const invalid = (name: string) => unread.includes(name) || undefined;
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -62,12 +68,19 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
       setRows(2);
       setDiff(0n);
       setTyped([]);
+      setUnread([]);
+      setSaid("");
       setPre(undefined);
     });
   };
 
   return (
-    <form onSubmit={submit} onInput={(e) => sum(e.currentTarget)} className="flex flex-col gap-3">
+    <form
+      onSubmit={submit}
+      onInput={(e) => sum(e.currentTarget)}
+      onBlur={(e) => ["debit", "credit"].includes((e.target as Element).getAttribute("name") ?? "") && setSaid(diff === 0n ? balance : `${balance} · ${formatMoney(diff)}`)}
+      className="flex flex-col gap-3"
+    >
       <input type="hidden" name="id" value={id} />
       <fieldset key={id} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
@@ -90,21 +103,22 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
         {Array.from({ length: rows }, (_, i) => (
           <div key={i} className="grid grid-cols-[2fr_1fr_1fr] gap-2">
             <input name="account" defaultValue={i === 0 && pre ? "5141" : undefined} list={accounts} aria-label={t("Books.lineAccount", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
-            <input name="debit" defaultValue={i === 0 ? pre?.debit : undefined} inputMode="decimal" aria-label={t("Books.lineDebit", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
-            <input name="credit" inputMode="decimal" aria-label={t("Books.lineCredit", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
+            <input name="debit" defaultValue={i === 0 ? pre?.debit : undefined} inputMode="decimal" aria-label={t("Books.lineDebit", { n: i + 1 })} aria-invalid={invalid(`debit-${i}`)} dir="ltr" className={`${field} w-full min-w-0 aria-invalid:border-alert`} />
+            <input name="credit" inputMode="decimal" aria-label={t("Books.lineCredit", { n: i + 1 })} aria-invalid={invalid(`credit-${i}`)} dir="ltr" className={`${field} w-full min-w-0 aria-invalid:border-alert`} />
             <TreasurySelect kind={treasuryKindOfAccount(typed[i] ?? "")} row={i} treasuries={treasuries} selected={i === 0 ? pre?.bank : undefined} />
           </div>
         ))}
         <button type="button" onClick={() => setRows((r) => r + 1)} className={secondary}>{t("Books.addLine")}</button>
-        <p role="status" className={diff === 0n ? "text-olive" : "text-brick-fg"}>
-          {t("Books.difference")} <bdi dir="ltr" className="tabular-nums">{formatMoney(diff)}</bdi>
+        <p className={diff === 0n ? "text-olive" : "text-brick-fg"}>
+          {t("Books.difference")} <bdi dir="ltr" className="tabular-nums">{formatMoney(diff)}</bdi> · {balance}
         </p>
+        <p role="status" className="sr-only">{said}</p>
         <label className="flex flex-col gap-1">
           {t("Books.receiptFile")}
           <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf" />
         </label>
         {state.messageKey && (
-          <p role={state.ok ? "status" : "alert"}>
+          <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>
             {t(state.messageKey)}{" "}
             {state.ok && state.month && <Link href={{ pathname: "/books", query: { view: "journals", month: state.month } }} className="underline underline-offset-4">{t("Books.manualSee")}</Link>}
           </p>
@@ -137,7 +151,7 @@ export function ReverseEntryForm({ entryId, name, reversed }: { entryId: string;
     <form action={action} onSubmit={(e) => !confirm(t("Books.reverseConfirm", { name })) && e.preventDefault()} className="flex flex-col items-start gap-2">
       <input type="hidden" name="entryId" value={entryId} />
       {!reversed && <button type="submit" disabled={pending} aria-label={t("Books.reverseOf", { name })} className={secondary}>{t("Books.reverse")}</button>}
-      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
     </form>
   );
 }
@@ -151,7 +165,7 @@ export function PeriodLockForm({ month, locked }: { month: string; locked: boole
       <input type="hidden" name="month" value={month} />
       <input type="hidden" name="locked" value={locked ? "0" : "1"} />
       <button type="submit" disabled={pending} className={secondary}>{t(locked ? "Books.unlockMonth" : "Books.lockMonth")}</button>
-      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
     </form>
   );
 }

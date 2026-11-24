@@ -36,7 +36,8 @@ test("the owner cancels a manual entry, then locks and unlocks the month", async
   await expect(period).toContainText("Ce mois est ouvert");
   await period.getByRole("button", { name: "Clôturer le mois" }).click();
   await expect(period).toContainText("Ce mois est clôturé");
-  await expect(period.getByRole("link", { name: month })).toBeVisible();
+  const monthName = new Intl.DateTimeFormat("fr", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${month}-01T00:00:00Z`));
+  await expect(period.getByRole("link", { name: monthName })).toBeVisible(); // "novembre 2026", not "2026-11"
   await form.getByLabel("Libellé").fill("Trop tard");
   await form.getByLabel("Compte, ligne 1").fill("63111");
   await form.getByLabel("Débit, ligne 1").fill("10");

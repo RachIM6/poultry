@@ -87,13 +87,13 @@ async function Bank({ searchParams }: { searchParams: Search }) {
               <h2 id="reconciliation" className="text-lg font-semibold">{t("Bank.statementOf", { day: day(s.endDay) })}</h2>
               <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
                 <dt>{t("Bank.statementBalance")}</dt>
-                <dd dir="ltr" className="text-end tabular-nums">{formatMoney(s.closingCentimes)}</dd>
+                <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(s.closingCentimes)}</bdi></dd>
                 <dt>{t("Bank.bookBalance", { day: day(s.endDay) })}</dt>
-                <dd dir="ltr" className="text-end tabular-nums">{formatMoney(s.bookCentimes)}</dd>
+                <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(s.bookCentimes)}</bdi></dd>
                 <dt>{t("Bank.ticked")}</dt>
-                <dd dir="ltr" className="text-end tabular-nums">{formatMoney(s.tickedCentimes)}</dd>
+                <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(s.tickedCentimes)}</bdi></dd>
                 <dt className="font-semibold">{t("Bank.difference")}</dt>
-                <dd dir="ltr" className="text-end font-semibold tabular-nums">{formatMoney(s.differenceCentimes)}</dd>
+                <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{formatMoney(s.differenceCentimes)}</bdi></dd>
               </dl>
               <p role="status" className={s.reconciled ? done : warn}>{t(s.reconciled ? "Bank.reconciled" : "Bank.notReconciled")}</p>
               {!s.reconciled && <p className="text-sm text-ink-2">{t("Bank.differenceNote")}</p>}

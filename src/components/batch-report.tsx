@@ -89,11 +89,11 @@ function ReportDocument({ batch, house, report: r }: { batch: BatchDto; house: H
           <Figure label={t("sold")}>{formatCount(k.sold)} · {formatKg(k.soldGrams)}</Figure>
           <Figure label={t("feed")}>{formatKg(k.feedGrams)}</Figure>
           <Figure label={t("fcr")}>{fcr(k.fcr)}</Figure>
-          <Figure label={t("weight")}>
-            {k.weighed ? formatKg(k.weighed.averageGrams) : "—"}
+          <Figure label={batch.status === "closed" ? t("weightSold") : t("weight")}>
+            {k.avgWeightGrams === null ? "—" : formatKg(Math.round(k.avgWeightGrams))}
             {r.standard && <span className="block text-sm font-normal">{tw("versusStandard", { gap: formatPercent(r.standard.gapPercent, true), standard: formatKg(r.standard.bodyWeightGrams) })}</span>}
           </Figure>
-          <Figure label={t("epef")}>{k.weighed?.epef == null ? "—" : formatCount(Math.round(k.weighed.epef))}</Figure>
+          <Figure label={t("epef")}>{k.epef === null ? "—" : formatCount(Math.round(k.epef))}</Figure>
         </dl>
       </section>
 

@@ -33,7 +33,7 @@ export function SyncBadge({ userId, organizationId, role }: { userId: string; or
   const pending = useLiveQuery(() => localDb({ userId, organizationId }).outbox.count(), [userId, organizationId], 0);
   return (
     // aria-live, not a role="status" child: a status region would drop out of the link's accessible name.
-    <Link href="/sync" aria-live="polite" className={`inline-flex min-h-9 items-center whitespace-nowrap rounded-full px-3 text-sm font-medium ${pending > 0 ? "bg-brick-soft text-brick-fg" : "bg-olive-soft text-olive"}`}>
+    <Link href="/sync" aria-live="polite" className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-3 text-sm font-medium ${pending > 0 ? "bg-brick-soft text-brick-fg" : "bg-olive-soft text-olive"}`}>
       {pending > 0 ? t("pending", { count: String(pending) }) : t("upToDate")}
     </Link>
   );
@@ -109,7 +109,7 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
                 <button
                   type="button"
                   onClick={() => localDb({ userId, organizationId }).needsAttention.delete(entry.id)}
-                  className="self-start rounded-2xl border border-line bg-card px-3 py-2"
+                  className="min-h-11 self-start rounded-2xl border border-line bg-card px-3 py-2"
                 >
                   {t("Sync.dismiss")}
                 </button>

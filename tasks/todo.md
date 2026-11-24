@@ -424,6 +424,8 @@ Decisions (2026-11-09, taken without asking): only the sale of the last birds cl
 - [ ] An alert (not just a log line) when the global SMS cap reaches 50 %.
 - [ ] The pilot farm owner and a worker log in on their own phones and complete the first daily entry.
 - [ ] A daily backup runs and has been restored once as a test.
+  - [x] Scripts and CI drill, 2026-11-24 (branch `feat/backup-restore`, `docs/backup.md`): `scripts/backup.sh` (pg_dump, gpg AES256, 7 daily + 4 weekly), `scripts/restore.sh`, and `scripts/backup-drill.sh`, which the `backup-drill` CI job runs: row counts, `StoredFile` hashes and `prisma migrate status` match after the round trip.
+  - [ ] On the host (tied to OQ1): the cron line, off-site copies, passphrase custody, and one real restore, timed.
 
 Done ahead of the host choice (2026-11-11, branch `feat/t26-pilot-hardening`): the T25 findings S2 ("log out all my devices"), S4 (int4 bounds), S5 (a role change clears money from the phone) and S7 (`@serwist/turbopack` is a runtime dependency). Still open from T25 and tied to the host: brotli.
 

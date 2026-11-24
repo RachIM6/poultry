@@ -329,17 +329,20 @@ test("the home shows a broiler batch, a layer batch with yesterday's eggs and a 
   await expect(page.getByText("21 sem. 3 j", { exact: true })).toBeVisible(); // the beldi band: 147 + 3 days
 });
 
-// T67 acceptance (SPEC-m3 D2, P-Compare): two closed broiler batches side by side with their locked figures, offline.
+// T67 acceptance (SPEC-m3 D2, P-Compare): two closed broiler batches side by side with their figures, offline. The cost
+// per kg is FN13's, read online (SPEC-finance §9 "One cost per kg").
 test("closed broiler batches compared side by side", async ({ page, context }) => {
   test.setTimeout(120_000);
   await ownerWithFarm(page, "Élevage Comparaison");
   await scopeRemembered(page);
   const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), supplier: crypto.randomUUID(), feed: crypto.randomUUID(), buyer: crypto.randomUUID() };
-  const batch = (placedDaysAgo: number, dead: number, kg: number, hatchery: string) => {
+  const batch = (placedDaysAgo: number, dead: number, kg: number, hatchery: string, vetCentimes?: string) => {
     const id = crypto.randomUUID();
+    const vet = { id: crypto.randomUUID(), day: farmDaysAgo(placedDaysAgo - 10), category: "vet_fees", amountCentimes: vetCentimes, paidFrom: "credit", treasuryId: null, note: null, batchId: id, serviceMonth: null };
     return [
       { type: "flock.placeBatch", payload: { id, houseId: ids.house, strainId: "ross-308", placedOn: farmDaysAgo(placedDaysAgo), chicksPlaced: 100, deadOnArrival: 0, hatchery, deliveryNote: "BL", chickUnitPriceCentimes: "500", dayOldWeightGrams: 42 } },
       { type: "flock.recordDay", payload: { batchId: id, day: farmDaysAgo(placedDaysAgo - 3), changes: { dead, feed: { stockItemId: ids.feed, grams: 420_000 } } } },
+      ...(vetCentimes ? [{ type: "finance.recordExpense", payload: vet }] : []), // a direct charge of the batch (FN13)
       {
         type: "sales.recordSale",
         payload: { id: crypto.randomUUID(), batchId: id, buyerId: ids.buyer, day: farmDaysAgo(placedDaysAgo - 42), birds: 100 - dead, farmWeightGrams: kg * 1000, buyerWeightGrams: null, pricePerKgCentimes: "1450", paymentMethod: "cash", paidCentimes: "0", instrument: null },
@@ -353,12 +356,16 @@ test("closed broiler batches compared side by side", async ({ page, context }) =
     { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Croissance", unit: "kg", lot: null, expiresOn: null } },
     { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: farmDaysAgo(100), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
     { type: "sales.createBuyer", payload: { id: ids.buyer, name: "Abattoir", phone: null, type: "abattoir" } },
-    ...batch(90, 2, 245, "Couvoir Chaouia"), // 98 sold, 2,5 kg each; 420 kg of feed → IC 1,71
+    ...batch(90, 2, 245, "Couvoir Chaouia", "24500"), // 98 sold, 2,5 kg each; 420 kg of feed → IC 1,71; a 245 DH vet bill
     ...batch(45, 4, 230, "Couvoir B"), // 96 sold, 2,4 kg each; IC 1,83
   ]);
   await page.goto("/fr/compare");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await expect(page.getByRole("table", { name: "Indicateurs par lot clôturé" })).toBeVisible();
+  // Online, FN13's cost per kg, as /results: chicks 500 + feed 1 890 (+ the vet bill 245) DH over the kg sold.
+  const online = page.getByRole("table", { name: "Indicateurs par lot clôturé" }).getByRole("row");
+  await expect(online.filter({ hasText: "Couvoir Chaouia" })).toContainText(/10,76\sDH/); // 2 635 ÷ 245; B6 locked 9,76 (no vet bill)
+  await expect(online.filter({ hasText: "Couvoir B" })).toContainText(/10,39\sDH/); // 2 390 ÷ 230
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.reload();

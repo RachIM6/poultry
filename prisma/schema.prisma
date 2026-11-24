@@ -103,6 +103,12 @@ model LegalEntity {
   vatRegistered        Boolean       @default(false) // SPEC-finance FN9: not registered until FQ4 is answered
   hensMethod           HensMethod    @default(classic) // SPEC-finance FC6 (FQ7a): laying hens and their pullets
   allocationKey        AllocationKey @default(birdDays) // SPEC-finance FN14: the key shared costs are split by
+  // F-Profile: registration numbers, optional (farm-registry LegalIds). Owner writes; money readers read (statements).
+  ice                  String? // Identifiant Commun de l'Entreprise: 15 digits
+  fiscalId             String? // identifiant fiscal (IF)
+  rcNumber             String? // registre de commerce number
+  rcCourt              String? // the court (city) that keeps that register
+  cnssNumber           String? // CNSS affiliation number
   createdAt            DateTime      @default(now()) @db.Timestamptz
   organization         Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 

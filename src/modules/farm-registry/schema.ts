@@ -58,6 +58,22 @@ export function parseOnboarding(body: unknown): Result<OnboardingInput, "INVALID
   return parsed.success ? ok(parsed.data) : fail("INVALID_INPUT");
 }
 
+/**
+ * F-Profile: the entity's registration numbers, each optional ("" clears it). Only the ICE's format is checked: 15
+ * digits (9 for the company, 4 for the establishment, 2 check digits whose algorithm isn't public), spaces dropped.
+ * No official format was found for the IF, the RC number, its court or the CNSS number: free text, capped.
+ */
+const optional = (s: z.ZodType<string>, clean = (v: string) => v.trim()) =>
+  z.preprocess((v) => (typeof v === "string" ? clean(v) || null : (v ?? null)), s.nullable());
+export const LegalIdsInput = z.object({
+  ice: optional(z.string().regex(/^\d{15}$/), (v) => v.replace(/\s/g, "")),
+  fiscalId: optional(z.string().max(20)),
+  rcNumber: optional(z.string().max(20)),
+  rcCourt: optional(z.string().max(60)),
+  cnssNumber: optional(z.string().max(20)),
+});
+export type LegalIds = z.infer<typeof LegalIdsInput>;
+
 // Farms and houses (SPEC F2–F4): written offline, so these schemas run on the phone and in the sync push alike.
 
 const text = (max: number) => z.string().trim().min(1).max(max);

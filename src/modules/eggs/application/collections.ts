@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, farmDayOf, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
@@ -25,14 +25,13 @@ import type { CorrectCollection, DiscardEggs, EggCollectionDto, EggDiscardDto, E
 import { batchFacts } from "@/modules/flock";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
-const todayOf = (clock: Clock) => nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
 
 /** SPEC-m3 E1, applied by the sync push: one collection of a layer batch (several a day). */
 export async function recordCollection(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof RecordCollection>, meta: Meta, clock: Clock = systemClock) {
   const batch = await batchFacts(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");
   if (await collectionIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
-  const checked = checkCollection(batch, cmd.day as FarmDay, cmd.counts, cmd.sample, todayOf(clock));
+  const checked = checkCollection(batch, cmd.day as FarmDay, cmd.counts, cmd.sample, latestRecordableDay(clock));
   if (!checked.ok) return checked;
 
   const dto: EggCollectionDto = cmd;
@@ -47,7 +46,7 @@ export async function correctCollection(tx: Tx, ctx: TenantContext, cmd: z.infer
   const previous = await findCollection(tx, ctx, cmd.id);
   const batch = previous && (await batchFacts(tx, ctx, previous.batchId));
   if (!previous || !batch) return fail("NOT_FOUND");
-  const checked = checkCollection(batch, previous.day as FarmDay, cmd.counts, cmd.sample, todayOf(clock));
+  const checked = checkCollection(batch, previous.day as FarmDay, cmd.counts, cmd.sample, latestRecordableDay(clock));
   if (!checked.ok) return checked;
 
   const dto: EggCollectionDto = { id: previous.id, batchId: previous.batchId, day: previous.day, counts: cmd.counts, sample: cmd.sample };
@@ -97,7 +96,7 @@ export async function discardEggs(tx: Tx, ctx: TenantContext, cmd: z.infer<typeo
   // before the lot's laying day (a phone a little ahead may have collected "tomorrow").
   const serverDay = farmDayOf(clock.now());
   const day = cmd.day ?? (serverDay < cmd.laidOn ? cmd.laidOn : serverDay);
-  if (daysBetween(day as FarmDay, todayOf(clock)) < 0) return fail("DAY_IN_FUTURE");
+  if (daysBetween(day as FarmDay, latestRecordableDay(clock)) < 0) return fail("DAY_IN_FUTURE");
   if (day < cmd.laidOn) return fail("INVALID_INPUT"); // eggs can't be thrown away before they were laid
   const batch = await layerBatch(tx, ctx, cmd.batchId);
   if (!batch) return fail("NOT_FOUND");

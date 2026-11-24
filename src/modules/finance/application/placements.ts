@@ -2,7 +2,7 @@ import { v7 as uuidv7 } from "uuid";
 import { audit } from "@/lib/audit";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -16,7 +16,7 @@ import { PlacementPayment } from "@/modules/finance/schema";
 
 export type PlacementPayError = PostError | "INVALID_INPUT" | "DAY_IN_FUTURE" | "NOTHING_OWED" | "PAID_MORE_THAN_OWED" | "TREASURY_ACCOUNT_MISMATCH";
 
-const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0;
+const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, latestRecordableDay(clock)) < 0;
 const PAYMENT = "placement:"; // source `placement:<batch>:pay:<payment>`, module finance
 const paymentsOf = (batchId: string) => `${PAYMENT}${batchId}:pay:`;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; // a placement's source; `lay:<batch>` is FC6's transfer

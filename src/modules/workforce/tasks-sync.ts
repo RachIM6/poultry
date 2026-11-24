@@ -1,7 +1,7 @@
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { addFarmDays, farmDayOf } from "@/lib/kernel/farm-day";
+import { addFarmDays, farmDayOf, latestRecordableDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import { can } from "@/lib/permissions";
@@ -127,7 +127,7 @@ export const tasksSync: SyncRegistry = {
       action: "workforce.record",
       async apply(tx, ctx, t, meta) {
         const today = farmDayOf(clock.now());
-        if (t.day > today) return fail("DAY_IN_FUTURE");
+        if (t.day > latestRecordableDay(clock)) return fail("DAY_IN_FUTURE");
         if (t.day < addFarmDays(today, -OFFLINE_DAYS)) return fail("TASK_DAY_PAST");
         if (!(await dueOn(tx, ctx, t.farmId, t.key, t.day))) return fail("NOT_FOUND");
         const existing = await tx.taskDone.findUnique({ where: { id: t.id } });

@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
@@ -87,7 +87,7 @@ export async function recordPurchase(tx: Tx, ctx: TenantContext, cmd: z.infer<ty
 export async function recordSupplierPayment(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof RecordSupplierPayment>, meta: Meta, clock: Clock = systemClock) {
   if ((await tx.supplierPayment.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
   if (!(await supplierExists(tx, ctx, cmd.supplierId))) return fail("NOT_FOUND");
-  if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE"); // a phone may run a little ahead
+  if (daysBetween(cmd.day as FarmDay, latestRecordableDay(clock)) < 0) return fail("DAY_IN_FUTURE");
   if (cmd.instrument && cmd.method !== "cheque" && cmd.method !== "bill") return fail("INVALID_INPUT"); // FN11: only those carry one
   const checked = checkSupplierPayment(BigInt(cmd.amountCentimes), await lockedSupplierBalance(tx, ctx, cmd.supplierId));
   if (!checked.ok) return checked;
@@ -138,7 +138,7 @@ export async function setThreshold(tx: Tx, ctx: TenantContext, cmd: z.infer<type
  */
 export async function debitIssued(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof DebitIssued>, meta: Meta, clock: Clock = systemClock) {
   if ((await tx.issuedDebit.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
-  if (daysBetween(cmd.day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
+  if (daysBetween(cmd.day as FarmDay, latestRecordableDay(clock)) < 0) return fail("DAY_IN_FUTURE");
   const [issued] = await issuedOfOrg(tx, ctx, [cmd.instrumentId]);
   const checked = checkDebit(issued, cmd.day);
   if (!checked.ok) return checked;

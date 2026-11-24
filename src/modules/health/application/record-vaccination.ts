@@ -2,7 +2,7 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
@@ -26,7 +26,7 @@ export async function recordVaccination(
   const vaccination = await findVaccination(tx, ctx, cmd.id);
   const batch = vaccination && (await batchFacts(tx, ctx, vaccination.batchId));
   if (!vaccination || !batch) return fail("NOT_FOUND");
-  const today = nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
+  const today = latestRecordableDay(clock);
   const checked = checkDone(vaccination, batch, cmd.on as FarmDay, cmd.doses, today);
   if (!checked.ok) return checked;
 

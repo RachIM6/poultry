@@ -1,7 +1,7 @@
 import { v7 as uuidv7 } from "uuid";
 import { audit } from "@/lib/audit";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -18,7 +18,7 @@ import { AssociateMovement } from "@/modules/finance/schema";
 
 export type AssociateMovementError = PostError | "INVALID_INPUT" | "DAY_IN_FUTURE";
 
-const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0;
+const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, latestRecordableDay(clock)) < 0;
 
 /** Which account the organisation's contributions and withdrawals go on, and whether its owner is an individual exploitant. */
 export async function associateAccount(ctx: TenantContext): Promise<Result<{ account: string; individual: boolean }, "FORBIDDEN" | "NOT_FOUND">> {

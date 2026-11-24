@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { BatchDto } from "@/modules/flock/shared";
+import { REQUIRED_VACCINES } from "@/modules/health/shared";
 import { CHECKLIST, INSPECTION_LOOKBACK_MONTHS, inPack, inspectionChecklist, inspectionSince, lookbackMonths } from "./inspection";
 
 const today = "2026-11-05" as FarmDay;
 const doc = (category: string, expiresOn: string | null, over: object = {}) => ({ id: `${category}${expiresOn}`, title: category, category, farmId: null, issuedOn: null, expiresOn, notes: null, fileId: "f", ...over }) as never;
 const batch = (over: Partial<BatchDto> = {}) => ({ id: "b13", farmId: "farm", houseId: "h", species: "broiler", status: "closed", placedOn: "2026-09-21", closedOn: "2026-11-03", ...over }) as BatchDto;
 const visit = (batchId: string, on: string) => ({ id: on, batchId, on, vetName: "Dr N.", notes: "", byUserId: "u" });
-const nd = (batchId: string, over: object = {}) => ({ id: `nd${batchId}`, batchId, dayOfAge: 7, dueOn: "2026-09-28", productId: "vaccine-newcastle", method: "drinkingWater", done: { on: "2026-09-28", stockItemId: "s-nd", doses: 10000, method: "drinkingWater", byUserId: "u" }, ...over }) as never;
+const nd = (batchId: string, over: object = {}) => ({ id: `nd${batchId}`, batchId, dayOfAge: 7, dueOn: "2026-09-28", productId: REQUIRED_VACCINES[0].productId, method: "drinkingWater", done: { on: "2026-09-28", stockItemId: "s-nd", doses: 10000, method: "drinkingWater", byUserId: "u" }, ...over }) as never;
 const complete = {
   today,
   farm: { id: "farm", onssa: { number: "A", expiresOn: "2027-03-15" } },

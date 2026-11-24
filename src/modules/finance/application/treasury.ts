@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, farmDayOf, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import { recordChange } from "@/lib/sync/server";
@@ -34,7 +34,7 @@ import type { CreateTreasuryAccount, ExpenseDto, RecordExpense, RecordTransfer, 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
-const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, nextFarmDay(farmDayOf(clock.now()))) < 0; // a phone may run a little ahead
+const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, latestRecordableDay(clock)) < 0;
 
 /** FN3, applied by the sync push: a bank account or cash box (owner, manager). */
 export async function createTreasuryAccount(tx: Tx, ctx: TenantContext, cmd: z.output<typeof CreateTreasuryAccount>, meta: Meta) {

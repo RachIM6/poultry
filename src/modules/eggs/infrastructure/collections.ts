@@ -91,3 +91,11 @@ export async function saveCorrection(tx: Tx, c: EggCollectionDto) {
 export async function saveDraws(tx: Tx, ctx: TenantContext, farmId: string, draws: EggDrawDto[]) {
   await tx.eggDraw.createMany({ data: draws.map((d) => ({ ...d, day: date(d.day), laidOn: date(d.laidOn), organizationId: ctx.organizationId, farmId })) });
 }
+
+/** A cancelled sale's draws go: returns their ids. */
+export async function deleteDraws(tx: Tx, ctx: TenantContext, saleId: string) {
+  const where = { saleId, organizationId: ctx.organizationId };
+  const ids = (await tx.eggDraw.findMany({ where, select: { id: true } })).map((d) => d.id);
+  await tx.eggDraw.deleteMany({ where });
+  return ids;
+}

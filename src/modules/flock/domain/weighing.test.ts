@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkSample, sampleStats, versusStandard } from "./weighing";
+import { checkSample, sampleStats, uniformityPercent, versusStandard } from "./weighing";
 
 describe("weighing (SPEC B3)", () => {
   it("matches the hand calculation: average and CV% of individual weights", () => {
@@ -30,5 +30,14 @@ describe("weighing (SPEC B3)", () => {
     }
     expect(checkSample({ weightsGrams: Array(1000).fill(2000) }).ok).toBe(true);
     expect(checkSample({ weightsGrams: Array(1001).fill(2000) }).ok).toBe(false);
+  });
+
+  it("gives the uniformity: the share of birds within ±10 % of the mean (SPEC-m3 B12, MQ9)", () => {
+    // By hand: mean 6 000 / 6 = 1 000 g, band 900–1 100 g: five birds in, 880 out → 5 / 6 = 83,3 %.
+    expect(uniformityPercent({ weightsGrams: [950, 1000, 1050, 1100, 880, 1020] })).toBe(83.3);
+    expect(uniformityPercent({ weightsGrams: [900, 1100] })).toBe(100); // the band's edges count in
+    expect(uniformityPercent({ weightsGrams: [500, 1500] })).toBe(0);
+    expect(uniformityPercent({ totalGrams: 10_000, count: 10 })).toBeNull();
+    expect(uniformityPercent({ weightsGrams: [1000] })).toBeNull();
   });
 });

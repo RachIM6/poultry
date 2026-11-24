@@ -9,10 +9,15 @@ import { OnboardingForm } from "@/components/onboarding-form";
 import { redirect } from "@/i18n/navigation";
 import { LEGAL_FORMS } from "@/modules/farm-registry";
 import { getTenantContext } from "@/modules/identity";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Account", "LocaleSwitcher", "Onboarding", "errors"];
 
 export default function Onboarding() {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="flex items-center justify-between gap-4 p-4">
         <BrandLockup />
         <LocaleSwitcher />
@@ -22,7 +27,7 @@ export default function Onboarding() {
           <Form />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

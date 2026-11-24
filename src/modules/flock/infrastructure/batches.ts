@@ -2,8 +2,9 @@ import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
 import { houseOf } from "@/modules/farm-registry";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { Batch, type BatchStatus } from "@/modules/flock/domain/batch";
-import type { BatchCostDto, BatchDto } from "@/modules/flock/schema";
+import { Batch, ageOfBatch, type BatchStatus } from "@/modules/flock/domain/batch";
+import type { BatchDto, PaidOnDelivery } from "@/modules/flock/schema";
+import type { BirdSex, ProductionType } from "@/modules/reference-data/shared";
 
 // Batch repository (Prisma). Scoped to the caller's organisation.
 
@@ -12,21 +13,70 @@ const date = (day: string) => new Date(`${day}T00:00:00Z`); // a farm day, store
 /** B1: serializes placements in one house until the transaction ends, so the open-batch check can't race. */
 export const lockHouse = (tx: Tx, houseId: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${houseId}, 0))`;
 
-export const findOpenInHouse = (tx: Tx, ctx: TenantContext, houseId: string) =>
-  tx.batch.findFirst({ where: { organizationId: ctx.organizationId, houseId, status: "open" }, select: { id: true } });
+/** SPEC-m3 B8: the house's open batches, with what the sharing rule needs, but `except` (one closing in the same step). */
+export const openInHouse = async (tx: Tx, ctx: TenantContext, houseId: string, except?: string) =>
+  (await tx.batch.findMany({ where: { organizationId: ctx.organizationId, houseId, status: "open", ...(except && { id: { not: except } }) }, select: { species: true, sex: true } })).map((b) => ({
+    species: b.species as ProductionType,
+    sex: b.sex as BirdSex,
+  }));
 
 export const batchIdTaken = async (tx: Tx, id: string) => (await tx.batch.count({ where: { id } })) > 0;
 
-export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Promise<BatchDto> {
+// SPEC-finance §9 "Chicks paid on delivery", as stored: both columns set, or neither.
+const paidOf = (r: { paidOnDeliveryCentimes: bigint | null; paidOnDeliveryCashAccountId: string | null }): PaidOnDelivery | null =>
+  r.paidOnDeliveryCentimes === null ? null : { cashAccountId: r.paidOnDeliveryCashAccountId!, amountCentimes: String(r.paidOnDeliveryCentimes) };
+
+/**
+ * `chickVatCentimes`: SPEC-finance FN9, the delivery's VAT; `paid`: what was paid at delivery (§9). Both kept for
+ * finance: no flock rule reads them.
+ */
+export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch, chickVatCentimes: bigint | null = null, paid: PaidOnDelivery | null = null): Promise<BatchDto> {
   const p = batch.placement;
+  const paidColumns = { paidOnDeliveryCentimes: paid && BigInt(paid.amountCentimes), paidOnDeliveryCashAccountId: paid?.cashAccountId ?? null };
   await tx.batch.create({
-    data: { ...p, organizationId: ctx.organizationId, placedOn: date(p.placedOn), status: batch.status },
+    data: { ...p, chickVatCentimes, ...paidColumns, organizationId: ctx.organizationId, placedOn: date(p.placedOn), status: batch.status },
   });
+  return dtoOf(batch, chickVatCentimes, paid);
+}
+
+/** B1: the open batch's placement as corrected (the fields a correction may change), with its VAT. */
+export async function saveCorrection(tx: Tx, batch: Batch, chickVatCentimes: bigint | null): Promise<BatchDto> {
+  const p = batch.placement;
+  const { houseId, strainId, chicksPlaced, freeChicks, deadOnArrival, hatchery, deliveryNote, chickUnitPriceCentimes } = p;
+  const data = { houseId, strainId, chicksPlaced, freeChicks, deadOnArrival, hatchery, deliveryNote, chickUnitPriceCentimes, chickVatCentimes, placedOn: date(p.placedOn) };
+  const r = await tx.batch.update({ where: { id: p.id }, data });
+  return dtoOf(batch, chickVatCentimes, paidOf(r)); // not corrected: finance posts the payment once (SPEC-finance §9)
+}
+
+/** The placement's VAT as stored (SPEC-finance FN9), null when none was typed. */
+export const placementVat = async (tx: Tx, ctx: TenantContext, id: string) =>
+  (await tx.batch.findFirst({ where: { id, organizationId: ctx.organizationId }, select: { chickVatCentimes: true } }))?.chickVatCentimes ?? null;
+
+/** B1: what bounds a correction: the batch's entries, weighings and birds sold, and the closings of a house's batches. */
+export async function recordedFor(tx: Tx, ctx: TenantContext, batchId: string, houseId: string) {
+  const where = { batchId, organizationId: ctx.organizationId };
+  const day = (r: { day: Date }) => r.day.toISOString().slice(0, 10);
+  const [entries, weighings, sold, closed] = await Promise.all([
+    tx.dailyEntry.findMany({ where, select: { day: true, dead: true, culled: true } }),
+    tx.weighing.findMany({ where, select: { day: true } }),
+    tx.soldBirds.findMany({ where, select: { day: true, birds: true } }),
+    tx.batch.findMany({ where: { organizationId: ctx.organizationId, houseId, status: "closed" }, select: { id: true, houseId: true, closedOn: true } }),
+  ]);
+  return {
+    entries: entries.map((e) => ({ ...e, day: day(e) })),
+    weighings: weighings.map((w) => ({ day: day(w) })),
+    sold: sold.map((s) => ({ ...s, day: day(s) })),
+    closed: closed.map((b) => ({ ...b, closedOn: b.closedOn?.toISOString().slice(0, 10) ?? null })),
+  };
+}
+
+const dtoOf = (batch: Batch, chickVatCentimes: bigint | null, paidOnDelivery: PaidOnDelivery | null): BatchDto => {
+  const p = batch.placement;
   return {
     id: p.id,
     farmId: p.farmId,
     houseId: p.houseId,
-    species: "broiler",
+    species: p.species,
     strainId: p.strainId,
     placedOn: p.placedOn,
     chicksPlaced: p.chicksPlaced,
@@ -34,10 +84,19 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Pr
     hatchery: p.hatchery,
     deliveryNote: p.deliveryNote,
     dayOldWeightGrams: p.dayOldWeightGrams,
+    ageAtPlacementDays: p.ageAtPlacementDays ?? 0,
+    sex: p.sex ?? "mixed",
+    freeChicks: p.freeChicks ?? 0,
+    parentFlock: p.parentFlock ?? null,
+    weakChicks: p.weakChicks ?? null,
+    litterTempTenths: p.litterTempTenths ?? null,
+    fromBatchId: p.fromBatchId ?? null,
     status: batch.status,
     chickUnitPriceCentimes: String(p.chickUnitPriceCentimes),
+    chickVatCentimes: chickVatCentimes === null ? null : String(chickVatCentimes),
+    paidOnDelivery,
   };
-}
+};
 
 /**
  * The Batch aggregate, or null outside the caller's organisation. Taken under the batch's lock until the transaction
@@ -53,6 +112,7 @@ export async function loadBatch(tx: Tx, ctx: TenantContext, id: string): Promise
       id: r.id,
       farmId: r.farmId,
       houseId: r.houseId,
+      species: r.species as ProductionType,
       strainId: r.strainId,
       placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay,
       chicksPlaced: r.chicksPlaced,
@@ -61,6 +121,13 @@ export async function loadBatch(tx: Tx, ctx: TenantContext, id: string): Promise
       deliveryNote: r.deliveryNote,
       chickUnitPriceCentimes: r.chickUnitPriceCentimes,
       dayOldWeightGrams: r.dayOldWeightGrams,
+      ageAtPlacementDays: r.ageAtPlacementDays,
+      sex: r.sex as BirdSex,
+      freeChicks: r.freeChicks,
+      parentFlock: r.parentFlock,
+      weakChicks: r.weakChicks,
+      litterTempTenths: r.litterTempTenths,
+      fromBatchId: r.fromBatchId,
     },
     r.status as BatchStatus,
   );
@@ -71,16 +138,26 @@ export async function batchFacts(tx: Tx, ctx: TenantContext, id: string) {
   const r = await tx.batch.findFirst({ where: { id, organizationId: ctx.organizationId } });
   if (!r) return null;
   const house = await houseOf(tx, ctx, r.houseId);
-  return { farmId: r.farmId, houseName: house?.name ?? "", placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay, status: r.status as BatchStatus };
+  return {
+    farmId: r.farmId,
+    houseId: r.houseId,
+    houseName: house?.name ?? "",
+    placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay,
+    ageAtPlacementDays: r.ageAtPlacementDays,
+    species: r.species as ProductionType,
+    status: r.status as BatchStatus,
+  };
 }
 
-/** B6: what the closing needs: other costs and the farm weight of every bird sold. */
-export async function closingTotals(tx: Tx, batchId: string) {
-  const [other, sold] = await Promise.all([
-    tx.batchCost.aggregate({ where: { batchId }, _sum: { amountCentimes: true } }),
-    tx.soldBirds.aggregate({ where: { batchId }, _sum: { liveWeightGrams: true } }),
+/** B6: what the closing needs: other costs, the farm weight of every bird sold and the placement's VAT (SPEC-finance FN9). */
+export async function closingTotals(tx: Tx, ctx: TenantContext, batchId: string) {
+  const where = { batchId, organizationId: ctx.organizationId };
+  const [other, sold, placed] = await Promise.all([
+    tx.batchCost.aggregate({ where, _sum: { amountCentimes: true } }),
+    tx.soldBirds.aggregate({ where, _sum: { liveWeightGrams: true } }),
+    tx.batch.findFirst({ where: { id: batchId, organizationId: ctx.organizationId }, select: { chickVatCentimes: true } }),
   ]);
-  return { otherCentimes: other._sum.amountCentimes ?? 0n, soldGrams: sold._sum.liveWeightGrams ?? 0 };
+  return { otherCentimes: other._sum.amountCentimes ?? 0n, soldGrams: sold._sum.liveWeightGrams ?? 0, chickVatCentimes: placed?.chickVatCentimes ?? 0n };
 }
 
 /** B6: the batch closed, with its locked figures. Returns what pull sends (money stripped there for workers). */
@@ -94,7 +171,7 @@ export async function saveClosing(
     id: r.id,
     farmId: r.farmId,
     houseId: r.houseId,
-    species: "broiler",
+    species: r.species as ProductionType,
     strainId: r.strainId,
     placedOn: r.placedOn.toISOString().slice(0, 10),
     chicksPlaced: r.chicksPlaced,
@@ -102,8 +179,17 @@ export async function saveClosing(
     hatchery: r.hatchery,
     deliveryNote: r.deliveryNote,
     dayOldWeightGrams: r.dayOldWeightGrams,
+    ageAtPlacementDays: r.ageAtPlacementDays,
+    sex: r.sex as BirdSex,
+    freeChicks: r.freeChicks,
+    parentFlock: r.parentFlock,
+    weakChicks: r.weakChicks,
+    litterTempTenths: r.litterTempTenths,
+    fromBatchId: r.fromBatchId,
     status: batch.status,
     chickUnitPriceCentimes: String(r.chickUnitPriceCentimes),
+    chickVatCentimes: r.chickVatCentimes === null ? null : String(r.chickVatCentimes), // the closing's version keeps it (FN7)
+    paidOnDelivery: paidOf(r),
     closedOn: c.closedOn,
     closeReason: c.closeReason,
     soldGrams: c.soldGrams,
@@ -112,19 +198,29 @@ export async function saveClosing(
   };
 }
 
-export const batchCostIdTaken = async (tx: Tx, id: string) => (await tx.batchCost.count({ where: { id } })) > 0;
-
-export async function saveBatchCost(tx: Tx, ctx: TenantContext, c: Required<BatchCostDto>) {
-  await tx.batchCost.create({ data: { ...c, organizationId: ctx.organizationId, day: date(c.day), amountCentimes: BigInt(c.amountCentimes) } });
-}
-
-/** For other modules: the placement day of the batch in this house on that farm day (placed, not yet closed), or null. */
-export async function batchPlacedInHouseOn(tx: Tx, ctx: TenantContext, houseId: string, day: string) {
+/** For climate (CL3, CL4): the batch in this house on that farm day, its production type and the birds' age then, or null. */
+export async function batchInHouseOn(tx: Tx, ctx: TenantContext, houseId: string, day: string) {
   const at = new Date(`${day}T00:00:00Z`);
   const r = await tx.batch.findFirst({
     where: { houseId, organizationId: ctx.organizationId, placedOn: { lte: at }, OR: [{ closedOn: null }, { closedOn: { gte: at } }] },
     orderBy: { placedOn: "desc" },
-    select: { placedOn: true },
+    select: { placedOn: true, species: true, ageAtPlacementDays: true },
   });
-  return r && (r.placedOn.toISOString().slice(0, 10) as FarmDay);
+  return r && { productionType: r.species, age: ageOfBatch({ placedOn: r.placedOn.toISOString().slice(0, 10), ageAtPlacementDays: r.ageAtPlacementDays }, day as FarmDay) };
+}
+
+/** For finance (SPEC-finance §9 "Chicks paid on delivery"): the batches placed between two farm days and paid at delivery. */
+export async function paidOnDeliveryBetween(tx: Tx, ctx: TenantContext, from: string, to: string) {
+  const rows = await tx.batch.findMany({
+    where: { organizationId: ctx.organizationId, placedOn: { gte: date(from), lte: date(to) }, paidOnDeliveryCentimes: { not: null } },
+    select: { id: true, placedOn: true, hatchery: true, paidOnDeliveryCentimes: true },
+    orderBy: { placedOn: "asc" },
+  });
+  return rows.map((r) => ({ batchId: r.id, placedOn: r.placedOn.toISOString().slice(0, 10), hatchery: r.hatchery, amountCentimes: r.paidOnDeliveryCentimes! }));
+}
+
+/** For finance's export (SPEC-finance FN18): each batch's farm, house, placement day, type (FC6) and hatchery (§9 placement debts), by id. */
+export async function batchPlaces(tx: Tx, ctx: TenantContext, ids: string[]) {
+  const rows = await tx.batch.findMany({ where: { organizationId: ctx.organizationId, id: { in: ids } }, select: { id: true, farmId: true, houseId: true, placedOn: true, species: true, hatchery: true } });
+  return new Map(rows.map((r) => [r.id, { farmId: r.farmId, houseId: r.houseId, placedOn: r.placedOn.toISOString().slice(0, 10) as FarmDay, species: r.species as ProductionType, hatchery: r.hatchery }]));
 }

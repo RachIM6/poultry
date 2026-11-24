@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { v7 as uuidv7 } from "uuid";
+import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T19 acceptance (browser part): a batch placed offline gets its vaccination plan from the farm's protocol, and a
 // vaccine marked done offline takes its doses out of the lot. The dates and the reminders are checked on the server:
@@ -14,7 +15,7 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
     { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1200, capacity: 12000, type: "closed" } },
     { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Véto Atlas", phone: null } },
     { type: "inventory.createStockItem", payload: { id: ids.lot, farmId: ids.farm, productId: "vaccine-newcastle", kind: "vaccine", name: "Newcastle", unit: "dose", lot: "NDV-26", expiresOn: farmDaysAgo(-365) } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.lot, day: farmDaysAgo(0), quantity: 2000, unitPriceCentimes: "20", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.lot, day: farmDaysAgo(0), quantity: 2000, unitPriceCentimes: "20", paidCentimes: "0", dueOn: null } },
     { type: "reference-data.copyProtocol", payload: { id: ids.protocol, templateId: "broiler-default", name: "Programme de la ferme" } },
     {
       type: "reference-data.updateProtocol",
@@ -23,7 +24,7 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
   ]);
 
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await page.getByRole("button", { name: "Mettre en place une bande" }).click();
   await expect(page.getByLabel("Programme de vaccination")).toHaveValue(ids.protocol); // pulled, preselected
@@ -44,6 +45,7 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
   await expect(plan.nth(0)).toContainText("Aujourd’hui");
   await expect(plan.nth(1)).toContainText("Jour 7 · Vaccin Gumboro · Eau de boisson");
   await expect(plan.nth(1)).toContainText("Prévu le");
+  await expect(page.getByText(/maladie de Newcastle dans le plan/)).toHaveCount(0); // OQ4: the plan has its Newcastle line
 
   await plan.nth(0).getByRole("button", { name: "Marquer comme fait" }).click();
   await expect(page.getByLabel("Doses")).toHaveValue("990"); // the birds on hand
@@ -57,6 +59,7 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ due: string; doses: number | null; stock: number }>(
       `SELECT v."dueOn"::text AS due, v.doses,

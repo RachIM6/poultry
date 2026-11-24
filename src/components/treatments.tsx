@@ -9,15 +9,19 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { BatchDto } from "@/modules/flock/shared";
 import {
   HEALTH_MUTATIONS as H,
+  TREATMENT_ROUTES,
   checkBatchDay,
   checkTreatment,
+  eggWithdrawalEnd,
+  eggWithdrawalUntil,
   withdrawalEnd,
   withdrawalUntil,
   type TreatmentDto,
+  type TreatmentRoute,
   type VetVisitDto,
 } from "@/modules/health/shared";
 import { parseQuantity, type MovementDto, type StockItemDto } from "@/modules/inventory/shared";
-import { field, primary, secondary } from "@/components/ui";
+import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC H3–H5 on the batch screen, offline: the withdrawal banner, treatments with the lot they came from, vet visits.
 // The phone runs the same checks and the same withdrawal rule as the server.
@@ -30,8 +34,15 @@ export function WithdrawalBanner({ treatments }: { treatments: TreatmentDto[] })
   const t = useTranslations("Treatment");
   const locale = useLocale();
   const until = withdrawalUntil(treatments.map(asDays), today());
-  if (!until) return null;
-  return <p className="rounded-2xl bg-alert-soft p-3 font-semibold text-alert-fg">{t("withdrawal", { date: formatDay(until, locale) })}</p>;
+  // SPEC-m3 H7: eggs laid until then are withheld
+  const eggs = eggWithdrawalUntil(treatments.map((x) => ({ ...asDays(x), eggWithdrawalDays: x.eggWithdrawalDays ?? null })), today());
+  if (!until && !eggs) return null;
+  return (
+    <>
+      {until && <p className="rounded-2xl bg-alert-soft p-3 font-semibold text-alert-fg">{t("withdrawal", { date: formatDay(until, locale) })}</p>}
+      {eggs && <p className="rounded-2xl bg-alert-soft p-3 font-semibold text-alert-fg">{t("eggWithdrawal", { date: formatDay(eggs, locale) })}</p>}
+    </>
+  );
 }
 
 function Labelled({ label, hint, children }: { label: string; hint?: string; children: (id: string) => ReactNode }) {
@@ -77,6 +88,7 @@ export function Treatments({
               <span className="font-semibold">{t("line", { medicine: name(x.stockItemId), start: day(x.startOn), end: day(x.endOn) })}</span>
               <span>{t("detail", { dose: x.dose, reason: x.reason, prescriber: x.prescriber })}</span>
               <span>{t("withdrawalLine", { days: String(x.withdrawalDays), date: day(x.withdrawalEndsOn) })}</span>
+              {x.eggWithdrawalEndsOn && <span>{t("eggWithdrawalLine", { days: String(x.eggWithdrawalDays), date: day(x.eggWithdrawalEndsOn) })}</span>}
             </li>
           ))}
         </ul>
@@ -112,9 +124,10 @@ function TreatmentForm({
   const t = useTranslations();
   const locale = useLocale();
   const [itemId, setItemId] = useState(medicines[0]?.id);
+  const [route, setRoute] = useState<TreatmentRoute | "">("");
   const [error, setError] = useState<string>();
   const item = medicines.find((m) => m.id === itemId);
-  if (!item) return <p role="alert">{t("Treatment.noMedicine")}</p>;
+  if (!item) return <p role="alert" className={danger}>{t("Treatment.noMedicine")}</p>;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -122,6 +135,8 @@ function TreatmentForm({
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const quantity = parseQuantity(get("quantity"), item.unit) ?? NaN;
     const withdrawalDays = /^\d{1,3}$/.test(get("withdrawalDays")) ? Number(get("withdrawalDays")) : NaN;
+    const eggDays = get("eggWithdrawalDays");
+    const eggWithdrawalDays = eggDays === "" ? null : /^\d{1,3}$/.test(eggDays) ? Number(eggDays) : NaN; // SPEC-m3 H7
     const payload = {
       id: uuidv7(),
       batchId: batch.id,
@@ -133,13 +148,17 @@ function TreatmentForm({
       reason: get("reason"),
       prescriber: get("prescriber"),
       withdrawalDays,
+      eggWithdrawalDays,
+      route: route || null, // the register (arrêté 2126-05 art. 4), optional
+      routeNote: route === "other" ? get("routeNote") || null : null,
+      prescriptionRef: get("prescriptionRef") || null,
     };
-    if (Number.isNaN(withdrawalDays) || withdrawalDays > 365 || !payload.dose || !payload.reason || !payload.prescriber) return setError("errors.INVALID_INPUT");
-    const checked = checkTreatment({ placedOn: batch.placedOn as FarmDay, status: batch.status }, payload, today()); // as the server
+    if (Number.isNaN(withdrawalDays) || withdrawalDays > 365 || Number.isNaN(eggWithdrawalDays) || (eggWithdrawalDays ?? 0) > 365 || !payload.dose || !payload.reason || !payload.prescriber || (route === "other" && !payload.routeNote)) return setError("errors.INVALID_INPUT");
+    const checked = checkTreatment({ placedOn: batch.placedOn as FarmDay, status: batch.status, species: batch.species }, payload, today()); // as the server
     if (!checked.ok) return setError(`errors.${checked.error}`);
     setError(undefined);
 
-    const treatment: TreatmentDto = { ...payload, withdrawalEndsOn: withdrawalEnd(payload), byUserId: userId };
+    const treatment: TreatmentDto = { ...payload, withdrawalEndsOn: withdrawalEnd(payload), eggWithdrawalEndsOn: eggWithdrawalEnd(payload), byUserId: userId };
     const movement: MovementDto = { id: payload.id, farmId: batch.farmId, stockItemId: item.id, kind: "consumption", quantity: -quantity, day: payload.startOn, reason: null, purchaseId: null };
     const saved = await write({ type: H.recordTreatment, payload }, [
       { entity: "treatment", id: payload.id, data: treatment },
@@ -169,10 +188,25 @@ function TreatmentForm({
       <Labelled label={t("Treatment.endOn")}>{(id) => <input id={id} name="endOn" type="date" defaultValue={today()} required className={field} />}</Labelled>
       <Labelled label={t("Treatment.reason")}>{(id) => <input id={id} name="reason" required maxLength={200} className={field} />}</Labelled>
       <Labelled label={t("Treatment.prescriber")}>{(id) => <input id={id} name="prescriber" required maxLength={120} className={field} />}</Labelled>
+      <Labelled label={t("Treatment.prescriptionRef")}>{(id) => <input id={id} name="prescriptionRef" maxLength={60} dir="ltr" className={field} />}</Labelled>
+      <Labelled label={t("Treatment.route")}>
+        {(id) => (
+          <select id={id} value={route} onChange={(e) => setRoute(e.target.value as TreatmentRoute | "")} className={field}>
+            <option value="">—</option>
+            {TREATMENT_ROUTES.map((r) => <option key={r} value={r}>{t(`Treatment.routes.${r}`)}</option>)}
+          </select>
+        )}
+      </Labelled>
+      {route === "other" && <Labelled label={t("Treatment.routeNote")}>{(id) => <input id={id} name="routeNote" required maxLength={120} className={field} />}</Labelled>}
       <Labelled label={t("Treatment.withdrawalDays")} hint={t("Treatment.withdrawalHint")}>
         {(id) => <input id={id} name="withdrawalDays" inputMode="numeric" pattern="\d{1,3}" required dir="ltr" className={field} />}
       </Labelled>
-      {error && <p role="alert">{t(error)}</p>}
+      {batch.species === "layer" && (
+        <Labelled label={t("Treatment.eggWithdrawalDays")} hint={t("Treatment.withdrawalHint")}>
+          {(id) => <input id={id} name="eggWithdrawalDays" inputMode="numeric" pattern="\d{1,3}" required dir="ltr" className={field} />}
+        </Labelled>
+      )}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Treatment.save")}</button>
         <button type="button" onClick={onDone} className={secondary}>{t("Treatment.cancel")}</button>
@@ -221,7 +255,7 @@ export function VetVisits({ batch, visits, userId, write }: { batch: BatchDto; v
           <Labelled label={t("VetVisit.on")}>{(id) => <input id={id} name="on" type="date" defaultValue={today()} required className={field} />}</Labelled>
           <Labelled label={t("VetVisit.vet")}>{(id) => <input id={id} name="vetName" required maxLength={120} className={field} />}</Labelled>
           <Labelled label={t("VetVisit.notes")}>{(id) => <textarea id={id} name="notes" rows={3} maxLength={2000} className={field} />}</Labelled>
-          {error && <p role="alert">{t(error)}</p>}
+          {error && <p role="alert" className={danger}>{t(error)}</p>}
           <div className="flex gap-3">
             <button type="submit" className={primary}>{t("VetVisit.save")}</button>
             <button type="button" onClick={() => setAdding(false)} className={secondary}>{t("VetVisit.cancel")}</button>

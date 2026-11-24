@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { postJson } from "@/lib/api";
-import { currentScope, localDb, signOutLocally } from "@/offline/db";
 import { secondary } from "@/components/ui";
 
 /** `everywhere`: also logs out every other phone of this user (a lost phone, T25 S2). */
@@ -15,14 +14,18 @@ export function LogoutButton({ everywhere = false }: { everywhere?: boolean }) {
       type="button"
       onClick={async () => {
         if (everywhere && !confirm(t("everywhereConfirm"))) return;
+        const { currentScope, localDb, signOutLocally } = await import("@/offline/db"); // Dexie stays off /more's first load
         // poultry-auth §3: unsent changes are kept, but the user must know before leaving.
         const scope = await currentScope();
         if (scope && (await localDb(scope).outbox.count()) > 0 && !confirm(t("unsyncedConfirm"))) return;
-        await postJson(everywhere ? "/api/auth/logout?everywhere" : "/api/auth/logout");
+        // A shared phone must stop receiving this user's pushes: the server forgets this endpoint, and the phone unsubscribes.
+        const push = await navigator.serviceWorker
+          ?.getRegistration()
+          .then((reg) => reg?.pushManager?.getSubscription())
+          .catch(() => null); // never blocks logging out
+        await postJson(everywhere ? "/api/auth/logout?everywhere" : "/api/auth/logout", { endpoint: push?.endpoint });
         if (scope) await signOutLocally(scope);
-        // A shared phone must stop receiving this user's pushes; the server drops the endpoint at its next 410.
-        const reg = await navigator.serviceWorker?.getRegistration();
-        await (await reg?.pushManager?.getSubscription())?.unsubscribe().catch(() => {});
+        await push?.unsubscribe().catch(() => {});
         router.replace("/login");
       }}
       className={secondary}

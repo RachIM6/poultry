@@ -1,11 +1,11 @@
 import { audit } from "@/lib/audit";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { farmMinutesOf, latestRecordableDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import { checkBands, outOfRange, targetFor, verdicts } from "@/modules/climate/domain/targets";
 import { CLIMATE_MUTATIONS as M, EndPowerCut, RecordReading, SaveTargets, StartPowerCut, type Band, type PowerCutDto, type ReadingDto, type TargetSet } from "@/modules/climate/schema";
-import { batchPlacedInHouseOn, farmBelongsTo, houseOf } from "@/modules/flock";
+import { batchInHouseOn, farmBelongsTo, houseOf } from "@/modules/flock";
 import { notify } from "@/modules/notifications";
 
 const clock: Clock = systemClock;
@@ -37,18 +37,19 @@ export const climateSync: SyncRegistry = {
       async apply(tx, ctx, r, meta) {
         const house = await houseOf(tx, ctx, r.houseId);
         if (!house) return fail("NOT_FOUND");
-        if (r.day > farmDayOf(clock.now())) return fail("DAY_IN_FUTURE");
+        if (r.day > latestRecordableDay(clock)) return fail("DAY_IN_FUTURE");
         if (await tx.climateReading.findUnique({ where: { id: r.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
         const dto: ReadingDto = { ...r, farmId: house.farmId, byUserId: ctx.userId };
         await tx.climateReading.create({ data: { ...dto, day: new Date(`${r.day}T00:00:00Z`), organizationId: ctx.organizationId } });
         // CL4: out of the owner's targets for the age of the house's batch that day → owners and managers, urgently.
-        const placedOn = await batchPlacedInHouseOn(tx, ctx, r.houseId, r.day);
-        if (placedOn) {
-          const age = daysBetween(placedOn, r.day as FarmDay);
+        // the birds' age, hens placed at 18 weeks included (SPEC-m3 B7), and the set for their production type
+        const batch = await batchInHouseOn(tx, ctx, r.houseId, r.day);
+        if (batch) {
+          const age = batch.age;
           const sets = (await tx.climateTargetSet.findMany({ where: { organizationId: ctx.organizationId } })).map(
-            (s): TargetSet => ({ id: s.id, validFrom: s.validFrom.toISOString().slice(0, 10), source: s.source, bands: s.bands as Band[] }),
+            (s): TargetSet => ({ id: s.id, validFrom: s.validFrom.toISOString().slice(0, 10), source: s.source, bands: s.bands as Band[], productionType: s.productionType }),
           );
-          if (outOfRange(verdicts(r, targetFor(sets, r.day, age)))) {
+          if (outOfRange(verdicts(r, targetFor(sets, r.day, age, batch.productionType)))) {
             const values = [`${(r.temperatureTenths / 10).toFixed(1).replace(".", ",")} °C`, `${r.humidity} %`, ...(r.ammonia === null ? [] : [`${r.ammonia} ppm`])].join(" · ");
             await notify(tx, ctx, { roles: ["owner", "manager"], templateKey: "climateOutOfRange", params: { house: house.name, age: String(age), values }, urgency: "urgent" });
           }

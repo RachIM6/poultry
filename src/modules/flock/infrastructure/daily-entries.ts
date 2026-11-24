@@ -1,5 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
+import type { Batch } from "@/modules/flock/domain/batch";
+import { birdsOnHand } from "@/modules/flock/domain/birds";
 import type { DayFields, DeathCause } from "@/modules/flock/domain/daily-entry";
 import type { DailyEntryDto, SoldBirdsDto } from "@/modules/flock/schema";
 
@@ -31,17 +33,21 @@ export async function findEntry(tx: Tx, ctx: TenantContext, id: string): Promise
   return row && fields(row);
 }
 
-/** Dead + culled on the batch's other days (all days without `day`), plus every bird sold (B5). */
-export async function outOnOtherDays(tx: Tx, batchId: string, day?: string): Promise<number> {
-  const sum = await tx.dailyEntry.aggregate({ where: { batchId, ...(day && { NOT: { day: date(day) } }) }, _sum: { dead: true, culled: true } });
-  const sold = await tx.soldBirds.aggregate({ where: { batchId }, _sum: { birds: true } });
-  return (sum._sum.dead ?? 0) + (sum._sum.culled ?? 0) + (sold._sum.birds ?? 0);
+/** The batch's birds on hand, counting its other days only (all days without `day`) and every bird sold (B5). */
+export async function birdsOnHandBesides(tx: Tx, ctx: TenantContext, batch: Batch, day?: string): Promise<number> {
+  const where = { batchId: batch.placement.id, organizationId: ctx.organizationId };
+  const sum = await tx.dailyEntry.aggregate({ where: { ...where, ...(day && { NOT: { day: date(day) } }) }, _sum: { dead: true, culled: true } });
+  const sold = await tx.soldBirds.aggregate({ where, _sum: { birds: true } });
+  return birdsOnHand(batch.birdsStarted, [{ dead: sum._sum.dead ?? 0, culled: sum._sum.culled ?? 0 }], [{ birds: sold._sum.birds ?? 0 }]);
 }
 
 /** B5: birds that left the batch alive, with the id of the sale that took them. */
 export async function saveSoldBirds(tx: Tx, ctx: TenantContext, s: SoldBirdsDto) {
   await tx.soldBirds.create({ data: { ...s, organizationId: ctx.organizationId, day: date(s.day) } });
 }
+
+export const findSoldBirds = (tx: Tx, ctx: TenantContext, id: string) => tx.soldBirds.findFirst({ where: { id, organizationId: ctx.organizationId }, select: { batchId: true } });
+export const deleteSoldBirds = (tx: Tx, ctx: TenantContext, id: string) => tx.soldBirds.delete({ where: { id, organizationId: ctx.organizationId } });
 
 export async function saveEntry(tx: Tx, ctx: TenantContext, e: DailyEntryDto): Promise<DailyEntryDto> {
   const { feed, ...rest } = e;

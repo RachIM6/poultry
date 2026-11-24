@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const ROLES = ["owner", "manager", "worker", "vet", "accountant"] as const;
-export const PARTNER_ROLES: readonly string[] = ["vet", "accountant"]; // SPEC-m5, ADR-011
+export const PARTNER_ROLES: readonly string[] = ["vet", "accountant"]; // SPEC-m5, ADR-013
 
 // Phone format is checked by PhoneNumber after parsing, so the error can be INVALID_PHONE rather than INVALID_INPUT.
 // An end day only for a partner (PA1); "" from the form means none. Not in the past: checked with the clock.
@@ -11,3 +11,4 @@ export const InviteMember = z
 export const ChangeRole = z.object({ membershipId: z.uuid(), role: z.enum(ROLES) });
 export const RemoveMember = z.object({ membershipId: z.uuid() });
 export const CancelInvitation = z.object({ invitationId: z.uuid() });
+export const SaveLocale = z.object({ locale: z.enum(["ar", "fr"]) }); // ADR-004: no Darija in v1

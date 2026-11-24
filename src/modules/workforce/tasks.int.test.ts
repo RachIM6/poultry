@@ -40,7 +40,7 @@ describe("routines and one-off tasks through sync (SPEC-m4 WF5)", () => {
     expect(await statuses(manager, [saved, saved])).toEqual(["applied", "applied"]);
     expect(await statuses(manager, [m(M.saveRoutine, { ...r, stopOn: "2026-12-01" })])).toEqual(["applied"]);
     const seen = (await pull({ ...a, role: "worker" }, 0, registry)).changes.filter((c) => c.id === r.id).map((c) => c.data);
-    expect(seen).toEqual([r, { ...r, stopOn: "2026-12-01" }]);
+    expect(seen).toEqual([{ ...r, stopOn: "2026-12-01" }]); // the latest version only (ADR-014)
     expect(await db.auditEvent.count({ where: { entity: "Routine", entityId: r.id } })).toBe(2);
   });
 

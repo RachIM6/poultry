@@ -1,6 +1,6 @@
 # Implementation plan: M5 network
 
-_v0.1, 18 Nov 2026. Status: **draft**, written while the owner was away. Implements [SPEC-m5.md](../SPEC-m5.md) (`partner-access`, `market-prices`, `planning`) and [ADR-011](../docs/decisions/ADR-011-partner-access.md). Task numbers T90–T99 (T70–T89 are M4)._
+_v0.1, 18 Nov 2026. Status: **draft**, written while the owner was away. Implements [SPEC-m5.md](../SPEC-m5.md) (`partner-access`, `market-prices`, `planning`) and [ADR-013](../docs/decisions/ADR-013-partner-access.md). Task numbers T90–T99 (T70–T89 are M4)._
 
 Definition of done, layout and verification as in [plan-m4.md](plan-m4.md): domain test → integration test (tenant isolation, idempotency, role stripping) → screen → Playwright spec, then lint, typecheck, `pnpm test`, the spec and `e2e/budget.spec.ts`. Branches `feat/t<N>-<slug>`, each stacked on the previous one, the first on `docs/m5-plan`, itself on `test/checkpoint-e` (#105). Databases `poultry_m4` / `poultry_test_m4`, Playwright on `E2E_PORT=3500`. New modules start **light**. New screens are static shells, precached, linked from "Plus"; nothing new on `/batches`.
 
@@ -27,7 +27,7 @@ Done 2026-11-18 (branch `feat/t90-partner-roles`), decisions taken without askin
 - **Not yet:** a vet who already belongs to another farm stays with their pending invitation until T92 (the accept screen and the switcher). Until T91, a partner's phone pulls what a worker's would, money included for the accountant.
 **Size:** M
 
-### T91: Partner pull allowlist (PA4, PA5, ADR-011)
+### T91: Partner pull allowlist (PA4, PA5, ADR-013)
 **Description:** the sync pull skips, for a vet or an accountant, every entity not on that role's list; the lists live with the registry.
 **AC:**
 - [x] A vet pulls batches, entries and health, and no sale, purchase, expense, employee, staff record, advance or price (integration on the full registry: the test fails when a new entity is added without a decision). (`app/api/sync/partners.int.test.ts`)
@@ -47,7 +47,7 @@ Done 2026-11-18 (branch `feat/t91-partner-pull`), decisions taken without asking
 - [x] A forged cookie or someone else's organisation falls back to the oldest live membership (integration). (`identity/organizations.int.test.ts`)
 
 Done 2026-11-18 (branch `feat/t92-switch-farm`), decisions taken without asking:
-- **Cookie `__Host-org`, not signed:** httpOnly, Secure, SameSite=Lax, one year. It is only a hint: `getTenantContext` opens it only when it is one of the user's live memberships, else the oldest, so a forged value opens nothing. ADR-011 and SPEC-m5 §3 say so now.
+- **Cookie `__Host-org`, not signed:** httpOnly, Secure, SameSite=Lax, one year. It is only a hint: `getTenantContext` opens it only when it is one of the user's live memberships, else the oldest, so a forged value opens nothing. ADR-013 and SPEC-m5 §3 say so now.
 - **Server actions, not a new route:** `openFarm` and `acceptAndOpen` on `/organizations` (Next's Origin check), then the dashboard. Opening a farm is audited (`Membership`, `open`).
 - **Invitations for someone already elsewhere** stay pending (as before) and show on `/organizations`, where the person accepts them; only an invitation to their own phone, unexpired. No chooser right after sign-in: the oldest farm opens, and "Changer d’exploitation" appears in "Plus" as soon as there is a second farm or an invitation.
 - The phone needed nothing new: each signed-in page stores the server's organisation, and every farm already has its own database (ADR-003).
@@ -93,6 +93,9 @@ Done 2026-11-18 (branch `feat/t96-planning`, with T97), decisions taken without 
 - **Gaps and overlaps compare each slot with the one just before it** in placement order.
 - **Edit = save again while planned** (the server accepts it); the screen offers "Annuler" and a new plan, not an edit form yet.
 - Planning is hidden from both partner roles (allowlist test updated).
+
+Revised 2026-11-23 (branch `feat/downtime-disposal-official`), NQ4 decided default with sources (SPEC-m5 §2):
+- [x] Without a rule, the official 20 days (arrêté n° 2127-05, art. 4) apply; a rule below 20 is refused (`DOWNTIME_BELOW_OFFICIAL`), one entered lower before gives way. The warning always shows, and the placement form and `/cleanout` read the same figure. (`planning/domain/plan.test.ts`, `planning/plans.int.test.ts`, `e2e/planning.spec.ts`.)
 **Size:** M
 
 ### T97: /planning (PL2)
@@ -125,7 +128,7 @@ Done 2026-11-18 (branch `feat/t99-placement-reminder`), decisions taken without 
 **Size:** S
 
 ### ✅ Checkpoint M5
-- [ ] The owner reviewed SPEC-m5, ADR-011 and NQ1–NQ7; a real vet used the access for a week.
+- [ ] The owner reviewed SPEC-m5, ADR-013 and NQ1–NQ7; a real vet used the access for a week.
 - [ ] SPEC-m5 §9 criteria met. (§9.1 `e2e/switch-farm.spec.ts` + `app/api/sync/partners.int.test.ts`; §9.2 the same test file, accountant part; §9.3 `identity/partners.int.test.ts`, `identity/organizations.int.test.ts`; §9.4 `e2e/place-from-plan.spec.ts` + `planning/reminders.int.test.ts`; §9.5 each task's verification.)
 
 ## Later

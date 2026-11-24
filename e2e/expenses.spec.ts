@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
+
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 
 // T32 acceptance (browser part): a quick expense recorded offline on the phone is posted once after sync, and shows in
 // the treasury. Workers are refused on the server (src/modules/finance/treasury.int.test.ts).
@@ -12,7 +14,7 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
 
   await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Dépense rapide" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await page.getByRole("button", { name: "Ajouter une caisse ou un compte" }).click();
   await page.getByLabel("Type").selectOption({ label: "Caisse" });
   await page.getByLabel("Nom").fill("Caisse ferme");
@@ -34,6 +36,7 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ expenses: number; entries: number }>(
       `SELECT (SELECT count(*)::int FROM "Expense" x WHERE x."organizationId" = m."organizationId") AS expenses,
@@ -43,12 +46,18 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
     );
   await expect.poll(server).toEqual([{ expenses: 1, entries: 1 }]);
 
+  // FN10: once the expense is on the server and the phone online, its receipt photo goes up.
+  await expect(recent.getByText("Ajouter le reçu")).toBeVisible({ timeout: 20_000 });
+  await recent.locator('input[type="file"]').setInputFiles({ name: "onee.png", mimeType: "image/png", buffer: PNG });
+  await expect(recent.getByRole("link", { name: "Voir le reçu" })).toBeVisible({ timeout: 20_000 });
+
   await page.goto("/fr/treasury");
   await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").first()).toContainText(/Caisse · Caisse ferme\s*-1.200,00\sDH/);
+  await expect(page.getByRole("row").filter({ hasText: "Dépense" }).getByRole("link", { name: /^Voir le reçu : / })).toBeVisible(); // WCAG 2.4.6: which receipt
 
   // T34: shared across this month's batches (the default), it is all this batch's.
   await page.goto("/fr/results");
-  await expect(page.getByRole("row").nth(1)).toContainText(/réparti 1.200,00\sDH/);
+  await expect(page.getByRole("row").nth(1)).toContainText(/réparti \(charges communes et salaires\) 1.200,00\sDH/);
 
   // tasks/plan-ui.md U11: the owner's home shows the cash at hand in its "Argent" card.
   await page.goto("/fr/dashboard");
@@ -59,4 +68,34 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
   await expect(nav.getByRole("link", { name: "Comptabilité" })).toBeHidden();
   await page.setViewportSize({ width: 1280, height: 800 });
   for (const name of ["Ventes", "Comptabilité", "Membres"]) await expect(nav.getByRole("link", { name })).toBeVisible();
+});
+
+// T119 (FC9): bank fees are paid from a bank account only; with none yet, the form says to add one first.
+test("bank fees offer only bank accounts, and ask for one when there is none", async ({ page }) => {
+  test.setTimeout(90_000);
+  await ownerWithFarm(page, "Élevage des Frais");
+  await scopeRemembered(page);
+  await page.goto("/fr/expenses");
+  const addAccount = async (kind: string, name: string) => {
+    await page.getByRole("button", { name: "Ajouter une caisse ou un compte" }).click();
+    await page.getByLabel("Type").selectOption({ label: kind });
+    await page.getByLabel("Nom").fill(name);
+    await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: `${kind} · ${name}` })).toBeVisible();
+  };
+  const paidWith = page.getByLabel("Payé avec").locator("option");
+  await addAccount("Caisse", "Caisse ferme");
+  await expect(paidWith).toHaveText(["Caisse · Caisse ferme", "À payer plus tard (fournisseur)"]);
+
+  await page.getByLabel("Nature").selectOption({ label: "Frais bancaires" });
+  await expect(paidWith).toHaveCount(0); // neither the cash box nor credit
+  await page.getByLabel("Montant (DH)").fill("45");
+  await page.getByRole("button", { name: "Enregistrer la dépense" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord." })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Dernières dépenses" }).getByRole("listitem")).toHaveCount(0);
+
+  await addAccount("Banque", "Banque Populaire");
+  await expect(paidWith).toHaveText(["Banque · Banque Populaire"]);
+  await page.getByLabel("Nature").selectOption({ label: "Électricité" });
+  await expect(paidWith).toHaveText(["Banque · Banque Populaire", "Caisse · Caisse ferme", "À payer plus tard (fournisseur)"]);
 });

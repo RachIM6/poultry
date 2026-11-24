@@ -62,13 +62,36 @@ describe("receivables and due-date reminders (SPEC V4)", () => {
     expect(await db.auditEvent.count({ where: { entity: "BuyerPayment", organizationId: a.organizationId } })).toBe(2);
   });
 
-  it("announces a cheque or bill once, on its due day, to those who see money", async () => {
+  it("announces a cheque or bill once, on its due day, for the amount paid with it, to those who see money", async () => {
+    const dueOn = "2026-11-20";
+    expect(
+      await statuses(a, [
+        sale({ paymentMethod: "cheque", paidCentimes: "300000", instrument: { number: "0012346", dueOn } }), // the whole sale
+        sale({ paymentMethod: "cheque", paidCentimes: "100000", instrument: { number: "0012347", dueOn } }), // 1 000 of 3 000 DH
+      ]),
+    ).toEqual(["applied", "applied"]);
     expect(await sendInstrumentReminders(fixedClock("2026-11-19T12:00:00Z"))).toBe(0); // the day before
-    expect(await sendInstrumentReminders(fixedClock("2026-11-20T01:00:00Z"))).toBe(1);
+    expect(await sendInstrumentReminders(fixedClock("2026-11-20T01:00:00Z"))).toBe(2); // 0012345 paid nothing: not in the portfolio
     expect(await sendInstrumentReminders(fixedClock("2026-11-20T09:00:00Z"))).toBe(0); // once
-    const [n] = await db.notification.findMany({ where: { organizationId: a.organizationId, templateKey: "instrumentDue" } });
-    expect(n).toMatchObject({ userId: a.userId, params: { method: "cheque", number: "0012345", buyer: "Abattoir Atlas" } });
-    expect((n.params as { amount: string }).amount).toMatch(/^3.000,00\sDH$/);
+    const sent = await db.notification.findMany({ where: { organizationId: a.organizationId, templateKey: "instrumentDue" } });
+    const amountOf = (number: string) => (sent.find((n) => (n.params as { number: string }).number === number)?.params as { amount: string } | undefined)?.amount;
+    expect(sent.map((n) => n.params)).toEqual(expect.arrayContaining([expect.objectContaining({ method: "cheque", number: "0012346", buyer: "Abattoir Atlas" })]));
+    expect(sent.every((n) => n.userId === a.userId)).toBe(true);
+    expect(amountOf("0012346")).toMatch(/^3.000,00\sDH$/);
+    expect(amountOf("0012347")).toMatch(/^1.000,00\sDH$/); // the portfolio's figure, not the sale's 3 000 DH
+    expect(amountOf("0012345")).toBeUndefined();
     expect(await db.notification.count({ where: { organizationId: b.organizationId } })).toBe(0);
+  });
+
+  it("a later payment's cheque or bill keeps its number and agreed date, and is announced on that day (FN11)", async () => {
+    expect(await statuses(a, [sale({ paymentMethod: "credit", paidCentimes: "0", instrument: null })])).toEqual(["applied"]); // 3 000 DH owed
+    expect(await statuses(a, [payment({ amountCentimes: "100", instrument: { number: "X", dueOn: "2026-11-21" } })])).toEqual(["INVALID_INPUT"]); // cash carries none
+    expect(await statuses(a, [payment({ amountCentimes: "300000", method: "bill", instrument: { number: "LC-9", dueOn: "2026-11-21" } })])).toEqual(["applied"]);
+    expect((await pulled<PaymentDto>(a, "buyerPayment")).at(-1)?.instrument).toEqual({ number: "LC-9", dueOn: "2026-11-21" });
+    expect(await sendInstrumentReminders(fixedClock("2026-11-21T01:00:00Z"))).toBe(1);
+    expect(await sendInstrumentReminders(fixedClock("2026-11-21T09:00:00Z"))).toBe(0); // once
+    const n = await db.notification.findFirstOrThrow({ where: { organizationId: a.organizationId, templateKey: "instrumentDue", params: { path: ["number"], equals: "LC-9" } } });
+    expect(n.params).toMatchObject({ method: "bill", buyer: "Abattoir Atlas" });
+    expect((n.params as { amount: string }).amount).toMatch(/^3.000,00\sDH$/);
   });
 });

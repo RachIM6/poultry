@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { acceptInvitation, chooseOrganization, ORG_COOKIE } from "@/modules/identity";
 
 // SPEC-m5 PA2. Server actions get Next's Origin check; identity checks the membership or the invitation's phone.
-// The cookie only says which farm to open: getTenantContext re-checks it on every request (ADR-011).
+// The cookie only says which farm to open: getTenantContext re-checks it on every request (ADR-013).
 async function open(organizationId: string, form: FormData) {
   (await cookies()).set(ORG_COOKIE, organizationId, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 365 * 86_400 });
   redirect(`/${form.get("locale") === "ar" ? "ar" : "fr"}/dashboard`);

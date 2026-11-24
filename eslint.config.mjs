@@ -17,11 +17,11 @@ const moduleDeps = {
   health: ["flock", "inventory", "reference-data", "partner-access", "notifications"],
   climate: ["flock", "notifications"],
   biosecurity: ["farm-registry", "flock", "notifications"],
-  eggs: ["flock", "inventory"],
+  eggs: ["flock", "inventory", "reference-data"],
   planning: ["flock", "market-prices", "notifications"],
   workforce: ["identity", "farm-registry", "flock", "health", "notifications"],
   sales: ["flock", "health", "eggs", "notifications"],
-  finance: ["farm-registry", "inventory", "flock", "sales", "workforce"],
+  finance: ["farm-registry", "inventory", "flock", "eggs", "sales", "workforce", "notifications", "documents"],
   reporting: ["flock", "health", "biosecurity", "documents", "sales", "finance"],
 };
 

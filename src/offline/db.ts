@@ -9,11 +9,12 @@ export type Scope = { userId: string; organizationId: string; role: Role };
 export const scopeKey = (s: Pick<Scope, "userId" | "organizationId">) => `${s.userId}:${s.organizationId}`;
 
 export type OutboxEntry = { id: string; type: string; payload: unknown; createdAt: string; recordKeys?: string[] };
-export type RejectedEntry = OutboxEntry & { messageKey: string };
+export type RejectedEntry = OutboxEntry & { messageKey: string; messageValues?: Record<string, string | number> }; // not indexed: no new version
 export type LocalRecord = { key: string; entity: string; id: string; data: unknown };
 export type SyncOutcome = "ok" | "offline" | "unauthenticated" | "wrong-scope";
 type Meta =
   | { key: "cursor"; value: number }
+  | { key: "refetch"; value: string[] } // ADR-014: "<entity>:<id>" of refused writes, to read back from the server
   | { key: "lastSyncAt"; value: string }
   | { key: "lastOutcome"; value: SyncOutcome };
 
@@ -36,6 +37,20 @@ export function localDb(scope: Pick<Scope, "userId" | "organizationId">): LocalD
     open.set(name, db);
   }
   return db;
+}
+
+/**
+ * Saves local records, or deletes them (`data: null`), in bulk inside the caller's transaction: one bulkDelete and one
+ * bulkPut, not a request per record. The last change to a key wins, as applying them one by one in order would.
+ */
+export async function applyRecords(db: LocalDb, changes: Iterable<{ entity: string; id: string; data: unknown }>) {
+  const latest = new Map<string, LocalRecord | null>();
+  for (const { entity, id, data } of changes) {
+    const key = `${entity}:${id}`;
+    latest.set(key, data === null ? null : { key, entity, id, data });
+  }
+  await db.records.bulkDelete([...latest].flatMap(([key, record]) => (record ? [] : [key])));
+  await db.records.bulkPut([...latest.values()].filter((record) => record !== null));
 }
 
 export const metaValue = async <K extends Meta["key"]>(db: LocalDb, key: K) =>

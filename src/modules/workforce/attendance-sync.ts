@@ -1,6 +1,6 @@
 import { audit } from "@/lib/audit";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { addFarmDays, farmDayOf } from "@/lib/kernel/farm-day";
+import { addFarmDays, farmDayOf, latestRecordableDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
@@ -27,7 +27,7 @@ export const attendanceSync: SyncRegistry = {
         const employee = await tx.employee.findFirst({ where: { id: c.employeeId, organizationId: ctx.organizationId } });
         if (!employee || employee.userId !== ctx.userId) return fail("NOT_FOUND");
         const today = farmDayOf(clock.now());
-        if (c.day > today) return fail("DAY_IN_FUTURE");
+        if (c.day > latestRecordableDay(clock)) return fail("DAY_IN_FUTURE");
         if (c.day < addFarmDays(today, -OFFLINE_DAYS)) return fail("TASK_DAY_PAST");
         // A self check-in is for the day the phone recorded it (its clock, kept in the audit log), never another day.
         if (c.day !== farmDayOf(meta.deviceCreatedAt)) return fail("INVALID_INPUT");
@@ -47,7 +47,7 @@ export const attendanceSync: SyncRegistry = {
       async apply(tx, ctx, s, meta) {
         const employee = await tx.employee.findFirst({ where: { id: s.employeeId, organizationId: ctx.organizationId } });
         if (!employee) return fail("NOT_FOUND");
-        if (s.day > farmDayOf(clock.now())) return fail("DAY_IN_FUTURE");
+        if (s.day > latestRecordableDay(clock)) return fail("DAY_IN_FUTURE");
         if (await monthValidated(tx, employee.farmId, s.day.slice(0, 7))) return fail("PAY_MONTH_VALIDATED");
         const before = await tx.attendance.findUnique({ where: { id: s.id } });
         if (before && before.organizationId !== ctx.organizationId) return fail("NOT_FOUND");

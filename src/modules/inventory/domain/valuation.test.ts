@@ -29,6 +29,13 @@ describe("weighted average valuation (SPEC S5)", () => {
     expect(result).toMatchObject({ onHand: kg(500), valueCentimes: 220_000n });
   });
 
+  it("averages 9 200,00 DH for 2 000 kg and 36 950,00 DH for 8 000 kg to 4,615 DH/kg (SPEC-finance §7 weightedAverageCost)", () => {
+    const tonne = use("2026-11-03", kg(1000));
+    const result = valuate([buy("2026-11-01", kg(2000), 920_000n), buy("2026-11-02", kg(8000), 3_695_000n), tonne]);
+    expect(result.costs.get(tonne.id)).toBe(461_500n); // 1 000 kg × 4,615 = 4 615,00 DH
+    expect(result).toMatchObject({ onHand: kg(9000), valueCentimes: 4_153_500n });
+  });
+
   it("uses ledger order, not the order movements arrived on the phone", () => {
     const early = buy("2026-11-01", kg(100), 40_000n);
     const late = buy("2026-11-03", kg(100), 60_000n);
@@ -50,5 +57,12 @@ describe("weighted average valuation (SPEC S5)", () => {
     const result = valuate([buy("2026-11-01", kg(100), 50_000n), found, overdraw, use("2026-11-04", kg(5))]);
     expect(result.costs.get(overdraw.id)).toBe(55_000n); // only the 110 kg there were
     expect(result).toMatchObject({ onHand: kg(-95), valueCentimes: 0n });
+  });
+
+  it("orders a day's movements by when they were recorded, not by id (a consumption's id is a UUIDv5)", () => {
+    const bought = { ...buy("2026-11-01", kg(100), 50_000n), createdAt: new Date("2026-11-01T07:00:00Z") };
+    const used = { id: "00000000-0000-5000-8000-000000000001", day: "2026-11-01", quantity: -kg(10), createdAt: new Date("2026-11-01T18:00:00Z") };
+    expect(used.id < bought.id).toBe(true); // by id, the feed would come first and cost nothing
+    expect(valuate([bought, used]).costs.get(used.id)).toBe(5_000n);
   });
 });

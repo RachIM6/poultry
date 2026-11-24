@@ -1,9 +1,11 @@
 "use client";
 
+import type { Payload } from "altcha-lib";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { postJson } from "@/lib/api";
+import { CaptchaField } from "@/components/captcha-field";
 import { danger, primary as button } from "@/components/ui";
 
 
@@ -15,6 +17,9 @@ export function LoginForm() {
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [captcha, setCaptcha] = useState<Payload>();
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const [verifyCaptcha, setVerifyCaptcha] = useState(false); // after 3 wrong codes the server asks for one (T26)
 
   const submit = (run: (form: HTMLFormElement) => Promise<void>) => async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,17 +29,28 @@ export function LoginForm() {
     setBusy(false);
   };
 
-  const sendCode = submit(async () => {
-    const res = await postJson("/api/auth/request-code", { phone });
+  // The number is read from the form, not kept in state while typing: on a slow phone it can be typed before React
+  // hydrates, and the re-render when the captcha is solved would otherwise wipe it.
+  const sendCode = submit(async (form) => {
+    const typed = String(new FormData(form).get("phone") ?? "");
+    setPhone(typed);
+    const res = await postJson("/api/auth/request-code", { phone: typed, captcha });
+    setCaptcha(undefined); // single use: the next request needs a new one
     if (res.status === 202) setStep("code");
-    else setError(res.messageKey);
+    else {
+      setError(res.messageKey);
+      setCaptchaKey((n) => n + 1);
+    }
   });
 
   const verify = submit(async (form) => {
     const code = new FormData(form).get("code");
-    const res = await postJson("/api/auth/verify-code", { phone, code, locale });
-    if (res.status === 200) router.replace("/dashboard");
-    else setError(res.messageKey);
+    const res = await postJson("/api/auth/verify-code", { phone, code, locale, captcha });
+    if (res.status === 200) return router.replace("/dashboard");
+    setError(res.messageKey);
+    if (res.messageKey === "errors.CAPTCHA_REQUIRED") setVerifyCaptcha(true);
+    setCaptcha(undefined); // single use: a new one for the next try
+    setCaptchaKey((n) => n + 1);
   });
 
   const big = "h-[60px] rounded-2xl border-2 border-ink bg-card px-4 text-[22px] font-medium text-ink placeholder:text-muted";
@@ -43,6 +59,7 @@ export function LoginForm() {
       <label htmlFor="phone" className="text-lg font-semibold">{t("Login.phoneLabel")}</label>
       <input
         id="phone"
+        name="phone"
         type="tel"
         inputMode="tel"
         autoComplete="tel"
@@ -51,15 +68,15 @@ export function LoginForm() {
         // UX hint only: the server decides (src/modules/identity/domain/phone-number.ts).
         pattern="\s*(\+212|00212|212|0)[\s.\-]*[67]([\s.\-]*\d){8}\s*"
         placeholder="06 12 34 56 78"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
+        defaultValue={phone}
         aria-describedby="phone-hint"
         className={big}
       />
       <p id="phone-hint" className="text-sm text-muted">{t("Login.phoneHint")}</p>
+      <CaptchaField key={captchaKey} onSolved={setCaptcha} />
       {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="mt-auto flex flex-col gap-3 pt-6">
-        <button type="submit" disabled={busy} className={button}>{t("Login.sendCode")}</button>
+        <button type="submit" disabled={busy || !captcha} className={button}>{t("Login.sendCode")}</button>
         <p className="text-center text-[13px] text-muted">{t("Login.noPassword")}</p>
       </div>
     </form>
@@ -79,11 +96,12 @@ export function LoginForm() {
         placeholder="••••••"
         className={`${big} h-16 text-center text-[28px] font-semibold tracking-[0.5em]`}
       />
+      {verifyCaptcha && <CaptchaField key={captchaKey} onSolved={setCaptcha} />}
       {error && <p role="alert" className={danger}>{t(error)}</p>}
       <button type="button" onClick={() => setStep("phone")} className="self-end min-h-11 underline underline-offset-4">
         {t("Login.changeNumber")}
       </button>
-      <button type="submit" disabled={busy} className={`${button} mt-auto`}>{t("Login.verify")}</button>
+      <button type="submit" disabled={busy || (verifyCaptcha && !captcha)} className={`${button} mt-auto`}>{t("Login.verify")}</button>
     </form>
   );
 }

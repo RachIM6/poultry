@@ -19,8 +19,11 @@ export type Budget = {
   breakEvenPerKgCentimes: bigint | null; // the sale price per kg that covers the cost; null with nothing to sell
 };
 
-/** a × b ÷ c rounded half up, for non-negative amounts. */
-const mulDiv = (a: bigint, b: bigint, c: bigint) => (a * b * 2n + c) / (2n * c);
+/**
+ * a × b ÷ c rounded half up, for non-negative amounts: divHalfUp(a × b, c) of @/lib/kernel/money, which this file can't
+ * import (prisma/seed.ts loads it under plain Node, ../shared.ts). budget.test.ts holds the two together.
+ */
+export const mulDiv = (a: bigint, b: bigint, c: bigint) => (a * b * 2n + c) / (2n * c);
 
 /** §7: planned cost ÷ planned kg (270 800,00 ÷ 23 700 kg → 11,43 DH/kg). */
 export const breakEvenPrice = (costCentimes: bigint, grams: bigint): bigint | null => (grams > 0n ? mulDiv(costCentimes, 1000n, grams) : null);

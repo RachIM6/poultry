@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { changeAccountingChoices, exportBooks, postPending, readBooks } from "@/modules/finance";
+import { batchOf, changeAccountingChoices, exportBooks, exportFec, postPending, readBooks, treasuryOverview } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
 import { unzip } from "@/test/unzip";
@@ -82,6 +82,23 @@ describe("books (SPEC-finance FN16, T36)", () => {
     expect(books.value.cashBook).toMatchObject({ receipts: 400_000n, expenses: 520_000n });
   });
 
+  it("shows each treasury movement's counter-accounts and batch as the cash book does (FN10)", async () => {
+    const accountant = { ...cashBook, role: "accountant" as const }; // money.read: the accountant reads them too
+    const [overview, books] = await Promise.all([treasuryOverview(accountant, "2026-03"), readBooks(cashBook, "2026-03")]);
+    if (!overview.ok) throw new Error(overview.error);
+    if (!books.ok) throw new Error(books.error);
+    const movements = overview.value.movements;
+    const treasury = movements.map((x) => JSON.stringify([x.day, x.account, x.counterAccounts.map((c) => c.number), x.batch]));
+    const cash = books.value.cashBook.rows.map((r) => JSON.stringify([r.day, r.account, [...new Set(r.counterAccounts)], batchOf(books.value.tags, r.entryId)]));
+    expect(treasury.sort()).toEqual(cash.sort());
+    // The sale: the buyer's account with its label, and its batch; the transfer's two legs go through 5115 only.
+    const sale = movements.find((x) => x.day === "2026-03-20");
+    expect(sale?.counterAccounts).toContainEqual({ number: "3421", label: "Clients" });
+    expect(sale?.batch).toBe("B1 · 01/03/2026");
+    expect(movements.filter((x) => x.day === "2026-03-22").map((x) => [x.account, x.counterAccounts, x.batch]).sort()).toEqual([["5141", [], ""], ["5161", [], ""]]);
+    expect(movements.flatMap((x) => x.counterAccounts).every((c) => c.label !== "")).toBe(true);
+  });
+
   it("exports a month for the accountant: CSV and Excel in one zip (FN18, T38)", async () => {
     const exported = await exportBooks(ledger, "2026-03");
     if (!exported.ok) throw new Error(exported.error);
@@ -91,11 +108,39 @@ describe("books (SPEC-finance FN16, T36)", () => {
     // The electricity expense, both lines, with the chart's labels.
     expect(files.get("ecritures-2026-03.csv")).toMatch(/\r\n21\/03\/2026;CA;[0-9a-f-]{36};5161;Caisses;[^;]+;0,00;1200,00;;;;\r\n/);
     expect(files.get("balance-2026-03.csv")).toMatch(/\r\nTotal;;(\d+,\d\d);\1;0,00\r\n$/);
+    // FN18's analytic columns, from each entry's source: the supplier and farm, the chicks' batch, the buyer and batch.
+    const entries = files.get("ecritures-2026-03.csv")!;
+    expect(entries).toMatch(/;612122;[^;]+;Achat;9000,00;0,00;Alf;F;;\r\n/);
+    expect(entries).toMatch(/;612121;[^;]+;Achat de poussins;5500,00;0,00;;F;B1;01\/03\/2026\r\n/);
+    expect(entries).toMatch(/;3421;[^;]+;Vente;3000,00;0,00;Hamid;F;B1;01\/03\/2026\r\n/);
 
     const cash = await exportBooks(cashBook, "2026-03");
     if (!cash.ok) throw new Error(cash.error);
     expect([...unzip(cash.value.zip).keys()]).toEqual(["recettes-depenses-2026-03.csv", "livres-2026-03.xlsx"]);
+    // FN16: a cash-book entity's receipts and expenses with their batch (the sale's), none for the electricity bill
+    const cashCsv = unzip(cash.value.zip).get("recettes-depenses-2026-03.csv")!;
+    expect(cashCsv).toMatch(/\r\n20\/03\/2026;Vente;5161;[^;]+;3421 [^;]+;B1 · 01\/03\/2026;3000,00;0,00\r\n/);
+    expect(cashCsv).toMatch(/\r\n21\/03\/2026;Dépense;5161;[^;]+;[^;]+;;0,00;1200,00\r\n/);
     expect(await exportBooks({ ...ledger, role: "worker" }, "2026-03")).toEqual({ ok: false, error: "FORBIDDEN" });
+  });
+
+  it("exports a month as a FEC for the accountant's software (FC10, T118)", async () => {
+    const fec = await exportFec(ledger, "2026-03");
+    if (!fec.ok) throw new Error(fec.error);
+    expect(fec.value.file).toBe("FEC20260331.txt");
+    const rows = fec.value.data.toString("utf8").split("\r\n").slice(0, -1).map((r) => r.split("\t"));
+    expect(rows[0].slice(0, 3)).toEqual(["JournalCode", "JournalLib", "EcritureNum"]);
+    // all six entries, numbered 1…6 in the order they were posted, each balanced
+    const nums = [...new Set(rows.slice(1).map((r) => r[2]))];
+    expect(nums).toEqual(["1", "2", "3", "4", "5", "6"]);
+    const cents = (s: string) => BigInt(s.replace(",", ""));
+    for (const n of nums) expect(rows.filter((r) => r[2] === n).reduce((s, r) => s + cents(r[11]) - cents(r[12]), 0n)).toBe(0n);
+    // the electricity expense's cash line, and the feed purchase with FN18's supplier and farm after the 18 fields
+    expect(rows).toContainEqual(["CA", "Caisse", expect.any(String), "20260321", "5161", "Caisses", "", "", expect.stringMatching(/^[0-9a-f-]{36}$/), "20260321", expect.any(String), "0,00", "1200,00", "", "", expect.stringMatching(/^\d{8}$/), "", "", "", "", "", ""]);
+    expect(rows).toContainEqual(expect.arrayContaining(["612122", "Achat", "9000,00", "0,00", "Alf", "F"]));
+
+    expect(await exportFec(cashBook, "2026-03")).toEqual({ ok: false, error: "NOT_FOUND" }); // no journals in a cash book
+    expect(await exportFec({ ...ledger, role: "worker" }, "2026-03")).toEqual({ ok: false, error: "FORBIDDEN" });
   });
 
   it("is for owners and managers only", async () => {

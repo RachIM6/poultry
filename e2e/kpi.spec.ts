@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered, syntheticStrain } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered, syntheticStrain } from "./auth";
 
 // T18 acceptance (browser part): the batch dashboard offline, after 3 daily entries and a weighing, updated as soon as
 // each is saved. The formulas themselves are checked on a hand-computed batch in src/modules/flock/domain/kpi.test.ts.
@@ -14,7 +14,7 @@ test("the batch dashboard works offline and follows each entry", async ({ page, 
     await farmWithBatch(page, strain, farmDaysAgo(2)); // 1 000 chicks, no day-old weight
 
     await page.goto("/fr/batches");
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await controlled(page);
     await referenceCached(page);
     await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
     await context.setOffline(true);
@@ -25,8 +25,8 @@ test("the batch dashboard works offline and follows each entry", async ({ page, 
 
     const enter = async (daysAgo: number, dead: string, feedKg: string) => {
       await page.getByLabel("Jour", { exact: true }).fill(farmDaysAgo(daysAgo));
-      await page.getByLabel("Morts").fill(dead);
-      await page.getByLabel("Aliment consommé (kg)").fill(feedKg);
+      await page.getByLabel("Morts", { exact: true }).fill(dead);
+      await page.getByLabel("Aliment consommé (kg)", { exact: true }).fill(feedKg);
       await page.getByRole("button", { name: "Enregistrer la journée" }).click();
     };
     await enter(2, "10", "20");

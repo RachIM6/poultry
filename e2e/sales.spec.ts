@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T21 acceptance (browser part): offline, a sale on a day under withdrawal is refused with the explanation; the same
 // sale dated before the treatment began is recorded, with its amount and weighing gap, and lowers birds on hand while
@@ -21,7 +21,7 @@ test("an offline sale is refused during a withdrawal, then recorded for a day be
   ]);
 
   await page.goto(`/fr/batches#${ids.batch}`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByText("Délai d’attente en cours")).toBeVisible();
   await expect(page.getByText("Oiseaux présents : 1 000")).toBeVisible();
@@ -54,6 +54,7 @@ test("an offline sale is refused during a withdrawal, then recorded for a day be
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ amount: string; birds: number; status: string }>(
       `SELECT s."amountCentimes"::text AS amount, sb.birds, b.status
@@ -63,4 +64,18 @@ test("an offline sale is refused during a withdrawal, then recorded for a day be
       [e164],
     );
   await expect.poll(server).toEqual([{ amount: "870000", birds: 300, status: "open" }]);
+
+  // SPEC-finance §9 "Cancelled records": the price corrected, then the sale cancelled after a confirmation.
+  await sales.nth(0).getByRole("button", { name: /^Corriger le prix : .*Abattoir Atlas · 300 oiseaux/ }).click();
+  await sales.nth(0).getByLabel("Prix au kg (DH)").fill("15");
+  await sales.nth(0).getByRole("button", { name: "Enregistrer le prix" }).click();
+  await expect(sales.nth(0)).toContainText(/9.000,00\sDH · Espèces · reçu 8.700,00\sDH/);
+  await outboxEmpty(page);
+  await expect.poll(server).toEqual([{ amount: "900000", birds: 300, status: "open" }]);
+  page.once("dialog", (dialog) => dialog.accept());
+  await sales.nth(0).getByRole("button", { name: /^Annuler la vente : .*Abattoir Atlas · 300 oiseaux/ }).click();
+  await expect(sales).toHaveCount(0);
+  await expect(page.getByText("Oiseaux présents : 1 000")).toBeVisible(); // B5: the birds are back
+  await outboxEmpty(page);
+  await expect.poll(server).toEqual([]);
 });

@@ -13,6 +13,8 @@ import {
 } from "@/modules/identity";
 import { tenant, twoTenants } from "@/test/tenant";
 
+const keepDevices = async () => {}; // notifications forgets them: tested in notifications.int.test.ts
+
 // Real login through the code flow; returns the cookie a browser would send next.
 async function login(local: string) {
   await requestCode(local, {});
@@ -79,7 +81,7 @@ describe("members (SPEC I4, poultry-auth test matrix: access)", () => {
     expect(listA.value.invitations.map((i) => i.phone)).not.toContain("+212620000001");
 
     const ownerOfB = (await db.membership.findFirstOrThrow({ where: { organizationId: b.organizationId } })).id;
-    expect(await removeMember(a, { membershipId: ownerOfB })).toEqual({ ok: false, error: "NOT_FOUND" });
+    expect(await removeMember(a, { membershipId: ownerOfB }, keepDevices)).toEqual({ ok: false, error: "NOT_FOUND" });
     expect(await changeRole(a, { membershipId: ownerOfB, role: "worker" })).toEqual({ ok: false, error: "NOT_FOUND" });
     const invitationOfB = (await db.invitation.findFirstOrThrow({ where: { organizationId: b.organizationId } })).id;
     expect(await cancelInvitation(a, { invitationId: invitationOfB })).toEqual({ ok: false, error: "NOT_FOUND" });
@@ -91,7 +93,7 @@ describe("members (SPEC I4, poultry-auth test matrix: access)", () => {
     const phoneTwo = await login("0610000004");
     await contextOf(phoneOne);
 
-    expect(await removeMember(a, { membershipId: await membershipOf(a, "+212610000004") })).toEqual({ ok: true, value: undefined });
+    expect(await removeMember(a, { membershipId: await membershipOf(a, "+212610000004") }, keepDevices)).toEqual({ ok: true, value: undefined });
     expect(await getTenantContext(phoneOne)).toEqual({ ok: false, error: "UNAUTHENTICATED" });
     expect(await getTenantContext(phoneTwo)).toEqual({ ok: false, error: "UNAUTHENTICATED" });
   });
@@ -111,7 +113,7 @@ describe("members (SPEC I4, poultry-auth test matrix: access)", () => {
     const solo = await tenant("+212630000001");
     const self = await membershipOf(solo, "+212630000001");
     expect(await changeRole(solo, { membershipId: self, role: "manager" })).toEqual({ ok: false, error: "LAST_OWNER" });
-    expect(await removeMember(solo, { membershipId: self })).toEqual({ ok: false, error: "LAST_OWNER" });
+    expect(await removeMember(solo, { membershipId: self }, keepDevices)).toEqual({ ok: false, error: "LAST_OWNER" });
 
     await inviteMember(solo, { phone: "0630000002", role: "owner" });
     const second = await contextOf(await login("0630000002"));
@@ -144,7 +146,7 @@ describe("members (SPEC I4, poultry-auth test matrix: access)", () => {
     await inviteMember(b, { phone: "0610000020", role: "worker" });
     const cookie = await login("0610000020"); // first login: both invitations accepted
 
-    expect(await removeMember(b, { membershipId: await membershipOf(b, "+212610000020") })).toEqual({ ok: true, value: undefined });
+    expect(await removeMember(b, { membershipId: await membershipOf(b, "+212610000020") }, keepDevices)).toEqual({ ok: true, value: undefined });
     expect(await contextOf(cookie)).toMatchObject({ organizationId: a.organizationId, role: "worker" });
     expect(await changeRole(a, { membershipId: await membershipOf(a, "+212610000020"), role: "manager" })).toEqual({ ok: true, value: undefined });
     expect(await getTenantContext(cookie)).toEqual({ ok: false, error: "UNAUTHENTICATED" }); // a was their last organisation

@@ -1,6 +1,5 @@
 "use client";
 
-import { SerwistProvider, useSerwist } from "@serwist/turbopack/react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -9,44 +8,51 @@ export function PwaProvider({ children }: { children: ReactNode }) {
   useEffect(() => void navigator.storage?.persist?.(), []);
 
   return (
-    <SerwistProvider
-      swUrl="/serwist/sw.js"
-      disable={process.env.NODE_ENV === "development"}
-      // The default reloads the page when the network returns, which would wipe a half-filled form.
-      reloadOnOnline={false}
-      // The default asks the worker to cache every page visited; signed-in pages must never be cached (poultry-pwa §0.2).
-      cacheOnNavigation={false}
-    >
-      <UpdateBanner />
+    <>
+      {process.env.NODE_ENV !== "development" && <UpdateBanner />}
       {children}
-    </SerwistProvider>
+    </>
   );
 }
 
 /** poultry-pwa §0.6: a new version waits for the user's go-ahead, so it never lands in the middle of a form. */
 function UpdateBanner() {
   const t = useTranslations("Pwa");
-  const { serwist } = useSerwist();
-  const [waiting, setWaiting] = useState(false);
+  const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
 
+  // The platform API, not @serwist/window (~2 KB gzip on every page): register after the page has loaded, as it did.
   useEffect(() => {
-    if (!serwist) return;
-    const onWaiting = () => setWaiting(true);
-    serwist.addEventListener("waiting", onWaiting);
-    return () => serwist.removeEventListener("waiting", onWaiting);
-  }, [serwist]);
+    if (!("serviceWorker" in navigator)) return;
+    let registration: ServiceWorkerRegistration | undefined;
+    // An update is installed and waits; the very first install activates at once (no controller yet), no banner.
+    const onUpdate = () => {
+      const sw = registration?.installing;
+      sw?.addEventListener("statechange", () => {
+        if (sw.state === "installed" && navigator.serviceWorker.controller) setWaiting(sw);
+      });
+    };
+    const register = async () => {
+      registration = await navigator.serviceWorker.register("/serwist/sw.js", { scope: "/", type: "module" });
+      if (registration.waiting) setWaiting(registration.waiting);
+      onUpdate(); // one may already be installing
+      registration.addEventListener("updatefound", onUpdate);
+    };
+    if (document.readyState === "complete") void register();
+    else window.addEventListener("load", () => void register(), { once: true });
+    return () => registration?.removeEventListener("updatefound", onUpdate);
+  }, []);
 
-  if (!waiting || !serwist) return null;
+  if (!waiting) return null;
   return (
     <div role="status" className="flex items-center justify-between gap-3 bg-ink p-3 text-shell">
       <span>{t("updateAvailable")}</span>
       <button
         type="button"
         onClick={() => {
-          serwist.addEventListener("controlling", () => window.location.reload());
-          serwist.messageSkipWaiting();
+          navigator.serviceWorker.addEventListener("controllerchange", () => window.location.reload(), { once: true });
+          waiting.postMessage({ type: "SKIP_WAITING" });
         }}
-        className="rounded-lg border border-white px-3 py-2 font-semibold"
+        className="min-h-11 rounded-lg border border-white px-3 py-2 font-semibold"
       >
         {t("update")}
       </button>

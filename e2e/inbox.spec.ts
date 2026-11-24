@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, scopeRemembered } from "./auth";
+import { outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T12 acceptance, browser part: a test notification reaches the inbox. The push itself needs a real phone
 // (headless Chromium has no push service): checked by hand on Android and an installed iPhone.
@@ -18,6 +18,7 @@ test("a test notification reaches the inbox and can be marked read", async ({ pa
 
   await item.click();
   await expect(item).not.toContainText("Non lue");
+  await outboxEmpty(page);
   const readAt = async () =>
     (
       await query<{ readAt: Date | null }>(

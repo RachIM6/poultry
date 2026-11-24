@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseCentimes } from "@/lib/kernel/money";
-import { checkAdjustment, checkItem, checkPurchase, crossedBelow, parseQuantity, purchaseAmount, stockOnHand, supplierBalances } from "./stock";
+import { divHalfUp, parseCentimes } from "@/lib/kernel/money";
+import { checkAdjustment, checkItem, checkPurchase, crossedBelow, parseQuantity, purchaseAmount, stockOnHand } from "./stock";
+import { checkSupplierPayment, supplierDues, supplierBalances } from "./suppliers";
 
 describe("stock on hand (SPEC S3)", () => {
   it("is the sum of each item's movements: in, out and corrections", () => {
@@ -45,6 +46,9 @@ describe("purchases and supplier credit (SPEC S2)", () => {
     expect(checkPurchase({ ...base, paidCentimes: 900_000n })).toEqual({ ok: false, error: "DUE_DATE_WITHOUT_CREDIT" });
     expect(checkPurchase({ ...base, paidCentimes: 900_000n, dueOn: null }).ok).toBe(true);
     expect(checkPurchase({ ...base, quantity: 0 })).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+    // SPEC-finance FN9: the invoice's VAT is part of its total
+    expect(checkPurchase({ ...base, vatCentimes: 150_000n }).ok).toBe(true);
+    expect(checkPurchase({ ...base, vatCentimes: 900_001n })).toEqual({ ok: false, error: "VAT_MORE_THAN_AMOUNT" });
   });
 
   it("owes each supplier its purchases minus what was paid", () => {
@@ -54,6 +58,24 @@ describe("purchases and supplier credit (SPEC S2)", () => {
       { supplierId: "vet", amountCentimes: 60_000n, paidCentimes: 60_000n },
     ]);
     expect(Object.fromEntries(balances)).toEqual({ alf: 1_050_000n, vet: 0n });
+  });
+
+  it("takes later payments off the balance, never beyond it (S2, SPEC-finance FN6)", () => {
+    const balances = supplierBalances([{ supplierId: "alf", amountCentimes: 900_000n, paidCentimes: 300_000n }], [{ supplierId: "alf", amountCentimes: 250_000n }]);
+    expect(balances.get("alf")).toBe(350_000n);
+    expect(checkSupplierPayment(350_000n, 350_000n).ok).toBe(true);
+    expect(checkSupplierPayment(350_001n, 350_000n)).toEqual({ ok: false, error: "PAID_MORE_THAN_OWED" });
+    expect(checkSupplierPayment(0n, 350_000n)).toEqual({ ok: false, error: "INVALID_QUANTITY" });
+  });
+
+  it("lists what is still due to a supplier by due date, later payments settling the oldest first (FN12)", () => {
+    const purchases = [
+      { day: "2026-10-01", dueOn: "2026-12-15", amountCentimes: 500_000n, paidCentimes: 0n },
+      { day: "2026-09-01", dueOn: null, amountCentimes: 300_000n, paidCentimes: 100_000n }, // due on its day
+      { day: "2026-11-01", dueOn: "2026-11-30", amountCentimes: 200_000n, paidCentimes: 200_000n }, // paid at once
+    ];
+    expect(supplierDues(purchases, 250_000n)).toEqual([{ dueOn: "2026-12-15", amountCentimes: 450_000n }]);
+    expect(supplierDues(purchases, 0n)).toEqual([{ dueOn: "2026-09-01", amountCentimes: 200_000n }, { dueOn: "2026-12-15", amountCentimes: 500_000n }]);
   });
 
   it("reads amounts typed in dirhams exactly", () => {
@@ -92,5 +114,12 @@ describe("low-stock threshold (SPEC S6)", () => {
     });
     expect(alerts).toEqual([false, true, false, false, true]);
     expect(crossedBelow(1_000, 0, null)).toBe(false); // no threshold set
+  });
+});
+
+describe("purchaseAmount's rounding", () => {
+  it("is the kernel's divHalfUp, written out only to keep /batches' first load as it is", () => {
+    for (const [q, unit, price] of [[1_001, "kg", 333n], [1_500, "kg", 1n], [500, "kg", 1n], [3, "dose", 7n], [0, "ml", 9n]] as const)
+      expect(purchaseAmount(q, unit, price)).toBe(divHalfUp(BigInt(q) * price, unit === "kg" ? 1000n : 1n));
   });
 });

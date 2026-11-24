@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, login, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered } from "./auth";
 
 // T73 (SPEC-m4 WF6, WF8): a worker linked to an employee sees only their tasks, ticks one offline, and it syncs once.
 test("a worker sees their own tasks, ticks one offline, and the tick reaches the server once", async ({ page, browser }) => {
@@ -33,7 +33,7 @@ test("a worker sees their own tasks, ticks one offline, and the tick reaches the
   ]);
 
   await worker.goto("/fr/tasks");
-  await worker.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(worker);
   await expect(worker.getByText("Bonjour Said A.")).toBeVisible();
   const list = worker.getByRole("list", { name: "Tâches d’aujourd’hui" }).getByRole("listitem");
   await expect(list).toHaveText([/Saisie du jour · Bâtiment 1/, /07:30\s*Contrôle des abreuvoirs · Bâtiment 1/]); // not Hamid's round
@@ -52,6 +52,7 @@ test("a worker sees their own tasks, ticks one offline, and the tick reaches the
 
   await workerContext.unroute("**");
   await workerContext.setOffline(false);
+  await outboxEmpty(worker);
   const server = () => query<{ n: number }>(`SELECT count(*)::int AS n FROM "TaskDone" d JOIN "User" u ON u.id = d."byUserId" WHERE u."phoneNumber" = $1`, [e164]);
   await expect.poll(server).toEqual([{ n: 1 }]);
   await workerContext.close();

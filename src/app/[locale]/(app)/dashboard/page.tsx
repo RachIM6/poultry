@@ -4,20 +4,35 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { SyncBadge } from "@/components/sync-status";
 import { Today } from "@/components/today";
+import { ClientMessages } from "@/i18n/client-messages";
 import { Link, redirect } from "@/i18n/navigation";
+import type { MessagePath } from "@/i18n/pick";
 import { can } from "@/lib/permissions";
-import { listLegalEntities } from "@/modules/farm-registry";
-import { batchResults, thresholdTracker, treasuryOverview } from "@/modules/finance";
+import { listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
+import { accountingChoicesOpen, batchResults, catchUpBooks, thresholdTracker, treasuryOverview } from "@/modules/finance";
 import { formatMoney } from "@/lib/format";
 import { farmDayOf } from "@/lib/kernel/farm-day";
+import type { TenantContext } from "@/lib/tenant";
 import { getTenantContext } from "@/modules/identity";
+import { ChoicesBanner } from "./choices-banner";
+
+// What this page's client components read (src/i18n/client-messages.tsx): Today, its SyncBadge and the ChoicesBanner.
+// The money card and the threshold alert are server-rendered. No error codes: nothing here submits.
+const MESSAGES: MessagePath[] = [
+  "Accounting.choicesFirst", "Accounting.later", "Accounting.open", "Accounting.title", "App.name", "Batches.age",
+  "Batches.ageWeeks", "Batches.ageWeeksDays", "Batches.place", "Batches.sexes", "Farms.none", "Farms.title",
+  "Protocol.methods", "Sync.pending", "Sync.refused", "Sync.upToDate", "Today", "Treatment.withdrawal", "Types",
+  "Vaccination.status", "Weighing.uniformity", "Weighing.versusStandard",
+];
 
 // "Aujourd'hui" (tasks/plan-ui.md U3, Today.dc.html): the batches and the day's tasks, from the phone's database.
 export default function Dashboard() {
   return (
-    <Suspense>
-      <Content />
-    </Suspense>
+    <ClientMessages paths={MESSAGES}>
+      <Suspense>
+        <Content />
+      </Suspense>
+    </ClientMessages>
   );
 }
 
@@ -25,52 +40,86 @@ async function Content() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const { userId, organizationId, role } = ctx.value;
-  const [entity] = await listLegalEntities(ctx.value);
-  // FN17: from 90 % of the exemption threshold, the owner and the manager see it first thing.
-  const tracker = can(ctx.value, "money.read") ? await thresholdTracker(ctx.value) : null;
-  const nearThreshold = tracker?.ok && tracker.value?.usage.alert ? tracker.value.usage.percent : null;
-  // WebOverview.dc.html "Argent": the cash at hand and the last closed batch, for those who see money (FX2).
-  let money: React.ReactNode = null;
-  if (can(ctx.value, "money.read")) {
-    const [treasury, results] = await Promise.all([treasuryOverview(ctx.value, farmDayOf(new Date()).slice(0, 7)), batchResults(ctx.value)]);
-    const cash = treasury.ok ? treasury.value.accounts.reduce((sum, a) => sum + a.balanceCentimes, 0n) : null;
-    const last = results.ok ? results.value.filter((r) => r.closedOn).sort((a, b) => b.closedOn!.localeCompare(a.closedOn!))[0] : undefined;
-    const row = "flex items-baseline justify-between gap-3 border-t border-shell/15 py-2.5 first:border-t-0";
-    money = (
-      <section aria-labelledby="money-title" className="flex flex-col rounded-[18px] bg-ink px-5 py-4 text-shell">
-        <h2 id="money-title" className="mb-1 text-lg font-semibold">{t("Today.money")}</h2>
-        {cash !== null && (
-          <Link href="/treasury" className={row}>
-            <span className="text-sm">{t("Today.cash")}</span>
-            <b className="text-lg font-semibold">{formatMoney(cash)}</b>
-          </Link>
-        )}
-        {last && last.costPerKgCentimes !== null && (
-          <Link href="/results" className={row}>
-            <span className="flex flex-col">
-              <span className="text-sm">{t("Today.lastBatch", { house: last.houseName })}</span>
-              <span className="text-xs text-sand">{t("Today.margin", { margin: formatMoney(last.marginCentimes) })}</span>
-            </span>
-            <b className="text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
-          </Link>
-        )}
-      </section>
-    );
-  }
+  const [entity] = await listLegalEntities(ctx.value); // one read, shared with the sections below (React cache)
+  // The day's tasks first: the money and the alerts stream in after, each on its own (SPEC-finance §9's reads are slow).
   return (
     <Today
       title={entity?.name ?? t("App.name")}
       userId={userId}
       organizationId={organizationId}
+      role={role}
       sync={<SyncBadge userId={userId} organizationId={organizationId} role={role} />}
-      money={money}
-      alert={
-        nearThreshold !== null && (
-          <Link href="/threshold" role="alert" className="rounded-2xl bg-alert-soft p-4 font-semibold text-alert-fg">
-            {t("Threshold.alert", { percent: String(nearThreshold) })}
-          </Link>
+      money={
+        can(ctx.value, "money.read") && (
+          <Suspense fallback={<MoneyCard title={t("Today.money")} busy />}>
+            <Money ctx={ctx.value} />
+          </Suspense>
         )
       }
+      alert={
+        <Suspense>
+          <Alerts ctx={ctx.value} entity={entity} />
+        </Suspense>
+      }
     />
+  );
+}
+
+// WebOverview.dc.html "Argent": the cash at hand and the last closed batch, for those who see money (FX2).
+function MoneyCard({ title, busy, children }: { title: string; busy?: boolean; children?: React.ReactNode }) {
+  return (
+    <section aria-labelledby="money-title" aria-busy={busy} className="flex flex-col rounded-[18px] bg-ink px-5 py-4 text-shell">
+      <h2 id="money-title" className="mb-1 text-lg font-semibold">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+async function Money({ ctx }: { ctx: TenantContext }) {
+  // Each read catches the books up first (SPEC-finance §9); catchUpBooks runs once for the page (React cache).
+  const [t, treasury, results] = await Promise.all([getTranslations(), treasuryOverview(ctx, farmDayOf(new Date()).slice(0, 7)), batchResults(ctx)]);
+  const cash = treasury.ok ? treasury.value.accounts.reduce((sum, a) => sum + a.balanceCentimes, treasury.value.unassignedCentimes) : null;
+  const last = results.ok ? results.value.filter((r) => r.closedOn).sort((a, b) => b.closedOn!.localeCompare(a.closedOn!))[0] : undefined;
+  const row = "flex items-baseline justify-between gap-3 border-t border-shell/15 py-2.5 first:border-t-0";
+  return (
+    <MoneyCard title={t("Today.money")}>
+      {cash !== null && (
+        <Link href="/treasury" className={row}>
+          <span className="text-sm">{t("Today.cash")}</span>
+          <b className="text-lg font-semibold">{formatMoney(cash)}</b>
+        </Link>
+      )}
+      {last && last.costPerKgCentimes !== null && (
+        <Link href="/results" className={row}>
+          <span className="flex flex-col">
+            <span className="text-sm">{t("Today.lastBatch", { house: last.houseName })}</span>
+            <span className="text-xs text-sand">{t("Today.margin", { margin: formatMoney(last.marginCentimes) })}</span>
+          </span>
+          <b className="text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
+        </Link>
+      )}
+    </MoneyCard>
+  );
+}
+
+async function Alerts({ ctx, entity }: { ctx: TenantContext; entity: LegalEntityDto | undefined }) {
+  await catchUpBooks(ctx); // SPEC-finance §9: before the tracker's and the choices' reads
+  const [t, tracker, choicesOpen] = await Promise.all([
+    getTranslations(),
+    // FN17: from 90 % of the exemption threshold, the owner and the manager see it first thing.
+    can(ctx, "money.read") ? thresholdTracker(ctx) : null,
+    // FN1: the owner makes the accounting choices before the first entry locks them for the year.
+    entity && accountingChoicesOpen(ctx, entity),
+  ]);
+  const nearThreshold = tracker?.ok && tracker.value?.usage.alert ? tracker.value.usage.percent : null;
+  return (
+    <>
+      {nearThreshold !== null && (
+        <Link href="/threshold" role="alert" className="rounded-2xl bg-alert-soft p-4 font-semibold text-alert-fg">
+          {t("Threshold.alert", { percent: String(nearThreshold) })}
+        </Link>
+      )}
+      {choicesOpen && <ChoicesBanner />}
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
-import type { ChartOfAccounts } from "@/modules/finance/domain/chart";
+import { leafAccounts, type ChartOfAccounts } from "@/modules/finance/domain/chart";
 
 /**
  * One line of a journal entry: amounts in centimes (FX1), exactly one side above zero. `treasuryId`: which bank
@@ -18,8 +18,8 @@ export type EntryError = "TOO_FEW_LINES" | "ONE_SIDE_PER_LINE" | "UNKNOWN_ACCOUN
 export function checkEntry(lines: readonly Line[], chart: ChartOfAccounts): Result<void, EntryError> {
   if (lines.length < 2) return fail("TOO_FEW_LINES");
   if (lines.some((l) => l.debit < 0n || l.credit < 0n || (l.debit > 0n) === (l.credit > 0n))) return fail("ONE_SIDE_PER_LINE");
-  const parents = new Set([...chart.values()].map((a) => a.parent));
-  if (lines.some((l) => !chart.has(l.account) || parents.has(l.account))) return fail("UNKNOWN_ACCOUNT");
+  const leaves = new Set(leafAccounts(chart).map((a) => a.number));
+  if (lines.some((l) => !leaves.has(l.account))) return fail("UNKNOWN_ACCOUNT");
   const total = lines.reduce((s, l) => s + l.debit - l.credit, 0n);
   return total === 0n ? ok(undefined) : fail("UNBALANCED");
 }
@@ -47,6 +47,13 @@ export function firstOpenMonth(month: string, locked: ReadonlySet<string>): stri
   let [y, m] = month.split("-").map(Number);
   while (locked.has(`${y}-${pad(m)}`)) [y, m] = m === 12 ? [y + 1, 1] : [y, m + 1];
   return `${y}-${pad(m)}`;
+}
+
+/** FCX6: the months from `from` to `to`, "YYYY-MM" each: the periods a year close locks. */
+export function monthsBetween(from: FarmDay, to: FarmDay): string[] {
+  const months: string[] = [];
+  for (let [y, m] = from.split("-").map(Number); `${y}-${pad(m)}` <= monthOf(to); [y, m] = m === 12 ? [y + 1, 1] : [y, m + 1]) months.push(`${y}-${pad(m)}`);
+  return months;
 }
 
 // Classes 1–5 are the balance sheet, 6–7 the income statement (CGNC).

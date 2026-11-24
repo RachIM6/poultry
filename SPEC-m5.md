@@ -1,6 +1,6 @@
 # Spec: M5 "Network" (`partner-access`, `market-prices`, `planning`)
 
-_v0.1, 18 Nov 2026. Status: **draft**, written without the owner (they asked for work to continue while away); every choice made without them is marked ⚠️ or listed in §8. Milestone M5 of [CAPABILITY-MAP.md](CAPABILITY-MAP.md): `partner-access` depends on `identity`, `farm-registry`; `market-prices` on `identity`, `reference-data`; `planning` on `flock`, `market-prices`, `notifications`. Background: [SCOPE.md](SCOPE.md) §3, §10, §19, §20 and [NEEDS-ANALYSIS.md](NEEDS-ANALYSIS.md). Conventions, stack and boundaries from [SPEC.md](SPEC.md) apply unchanged. Plan: [tasks/plan-m5.md](tasks/plan-m5.md). Decision: [ADR-011](docs/decisions/ADR-011-partner-access.md)._
+_v0.1, 18 Nov 2026. Status: **draft**, written without the owner (they asked for work to continue while away); every choice made without them is marked ⚠️ or listed in §8. Milestone M5 of [CAPABILITY-MAP.md](CAPABILITY-MAP.md): `partner-access` depends on `identity`, `farm-registry`; `market-prices` on `identity`, `reference-data`; `planning` on `flock`, `market-prices`, `notifications`. Background: [SCOPE.md](SCOPE.md) §3, §10, §19, §20 and [NEEDS-ANALYSIS.md](NEEDS-ANALYSIS.md). Conventions, stack and boundaries from [SPEC.md](SPEC.md) apply unchanged. Plan: [tasks/plan-m5.md](tasks/plan-m5.md). Decision: [ADR-013](docs/decisions/ADR-013-partner-access.md)._
 
 ## 1. Objective
 
@@ -16,7 +16,7 @@ The farm opens to the two outside people it already works with, and plans ahead:
 
 ## 2. Domain figures we do not invent
 
-- **Downtime between two batches** in a house (vide sanitaire): the owner enters a minimum number of days per farm from their own source (vet, ONSSA guide). No value is seeded. Until it is entered, the planner shows the gap in days and gives no warning.
+- **Downtime between two batches** (vide sanitaire): **at least 20 days**, from arrêté n° 2127-05 du 15 décembre 2005, art. 4 (NQ4, decided default of 23 Nov 2026, to review). Built into the code, not seeded: in force for every farm without a rule of its own. The owner may enter a higher figure per farm, with its source and a date, never a lower one. It is the one downtime figure of the app: the placement warning and the clean-out screen read it too (SPEC-m2-compliance BS5, CQ3).
 - **Prices** are what the owner or manager typed, with what they saw it on. The app computes no index, average across farms or forecast.
 
 ## 3. Concepts
@@ -28,7 +28,7 @@ The farm opens to the two outside people it already works with, and plans ahead:
 | **Partner view** | partner-access | What a partner's phone receives on pull: an allowlist of entities per role (§5), applied at the one place the sync pull serializes changes |
 | **Price observation** | market-prices | Product, farm day, price per unit in centimes, where or what it was seen on (free text), who recorded it. Units are fixed per product (§6). Per organisation, not per farm: `market-prices` may not depend on `farm-registry` (CAPABILITY-MAP) |
 | **Planned batch** | planning | House, planned placement day, chicks, strain, hatchery, booked chick price (optional), planned sale age in days (optional), status planned / placed / cancelled, and the batch it became |
-| **Farm planning settings** | planning | Minimum downtime in days (§2), entered by the owner, dated and with a source |
+| **Farm planning settings** | planning | Minimum downtime in days (§2): the official 20, or a higher figure the owner entered, dated and with a source |
 
 ## 4. `partner-access` and `identity` requirements
 
@@ -60,10 +60,10 @@ Every other action stays as it is: a partner creates no batch, entry, sale or pa
 ## 7. `planning` requirements
 
 - **PL1.** The owner or a manager plans a batch for a house: placement day, chicks, strain, hatchery, booked chick price (optional), planned sale age (optional). Edited until placed; cancelled rather than deleted. Offline.
-- **PL2.** `/planning`: per house, the open batch and the planned ones in date order, each with its placement day and, when the sale age is known, its planned sale day; the **gap** in days between one batch's sale day and the next placement. Warnings: a plan overlapping the open batch or another plan of the house; a gap shorter than the farm's minimum downtime when one is entered (§2). Without a sale age, the gap is unknown and no overlap is claimed.
+- **PL2.** `/planning`: per house, the open batch and the planned ones in date order, each with its placement day and, when the sale age is known, its planned sale day; the **gap** in days between one batch's sale day and the next placement. Warnings: a plan overlapping the open batch or another plan of the house; a gap shorter than the minimum downtime in force (§2). Without a sale age, the gap is unknown and no overlap is claimed.
 - **PL3.** "Mettre en place" on a plan opens the placement form filled from the plan; saving it places the batch and marks the plan placed with the batch's id, in one mutation.
 - **PL4.** The day before a planned placement, the owner and managers receive a notification ("Mise en place prévue demain : Bâtiment 1, 10 000 poussins, Couvoir X"), once, held by quiet hours.
-- **PL5.** The owner enters the farm's minimum downtime, with its source; dated, never edited (§2).
+- **PL5.** The owner enters a farm's minimum downtime above the official 20 days, with its source; dated, never edited (§2). Below 20 it is refused (`DOWNTIME_BELOW_OFFICIAL`); a rule entered lower before 23 Nov 2026 gives way to the 20 days.
 
 ## 8. Open questions
 
@@ -72,7 +72,7 @@ Every other action stays as it is: a partner creates no batch, entry, sale or pa
 | NQ1 | Should a partner see only **some farms** of an organisation? | Farm scoping | The whole organisation |
 | NQ2 | A **regional price index** across farms: do farmers consent to share their prices, anonymously, with how many farms at least per region and product before showing it? | Shared index | Not built; prices stay in the organisation |
 | NQ3 | **FISA** or other published prices: which source, under what licence, how often? | Price import | Not built (external source: ask first) |
-| NQ4 | Minimum **downtime** between batches, per farm or per production type, and its source | PL2 warning | Stored empty; gap shown, no warning |
+| NQ4 | Minimum **downtime** between batches, per farm or per production type, and its source | PL2 warning | **Decided default, to review (23 Nov 2026):** 20 days, farm-wide; house by house for table-egg layers. Source: arrêté n° 2127-05 du 15 décembre 2005, art. 4 (BO n° 5392 du 2 février 2006, p. 239). Built in; the owner may set a higher figure (PL5). Same figure as SPEC-m2-compliance CQ3 |
 | NQ5 | **Seasonality**: which events (Ramadan, Eid al-Adha, summer weddings), their dates in Morocco (moon sighting), and what the planner should say about them | Seasonal markers | Not shown |
 | NQ6 | Does the vet need to **sign** the ONSSA register and prescriptions in the app, and what makes such a signature valid? | Sign-off | Not built |
 | NQ7 | The accountant's **writes**: may they correct an entry, or only read and export? | Accountant actions | Read and export only |

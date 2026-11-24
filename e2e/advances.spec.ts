@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T76 (SPEC-m4 WF10): an advance recorded offline on /staff shows as pending, survives a reload and syncs once.
 test("an advance recorded offline is pending, survives a reload and syncs once", async ({ page, context }) => {
@@ -12,7 +12,7 @@ test("an advance recorded offline is pending, survives a reload and syncs once",
   ]);
 
   await page.goto("/fr/staff");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   const form = page.getByRole("form", { name: "Enregistrer une avance" });
   await expect(form).toBeVisible();
 
@@ -28,6 +28,7 @@ test("an advance recorded offline is pending, survives a reload and syncs once",
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ amount: string }>(
       `SELECT a."amountCentimes"::text AS amount FROM "SalaryAdvance" a

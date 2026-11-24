@@ -8,6 +8,8 @@ import { farmRegistrySync } from "@/modules/farm-registry";
 import { FARM_MUTATIONS } from "@/modules/farm-registry/schema";
 import { flockSync, recordBirdsSold } from "@/modules/flock";
 import { FLOCK_MUTATIONS as F, type BatchDto } from "@/modules/flock/schema";
+import { closingTotals, loadBatch } from "@/modules/flock/infrastructure/batches";
+import { birdsOnHandBesides } from "@/modules/flock/infrastructure/daily-entries";
 import { inventorySync } from "@/modules/inventory";
 import { INVENTORY_MUTATIONS as I } from "@/modules/inventory/schema";
 import { twoTenants } from "@/test/tenant";
@@ -22,7 +24,7 @@ const statuses = async (ctx: TenantContext, ms: PushedMutation[]) =>
 const pulledBatch = async (ctx: TenantContext, id: string) => (await pull(ctx, 0, registry)).changes.filter((c) => c.entity === "batch" && c.id === id).at(-1)?.data as BatchDto;
 
 describe("closing a batch and its cost per kg (SPEC B6)", () => {
-  let a: TenantContext;
+  let a: TenantContext, b: TenantContext;
   const [farm, house, feed, batch, next] = Array.from({ length: 5 }, () => uuidv7());
   const place = (id: string) =>
     m(F.placeBatch, { id, houseId: house, strainId: "ross-308", placedOn: "2026-10-01", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null });
@@ -31,7 +33,7 @@ describe("closing a batch and its cost per kg (SPEC B6)", () => {
     db.$transaction((tx) => recordBirdsSold(tx, a, { id: uuidv7(), batchId: batch, day: "2026-11-05", birds, liveWeightGrams }, { mutationId: uuidv7(), deviceCreatedAt: new Date() }));
 
   beforeAll(async () => {
-    [a] = await twoTenants();
+    [a, b] = await twoTenants();
     await db.strain.create({ data: { id: "ross-308", name: "Ross 308" } });
     await push(a, [
       m(FARM_MUTATIONS.createFarm, { id: farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
@@ -50,11 +52,13 @@ describe("closing a batch and its cost per kg (SPEC B6)", () => {
     ).toEqual(Array(5).fill("applied"));
   });
 
-  it("takes other costs only from owners and managers, while the batch is open", async () => {
-    const cost = (payload: object = {}) => m(F.recordBatchCost, { id: uuidv7(), batchId: batch, day: "2026-10-20", label: "Électricité", amountCentimes: "20000", ...payload });
+  it("refuses a new other cost (SPEC-finance FN13: a quick expense charged to the batch replaces it); one recorded before still counts", async () => {
+    const cost = () => m(F.recordBatchCost, { id: uuidv7(), batchId: batch, day: "2026-10-20", label: "Électricité", amountCentimes: "20000" });
     expect(await statuses({ ...a, role: "worker" }, [cost()])).toEqual(["FORBIDDEN"]);
-    expect(await statuses(a, [cost({ amountCentimes: "0" }), cost({ day: "2026-09-30" })])).toEqual(["INVALID_QUANTITY", "DAY_BEFORE_PLACEMENT"]);
-    expect(await statuses(a, [cost()])).toEqual(["applied"]); // 200 DH
+    expect(await statuses(a, [cost()])).toEqual(["USE_EXPENSES"]);
+    expect(await db.batchCost.count({ where: { batchId: batch } })).toBe(0);
+    // A cost an owner recorded before FN13 (200 DH): kept, and counted when the batch closes.
+    await db.batchCost.create({ data: { id: uuidv7(), organizationId: a.organizationId, batchId: batch, day: new Date("2026-10-20T00:00:00Z"), label: "Électricité", amountCentimes: 20_000n } });
   });
 
   it("the sale of the last birds closes the batch and locks its cost per kg; then nothing changes and the house is free", async () => {
@@ -76,7 +80,7 @@ describe("closing a batch and its cost per kg (SPEC B6)", () => {
         m(F.recordBatchCost, { id: uuidv7(), batchId: batch, day: "2026-11-05", label: "Gaz", amountCentimes: "100" }),
         m(F.closeBatch, { batchId: batch, day: "2026-11-05", reason: "Again" }),
       ]),
-    ).toEqual(["BATCH_CLOSED", "BATCH_CLOSED", "BATCH_CLOSED"]);
+    ).toEqual(["BATCH_CLOSED", "USE_EXPENSES", "BATCH_CLOSED"]);
     expect((await sell(1, 2000)).ok).toBe(false);
     expect(await statuses(a, [place(next)])).toEqual(["applied"]); // the house is free
   });
@@ -87,5 +91,15 @@ describe("closing a batch and its cost per kg (SPEC B6)", () => {
     expect(await statuses(a, [close({ reason: "" })])).toEqual(["INVALID_INPUT"]);
     expect(await statuses(a, [close()])).toEqual(["applied"]);
     expect(await pulledBatch(a, next)).toMatchObject({ status: "closed", closeReason: "Maladie : abattage sanitaire", soldGrams: 0, costCentimes: "450000", costPerKgCentimes: null });
+  });
+
+  it("sums only its own organisation's costs, sales and deaths (ADR-006)", async () => {
+    const totals = await db.$transaction((tx) => Promise.all([closingTotals(tx, a, batch), closingTotals(tx, b, batch)]));
+    expect(totals).toEqual([{ otherCentimes: 20_000n, soldGrams: 2_000_000, chickVatCentimes: 0n }, { otherCentimes: 0n, soldGrams: 0, chickVatCentimes: 0n }]);
+    const onHand = await db.$transaction(async (tx) => {
+      const loaded = (await loadBatch(tx, a, batch))!; // 1 000 started, all sold
+      return Promise.all([birdsOnHandBesides(tx, a, loaded), birdsOnHandBesides(tx, b, loaded)]);
+    });
+    expect(onHand).toEqual([0, 1000]); // b sees none of a's sales
   });
 });

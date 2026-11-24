@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, queuedWrites, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, queuedWrites, scopeRemembered } from "./auth";
 
 // T16 acceptance (browser part): the daily entry offline, its feed as one consumption movement, edited not duplicated.
 // The two-phones merge is tested on the server (src/modules/flock/daily-entries.int.test.ts). "Under 60 s" is timed
@@ -13,21 +13,21 @@ test("the day's entry works offline; its feed lowers stock once, and editing the
   await page.goto("/fr/stock");
   await expect(page.getByText(/En stock : 1.000.kg/)).toBeVisible(); // pulled: the phone has the stock, then precache
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.getByRole("link", { name: "Saisir le jour" }).click();
-  await page.getByLabel("Morts").fill("3");
+  await page.getByLabel("Morts", { exact: true }).fill("3");
   await page.getByRole("radio", { name: "Chaleur" }).check(); // tasks/plan-ui.md U3: cause chips
-  await page.getByLabel("Aliment consommé (kg)").fill("85");
-  await page.getByLabel("Eau (litres, facultatif)").fill("150");
+  await page.getByLabel("Aliment consommé (kg)", { exact: true }).fill("85");
+  await page.getByLabel("Eau (litres, facultatif)", { exact: true }).fill("150");
   await page.getByRole("button", { name: "Enregistrer la journée" }).click();
   await expect(page.getByRole("status")).toHaveText("Enregistré sur ce téléphone. L’envoi se fait dès qu’il y a du réseau.");
   await expect(page.getByText(/Oiseaux présents : 997/)).toBeVisible();
 
-  await page.getByLabel("Aliment consommé (kg)").fill("90"); // the same day, corrected
+  await page.getByLabel("Aliment consommé (kg)", { exact: true }).fill("90"); // the same day, corrected
   const queued = await queuedWrites(page);
   await page.getByRole("button", { name: "Enregistrer la journée" }).click();
   // The status already shows the first save: wait for the second one to be queued before leaving the page.
@@ -37,6 +37,7 @@ test("the day's entry works offline; its feed lowers stock once, and editing the
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ dead: number; feed: number; movements: number; quantity: number }>(
       `SELECT d.dead, d."feedGrams" AS feed,
@@ -57,10 +58,11 @@ test("the day's entry in Arabic, right to left", async ({ page }) => {
   await page.goto("/ar/batches");
   await page.getByRole("link", { name: "تسجيل اليوم" }).click();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await page.getByLabel("النافق").fill("2");
+  await page.getByLabel("النافق", { exact: true }).fill("2");
   await page.getByLabel("العلف", { exact: true }).selectOption({ label: "بدون علف هذا اليوم" });
   await page.getByRole("button", { name: "حفظ اليوم" }).click();
   await expect(page.getByText(/الطيور الموجودة: 998/)).toBeVisible();
+  await outboxEmpty(page);
   const dead = async () =>
     (await query<{ dead: number }>(`SELECT d.dead FROM "DailyEntry" d JOIN "Membership" m ON m."organizationId" = d."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`, [e164]))[0]?.dead;
   await expect.poll(dead).toBe(2);

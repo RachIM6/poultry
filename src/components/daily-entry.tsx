@@ -8,12 +8,15 @@ import {
   DEATH_CAUSES,
   EMPTY_DAY,
   FLOCK_MUTATIONS as M,
+  birdsOnHand,
+  birdsStarted,
   changedFields,
   dailyEntryId,
   type BatchDto,
   type DailyEntryDto,
   type DayFields,
   type DeathCause,
+  type SoldBirdsDto,
 } from "@/modules/flock/shared";
 import { parseQuantity, type StockItemDto } from "@/modules/inventory/shared";
 import { card, danger, field, primary } from "@/components/ui";
@@ -25,7 +28,7 @@ const today = () => farmDayOf(new Date());
 
 export type Write = (mutation: { type: string; payload: unknown }, records: { entity: string; id: string; data: unknown }[]) => Promise<boolean>;
 
-export function DayForm({ batch, entries, soldBirds, feedItems, write }: { batch: BatchDto; entries: DailyEntryDto[]; soldBirds: number; feedItems: StockItemDto[]; write: Write }) {
+export function DayForm({ batch, entries, sold, feedItems, write }: { batch: BatchDto; entries: DailyEntryDto[]; sold: SoldBirdsDto[]; feedItems: StockItemDto[]; write: Write }) {
   const t = useTranslations("Day");
   const [day, setDay] = useState<string>(today());
   const id = useId();
@@ -36,7 +39,7 @@ export function DayForm({ batch, entries, soldBirds, feedItems, write }: { batch
         <input id={id} type="date" value={day} max={today()} min={batch.placedOn} onChange={(e) => setDay(e.target.value)} className={field} />
       </div>
       {/* keyed by day: switching days reloads that day's saved values */}
-      <EntryFields key={day} batch={batch} day={day} entries={entries} soldBirds={soldBirds} feedItems={feedItems} write={write} />
+      <EntryFields key={day} batch={batch} day={day} entries={entries} sold={sold} feedItems={feedItems} write={write} />
     </div>
   );
 }
@@ -45,14 +48,14 @@ function EntryFields({
   batch,
   day,
   entries,
-  soldBirds,
+  sold,
   feedItems,
   write,
 }: {
   batch: BatchDto;
   day: string;
   entries: DailyEntryDto[];
-  soldBirds: number;
+  sold: SoldBirdsDto[];
   feedItems: StockItemDto[];
   write: Write;
 }) {
@@ -81,8 +84,8 @@ function EntryFields({
       note: get("note") || null,
     };
     const aggregate = Batch.rehydrate({ ...batch, placedOn: batch.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, batch.status);
-    const outElsewhere = entries.filter((x) => x.id !== entryId).reduce((n, x) => n + x.dead + x.culled, soldBirds); // B5: sold count too
-    const checked = aggregate.checkDay(day as FarmDay, next, outElsewhere, today());
+    const onHand = birdsOnHand(birdsStarted(batch), entries.filter((x) => x.id !== entryId), sold); // the other days; B5: sold count too
+    const checked = aggregate.checkDay(day as FarmDay, next, onHand, today());
     if (!checked.ok) return setError(checked.error === "INVALID_QUANTITY" ? "Stock.invalid" : `errors.${checked.error}`);
     const changes = changedFields(saved, next);
     if (Object.keys(changes).length === 0) return setError("Day.nothing");
@@ -145,10 +148,10 @@ function Stepper({ name, label, defaultValue, step, decimal = false, big = false
   };
   const button = `grid ${big ? "size-[52px] text-2xl" : "size-11 text-lg"} shrink-0 place-items-center rounded-2xl font-semibold active:scale-95`;
   return (
-    <div className="flex items-center justify-between gap-3">
-      <label htmlFor={id} className={big ? "text-lg font-semibold" : "text-base text-ink-2"}>{label}</label>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <label htmlFor={id} className={`flex-1 ${big ? "text-lg font-semibold" : "text-base text-ink-2"}`}>{label}</label>
       <div className="inline-flex items-center rounded-2xl bg-shell">
-        <button type="button" aria-label={t("minus", { step: String(step) })} onClick={() => bump(-step)} className={button}>−</button>
+        <button type="button" aria-label={t("minus", { step: String(step), label })} onClick={() => bump(-step)} className={button}>−</button>
         <input
           id={id}
           name={name}
@@ -158,9 +161,9 @@ function Stepper({ name, label, defaultValue, step, decimal = false, big = false
           pattern={decimal ? undefined : "\\d*"}
           dir="ltr"
           placeholder="0"
-          className={`${big ? "w-24 text-[28px]" : "w-20 text-xl"} min-w-0 bg-transparent text-center font-semibold placeholder:text-muted`}
+          className={`${big ? "w-24 text-[28px]" : "w-20 text-xl"} min-w-0 self-stretch bg-transparent text-center font-semibold placeholder:text-muted`}
         />
-        <button type="button" aria-label={t("plus", { step: String(step) })} onClick={() => bump(step)} className={button}>+</button>
+        <button type="button" aria-label={t("plus", { step: String(step), label })} onClick={() => bump(step)} className={button}>+</button>
       </div>
     </div>
   );

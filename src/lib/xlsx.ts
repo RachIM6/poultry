@@ -1,4 +1,5 @@
-import { decimal, type Cell, type Sheet } from "@/lib/kernel/sheet";
+import { typedCentimes } from "@/lib/kernel/money";
+import type { Cell, Sheet } from "@/lib/kernel/sheet";
 import { zip } from "@/lib/zip";
 
 // The smallest .xlsx (ECMA-376 SpreadsheetML) Excel and LibreOffice open without repair: one worksheet per sheet,
@@ -12,7 +13,7 @@ const EPOCH = Date.UTC(1899, 11, 30); // Excel's day 0 (1900 system)
 
 // ponytail: columns A–Z only; a sheet wider than 26 columns needs two-letter references.
 function cell(c: Cell, ref: string): string {
-  if (typeof c === "bigint") return `<c r="${ref}" s="1"><v>${decimal(c, ".")}</v></c>`; // written from the bigint, no float
+  if (typeof c === "bigint") return `<c r="${ref}" s="1"><v>${typedCentimes(c, ".")}</v></c>`; // written from the bigint, no float
   if (typeof c === "string") return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${esc(c)}</t></is></c>`;
   return `<c r="${ref}" s="2"><v>${(Date.parse(`${c.day}T00:00:00Z`) - EPOCH) / 86_400_000}</v></c>`;
 }

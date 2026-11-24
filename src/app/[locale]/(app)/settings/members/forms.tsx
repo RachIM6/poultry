@@ -3,18 +3,20 @@
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { cancel, invite, remove, updateRole, type ActionState } from "./actions";
-import { card, field, primary, secondary } from "@/components/ui";
+import { OfflineHint, useOnline } from "@/components/online";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 
 
 const ErrorText = ({ state }: { state: ActionState }) => {
   const t = useTranslations();
-  return state.messageKey ? <p role="alert">{t(state.messageKey)}</p> : null;
+  return state.messageKey ? <p role="alert" className={danger}>{t(state.messageKey)}</p> : null;
 };
 
 export function InviteForm({ roles, partners }: { roles: readonly string[]; partners: readonly string[] }) {
   const t = useTranslations("Members");
   const [state, action, pending] = useActionState(invite, {});
   const [role, setRole] = useState("worker");
+  const online = useOnline();
   return (
     <form action={action} className="flex flex-col gap-3">
       <label htmlFor="phone">{t("phoneLabel")}</label>
@@ -32,7 +34,8 @@ export function InviteForm({ roles, partners }: { roles: readonly string[]; part
       )}
       {state.ok && <p role="status">{t("invited")}</p>}
       <ErrorText state={state} />
-      <button type="submit" disabled={pending} className={primary}>{t("invite")}</button>
+      <OfflineHint online={online} />
+      <button type="submit" disabled={pending || !online} className={primary}>{t("invite")}</button>
     </form>
   );
 }
@@ -41,6 +44,7 @@ export function MemberRow({ membershipId, phone, role, roles, until }: { members
   const t = useTranslations("Members");
   const [roleState, roleAction, rolePending] = useActionState(updateRole, {});
   const [removeState, removeAction, removePending] = useActionState(remove, {});
+  const online = useOnline();
   return (
     <li className={card}>
       <bdi dir="ltr" className="font-semibold">{phone}</bdi>
@@ -50,25 +54,26 @@ export function MemberRow({ membershipId, phone, role, roles, until }: { members
         <select name="role" defaultValue={role} aria-label={t("roleOf", { phone })} className={`${field} flex-1 py-2 text-base`}>
           {roles.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
         </select>
-        <button type="submit" disabled={rolePending} className={secondary}>{t("saveRole")}</button>
+        <button type="submit" disabled={rolePending || !online} aria-label={t("saveRoleOf", { phone })} className={secondary}>{t("saveRole")}</button>
       </form>
       <ErrorText state={roleState} />
       <form action={removeAction} onSubmit={(e) => !confirm(t("removeConfirm", { phone })) && e.preventDefault()}>
         <input type="hidden" name="membershipId" value={membershipId} />
-        <button type="submit" disabled={removePending} className={`${secondary} text-alert`}>{t("remove")}</button>
+        <button type="submit" disabled={removePending || !online} aria-label={t("removeOf", { phone })} className={`${secondary} text-alert`}>{t("remove")}</button>
       </form>
       <ErrorText state={removeState} />
     </li>
   );
 }
 
-export function CancelInvitationButton({ invitationId }: { invitationId: string }) {
+export function CancelInvitationButton({ invitationId, phone }: { invitationId: string; phone: string }) {
   const t = useTranslations("Members");
   const [state, action, pending] = useActionState(cancel, {});
+  const online = useOnline();
   return (
     <form action={action}>
       <input type="hidden" name="invitationId" value={invitationId} />
-      <button type="submit" disabled={pending} className={secondary}>{t("cancel")}</button>
+      <button type="submit" disabled={pending || !online} aria-label={t("cancelOf", { phone })} className={secondary}>{t("cancel")}</button>
       <ErrorText state={state} />
     </form>
   );

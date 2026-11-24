@@ -22,7 +22,7 @@ describe("climate targets through sync (SPEC-m4 CL1, §2)", () => {
   it("the owner saves a dated version with its source; every member of the organisation pulls it, no one else", async () => {
     const set = targets();
     expect(await statuses(a, [m(M.saveTargets, set)])).toEqual(["applied"]);
-    expect((await pull({ ...a, role: "worker" }, 0, registry)).changes.find((c) => c.id === set.id)?.data).toEqual(set);
+    expect((await pull({ ...a, role: "worker" }, 0, registry)).changes.find((c) => c.id === set.id)?.data).toEqual({ ...set, productionType: null }); // for every type
     expect((await pull(b, 0, registry)).changes.some((c) => c.id === set.id)).toBe(false);
   });
 

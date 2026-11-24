@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T15 acceptance: a batch placed offline counts its age from the placement day; a second open batch in the same house
 // is refused with a clear message (the two-phones case is tested on the server: src/modules/flock/batches.int.test.ts).
@@ -23,7 +23,7 @@ test("a batch placed offline starts at day 0, and a second one in the same house
   await expect(page.getByText("Bâtiment 1")).toBeVisible();
 
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByText("Aucune bande pour l’instant.")).toBeVisible();
   await referenceCached(page); // the strains come with it
   await context.setOffline(true);
@@ -41,7 +41,13 @@ test("a batch placed offline starts at day 0, and a second one in the same house
   };
   await place();
   await expect(page.getByText("Jour 0")).toBeVisible();
-  await expect(page.getByText("Ferme Atlas · Bâtiment 1 · Ross 308")).toBeVisible();
+  await expect(page.getByText("Poulet de chair · Ferme Atlas · Bâtiment 1 · Ross 308")).toBeVisible();
+
+  // SPEC-m3 R5: the production type first, then only its strains.
+  await page.getByRole("button", { name: "Mettre en place une bande" }).click();
+  await page.getByLabel("Production").selectOption({ label: "Pondeuse" });
+  await expect(page.getByLabel("Souche").locator("option")).toHaveText(["Lohmann Brown", "Souche non précisée"]);
+  await page.getByRole("button", { name: "Annuler" }).click();
 
   await place();
   await expect(page.getByRole("alert").filter({ hasText: "Ce bâtiment a déjà une bande en cours" })).toBeVisible();
@@ -53,6 +59,7 @@ test("a batch placed offline starts at day 0, and a second one in the same house
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const batches = async () =>
     await query<{ status: string; price: string; chicks: number }>(
       `SELECT b.status, b."chickUnitPriceCentimes"::text AS price, b."chicksPlaced" AS chicks FROM "Batch" b

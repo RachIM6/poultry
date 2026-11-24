@@ -64,6 +64,44 @@ export async function saveDone(tx: Tx, id: string, done: NonNullable<Vaccination
   return toDto(r);
 }
 
+// SPEC-m5 PA4: the plan edited by hand. A line given (doneOn set) is never moved or deleted: the conditions below hold
+// even against a "done" committed by another phone between the check and the write.
+
+export const vaccinationIdTaken = async (tx: Tx, id: string) => (await tx.vaccination.count({ where: { id } })) > 0;
+
+export async function saveLine(tx: Tx, ctx: TenantContext, v: VaccinationDto) {
+  await tx.vaccination.create({
+    data: { id: v.id, organizationId: ctx.organizationId, batchId: v.batchId, protocolId: null, dayOfAge: v.dayOfAge, dueOn: date(v.dueOn), productId: v.productId, method: v.method },
+  });
+}
+
+/** The batch's lines not yet done. */
+export const undoneLines = async (tx: Tx, ctx: TenantContext, batchId: string) =>
+  (await tx.vaccination.findMany({ where: { organizationId: ctx.organizationId, batchId, doneOn: null } })).map(toDto);
+
+/** SPEC B1: the first day of each kind health recorded on the batch: a vaccine given, a treatment started, a vet visit. */
+export async function recordedDays(tx: Tx, ctx: TenantContext, batchId: string) {
+  const where = { organizationId: ctx.organizationId, batchId };
+  const given = await tx.vaccination.aggregate({ where, _min: { doneOn: true } });
+  const treated = await tx.treatment.aggregate({ where, _min: { startOn: true } });
+  const visited = await tx.vetVisit.aggregate({ where, _min: { on: true } });
+  return [given._min.doneOn, treated._min.startOn, visited._min.on].flatMap((d) => (d ? [dayOf(d)] : []));
+}
+
+/** The line on its new day; its reminders go out again when `remindAgain`. Null when it was done meanwhile. */
+export async function saveMove(tx: Tx, ctx: TenantContext, id: string, move: { dayOfAge: number; dueOn: FarmDay; remindAgain: boolean }) {
+  const reminders = move.remindAgain ? { remindedBeforeAt: null, remindedDueAt: null } : {};
+  const { count } = await tx.vaccination.updateMany({
+    where: { id, organizationId: ctx.organizationId, doneOn: null },
+    data: { dayOfAge: move.dayOfAge, dueOn: date(move.dueOn), ...reminders },
+  });
+  return count === 1 ? findVaccination(tx, ctx, id) : null;
+}
+
+/** Deletes a line not yet done; false when it was done meanwhile. Its reminders go with it. */
+export const deleteLine = async (tx: Tx, ctx: TenantContext, id: string) =>
+  (await tx.vaccination.deleteMany({ where: { id, organizationId: ctx.organizationId, doneOn: null } })).count === 1;
+
 export type ReminderRow = { id: string; organizationId: string; batchId: string; productId: string; dayOfAge: number; method: string };
 
 /**

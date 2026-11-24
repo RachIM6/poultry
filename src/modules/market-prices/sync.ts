@@ -1,6 +1,6 @@
 import { audit } from "@/lib/audit";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf } from "@/lib/kernel/farm-day";
+import { latestRecordableDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
@@ -18,7 +18,7 @@ export const marketPricesSync: SyncRegistry = {
       schema: RecordPrice,
       action: "prices.record",
       async apply(tx, ctx, p, meta) {
-        if (p.day > farmDayOf(clock.now())) return fail("DAY_IN_FUTURE");
+        if (p.day > latestRecordableDay(clock)) return fail("DAY_IN_FUTURE");
         if (await tx.priceObservation.findUnique({ where: { id: p.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
         const dto: PriceDto = { ...p, byUserId: ctx.userId };
         await tx.priceObservation.create({ data: { ...dto, day: new Date(`${p.day}T00:00:00Z`), priceCentimes: BigInt(p.priceCentimes), organizationId: ctx.organizationId } });

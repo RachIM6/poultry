@@ -1,24 +1,53 @@
 import type { Tx } from "@/lib/db";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
+import { chicksCost } from "@/modules/flock/domain/closing";
 import type { BatchDto } from "@/modules/flock/shared";
 
-export type PlacementChange = { version: bigint; id: string; farmId: string; placedOn: FarmDay; chicksCentimes: bigint };
+// species, fromBatchId: SPEC-finance FC6 (point-of-lay hens bought, the transfer to lay of SPEC-m3 B13); vatCentimes: FN9,
+// the delivery's VAT on top of chicksCentimes (0 when none was typed); hatchery, paidOnDelivery: §9, what was paid in
+// cash at delivery and from which cash box (finance's id, unchecked here)
+export type PlacementChange = {
+  version: bigint;
+  id: string;
+  farmId: string;
+  placedOn: FarmDay;
+  chicksCentimes: bigint;
+  vatCentimes: bigint;
+  species: string;
+  fromBatchId: string | null;
+  hatchery: string;
+  paidOnDelivery: { cashAccountId: string; amountCentimes: bigint } | null;
+};
 
 /**
  * For finance (SPEC-finance FN7): batches placed or changed after `after` (this organisation's change-log version),
- * oldest first, with what their chicks cost: every chick placed, dead on arrival included (as the B6 cost).
+ * oldest first, with what their chicks cost: every chick placed, dead on arrival included (as the B6 cost). `readTo`:
+ * the last version read, deletions included, where finance's cursor moves (§9 "Postings catch up").
  */
-export async function placementsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<PlacementChange[]> {
+export async function placementsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: PlacementChange[]; readTo: bigint }> {
   const changes = await tx.change.findMany({
     where: { organizationId: ctx.organizationId, entity: "batch", version: { gt: after } },
     orderBy: { version: "asc" },
     take: limit,
   });
-  return changes
+  const items = changes
     .filter((c) => c.data !== null)
     .map((c) => {
       const b = c.data as unknown as BatchDto;
-      return { version: c.version, id: b.id, farmId: b.farmId, placedOn: b.placedOn as FarmDay, chicksCentimes: BigInt(b.chicksPlaced) * BigInt(b.chickUnitPriceCentimes ?? "0") };
+      const paid = b.paidOnDelivery ?? null;
+      return {
+        version: c.version,
+        id: b.id,
+        farmId: b.farmId,
+        placedOn: b.placedOn as FarmDay,
+        chicksCentimes: chicksCost(b.chicksPlaced, BigInt(b.chickUnitPriceCentimes ?? "0")),
+        vatCentimes: BigInt(b.chickVatCentimes ?? "0"),
+        species: b.species,
+        fromBatchId: b.fromBatchId ?? null,
+        hatchery: b.hatchery,
+        paidOnDelivery: paid && { cashAccountId: paid.cashAccountId, amountCentimes: BigInt(paid.amountCentimes) },
+      };
     });
+  return { items, readTo: changes.at(-1)?.version ?? after };
 }

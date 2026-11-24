@@ -2,15 +2,22 @@ import { v5 as uuidv5 } from "uuid";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { planVaccinations } from "@/modules/health/domain/vaccination";
 import type { ProtocolItem } from "@/modules/reference-data/schema";
-import type { VACCINATION_METHODS } from "@/modules/reference-data/shared";
+import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 
 // What the phone's screens need from health, without Zod (ADR-009): the plan, the checks and the withdrawal rule the
 // phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
 export { checkDone, remindedDueOn, statusOn } from "@/modules/health/domain/vaccination";
 export type { DoneError, Reminder, VaccinationStatus } from "@/modules/health/domain/vaccination";
-export { checkBatchDay, checkTreatment, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
+export { checkAdd, checkEdit, checkPlacementBeforeRecords, lineDueOn, moveLine, movedWithPlacement } from "@/modules/health/domain/plan-edit";
+export type { PlanEditError } from "@/modules/health/domain/plan-edit";
+export { missingRequiredVaccines, REQUIRED_VACCINES } from "@/modules/health/domain/required";
+export { checkBatchDay, checkTreatment, eggWithdrawalEnd, eggWithdrawalUntil, eggWithdrawalWindows, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
 
 export type VaccinationMethod = (typeof VACCINATION_METHODS)[number];
+
+/** The register (arrêté 2126-05 art. 4): how a treatment was given; the vaccination methods' values, plus feed and other. */
+export const TREATMENT_ROUTES = [...VACCINATION_METHODS, "feed", "other"] as const;
+export type TreatmentRoute = (typeof TREATMENT_ROUTES)[number];
 
 export type VaccinationDto = {
   id: string;
@@ -27,8 +34,8 @@ const VACCINATION_NAMESPACE = "6c0a4e2b-8f3d-4b71-a5e9-2d7c1f9b3e48";
 export const vaccinationId = (batchId: string, line: number) => uuidv5(`${batchId}:${line}`, VACCINATION_NAMESPACE);
 
 /** H1: the batch's plan as records, built from the protocol the phone sent. */
-export const planFor = (batchId: string, placedOn: FarmDay, items: readonly ProtocolItem[]): VaccinationDto[] =>
-  planVaccinations(placedOn, items).map((v, line) => ({ id: vaccinationId(batchId, line), batchId, ...v, done: null }));
+export const planFor = (batchId: string, placedOn: FarmDay, items: readonly ProtocolItem[], ageAtPlacementDays = 0): VaccinationDto[] =>
+  planVaccinations(placedOn, items, ageAtPlacementDays).map((v, line) => ({ id: vaccinationId(batchId, line), batchId, ...v, done: null }));
 
 /** H3, H6: as recorded, with its withdrawal end computed by the domain rule. */
 export type TreatmentDto = {
@@ -43,6 +50,12 @@ export type TreatmentDto = {
   prescriber: string;
   withdrawalDays: number;
   withdrawalEndsOn: string;
+  eggWithdrawalDays?: number | null; // SPEC-m3 H7; absent from a record pulled before M3
+  eggWithdrawalEndsOn?: string | null;
+  // The register (arrêté 2126-05 art. 4), optional; absent from a record pulled before them
+  route?: TreatmentRoute | null;
+  routeNote?: string | null; // what "other" was
+  prescriptionRef?: string | null; // e.g. the ordonnance's number
   byUserId: string;
 };
 
@@ -52,6 +65,9 @@ export type VetVisitDto = { id: string; batchId: string; on: string; vetName: st
 export const HEALTH_MUTATIONS = {
   planVaccinations: "health.planVaccinations",
   recordVaccination: "health.recordVaccination",
+  addVaccination: "health.addVaccination",
+  moveVaccination: "health.moveVaccination",
+  cancelVaccination: "health.cancelVaccination",
   recordTreatment: "health.recordTreatment",
   recordVetVisit: "health.recordVetVisit",
 } as const;

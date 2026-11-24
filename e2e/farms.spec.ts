@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, login, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T10 acceptance: a farm and 2 houses created offline survive a reload, then sync; a second phone sees them.
 test("a farm and two houses created offline survive a reload, sync, and reach a second phone", async ({ page, context, browser }) => {
@@ -7,7 +7,7 @@ test("a farm and two houses created offline survive a reload, sync, and reach a 
   const e164 = await ownerWithFarm(page, "Exploitation Atlas");
   await scopeRemembered(page);
   await page.goto("/fr/farms");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined)); // shells precached
+  await controlled(page); // shells precached
   await expect(page.getByText("Aucune ferme pour l’instant.")).toBeVisible();
 
   // setOffline alone doesn't cut the service worker's own fetches in Chromium; aborting every request does.
@@ -43,6 +43,7 @@ test("a farm and two houses created offline survive a reload, sync, and reach a 
 
   await context.unroute("**");
   await context.setOffline(false); // the "online" event starts a sync
+  await outboxEmpty(page);
   const housesOnServer = async () =>
     (
       await query<{ n: number }>(

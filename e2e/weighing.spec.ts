@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered, syntheticStrain } from "./auth";
+import { controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered, syntheticStrain } from "./auth";
 
 // T17 acceptance (browser part): a weighing typed offline shows the average, CV% and the gap to the strain standard.
 // No breeder table is committed yet (OQ5), so the test brings its own strain with a made-up curve and removes it.
@@ -12,7 +12,7 @@ test("a weighing offline shows average, uniformity and the gap to the standard",
     await farmWithBatch(page, strain);
 
     await page.goto("/fr/batches");
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await controlled(page);
     await referenceCached(page); // the curve comes with it
     await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
     await context.setOffline(true);
@@ -34,6 +34,7 @@ test("a weighing offline shows average, uniformity and the gap to the standard",
 
     await context.unroute("**");
     await context.setOffline(false);
+    await outboxEmpty(page);
     const server = async () =>
       await query<{ count: number; total: number; weights: number[] }>(
         `SELECT w.count, w."totalGrams" AS total, w."weightsGrams" AS weights FROM "Weighing" w

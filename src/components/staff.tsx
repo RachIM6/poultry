@@ -5,18 +5,19 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
-import { card, done, field, primary, secondary } from "@/components/ui";
+import { useFieldError, useInline } from "@/components/focus";
+import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { parseCentimes } from "@/lib/kernel/money";
+import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ATTENDANCE, attendanceId, JOBS, monthEnd, payFor, payMonthId, rulesOn, TRAINING_TOPICS, WORKFORCE_MUTATIONS as W, type AdvanceDto, type AttendanceDto, type EmployeeDto, type LabourRules, type PayLine, type PayMonthDto, type StaffRecordDto } from "@/modules/workforce/shared";
+import { ATTENDANCE, attendanceId, JOBS, monthEnd, payFor, payMonthId, rulesOn, TRAINING_TOPICS, WORKFORCE_MUTATIONS as W, type AdvanceDto, type AttendanceDto, type EmployeeDto, type LabourRules, type PayLine, type PayMonthDto, type PayPaymentDto, type StaffRecordDto, PAY_FROM, payPaymentId } from "@/modules/workforce/shared";
 import { localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
 // SPEC-m4 WF1–WF3 on the static /staff shell (W-Staff), offline: the employees of each farm, added and edited by the
-// owner or a manager. The server links the member who signs in with the employee's phone.
+// owner or a manager, read by the accountant (SPEC-m5 PA5). The server links the member who signs in with the employee's phone.
 
 export const StaffScreen = () => <Scoped>{(scope) => <Staff {...scope} />}</Scoped>;
 
@@ -26,10 +27,11 @@ function Staff(scope: Scope) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb(scope);
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance", "labourRules", "payMonth", "staffRecord").toArray(), [scope.userId, scope.organizationId]);
-  const [editing, setEditing] = useState<EmployeeDto | "new" | null>(null);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance", "labourRules", "payMonth", "payPayment", "staffRecord").toArray(), [scope.userId, scope.organizationId]);
+  const { open, opener, close } = useInline<string>(); // an employee's id, or "new"
   const [message, setMessage] = useState<string>();
-  if (!can(scope, "workforce.manage")) return <p>{t("Staff.forbidden")}</p>;
+  if (!can(scope, "money.read")) return <p>{t("Staff.forbidden")}</p>;
+  const manage = can(scope, "workforce.manage"); // the accountant reads: no attendance or records reach their phone
   if (!records) return null;
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
@@ -41,12 +43,12 @@ function Staff(scope: Scope) {
   const save = async (e: EmployeeDto, before: EmployeeDto | null) => {
     // An edit sends only what changed: an edit of other fields on another phone survives (ADR-003 §5).
     const changes = before && Object.fromEntries(EDITABLE.filter((k) => JSON.stringify(e[k] ?? null) !== JSON.stringify(before[k] ?? null)).map((k) => [k, e[k]]));
-    if (changes && Object.keys(changes).length === 0) return setEditing(null);
+    if (changes && Object.keys(changes).length === 0) return close();
     const mutation = changes ? { type: W.updateEmployee, payload: { id: e.id, changes } } : { type: W.createEmployee, payload: e };
     try {
       await writeLocal(db, mutation, { entity: "employee", id: e.id, data: e });
       setMessage("Farms.saved");
-      setEditing(null);
+      close();
     } catch {
       setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
     }
@@ -73,21 +75,21 @@ function Staff(scope: Scope) {
                     e.leftOn ? t("Staff.leftOn", { date: formatDay(e.leftOn as FarmDay, locale) }) : e.userId ? t("Staff.usesApp") : t("Staff.noApp"),
                   ].filter(Boolean).join(" · ")}
                 </span>
-                <button type="button" onClick={() => setEditing(e)} className={`${secondary} self-start`}>{t("Staff.edit", { name: e.name })}</button>
+                {manage && <button type="button" {...opener(e.id)} className={`${secondary} self-start`}>{t("Staff.edit", { name: e.name })}</button>}
               </li>
             ))}
           </ul>
         </section>
       ))}
-      {editing ? (
-        <EmployeeForm key={editing === "new" ? "new" : editing.id} employee={editing === "new" ? null : editing} farms={farms} houses={houses} onSave={save} onCancel={() => setEditing(null)} />
+      {!manage ? null : open ? (
+        <EmployeeForm key={open} employee={employees.find((e) => e.id === open) ?? null} farms={farms} houses={houses} onSave={save} onCancel={close} />
       ) : (
-        <button type="button" onClick={() => setEditing("new")} className={primary}>{t("Staff.add")}</button>
+        <button type="button" {...opener("new")} className={primary}>{t("Staff.add")}</button>
       )}
-      <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
-      <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={(a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
-      <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
-      <Pay scope={scope} farms={farms} employees={employees} attendance={of<AttendanceDto>("attendance")} advances={of<AdvanceDto>("advance")} rules={of<LabourRules>("labourRules")} months={of<PayMonthDto>("payMonth")} write={(type, entity, data) => writeLocal(db, { type, payload: data }, { entity, id: data.id, data }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
+      {manage && <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
+      <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={manage ? (a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed")) : undefined} />
+      {manage && <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
+      <Pay scope={scope} farms={farms} employees={employees} attendance={of<AttendanceDto>("attendance")} advances={of<AdvanceDto>("advance")} rules={of<LabourRules>("labourRules")} months={of<PayMonthDto>("payMonth")} payments={of<PayPaymentDto>("payPayment")} write={(type, entity, data) => writeLocal(db, { type, payload: data }, { entity, id: data.id, data }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
     </>
   );
 }
@@ -107,16 +109,16 @@ type FormProps = { employee: EmployeeDto | null; farms: FarmDto[]; houses: House
 function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) {
   const t = useTranslations();
   const [farmId, setFarmId] = useState(employee?.farmId ?? farms[0].id);
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
 
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const wage = parseCentimes(get("wage"));
-    if (wage === null) return setError("errors.INVALID_QUANTITY");
+    if (wage === null) return setError("errors.INVALID_QUANTITY", ev.currentTarget, "wage");
     const leftOn = get("leftOn") || null;
-    if (leftOn && leftOn < get("startedOn")) return setError("errors.LEFT_BEFORE_START");
+    if (leftOn && leftOn < get("startedOn")) return setError("errors.LEFT_BEFORE_START", ev.currentTarget, "leftOn");
     setError(undefined);
     await onSave(
       {
@@ -149,7 +151,7 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
           )}
         </Field>
       )}
-      <Field label={t("Staff.name")}>{(id) => <input id={id} name="name" required maxLength={120} defaultValue={employee?.name} className={field} />}</Field>
+      <Field label={t("Staff.name")}>{(id) => <input id={id} name="name" required maxLength={120} defaultValue={employee?.name} autoFocus className={field} />}</Field>
       <Field label={t("Staff.job")}>
         {(id) => (
           <select id={id} name="job" defaultValue={employee?.job ?? "worker"} className={field}>
@@ -159,7 +161,7 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
       </Field>
       <Field label={t("Staff.phone")}>{(id) => <input id={id} name="phone" type="tel" inputMode="tel" dir="ltr" maxLength={20} defaultValue={employee?.phone ?? ""} className={field} />}</Field>
       <p className="text-sm text-ink-2">{t("Staff.phoneHint")}</p>
-      <Field label={t("Staff.wage")}>{(id) => <input id={id} name="wage" inputMode="decimal" dir="ltr" required defaultValue={wage ? `${BigInt(wage) / 100n},${String(BigInt(wage) % 100n).padStart(2, "0")}` : ""} className={field} />}</Field>
+      <Field label={t("Staff.wage")}>{(id) => <input id={id} name="wage" inputMode="decimal" dir="ltr" required {...bad("wage")} defaultValue={wage ? typedCentimes(BigInt(wage)) : ""} className={field} />}</Field>
       <Field label={t("Staff.startedOn")}>{(id) => <input id={id} name="startedOn" type="date" required defaultValue={employee?.startedOn ?? farmDayOf(new Date())} className={field} />}</Field>
       <Field label={t("Staff.cnss")}>{(id) => <input id={id} name="cnss" dir="ltr" maxLength={20} defaultValue={employee?.cnssNumber ?? ""} className={field} />}</Field>
       <label className="flex min-h-11 items-center gap-3">
@@ -175,8 +177,8 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
           </label>
         ))}
       </fieldset>
-      {employee && <Field label={t("Staff.leftOnLabel")}>{(id) => <input id={id} name="leftOn" type="date" defaultValue={employee.leftOn ?? ""} className={field} />}</Field>}
-      {error && <p role="alert">{t(error)}</p>}
+      {employee && <Field label={t("Staff.leftOnLabel")}>{(id) => <input id={id} name="leftOn" type="date" defaultValue={employee.leftOn ?? ""} {...bad("leftOn")} className={field} />}</Field>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Staff.save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
@@ -260,10 +262,10 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
 }
 
 /** WF10 (W-Staff "Avance en cours"): advances still to be deducted, and a form to record one. */
-function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; advances: AdvanceDto[]; onSave: (a: AdvanceDto) => Promise<void> }) {
+function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; advances: AdvanceDto[]; onSave?: (a: AdvanceDto) => Promise<void> }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [key, setKey] = useState(0); // a new key empties the form after a save
   const today = farmDayOf(new Date());
   const active = employees.filter((e) => !e.leftOn);
@@ -275,13 +277,13 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);
     const amount = parseCentimes(String(data.get("amount") ?? ""));
-    if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY");
+    if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY", ev.currentTarget, "amount");
     const day = String(data.get("day"));
     const deductMonth = String(data.get("deductMonth"));
-    if (deductMonth < day.slice(0, 7)) return setError("errors.DEDUCT_BEFORE_ADVANCE");
+    if (deductMonth < day.slice(0, 7)) return setError("errors.DEDUCT_BEFORE_ADVANCE", ev.currentTarget, "deductMonth");
     setError(undefined);
     const employee = active.find((e) => e.id === data.get("employee"))!;
-    await onSave({ id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day, amountCentimes: String(amount), deductMonth, note: String(data.get("note") ?? "").trim() || null });
+    await onSave?.({ id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day, amountCentimes: String(amount), deductMonth, note: String(data.get("note") ?? "").trim() || null });
     setKey((k) => k + 1);
   };
 
@@ -297,21 +299,23 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
           ))}
         </ul>
       )}
-      <form key={key} onSubmit={submit} className={card} aria-label={t("Advances.add")}>
-        <Field label={t("Attendance.employee")}>
-          {(id) => (
-            <select id={id} name="employee" className={field}>
-              {active.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
-          )}
-        </Field>
-        <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required className={field} />}</Field>
-        <Field label={t("Advances.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
-        <Field label={t("Advances.deductMonth")}>{(id) => <input id={id} name="deductMonth" type="month" required defaultValue={today.slice(0, 7)} className={field} />}</Field>
-        <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
-        {error && <p role="alert">{t(error)}</p>}
-        <button type="submit" className={primary}>{t("Advances.save")}</button>
-      </form>
+      {onSave && (
+        <form key={key} onSubmit={submit} className={card} aria-label={t("Advances.add")}>
+          <Field label={t("Attendance.employee")}>
+            {(id) => (
+              <select id={id} name="employee" className={field}>
+                {active.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            )}
+          </Field>
+          <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required {...bad("amount")} className={field} />}</Field>
+          <Field label={t("Advances.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
+          <Field label={t("Advances.deductMonth")}>{(id) => <input id={id} name="deductMonth" type="month" required defaultValue={today.slice(0, 7)} {...bad("deductMonth")} className={field} />}</Field>
+          <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
+          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+          <button type="submit" className={primary}>{t("Advances.save")}</button>
+        </form>
+      )}
     </section>
   );
 }
@@ -321,7 +325,7 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
   const t = useTranslations();
   const locale = useLocale();
   const [kind, setKind] = useState<StaffRecordDto["kind"]>("training");
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [key, setKey] = useState(0); // a new key empties the form after a save
   const today = farmDayOf(new Date());
   if (employees.length === 0) return null;
@@ -333,8 +337,8 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
     const data = new FormData(ev.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const daysOff = get("daysOff") === "" ? null : Number(get("daysOff"));
-    if (daysOff !== null && !(Number.isInteger(daysOff) && daysOff >= 0 && daysOff <= 365)) return setError("errors.INVALID_QUANTITY");
-    if (kind === "accident" && get("note") === "") return setError("errors.INVALID_INPUT"); // only spaces passes "required"
+    if (daysOff !== null && !(Number.isInteger(daysOff) && daysOff >= 0 && daysOff <= 365)) return setError("errors.INVALID_QUANTITY", ev.currentTarget, "daysOff");
+    if (kind === "accident" && get("note") === "") return setError("errors.INVALID_INPUT", ev.currentTarget, "note"); // only spaces passes "required"
     setError(undefined);
     const employee = employees.find((e) => e.id === data.get("employee"))!;
     const base = { id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day: get("day"), kind };
@@ -389,11 +393,11 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
           </>
         ) : (
           <>
-            <Field label={t("Records.what")}>{(id) => <textarea id={id} name="note" required maxLength={500} rows={3} className={field} />}</Field>
-            <Field label={t("Records.daysOff")}>{(id) => <input id={id} name="daysOff" inputMode="numeric" dir="ltr" className={field} />}</Field>
+            <Field label={t("Records.what")}>{(id) => <textarea id={id} name="note" required maxLength={500} rows={3} {...bad("note")} className={field} />}</Field>
+            <Field label={t("Records.daysOff")}>{(id) => <input id={id} name="daysOff" inputMode="numeric" dir="ltr" {...bad("daysOff")} className={field} />}</Field>
           </>
         )}
-        {error && <p role="alert">{t(error)}</p>}
+        {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
         <button type="submit" className={primary}>{t("Records.save")}</button>
       </form>
     </section>
@@ -415,17 +419,18 @@ type PayProps = {
   advances: AdvanceDto[];
   rules: LabourRules[];
   months: PayMonthDto[];
+  payments: PayPaymentDto[];
   write: <T extends { id: string }>(type: string, entity: string, data: T) => Promise<void>;
 };
 
 /** WF11, WF12 (W-Staff "Paie"): the month's pay as computed now, or as the owner froze it. No figure built in (§2). */
-function Pay({ scope, farms, employees, attendance, advances, rules, months, write }: PayProps) {
+function Pay({ scope, farms, employees, attendance, advances, rules, months, payments, write }: PayProps) {
   const t = useTranslations();
   const locale = useLocale();
   const today = farmDayOf(new Date());
   const [month, setMonth] = useState(today.slice(0, 7));
   const [farmId, setFarmId] = useState(farms[0].id);
-  const [editingRules, setEditingRules] = useState(false);
+  const { open: editingRules, opener, close } = useInline<"rules">();
   const inForce = rulesOn(rules, monthEnd(month));
   const frozen = months.find((p) => p.id === payMonthId(farmId, month));
   const working = employees.filter((e) => e.farmId === farmId && e.startedOn <= monthEnd(month) && (!e.leftOn || e.leftOn > `${month}-01`));
@@ -438,6 +443,8 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, wri
   const sum = (pick: (l: PayLine) => string | null) => (lines.some((l) => pick(l) === null) ? null : String(lines.reduce((n, l) => n + BigInt(pick(l)!), 0n)));
   const name = (id: string) => employees.find((e) => e.id === id)?.name ?? "";
   const owner = can(scope, "workforce.validatePay");
+  // A month not validated is computed from attendance, which never reaches the accountant's phone (SPEC-m5 §5).
+  const computed = can(scope, "workforce.manage");
 
   return (
     <section aria-label={t("Pay.title")} className="flex flex-col gap-3">
@@ -451,44 +458,48 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, wri
         )}
       </div>
       {frozen && <p className="font-medium">{t("Pay.validated", { date: formatDay(frozen.validatedOn as FarmDay, locale) })}</p>}
-      <div className="overflow-x-auto rounded-[18px] bg-card">
-        <table className="w-full text-sm" aria-label={t("Pay.table")}>
-          <thead>
-            <tr className="text-ink-2">
-              <th scope="col" className="px-3 py-2 text-start font-medium">{t("Attendance.employee")}</th>
-              <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.days")}</th>
-              <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.gross")}</th>
-              <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.contribution")}</th>
-              <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.advances")}</th>
-              <th scope="col" className="px-3 py-2 text-end font-medium">{t("Pay.net")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((l) => (
-              <tr key={l.employeeId} className="border-t border-line">
-                <th scope="row" className="px-3 py-2 text-start font-semibold">
-                  {name(l.employeeId)}
-                  {l.belowSmag && <span className="block text-xs font-medium text-brick-fg">{t("Pay.belowSmag")}</span>}
-                </th>
-                <td className="px-2 py-2 text-end">{l.paidDays}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.grossCentimes)}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.employeeContributionCentimes)}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.advancesCentimes)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-end font-semibold">{money(l.netCentimes)}</td>
+      {!frozen && !computed ? (
+        <p className="text-ink-2">{t("Pay.notValidated")}</p>
+      ) : (
+        <div className="overflow-x-auto rounded-[18px] bg-card">
+          <table className="w-full text-sm" aria-label={t("Pay.table")}>
+            <thead>
+              <tr className="text-ink-2">
+                <th scope="col" className="px-3 py-2 text-start font-medium">{t("Attendance.employee")}</th>
+                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.days")}</th>
+                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.gross")}</th>
+                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.contribution")}</th>
+                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.advances")}</th>
+                <th scope="col" className="px-3 py-2 text-end font-medium">{t("Pay.net")}</th>
               </tr>
-            ))}
-            <tr className="border-t border-line bg-shell font-semibold">
-              <th scope="row" className="px-3 py-2 text-start">{t("Pay.total")}</th>
-              <td />
-              <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.grossCentimes))}</td>
-              <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.employeeContributionCentimes))}</td>
-              <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.advancesCentimes))}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-end">{money(sum((l) => l.netCentimes))}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      {inForce ? (
+            </thead>
+            <tbody>
+              {lines.map((l) => (
+                <tr key={l.employeeId} className="border-t border-line">
+                  <th scope="row" className="px-3 py-2 text-start font-semibold">
+                    {name(l.employeeId)}
+                    {l.belowSmag && <span className="block text-xs font-medium text-brick-fg">{t("Pay.belowSmag")}</span>}
+                  </th>
+                  <td className="px-2 py-2 text-end">{l.paidDays}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.grossCentimes)}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.employeeContributionCentimes)}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.advancesCentimes)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-end font-semibold">{money(l.netCentimes)}</td>
+                </tr>
+              ))}
+              <tr className="border-t border-line bg-shell font-semibold">
+                <th scope="row" className="px-3 py-2 text-start">{t("Pay.total")}</th>
+                <td />
+                <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.grossCentimes))}</td>
+                <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.employeeContributionCentimes))}</td>
+                <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.advancesCentimes))}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-end">{money(sum((l) => l.netCentimes))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+      {!frozen && !computed ? null : inForce ? (
         <p className="text-[13px] text-ink-2">{t("Pay.rulesInForce", { date: formatDay(inForce.validFrom as FarmDay, locale), source: inForce.source, employer: money(sum((l) => l.employerContributionCentimes)) })}</p>
       ) : (
         <p role="note" className="rounded-2xl bg-chick-soft p-3 text-[13px]">{t("Pay.rulesMissing")}</p>
@@ -502,20 +513,48 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, wri
           {t("Pay.validate", { month })}
         </button>
       )}
+      {owner && frozen && <WagesPaid farmId={farmId} month={month} net={sum((l) => (BigInt(l.netCentimes) > 0n ? l.netCentimes : "0")) ?? "0"} paid={payments.find((p) => p.id === payPaymentId(farmId, month))} today={today} write={write} />}
       {owner &&
         (editingRules ? (
-          <RulesForm onCancel={() => setEditingRules(false)} onSave={(r) => write(W.saveLabourRules, "labourRules", r).then(() => setEditingRules(false))} />
+          <RulesForm onCancel={close} onSave={(r) => write(W.saveLabourRules, "labourRules", r).then(close)} />
         ) : (
-          <button type="button" onClick={() => setEditingRules(true)} className={secondary}>{t("Pay.enterRules")}</button>
+          <button type="button" {...opener("rules")} className={secondary}>{t("Pay.enterRules")}</button>
         ))}
     </section>
+  );
+}
+
+/** WF12 follow-up: the validated month's wages paid out once, from the cash box or the bank (finance: D 4432 / C 5161 or 5141). */
+function WagesPaid({ farmId, month, net, paid, today, write }: { farmId: string; month: string; net: string; paid?: PayPaymentDto; today: string; write: PayProps["write"] }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  if (paid) return <p className="font-medium">{t("Pay.paid", { amount: formatMoney(BigInt(paid.netCentimes)), date: formatDay(paid.day as FarmDay, locale), from: t(`Pay.from.${paid.paidFrom}`) })}</p>;
+  if (net === "0") return null;
+  const submit = (ev: FormEvent<HTMLFormElement>) => {
+    ev.preventDefault();
+    const data = new FormData(ev.currentTarget);
+    const p: PayPaymentDto = { id: payPaymentId(farmId, month), farmId, month, day: String(data.get("day") || today), paidFrom: String(data.get("from")) as PayPaymentDto["paidFrom"], netCentimes: net };
+    void write(W.payWages, "payPayment", p);
+  };
+  return (
+    <form onSubmit={submit} aria-label={t("Pay.pay", { amount: formatMoney(BigInt(net)) })} className={`${card} gap-3`}>
+      <Field label={t("Pay.payFrom")}>
+        {(id) => (
+          <select id={id} name="from" className={field}>
+            {PAY_FROM.map((f) => <option key={f} value={f}>{t(`Pay.from.${f}`)}</option>)}
+          </select>
+        )}
+      </Field>
+      <Field label={t("Pay.payDay")}>{(id) => <input id={id} name="day" type="date" defaultValue={today} min={`${month}-01`} max={today} required className={field} />}</Field>
+      <button type="submit" className={primary}>{t("Pay.pay", { amount: formatMoney(BigInt(net)) })}</button>
+    </form>
   );
 }
 
 /** §2, MQ2: the owner types the figures their source gives, and names the source. Empty fields stay unknown. */
 function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<void>; onCancel: () => void }) {
   const t = useTranslations();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError } = useFieldError();
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);
@@ -532,7 +571,7 @@ function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<v
   return (
     <form onSubmit={submit} className={card} aria-label={t("Pay.enterRules")}>
       <p className="text-sm text-ink-2">{t("Pay.rulesHint")}</p>
-      <Field label={t("Pay.source")}>{(id) => <input id={id} name="source" required minLength={3} maxLength={300} className={field} />}</Field>
+      <Field label={t("Pay.source")}>{(id) => <input id={id} name="source" required minLength={3} maxLength={300} autoFocus className={field} />}</Field>
       <Field label={t("Pay.validFrom")}>{(id) => <input id={id} name="validFrom" type="date" required className={field} />}</Field>
       <Field label={t("Pay.smag")}>{(id) => <input id={id} name="smag" inputMode="decimal" dir="ltr" className={field} />}</Field>
       {pctField("employeeCapped", t("Pay.employeeCapped"))}
@@ -540,7 +579,7 @@ function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<v
       {pctField("employerCapped", t("Pay.employerCapped"))}
       {pctField("employerUncapped", t("Pay.employerUncapped"))}
       <Field label={t("Pay.cap")}>{(id) => <input id={id} name="cap" inputMode="decimal" dir="ltr" className={field} />}</Field>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Pay.saveRules")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>

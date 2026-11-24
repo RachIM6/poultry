@@ -5,7 +5,8 @@ import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
 import { pull, push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { treasuryOverview } from "@/modules/finance";
+import { readFile, storeFile } from "@/modules/documents";
+import { attachExpenseReceipt, cashForecast, exportBooks, treasuryOverview } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
 
@@ -58,6 +59,40 @@ describe("treasury and quick expenses (SPEC-finance FN3, FN6, FX2, FX4, T32)", (
     expect(overview.value.movements).toHaveLength(3); // the expense's and both sides of the transfer, on 51xx
   });
 
+  it("attaches an expense's receipt once, shows it on the treasury and puts it in the accountant's zip (FN10, FN18)", async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 7, 7, 7]);
+    const e = expense({ day: "2026-03-12", category: "water", amountCentimes: "30000" });
+    expect(await statuses(a, e)).toEqual(["applied"]);
+    expect(await storeFile({ ...a, role: "worker" }, "receipt", png)).toEqual({ ok: false, error: "FORBIDDEN" });
+    const file = await storeFile(a, "receipt", png);
+    if (!file.ok) throw new Error(file.error);
+    expect(await attachExpenseReceipt(b, e.payload.id, file.value.id)).toEqual({ ok: false, error: "NOT_FOUND" });
+    expect(await attachExpenseReceipt(a, e.payload.id, file.value.id)).toEqual({ ok: true, value: undefined });
+    expect(await attachExpenseReceipt(a, e.payload.id, file.value.id)).toEqual({ ok: false, error: "FILE_ALREADY_ATTACHED" });
+    expect(await readFile({ ...a, role: "worker" }, file.value.id)).toEqual({ ok: false, error: "NOT_FOUND" });
+    const accountant = { ...a, role: "accountant" as const }; // SPEC-m5 PA5: reads the books, so their receipts, but adds none
+    expect((await readFile(accountant, file.value.id)).ok).toBe(true);
+    expect(await storeFile(accountant, "receipt", png)).toEqual({ ok: false, error: "FORBIDDEN" });
+    expect(await attachExpenseReceipt(accountant, e.payload.id, file.value.id)).toEqual({ ok: false, error: "FORBIDDEN" });
+
+    const pulled = (await pull(a, 0, registry)).changes.filter((c) => c.entity === "expense" && c.id === e.payload.id).map((c) => c.data);
+    expect(pulled.at(-1)).toEqual({ ...(pulled[0] as object), receiptFileId: file.value.id }); // the phone gets the same expense, with its receipt
+
+    const overview = await treasuryOverview(a, "2026-03");
+    if (!overview.ok) throw new Error(overview.error);
+    expect(overview.value.movements.map((x) => x.receipt)).toEqual([null, undefined, undefined, file.value.id]); // first expense, transfer, this one
+
+    const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceId: e.payload.id } });
+    const zipped = await exportBooks(a, "2026-03");
+    if (!zipped.ok) throw new Error(zipped.error);
+    expect(zipped.value.zip.includes(`pieces/2026-03-12_${entry.id}.png`)).toBe(true);
+    const accountantZip = await exportBooks(accountant, "2026-03");
+    expect(accountantZip.ok && accountantZip.value.zip.includes(`pieces/2026-03-12_${entry.id}.png`)).toBe(true);
+    const april = await exportBooks(a, "2026-04");
+    if (!april.ok) throw new Error(april.error);
+    expect(april.value.zip.includes("pieces/")).toBe(false); // only the month's entries bring their receipts
+  });
+
   it("keeps workers out of every finance mutation and record", async () => {
     const worker = { ...a, role: "worker" as const };
     expect(await statuses(worker, expense())).toEqual(["errors.FORBIDDEN"]);
@@ -66,5 +101,20 @@ describe("treasury and quick expenses (SPEC-finance FN3, FN6, FX2, FX4, T32)", (
     expect(pulled.filter((e) => ["expense", "transfer", "treasuryAccount"].includes(e))).toEqual([]);
     expect(await treasuryOverview(worker, "2026-03")).toEqual({ ok: false, error: "FORBIDDEN" });
     expect((await pull(a, 0, registry)).changes.some((c) => c.entity === "expense")).toBe(true);
+  });
+
+  it("shows the cash posted on no account on its own row, so the total is the forecast's start", async () => {
+    const before = await treasuryOverview(a, "2026-04");
+    if (!before.ok) throw new Error(before.error);
+    expect(before.value.unassignedCentimes).toBe(0n);
+    const e = expense({ day: "2026-04-02", amountCentimes: "25000", treasuryId: null }); // cash, no cash box named
+    expect(await statuses(a, e)).toEqual(["applied"]);
+    expect(await linesOf(e.payload.id)).toEqual([["612512", 25_000n, 0n, null], ["5161", 0n, 25_000n, null]]);
+    const overview = await treasuryOverview(a, "2026-04");
+    const forecast = await cashForecast(a);
+    if (!overview.ok || !forecast.ok) throw new Error("forbidden");
+    expect(overview.value.unassignedCentimes).toBe(-25_000n);
+    expect(overview.value.accounts.map((x) => x.balanceCentimes)).toEqual(before.value.accounts.map((x) => x.balanceCentimes)); // no account moved
+    expect(overview.value.accounts.reduce((s, x) => s + x.balanceCentimes, overview.value.unassignedCentimes)).toBe(forecast.value.startCentimes);
   });
 });

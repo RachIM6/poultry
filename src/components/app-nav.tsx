@@ -1,11 +1,10 @@
 "use client";
 
-import { useLiveQuery } from "dexie-react-hooks";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
+import { useSyncExternalStore } from "react";
 import { BrandLockup } from "@/components/brand";
 import { Link, usePathname } from "@/i18n/navigation";
-import { can, type Action } from "@/lib/permissions";
-import { currentScope } from "@/offline/db";
 
 // tasks/plan-ui.md U2: the phone's bottom tab bar (Today.dc.html) and, on wide screens, the dark sidebar
 // (WebOverview.dc.html). Static, so the offline shells stay static: what depends on the role lives on /more.
@@ -16,26 +15,27 @@ const TABS = [
   { href: "/more", key: "more", icon: "M5 12h.01M12 12h.01M19 12h.01" },
 ] as const;
 
-// WebOverview.dc.html: on wide screens the owner's sidebar also lists the screens it uses most, by role. The role comes
-// from the phone's database (who signed in last), so the shell stays static; the server still checks every page.
-const WIDE: { href: string; key: string; action: Action; icon: string }[] = [
-  { href: "/receivables", key: "sales", action: "sales.manage", icon: "M3 7h18v10H3zM7 12h4" },
-  { href: "/books", key: "finance", action: "finance.record", icon: "M4 20V4M4 20h16M8 16l4-5 3 3 5-7" },
-  { href: "/settings/members", key: "members", action: "members.manage", icon: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6" },
-];
+// What the nav reads from the phone's database (the refused writes' count, the role's wide links) comes in its own
+// chunk, once the page has loaded: Dexie stays off the first load of the online-only pages (books, treasury, closing…).
+// Neither moves the layout when it arrives: the count is absolutely placed, the links come last in the sidebar.
+const Refused = dynamic(() => import("@/components/app-nav-live").then((m) => m.Refused), { ssr: false });
+const WideLinks = dynamic(() => import("@/components/app-nav-live").then((m) => m.WideLinks), { ssr: false });
+const onLoad = (cb: () => void) => {
+  window.addEventListener("load", cb);
+  return () => window.removeEventListener("load", cb);
+};
 
 export function AppNav() {
   const t = useTranslations("Nav");
   const pathname = usePathname();
-  const scope = useLiveQuery(() => currentScope(), []);
-  const wide = scope ? WIDE.filter((w) => can(scope, w.action)) : [];
+  const loaded = useSyncExternalStore(onLoad, () => document.readyState === "complete", () => false);
   const isIn = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   // Everything that isn't one of the first three tabs is reached from "Plus".
   const current = pathname === "/today" ? "today" : (TABS.find((tab) => tab.key !== "more" && isIn(tab.href))?.key ?? (pathname === "/" ? undefined : "more"));
   return (
     <nav
       aria-label={t("label")}
-      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-card print:hidden lg:sticky lg:top-0 lg:h-dvh lg:w-60 lg:shrink-0 lg:border-0 lg:bg-ink lg:p-4 lg:text-shell"
+      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-card print:hidden lg:sticky lg:top-0 lg:order-first lg:h-dvh lg:w-60 lg:shrink-0 lg:border-0 lg:bg-ink lg:p-4 lg:text-shell"
     >
       <div className="hidden px-2 pb-6 pt-2 lg:block [&_span]:text-shell">
         <BrandLockup />
@@ -48,34 +48,19 @@ export function AppNav() {
               aria-current={current === tab.key ? "page" : undefined}
               className="group flex h-full flex-col items-center justify-center gap-1 text-[13px] text-muted aria-[current=page]:font-semibold aria-[current=page]:text-ink lg:min-h-11 lg:flex-row lg:justify-start lg:gap-3 lg:rounded-xl lg:px-3 lg:text-[15px] lg:text-shell lg:hover:bg-shell/10 lg:aria-[current=page]:bg-chick lg:aria-[current=page]:text-ink"
             >
-              <span className="grid h-[30px] w-[52px] place-items-center rounded-full group-aria-[current=page]:bg-chick-soft lg:w-auto lg:group-aria-[current=page]:bg-transparent">
+              <span className="relative grid h-[30px] w-[52px] place-items-center rounded-full group-aria-[current=page]:bg-chick-soft lg:w-auto lg:group-aria-[current=page]:bg-transparent">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d={tab.icon} />
                 </svg>
+                {tab.key === "more" && loaded && <Refused />}
               </span>
               {t(tab.key)}
+              {tab.key === "more" && loaded && <Refused spoken />}
             </Link>
           </li>
         ))}
       </ul>
-      {wide.length > 0 && (
-        <ul className="mt-4 hidden flex-col gap-1 border-t border-shell/15 pt-4 lg:flex">
-          {wide.map((w) => (
-            <li key={w.key}>
-              <Link
-                href={w.href}
-                aria-current={isIn(w.href) ? "page" : undefined}
-                className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-[15px] text-shell hover:bg-shell/10 aria-[current=page]:bg-chick aria-[current=page]:font-semibold aria-[current=page]:text-ink"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d={w.icon} />
-                </svg>
-                {t(w.key)}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      {loaded && <WideLinks isIn={isIn} />}
     </nav>
   );
 }

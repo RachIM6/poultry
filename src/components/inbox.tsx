@@ -162,7 +162,7 @@ function QuietHours() {
       <p className="text-sm text-muted">{t("quietHint")}</p>
       {hours && (
         <form onSubmit={save} className="flex flex-col gap-3">
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <div className="flex flex-1 flex-col gap-1">
               <label htmlFor={ids.start}>{t("from")}</label>
               <input id={ids.start} name="start" type="time" defaultValue={hours.start} required dir="ltr" className={field} />

@@ -3,9 +3,10 @@ import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { farmDayOf } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Role, TenantContext } from "@/lib/tenant";
-import { getSession } from "@/modules/identity/application/login";
+import { getSession } from "@/modules/identity/application/session";
+import { PARTNER_ROLES, SaveLocale } from "@/modules/identity/schema";
 
-/** SPEC-m5 PA2 (ADR-011): the organisation the user chose. Only a hint: it opens nothing unless it is a live membership. */
+/** SPEC-m5 PA2 (ADR-013): the organisation the user chose. Only a hint: it opens nothing unless it is a live membership. */
 export const ORG_COOKIE = "__Host-org";
 const chosenOrganization = (headers: Headers) =>
   headers.get("cookie")?.split(";").map((c) => c.trim().split("=")).find(([k]) => k === ORG_COOKIE)?.[1];
@@ -14,6 +15,9 @@ const chosenOrganization = (headers: Headers) =>
 const live = (clock: Clock) => ({ OR: [{ accessUntil: null }, { accessUntil: { gte: new Date(`${farmDayOf(clock.now())}T00:00:00Z`) } }] });
 const liveMemberships = (userId: string, clock: Clock) =>
   db.membership.findMany({ where: { userId, ...live(clock) }, orderBy: { createdAt: "asc" }, include: { organization: { select: { name: true } } } });
+/** The membership a request opens: the chosen organisation when it is a live membership, else the oldest. */
+const opened = <M extends { organizationId: string }>(memberships: M[], headers: Headers) => memberships.find((m) => m.organizationId === chosenOrganization(headers)) ?? memberships[0];
+const openedMembership = async (userId: string, headers: Headers, clock: Clock) => opened(await liveMemberships(userId, clock), headers);
 
 /**
  * ADR-006 choke point: session cookie → membership → tenant context. A signed-in user with no membership onboards.
@@ -22,9 +26,7 @@ const liveMemberships = (userId: string, clock: Clock) =>
 export async function getTenantContext(headers: Headers, clock: Clock = systemClock): Promise<Result<TenantContext, "UNAUTHENTICATED" | "NO_MEMBERSHIP">> {
   const session = await getSession(headers);
   if (!session) return fail("UNAUTHENTICATED");
-  const memberships = await liveMemberships(session.userId, clock);
-  const chosen = chosenOrganization(headers);
-  const membership = memberships.find((m) => m.organizationId === chosen) ?? memberships[0];
+  const membership = await openedMembership(session.userId, headers, clock);
   if (!membership) return fail("NO_MEMBERSHIP");
   return ok({ userId: session.userId, organizationId: membership.organizationId, role: membership.role });
 }
@@ -39,13 +41,12 @@ export type MyOrganizations = {
 export async function myOrganizations(headers: Headers, clock: Clock = systemClock): Promise<Result<MyOrganizations, "UNAUTHENTICATED">> {
   const session = await getSession(headers);
   if (!session) return fail("UNAUTHENTICATED");
-  const [memberships, invitations, ctx] = await Promise.all([
+  const [memberships, invitations] = await Promise.all([
     liveMemberships(session.userId, clock),
     session.phone ? db.invitation.findMany({ where: { phoneNumber: session.phone, expiresAt: { gt: clock.now() } }, include: { organization: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
-    getTenantContext(headers, clock),
   ]);
   return ok({
-    current: ctx.ok ? ctx.value.organizationId : null,
+    current: opened(memberships, headers)?.organizationId ?? null, // the one getTenantContext opens
     memberships: memberships.map((m) => ({ organizationId: m.organizationId, name: m.organization.name, role: m.role, accessUntil: m.accessUntil && m.accessUntil.toISOString().slice(0, 10) })),
     invitations: invitations
       .filter((i) => !memberships.some((m) => m.organizationId === i.organizationId))
@@ -61,6 +62,17 @@ export async function chooseOrganization(headers: Headers, organizationId: strin
   if (!membership) return fail("NOT_FOUND");
   await db.auditEvent.create({ data: { organizationId, userId: session.userId, entity: "Membership", entityId: membership.id, action: "open", after: { role: membership.role } } });
   return ok(undefined);
+}
+
+/**
+ * SPEC-m5 PA6: a partner's sign-in opens the organisation getTenantContext will open (the chosen one, else the oldest),
+ * and that organisation's audit log gets the same `Membership/open` as a switch (chooseOrganization). Once, at login:
+ * the session then stays in it until a switch, which is audited there.
+ */
+export async function auditPartnerSignIn(userId: string, headers: Headers, clock: Clock = systemClock) {
+  const membership = await openedMembership(userId, headers, clock);
+  if (!membership || !PARTNER_ROLES.includes(membership.role)) return;
+  await db.auditEvent.create({ data: { organizationId: membership.organizationId, userId, entity: "Membership", entityId: membership.id, action: "open", after: { role: membership.role, signIn: true } } });
 }
 
 /** SPEC-m5 PA2: a signed-in user accepts an invitation sent to their own phone; returns the organisation it opens. */
@@ -84,10 +96,27 @@ export async function acceptInvitation(headers: Headers, invitationId: string, c
   });
 }
 
+/**
+ * The live memberships of these users (a partner's up to its end day), as "organizationId:userId" → role: who may still
+ * get a push from an organisation, and whether it may show money.
+ */
+export async function liveRoles(userIds: string[], clock: Clock = systemClock): Promise<Map<string, Role>> {
+  const rows = await db.membership.findMany({ where: { userId: { in: userIds }, ...live(clock) }, select: { organizationId: true, userId: true, role: true } });
+  return new Map(rows.map((m) => [`${m.organizationId}:${m.userId}`, m.role]));
+}
+
 /** Each user's language (SPEC I3), for messages sent outside a request: push notifications. */
 export async function localesOf(userIds: string[]): Promise<Map<string, "ar" | "fr">> {
   const users = await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, locale: true } });
   return new Map(users.map((u) => [u.id, u.locale]));
+}
+
+/** SPEC I3: the language picked in the switcher is saved on the user, so pushes and the inbox follow it. */
+export async function saveLocale(userId: string, input: unknown): Promise<Result<void, "INVALID_INPUT">> {
+  const parsed = SaveLocale.safeParse(input);
+  if (!parsed.success) return fail("INVALID_INPUT");
+  await db.user.update({ where: { id: userId }, data: { locale: parsed.data.locale } });
+  return ok(undefined);
 }
 
 /**

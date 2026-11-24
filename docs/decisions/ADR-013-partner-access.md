@@ -1,7 +1,8 @@
-# ADR-011: Partners (vet, accountant) are members with two new roles, an active organisation and a pull allowlist
+# ADR-013: Partners (vet, accountant) are members with two new roles, an active organisation and a pull allowlist
 
 ## Status
 Proposed (written while the owner was away, 2026-11-18; to be reviewed with SPEC-m5)
+Renumbered from ADR-011 on 2026-11-19: that number was already taken by [ADR-011, files in PostgreSQL](ADR-011-files-in-postgres.md).
 
 ## Date
 2026-11-18

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, login, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, login, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered } from "./auth";
 
 // Checkpoint M4 (SPEC-m4 §9.1): a worker, offline for the day, checks in, ticks a task, records two climate readings
 // and a power cut; back online everything reaches the server once, and a second sync adds nothing. The worker's
@@ -42,7 +42,7 @@ for (const locale of ["fr", "ar"] as const) {
     await worker.goto(`/${locale}/climate`);
     await expect(placed).toBeVisible();
     await worker.goto(`/${locale}/tasks`);
-    await worker.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await controlled(worker);
     await expect(worker.getByText(t("Tasks", "hello", { name: "Said A." }))).toBeVisible();
     await workerContext.setOffline(true);
     await workerContext.route("**", (route) => route.abort("internetdisconnected"));

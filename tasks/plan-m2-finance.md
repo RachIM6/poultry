@@ -68,7 +68,7 @@ Done 2026-11-14 (branch `feat/t30-posting-pipeline`):
 
 Not yet:
 - **Supplier payment rules:** M1 records no supplier payment, only the part paid at the purchase. That part goes to 5161 (cash), because M1 doesn't record how it was paid. ⚠️ until purchases carry a payment method (T32).
-- **`PostingRule` table and FN8 overrides:** the rules are code until an owner needs to override one.
+- **`PostingRule` table:** the rules are code. ~~FN8 overrides~~ built 2026-11-24 (branch `feat/posting-overrides`): `PostingOverride`, an append-only history per entity; `/settings/posting`, owner only, audited; applied by the pipeline and quick expenses before mapping to the chart (SPEC-finance FN8, §9 "Posting overrides").
 - **The "other" item kind:** it goes to 61221; FN6 has no rule for it (for the accountant).
 - **One legal entity per organisation,** as onboarding creates.
 
@@ -87,7 +87,7 @@ Done 2026-11-14 (branch `feat/t31-instruments`):
 - **Screen:** the receivables screen lists the pending cheques and bills, with buttons for the allowed moves, and the blocked buyers, with "Lever le blocage" for the owner.
 
 Not yet:
-- A later payment's cheque number and due date (M1 doesn't ask for them).
+- ~~A later payment's cheque number and due date.~~ Done 2026-11-20 (branch `feat/payment-instruments`): on the receivables screen, a later payment by cheque or bill asks for its number and agreed date, as a sale does (`BuyerPayment.instrumentNumber`, `instrumentDueOn`). The portfolio shows them, the cash schedule collects it on that date instead of the payment day, and the reminder job (V4) announces it once on that day, like a sale's. ~~Open question: a sale's reminder announces the sale's amount, the portfolio its paid part; they differ for a cheque covering part of a sale.~~ Settled 2026-11-22 (branch `fix/m6-followups`): the reminder announces the instrument's own amount, the part paid with it, as the portfolio shows; a cheque sale with nothing paid is not in the portfolio and gets no reminder (`sales/receivables.int.test.ts`).
 - Issued cheques and bills (supplier side, with T32's payments).
 
 **Size:** M
@@ -108,10 +108,10 @@ Done 2026-11-15 (branch `feat/t32-treasury-expenses`):
   - `/treasury` is online, owner and manager: the balances and this month's movements.
 
 Not yet:
-- The receipt photo.
+- ~~The receipt photo.~~ Done 2026-11-20 (branch `feat/expense-receipts`): once an expense is on the server and the phone online, "Ajouter le reçu" on `/expenses` uploads a photo or PDF (ADR-011: `POST /api/files?purpose=receipt&expense=<id>`, owners and managers, attached once, `Expense.receiptFileId`). `/treasury` gets a "Reçu" column (FN10): Voir, or Manquant for an expense without one. Not yet: queuing the photo while offline (ADR-011). The accountant partner reads receipts (`money.read`, like the books and their export) but adds none (fix 2026-11-20, branch `fix/accountant-receipts`: before it, their export had no `pieces/`).
 - Opening balances by hand: an OD entry through `postEntry` works, but there is no screen; FQ11 for cash_book entities.
-- Supplier payments.
-- The payment method on purchases: the part paid at once still goes to 5161.
+- ~~Supplier payments.~~ Done 2026-11-20 (branch `feat/supplier-payments`): on `/stock`, "Payer" under a supplier who is owed something records a later payment offline (cash, transfer, cheque issued, bill accepted), never above what is owed (`PAID_MORE_THAN_OWED`, under the supplier's row lock). Inventory owns `SupplierPayment` (S2: balance = purchases − paid at once − later payments); finance posts FN6's rows: D 4411 / C 5161 (CA), 5141 (BQ, the cheque on its issue date) or 4415 (OD). Hidden from vets, shown to accountants. The issued side of FN11 came on 2026-11-20 (branch `feat/issued-instruments`): a later payment by cheque or bill can carry its number and agreed date; every cheque and bill issued (a purchase's paid part too, dated on the purchase day) is listed under its supplier on `/stock` until marked "Débité" (`inventory.debitIssued`, `IssuedDebit`, once per instrument, not before its issue day). A debited bill posts D 4415 / C 5141 in BQ (FN6 row 73); a cheque posts nothing more (it left the bank on its issue day). The cash schedule counts accepted bills not yet debited as outflows on their agreed date. Reminders came the same day (branch `feat/issued-reminders`): the scheduler (`/api/push/dispatch`) announces each later payment's cheque or bill once, from the start of its agreed day, to owners and managers, unless already debited (`issuedDue`, a money notification; `SupplierPayment.instrumentRemindedAt` claims it). A purchase's paid part has no agreed date, so no reminder. Not yet: an issued cheque returned unpaid. Supplier due dates (FN12) came with `feat/supplier-dues`.
+- ~~The payment method on purchases.~~ Done 2026-11-20 (branch `feat/purchase-paid-method`): the purchase form asks "Payé par" (cash, transfer, cheque issued, bill accepted), stored as `Purchase.paidMethod` (default cash: older purchases and queued writes post as before). The paid part leaves where a later supplier payment would (FN6, `PAID_OUT`): 5161, 5141 for a transfer or an issued cheque, 4415 for a bill, in the purchase's AC entry. Hidden from workers like the other purchase money fields.
 
 **Size:** M
 
@@ -128,7 +128,7 @@ Done 2026-11-15 (branch `feat/t33-ageing-credit-limits`), decisions taken withou
 - **Receivables screen:** each owing buyer's debts by age and their limit, the credits waiting for approval, and the owner's list of limits.
 
 Not yet:
-- The supplier side of FN12 (amounts due by due date), which comes with supplier payments.
+- ~~The supplier side of FN12 (amounts due by due date).~~ Done 2026-11-20 (branch `feat/supplier-dues`): on `/stock`, each supplier lists what is still due by due date (a purchase without one is due on its day), later payments settling the oldest first as for buyers (`supplierDues`); overdue amounts in brick.
 - Refusing a pending credit: the owner can block the buyer (T31) instead.
 
 **Size:** S
@@ -147,7 +147,7 @@ Done 2026-11-15 (branch `feat/t34-batch-result`), decisions taken without asking
   - **M1 other costs:** T24's entries count as direct charges as they are; they are not migrated or posted. New ones are quick expenses aimed at the batch.
 - **Allocation:**
   - An expense is aimed at one batch (direct), shared over a month's batches (`serviceMonth`), or general (no batch).
-  - The only key is bird-days. House m² and kg sold come when an owner asks.
+  - ~~The only key is bird-days. House m² and kg sold come when an owner asks.~~ Done 2026-11-23 (branch `feat/allocation-keys`): the entity's key (`LegalEntity.allocationKey`) on `/settings/accounting`: bird-days (default), house m² × days present, or kg sold in the period; bird-days when no batch has any weight by the key (SPEC-finance §9 "FN14 allocation keys").
   - An open batch counts as present until the end of the service period.
 - **Freeze:** after each push, `freezeClosedBatches` stores a closed batch's share of every shared expense (`FrozenAllocation`, `FrozenBatch`). Later splits share only what's left of each expense among the batches still open, so the parts always sum to the expense.
 - **Screens:**
@@ -155,7 +155,7 @@ Done 2026-11-15 (branch `feat/t34-batch-result`), decisions taken without asking
   - `/results` is online (owner, manager): each batch's sales, cost, margin, margin and cost per kg, % of sales, and the cost breakdown, newest first, which serves as FN13's comparison with past batches.
 
 Not yet:
-- The comparison of mortality, FCR, feed price and price per kg next to the result (the M1 KPIs are on the phone).
+- ~~The comparison of mortality, FCR, feed price and price per kg next to the result.~~ Done 2026-11-20 (branch `feat/results-kpis`): under each batch on `/results`, "Mortalité · IC · aliment DH/kg · vendu DH/kg" (`batchComparison`, integers: ‰ dead and culled per started bird, feed grams × 1000 ÷ grams sold, the feed consumed's cost per kg from `batchConsumption`, sales ÷ kg sold). "—" where nothing was eaten or sold.
 - The ledger's analytic tags (batch on 712x lines).
 
 **Size:** L
@@ -170,7 +170,7 @@ Done 2026-11-15 (branch `feat/t35-budget`):
 - **Saved budgets** (`Budget`: the inputs only, the figures are recomputed) through a server action, owner and manager, audited.
 - `/budget` is online.
 
-Not yet: the weekly cash need. M1 records no supplier credit terms (only a purchase's due date); it comes with supplier payments.
+The weekly cash need came on 2026-11-20 (branch `feat/cash-schedule`) from facts, not from the budget: `/treasury` runs today's cash and bank (5161, 5141) forward over 4 weeks with the cheques and bills to collect and what is due to suppliers, overdue amounts in the first week (F-Effects' schedule). A budget's own week-by-week need came on 2026-11-24 (branch `feat/budget-weekly-cash`): `budgetCash` spreads the budget's amounts by the copied batch's timing (feed by its consumption days, other costs by its treatments and expenses, sales by its sale days), or by a plain rule from a typed sale day, each outflow paid on its day; peak cash need shown on `/budget`, live and on each saved budget (a budget without a base saves its sale day) (SPEC-finance §9 "Budget cash need"). Supplier credit terms are still not recorded.
 
 **Size:** M
 
@@ -185,7 +185,7 @@ Done 2026-11-15 (branch `feat/t36-books`):
 - **Cash book scope:** the lines on 51xx, without 5115 (a transfer only passes through it; its two legs show on the accounts it moves money between).
 - `/books` is online (owner, manager): month navigation, and only the views the profile keeps.
 
-Not yet: the batch column in the cash book (FN16 "with category and batch"). Ledger lines carry no batch tag; T34 computes results from facts.
+The batch column came on 2026-11-20 (branch `feat/cash-book-batch`): `readBooks` returns each entry's tags (the export's, read from its source record, `application/tags.ts`), and the cash book shows and exports the batch of each line ("B1 · 01/03/2026": house and placement day), blank for a general expense or a transfer.
 
 **Size:** M
 
@@ -201,14 +201,14 @@ Done 2026-11-15 (branch `feat/t37-threshold`), decisions taken without asking:
 - **History:** the last 3 fiscal years, each marked when over the threshold (for the "3 years in a row" rule).
 - **Screens:** `/threshold` (online, owner and manager), and a warning at the top of the dashboard from 90 %.
 
-Not yet: a push notification when the year crosses 90 %; the dashboard warning only shows on an online visit.
+The push notification came on 2026-11-20 (branch `feat/threshold-push`): after each posting run, a fiscal year at 90 % or more notifies the owners and managers once (`ThresholdAlert` claims the year; not urgent, so quiet hours hold it). `finance` may now call `notifications` (CAPABILITY-MAP, lint rule), like every other module that alerts.
 
 **Size:** S
 
 ### T38: Export to the accountant (FN18)
 **AC:**
 - [x] CSV and Excel per period open in Excel with French formatting. (`finance/domain/export.test.ts`, `lib/xlsx.test.ts`, `finance/books.int.test.ts`, `e2e/books.spec.ts`: the link on `/books` downloads the zip. Opened by hand in Excel 16: the .xlsx opens without repair, with numbers and dates; the CSV, read with French separators, gives numbers and keeps accents.)
-- [ ] Zip with receipts: no receipt is recorded yet (receipt photos are deferred). The zip gets a `pieces/` folder when they are.
+- [x] Zip with receipts: `pieces/<day>_<entry id>.<ext>`, the receipts of the expenses whose entry falls in the month, named after the entries sheet's "Pièce" (2026-11-20, branch `feat/expense-receipts`; `finance/treasury.int.test.ts`, `finance/domain/export.test.ts`). `finance` now depends on `documents` to read them (CAPABILITY-MAP, lint rule).
 
 Done 2026-11-16 (branch `feat/t38-export`), decisions taken without asking:
 - **One download per month:** `GET /api/finance/export?month=YYYY-MM` (owner, manager) gives `comptabilite-YYYY-MM.zip` with one CSV per sheet and the same sheets in `livres-YYYY-MM.xlsx`. It reuses `readBooks`, so it holds what `/books` shows: a `ledger` entity gets the entries, the trial balance (from the fiscal year's first day) and the cash book; a `cash_book` entity gets the cash book only.
@@ -217,13 +217,22 @@ Done 2026-11-16 (branch `feat/t38-export`), decisions taken without asking:
 - **Headers in French** in both locales: the CGNC and the accountants work in French.
 - **Entry columns** are FN18's. "Pièce" is the entry id (stable, traces back to the app). Party, farm, house and batch are empty: ledger lines carry no analytic tag yet (see T34, T36).
 
-Not yet: receipts in the zip; the analytic columns; the accounting software's own import format (M6, FQ10).
+The analytic columns came on 2026-11-20 (branch `feat/export-analytics`): Tiers, Ferme, Bâtiment and Lot are read at export from the record each entry posts (its source), so entries posted earlier get them too, and a reversal its original's: a purchase's supplier and farm, a supplier payment's supplier, the chicks' batch, a sale's buyer and batch, a buyer payment's or cheque step's buyer, an expense's batch, an advance's employee and farm, a pay month's or wage payment's farm. Lot is the batch's placement day (dd/mm/yyyy), next to its house. Each module answers for its own records (`ledgerTagsOf` in inventory, sales and workforce; `batchPlaces` in flock; `placeNames` in farm-registry). Transfers and the opening entry have none.
+
+Not yet: the accounting software's own import format (M6, FQ10).
 
 **Size:** M
 
 ### T39: VAT on purchases and sales (FN9), after FQ4
 **AC:**
-- [ ] VAT-registered entity: recoverable VAT on 34552, collected VAT on 4455; otherwise the total goes to the charge.
+- [x] VAT-registered entity: recoverable VAT on 34552, collected VAT on 4455; otherwise the total goes to the charge. (`finance/domain/posting.test.ts`; `finance/posting.int.test.ts`: a registered entity's purchase and sale through sync and the pipeline, VAT above the total refused; `e2e/vat.spec.ts`: the purchase form's VAT lands on 3455.)
+
+Done 2026-11-20 (branch `feat/t39-vat`), decisions taken without asking, FQ4 still open:
+- **Mechanism only, off by default:** `LegalEntity.vatRegistered` is false, as FN9 says until FQ4 is answered. It changes with the other accounting choices (`changeAccountingChoices`, only while the fiscal year has no entry); no screen yet (F-Profile).
+- **The VAT amount is typed from the invoice,** never computed: no rate is stored, so none is assumed. Optional "Dont TVA" on the purchase form and the three sale forms; it must not exceed the total (`VAT_MORE_THAN_AMOUNT`, client and server). Older queued writes without it count as 0.
+- **3455, not 34552:** the PCA nomenclature (our source for the chart) lists 3455 "Etat - TVA récupérable" without the CGNC's five-digit split, so recoverable VAT goes to 3455 until the accountant asks for 34552. 4455 "Etat, TVA facturée" is in it. Both added to `accounts.json`, labels from the PCA text; deploy runs `pnpm db:seed` (it upserts).
+
+Not yet: batch results, budgets and stock valuation still use the invoice totals (TTC), which is right for a non-registered farm; for a registered one they should exclude VAT (FQ4). Chicks bought at placement carry no VAT field; quick expenses got theirs on 2026-11-20 (branch `feat/t39b-expense-vat`: same optional "Dont TVA", 3455 for a registered entity). No VAT return (4456).
 **Size:** S
 
 ### ✅ Checkpoint M2-finance

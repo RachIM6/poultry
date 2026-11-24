@@ -8,6 +8,14 @@ export type LegalForm = (typeof LEGAL_FORMS)[number];
 export const BOOKS = ["cash_book", "ledger"] as const;
 export type Books = (typeof BOOKS)[number];
 
+/** SPEC-finance FC6 (FQ7a): how laying hens and their pullets are booked; classic (fixed assets) by default. */
+export const HENS_METHODS = ["classic", "simplified"] as const;
+export type HensMethod = (typeof HENS_METHODS)[number];
+
+/** SPEC-finance FN14: the key shared costs are split by; bird-days by default. */
+export const ALLOCATION_KEYS = ["birdDays", "houseArea", "kgSold"] as const;
+export type AllocationKey = (typeof ALLOCATION_KEYS)[number];
+
 /**
  * ADR-010 §2: which books Dawra shows and exports, and the chart = one base + overlays. The engine is the same
  * double-entry ledger for every form. `coOwnerShares`: results are split between the co-owners of an indivision.
@@ -29,6 +37,9 @@ const DEFAULTS: Record<LegalForm, Omit<AccountingProfile, "coOwnerShares">> = {
   association: { books: "cash_book", base: "cgnc", overlays: [] }, // no associations chart decided yet
 };
 
+/** FN1: the books the owner may pick. Companies and GIEs keep full double-entry books (law 9-88). */
+export const booksAllowed = (form: LegalForm): Books[] => (DEFAULTS[form].books === "ledger" ? ["ledger"] : ["cash_book", "ledger"]);
+
 export const accountingProfileOf = (form: LegalForm, choices: AccountingChoices = { books: null, pcaOverlay: null }): AccountingProfile => {
   const d = DEFAULTS[form];
   const pca = choices.pcaOverlay ?? d.overlays.includes("pca");
@@ -47,9 +58,31 @@ export function parseOnboarding(body: unknown): Result<OnboardingInput, "INVALID
   return parsed.success ? ok(parsed.data) : fail("INVALID_INPUT");
 }
 
+/**
+ * F-Profile: the entity's registration numbers, each optional ("" clears it). Only the ICE's format is checked: 15
+ * digits (9 for the company, 4 for the establishment, 2 check digits whose algorithm isn't public), spaces dropped.
+ * No official format was found for the IF, the RC number, its court or the CNSS number: free text, capped.
+ */
+const optional = (s: z.ZodType<string>, clean = (v: string) => v.trim()) =>
+  z.preprocess((v) => (typeof v === "string" ? clean(v) || null : (v ?? null)), s.nullable());
+export const LegalIdsInput = z.object({
+  ice: optional(z.string().regex(/^\d{15}$/), (v) => v.replace(/\s/g, "")),
+  fiscalId: optional(z.string().max(20)),
+  rcNumber: optional(z.string().max(20)),
+  rcCourt: optional(z.string().max(60)),
+  cnssNumber: optional(z.string().max(20)),
+});
+export type LegalIds = z.infer<typeof LegalIdsInput>;
+
 // Farms and houses (SPEC F2–F4): written offline, so these schemas run on the phone and in the sync push alike.
 
 const text = (max: number) => z.string().trim().min(1).max(max);
+
+/** Arrêté 2126-05 art. 4: who keeps the farm's register (name, function), from and to which day; `to` null: still. */
+export const RegisterKeeper = z
+  .object({ name: text(120), position: text(80), from: z.iso.date(), to: z.iso.date().nullable() })
+  .refine((k) => k.to === null || k.from <= k.to, "ends before it starts");
+export type RegisterKeeper = z.infer<typeof RegisterKeeper>;
 
 export const FarmFields = z.object({
   name: text(120),
@@ -58,6 +91,15 @@ export const FarmFields = z.object({
   commune: text(80),
   gps: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).nullable(),
   onssa: z.object({ number: text(40), expiresOn: z.iso.date() }).nullable(), // ONSSA authorization
+  // SPEC-m3 B10: the hatchery contract's dead-on-arrival threshold, per mille. Optional, never defaulted (MQ6).
+  doaClaimThresholdPermille: z.int32().min(1).max(1000).nullable().optional(),
+  // The register's cover (arrêté 2126-05 of 15/12/2005, art. 3 and 4): all optional, as entered, never defaulted. Absent
+  // from a farm stored before them.
+  holder: z.object({ name: text(120), address: text(200).nullable() }).nullable().optional(), // address: if not the farm's
+  vet: z.object({ name: text(120), address: text(200).nullable(), phone: text(32).nullable() }).nullable().optional(), // sanitaire
+  technicianName: text(120).nullable().optional(),
+  chickImportApproval: text(60).nullable().optional(), // agrément number, for a farm importing chicks
+  registerKeepers: z.array(RegisterKeeper).max(20).optional(), // the whole list, in order
 });
 export type FarmFields = z.infer<typeof FarmFields>;
 

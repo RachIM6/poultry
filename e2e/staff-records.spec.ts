@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T86 (SPEC-m4 WF13): a training and a work accident recorded offline on /staff survive a reload and sync once.
 // Labels come from the app's messages, so the Arabic run checks the Arabic screen; the owner signs up in French.
@@ -20,7 +20,7 @@ for (const locale of ["fr", "ar"] as const) {
     ]);
 
     await page.goto(`/${locale}/staff`);
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await controlled(page);
     const form = page.getByRole("form", { name: t("Records.add") });
     await expect(form).toBeVisible();
 
@@ -28,12 +28,13 @@ for (const locale of ["fr", "ar"] as const) {
     await context.route("**", (route) => route.abort("internetdisconnected"));
     await form.getByLabel(t("Records.topic")).selectOption({ label: t("Records.topics.vaccination") });
     await form.getByRole("button", { name: t("Records.save"), exact: true }).click();
+    const list = page.getByRole("list", { name: t("Records.list") }).getByRole("listitem");
+    await expect(list).toHaveCount(1); // saved and the form reset: filling it earlier loses what is typed
     await form.getByLabel(t("Records.kind")).selectOption({ label: t("Records.kinds.accident") });
     await form.getByLabel(t("Records.what")).fill("Coupure à la main en réparant une mangeoire");
     await form.getByLabel(t("Records.daysOff")).fill("2");
     await form.getByRole("button", { name: t("Records.save"), exact: true }).click();
 
-    const list = page.getByRole("list", { name: t("Records.list") }).getByRole("listitem");
     await expect(list).toHaveCount(2);
     const accident = list.filter({ hasText: "Coupure à la main" });
     await expect(accident).toContainText(t("Records.daysOffLine").replace("{days}", "2"));
@@ -44,6 +45,7 @@ for (const locale of ["fr", "ar"] as const) {
 
     await context.unroute("**");
     await context.setOffline(false);
+    await outboxEmpty(page);
     const server = () =>
       query<{ kind: string; topic: string | null; daysOff: number | null }>(
         `SELECT r.kind, r.topic, r."daysOff" FROM "StaffRecord" r

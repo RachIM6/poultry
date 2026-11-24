@@ -31,25 +31,31 @@ export function checkItem(item: { kind: ItemKind; lot: string | null; expiresOn:
   return (item.kind === "vaccine" || item.kind === "medicine") && (!item.lot || !item.expiresOn) ? fail("LOT_REQUIRED") : ok(undefined);
 }
 
-/** Quantity (base units) × price per displayed unit, rounded half up to the centime, exactly. */
+/**
+ * Quantity (base units) × price per displayed unit, rounded half up to the centime, exactly. divHalfUp
+ * (@/lib/kernel/money) written out: this file ships with /batches, which has no room for that module (SPEC §9.3);
+ * stock.test.ts holds the two together.
+ */
 export function purchaseAmount(quantity: number, unit: Unit, unitPriceCentimes: bigint): bigint {
   const base = BigInt(BASE[unit]);
   return (BigInt(quantity) * unitPriceCentimes * 2n + base) / (2n * base);
 }
 
-type PurchaseError = "INVALID_QUANTITY" | "PAID_MORE_THAN_AMOUNT" | "DUE_DATE_WITHOUT_CREDIT";
+type PurchaseError = "INVALID_QUANTITY" | "PAID_MORE_THAN_AMOUNT" | "DUE_DATE_WITHOUT_CREDIT" | "VAT_MORE_THAN_AMOUNT";
 
-/** S2: what is not paid now becomes supplier credit; a due date only makes sense for credit. */
+/** S2: what is not paid now becomes supplier credit; a due date only makes sense for credit. FN9: VAT is part of the total. */
 export function checkPurchase(p: {
   quantity: number;
   unit: Unit;
   unitPriceCentimes: bigint;
   paidCentimes: bigint;
   dueOn: string | null;
+  vatCentimes?: bigint;
 }): Result<{ amountCentimes: bigint; creditCentimes: bigint }, PurchaseError> {
   if (!Number.isSafeInteger(p.quantity) || p.quantity <= 0) return fail("INVALID_QUANTITY");
   const amountCentimes = purchaseAmount(p.quantity, p.unit, p.unitPriceCentimes);
   if (p.paidCentimes > amountCentimes) return fail("PAID_MORE_THAN_AMOUNT");
+  if ((p.vatCentimes ?? 0n) > amountCentimes) return fail("VAT_MORE_THAN_AMOUNT");
   const creditCentimes = amountCentimes - p.paidCentimes;
   if (p.dueOn && creditCentimes === 0n) return fail("DUE_DATE_WITHOUT_CREDIT");
   return ok({ amountCentimes, creditCentimes });
@@ -59,13 +65,6 @@ export function checkPurchase(p: {
 export function checkAdjustment(a: { quantity: number; reason: string }): Result<void, "INVALID_QUANTITY" | "REASON_REQUIRED"> {
   if (!Number.isSafeInteger(a.quantity) || a.quantity === 0) return fail("INVALID_QUANTITY");
   return a.reason.trim() ? ok(undefined) : fail("REASON_REQUIRED");
-}
-
-/** S2: balance owed to each supplier = purchases − what was paid. */
-export function supplierBalances(purchases: readonly { supplierId: string; amountCentimes: bigint; paidCentimes: bigint }[]) {
-  const balances = new Map<string, bigint>();
-  for (const p of purchases) balances.set(p.supplierId, (balances.get(p.supplierId) ?? 0n) + p.amountCentimes - p.paidCentimes);
-  return balances;
 }
 
 /**

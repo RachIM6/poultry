@@ -40,6 +40,17 @@ describe("protocols (SPEC R2) and reference data (R4)", () => {
     expect(audited).toMatchObject({ before: { items: [gumboroDay14] }, after: { items: [gumboroDay14, extra] } });
   });
 
+  it("lets a farm copy the layer template and plan a line at day 450 (SPEC-m3 R9)", async () => {
+    await db.protocolTemplate.create({ data: { id: "layer-default", nameFr: "Pondeuse", nameAr: "بيّاض", productionType: "layer", items: [] } });
+    const id = uuidv7();
+    const late = { dayOfAge: 450, productId: "vaccine-gumboro", method: "injection" }; // a test line, not a real programme
+    expect(await statuses(a, [m(M.copyProtocol, { id, templateId: "layer-default", name: "Ponte" }), m(M.updateProtocol, { id, changes: { items: [late] } })])).toEqual(["applied", "applied"]);
+    expect(await statuses(a, [m(M.updateProtocol, { id, changes: { items: [{ ...late, dayOfAge: 601 }] } })])).toEqual(["errors.INVALID_INPUT"]);
+    expect((await getReferenceData()).protocolTemplates.find((t) => t.id === "layer-default")?.productionType).toBe("layer");
+    await db.vaccinationProtocol.delete({ where: { id } });
+    await db.protocolTemplate.delete({ where: { id: "layer-default" } });
+  });
+
   it("accepts only catalogue vaccines in a schedule", async () => {
     const id = uuidv7();
     await push(a, [m(M.copyProtocol, { id, templateId: "broiler-default", name: "P" })], registry);
@@ -68,7 +79,7 @@ describe("protocols (SPEC R2) and reference data (R4)", () => {
     const reference = await getReferenceData();
     expect(reference.products.map((p) => p.id)).toEqual(["feed-starter", "vaccine-gumboro"]);
     expect(reference.protocolTemplates).toEqual([
-      { id: "broiler-default", nameFr: "Modèle", nameAr: "نموذج", reviewedByVet: false, items: [gumboroDay14] },
+      { id: "broiler-default", nameFr: "Modèle", nameAr: "نموذج", reviewedByVet: false, productionType: "broiler", items: [gumboroDay14] },
     ]);
   });
 });

@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney } from "@/lib/format";
@@ -14,11 +14,16 @@ import {
   CreateStockItem,
   ITEM_KINDS,
   INVENTORY_MUTATIONS as M,
+  SUPPLIER_PAYMENT_METHODS,
   UNITS,
+  checkDebit,
+  checkSupplierPayment,
+  issuedOf,
   parseQuantity,
   purchaseAmount,
   stockOnHand,
   supplierBalances,
+  supplierDues,
   valuate,
   type ItemKind,
   type Unit,
@@ -26,11 +31,15 @@ import {
   type PurchaseDto,
   type StockItemDto,
   type SupplierDto,
+  type SupplierPaymentDto,
+  type IssuedDebitDto,
 } from "@/modules/inventory/schema";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
+import { groupRecords } from "@/offline/group";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { field, primary, secondary } from "@/components/ui";
+import { useFieldError, useInline } from "@/components/focus";
+import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC S1–S3 on the static /stock shell: everything from and to the phone's database (ADR-003). Workers get no money
 // from the server at all (I5), so the money parts only render for those allowed to manage stock.
@@ -60,17 +69,17 @@ function Stock(scope: Scope) {
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(
-    () => db.records.where("entity").anyOf("farm", "stockItem", "movement", "purchase", "supplier").toArray(),
+    () => db.records.where("entity").anyOf("farm", "stockItem", "movement", "purchase", "supplier", "supplierPayment", "issuedDebit").toArray(),
     [userId, organizationId],
   );
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [farmId, setFarmId] = useState<string>();
-  const [open, setOpen] = useState<"item" | "purchase" | "adjust" | null>(null);
+  const { open, opener, close } = useInline<"item" | "purchase" | "adjust">();
   const [message, setMessage] = useState<string>();
+  const { of } = useMemo(() => groupRecords(records ?? []), [records]); // once per read
   if (!records || reference === undefined) return null;
 
-  const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
-  const farms = of<FarmDto>("farm").sort((x, y) => x.name.localeCompare(y.name));
+  const farms = [...of<FarmDto>("farm")].sort((x, y) => x.name.localeCompare(y.name));
   if (farms.length === 0) {
     return (
       <p>
@@ -84,20 +93,30 @@ function Stock(scope: Scope) {
   const onHand = stockOnHand(movements);
   // S5: what the stock is worth at weighted average cost. Purchases carry amounts only for those who manage stock.
   const paid = new Map(of<PurchaseDto>("purchase").map((p) => [p.id, BigInt(p.amountCentimes ?? 0)]));
-  const valueOf = (itemId: string) =>
-    valuate(
-      movements
-        .filter((m) => m.stockItemId === itemId)
-        .map((m) => ({ id: m.id, day: m.day, quantity: m.quantity, purchaseAmountCentimes: m.purchaseId ? (paid.get(m.purchaseId) ?? 0n) : undefined })),
-    ).valueCentimes;
-  const suppliers = of<SupplierDto>("supplier").sort((x, y) => x.name.localeCompare(y.name));
+  const movementsOf = new Map<string, MovementDto[]>();
+  for (const m of movements) {
+    const own = movementsOf.get(m.stockItemId);
+    if (own) own.push(m);
+    else movementsOf.set(m.stockItemId, [m]);
+  }
+  const worth = new Map<string, bigint>();
+  const valueOf = (itemId: string) => {
+    let value = worth.get(itemId);
+    if (value === undefined) {
+      const own = movementsOf.get(itemId) ?? [];
+      value = valuate(own.map((m) => ({ id: m.id, day: m.day, quantity: m.quantity, purchaseAmountCentimes: m.purchaseId ? (paid.get(m.purchaseId) ?? 0n) : undefined }))).valueCentimes;
+      worth.set(itemId, value);
+    }
+    return value;
+  };
+  const suppliers = [...of<SupplierDto>("supplier")].sort((x, y) => x.name.localeCompare(y.name));
   const manage = can(scope, "stock.manage");
 
   const write: Write = async (mutation, recs) => {
     try {
       await writeLocal(db, mutation, recs);
       setMessage("Farms.saved");
-      setOpen(null);
+      close();
       return true;
     } catch {
       setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
@@ -135,21 +154,22 @@ function Stock(scope: Scope) {
       {manage && (
         <section className="flex flex-col gap-3">
           {open === "item" ? (
-            <ItemForm farmId={farm.id} products={reference?.data.products ?? []} write={write} onCancel={() => setOpen(null)} />
+            <ItemForm farmId={farm.id} products={reference?.data.products ?? []} write={write} onCancel={close} />
           ) : open === "purchase" ? (
-            <PurchaseForm items={items} suppliers={suppliers} write={write} onCancel={() => setOpen(null)} />
+            <PurchaseForm items={items} suppliers={suppliers} write={write} onCancel={close} />
           ) : open === "adjust" ? (
-            <AdjustForm items={items} write={write} onCancel={() => setOpen(null)} />
+            <AdjustForm items={items} write={write} onCancel={close} />
           ) : (
             <>
-              {items.length > 0 && <button type="button" onClick={() => setOpen("purchase")} className={primary}>{t("Stock.purchase")}</button>}
+              {items.length > 0 && <button type="button" {...opener("purchase")} className={primary}>{t("Stock.purchase")}</button>}
               <div className="flex flex-wrap gap-2">
-                {items.length > 0 && <button type="button" onClick={() => setOpen("adjust")} className={secondary}>{t("Stock.adjust")}</button>}
-                <button type="button" onClick={() => setOpen("item")} className={secondary}>{t("Stock.addItem")}</button>
+                {items.length > 0 && <button type="button" {...opener("adjust")} className={secondary}>{t("Stock.adjust")}</button>}
+                <button type="button" {...opener("item")} className={secondary}>{t("Stock.addItem")}</button>
               </div>
             </>
           )}
-          <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} />
+          <Purchases items={items} purchases={of<PurchaseDto>("purchase")} movements={movements} onHand={onHand} write={write} />
+          <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} payments={of<SupplierPaymentDto>("supplierPayment")} debits={of<IssuedDebitDto>("issuedDebit")} write={write} />
         </section>
       )}
     </>
@@ -166,7 +186,7 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
   const t = useTranslations("Stock");
   const locale = useLocale();
   const show = useQuantityText();
-  const [editing, setEditing] = useState(false);
+  const { open: editing, opener, close } = useInline<"threshold">();
   const low = item.lowStockThreshold !== null && quantity < item.lowStockThreshold; // S6, on the phone too
 
   const saveThreshold = async (e: FormEvent<HTMLFormElement>) => {
@@ -178,7 +198,7 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
       { type: M.setThreshold, payload: { stockItemId: item.id, lowStockThreshold } },
       [{ entity: "stockItem", id: item.id, data: { ...item, lowStockThreshold } }],
     );
-    setEditing(false);
+    close();
   };
 
   return (
@@ -204,12 +224,13 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
               defaultValue={item.lowStockThreshold === null ? "" : item.unit === "kg" ? String(item.lowStockThreshold / 1000) : String(item.lowStockThreshold)}
               inputMode="decimal"
               dir="ltr"
+              autoFocus
             />
             <p className="text-sm text-muted">{t("thresholdHint")}</p>
-            <Buttons onCancel={() => setEditing(false)} />
+            <Buttons onCancel={close} />
           </form>
         ) : (
-          <button type="button" onClick={() => setEditing(true)} className={`${secondary} mt-1 self-start text-sm`}>
+          <button type="button" {...opener("threshold")} className={`${secondary} mt-1 self-start text-sm`}>
             {t("editThreshold")}
           </button>
         ))}
@@ -217,11 +238,77 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
   );
 }
 
-function Suppliers({ suppliers, purchases }: { suppliers: SupplierDto[]; purchases: PurchaseDto[] }) {
+/**
+ * SPEC-finance §9 "Cancelled records": the farm's recent purchases, each cancelled after a confirmation (then typed
+ * again) while all the stock it brought is still there; the server also refuses one a payment covers.
+ */
+function Purchases({ items, purchases, movements, onHand, write }: { items: StockItemDto[]; purchases: PurchaseDto[]; movements: MovementDto[]; onHand: Map<string, number>; write: Write }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const show = useQuantityText();
+  const [error, setError] = useState<string>();
+  const itemOf = new Map(items.map((i) => [i.id, i]));
+  const recent = purchases.filter((p) => itemOf.has(p.stockItemId)).sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 10);
+  if (recent.length === 0) return null;
+  const labelOf = (p: PurchaseDto) => {
+    const item = itemOf.get(p.stockItemId)!;
+    return t("Stock.purchaseLine", { date: formatDay(p.day as FarmDay, locale), item: item.name, quantity: show(p.quantity, item.unit), amount: formatMoney(BigInt(p.amountCentimes ?? 0)) });
+  };
+  const cancel = async (p: PurchaseDto) => {
+    if ((onHand.get(p.stockItemId) ?? 0) < p.quantity) return setError("errors.STOCK_ALREADY_USED"); // as the server
+    setError(undefined);
+    if (!confirm(t("Stock.voidConfirm", { purchase: labelOf(p) }))) return;
+    const own = movements.filter((m) => m.purchaseId === p.id);
+    await write({ type: M.cancelPurchase, payload: { purchaseId: p.id } }, [{ entity: "purchase", id: p.id, data: null }, ...own.map((m) => ({ entity: "movement", id: m.id, data: null }))]);
+  };
+  return (
+    <>
+      <h2 id="purchases" className="text-[17px] font-semibold text-ink-2">{t("Stock.purchases")}</h2>
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
+      <ul className="flex flex-col gap-2" aria-labelledby="purchases">
+        {recent.map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-card p-3">
+            <span>{labelOf(p)}</span>
+            <button type="button" onClick={() => cancel(p)} aria-label={t("Stock.voidOf", { purchase: labelOf(p) })} className={`${secondary} text-sm`}>{t("Stock.void")}</button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function Suppliers({ suppliers, purchases, payments, debits, write }: { suppliers: SupplierDto[]; purchases: PurchaseDto[]; payments: SupplierPaymentDto[]; debits: IssuedDebitDto[]; write: Write }) {
   const t = useTranslations("Stock");
+  const locale = useLocale();
+  const { open: paying, opener, close } = useInline<string>();
+  const [error, setError] = useState<string>();
+  const tAll = useTranslations();
   if (suppliers.length === 0) return null;
+  // FN11, issued side: cheques and bills given to suppliers that the bank hasn't debited yet
+  const issued = issuedOf(
+    purchases.map((p) => ({ id: p.id, supplierId: p.supplierId, day: p.day, paidCentimes: BigInt(p.paidCentimes ?? 0), paidMethod: p.paidMethod })),
+    payments.map((p) => ({ ...p, amountCentimes: BigInt(p.amountCentimes) })),
+    debits,
+  )
+    .filter((i) => !i.debitedOn)
+    .sort((x, y) => x.dueOn.localeCompare(y.dueOn));
+  const debit = async (instrumentId: string) => {
+    const day = today();
+    const checked = checkDebit(issued.find((i) => i.id === instrumentId), day);
+    if (!checked.ok) return setError(`errors.${checked.error}`);
+    setError(undefined);
+    const d: IssuedDebitDto = { id: uuidv7(), instrumentId, day };
+    await write({ type: M.debitIssued, payload: d }, [{ entity: "issuedDebit", id: d.id, data: d }]);
+  };
+  // FN12, supplier side: what is still due to each, by due date
+  const duesOf = (id: string) =>
+    supplierDues(
+      purchases.filter((p) => p.supplierId === id).map((p) => ({ day: p.day, dueOn: p.dueOn ?? null, amountCentimes: BigInt(p.amountCentimes ?? 0), paidCentimes: BigInt(p.paidCentimes ?? 0) })),
+      payments.filter((p) => p.supplierId === id).reduce((a, p) => a + BigInt(p.amountCentimes), 0n),
+    );
   const balances = supplierBalances(
     purchases.map((p) => ({ supplierId: p.supplierId, amountCentimes: BigInt(p.amountCentimes ?? 0), paidCentimes: BigInt(p.paidCentimes ?? 0) })),
+    payments.map((p) => ({ supplierId: p.supplierId, amountCentimes: BigInt(p.amountCentimes) })),
   );
   return (
     <>
@@ -231,6 +318,35 @@ function Suppliers({ suppliers, purchases }: { suppliers: SupplierDto[]; purchas
           <li key={s.id} className={card}>
             <span className="font-semibold">{s.name}</span>
             <span>{t("owed", { amount: formatMoney(balances.get(s.id) ?? 0n) })}</span>
+            {duesOf(s.id).length > 0 && (
+              <ul className="flex flex-col gap-1 text-sm" aria-label={t("dues", { supplier: s.name })}>
+                {duesOf(s.id).map((d) => (
+                  <li key={d.dueOn} className={d.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
+                    {t(d.dueOn < today() ? "dueLateLine" : "dueLine", { amount: formatMoney(d.amountCentimes), date: formatDay(d.dueOn as FarmDay, locale) })}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {issued.some((i) => i.supplierId === s.id) && (
+              <ul className="flex flex-col gap-2 text-sm" aria-label={t("issued", { supplier: s.name })}>
+                {issued
+                  .filter((i) => i.supplierId === s.id)
+                  .map((i) => (
+                    <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
+                      <span className={i.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
+                        {t("issuedLine", { kind: t(`payMethods.${i.kind}`), number: i.number ?? "—", amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
+                      </span>
+                      <button type="button" onClick={() => debit(i.id)} className={`${secondary} text-sm`}>{t("debited")}</button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            {error && <p role="alert" className={danger}>{tAll(error)}</p>}
+            {paying === s.id ? (
+              <SupplierPaymentForm supplier={s} balance={balances.get(s.id) ?? 0n} write={write} onDone={close} />
+            ) : (
+              (balances.get(s.id) ?? 0n) > 0n && <button type="button" {...opener(s.id)} className={secondary}>{t("pay", { supplier: s.name })}</button>
+            )}
           </li>
         ))}
       </ul>
@@ -248,12 +364,12 @@ function Field({ label, ...input }: { label: string } & InputHTMLAttributes<HTML
   );
 }
 
-function Select({ label, children, value, defaultValue, onChange, name }: { label: string; children: ReactNode; value?: string; defaultValue?: string; onChange?: (v: string) => void; name?: string }) {
+function Select({ label, children, value, defaultValue, onChange, name, autoFocus }: { label: string; children: ReactNode; value?: string; defaultValue?: string; onChange?: (v: string) => void; name?: string; autoFocus?: boolean }) {
   const id = useId();
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id}>{label}</label>
-      <select id={id} name={name} value={value} defaultValue={defaultValue} onChange={onChange && ((e) => onChange(e.target.value))} className={field}>
+      <select id={id} name={name} value={value} defaultValue={defaultValue} onChange={onChange && ((e) => onChange(e.target.value))} autoFocus={autoFocus} className={field}>
         {children}
       </select>
     </div>
@@ -275,6 +391,44 @@ const read = (form: HTMLFormElement) => {
   return (k: string) => String(data.get(k) ?? "").trim();
 };
 const today = () => farmDayOf(new Date());
+
+/** S2, SPEC-finance FN6: paying a supplier later, up to what is owed, as the server checks it. */
+function SupplierPaymentForm({ supplier, balance, write, onDone }: { supplier: SupplierDto; balance: bigint; write: Write; onDone: () => void }) {
+  const t = useTranslations();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
+  const [method, setMethod] = useState<SupplierPaymentDto["method"]>("cash");
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const get = read(e.currentTarget);
+    const amount = parseCentimes(get("amount"));
+    if (amount === null) return setError("errors.INVALID_INPUT", e.currentTarget, "amount");
+    const checked = checkSupplierPayment(amount, balance);
+    if (!checked.ok) return setError(`errors.${checked.error}`, e.currentTarget, "amount");
+    const method = get("method") as SupplierPaymentDto["method"];
+    const day = get("day") || today();
+    // FN11: an issued cheque's or bill's number and agreed date (a cheque is payable on sight: its date is a reminder)
+    const instrument = method === "cheque" || method === "bill" ? { number: get("number") || null, dueOn: get("dueOn") || day } : null;
+    const payment: SupplierPaymentDto = { id: uuidv7(), supplierId: supplier.id, day, amountCentimes: String(amount), method, instrument };
+    if (await write({ type: M.recordSupplierPayment, payload: payment }, [{ entity: "supplierPayment", id: payment.id, data: payment }])) onDone();
+  };
+  return (
+    <form onSubmit={submit} aria-label={t("Stock.pay", { supplier: supplier.name })} className="flex flex-col gap-3">
+      <Field name="amount" label={t("Stock.payAmount")} inputMode="decimal" required dir="ltr" autoFocus {...bad("amount")} />
+      <Select name="method" label={t("Stock.payMethod")} value={method} onChange={(v) => setMethod(v as SupplierPaymentDto["method"])}>
+        {SUPPLIER_PAYMENT_METHODS.map((m) => <option key={m} value={m}>{t(`Stock.payMethods.${m}`)}</option>)}
+      </Select>
+      <Field name="day" label={t("Stock.day")} type="date" defaultValue={today()} max={today()} required />
+      {(method === "cheque" || method === "bill") && (
+        <>
+          <Field name="number" label={t("Stock.instrumentNumber")} maxLength={40} dir="ltr" />
+          <Field name="dueOn" label={t("Stock.instrumentDueOn")} type="date" defaultValue={today()} />
+        </>
+      )}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+      <Buttons onCancel={onDone} />
+    </form>
+  );
+}
 
 function ItemForm({ farmId, products, write, onCancel }: { farmId: string; products: { id: string; kind: string; nameFr: string; nameAr: string }[]; write: Write; onCancel: () => void }) {
   const t = useTranslations("Stock");
@@ -305,7 +459,7 @@ function ItemForm({ farmId, products, write, onCancel }: { farmId: string; produ
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
-      <Select label={t("kind")} value={kind} onChange={(v) => setKind(v as ItemKind)}>
+      <Select label={t("kind")} value={kind} onChange={(v) => setKind(v as ItemKind)} autoFocus>
         {ITEM_KINDS.map((k) => <option key={k} value={k}>{t(`kinds.${k}`)}</option>)}
       </Select>
       {catalogue.length > 0 && (
@@ -325,7 +479,7 @@ function ItemForm({ farmId, products, write, onCancel }: { farmId: string; produ
           <Field name="expiresOn" label={t("expiresOn")} type="date" required />
         </>
       )}
-      {invalid && <p role="alert">{t("invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("invalid")}</p>}
       <Buttons onCancel={onCancel} />
     </form>
   );
@@ -347,8 +501,9 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
     e.preventDefault();
     const get = read(e.currentTarget);
     const paid = parseCentimes(get("paid") || "0");
+    const vat = parseCentimes(get("vat") || "0"); // SPEC-finance FN9: part of the total
     const newName = get("newSupplier");
-    if (parsed.quantity === null || parsed.price === null || paid === null || amount === null || paid > amount || (supplierId === "new" && !newName)) {
+    if (parsed.quantity === null || parsed.price === null || paid === null || vat === null || amount === null || paid > amount || vat > amount || (supplierId === "new" && !newName)) {
       return setInvalid(true);
     }
     setInvalid(false);
@@ -366,6 +521,8 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
       quantity: parsed.quantity,
       unitPriceCentimes: String(parsed.price),
       paidCentimes: String(paid),
+      vatCentimes: String(vat),
+      paidMethod: get("paidMethod") as NonNullable<PurchaseDto["paidMethod"]>,
       dueOn: get("dueOn") || null,
     };
     const movementId = uuidv7();
@@ -379,7 +536,7 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
-      <Select label={t("Stock.supplier")} value={supplierId} onChange={setSupplierId}>
+      <Select label={t("Stock.supplier")} value={supplierId} onChange={setSupplierId} autoFocus>
         {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         <option value="new">{t("Stock.newSupplier")}</option>
       </Select>
@@ -392,8 +549,12 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
       <Field name="price" label={t("Stock.unitPrice", { unit: unitName })} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" required dir="ltr" />
       {amount !== null && <p>{t("Stock.amount", { amount: formatMoney(amount) })}</p>}
       <Field name="paid" label={t("Stock.paid")} defaultValue="0" inputMode="decimal" dir="ltr" />
+      <Select name="paidMethod" label={t("Stock.payMethod")} defaultValue="cash">
+        {SUPPLIER_PAYMENT_METHODS.map((m) => <option key={m} value={m}>{t(`Stock.payMethods.${m}`)}</option>)}
+      </Select>
+      <Field name="vat" label={t("Stock.vat")} inputMode="decimal" dir="ltr" />
       <Field name="dueOn" label={t("Stock.dueOn")} type="date" />
-      {invalid && <p role="alert">{t("Stock.invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("Stock.invalid")}</p>}
       <Buttons onCancel={onCancel} />
     </form>
   );
@@ -423,13 +584,13 @@ function AdjustForm({ items, write, onCancel }: { items: StockItemDto[]; write: 
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
-      <Select label={t("Stock.item")} value={itemId} onChange={setItemId}>
+      <Select label={t("Stock.item")} value={itemId} onChange={setItemId} autoFocus>
         {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
       </Select>
       <Field name="day" label={t("Stock.day")} type="date" defaultValue={today()} required />
       <Field name="quantity" label={t("Stock.adjustQuantity", { unit: t(`Stock.units.${item.unit}`) })} inputMode="decimal" required dir="ltr" />
       <Field name="reason" label={t("Stock.reason")} required maxLength={200} />
-      {invalid && <p role="alert">{t("Stock.invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("Stock.invalid")}</p>}
       <Buttons onCancel={onCancel} />
     </form>
   );

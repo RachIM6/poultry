@@ -18,8 +18,9 @@ Proposed. Hosting is **open** (SPEC OQ1). The legal points need validation by a 
   - Buyer and worker records keep only what the features need.
   - National ID (CIN) numbers are not stored.
 - **Farmer owns the data.**
-  - Full export (JSON + CSV) at any time.
-  - Deleting an organisation removes all its data, including the audit log, after 30 days.
+  - Full export (JSON + CSV) at any time: `pnpm org:export` ([data requests](../data-requests.md)).
+  - Deleting an organisation removes all its data, including the audit log, 30 days after it left (`pnpm org:left`, then `pnpm org:delete`).
+    - **Except the books.** Decided default (2026-11-24), to review. Law 9-88 art. 22 has accounting documents and supporting documents kept for ten years. So the ledger, its supporting records and receipts stay, read-only, for 10 years after the end of their fiscal year, with phones erased. The table-by-table list is in [data requests](../data-requests.md).
   - Partners (vet, accountant) get access only with the owner's consent (M5).
 - **Before the pilot:**
   1. File the CNDP declaration or authorization.

@@ -1,13 +1,16 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { formatDecimal, formatKg, formatPercent } from "@/lib/format";
+import { formatDecimal, formatKg, formatMoney, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { ageOn, batchKpis, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
-import type { CurvePoint } from "@/modules/reference-data/schema";
-import { standardAt } from "@/modules/reference-data/shared";
-import { card } from "@/components/ui";
+import { ageOfBatch, batchKpis, birdsOnHand, birdsStarted, doaClaim, liveCostPerKg, shownFcrEpef, waterPerFeed, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import type { CurvePoint, ReferenceData } from "@/modules/reference-data/schema";
+import { curveFor, standardAt } from "@/modules/reference-data/shared";
+
+type StrainCurves = ReferenceData["strains"][number]["curves"];
+import { card, warn } from "@/components/ui";
 import { BatchStrip, type StripDay } from "@/components/batch-strip";
+import { useBatchResults } from "@/components/batch-results";
 
 // SPEC B4 on the phone: the batch's KPIs from its local records, so they work offline and change as soon as a day or
 // a weighing is saved. Weight-based KPIs wait for a weighing; the standard is shown only when the strain has a curve.
@@ -19,42 +22,65 @@ export function BatchDashboard({
   entries,
   weighings,
   sold,
-  curve,
+  curves,
+  money = false,
 }: {
   batch: BatchDto;
   entries: DailyEntryDto[];
   weighings: WeighingDto[];
   sold: SoldBirdsDto[];
-  curve: readonly CurvePoint[] | null;
+  curves: StrainCurves; // the strain's; this batch's sex picks one (SPEC-m3 R6)
+  money?: boolean; // money.read: the live cost per kg tile (never workers nor vets, I5)
 }) {
+  const curve = curveFor(curves, batch.sex ?? "mixed")?.points ?? null;
   const t = useTranslations();
   const placedOn = batch.placedOn as FarmDay;
-  const k = batchKpis({ placedOn, birdsStarted: batch.chicksPlaced - batch.deadOnArrival, dayOldWeightGrams: batch.dayOldWeightGrams }, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
+  const started = { placedOn, birdsStarted: birdsStarted(batch), dayOldWeightGrams: batch.dayOldWeightGrams, ageAtPlacementDays: batch.ageAtPlacementDays };
+  const k = batchKpis(started, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
   const w = k.weighed;
+  const { fcr, epef, avgWeightGrams } = shownFcrEpef({ ...started, status: batch.status, closedOn: batch.closedOn }, w, entries, sold); // closed: feed ÷ kg sold, as /compare
   const standard = w && curve ? standardAt(curve, w.ageDays) : null;
   const none = "—";
+  const water = waterPerFeed(entries);
+  // Batch.dc.html's cost per kg while the batch is open: FN13's costs so far (the server's, as /results), over the
+  // estimated live weight. Online only; a closed batch shows its cost per kg sold instead (ClosedSummary).
+  const live = money && batch.status === "open";
+  const result = useBatchResults(live, `${batch.id}:${weighings.length}`)?.find((r) => r.id === batch.id);
+  const birds = birdsOnHand(birdsStarted(batch), entries, sold);
+  const cost = result ? BigInt(result.costCentimes) : null;
+  const perKg = cost !== null && w ? liveCostPerKg(cost, birds, w.averageGrams) : null;
   const tiles: [string, string, string?][] = [
     [t("Kpi.mortality"), `${formatPercent(k.mortalityPercent)} %`],
     [t("Kpi.feedPerBird"), k.feedPerBirdGrams === null ? none : formatKg(Math.round(k.feedPerBirdGrams))],
-    [
+    [t("Kpi.waterFeed"), water ? formatDecimal(water.ratio, 1) : none, water ? t("Kpi.waterFeedOn", { day: String(ageOfBatch(batch, water.day as FarmDay)) }) : undefined], // SPEC-m3 B14
+    batch.status === "closed" ? [t("Kpi.weightSold"), avgWeightGrams === null ? none : formatKg(Math.round(avgWeightGrams))] : [
       w ? t("Kpi.weight", { age: String(w.ageDays) }) : t("Kpi.weightNone"),
       w ? formatKg(w.averageGrams) : none,
       w ? (standard ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(w.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) }) : t("Weighing.noStandard")) : undefined,
     ],
-    [t("Kpi.fcr"), w?.fcr == null ? none : formatDecimal(w.fcr, 2)],
-    [t("Kpi.epef"), w?.epef == null ? none : formatDecimal(w.epef, 0)],
+    [t("Kpi.fcr"), fcr === null ? none : formatDecimal(fcr, 2)],
+    [t("Kpi.epef"), epef === null ? none : formatDecimal(epef, 0)],
     [t("Kpi.dailyGain"), w?.dailyGainGrams == null ? none : t("Kpi.gramsPerDay", { grams: formatDecimal(w.dailyGainGrams, 1) })],
   ];
+  if (live)
+    tiles.push([
+      t("Kpi.costPerKg"),
+      perKg === null ? none : t("Kpi.costPerKgValue", { cost: formatMoney(perKg) }),
+      perKg !== null && w
+        ? t("Kpi.costPerKgNote", { cost: formatMoney(cost!), kg: formatKg(birds * w.averageGrams) })
+        : t(cost === null ? "Kpi.costOffline" : !w ? "Kpi.costNoWeighing" : "Kpi.costNone"),
+    ]);
 
   // One point per weighing day: the latest of that day, as the KPIs use.
   const byDay = new Map([...weighings].sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id)).map((x) => [x.day, x]));
-  const points = [...byDay.values()].map((x) => ({ age: ageOn(placedOn, x.day as FarmDay), grams: Math.round(x.totalGrams / x.count) }));
+  const points = [...byDay.values()].map((x) => ({ age: ageOfBatch(batch, x.day as FarmDay), grams: Math.round(x.totalGrams / x.count) }));
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="kpi-title">
-      <h3 id="kpi-title" className="text-[17px] font-semibold text-ink-2">{t("Kpi.title")}</h3>
+    // WebBatch.dc.html: on wide screens the chart and the tiles sit side by side.
+    <section className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-x-5" aria-labelledby="kpi-title">
+      <h3 id="kpi-title" className="text-[17px] font-semibold text-ink-2 lg:col-span-full">{t("Kpi.title")}</h3>
       {points.length > 0 && <GrowthChart points={points} curve={curve} />}
-      <dl className="grid grid-cols-2 gap-2">
+      <dl className={`grid grid-cols-2 gap-2 ${points.length > 0 ? "" : "lg:col-span-full lg:grid-cols-4"}`}>
         {tiles.map(([label, value, note]) => (
           <div key={label} className="flex flex-col gap-0.5 rounded-[14px] bg-card px-3 py-2.5">
             <dt className="text-[13px] text-ink-2">{label}</dt>
@@ -63,7 +89,7 @@ export function BatchDashboard({
           </div>
         ))}
       </dl>
-      <p className="text-sm text-muted">{w ? t("Kpi.atWeighing", { age: String(w.ageDays) }) : t("Kpi.weighFirst")}</p>
+      <p className="text-sm text-muted lg:col-span-full">{batch.status === "closed" ? t("Kpi.atClosing", { age: String(k.ageDays) }) : w ? t("Kpi.atWeighing", { age: String(w.ageDays) }) : t("Kpi.weighFirst")}</p>
     </section>
   );
 }
@@ -135,18 +161,41 @@ export function BatchHeader({ title }: { title: string }) {
   );
 }
 
-export function OpenBatchCard({ strip, birds, next }: { strip: { age: number; days: StripDay[]; label: string }; birds: string; next: string | null }) {
+export function OpenBatchCard({ strip, ageLabel, birds, next }: { strip: { age: number; days: StripDay[]; label: string }; ageLabel?: string; birds: string; next: string | null }) {
   const t = useTranslations();
   return (
     <section aria-label={strip.label} className="flex flex-col gap-2.5 rounded-[20px] bg-ink p-4 text-shell">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-[26px] font-semibold">
-          {t("Batches.age", { age: String(strip.age) })} <span className="text-base font-normal text-sand">/ {strip.days.length}</span>
+          {ageLabel ?? (
+            <>
+              {t("Batches.age", { age: String(strip.age) })} <span className="text-base font-normal text-sand">/ {strip.days.length}</span>
+            </>
+          )}
         </span>
         <span className="text-sm text-sand">{birds}</span>
       </div>
       <BatchStrip days={strip.days} onDark label={strip.label} />
       {next && <span className="text-sm text-sand">{t("Batches.nextVaccine", { vaccine: next })}</span>}
     </section>
+  );
+}
+
+/** SPEC-m3 B10 under the batch's card: the density and a hatchery claim (B9's other sex: turkey-sexes.tsx). */
+export function BatchNotes({
+  batch,
+  areaM2,
+  claimPermille,
+}: {
+  batch: BatchDto;
+  areaM2: number | undefined;
+  claimPermille: number | null | undefined;
+}) {
+  const t = useTranslations();
+  return (
+    <>
+      {areaM2 && <p>{t("Batches.density", { density: formatDecimal(birdsStarted(batch) / areaM2, 1) })}</p>}
+      {doaClaim(batch, claimPermille) && <p role="alert" className={warn}>{t("Batches.claim")}</p>}
+    </>
   );
 }

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T20 acceptance (browser part): the withdrawal banner shows while a withdrawal runs and is gone once it has ended; a
 // treatment and a vet visit recorded offline. The dates themselves are unit-tested (src/modules/health/domain).
@@ -13,7 +13,7 @@ test("a treatment recorded offline shows the withdrawal banner; an ended withdra
   const medicine = crypto.randomUUID();
   await pushAs(page, [
     { type: "inventory.createStockItem", payload: { id: medicine, farmId: ids.farm, productId: null, kind: "medicine", name: "Amoxicilline", unit: "ml", lot: "AMX-1", expiresOn: farmDaysAgo(-365) } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: medicine, day: farmDaysAgo(20), quantity: 1000, unitPriceCentimes: "50", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: medicine, day: farmDaysAgo(20), quantity: 1000, unitPriceCentimes: "50", paidCentimes: "0", dueOn: null } },
     {
       // ended 12 days ago + 5 days of withdrawal: over a week ago
       type: "health.recordTreatment",
@@ -22,7 +22,7 @@ test("a treatment recorded offline shows the withdrawal banner; an ended withdra
   ]);
 
   await page.goto(`/fr/batches#${ids.batch}`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   const treatments = page.getByRole("list", { name: "Traitements" }).getByRole("listitem");
   await expect(treatments).toHaveCount(1); // pulled
@@ -55,6 +55,7 @@ test("a treatment recorded offline shows the withdrawal banner; an ended withdra
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ ends: string; visits: number; stock: number }>(
       `SELECT t."withdrawalEndsOn"::text AS ends,

@@ -22,6 +22,16 @@ describe("climate targets (SPEC-m4 CL1)", () => {
     expect(targetFor([], "2026-07-01", 3)).toBeNull();
   });
 
+  it("prefers the newest set for the batch's production type, else the sets for every type (M3)", () => {
+    const layers = { ...set("04", "2026-02-01", [band({ fromAge: 120, toAge: 600, temperatureMaxTenths: 250 })]), productionType: "layer" };
+    const all = [...sets, layers];
+    expect(setOn(all, "2026-03-01", "layer")?.id).toBe("04");
+    expect(setOn(all, "2026-03-01", "broiler")?.id).toBe("01"); // no broiler set: the general one
+    expect(setOn(all, "2026-03-01")?.id).toBe("01"); // no type asked: the general sets only
+    expect(setOn(all, "2026-01-15", "layer")?.id).toBe("01"); // the layer set isn't valid yet
+    expect(targetFor(all, "2026-03-01", 140, "layer")?.temperatureMaxTenths).toBe(250);
+  });
+
   it("refuses overlapping bands and bands that read backwards", () => {
     expect(checkBands([band({ fromAge: 0, toAge: 10 }), band({ fromAge: 10, toAge: 20 })])).toEqual({ ok: false, error: "TARGET_BANDS_OVERLAP" });
     expect(checkBands([band({ fromAge: 5, toAge: 4 })])).toEqual({ ok: false, error: "INVALID_BAND" });

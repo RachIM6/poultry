@@ -1,3 +1,5 @@
+import type { Clock } from "@/lib/kernel/clock";
+
 // A calendar day on the farm, in Africa/Casablanca. Morocco leaves UTC+1 for UTC+0 around Ramadan,
 // so the zone database decides the offset: never derive a farm day from a fixed offset.
 export type FarmDay = string & { readonly __brand: "FarmDay" }; // YYYY-MM-DD
@@ -7,6 +9,9 @@ const casablanca = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablan
 export const farmDayOf = (instant: Date) => casablanca.format(instant) as FarmDay;
 
 export const nextFarmDay = (day: FarmDay) => new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10) as FarmDay;
+
+/** The latest day the server accepts on a record: tomorrow, since a phone's clock may run a little ahead of the server's. */
+export const latestRecordableDay = (clock: Clock) => nextFarmDay(farmDayOf(clock.now()));
 
 const farmClock = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Casablanca", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 

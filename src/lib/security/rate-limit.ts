@@ -9,8 +9,7 @@ import { POLICIES, type Dimension, type PolicyName } from "./policies";
  * Every dimension is counted even when another one already blocks, so the counters stay accurate.
  */
 export async function consume(policy: PolicyName, dims: Partial<Record<Dimension, string>>): Promise<Dimension[]> {
-  const rules = POLICIES[policy].filter((rule) => dims[rule.dim] !== undefined);
-  const keys = rules.map((rule) => `${policy}:${rule.dim}:${rule.windowSec}:${keyValue(rule.dim, dims[rule.dim]!)}`);
+  const { rules, keys } = keysOf(policy, dims);
   const windows = rules.map((rule) => rule.windowSec);
 
   // One statement: the rate_limit_consume() function (migration *_rate_limit_function) locks, prunes, counts and
@@ -29,6 +28,16 @@ export async function consume(policy: PolicyName, dims: Partial<Record<Dimension
     }
   });
   return [...blocked];
+}
+
+/** Forgets every hit of this policy on the given dimensions: a successful login clears its failure count. */
+export async function reset(policy: PolicyName, dims: Partial<Record<Dimension, string>>) {
+  await db.rateLimitHit.deleteMany({ where: { key: { in: keysOf(policy, dims).keys } } });
+}
+
+function keysOf(policy: PolicyName, dims: Partial<Record<Dimension, string>>) {
+  const rules = POLICIES[policy].filter((rule) => dims[rule.dim] !== undefined);
+  return { rules, keys: rules.map((rule) => `${policy}:${rule.dim}:${rule.windowSec}:${keyValue(rule.dim, dims[rule.dim]!)}`) };
 }
 
 // Phone numbers are hashed so the limiter table holds no personal data (law 09-08).

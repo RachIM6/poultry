@@ -5,11 +5,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
-import { card, done, field, primary, secondary } from "@/components/ui";
+import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import { checkBands, CLIMATE_MUTATIONS as C, setOn, type Band, type TargetSet } from "@/modules/climate/shared";
+import { PRODUCTION_TYPES } from "@/modules/flock/shared";
 import { localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -35,7 +36,10 @@ function Targets(scope: Scope) {
   const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState<string>();
   if (!sets) return null;
-  const current = setOn(sets.map((r) => r.data as TargetSet), farmDayOf(new Date()));
+  const all = sets.map((r) => r.data as TargetSet);
+  const today = farmDayOf(new Date());
+  // the sets for every type first, then each production type that has its own (SPEC-m3)
+  const groups = [null, ...PRODUCTION_TYPES.filter((p) => all.some((s) => s.productionType === p))].map((p) => ({ type: p, set: p ? setOn(all.filter((s) => s.productionType === p), today, p) : setOn(all, today) }));
 
   const save = async (set: TargetSet) => {
     try {
@@ -50,8 +54,9 @@ function Targets(scope: Scope) {
   return (
     <>
       {message && <p role="status" className={done}>{t(message)}</p>}
-      {current ? (
-        <section aria-label={t("Climate.currentTargets")} className={card}>
+      {groups.map(({ type, set: current }) => current ? (
+        <section key={type ?? "all"} aria-label={type ? t(`Types.${type}`) : t("Climate.currentTargets")} className={card}>
+          <h2 className="font-semibold">{type ? t(`Types.${type}`) : t("Climate.allTypes")}</h2>
           <p className="text-sm text-ink-2">{t("Climate.inForce", { date: formatDay(current.validFrom as FarmDay, locale), source: current.source })}</p>
           <ul className="flex flex-col gap-1" aria-label={t("Climate.bands")}>
             {current.bands.map((b) => (
@@ -69,9 +74,9 @@ function Targets(scope: Scope) {
             ))}
           </ul>
         </section>
-      ) : (
-        <p role="note" className="rounded-2xl bg-chick-soft p-3">{t("Climate.noTargets")}</p>
-      )}
+      ) : type === null ? (
+        <p key="all" role="note" className="rounded-2xl bg-chick-soft p-3">{t("Climate.noTargets")}</p>
+      ) : null)}
       {can(scope, "climate.manage") &&
         (adding ? <TargetsForm onSave={save} onCancel={() => setAdding(false)} /> : <button type="button" onClick={() => setAdding(true)} className={primary}>{t("Climate.enterTargets")}</button>)}
     </>
@@ -107,12 +112,19 @@ function TargetsForm({ onSave, onCancel }: { onSave: (s: TargetSet) => Promise<v
     const checked = checkBands(bands);
     if (!checked.ok) return setError(`errors.${checked.error}`);
     setError(undefined);
-    await onSave({ id: uuidv7(), validFrom: get("validFrom"), source: get("source").trim(), bands });
+    await onSave({ id: uuidv7(), validFrom: get("validFrom"), source: get("source").trim(), bands, productionType: get("productionType") || null });
   };
 
   return (
     <form onSubmit={submit} className={card} aria-label={t("Climate.enterTargets")}>
       <p className="text-sm text-ink-2">{t("Climate.targetsHint")}</p>
+      <label className="flex flex-col gap-1">
+        {t("Climate.productionType")}
+        <select name="productionType" className={field}>
+          <option value="">{t("Climate.allTypes")}</option>
+          {PRODUCTION_TYPES.map((p) => <option key={p} value={p}>{t(`Types.${p}`)}</option>)}
+        </select>
+      </label>
       <label className="flex flex-col gap-1">{t("Pay.source")}<input name="source" required minLength={3} maxLength={300} className={field} /></label>
       <label className="flex flex-col gap-1">{t("Pay.validFrom")}<input name="validFrom" type="date" required defaultValue={farmDayOf(new Date())} className={field} /></label>
       {rows.map((r, i) => (
@@ -127,7 +139,7 @@ function TargetsForm({ onSave, onCancel }: { onSave: (s: TargetSet) => Promise<v
         </fieldset>
       ))}
       <button type="button" onClick={() => setRows((x) => [...x, Math.max(...x) + 1])} className={secondary}>{t("Climate.addBand")}</button>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Climate.saveTargets")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>

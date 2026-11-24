@@ -12,7 +12,7 @@ export async function saveBudgetAction(_: SaveState, form: FormData): Promise<Sa
   const ctx = await getTenantContext(await headers());
   if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
   const fields = Object.fromEntries(form);
-  const saved = await saveBudget(ctx.value, { ...fields, basedOn: fields.basedOn || null });
+  const saved = await saveBudget(ctx.value, { ...fields, basedOn: fields.basedOn || null, batchId: fields.batchId || null, saleDay: fields.saleDay || null });
   if (!saved.ok) return { messageKey: `errors.${saved.error}` };
   refresh();
   return { ok: true, messageKey: "Budget.savedOk" };

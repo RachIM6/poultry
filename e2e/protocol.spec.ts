@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T11 acceptance: reference data is on the phone after the first sync; the organisation copies the template and edits
 // its copy offline; the template stays as it was. Needs `pnpm db:seed` (CI runs it).
@@ -8,9 +8,11 @@ test("the vaccination template is available offline, and a farm's copy is edited
   const e164 = await ownerWithFarm(page, "Élevage Référence");
   await scopeRemembered(page);
   await page.goto("/fr/protocol");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined)); // shells precached
+  await controlled(page); // shells precached
   await expect(page.getByText("Programme de vaccination poulet de chair")).toBeVisible(); // reference data cached
-  await expect(page.getByText(/Pas encore vérifié par un vétérinaire/)).toBeVisible();
+  const broiler = page.getByText("Programme de vaccination poulet de chair").locator(".."); // one template per type (SPEC-m3 R9)
+  await expect(broiler.getByText(/Pas encore vérifié par un vétérinaire/)).toBeVisible();
+  await expect(page.getByText("Programme de vaccination pondeuse")).toBeVisible();
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -18,19 +20,22 @@ test("the vaccination template is available offline, and a farm's copy is edited
   expect(reload?.fromServiceWorker()).toBe(true);
   await expect(page.getByText("Programme de vaccination poulet de chair")).toBeVisible(); // from IndexedDB
 
-  await page.getByRole("button", { name: "Copier pour mon exploitation" }).click();
+  await broiler.getByRole("button", { name: "Copier pour mon exploitation" }).click();
   await page.getByRole("button", { name: "Ajouter un vaccin" }).click();
   await page.getByLabel("Âge (jours)").fill("14");
   await page.getByLabel("Vaccin", { exact: true }).selectOption({ label: "Vaccin Gumboro" });
   await page.getByLabel("Mode d’administration").selectOption({ label: "Eau de boisson" });
   await page.getByRole("button", { name: "Ajouter", exact: true }).click();
   await expect(page.getByText("Jour 14 · Vaccin Gumboro · Eau de boisson")).toBeVisible();
+  // OQ4: no Newcastle line yet, a warning citing the arrêté, not a block
+  await expect(page.getByText(/Aucune vaccination contre la maladie de Newcastle dans ce programme.*Arrêté n° 3308-17, art\. 13/)).toBeVisible();
 
   await page.reload();
   await expect(page.getByText("Jour 14 · Vaccin Gumboro · Eau de boisson")).toBeVisible();
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const items = async () =>
     (
       await query<{ items: unknown }>(

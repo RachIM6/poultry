@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ITEM_KINDS, UNITS } from "@/modules/inventory/domain/stock";
+import { SUPPLIER_PAYMENT_METHODS } from "@/modules/inventory/shared";
 
 // SPEC S1–S3, written offline: the phone and the sync push validate with these same schemas (ADR-003). Screens that
 // don't validate import ./shared.ts (no Zod, ADR-009), re-exported here.
@@ -23,22 +24,36 @@ export const CreateStockItem = z.object({
   lowStockThreshold: z.int32().positive().nullable().default(null), // S6: base units; no alert when unset
 });
 export const SetThreshold = z.object({ stockItemId: z.uuid(), lowStockThreshold: z.int32().positive().nullable() });
-// The purchase and its stock movement are created together; both ids come from the device.
+// The purchase and its stock movement are created together; both ids come from the device. A phone's movement id is a
+// UUIDv7, never a UUIDv5 another organisation can compute ahead (the movement of a daily entry or a vaccination).
 export const RecordPurchase = z.object({
   id: z.uuid(),
-  movementId: z.uuid(),
+  movementId: z.uuidv7(),
   supplierId: z.uuid(),
   stockItemId: z.uuid(),
   day,
   quantity: z.int32().positive(), // base units (grams for kg)
   unitPriceCentimes: centimes, // per displayed unit
   paidCentimes: centimes,
+  vatCentimes: centimes.default("0"), // SPEC-finance FN9: the invoice's VAT, part of the total
+  paidMethod: z.enum(SUPPLIER_PAYMENT_METHODS).default("cash"), // FN6; older queued writes without it were paid in cash
   dueOn: day.nullable(),
 });
-export const AdjustStock = z.object({
+export const RecordSupplierPayment = z.object({
   id: z.uuid(),
+  supplierId: z.uuid(),
+  day,
+  amountCentimes: centimes,
+  method: z.enum(SUPPLIER_PAYMENT_METHODS),
+  instrument: z.object({ number: optionalText(40), dueOn: day }).nullable().default(null), // FN11: cheque or bill only
+});
+export const DebitIssued = z.object({ id: z.uuidv7(), instrumentId: z.uuid(), day }); // FN11: issued → debited
+export const AdjustStock = z.object({
+  id: z.uuidv7(), // the movement's, as in RecordPurchase
   stockItemId: z.uuid(),
   day,
   quantity: z.int32().refine((q) => q !== 0), // signed: + found, − lost
   reason: text(200),
 });
+/** SPEC-finance §9 "Cancelled records": a purchase typed wrong, cancelled (it is then typed again). */
+export const CancelPurchase = z.object({ purchaseId: z.uuid() });

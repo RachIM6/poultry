@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toCsv } from "@/lib/kernel/sheet";
 import { cashBookOf, trialBalance } from "@/modules/finance/domain/books";
-import { exportSheets } from "@/modules/finance/domain/export";
+import { exportSheets, receiptName } from "@/modules/finance/domain/export";
 
 // SPEC-finance FN18 (T38): the accountant's export of a period.
 const sale = { id: "e1", day: "2026-03-20", label: "=Vente lot 1", lines: [{ account: "5161", debit: 300_000n, credit: 0n }, { account: "71211", debit: 0n, credit: 300_000n }] };
@@ -29,11 +29,24 @@ describe("export to the accountant (FN18)", () => {
     ]);
     expect(balance.csv).toContain("\r\n5161;Caisses;3000,00;1234,56;1765,44\r\n");
     expect(balance.csv).toMatch(/\r\nTotal;;4234,56;4234,56;0,00\r\n$/);
-    expect(cash.csv).toContain("\r\n21/03/2026;\"Électricité; mars\";5161;Caisses;61251 Électricité;0,00;1234,56\r\n");
-    expect(cash.csv).toMatch(/\r\nTotal;;;;;3000,00;1234,56\r\n$/);
+    expect(cash.csv).toContain("\r\n21/03/2026;\"Électricité; mars\";5161;Caisses;61251 Électricité;;0,00;1234,56\r\n");
+    expect(cash.csv).toMatch(/\r\nTotal;;;;;;3000,00;1234,56\r\n$/);
   });
 
   it("gives a cash-book entity its cash book only", () => {
     expect(exportSheets({ labels, cashBook: ledger.cashBook }).map((s) => s.name)).toEqual(["Recettes et dépenses"]);
+  });
+
+  it("fills the entries' party, farm, house and batch from their tags (FN18)", () => {
+    const [entries, , cash] = exportSheets({ ...ledger, tags: new Map([["e1", ["Hamid", "El Kheir", "B1", "01/03/2026"]]]) });
+    const rows = toCsv(entries).split("\r\n");
+    expect(rows[1]).toBe("20/03/2026;CA;e1;5161;Caisses;'=Vente lot 1;3000,00;0,00;Hamid;El Kheir;B1;01/03/2026");
+    expect(rows[3]).toMatch(/;;;;$/); // e2: no tag
+    expect(toCsv(cash)).toContain("\r\n20/03/2026;'=Vente lot 1;5161;Caisses;71211 Ventes de volailles;B1 · 01/03/2026;3000,00;0,00\r\n"); // FN16: its batch
+  });
+
+  it("names each receipt after its entry's day and id, the entries sheet's Pièce", () => {
+    expect(receiptName("2026-03-21", "e2", "image/jpeg")).toBe("pieces/2026-03-21_e2.jpg");
+    expect(receiptName("2026-03-21", "e2", "application/pdf")).toBe("pieces/2026-03-21_e2.pdf");
   });
 });

@@ -48,8 +48,8 @@ describe("ticking a task done (SPEC-m4 WF6)", () => {
   });
 
   it("refuses a future day, an unknown or foreign task, and entry or vaccine tasks (done by recording them)", async () => {
-    const tomorrow = farmDayOf(new Date(Date.now() + 86_400_000));
-    expect(await statuses(worker, [m(M.tickTask, tick(tomorrow))])).toEqual(["errors.DAY_IN_FUTURE"]);
+    const afterTomorrow = farmDayOf(new Date(Date.now() + 2 * 86_400_000)); // tomorrow passes: a phone may run ahead
+    expect(await statuses(worker, [m(M.tickTask, tick(afterTomorrow))])).toEqual(["errors.DAY_IN_FUTURE"]);
     const other = taskKey.routine(uuidv7());
     expect(await statuses(worker, [m(M.tickTask, { ...tick(), id: taskDoneId(other, today), key: other })])).toEqual(["errors.NOT_FOUND"]);
     expect(await statuses(b, [m(M.tickTask, tick())])).toEqual(["errors.NOT_FOUND"]);

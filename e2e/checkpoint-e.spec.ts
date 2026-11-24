@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // Checkpoint E (tasks/todo.md): 10 simulated days of a batch, entered offline, with the dashboard's KPIs equal to the
 // hand calculation below; then online, each day reaches the server once. The numbers are a made-up test batch.
@@ -16,7 +16,7 @@ test("checkpoint E: 10 days entered offline give the hand-computed KPIs and sync
   const ids = await farmWithBatch(page, "ross-308", farmDaysAgo(10)); // 1 000 chicks, no day-old weight
 
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
   await context.setOffline(true);
@@ -25,8 +25,8 @@ test("checkpoint E: 10 days entered offline give the hand-computed KPIs and sync
 
   for (const [i, dead] of DEAD.entries()) {
     await page.getByLabel("Jour", { exact: true }).fill(farmDaysAgo(9 - i));
-    await page.getByLabel("Morts").fill(String(dead));
-    await page.getByLabel("Aliment consommé (kg)").fill(String(FEED_KG[i]));
+    await page.getByLabel("Morts", { exact: true }).fill(String(dead));
+    await page.getByLabel("Aliment consommé (kg)", { exact: true }).fill(String(FEED_KG[i]));
     await page.getByRole("button", { name: "Enregistrer la journée" }).click();
     await expect(tile(page, "Mortalité")).toContainText(`${(DEAD.slice(0, i + 1).reduce((a, b) => a + b, 0) / 10).toFixed(1).replace(".", ",")} %`);
   }

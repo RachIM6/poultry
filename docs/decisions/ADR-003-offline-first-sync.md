@@ -1,7 +1,7 @@
 # ADR-003: Offline-first sync (local store + outbox + versioned pull)
 
 ## Status
-Proposed. To be confirmed by the sync spike (tasks T8–T9).
+Proposed. To be confirmed by the sync spike (tasks T8–T9). The pull is compacted and a refused write no longer resets the cursor: see [ADR-014](ADR-014-compacted-pull.md).
 
 ## Date
 2026-10-27
@@ -19,7 +19,7 @@ Proposed. To be confirmed by the sync spike (tasks T8–T9).
    - checks permissions and the tenant;
    - validates with the **same Zod schemas**;
    - applies each mutation **idempotently**: the mutation id is unique, and a replay returns the stored result;
-   - returns one result per mutation (`applied` / `rejected` with a `messageKey`).
+   - returns one result per mutation (`applied` / `rejected` with a `messageKey`, and since 2026-11-23 optional `messageValues` for its message, backward compatible).
 4. **Pull:** each change on the server increments a per-organisation **`version` counter** stored on the row. `GET /api/sync/pull?since=<version>` returns the rows changed since the client's cursor, including tombstones for deletions.
 5. **Conflicts:**
    - Append-only records cannot conflict.
@@ -38,9 +38,9 @@ Proposed. To be confirmed by the sync spike (tasks T8–T9).
 - **Idempotency:** each mutation runs in its own transaction, which first claims its id in `Mutation`. A concurrent duplicate waits on that row and then returns the stored result. Rejections are stored and replayed too. An unexpected error stops the batch with nothing recorded for that mutation, so the client retries it and everything after it.
 - **Wire format:** `src/lib/sync/protocol.ts`.
 - **One local database per user and organisation (T9)**, plus a `x-sync-scope: <userId>:<organizationId>` header on push and pull. The server answers 409 when it isn't the session's. On a shared phone, one user's outbox is never pushed (or another's data pulled) under someone else's session, including from the service worker's Background Sync, which only knows who signed in last. *Addition to the protocol, made during the spike: confirm at checkpoint C.*
-- **Client merge (T9):** push first; `applied` and `rejected` remove a mutation from the outbox, anything else keeps it and what follows. A rejection goes to "needs attention", drops the local copy of its record and resets the cursor to 0, so the next pull restores the server's version. A pulled change doesn't overwrite a record that has a write still queued.
+- **Client merge (T9):** push first; `applied` and `rejected` remove a mutation from the outbox, anything else keeps it and what follows. A rejection goes to "needs attention", drops the local copy of its record and resets the cursor to 0, so the next pull restores the server's version. *Since ADR-014: the cursor stays, and the next pull reads back only the refused write's records.* A pulled change doesn't overwrite a record that has a write still queued.
 - **Offline screens (T9):** signed-in pages and every `/api` response are network-only in the service worker (Serwist's `defaultCache` stored them). Offline screens are static, precached shells that read IndexedDB; `/[locale]/sync` is the first.
-- **Later:** compact the change log (drop superseded versions) once it grows; until then a first pull reads every change.
+- **Later:** compact the change log (drop superseded versions) once it grows; until then a first pull reads every change. *Since ADR-014 the pull sends only each record's latest change, and a first pull is a snapshot of the current state; the table itself is not compacted.*
 
 ## Alternatives Considered
 

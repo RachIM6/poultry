@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ATTENDANCE, attendanceId, isTaskKey, JOBS, taskDoneId, tickable, TRAINING_TOPICS } from "@/modules/workforce/shared";
+import { ATTENDANCE, attendanceId, isTaskKey, JOBS, PAY_FROM, taskDoneId, tickable, TRAINING_TOPICS } from "@/modules/workforce/shared";
 
 // SPEC-m4 §4, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009).
 export * from "@/modules/workforce/shared";
@@ -79,3 +79,4 @@ export const SaveLabourRules = z.object({
   monthlyCapCentimes: centimes.nullable(),
 });
 export const ValidatePay = z.object({ farmId: z.uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) });
+export const PayWages = z.object({ farmId: z.uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), day: z.iso.date(), paidFrom: z.enum(PAY_FROM) });

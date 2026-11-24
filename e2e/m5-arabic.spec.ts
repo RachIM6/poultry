@@ -13,7 +13,7 @@ test("the M5 screens render right to left in Arabic", async ({ page }) => {
 
   for (const [path, title, content] of [
     ["/ar/prices", ar.Prices.title, ar.Prices.none],
-    ["/ar/planning", ar.Planning.title, ar.Planning.noDowntime],
+    ["/ar/planning", ar.Planning.title, ar.Planning.enterDowntime],
     ["/ar/organizations", ar.Organizations.title, ar.Organizations.current],
   ] as const) {
     await page.goto(path);

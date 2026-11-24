@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
 
-// T24 acceptance, the whole lifecycle: a batch placed, fed, charged another cost, then all its birds sold offline. The
-// last sale closes it on the phone at once; after the sync the locked cost per kg arrives; the house is free again.
+// T24 acceptance, the whole lifecycle: a batch placed, fed, then all its birds sold offline. The last sale closes it on
+// the phone at once; after the sync its cost per kg arrives, FN13's, read online as /results shows it (SPEC-finance §9
+// "One cost per kg"); the house is free again. Since FN13 a cost of the batch is a quick expense charged to it: the
+// batch screen links to /expenses, no other-cost form.
 test("selling the last birds offline closes the batch; its cost per kg arrives with the sync and the house is free", async ({ page, context }) => {
   test.setTimeout(120_000);
   await ownerWithFarm(page, "Élevage de la Clôture");
@@ -11,17 +13,15 @@ test("selling the last birds offline closes the batch; its cost per kg arrives w
   await pushAs(page, [{ type: "flock.recordDay", payload: { batchId: ids.batch, day: farmDaysAgo(39), changes: { feed: { stockItemId: ids.feed, grams: 100_000 } } } }]); // 450 DH
 
   await page.goto(`/fr/batches#${ids.batch}`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByText("Oiseaux présents : 1 000")).toBeVisible();
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
 
-  await page.getByRole("button", { name: "Ajouter une charge" }).click();
-  await page.getByLabel("Charge (électricité, main-d’œuvre…)").fill("Électricité");
-  await page.getByLabel("Montant (DH)").fill("200");
-  await page.getByRole("button", { name: "Enregistrer la charge" }).click();
-  await expect(page.getByRole("list", { name: "Autres charges" })).toContainText("Électricité");
+  const addCost = page.getByRole("link", { name: "Ajouter une charge dans Dépense rapide" });
+  await expect(addCost).toHaveAttribute("href", "/fr/expenses");
+  await expect(page.getByRole("button", { name: "Ajouter une charge" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Nouvelle vente" }).click();
   await page.getByLabel("Nom de l’acheteur").fill("Abattoir Atlas");
@@ -35,14 +35,15 @@ test("selling the last birds offline closes the batch; its cost per kg arrives w
   await expect(summary).toContainText("Tous les oiseaux ont été vendus.");
   await expect(summary).toContainText("Les chiffres définitifs arrivent à la prochaine synchronisation.");
   await expect(page.getByRole("link", { name: "Document d’origine (Français)" })).toBeVisible(); // still printable
-  for (const gone of ["Saisir", "Nouvelle vente", "Ajouter une charge", "Clôturer la bande"]) {
+  for (const gone of ["Saisir", "Nouvelle vente", "Clôturer la bande"]) {
     await expect(page.getByRole("button", { name: gone })).toHaveCount(0); // read-only
   }
+  await expect(addCost).toHaveCount(0);
 
   await context.unroute("**");
   await context.setOffline(false);
-  // Chicks 4 500 DH + feed 450 DH + electricity 200 DH = 5 150 DH, over 2 000 kg sold = 2,575 → 2,58 DH/kg.
-  await expect(summary).toContainText(/Coût par kg vendu : 2,58\sDH/, { timeout: 30_000 });
+  // FN13: chicks 4 500 DH + feed 450 DH = 4 950 DH (no direct or shared expense), over 2 000 kg sold = 2,475 → 2,48 DH/kg.
+  await expect(summary).toContainText(/Coût par kg vendu : 2,48\sDH/, { timeout: 30_000 });
   await expect(summary).toContainText("Vendu : 2 000 kg");
   await pushAs(page, [
     {

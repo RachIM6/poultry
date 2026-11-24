@@ -7,6 +7,7 @@ import { fixedClock } from "@/lib/kernel/clock";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { postPending, saveBudget, thresholdTracker } from "@/modules/finance";
+import { alertThresholdOnce } from "@/modules/finance/application/threshold";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
 
@@ -38,7 +39,7 @@ describe("5 M DH tracker (SPEC-finance FN17, T37)", () => {
     expect(pushed.results.filter((r) => r.status !== "applied")).toEqual([]);
     await postPending(a);
     // a planned batch: 46 000 kg at 15,00 = 690 000,00 of planned sales
-    const budget = { name: "Prochaine bande", basedOn: null, chicks: "20000", chickPriceCentimes: "550", feedGrams: "80000000", feedPricePerKgCentimes: "460", otherCostCentimes: "0", plannedGrams: "46000000", salePricePerKgCentimes: "1500" };
+    const budget = { id: uuidv7(), name: "Prochaine bande", basedOn: null, chicks: "20000", chickPriceCentimes: "550", feedGrams: "80000000", feedPricePerKgCentimes: "460", otherCostCentimes: "0", plannedGrams: "46000000", salePricePerKgCentimes: "1500" };
     expect(await saveBudget(a, budget)).toMatchObject({ ok: true });
     await db.budget.updateMany({ data: { createdAt: new Date("2026-10-01T08:00:00Z") } }); // saved during the 2026 fiscal year, whatever today is
   });
@@ -64,5 +65,13 @@ describe("5 M DH tracker (SPEC-finance FN17, T37)", () => {
     expect(await thresholdTracker({ ...a, role: "worker" })).toEqual({ ok: false, error: "FORBIDDEN" });
     const other = await thresholdTracker(b, fixedClock("2026-11-20T10:00:00Z"));
     expect(other.ok && other.value?.bookedCentimes).toBe(0n);
+  });
+  it("notifies the owners and managers once a fiscal year when it reaches 90 % (FN17)", async () => {
+    const clock = fixedClock("2026-11-20T10:00:00Z");
+    expect(await alertThresholdOnce(a, clock)).toBe(true);
+    expect(await alertThresholdOnce(a, clock)).toBe(false); // the year is claimed
+    expect(await alertThresholdOnce(b, clock)).toBe(false); // no sales: no alert
+    const sent = await db.notification.findMany({ where: { organizationId: a.organizationId, templateKey: "thresholdNear" } });
+    expect(sent.map((n) => [n.userId, n.params])).toEqual([[a.userId, { percent: "99" }]]);
   });
 });

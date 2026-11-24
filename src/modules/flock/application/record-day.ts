@@ -2,13 +2,13 @@ import type { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { mergeDay } from "@/modules/flock/domain/daily-entry";
 import { loadBatch } from "@/modules/flock/infrastructure/batches";
-import { findEntry, outOnOtherDays, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
+import { birdsOnHandBesides, findEntry, saveEntry } from "@/modules/flock/infrastructure/daily-entries";
 import { dailyEntryId, type DailyEntryDto, type RecordDay } from "@/modules/flock/schema";
 import { recordConsumption, removeConsumption } from "@/modules/inventory";
 
@@ -30,8 +30,8 @@ export async function recordDay(
   const id = dailyEntryId(cmd.batchId, cmd.day);
   const previous = await findEntry(tx, ctx, id);
   const merged = mergeDay(previous, cmd.changes);
-  const today = nextFarmDay(farmDayOf(clock.now())); // a phone's clock may run a little ahead
-  const checked = batch.checkDay(cmd.day as FarmDay, merged, await outOnOtherDays(tx, cmd.batchId, cmd.day), today);
+  const today = latestRecordableDay(clock);
+  const checked = batch.checkDay(cmd.day as FarmDay, merged, await birdsOnHandBesides(tx, ctx, batch, cmd.day), today);
   if (!checked.ok) return checked;
 
   if ("feed" in cmd.changes) {

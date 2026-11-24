@@ -5,7 +5,8 @@
 
 ## Project docs (read before building)
 - `SPEC.md`: stack, commands, structure, conventions (integer money/grams, UUIDv7, Africa/Casablanca farm days), boundaries, M1 requirements.
-- `SPEC-finance.md`: finance module (CGNC + Plan Comptable Agricole + cooperative chart), M2 and M6 requirements, calculation fixtures. Plan in `tasks/plan-m2-finance.md`.
+- `SPEC-finance.md`: finance module (CGNC + Plan Comptable Agricole + cooperative chart), M2 and M6 requirements, calculation fixtures. Plans in `tasks/plan-m2-finance.md` (M2) and `tasks/plan-m6.md` (M6).
+- `SPEC-m2-compliance.md`: biosecurity, documents, reporting (ONSSA register PDF, batch report, inspection pack), M2. Plan in `tasks/plan-m2-compliance.md`.
 - `CAPABILITY-MAP.md`: module ids and allowed dependencies. Never import across modules except via `src/modules/<id>/index.ts` of a declared dependency.
 - `docs/decisions/`: ADRs. Don't re-decide an accepted ADR; write a superseding one.
 - `tasks/plan.md` + `tasks/todo.md`: current milestone plan; work tasks in order, tick them when verified.
@@ -23,7 +24,7 @@
   - `playwright` (browser automation MCP);
   - `frontend-design`.
 - **Project MCP** (`.mcp.json`): `shadcn` (component registry). Approve it once when Claude Code asks.
-- **Project skills** (`.claude/skills/`): `poultry-ddd`, `poultry-auth`.
+- **Project skills** (`.claude/skills/`): `poultry-ddd`, `poultry-auth`, `poultry-pwa`.
 - **User-level skills** (on Rachid's machine, not in this public repo because of their licences): `graphify`, `design-taste-frontend`, `image-to-code`, `playwright-cli`, `web-design-guidelines`.
 - **Local mods** (`.claude/settings.local.json`, not committed): `cache-keeper`, `recording-mode`, `goal-meter`, `collision-guard`.
 
@@ -32,6 +33,7 @@
 |---|---|
 | Any domain or server code (modules, mutations, repositories, KPIs) | `poultry-ddd` (project skill) |
 | Login, OTP, sessions, members/roles, rate limits, CSRF, public endpoints | `poultry-auth` (project skill) + `agent-skills:security-and-hardening` (`security-guidance` hooks run automatically) |
+| Service worker, caching, manifest, install / offline pages, offline behaviour, PWA tests | `poultry-pwa` (project skill). Primary sources in its `references/sources.md` |
 | Picking up the next task | `agent-skills:incremental-implementation` + `agent-skills:test-driven-development`, task from `tasks/todo.md`. `ponytail` keeps the diff minimal |
 | Library APIs (Next 16, Prisma, next-intl, Serwist, Dexie, Zod) | `node_modules/next/dist/docs` for Next.js, **context7** for the rest. Never write library APIs from memory |
 | Database schema, migrations, SQL checks | `prisma` plugin MCP + `poultry-ddd` (tenant column, integers, one owner per table) |

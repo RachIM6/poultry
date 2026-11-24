@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T77 (SPEC-m4 WF11, WF12, §2): with no labour figures entered, /staff shows gross pay and says the rates are missing;
 // the owner validates the month and it is frozen on the server.
@@ -24,11 +24,27 @@ test("pay without labour figures shows gross only, says so, and is validated by 
   await expect(pay.getByRole("note")).toContainText("aucune cotisation n’est calculée");
 
   await pay.getByRole("button", { name: `Valider la paie de ${today.slice(0, 7)}` }).click();
+  await expect(pay).toContainText("Paie validée le"); // saved on the phone
+  await outboxEmpty(page);
   const server = () =>
     query<{ month: string }>(
       `SELECT p.month FROM "PayMonth" p JOIN "Membership" m ON m."organizationId" = p."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
       [e164],
     );
   await expect.poll(server).toEqual([{ month: today.slice(0, 7) }]);
-  await expect(pay).toContainText("Paie validée le");
+
+  // The month's wages paid from the cash box: once, and in the books (D 4432 / C 5161).
+  const wages = pay.getByRole("form", { name: "Payer les salaires : 150,00 DH" });
+  await wages.getByLabel("Payé depuis").selectOption({ label: "la caisse" });
+  await wages.getByRole("button", { name: "Payer les salaires : 150,00 DH" }).click();
+  await expect(pay).toContainText(/Salaires payés : 150,00.DH le .* \(la caisse\)/);
+  const booked = async () =>
+    (
+      await query<{ account: string; debit: string; credit: string }>(
+        `SELECT l.account, l."debitCentimes"::text AS debit, l."creditCentimes"::text AS credit FROM "JournalLine" l JOIN "JournalEntry" j ON j.id = l."entryId"
+         JOIN "Membership" m ON m."organizationId" = j."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1 AND j.label = 'Salaires payés' ORDER BY l.account`,
+        [e164],
+      )
+    ).map((l) => `${l.account} ${l.debit} ${l.credit}`);
+  await expect.poll(booked, { timeout: 20_000 }).toEqual(["4432 15000 0", "5161 0 15000"]);
 });

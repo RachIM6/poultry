@@ -6,13 +6,14 @@ import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { parseTenths, tenths } from "@/components/climate-targets";
 import { Scoped } from "@/components/scoped";
-import { card, danger, done, field, primary } from "@/components/ui";
+import { card, danger, done, field, link, primary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDay } from "@/lib/format";
-import { daysBetween, farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { can } from "@/lib/permissions";
+import { farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { CLIMATE_MUTATIONS as C, outOfRange, targetFor, verdicts, type Band, type PowerCutDto, type ReadingDto, type TargetSet, type Verdict } from "@/modules/climate/shared";
 import type { HouseDto } from "@/modules/farm-registry/schema";
-import type { BatchDto } from "@/modules/flock/shared";
+import { ageOfBatch, type BatchDto } from "@/modules/flock/shared";
 import { localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
@@ -44,9 +45,9 @@ function Climate(scope: Scope) {
   const house = houses.find((h) => h.id === houseId) ?? houses[0];
   const today = farmDayOf(new Date());
   const batch = of<BatchDto>("batch").find((b) => b.houseId === house.id && b.status === "open" && b.placedOn <= today);
-  const age = batch ? daysBetween(batch.placedOn as FarmDay, today) : null;
+  const age = batch ? ageOfBatch(batch, today) : null; // the birds' age: hens placed at 18 weeks included (SPEC-m3 B7)
   const sets = of<TargetSet>("climateTargets");
-  const band = age === null ? null : targetFor(sets, today, age);
+  const band = age === null ? null : targetFor(sets, today, age, batch?.species);
   const reading = { temperatureTenths: parseTenths(values.temperature) ?? null, humidity: whole(values.humidity), ammonia: whole(values.ammonia) };
   const live = verdicts({ temperatureTenths: reading.temperatureTenths ?? 0, humidity: reading.humidity ?? 0, ammonia: reading.ammonia }, band);
 
@@ -85,33 +86,37 @@ function Climate(scope: Scope) {
       {savedVerdicts && outOfRange(savedVerdicts) && (
         <p role="alert" className={danger}>{t("Climate.outOfRange", { values: off.map((k) => t(`Climate.offValue.${k}.${savedVerdicts[k]}`)).join(", ") })}</p>
       )}
-      <form onSubmit={submit} className={`${card} grid grid-cols-2 gap-3`} aria-label={t("Climate.reading")}>
-        <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
-          {t("Climate.temperature")}
-          <input inputMode="decimal" dir="ltr" required value={values.temperature} onChange={(e) => setValues({ ...values, temperature: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
-          {hint("temperature", values.temperature.trim() !== "")}
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
-          {t("Climate.humidity")}
-          <input inputMode="numeric" dir="ltr" required value={values.humidity} onChange={(e) => setValues({ ...values, humidity: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
-          {hint("humidity", values.humidity.trim() !== "")}
-        </label>
-        <label className="col-span-2 flex flex-col gap-1 text-sm font-medium text-ink-2">
-          {t("Climate.ammonia")}
-          <input inputMode="numeric" dir="ltr" value={values.ammonia} onChange={(e) => setValues({ ...values, ammonia: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
-          {hint("ammonia", values.ammonia.trim() !== "")}
-        </label>
-        <label className="flex flex-col gap-1 text-sm">{t("Climate.day")}<input name="day" type="date" required max={today} defaultValue={today} className={field} /></label>
-        <label className="flex flex-col gap-1 text-sm">{t("Climate.time")}<input name="time" type="time" required defaultValue={now()} className={field} /></label>
-        <button type="submit" className={`${primary} col-span-2`}>{t("Climate.save")}</button>
-      </form>
-      <PowerCuts
-        farmId={house.farmId}
-        cuts={of<PowerCutDto>("powerCut")}
-        save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
-      />
+      {can(scope, "climate.record") && (
+        <>
+          <form onSubmit={submit} className={`${card} grid grid-cols-2 gap-3`} aria-label={t("Climate.reading")}>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
+              {t("Climate.temperature")}
+              <input inputMode="decimal" dir="ltr" required value={values.temperature} onChange={(e) => setValues({ ...values, temperature: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
+              {hint("temperature", values.temperature.trim() !== "")}
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
+              {t("Climate.humidity")}
+              <input inputMode="numeric" dir="ltr" required value={values.humidity} onChange={(e) => setValues({ ...values, humidity: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
+              {hint("humidity", values.humidity.trim() !== "")}
+            </label>
+            <label className="col-span-2 flex flex-col gap-1 text-sm font-medium text-ink-2">
+              {t("Climate.ammonia")}
+              <input inputMode="numeric" dir="ltr" value={values.ammonia} onChange={(e) => setValues({ ...values, ammonia: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
+              {hint("ammonia", values.ammonia.trim() !== "")}
+            </label>
+            <label className="flex flex-col gap-1 text-sm">{t("Climate.day")}<input name="day" type="date" required max={today} defaultValue={today} className={field} /></label>
+            <label className="flex flex-col gap-1 text-sm">{t("Climate.time")}<input name="time" type="time" required defaultValue={now()} className={field} /></label>
+            <button type="submit" className={`${primary} col-span-2`}>{t("Climate.save")}</button>
+          </form>
+          <PowerCuts
+            farmId={house.farmId}
+            cuts={of<PowerCutDto>("powerCut")}
+            save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
+          />
+        </>
+      )}
       <History house={house} readings={of<ReadingDto>("climateReading")} cuts={of<PowerCutDto>("powerCut")} batches={of<BatchDto>("batch")} sets={sets} />
-      <Link href="/climate/targets" className="text-sm underline underline-offset-4">{t("Climate.targetsOpen")}</Link>
+      <Link href="/climate/targets" className={`${link} text-sm`}>{t("Climate.targetsOpen")}</Link>
     </>
   );
 }
@@ -164,7 +169,7 @@ function PowerCuts({ farmId, cuts, save }: { farmId: string; cuts: PowerCutDto[]
       <label className="flex min-h-11 items-center gap-3"><input type="checkbox" name="generator" className="size-5" />{t("Climate.generatorStarted")}</label>
       <label className="flex flex-col gap-1">{t("Climate.generatorSeconds")}<input name="seconds" inputMode="numeric" dir="ltr" className={field} /></label>
       <label className="flex flex-col gap-1">{t("Climate.diesel")}<input name="diesel" inputMode="decimal" dir="ltr" className={field} /></label>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <button type="submit" className={primary}>{t("Climate.cutEnd")}</button>
     </form>
   );
@@ -180,7 +185,7 @@ function History({ house, readings, cuts, batches, sets }: { house: HouseDto; re
   // The batch that was in the house on the reading's day: its age then picks the band, as on the server.
   const ageOn = (d: string) => {
     const b = batches.find((x) => x.houseId === house.id && x.placedOn <= d && (x.status === "open" || (x.closedOn ?? "") >= d));
-    return b ? daysBetween(b.placedOn as FarmDay, d as FarmDay) : null;
+    return b ? { age: ageOfBatch(b, d as FarmDay), type: b.species } : null;
   };
   if (last.length === 0 && lastCuts.length === 0) return null;
   return (
@@ -189,8 +194,8 @@ function History({ house, readings, cuts, batches, sets }: { house: HouseDto; re
       {last.length > 0 && (
         <ul aria-label={t("Climate.lastReadings")} className={card}>
           {last.map((r) => {
-            const age = ageOn(r.day);
-            const v = verdicts(r, age === null ? null : targetFor(sets, r.day, age));
+            const on = ageOn(r.day);
+            const v = verdicts(r, on === null ? null : targetFor(sets, r.day, on.age, on.type));
             const off = (["temperature", "humidity", "ammonia"] as const).filter((k) => v[k] === "below" || v[k] === "above");
             return (
               <li key={r.id} className="flex justify-between gap-3 border-t border-line py-2 first:border-t-0">

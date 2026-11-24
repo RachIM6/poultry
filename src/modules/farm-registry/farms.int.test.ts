@@ -37,7 +37,8 @@ describe("farms and houses through sync (SPEC F2–F4, X2, X3)", () => {
 
     const secondPhone = await pull(a, 0, registry);
     expect(secondPhone.changes.map((c) => [c.entity, c.data])).toEqual([
-      ["farm", { id: farmId, ...farm }],
+      // SPEC-m3 B10 and the register's cover: none unless set
+      ["farm", { id: farmId, ...farm, doaClaimThresholdPermille: null, holder: null, vet: null, technicianName: null, chickImportApproval: null, registerKeepers: [] }],
       ["house", { id: h1, farmId, ...house }],
       ["house", { id: h2, farmId, ...house, name: "Bâtiment 2", type: "open" }],
     ]);

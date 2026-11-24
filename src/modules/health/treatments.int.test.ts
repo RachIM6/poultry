@@ -6,7 +6,7 @@ import { pull, push, type SyncRegistry } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { flockSync } from "@/modules/flock";
 import { FLOCK_MUTATIONS as F, dailyEntryId } from "@/modules/flock/schema";
-import { healthSync } from "@/modules/health";
+import { eggWithdrawalWindowsOf, healthSync } from "@/modules/health";
 import { HEALTH_MUTATIONS as H, type TreatmentDto, type VetVisitDto } from "@/modules/health/schema";
 import { inventorySync, stockOnHand } from "@/modules/inventory";
 import { INVENTORY_MUTATIONS as I, type MovementDto } from "@/modules/inventory/schema";
@@ -99,5 +99,48 @@ describe("treatments, withdrawal and vet visits (SPEC H3–H6, S4)", () => {
       expect.objectContaining({ batchId: batch, on: "2026-11-01", vetName: "Dr Alaoui", notes: "Toux, traitement prescrit.", byUserId: a.userId }),
     ]);
     expect(await pulled(b, "vetVisit")).toEqual([]);
+  });
+
+  it("SPEC-m3 H7: a layer batch's treatment needs its egg withdrawal; sales get the laying days to withhold", async () => {
+    const layers = uuidv7();
+    const house2 = uuidv7();
+    await db.strain.create({ data: { id: "lohmann-brown", name: "Lohmann Brown", productionTypes: ["pullet", "layer"] } });
+    await db.house.create({ data: { id: house2, organizationId: a.organizationId, farmId: farm, name: "P1", areaM2: 1000, capacity: 6000, type: "closed" } });
+    expect(
+      await statuses(a, [
+        m(F.placeBatch, { id: layers, houseId: house2, species: "layer", strainId: "lohmann-brown", placedOn: "2026-10-25", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null, ageAtPlacementDays: 200 }),
+        treatment({ batchId: layers }),
+        treatment({ batchId: layers, eggWithdrawalDays: 7 }),
+      ]),
+    ).toEqual(["applied", "EGG_WITHDRAWAL_REQUIRED", "applied"]);
+    const pulled = (await pull(a, 0, registry)).changes.map((c) => c.data as TreatmentDto).findLast((t) => t.batchId === layers);
+    expect(pulled).toMatchObject({ eggWithdrawalDays: 7, eggWithdrawalEndsOn: "2026-11-09" });
+    await db.$transaction(async (tx) => expect(await eggWithdrawalWindowsOf(tx, a, layers)).toEqual([{ from: "2026-10-30", to: "2026-11-09" }]));
+  });
+
+  it("the register (arrêté 2126-05 art. 4): route and prescription reference, optional, as entered; replayed once", async () => {
+    const given = treatment({ quantity: 100, route: "drinkingWater", prescriptionRef: "ORD-2026-118" });
+    const id = (given.payload as { id: string }).id;
+    expect(
+      await statuses(a, [
+        treatment({ quantity: 100, route: "other" }), // other says what
+        treatment({ quantity: 100, route: "feed", routeNote: "granulés" }), // a note only for other
+        treatment({ quantity: 100, route: "pill" }),
+        treatment({ quantity: 100, prescriptionRef: "x".repeat(61) }),
+      ]),
+    ).toEqual(Array(4).fill("INVALID_INPUT"));
+
+    const worker = { ...a, role: "worker" as const }; // every member records what was given (H3, I5)
+    expect(await statuses(worker, [given])).toEqual(["applied"]);
+    expect(await statuses(worker, [given])).toEqual(["applied"]); // the same mutation again: its stored result
+    expect(await db.treatment.count({ where: { id } })).toBe(1);
+    expect(await db.stockMovement.count({ where: { id } })).toBe(1);
+    expect(await db.auditEvent.findFirstOrThrow({ where: { entity: "Treatment", entityId: id } })).toMatchObject({ mutationId: given.id, after: { route: "drinkingWater", prescriptionRef: "ORD-2026-118" } });
+    expect((await pulled<TreatmentDto>(a, "treatment")).find((x) => x.id === id)).toMatchObject({ route: "drinkingWater", routeNote: null, prescriptionRef: "ORD-2026-118" });
+
+    const other = treatment({ quantity: 100, route: "other", routeNote: "au pinceau" });
+    expect(await statuses(a, [other])).toEqual(["applied"]);
+    expect(await db.treatment.findUniqueOrThrow({ where: { id: (other.payload as { id: string }).id } })).toMatchObject({ route: "other", routeNote: "au pinceau", prescriptionRef: null });
+    expect(await pulled(b, "treatment")).toEqual([]);
   });
 });

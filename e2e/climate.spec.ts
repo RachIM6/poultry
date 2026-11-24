@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T81 (SPEC-m4 CL2, CL3): a reading recorded offline, with no targets entered, says so and syncs once.
 test("a climate reading recorded offline without targets says so, survives a reload and syncs once", async ({ page, context }) => {
@@ -11,7 +11,7 @@ test("a climate reading recorded offline without targets says so, survives a rel
 
   await page.getByRole("link", { name: "Plus", exact: true }).click();
   await page.getByRole("link", { name: "Climat des bâtiments" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByText("Lot en place : J0")).toBeVisible();
 
   await context.setOffline(true);
@@ -29,6 +29,7 @@ test("a climate reading recorded offline without targets says so, survives a rel
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ t: number; h: number }>(
       `SELECT r."temperatureTenths" AS t, r.humidity AS h FROM "ClimateReading" r

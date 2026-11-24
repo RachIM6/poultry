@@ -3,12 +3,13 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { redirect } from "@/i18n/navigation";
-import { formatDay, formatMoney } from "@/lib/format";
+import { formatDay, formatDecimal, formatMoney } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { batchResults } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { table } from "@/components/ui";
+import { Num } from "@/components/num";
 
 // SPEC-finance FN13: each batch's result side by side, newest first, so the owner compares it with the last batches.
 // Online, owner and manager; computed from the server's records, never cached.
@@ -33,8 +34,16 @@ async function Results() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const results = await batchResults(ctx.value);
-  if (!results.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!results.ok) return <p>{t("Results.forbidden")}</p>;
   const money = (c: bigint | null) => (c === null ? "—" : formatMoney(c));
+  // FN13: the comparison with the farm's last batches, under each batch
+  const kpis = (c: (typeof results.value)[number]["comparison"]) =>
+    t("Results.kpis", {
+      lost: c.lostPermille === null ? "—" : permille(c.lostPermille),
+      fcr: c.fcr === null ? "—" : formatDecimal(c.fcr, 2), // as the batch screen, its report and /compare
+      feed: money(c.feedPricePerKgCentimes),
+      price: money(c.pricePerKgCentimes),
+    });
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Results.title")}</h1>
@@ -60,16 +69,18 @@ async function Results() {
                   <td className="p-2">
                     <div className="font-semibold">{r.houseName} · {formatDay(r.placedOn as FarmDay, lang)}</div>
                     <div className="text-muted">{r.closedOn ? t("Results.closed", { date: formatDay(r.closedOn as FarmDay, lang) }) : t("Results.open_")}</div>
+                    <div>{kpis(r.comparison)}</div>
+                    {r.byBirdDays && <div className="text-muted">{t("Results.byBirdDays")}</div>}
                     <div className="text-muted">
                       {t("Results.costs", { chicks: money(r.costs.chicks), consumption: money(r.costs.consumption), other: money(r.costs.other), direct: money(r.costs.direct), allocated: money(r.costs.allocated) })}
                     </div>
                   </td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.salesCentimes)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.costCentimes)}</td>
-                  <td dir="ltr" className="p-2 text-end font-semibold tabular-nums">{money(r.marginCentimes)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.marginPerKgCentimes)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.costPerKgCentimes)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{r.marginPermille === null ? "—" : permille(r.marginPermille)}</td>
+                  <Num>{money(r.salesCentimes)}</Num>
+                  <Num>{money(r.costCentimes)}</Num>
+                  <Num className="font-semibold">{money(r.marginCentimes)}</Num>
+                  <Num>{money(r.marginPerKgCentimes)}</Num>
+                  <Num>{money(r.costPerKgCentimes)}</Num>
+                  <Num>{r.marginPermille === null ? "—" : permille(r.marginPermille)}</Num>
                 </tr>
               ))}
             </tbody>

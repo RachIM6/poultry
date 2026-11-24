@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { Client } from "pg";
+import { v7 as uuidv7 } from "uuid";
 
 // The app's own database (the production build under test reads DATABASE_URL too).
 export async function query<T>(sql: string, params: unknown[]): Promise<T[]> {
@@ -12,10 +13,17 @@ export async function query<T>(sql: string, params: unknown[]): Promise<T[]> {
   }
 }
 
-// Better Auth stores the pending code as "<code>:<attempts>".
-export const codeFor = async (e164: string) =>
-  (await query<{ value: string }>(`SELECT value FROM "Verification" WHERE identifier = $1 ORDER BY "createdAt" DESC LIMIT 1`, [`phone-number-otp-${e164}`]))[0]
-    .value.split(":")[0];
+// Better Auth stores the pending code as "<code>:<attempts>". Polled: under load the row lands after the form's status shows.
+export async function codeFor(e164: string) {
+  let value = "";
+  await expect
+    .poll(async () => {
+      const rows = await query<{ value: string }>(`SELECT value FROM "Verification" WHERE identifier = $1 ORDER BY "createdAt" DESC LIMIT 1`, [`phone-number-otp-${e164}`]);
+      return (value = rows[0]?.value ?? "");
+    })
+    .not.toBe("");
+  return value.split(":")[0];
+}
 
 // A fresh number per run: rate limits persist in the database between runs.
 export const randomMobile = () => `06${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
@@ -55,7 +63,7 @@ export async function scopeRemembered(page: Page) {
           req.onerror = () => resolve(false);
         }),
     );
-  await expect.poll(stored).toBe(true);
+  await expect.poll(stored, { timeout: 15_000 }).toBe(true); // the first signed-in page may be slow under load
 }
 
 /** How many writes wait in the signed-in scope's outbox: lets a test know a local save committed before it navigates. */
@@ -82,6 +90,22 @@ export async function queuedWrites(page: Page) {
     return count;
   });
 }
+
+/**
+ * Back online: waits until the outbox is empty, i.e. the server has answered every queued write (an applied one is on
+ * the server; a refused one moves to "À vérifier" and the server check that follows shows it). A server check polled
+ * right after going online races the push, which takes longer than its timeout under load.
+ */
+export async function outboxEmpty(page: Page) {
+  await expect.poll(() => queuedWrites(page), { timeout: 30_000 }).toBe(0);
+}
+
+/**
+ * The close run and the year close go through a whole year in one transaction, allowed SYNC_TX (src/lib/db.ts: 15 s,
+ * after up to 5 s waiting for a connection). Under load the answer took ~10 s, the default expect timeout: wait past
+ * the server's own budget for it.
+ */
+export const closeRun = { timeout: 30_000 };
 
 /** A new owner with an organisation, signed in on the French dashboard. */
 export async function ownerWithFarm(page: Page, farmName: string) {
@@ -118,7 +142,14 @@ export async function pushAs(page: Page, mutations: { type: string; payload: unk
 
 /** A farm with a house, a feed item with 1 000 kg bought, and a batch of 1 000 chicks placed today. */
 /** The farm day (Africa/Casablanca) `n` days ago, as YYYY-MM-DD. */
-export const farmDaysAgo = (n: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablanca" }).format(new Date(Date.now() - n * 86_400_000));
+// Calendar days back from today's farm day: n × 24 h from "now" lands on the wrong day near midnight when Morocco's UTC
+// offset differs between the two dates (seen at 23:27 UTC: a 42-day batch came out 41 days old).
+export const farmDaysAgo = (n: number) => {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablanca" }).format(new Date());
+  const day = new Date(`${today}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() - n);
+  return day.toISOString().slice(0, 10);
+};
 
 export async function farmWithBatch(page: Page, strainId = "ross-308", placedOn = farmDaysAgo(0)) {
   const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), supplier: crypto.randomUUID(), feed: crypto.randomUUID(), batch: crypto.randomUUID() };
@@ -127,7 +158,7 @@ export async function farmWithBatch(page: Page, strainId = "ross-308", placedOn 
     { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1200, capacity: 12000, type: "closed" } },
     { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Alf", phone: null } },
     { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
-    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day: placedOn, quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: placedOn, quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
     { type: "flock.placeBatch", payload: { id: ids.batch, houseId: ids.house, strainId, placedOn, chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null } },
   ]);
   return ids;
@@ -150,6 +181,49 @@ export async function referenceCached(page: Page) {
         }),
     );
   await expect.poll(stored).toBe(true);
+}
+
+/**
+ * Waits until the service worker controls the page. `ready` resolves while the worker is still activating, a few ms
+ * before its clients.claim(): offline in that gap, a chunk the page loads later (the batch's day, a form) isn't served
+ * from the precache, and the screen shows its error instead.
+ */
+export async function controlled(page: Page) {
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+}
+
+/**
+ * Waits until the phone holds each record pushed with `pushAs` ("<entity>:<id>", src/offline/db.ts `records`): the page
+ * pulls them after it opens, and a test that goes offline before then finds a screen without them.
+ */
+export async function pulled(page: Page, keys: string[]) {
+  const missing = () =>
+    page.evaluate(async (keys) => {
+      const open = (name: string) =>
+        new Promise<IDBDatabase | null>((resolve) => {
+          const req = indexedDB.open(name);
+          req.onupgradeneeded = () => req.transaction?.abort(); // not created by the app yet: don't create it empty
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        });
+      const get = <T,>(db: IDBDatabase, store: string, key: string) =>
+        new Promise<T | undefined>((resolve) => {
+          if (!db.objectStoreNames.contains(store)) return resolve(undefined);
+          const req = db.transaction(store).objectStore(store).get(key);
+          req.onsuccess = () => resolve(req.result as T | undefined);
+          req.onerror = () => resolve(undefined);
+        });
+      const device = await open("poultry-device");
+      const current = device && (await get<{ scope: { userId: string; organizationId: string } }>(device, "session", "current"));
+      device?.close();
+      const db = current ? await open(`poultry-${current.scope.userId}:${current.scope.organizationId}`) : null;
+      const left: string[] = [];
+      for (const key of keys) if (!db || !(await get(db, "records", key))) left.push(key);
+      db?.close();
+      return left;
+    }, keys);
+  await expect.poll(missing, { timeout: 30_000 }).toEqual([]); // the first pull of a busy run, as outboxEmpty
 }
 
 /** A strain with a made-up curve (40 g on day 0, 200 g on day 7): no breeder table is committed yet (OQ5). Not a real

@@ -1,0 +1,6 @@
+[
+  {"id": "s", "label": "S", "sortOrder": 0, "minGrams": null, "maxGrams": null},
+  {"id": "m", "label": "M", "sortOrder": 1, "minGrams": null, "maxGrams": null},
+  {"id": "l", "label": "L", "sortOrder": 2, "minGrams": null, "maxGrams": null},
+  {"id": "xl", "label": "XL", "sortOrder": 3, "minGrams": null, "maxGrams": null}
+]

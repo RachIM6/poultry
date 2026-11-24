@@ -98,6 +98,26 @@ export async function moveCursor(tx: Tx, ctx: TenantContext, source: string, ver
   await tx.postingCursor.update({ where: { organizationId_source: { organizationId: ctx.organizationId, source } }, data: { version } });
 }
 
+/**
+ * FN7, §9 "Postings catch up": organisations with a change recorded past a source's cursor, up to `limit`, in random
+ * order so a few that keep failing don't hold the others back; `organizationId`: that one only. A tombstone counts: a
+ * cancelled sale or purchase reverses its entry (§9 "Cancelled records"), and every source's reader moves past one.
+ */
+export async function pendingOrganizations(tx: Tx, sources: { name: string; entity: string }[], limit: number, organizationId: string | null = null): Promise<string[]> {
+  const rows = await tx.$queryRaw<{ organizationId: string }[]>`
+    SELECT v."organizationId" FROM "SyncVersion" v
+    WHERE (${organizationId}::uuid IS NULL OR v."organizationId" = ${organizationId}::uuid)
+      AND EXISTS (
+        SELECT 1 FROM unnest(${sources.map((s) => s.name)}::text[], ${sources.map((s) => s.entity)}::text[]) AS s(source, entity)
+        WHERE EXISTS (
+          -- the cursor as a subquery, not a join: the index then seeks past it (organizationId, entity, version)
+          SELECT 1 FROM "Change" c
+          WHERE c."organizationId" = v."organizationId" AND c.entity = s.entity
+            AND c.version > COALESCE((SELECT p.version FROM "PostingCursor" p WHERE p."organizationId" = v."organizationId" AND p.source = s.source), 0)))
+    ORDER BY random() LIMIT ${limit}`;
+  return rows.map((r) => r.organizationId);
+}
+
 /** The entry currently standing for a source record: its latest posting that no entry reverses. */
 export async function standingEntryFor(tx: Tx, ctx: TenantContext, module: string, sourceId: string) {
   const e = await tx.journalEntry.findFirst({
@@ -109,6 +129,24 @@ export async function standingEntryFor(tx: Tx, ctx: TenantContext, module: strin
   return { id: e.id, journal: e.journal, day: dayOf(e.day), lines: e.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes, treasuryId: l.treasuryId })) };
 }
 
-export async function sourceAlreadyPosted(tx: Tx, source: { module: string; id: string; version: number }) {
-  return (await tx.journalEntry.count({ where: { sourceModule: source.module, sourceId: source.id, sourceVersion: source.version } })) > 0;
+/** FN8: when a source record's first entry was posted, null if never. */
+export async function firstPostedAt(tx: Tx, ctx: TenantContext, module: string, sourceId: string): Promise<Date | null> {
+  const e = await tx.journalEntry.findFirst({ where: { organizationId: ctx.organizationId, sourceModule: module, sourceId }, orderBy: { sourceVersion: "asc" }, select: { createdAt: true } });
+  return e?.createdAt ?? null;
+}
+
+export async function sourceAlreadyPosted(tx: Tx, ctx: TenantContext, source: { module: string; id: string; version: number }) {
+  const where = { organizationId: ctx.organizationId, sourceModule: source.module, sourceId: source.id, sourceVersion: source.version };
+  return (await tx.journalEntry.count({ where })) > 0;
+}
+
+/** FN7: a source record's highest version posted, 0 when none: its next version is this + 1. */
+export async function lastSourceVersion(tx: Tx, ctx: TenantContext, module: string, sourceId: string): Promise<number> {
+  const r = await tx.journalEntry.aggregate({ where: { organizationId: ctx.organizationId, sourceModule: module, sourceId }, _max: { sourceVersion: true } });
+  return r._max.sourceVersion ?? 0;
+}
+
+/** FCX6: the close of the fiscal year ending on `lastDay` (who, when), null while the year is open. */
+export async function yearClose(tx: Tx, ctx: TenantContext, legalEntityId: string, lastDay: FarmDay) {
+  return tx.fiscalYearClose.findFirst({ where: { organizationId: ctx.organizationId, legalEntityId, day: date(lastDay) } });
 }

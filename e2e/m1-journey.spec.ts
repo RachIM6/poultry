@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
+import { v7 as uuidv7 } from "uuid";
+import { controlled, farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // Checkpoint G (SPEC §9.2): the M1 offline journey, in each language on a phone: create a batch → 3 daily entries →
 // weighing → vaccine done → reload → online → synced → visible on a second device. Every label comes from the app's
@@ -32,16 +33,16 @@ for (const locale of ["fr", "ar"] as const) {
       { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1200, capacity: 12000, type: "closed" } },
       { type: "inventory.createSupplier", payload: { id: ids.supplier, name: "Alf", phone: null } },
       { type: "inventory.createStockItem", payload: { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null } },
-      { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.feed, day: farmDaysAgo(5), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
+      { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.feed, day: farmDaysAgo(5), quantity: 1_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
       { type: "inventory.createStockItem", payload: { id: ids.lot, farmId: ids.farm, productId: "vaccine-newcastle", kind: "vaccine", name: "Newcastle", unit: "dose", lot: "NDV-26", expiresOn: farmDaysAgo(-365) } },
-      { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: crypto.randomUUID(), supplierId: ids.supplier, stockItemId: ids.lot, day: farmDaysAgo(5), quantity: 2000, unitPriceCentimes: "20", paidCentimes: "0", dueOn: null } },
+      { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: ids.lot, day: farmDaysAgo(5), quantity: 2000, unitPriceCentimes: "20", paidCentimes: "0", dueOn: null } },
       { type: "reference-data.copyProtocol", payload: { id: ids.protocol, templateId: "broiler-default", name: "Programme" } },
       // Made up for the test, NOT a schedule (OQ4): one vaccine on day 0.
       { type: "reference-data.updateProtocol", payload: { id: ids.protocol, changes: { items: [{ dayOfAge: 0, productId: "vaccine-newcastle", method: "spray" }] } } },
     ]);
 
     await page.goto(`/${locale}/batches`);
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await controlled(page);
     await referenceCached(page);
     await expect(label(page, "Batches", "protocol")).toHaveCount(0); // the form isn't open yet
     await page.getByRole("button", { name: t("Batches", "place"), exact: true }).click();
@@ -58,12 +59,16 @@ for (const locale of ["fr", "ar"] as const) {
     await page.getByRole("button", { name: t("Batches", "save"), exact: true }).click();
     await page.getByRole("link", { name: t("Day", "open"), exact: true }).click();
 
+    // Each save lowers the birds on hand: wait for that, not the status (it reads the same after every save).
+    let alive = 1000;
     for (const [ago, dead, feedKg] of [[2, "2", "50"], [1, "1", "60"], [0, "1", "70"]] as const) {
       await label(page, "Day", "day").fill(farmDaysAgo(ago));
       await label(page, "Day", "dead").fill(dead);
       await label(page, "Day", "feedKg").fill(feedKg);
       await page.getByRole("button", { name: t("Day", "save"), exact: true }).click();
       await saved();
+      alive -= Number(dead);
+      await expect(page.getByText(t("Day", "onHand", { birds: String(alive) }))).toBeVisible();
     }
     const onHand = t("Day", "onHand", { birds: "996" }); // 1 000 − 4
     await expect(page.getByText(onHand)).toBeVisible();
@@ -74,7 +79,7 @@ for (const locale of ["fr", "ar"] as const) {
     await expect(weighings).toHaveCount(1);
 
     const vaccine = page.getByRole("list", { name: t("Vaccination", "title"), exact: true }).getByRole("listitem");
-    await vaccine.getByRole("button", { name: t("Vaccination", "markDone"), exact: true }).click();
+    await vaccine.getByRole("button", { name: t("Vaccination", "markDone") }).click(); // named "…: vaccine, day" (WCAG 2.4.6)
     await expect(label(page, "Vaccination", "doses")).toHaveValue("996"); // the birds on hand
     await page.getByRole("button", { name: t("Vaccination", "save"), exact: true }).click();
     // The open form's lot list also says NDV-26: wait for it to close (saved) before reloading.

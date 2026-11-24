@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T13 acceptance: a purchase made offline increases stock and, after sync, the unpaid part is supplier credit.
 test("an offline feed purchase shows in stock and in the supplier's balance, then syncs exactly", async ({ page, context }) => {
@@ -18,7 +18,7 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
   // Leaving the page before the local write commits would abort it (flaky in CI).
   await expect(page.getByRole("status").filter({ hasText: "Enregistré sur ce téléphone." })).toBeVisible();
   await page.goto("/fr/stock");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByText("Aucun article dans cette ferme.")).toBeVisible();
   await referenceCached(page); // the catalogue list below needs it, and it can't come once offline
 
@@ -53,6 +53,7 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const purchase = async () =>
     (
       await query<{ amount: string; paid: string; quantity: number }>(
@@ -62,10 +63,14 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
       )
     )[0] ?? null;
   await expect.poll(purchase).toEqual({ amount: "900000", paid: "300000", quantity: 2_000_000 });
-  const [item] = await query<{ threshold: number }>(
-    `SELECT s."lowStockThreshold" AS threshold FROM "StockItem" s JOIN "Membership" m ON m."organizationId" = s."organizationId"
-     JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
-    [e164],
-  );
-  expect(item.threshold).toBe(2_500_000);
+  // The threshold is its own write, which may reach the server after the purchase: wait for it too.
+  const threshold = async () =>
+    (
+      await query<{ threshold: number | null }>(
+        `SELECT s."lowStockThreshold" AS threshold FROM "StockItem" s JOIN "Membership" m ON m."organizationId" = s."organizationId"
+         JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
+        [e164],
+      )
+    )[0]?.threshold;
+  await expect.poll(threshold).toBe(2_500_000);
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { INSTRUMENT_STATES } from "@/modules/sales/domain/instruments";
-import { BUYER_TYPES, PAYMENT_METHODS } from "@/modules/sales/domain/sale";
-import { LATER_PAYMENT_METHODS } from "@/modules/sales/shared";
+import { BUYER_TYPES, HEAD_KINDS, PAYMENT_METHODS } from "@/modules/sales/domain/sale";
+import { LATER_PAYMENT_METHODS, TAKERS } from "@/modules/sales/shared";
 
 // SPEC V1–V4, the sync push's validation. The phone's screens import ./shared.ts (no Zod, ADR-009), re-exported here so
 // server code and tests keep one import.
@@ -10,12 +10,22 @@ export * from "@/modules/sales/shared";
 const text = (max: number) => z.string().trim().min(1).max(max);
 const centimes = z.string().regex(/^\d{1,15}$/); // integer centimes; JSON has no bigint
 
+// The register (arrêté 2126-05 art. 4): optional, as entered; blank is none.
+const address = z.string().trim().max(200).transform((s) => s || null).nullable().default(null);
+
 export const CreateBuyer = z.object({
   id: z.uuid(),
   name: text(120),
   phone: z.string().trim().max(32).transform((s) => s || null).nullable(),
   type: z.enum(BUYER_TYPES),
+  address,
 });
+
+/** The register: a known buyer's address, set or corrected from the sale form; null clears it. */
+export const SetBuyerAddress = z.object({ buyerId: z.uuid(), address });
+
+/** The register: live birds going to a farm or an establishment that isn't the buyer's, when it isn't. */
+const destination = z.object({ name: text(120), address: text(200).nullable() }).nullable().default(null);
 
 export const RecordSale = z.object({
   id: z.uuid(),
@@ -28,8 +38,60 @@ export const RecordSale = z.object({
   pricePerKgCentimes: centimes,
   paymentMethod: z.enum(PAYMENT_METHODS),
   paidCentimes: centimes,
+  vatCentimes: centimes.default("0"), // SPEC-finance FN9: the invoice's VAT, part of the total
   instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(), // cheque or bill of exchange
+  destination,
 });
+
+/** SPEC-m3 V6: eggs of a layer batch, by item, priced per tray. */
+export const RecordEggSale = z.object({
+  id: z.uuid(),
+  batchId: z.uuid(),
+  buyerId: z.uuid(),
+  day: z.iso.date(),
+  lines: z
+    .array(
+      z.object({
+        item: z.union([z.literal("ungraded"), z.literal("downgraded"), z.string().regex(/^grade:[a-z0-9]+(-[a-z0-9]+)*$/).max(26)]),
+        eggs: z.int32().positive(),
+        eggsPerTray: z.int32().positive().max(1000).default(30), // MQ8
+        unitPriceCentimes: centimes,
+      }),
+    )
+    .min(1)
+    .max(20),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+  paidCentimes: centimes,
+  vatCentimes: centimes.default("0"),
+  instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(),
+});
+
+/** SPEC-m3 V7: live birds sold by the head, by line; the farm weight is optional. */
+export const RecordHeadSale = z.object({
+  id: z.uuid(),
+  batchId: z.uuid(),
+  buyerId: z.uuid(),
+  day: z.iso.date(),
+  lines: z.array(z.object({ item: z.enum(HEAD_KINDS), birds: z.int32().positive(), pricePerHeadCentimes: centimes })).min(1).max(3),
+  farmWeightGrams: z.int32().positive().nullable(),
+  paymentMethod: z.enum(PAYMENT_METHODS),
+  paidCentimes: centimes,
+  vatCentimes: centimes.default("0"),
+  instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable(),
+  destination,
+});
+
+/**
+ * SPEC-finance FC7: birds or eggs taken home, on the form of the same product (V2, V7, V6), with who took them and no
+ * buyer or payment. A price left out (always, from a worker: I5) is the last sale's (FQ21); a worker's is ignored.
+ */
+const consumption = { id: z.uuid(), batchId: z.uuid(), day: z.iso.date(), takenBy: z.enum(TAKERS) };
+const price = centimes.nullable().default(null);
+export const RecordConsumption = z.discriminatedUnion("kind", [
+  z.object({ ...consumption, kind: z.literal("live"), birds: z.int32().positive(), farmWeightGrams: z.int32().positive(), pricePerKgCentimes: price }),
+  z.object({ ...consumption, kind: z.literal("perHead"), lines: z.array(RecordHeadSale.shape.lines.element.extend({ pricePerHeadCentimes: price })).min(1).max(3), farmWeightGrams: z.int32().positive().nullable() }),
+  z.object({ ...consumption, kind: z.literal("eggs"), lines: z.array(RecordEggSale.shape.lines.element.extend({ unitPriceCentimes: price })).min(1).max(20) }),
+]);
 
 /** V4: a later payment from a buyer, against what they owe. */
 export const RecordPayment = z.object({
@@ -38,6 +100,7 @@ export const RecordPayment = z.object({
   day: z.iso.date(), // farm day
   amountCentimes: centimes,
   method: z.enum(LATER_PAYMENT_METHODS),
+  instrument: z.object({ number: text(40), dueOn: z.iso.date() }).nullable().default(null), // FN11: cheque or bill only
 });
 
 /** SPEC-finance FN11: a received cheque or bill remitted, cashed or unpaid. The id is a UUIDv7: statuses sort by it. */
@@ -51,3 +114,9 @@ export const SetCreditLimit = z.object({ buyerId: z.uuid(), limitCentimes: centi
 
 /** FN12: the owner approves a credit sale that went past the buyer's limit. */
 export const ApproveCredit = z.object({ saleId: z.uuid() });
+
+/** SPEC-finance §9 "Cancelled records": a sale typed wrong, cancelled (it is then typed again). */
+export const CancelSale = z.object({ saleId: z.uuid() });
+
+/** SPEC-finance §9 "Cancelled records": a sale's prices corrected: per kg (live birds), or per line in order. */
+export const CorrectSale = z.object({ saleId: z.uuid(), pricePerKgCentimes: centimes.nullable(), linePrices: z.array(centimes).max(20).default([]), vatCentimes: centimes.default("0") });

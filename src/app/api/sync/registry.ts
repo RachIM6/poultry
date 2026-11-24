@@ -1,9 +1,15 @@
-import type { SyncRegistry } from "@/lib/sync/server";
+import type { z } from "zod";
+import { defineMutation, Rejection, type MutationHandler, type SyncRegistry } from "@/lib/sync/server";
+import { PULL_VIEWS } from "@/lib/sync/views";
+import { eggsSync } from "@/modules/eggs";
+import { biosecuritySync } from "@/modules/biosecurity";
+import { documentsSync } from "@/modules/documents";
 import { farmRegistrySync } from "@/modules/farm-registry";
 import { financeSync } from "@/modules/finance";
 import { climateSync } from "@/modules/climate";
 import { flockSync } from "@/modules/flock";
-import { healthSync } from "@/modules/health";
+import { FLOCK_MUTATIONS, type CorrectPlacement } from "@/modules/flock/schema";
+import { healthSync, moveWithPlacement } from "@/modules/health";
 import { inventorySync } from "@/modules/inventory";
 import { marketPricesSync } from "@/modules/market-prices";
 import { notificationsSync } from "@/modules/notifications";
@@ -13,17 +19,25 @@ import { salesSync } from "@/modules/sales";
 import { workforceSync } from "@/modules/workforce";
 
 // Every offline mutation and synced entity, from the modules' index.ts.
-const modules: SyncRegistry[] = [farmRegistrySync, referenceDataSync, notificationsSync, inventorySync, flockSync, healthSync, salesSync, financeSync, workforceSync, climateSync, marketPricesSync, planningSync];
+const modules: SyncRegistry[] = [farmRegistrySync, referenceDataSync, notificationsSync, inventorySync, flockSync, eggsSync, healthSync, salesSync, financeSync, workforceSync, climateSync, marketPricesSync, planningSync, biosecuritySync, documentsSync];
+
+// SPEC B1: a corrected placement day moves the batch's vaccination plan, in the same transaction. Flock may not call
+// health (CAPABILITY-MAP.md), so the two are chained here. Health refuses a day after its first record once flock has
+// written: thrown, so the whole correction rolls back and is recorded as rejected.
+const correct = flockSync.mutations[FLOCK_MUTATIONS.correctPlacement] as unknown as MutationHandler<z.infer<typeof CorrectPlacement>>;
+const correctPlacement = defineMutation({
+  ...correct,
+  async apply(tx, ctx, cmd, meta) {
+    const corrected = await correct.apply(tx, ctx, cmd, meta);
+    if (!corrected.ok || cmd.changes.placedOn === undefined) return corrected;
+    const moved = await moveWithPlacement(tx, ctx, cmd.batchId, meta);
+    if (!moved.ok) throw new Rejection(moved.error);
+    return moved;
+  },
+});
 
 export const registry: SyncRegistry = {
-  mutations: Object.assign({}, ...modules.map((m) => m.mutations)),
+  mutations: { ...Object.assign({}, ...modules.map((m) => m.mutations)), [FLOCK_MUTATIONS.correctPlacement]: correctPlacement },
   entities: Object.assign({}, ...modules.map((m) => m.entities)),
-  // SPEC-m5 PA4, PA5 (ADR-011): what a partner's phone receives; anything else, a new entity included, never leaves.
-  views: {
-    vet: ["farm", "house", "batch", "dailyEntry", "weighing", "soldBirds", "protocol", "vaccination", "treatment", "vetVisit", "stockItem", "movement", "notification"],
-    accountant: [
-      "farm", "house", "batch", "soldBirds", "batchCost", "supplier", "stockItem", "movement", "purchase", "buyer", "sale", "buyerPayment", "instrumentStatus",
-      "treasuryAccount", "expense", "transfer", "employee", "advance", "payMonth", "labourRules", "price", "notification",
-    ],
-  },
+  views: PULL_VIEWS, // SPEC-m5 PA4, PA5 (ADR-013)
 };

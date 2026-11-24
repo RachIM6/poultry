@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T70 (SPEC-m4 WF1): an employee added offline on /staff survives a reload and reaches the server once.
 // Workers' view without wages is covered by src/modules/workforce/employees.int.test.ts.
@@ -12,7 +12,7 @@ test("an employee added offline survives a reload and syncs once", async ({ page
 
   await page.getByRole("link", { name: "Plus", exact: true }).click();
   await page.getByRole("link", { name: "Personnel" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByRole("button", { name: "Ajouter un ouvrier" })).toBeVisible(); // the farm reached the phone
 
   await context.setOffline(true);
@@ -21,7 +21,7 @@ test("an employee added offline survives a reload and syncs once", async ({ page
   await page.getByLabel("Nom", { exact: true }).fill("Said A.");
   await page.getByLabel("Salaire par jour (DH)").fill("138,46");
   await page.getByLabel("Logé sur la ferme").check();
-  await page.getByLabel("Bâtiment 1").check();
+  await page.getByRole("checkbox", { name: "Bâtiment 1" }).check(); // the dashboard's hidden "Bâtiment 1" section stays in the DOM
   await page.getByRole("button", { name: "Enregistrer" }).click();
   const list = page.getByRole("list", { name: "Ouvriers" }).getByRole("listitem");
   await expect(list).toHaveCount(1);
@@ -33,6 +33,7 @@ test("an employee added offline survives a reload and syncs once", async ({ page
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ name: string; wage: string }>(
       `SELECT e.name, e."dailyWageCentimes"::text AS wage FROM "Employee" e

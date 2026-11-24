@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
-import { card, done, field, primary, secondary } from "@/components/ui";
+import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { farmDayOf, farmMinutesOf } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
@@ -190,6 +190,11 @@ function Tasks(scope: Scope) {
 
       {manage && (
         <>
+          <OneOffs
+            tasks={of<OneOffTask>("oneOffTask").filter((o) => o.farmId === farm.id && o.day >= today && !o.cancelled)}
+            house={house}
+            onCancel={(o) => write({ type: W.cancelTask, payload: { id: o.id } }, "oneOffTask", o.id, { ...o, cancelled: true })}
+          />
           <OneOffForm farm={farm} houses={houses} employees={employees} today={today} onSave={(o) => write({ type: W.addTask, payload: o }, "oneOffTask", o.id, o)} />
           <Routines farm={farm} routines={routines} houses={houses} employees={employees} today={today} house={house} onSave={(r) => write({ type: W.saveRoutine, payload: r }, "routine", r.id, r)} />
         </>
@@ -209,24 +214,25 @@ function Field({ label, children }: { label: string; children: (id: string) => R
 }
 
 type Place = { farm: FarmDto; houses: HouseDto[]; employees: EmployeeDto[] };
+type Where = { houseId: string | null; time: string | null; employeeId: string | null };
 
-/** House, time and assignee: the same three fields for a one-off task and a routine. */
-function PlaceFields({ farm, houses, employees }: Place) {
+/** House, time and assignee: the same three fields for a one-off task and a routine (prefilled when editing one). */
+function PlaceFields({ farm, houses, employees, value }: Place & { value?: Where }) {
   const t = useTranslations();
   return (
     <>
       <Field label={t("Tasks.house")}>
         {(id) => (
-          <select id={id} name="houseId" className={field}>
+          <select id={id} name="houseId" defaultValue={value?.houseId ?? ""} className={field}>
             <option value="">{t("Staff.wholeFarm")}</option>
             {houses.filter((h) => h.farmId === farm.id).map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
           </select>
         )}
       </Field>
-      <Field label={t("Tasks.time")}>{(id) => <input id={id} name="time" type="time" className={field} />}</Field>
+      <Field label={t("Tasks.time")}>{(id) => <input id={id} name="time" type="time" defaultValue={value?.time ?? ""} className={field} />}</Field>
       <Field label={t("Tasks.assignee")}>
         {(id) => (
-          <select id={id} name="employeeId" className={field}>
+          <select id={id} name="employeeId" defaultValue={value?.employeeId ?? ""} className={field}>
             <option value="">{t("Tasks.auto")}</option>
             {employees.filter((e) => e.farmId === farm.id && !e.leftOn).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>
@@ -242,6 +248,28 @@ const placeOf = (data: FormData, farmId: string) => ({
   time: String(data.get("time") || "") || null,
   employeeId: String(data.get("employeeId") || "") || null,
 });
+
+/** WF5: the one-off tasks still to come, each cancelled after a confirmation (it then leaves the day's list). */
+function OneOffs({ tasks, house, onCancel }: { tasks: OneOffTask[]; house: (id: string | null) => string; onCancel: (o: OneOffTask) => Promise<boolean> }) {
+  const t = useTranslations();
+  if (tasks.length === 0) return null;
+  return (
+    <section aria-label={t("Tasks.planned")} className="flex flex-col gap-3">
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Tasks.planned")}</h2>
+      <ul className="flex flex-col gap-2">
+        {tasks.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? "").localeCompare(b.time ?? "")).map((o) => (
+          <li key={o.id} className={card}>
+            <b className="font-semibold">{o.title} · {house(o.houseId)}</b>
+            <span className="text-sm text-ink-2">{o.day}{o.time ? ` · ${o.time}` : ""}</span>
+            <button type="button" onClick={() => confirm(t("Tasks.cancelConfirm", { title: o.title })) && onCancel(o)} className={`${secondary} self-start`}>
+              {t("Tasks.cancelTask", { title: o.title })}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function OneOffForm({ today, onSave, ...place }: Place & { today: string; onSave: (o: OneOffTask) => Promise<boolean> }) {
   const t = useTranslations();
@@ -265,28 +293,8 @@ function OneOffForm({ today, onSave, ...place }: Place & { today: string; onSave
 
 function Routines({ routines, today, house, onSave, ...place }: Place & { routines: Routine[]; today: string; house: (id: string | null) => string; onSave: (r: Routine) => Promise<boolean> }) {
   const t = useTranslations();
-  const [adding, setAdding] = useState(false);
-  const [from, setFrom] = useState<"day" | "age">("day");
-  const [error, setError] = useState<string>();
+  const [editing, setEditing] = useState<Routine | "new" | null>(null);
   const active = routines.filter((r) => r.farmId === place.farm.id && (r.stopOn === null || r.stopOn > today)).sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
-
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const where = placeOf(data, place.farm.id);
-    if (from === "age" && where.houseId === null) return setError("errors.HOUSE_REQUIRED");
-    setError(undefined);
-    const saved = await onSave({
-      id: uuidv7(),
-      ...where,
-      title: String(data.get("title")).trim(),
-      everyDays: Number(data.get("everyDays")),
-      startOn: from === "day" ? String(data.get("startOn")) : null,
-      fromAge: from === "age" ? Number(data.get("fromAge")) : null,
-      stopOn: null,
-    });
-    if (saved) setAdding(false);
-  };
 
   return (
     <section aria-label={t("Tasks.routines")} className="flex flex-col gap-3">
@@ -298,35 +306,73 @@ function Routines({ routines, today, house, onSave, ...place }: Place & { routin
             <span className="text-sm text-ink-2">
               {t("Tasks.every", { count: r.everyDays })} · {r.fromAge !== null ? t("Tasks.fromAge", { day: String(r.fromAge) }) : t("Tasks.fromDay", { date: r.startOn ?? "" })}
             </span>
-            <button type="button" onClick={() => onSave({ ...r, stopOn: today })} className={`${secondary} self-start`}>{t("Tasks.stop", { title: r.title })}</button>
+            <span className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setEditing(r)} className={secondary}>{t("Tasks.edit", { title: r.title })}</button>
+              <button type="button" onClick={() => onSave({ ...r, stopOn: today })} className={secondary}>{t("Tasks.stop", { title: r.title })}</button>
+            </span>
           </li>
         ))}
       </ul>
-      {adding ? (
-        <form onSubmit={submit} className={card} aria-label={t("Tasks.addRoutine")}>
-          <Field label={t("Tasks.task")}>{(id) => <input id={id} name="title" required maxLength={120} className={field} />}</Field>
-          <Field label={t("Tasks.everyDays")}>{(id) => <input id={id} name="everyDays" type="number" min={1} max={365} required defaultValue={1} className={field} />}</Field>
-          <fieldset className="flex flex-col gap-1">
-            <legend>{t("Tasks.from")}</legend>
-            <label className="flex min-h-11 items-center gap-3"><input type="radio" checked={from === "day"} onChange={() => setFrom("day")} className="size-5" />{t("Tasks.fromCalendar")}</label>
-            <label className="flex min-h-11 items-center gap-3"><input type="radio" checked={from === "age"} onChange={() => setFrom("age")} className="size-5" />{t("Tasks.fromBatch")}</label>
-          </fieldset>
-          {from === "day" ? (
-            <Field label={t("Tasks.startOn")}>{(id) => <input id={id} name="startOn" type="date" required defaultValue={today} className={field} />}</Field>
-          ) : (
-            <Field label={t("Tasks.fromAgeLabel")}>{(id) => <input id={id} name="fromAge" type="number" min={0} max={800} required className={field} />}</Field>
-          )}
-          <PlaceFields {...place} />
-          {from === "age" && <p className="text-sm text-ink-2">{t("Tasks.needsHouse")}</p>}
-          {error && <p role="alert">{t(error)}</p>}
-          <div className="flex gap-3">
-            <button type="submit" className={primary}>{t("Tasks.saveRoutine")}</button>
-            <button type="button" onClick={() => setAdding(false)} className={secondary}>{t("Receivables.cancel")}</button>
-          </div>
-        </form>
+      {editing ? (
+        <RoutineForm
+          key={editing === "new" ? "new" : editing.id}
+          routine={editing === "new" ? null : editing}
+          today={today}
+          place={place}
+          onSave={(r) => onSave(r).then((saved) => saved && setEditing(null))}
+          onCancel={() => setEditing(null)}
+        />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t("Tasks.addRoutine")}</button>
+        <button type="button" onClick={() => setEditing("new")} className={secondary}>{t("Tasks.addRoutine")}</button>
       )}
     </section>
+  );
+}
+
+/** WF5: a new routine, or an edit of one. `saveRoutine` replaces the whole routine, so the edit form is the add form prefilled. */
+function RoutineForm({ routine, today, place, onSave, onCancel }: { routine: Routine | null; today: string; place: Place; onSave: (r: Routine) => Promise<unknown>; onCancel: () => void }) {
+  const t = useTranslations();
+  const [from, setFrom] = useState<"day" | "age">(routine?.fromAge != null ? "age" : "day");
+  const [error, setError] = useState<string>();
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const where = placeOf(data, place.farm.id);
+    if (from === "age" && where.houseId === null) return setError("errors.HOUSE_REQUIRED");
+    setError(undefined);
+    await onSave({
+      id: routine?.id ?? uuidv7(),
+      ...where,
+      title: String(data.get("title")).trim(),
+      everyDays: Number(data.get("everyDays")),
+      startOn: from === "day" ? String(data.get("startOn")) : null,
+      fromAge: from === "age" ? Number(data.get("fromAge")) : null,
+      stopOn: routine?.stopOn ?? null, // a stop day already set stays; "Arrêter" sets it
+    });
+  };
+  const label = routine ? t("Tasks.edit", { title: routine.title }) : t("Tasks.addRoutine");
+  return (
+    <form onSubmit={submit} className={card} aria-label={label}>
+      <h3 className="font-semibold">{label}</h3>
+      <Field label={t("Tasks.task")}>{(id) => <input id={id} name="title" required maxLength={120} defaultValue={routine?.title} className={field} />}</Field>
+      <Field label={t("Tasks.everyDays")}>{(id) => <input id={id} name="everyDays" type="number" min={1} max={365} required defaultValue={routine?.everyDays ?? 1} className={field} />}</Field>
+      <fieldset className="flex flex-col gap-1">
+        <legend>{t("Tasks.from")}</legend>
+        <label className="flex min-h-11 items-center gap-3"><input type="radio" checked={from === "day"} onChange={() => setFrom("day")} className="size-5" />{t("Tasks.fromCalendar")}</label>
+        <label className="flex min-h-11 items-center gap-3"><input type="radio" checked={from === "age"} onChange={() => setFrom("age")} className="size-5" />{t("Tasks.fromBatch")}</label>
+      </fieldset>
+      {from === "day" ? (
+        <Field label={t("Tasks.startOn")}>{(id) => <input id={id} name="startOn" type="date" required defaultValue={routine?.startOn ?? today} className={field} />}</Field>
+      ) : (
+        <Field label={t("Tasks.fromAgeLabel")}>{(id) => <input id={id} name="fromAge" type="number" min={0} max={800} required defaultValue={routine?.fromAge ?? undefined} className={field} />}</Field>
+      )}
+      <PlaceFields {...place} value={routine ?? undefined} />
+      {from === "age" && <p className="text-sm text-ink-2">{t("Tasks.needsHouse")}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
+      <div className="flex gap-3">
+        <button type="submit" className={primary}>{t("Tasks.saveRoutine")}</button>
+        <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
+      </div>
+    </form>
   );
 }

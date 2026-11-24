@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login, ownerWithFarm, query, randomMobile } from "./auth";
+import { codeFor, login, ownerWithFarm, query, randomMobile } from "./auth";
 
 test("log in with a phone code, then log out", async ({ page, context }) => {
   const e164 = await login(page, "fr");
@@ -32,6 +32,47 @@ test("a wrong code shows a translated error (Arabic)", async ({ page }) => {
 test("auth endpoints refuse cross-site requests (CSRF)", async ({ request }) => {
   const res = await request.post("/api/auth/request-code", { data: { phone: "0612345678" } });
   expect(res.status()).toBe(403);
+});
+
+// T26: the production build checks the captcha for real (the form above solved one); a bare request is refused.
+test("a code request without a solved captcha is refused", async ({ page }) => {
+  await page.goto("/fr/login");
+  const status = await page.evaluate(() =>
+    fetch("/api/auth/request-code", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-requested-with": "poultry" },
+      body: JSON.stringify({ phone: "0612345678" }),
+    }).then((r) => r.status),
+  );
+  expect(status).toBe(400);
+});
+
+// T26: after 3 wrong codes verify-code wants a captcha. The code step solves one and the right code then logs in.
+test("after 3 wrong codes, the code step solves a captcha and the right code logs in", async ({ page }) => {
+  const phone = randomMobile();
+  const e164 = `+212${phone.slice(1)}`;
+  await page.goto("/fr/login");
+  await page.getByLabel("Numéro de téléphone").fill(phone);
+  await page.getByRole("button", { name: "Recevoir un code" }).click();
+  await page.getByRole("status").waitFor();
+  const code = await codeFor(e164);
+  const alert = page.getByRole("main").getByRole("alert");
+  const send = async (value: string) => {
+    await page.getByLabel("Code reçu").fill(value);
+    const [res] = await Promise.all([page.waitForResponse("**/api/auth/verify-code"), page.getByRole("button", { name: "Se connecter" }).click()]);
+    return res;
+  };
+
+  for (let i = 0; i < 3; i++) expect((await send(code === "000000" ? "111111" : "000000")).status()).toBe(401);
+  await expect(alert).toHaveText("Code incorrect ou expiré.");
+
+  expect((await send(code)).status()).toBe(400); // no captcha yet: the code isn't even checked
+  await expect(alert).toHaveText("La vérification de sécurité a échoué. Réessayez.");
+
+  const res = await send(code); // the click waits for the captcha solved in the browser
+  expect(res.request().postDataJSON().captcha).toMatchObject({ challenge: expect.any(Object), solution: expect.any(Object) });
+  expect(res.status()).toBe(200);
+  await expect(page).toHaveURL(/\/fr\/onboarding$/);
 });
 
 // T25 S3: the Content-Security-Policy is sent, and the app itself never trips it.

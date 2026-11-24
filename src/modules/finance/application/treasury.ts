@@ -61,7 +61,7 @@ async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string
   const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
   const leaves = new Set(leafAccounts(chart).map((a) => a.number));
   const override = await overridesFor(tx, ctx, entity, chart);
-  // FN8: posted once, today's overrides; then FN2's chart, as the pipeline does
+  // As the posting pipeline: FN8's overrides first (posted once, today's), then the lines in the entity's chart (FN2).
   const mapped = build(entity).map((p) => inChart(override ? override(p, null) : p, chartOf(all, "cgnc", ["pca"]), chart));
   // ponytail: no expense or transfer account lacks a CGNC leaf today; list such a record on /books (as FC7) if one does.
   if (!mapped.every((p) => p?.lines.every((l) => leaves.has(l.account)))) return ok(undefined);

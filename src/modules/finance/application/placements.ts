@@ -122,7 +122,7 @@ export async function placementDues(ctx: TenantContext): Promise<{ dueOn: string
 
 /** The placements still owed, oldest first, with the hatchery's name as typed at placement (no supplier record). */
 export async function placementsToPay(ctx: TenantContext): Promise<Result<PlacementToPay[], "FORBIDDEN">> {
-  if (!can(ctx, "finance.record")) return fail("FORBIDDEN"); // the payer's list
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // the payer's list; the accountant reads it (SPEC-m5 PA5)
   const debts = [...(await debtsOf(db, ctx))].filter(([, d]) => d.owed > 0n);
   const batches = await batchPlaces(db, ctx, debts.map(([id]) => id));
   const names = await placeNames(db, ctx, [...batches.values()].flatMap((b) => [b.farmId, b.houseId]));

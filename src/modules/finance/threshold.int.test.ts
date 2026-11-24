@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { fixedClock } from "@/lib/kernel/clock";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { alertThresholdOnce, postPending, saveBudget, thresholdTracker } from "@/modules/finance";
+import { postPending, saveBudget, thresholdTracker } from "@/modules/finance";
+import { alertThresholdOnce } from "@/modules/finance/application/threshold";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
 

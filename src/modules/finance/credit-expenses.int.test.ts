@@ -122,14 +122,15 @@ describe("credit expenses (SPEC-finance §9, FN6)", () => {
     expect(await paymentsOf(x.power)).toBe(1);
   });
 
-  it("is the owner's and the manager's; the accountant and workers neither list nor pay", async () => {
+  it("is paid by the owner and the manager; the accountant lists it (SPEC-m5 PA5); workers neither list nor pay", async () => {
     const manager = { ...owner, role: "manager" as const };
     expect(await payCreditExpense(manager, pay(o.water, { amountCentimes: "5000" }), clock)).toEqual(OK);
     expect((await creditExpensesToPay(manager)).ok).toBe(true);
+    expect((await creditExpensesToPay({ ...owner, role: "accountant" })).ok).toBe(true);
     for (const role of ["accountant", "worker", "vet"] as const) {
       const ctx = { ...owner, role };
       expect(await payCreditExpense(ctx, pay(o.water), clock), role).toEqual({ ok: false, error: "FORBIDDEN" });
-      expect(await creditExpensesToPay(ctx), role).toEqual({ ok: false, error: "FORBIDDEN" });
+      if (role !== "accountant") expect(await creditExpensesToPay(ctx), role).toEqual({ ok: false, error: "FORBIDDEN" });
     }
   });
 

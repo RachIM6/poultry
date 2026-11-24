@@ -141,14 +141,15 @@ describe("placement debts (SPEC-finance §9, FN6, FC6)", () => {
     expect(await paymentsOf(x.chicks)).toBe(1);
   });
 
-  it("is the owner's and the manager's; the accountant and workers neither list nor pay", async () => {
+  it("is paid by the owner and the manager; the accountant lists it (SPEC-m5 PA5); workers neither list nor pay", async () => {
     const manager = { ...owner, role: "manager" as const };
     expect(await payPlacement(manager, pay(o.hens, { amountCentimes: "500000" }), clock)).toEqual(OK);
     expect((await placementsToPay(manager)).ok).toBe(true);
+    expect((await placementsToPay({ ...owner, role: "accountant" })).ok).toBe(true);
     for (const role of ["accountant", "worker", "vet"] as const) {
       const ctx = { ...owner, role };
       expect(await payPlacement(ctx, pay(o.hens), clock), role).toEqual({ ok: false, error: "FORBIDDEN" });
-      expect(await placementsToPay(ctx), role).toEqual({ ok: false, error: "FORBIDDEN" });
+      if (role !== "accountant") expect(await placementsToPay(ctx), role).toEqual({ ok: false, error: "FORBIDDEN" });
     }
   });
 

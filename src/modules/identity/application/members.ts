@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { farmDayOf } from "@/lib/kernel/farm-day";
@@ -106,21 +107,25 @@ export async function issueReset(
   if (!member) return fail("NOT_FOUND");
   const elsewhere = await db.membership.count({ where: { userId: member.userId, organizationId: { not: ctx.organizationId } } });
   if (member.role === "owner" || member.userId === ctx.userId || elsewhere > 0) return fail("RESET_NOT_ALLOWED");
-  const code = await saveResetCode(member.userId, ctx.userId, clock);
-  await db.auditEvent.create({
+  const audited = db.auditEvent.create({
     data: { organizationId: ctx.organizationId, userId: ctx.userId, entity: "Membership", entityId: member.id, action: "reset_password", after: { userId: member.userId } },
   });
+  const code = await saveResetCode(member.userId, ctx.userId, clock, [audited]);
   await recordAuthEvent("reset_issued", client, { userId: member.userId, reason: "owner" });
   return ok({ code });
 }
 
-/** A new reset code for this user, replacing any pending one (one per user). `issuedById`: null for the operator. */
-export async function saveResetCode(userId: string, issuedById: string | null, clock: Clock = systemClock): Promise<string> {
+/**
+ * A new reset code for this user, replacing any pending one (one per user). `issuedById`: null for the operator.
+ * `alsoWrite`: the caller's audit row, in the same transaction (ADR-006).
+ */
+export async function saveResetCode(userId: string, issuedById: string | null, clock: Clock = systemClock, alsoWrite: Prisma.PrismaPromise<unknown>[] = []): Promise<string> {
   const code = newCode();
   const expiresAt = new Date(clock.now().getTime() + AUTH_CONFIG.reset.expiresInSec * 1000);
   await db.$transaction([
     db.passwordReset.deleteMany({ where: { userId } }),
     db.passwordReset.create({ data: { userId, issuedById, codeHash: codeHash("reset", code), expiresAt } }),
+    ...alsoWrite,
   ]);
   return code;
 }

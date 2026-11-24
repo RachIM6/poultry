@@ -1,7 +1,7 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { DisposalDto } from "@/modules/biosecurity/shared";
 import type { DocumentDto } from "@/modules/documents/shared";
-import { ageOfBatch, birdsOnHand, birdsStarted, EMPTY_DAY, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import { ageOfBatch, birdsOnHand, birdsPlaced, birdsStarted, EMPTY_DAY, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import type { TreatmentDto, VaccinationDto, VetVisitDto } from "@/modules/health/shared";
 import { originNumber, type SaleDto } from "@/modules/sales/shared";
 
@@ -135,7 +135,7 @@ export function buildRegister(i: RegisterInput) {
       deliveryNote: batch.deliveryNote,
       placedOn: batch.placedOn,
       // Art. 3: the birds placed, the hatchery's free supplement included (SPEC-m3 B10); the free part shown apart.
-      placed: batch.chicksPlaced + (batch.freeChicks ?? 0),
+      placed: birdsPlaced(batch),
       freeChicks: batch.freeChicks ?? 0,
       deadOnArrival: batch.deadOnArrival,
       closedOn: batch.closedOn ?? null,

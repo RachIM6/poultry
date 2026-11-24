@@ -1,5 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { batchKpis, birdsStarted, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { batchKpis, birdsPlaced, birdsStarted, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { TreatmentDto, VaccinationDto } from "@/modules/health/shared";
 
 // SPEC-m2-compliance RP3 (SCOPE §13): the batch report. KPIs and health from the phone's records with flock's own
@@ -41,7 +41,7 @@ function figures(b: BatchDto, i: Pick<Input, "entries" | "weighings" | "sold" | 
   const soldGrams = sold.reduce((n, s) => n + s.liveWeightGrams, 0);
   return {
     ...k,
-    placed: b.chicksPlaced + (b.freeChicks ?? 0), // billed + free supplement (SPEC-m3 B10), as the register's art. 3
+    placed: birdsPlaced(b), // billed + free supplement (SPEC-m3 B10), as the register's art. 3
     freeChicks: b.freeChicks ?? 0,
     dead: entries.reduce((n, e) => n + e.dead + e.culled, 0),
     sold: sold.reduce((n, s) => n + s.birds, 0),

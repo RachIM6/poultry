@@ -381,6 +381,7 @@
     "deliveryNote": "N° de bon de livraison",
     "chickPrice": "Prix d’un poussin (DH)",
     "chickVat": "TVA de la livraison, en plus du prix (DH, facultatif)",
+    "paidOnDelivery": "Payé à la livraison ? Enregistrez le paiement dans Trésorerie une fois connecté.",
     "dayOldWeight": "Poids moyen à 1 jour (g, facultatif)",
     "save": "Enregistrer",
     "cancel": "Annuler",

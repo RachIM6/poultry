@@ -71,11 +71,13 @@ function report(failures: Failures) {
   expect.soft(failures.zoom, `wider than ${ZOOM_WIDTH} px:\n${failures.zoom.join("\n")}`).toEqual([]);
 }
 
-test("the login screen: 44 px targets, named fields, reflow at 320 px, in French and in Arabic", async ({ page, context }) => {
+test("the signed-out screens: 44 px targets, named fields, reflow at 320 px, in French and in Arabic", async ({ page, context }) => {
+  test.setTimeout(120_000);
   const zoom = await context.newPage();
   await zoom.setViewportSize({ width: ZOOM_WIDTH, height: 640 });
   const failures: Failures = { targets: [], names: [], zoom: [] };
-  for (const locale of ["fr", "ar"]) await check(page, `/${locale}/login`, failures, zoom);
+  // ADR-015: sign in, sign up, join with an invite code, a new password with a reset code.
+  for (const locale of ["fr", "ar"]) for (const path of ["login", "signup", "join", "reset"]) await check(page, `/${locale}/${path}`, failures, zoom);
   report(failures);
 });
 

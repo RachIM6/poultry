@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, randomMobile, referenceCached, scopeRemembered, inviteCode } from "./auth";
 
 // T112 acceptance (browser part, SPEC-finance FC7): offline, a home consumption on the sale form is prefilled with the
 // last sale's price, refused during a withdrawal, then recorded for a day before it, lowering birds on hand; it syncs
@@ -94,9 +94,10 @@ test("a worker records a consumption without seeing a price, an amount or the bu
   await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
   await page.getByRole("button", { name: "Inviter" }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
+  const code = await inviteCode(page);
   const workerContext = await browser.newContext({ ...test.info().project.use });
   const worker = await workerContext.newPage();
-  const e164 = await login(worker, "fr", phone);
+  const e164 = await login(worker, "fr", phone, code);
   await expect(worker).toHaveURL(/\/fr\/dashboard$/);
   await scopeRemembered(worker);
 

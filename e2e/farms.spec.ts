@@ -61,7 +61,9 @@ test("a farm and two houses created offline survive a reload, sync, and reach a 
   await expect(second).toHaveURL(/\/fr\/dashboard$/);
   await scopeRemembered(second);
   await second.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: farms are under "Plus"
-  await second.getByRole("link", { name: "Fermes et bâtiments" }).click();
+  // /more's own link: the dashboard's empty state (no farm pulled yet) has one of the same name, and Next keeps the
+  // dashboard in the page, hidden, after the tap (Activity). Resolved just before the switch, a click waits on it forever.
+  await second.getByRole("region", { name: "Élevage", exact: true }).getByRole("link", { name: "Fermes et bâtiments" }).click();
   await second.getByRole("link", { name: /Ferme du Plateau/ }).click();
   await expect(second.getByText("Bâtiment 1")).toBeVisible();
   await expect(second.getByText("Bâtiment 2")).toBeVisible();

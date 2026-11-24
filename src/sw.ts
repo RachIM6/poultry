@@ -73,6 +73,11 @@ const serwist = new Serwist({
 
 serwist.addEventListeners();
 
+// clientsClaim only claims the pages open when the worker activates; PwaProvider asks again for one that was loading.
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "CLAIM") event.waitUntil(self.clients.claim());
+});
+
 // Android Background Sync (ADR-003 §6): finish pushing the outbox after the page closed. Only the database of whoever
 // signed in last; the server's scope check refuses it if the session cookie now belongs to someone else.
 self.addEventListener("sync", (event) => {

@@ -209,7 +209,7 @@ function VisitForm({ farmId, visit, onSave, onCancel }: { farmId: string; visit?
   );
 }
 
-// BS6–BS7: what leaves the farm. Tabs, one log each.
+// BS6–BS7: what leaves the farm. One log at a time, chosen with toggle buttons (aria-pressed, not a half tablist).
 const TABS = ["dead", "manure", "rodents"] as const;
 const GAP_DAYS = 14; // how far back the dead/disposed comparison looks on the phone: a screen choice, not a rule
 
@@ -221,9 +221,9 @@ type Tab = (typeof TABS)[number];
 function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const t = useTranslations("Disposal");
   return (
-    <div role="tablist" aria-label={t("tabs")} className="grid grid-cols-3 gap-1 rounded-2xl bg-line/60 p-1">
+    <div role="group" aria-label={t("tabs")} className="grid grid-cols-3 gap-1 rounded-2xl bg-line/60 p-1">
       {TABS.map((k) => (
-        <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`min-h-11 rounded-xl ${tab === k ? "bg-card font-semibold" : ""}`}>
+        <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={`min-h-11 rounded-xl ${tab === k ? "bg-card font-semibold" : ""}`}>
           {t(`tab.${k}`)}
         </button>
       ))}

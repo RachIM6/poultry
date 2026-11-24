@@ -208,6 +208,7 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 
 ### `flock`
 - B1. Create a batch: house, species broiler, strain, placement date, chicks placed, hatchery, delivery note n°, chick unit price, average day-old weight (optional), dead on arrival. **One open batch per house.**
+  - **Correcting a placement** (owner, manager: `flock.manage`; offline, `flock.correctPlacement`): while the batch is open, a typing error is fixed in the chicks placed, the free chicks, the dead on arrival, the chick price and the delivery's VAT, the strain, the placement day, the hatchery and the delivery note, and in the house (one of the batch's farm that would take it) only before any daily entry, weighing or sale. The corrected placement is checked as a new one; its day stays on or before the batch's first day of data and on or after the day the house's previous batch closed; the birds started stay at least the birds already dead, culled or sold. Not a batch made by a transfer to lay (SPEC-m3 B13: its figures come from the pullets). Audited with the fields before and after. Birds on hand, mortality, the KPIs and the register follow, as they are computed from the batch; finance reposts the chicks (SPEC-finance FN7) and the placement debt follows (SPEC-finance §9 "Placement debts"). The vaccination plan keeps its due days (health's, edited by hand, SPEC-m5 PA4).
 - B2. **Daily entry, one per batch per farm day:**
   - mortality count + cause (from a list) and culls;
   - feed consumed (item + kg);

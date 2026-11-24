@@ -18,19 +18,19 @@ import { postEntry, type PostError } from "@/modules/finance/application/ledger"
 import { entryTags } from "@/modules/finance/application/tags";
 import { loanInstallmentsDue } from "@/modules/finance/application/loans";
 import { assetDues } from "@/modules/finance/application/assets";
-import { creditExpenseDues } from "@/modules/finance/application/expense-debts";
+import { creditExpenseDues, expensePaid } from "@/modules/finance/application/expense-debts";
 import { placementDues } from "@/modules/finance/application/placements";
 import { overridesFor } from "@/modules/finance/application/overrides";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { OPENING_PREFIX } from "@/modules/finance/domain/close";
-import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
+import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
 import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
 import { batchOf } from "@/modules/finance/domain/export";
 import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
 import { inChart, type Posting } from "@/modules/finance/domain/posting";
 import { bankOnly, expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
-import { ledgerAccounts, lockedMonths } from "@/modules/finance/infrastructure/ledger";
-import type { CreateTreasuryAccount, ExpenseDto, RecordExpense, RecordTransfer, TransferDto, TreasuryAccountDto } from "@/modules/finance/schema";
+import { firstPostedAt, lastSourceVersion, ledgerAccounts, lockedMonths, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
+import type { CancelExpense, CreateTreasuryAccount, ExpenseDto, RecordExpense, RecordTransfer, TransferDto, TreasuryAccountDto } from "@/modules/finance/schema";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,34 +54,32 @@ const treasuryOf = (tx: Tx, ctx: TenantContext, id: string) =>
  * Posts a farm-side record's entries in the same transaction, into the first open month when its month is locked. The
  * rules' PCA accounts land in the entity's chart as the posting pipeline's do (FN2: PCA off → the CGNC fallback). As
  * FC7 (FQ25), a line with no leaf to go on posts nothing and invents no account (FN4): the record is kept, unposted.
+ * A corrected expense (§9 "Cancelled records") posts its next `version`, with the overrides in force when it was
+ * `firstPosted` (FN8, as the posting pipeline's later versions).
  */
-async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string, build: (entity: { vatRegistered: boolean }) => Posting[]): Promise<Result<void, PostError>> {
+async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string, build: (entity: { vatRegistered: boolean }) => Posting[], version = 1, firstPosted: Date | null = null): Promise<Result<void, PostError>> {
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
   const all = await ledgerAccounts(tx);
   const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
   const leaves = new Set(leafAccounts(chart).map((a) => a.number));
   const override = await overridesFor(tx, ctx, entity, chart);
-  // As the posting pipeline: FN8's overrides first (posted once, today's), then the lines in the entity's chart (FN2).
-  const mapped = build(entity).map((p) => inChart(override ? override(p, null) : p, chartOf(all, "cgnc", ["pca"]), chart));
+  // As the posting pipeline: FN8's overrides first (a new source: today's), then the lines in the entity's chart (FN2).
+  const mapped = build(entity).map((p) => inChart(override ? override(p, firstPosted) : p, chartOf(all, "cgnc", ["pca"]), chart));
   // ponytail: no expense or transfer account lacks a CGNC leaf today; list such a record on /books (as FC7) if one does.
   if (!mapped.every((p) => p?.lines.every((l) => leaves.has(l.account)))) return ok(undefined);
   const postings = mapped as Posting[];
   const locked = await lockedMonths(tx, ctx, entity.id);
   const onDay = (locked.has(monthOf(day as FarmDay)) ? `${firstOpenMonth(monthOf(day as FarmDay), locked)}-01` : day) as FarmDay;
   for (const [i, p] of postings.entries()) {
-    const posted = await postEntry(tx, ctx, { id: uuidv7(), legalEntityId: entity.id, journal: p.journal, day: onDay, label: p.label, reversesId: null, lines: p.lines, source: { module: "finance", id: sourceId, version: i + 1 } });
+    const posted = await postEntry(tx, ctx, { id: uuidv7(), legalEntityId: entity.id, journal: p.journal, day: onDay, label: p.label, reversesId: null, lines: p.lines, source: { module: "finance", id: sourceId, version: version + i } });
     if (!posted.ok) return posted;
   }
   return ok(undefined);
 }
 
-/**
- * FX4, FN6, applied by the sync push: a quick expense recorded on the phone (owner, manager), posted once when it
- * arrives (its id is the source key). Paid from one of the organisation's cash boxes or bank accounts, or on credit.
- */
-export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordExpense>, meta: Meta, clock: Clock = systemClock) {
-  if ((await tx.expense.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
+/** FX4's rules for a quick expense, recorded or corrected: the expense as the phone stores it, or why it is refused. */
+async function checkedExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordExpense>, clock: Clock): Promise<Result<ExpenseDto>> {
   if (inFuture(cmd.day, clock)) return fail("DAY_IN_FUTURE");
   if (bankOnly(cmd.category) && (cmd.paidFrom !== "bank" || !cmd.treasuryId)) return fail("INVALID_INPUT"); // FC9: on the bank account it reconciles
   if (cmd.treasuryId) {
@@ -91,37 +89,130 @@ export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<ty
   }
   if (cmd.batchId && !(await batchFacts(tx, ctx, cmd.batchId))) return fail("NOT_FOUND"); // another organisation's batch
   if (BigInt(cmd.vatCentimes) > BigInt(cmd.amountCentimes)) return fail("VAT_MORE_THAN_AMOUNT");
-  const expense: ExpenseDto = {
+  return ok({
     ...cmd,
     category: cmd.category as ExpenseDto["category"],
     treasuryId: cmd.paidFrom === "credit" ? null : cmd.treasuryId,
     serviceMonth: cmd.batchId ? null : cmd.serviceMonth, // a direct charge has no service period to share over
-  };
-  const period = expense.serviceMonth ? monthPeriod(expense.serviceMonth) : null;
-  await tx.expense.create({
-    data: {
-      id: expense.id,
-      organizationId: ctx.organizationId,
-      day: date(expense.day),
-      category: expense.category,
-      amountCentimes: BigInt(expense.amountCentimes),
-      vatCentimes: BigInt(cmd.vatCentimes),
-      paidFrom: expense.paidFrom,
-      treasuryId: expense.treasuryId,
-      note: expense.note,
-      batchId: expense.batchId ?? null,
-      shared: period !== null,
-      serviceFrom: period && date(period.from),
-      serviceTo: period && date(period.to),
-      recordedBy: ctx.userId,
-    },
   });
-  const posted = await postNow(tx, ctx, expense.id, expense.day, (entity) => [
-    expensePosting({ category: expense.category as ExpenseCategory, amount: BigInt(expense.amountCentimes), paidFrom: expense.paidFrom, treasuryId: expense.treasuryId, vat: BigInt(cmd.vatCentimes) }, entity.vatRegistered),
-  ]);
+}
+
+/** The expense's columns. */
+function expenseRow(e: ExpenseDto) {
+  const period = e.serviceMonth ? monthPeriod(e.serviceMonth) : null;
+  return {
+    day: date(e.day),
+    category: e.category,
+    amountCentimes: BigInt(e.amountCentimes),
+    vatCentimes: BigInt(e.vatCentimes ?? "0"),
+    paidFrom: e.paidFrom,
+    treasuryId: e.treasuryId,
+    note: e.note,
+    batchId: e.batchId ?? null,
+    shared: period !== null,
+    serviceFrom: period && date(period.from),
+    serviceTo: period && date(period.to),
+  };
+}
+
+type ExpenseRow = NonNullable<Awaited<ReturnType<Tx["expense"]["findFirst"]>>>;
+const expenseDtoOf = (row: ExpenseRow): ExpenseDto => ({
+  id: row.id,
+  day: row.day.toISOString().slice(0, 10),
+  category: row.category as ExpenseDto["category"],
+  amountCentimes: String(row.amountCentimes),
+  vatCentimes: String(row.vatCentimes),
+  paidFrom: row.paidFrom as ExpenseDto["paidFrom"],
+  treasuryId: row.treasuryId,
+  note: row.note,
+  batchId: row.batchId,
+  serviceMonth: row.shared && row.serviceFrom ? row.serviceFrom.toISOString().slice(0, 7) : null,
+  receiptFileId: row.receiptFileId,
+});
+
+const postingOfExpense = (e: ExpenseDto) => (entity: { vatRegistered: boolean }) => [
+  expensePosting({ category: e.category as ExpenseCategory, amount: BigInt(e.amountCentimes), paidFrom: e.paidFrom, treasuryId: e.treasuryId, vat: BigInt(e.vatCentimes ?? "0") }, entity.vatRegistered),
+];
+
+/**
+ * FX4, FN6, applied by the sync push: a quick expense recorded on the phone (owner, manager), posted once when it
+ * arrives (its id is the source key). Paid from one of the organisation's cash boxes or bank accounts, or on credit.
+ */
+export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordExpense>, meta: Meta, clock: Clock = systemClock) {
+  if ((await tx.expense.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
+  const checked = await checkedExpense(tx, ctx, cmd, clock);
+  if (!checked.ok) return checked;
+  const expense = checked.value;
+  await tx.expense.create({ data: { id: expense.id, organizationId: ctx.organizationId, ...expenseRow(expense), recordedBy: ctx.userId } });
+  const posted = await postNow(tx, ctx, expense.id, expense.day, postingOfExpense(expense));
   if (!posted.ok) return posted; // the push rolls the expense back with it
   await recordChange(tx, ctx, "expense", expense.id, expense);
   await audit(tx, ctx, { entity: "Expense", entityId: expense.id, action: "create", after: expense, ...meta });
+  return ok(undefined);
+}
+
+/**
+ * SPEC-finance §9 "Cancelled records": may this expense be corrected or cancelled? Under the expense's lock (a payment
+ * waits). Not once a payment was posted for it (credit expenses), nor once a closed batch counts it (FN14: its result
+ * never moves again), nor with its entry, or its new day, in a locked month (FN5). Returns its entity and standing entry.
+ */
+async function changeable(tx: Tx, ctx: TenantContext, row: ExpenseRow, newDay: string | null, newBatchId: string | null) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${row.id}, 8))`; // payCreditExpense's lock
+  if (await expensePaid(tx, ctx, row.id)) return fail("EXPENSE_PAID");
+  const closed = async (batchId: string | null) => batchId !== null && (await batchFacts(tx, ctx, batchId))?.status === "closed";
+  const frozen = await tx.frozenAllocation.count({ where: { organizationId: ctx.organizationId, expenseId: row.id } });
+  if (frozen > 0 || (await closed(row.batchId)) || (await closed(newBatchId))) return fail("EXPENSE_IN_CLOSED_BATCH");
+  const [entity] = await listLegalEntities(ctx);
+  if (!entity) return fail("NOT_FOUND");
+  const standing = await standingEntryFor(tx, ctx, "finance", row.id);
+  const locked = await lockedMonths(tx, ctx, entity.id);
+  const days = [row.day.toISOString().slice(0, 10), standing?.day, newDay].filter((d): d is string => d != null);
+  if (days.some((d) => locked.has(monthOf(d as FarmDay)))) return fail("PERIOD_LOCKED");
+  return ok({ entity, standing });
+}
+
+/** Reverses an expense's standing entry on its own day (its month is open: checked first). */
+async function reverseStanding(tx: Tx, ctx: TenantContext, legalEntityId: string, standing: NonNullable<Awaited<ReturnType<typeof standingEntryFor>>>) {
+  const posted = await postEntry(tx, ctx, { id: uuidv7(), legalEntityId, journal: standing.journal, day: standing.day as FarmDay, label: "Annulation", reversesId: standing.id, lines: reversalOf(standing.lines) });
+  if (!posted.ok) throw new Error(`expense reversal: ${posted.error}`); // the checks passed: a bug; the push retries it
+}
+
+/**
+ * SPEC-finance §9 "Cancelled records", applied by the sync push: a quick expense corrected (amount, VAT, category,
+ * day, batch or month shared over, paid from, note), checked as FX4 checks a new one. Its entry is reversed on its day
+ * and the corrected one posted as the source's next version (FN7). Owner, manager.
+ */
+export async function correctExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordExpense>, meta: Meta, clock: Clock = systemClock) {
+  const row = await tx.expense.findFirst({ where: { id: cmd.id, organizationId: ctx.organizationId } });
+  if (!row) return fail("NOT_FOUND");
+  const checked = await checkedExpense(tx, ctx, cmd, clock);
+  if (!checked.ok) return checked;
+  const allowed = await changeable(tx, ctx, row, cmd.day, cmd.batchId);
+  if (!allowed.ok) return allowed;
+  const before = expenseDtoOf(row);
+  const after: ExpenseDto = { ...checked.value, receiptFileId: row.receiptFileId };
+
+  await tx.expense.update({ where: { id: row.id }, data: expenseRow(after) });
+  if (allowed.value.standing) await reverseStanding(tx, ctx, allowed.value.entity.id, allowed.value.standing);
+  const version = (await lastSourceVersion(tx, ctx, "finance", after.id)) + 1;
+  const posted = await postNow(tx, ctx, after.id, after.day, postingOfExpense(after), version, await firstPostedAt(tx, ctx, "finance", after.id));
+  if (!posted.ok) throw new Error(`expense ${after.id}: ${posted.error}`); // as above
+  await recordChange(tx, ctx, "expense", after.id, after);
+  await audit(tx, ctx, { entity: "Expense", entityId: after.id, action: "correct", before, after, ...meta });
+  return ok(undefined);
+}
+
+/** SPEC-finance §9 "Cancelled records", applied by the sync push: a quick expense cancelled; its entry is reversed on its day. */
+export async function cancelExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof CancelExpense>, meta: Meta) {
+  const row = await tx.expense.findFirst({ where: { id: cmd.expenseId, organizationId: ctx.organizationId } });
+  if (!row) return fail("NOT_FOUND");
+  const allowed = await changeable(tx, ctx, row, null, null);
+  if (!allowed.ok) return allowed;
+
+  await tx.expense.delete({ where: { id: row.id } });
+  if (allowed.value.standing) await reverseStanding(tx, ctx, allowed.value.entity.id, allowed.value.standing);
+  await recordChange(tx, ctx, "expense", row.id, null);
+  await audit(tx, ctx, { entity: "Expense", entityId: row.id, action: "cancel", before: expenseDtoOf(row), ...meta });
   return ok(undefined);
 }
 
@@ -137,20 +228,7 @@ export async function attachExpenseReceipt(ctx: TenantContext, expenseId: string
     const row = await tx.expense.findFirst({ where: { id: expenseId, organizationId: ctx.organizationId } });
     if (!row) return fail("NOT_FOUND");
     if (count === 0) return fail("FILE_ALREADY_ATTACHED");
-    const dto: ExpenseDto = {
-      id: row.id,
-      day: row.day.toISOString().slice(0, 10),
-      category: row.category as ExpenseDto["category"],
-      amountCentimes: String(row.amountCentimes),
-      vatCentimes: String(row.vatCentimes),
-      paidFrom: row.paidFrom as ExpenseDto["paidFrom"],
-      treasuryId: row.treasuryId,
-      note: row.note,
-      batchId: row.batchId,
-      serviceMonth: row.shared && row.serviceFrom ? row.serviceFrom.toISOString().slice(0, 7) : null,
-      receiptFileId: fileId,
-    };
-    await recordChange(tx, ctx, "expense", expenseId, dto);
+    await recordChange(tx, ctx, "expense", expenseId, expenseDtoOf(row));
     await audit(tx, ctx, { entity: "Expense", entityId: expenseId, action: "update", before: { receiptFileId: null }, after: { receiptFileId: fileId } });
     return ok(undefined);
   };

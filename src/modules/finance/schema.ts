@@ -44,6 +44,9 @@ export const RecordExpense = z.object({
   serviceMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable().default(null),
 });
 
+/** SPEC-finance §9 "Cancelled records": a quick expense cancelled. Corrected: RecordExpense again, with its id. */
+export const CancelExpense = z.object({ expenseId: z.uuid() });
+
 /** FC9: a bank statement as printed: its account, last day and closing balance (integer centimes, negative when overdrawn). */
 export const AddBankStatement = z.object({ treasuryId: z.uuid(), endDay: z.iso.date(), closingCentimes: z.string().regex(/^-?\d{1,15}$/) });
 

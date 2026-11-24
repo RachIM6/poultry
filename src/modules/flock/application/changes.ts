@@ -10,18 +10,20 @@ export type PlacementChange = { version: bigint; id: string; farmId: string; pla
 
 /**
  * For finance (SPEC-finance FN7): batches placed or changed after `after` (this organisation's change-log version),
- * oldest first, with what their chicks cost: every chick placed, dead on arrival included (as the B6 cost).
+ * oldest first, with what their chicks cost: every chick placed, dead on arrival included (as the B6 cost). `readTo`:
+ * the last version read, deletions included, where finance's cursor moves (§9 "Postings catch up").
  */
-export async function placementsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<PlacementChange[]> {
+export async function placementsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: PlacementChange[]; readTo: bigint }> {
   const changes = await tx.change.findMany({
     where: { organizationId: ctx.organizationId, entity: "batch", version: { gt: after } },
     orderBy: { version: "asc" },
     take: limit,
   });
-  return changes
+  const items = changes
     .filter((c) => c.data !== null)
     .map((c) => {
       const b = c.data as unknown as BatchDto;
       return { version: c.version, id: b.id, farmId: b.farmId, placedOn: b.placedOn as FarmDay, chicksCentimes: chicksCost(b.chicksPlaced, BigInt(b.chickUnitPriceCentimes ?? "0")), vatCentimes: BigInt(b.chickVatCentimes ?? "0"), species: b.species, fromBatchId: b.fromBatchId ?? null };
     });
+  return { items, readTo: changes.at(-1)?.version ?? after };
 }

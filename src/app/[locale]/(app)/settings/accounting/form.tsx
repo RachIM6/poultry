@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { saveAccountingAction } from "./actions";
+import { OfflineHint, useOnline } from "@/components/online";
 import { danger, field, primary } from "@/components/ui";
 
 type Props = {
@@ -33,6 +34,7 @@ export function AccountingForm(p: Props) {
   const t = useTranslations("Accounting");
   const tAll = useTranslations();
   const [state, action, pending] = useActionState(saveAccountingAction, {});
+  const online = useOnline();
   const off = p.locked || pending;
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -76,7 +78,8 @@ export function AccountingForm(p: Props) {
         ))}
       </fieldset>
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{tAll(state.messageKey)}</p>}
-      <button type="submit" disabled={off} className={primary}>{t("save")}</button>
+      {!p.locked && <OfflineHint online={online} />}
+      <button type="submit" disabled={off || !online} className={primary}>{t("save")}</button>
     </form>
   );
 }

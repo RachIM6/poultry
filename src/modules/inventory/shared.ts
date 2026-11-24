@@ -70,4 +70,5 @@ export const INVENTORY_MUTATIONS = {
   setThreshold: "inventory.setThreshold",
   recordSupplierPayment: "inventory.recordSupplierPayment",
   debitIssued: "inventory.debitIssued",
+  cancelPurchase: "inventory.cancelPurchase",
 } as const;

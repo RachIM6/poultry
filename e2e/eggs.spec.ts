@@ -36,7 +36,7 @@ test("egg collections offline: two a day, one corrected, synced", async ({ page,
 
   await page.getByLabel("Normaux", { exact: true }).fill("1000");
   await page.getByRole("button", { name: "Enregistrer le ramassage" }).click();
-  await page.getByRole("button", { name: "Corriger" }).nth(1).click();
+  await page.getByRole("button", { name: "Corriger", exact: true }).nth(1).click();
   await page.getByLabel("Normaux", { exact: true }).fill("1100");
   await page.getByRole("button", { name: "Enregistrer la correction" }).click();
   await expect(page.getByText(/Ramassage 2 · 1.100 œufs · 0 déclassés/)).toBeVisible();

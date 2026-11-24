@@ -13,7 +13,10 @@
   "Offline": {
     "title": "Pas de connexion",
     "body": "Cette page n'est pas encore enregistrée sur ce téléphone. Les pages déjà ouvertes restent disponibles.",
-    "home": "Accueil"
+    "home": "Accueil",
+    "online": "Hors ligne : à faire une fois connecté.",
+    "failed": "Pas de réseau ou erreur du serveur : rien n’a été enregistré. Réessayez.",
+    "retry": "Réessayer"
   },
   "Install": {
     "title": "Installer l'application",
@@ -142,7 +145,8 @@
         "adjustStock": "Ajustement de stock",
         "setThreshold": "Seuil d’alerte de stock",
         "recordSupplierPayment": "Paiement d’un fournisseur",
-        "debitIssued": "Débit d’un chèque ou effet émis"
+        "debitIssued": "Débit d’un chèque ou effet émis",
+        "cancelPurchase": "Annulation d’un achat"
       },
       "flock": {
         "placeBatch": "Mise en place d’un lot",
@@ -150,6 +154,7 @@
         "recordWeighing": "Pesée",
         "closeBatch": "Clôture d’un lot",
         "transferToLaying": "Transfert en ponte",
+        "correctPlacement": "Correction de la mise en place d’un lot",
         "recordBatchCost": "Charge d’un lot"
       },
       "eggs": {
@@ -178,12 +183,16 @@
         "setInstrumentState": "Suivi d’un chèque ou effet",
         "unblockBuyer": "Déblocage d’un acheteur",
         "setCreditLimit": "Plafond de crédit",
-        "approveCredit": "Accord de crédit"
+        "approveCredit": "Accord de crédit",
+        "cancelSale": "Annulation d’une vente",
+        "correctSale": "Correction du prix d’une vente"
       },
       "finance": {
         "createTreasuryAccount": "Nouveau compte de trésorerie",
         "recordExpense": "Dépense",
-        "recordTransfer": "Virement entre comptes"
+        "recordTransfer": "Virement entre comptes",
+        "correctExpense": "Correction d’une dépense",
+        "cancelExpense": "Annulation d’une dépense"
       },
       "workforce": {
         "createEmployee": "Nouvel employé",
@@ -480,7 +489,12 @@
     "issuedLine": "{kind} n° {number} : {amount}, échéance le {date}",
     "debited": "Débité",
     "instrumentNumber": "N° du chèque ou de l’effet (facultatif)",
-    "instrumentDueOn": "Date convenue"
+    "instrumentDueOn": "Date convenue",
+    "purchases": "Achats récents",
+    "purchaseLine": "{date} · {item} · {quantity} · {amount}",
+    "void": "Annuler l’achat",
+    "voidOf": "Annuler l’achat : {purchase}",
+    "voidConfirm": "Annuler l’achat {purchase} ? Le stock reprend sa quantité d’avant et son écriture est contre-passée."
   },
   "Batches": {
     "noFarming": "Effectifs, saisies du jour et chiffres d’élevage : non transmis à votre rôle.",
@@ -499,6 +513,7 @@
     "deliveryNote": "N° de bon de livraison",
     "chickPrice": "Prix d’un poussin (DH)",
     "chickVat": "TVA de la livraison, en plus du prix (DH, facultatif)",
+    "paidOnDelivery": "Payé à la livraison ? Enregistrez le paiement dans Trésorerie une fois connecté.",
     "dayOldWeight": "Poids moyen à 1 jour (g, facultatif)",
     "save": "Enregistrer",
     "cancel": "Annuler",
@@ -692,7 +707,16 @@
     "IMPORT_FILE_TYPE": "Type de fichier refusé : un fichier texte .sta, .940, .mt940, .fin ou .txt pour le MT940, .csv ou .txt pour le CSV.",
     "IMPORT_CONFLICT": "Un relevé de cette date existe déjà avec un autre solde ou d’autres opérations : rien n’a été importé.",
     "NOT_OVERRIDABLE": "Ce compte ne peut pas être remplacé : seuls les comptes de charges et de produits le peuvent.",
-    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge."
+    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge.",
+    "BATCH_HAS_DATA": "Le bâtiment ne peut plus changer : cette bande a déjà des saisies.",
+    "PLACEMENT_AFTER_DATA": "La mise en place ne peut pas suivre le premier jour saisi (saisie du jour, pesée ou vente).",
+    "PLACEMENT_OVERLAPS_PREVIOUS": "Le bâtiment était encore occupé par la bande précédente à cette date.",
+    "FEWER_BIRDS_THAN_RECORDED": "Moins de sujets que les morts, réformes et ventes déjà saisis.",
+    "SALE_HAS_PAYMENT": "Un paiement couvre déjà cette vente, ou son chèque ou sa traite a déjà circulé : elle ne peut plus être annulée ni réduite.",
+    "PURCHASE_HAS_PAYMENT": "Un paiement au fournisseur couvre déjà cet achat, ou la banque a débité son chèque ou sa traite : il ne peut plus être annulé.",
+    "STOCK_ALREADY_USED": "Une partie de ce stock a déjà été utilisée : l’achat ne peut plus être annulé. Corrigez plutôt le stock par un ajustement.",
+    "EXPENSE_PAID": "Un paiement a déjà été enregistré pour cette dépense : elle ne peut plus être corrigée ni annulée.",
+    "EXPENSE_IN_CLOSED_BATCH": "Cette dépense compte dans le résultat d’une bande clôturée : elle ne peut plus changer."
   },
   "Weighing": {
     "title": "Pesée",
@@ -880,7 +904,16 @@
     },
     "consumptionLine": "{date} · Consommation · {who} · {birds} oiseaux",
     "value": "Valeur : {amount}",
-    "saveConsumption": "Enregistrer la consommation"
+    "saveConsumption": "Enregistrer la consommation",
+    "eggLine": "{date} · {buyer} · {eggs} œufs",
+    "correct": "Corriger le prix",
+    "correctOf": "Corriger le prix : {sale}",
+    "correctHint": "Seuls les prix et la TVA changent ici. Pour une quantité, un acheteur ou une date, annulez la vente puis ressaisissez-la.",
+    "linePrice": "Prix · {what} (DH)",
+    "saveCorrection": "Enregistrer le prix",
+    "void": "Annuler la vente",
+    "voidOf": "Annuler la vente : {sale}",
+    "voidConfirm": "Annuler {sale} ? Les oiseaux ou les œufs reviennent et son écriture est contre-passée. Vous pourrez la ressaisir."
   },
   "Receivables": {
     "title": "Créances",
@@ -1024,7 +1057,15 @@
     "receiptOf": "Voir le reçu : {expense}",
     "receiptMissing": "Reçu à ajouter (après envoi, avec du réseau)",
     "receiptAdd": "Ajouter le reçu",
-    "bankFeesAccount": "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord."
+    "bankFeesAccount": "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord.",
+    "correct": "Corriger",
+    "correctOf": "Corriger la dépense : {expense}",
+    "correcting": "Correction : {expense}",
+    "saveCorrection": "Enregistrer la correction",
+    "keep": "Ne pas corriger",
+    "void": "Annuler",
+    "voidOf": "Annuler la dépense : {expense}",
+    "voidConfirm": "Annuler la dépense {expense} ? Son écriture est contre-passée."
   },
   "Treasury": {
     "forbidden": "La trésorerie est réservée au propriétaire, au gérant et au comptable.",
@@ -2042,7 +2083,16 @@
     "hens": "Poules transférées",
     "left": "{birds} non transférées seront réformées ce jour-là.",
     "save": "Transférer",
-    "noHouse": "Aucun bâtiment libre pour la ponte."
+    "noHouse": "Aucun bâtiment ne peut accueillir les poules : chacun a déjà une bande en cours.",
+    "sameHouse": "{house} (le même bâtiment)"
+  },
+  "Correct": {
+    "open": "Corriger la mise en place",
+    "openLabel": "Corriger la mise en place : {batch}",
+    "hint": "Pour une erreur de saisie. L’effectif, la mortalité et les indicateurs suivent la correction.",
+    "houseLocked": "Le bâtiment ne change plus : cette bande a déjà des saisies.",
+    "save": "Enregistrer la correction",
+    "noChange": "Aucune modification."
   },
   "Eggs": {
     "title": "Ramassage des œufs",
@@ -2605,7 +2655,10 @@
       }
     },
     "save": "Enregistrer",
-    "saved": "Paramètres enregistrés."
+    "saved": "Paramètres enregistrés.",
+    "choicesFirst": "Choisissez la tenue des comptes, la TVA, le début d’exercice… avant la première écriture. Une mise en place, un achat ou une dépense en passent une dès leur synchronisation ; ces choix ne changent ensuite qu’au prochain exercice.",
+    "later": "Plus tard",
+    "lockedHow": "Pour les changer : le {day}, premier jour du prochain exercice, revenez ici avant toute écriture de ce nouvel exercice."
   },
   "Chart": {
     "open": "Plan de comptes",

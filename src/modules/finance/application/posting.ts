@@ -20,8 +20,12 @@ import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/en
 import { inChart, postingOf, samePosting, unpostedConsumption, type FarmEvent } from "@/modules/finance/domain/posting";
 import { firstPostedAt, ledgerAccounts, lockCursor, lockedMonths, moveCursor, pendingOrganizations, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 
-type Change = { version: bigint; event: FarmEvent };
-type Source = { name: string; module: string; entity: string; read: (tx: Tx, ctx: TenantContext, after: bigint, entity: LegalEntityDto) => Promise<Change[]> };
+// voided: a record cancelled at its source (SPEC-finance §9 "Cancelled records"), by id: its standing entry is reversed.
+type Change = { version: bigint; event: FarmEvent } | { version: bigint; voided: string };
+// readTo: the last version the module's read took, past the changes it drops (§9 "Postings catch up"): the cursor moves there
+type Read = { changes: Change[]; readTo: bigint };
+type Source = { name: string; module: string; entity: string; read: (tx: Tx, ctx: TenantContext, after: bigint, entity: LegalEntityDto) => Promise<Read> };
+const mapRead = <T>(read: { items: T[]; readTo: bigint }, change: (item: T) => Change): Read => ({ changes: read.items.map(change), readTo: read.readTo });
 
 const SOURCES: Source[] = [
   {
@@ -29,7 +33,7 @@ const SOURCES: Source[] = [
     module: "inventory",
     entity: "purchase", // what its read takes from the change log
     read: async (tx, ctx, after) =>
-      (await purchasesChangedSince(tx, ctx, after)).map((p) => ({
+      mapRead(await purchasesChangedSince(tx, ctx, after), (p) => ("voided" in p ? p : {
         version: p.version,
         event: { type: "purchase", id: p.id, day: p.day, itemKind: p.itemKind, amount: p.amountCentimes, paid: p.paidCentimes, vat: p.vatCentimes, method: p.paidMethod },
       })),
@@ -39,7 +43,7 @@ const SOURCES: Source[] = [
     module: "inventory",
     entity: "supplierPayment",
     read: async (tx, ctx, after) =>
-      (await supplierPaymentsChangedSince(tx, ctx, after)).map((p) => ({
+      mapRead(await supplierPaymentsChangedSince(tx, ctx, after), (p) => ({
         version: p.version,
         event: { type: "supplierPayment", id: p.id, day: p.day as FarmDay, amount: BigInt(p.amountCentimes), method: p.method },
       })),
@@ -49,14 +53,14 @@ const SOURCES: Source[] = [
     module: "inventory",
     entity: "issuedDebit",
     read: async (tx, ctx, after) =>
-      (await issuedDebitsChangedSince(tx, ctx, after)).map((d) => ({ version: d.version, event: { type: "issuedDebit", id: d.id, day: d.day, amount: d.amountCentimes, kind: d.kind } })),
+      mapRead(await issuedDebitsChangedSince(tx, ctx, after), (d) => ({ version: d.version, event: { type: "issuedDebit", id: d.id, day: d.day, amount: d.amountCentimes, kind: d.kind } })),
   },
   {
     name: "flock.placement",
     module: "flock",
     entity: "batch",
     read: async (tx, ctx, after) =>
-      (await placementsChangedSince(tx, ctx, after)).map((b) => ({
+      mapRead(await placementsChangedSince(tx, ctx, after), (b) => ({
         version: b.version,
         event: { type: "chicks", id: b.id, day: b.placedOn, amount: b.chicksCentimes, vat: b.vatCentimes, layers: b.species === "layer" && !b.fromBatchId }, // FC6: point-of-lay hens
       })),
@@ -66,16 +70,19 @@ const SOURCES: Source[] = [
     name: "flock.transfer",
     module: "flock",
     entity: "batch",
-    read: async (tx, ctx, after, entity) => layEvents(tx, ctx, entity, await placementsChangedSince(tx, ctx, after)),
+    read: async (tx, ctx, after, entity) => {
+      const { items, readTo } = await placementsChangedSince(tx, ctx, after);
+      return { changes: await layEvents(tx, ctx, entity, items), readTo };
+    },
   },
   {
     name: "sales.sale",
     module: "sales",
     entity: "sale",
     read: async (tx, ctx, after, entity) => {
-      const sales = await salesChangedSince(tx, ctx, after);
-      const batches = await batchPlaces(tx, ctx, [...new Set(sales.map((s) => s.batchId))]); // FC6: culled hens of a laying flock
-      return sales.map((s) => ({
+      const read = await salesChangedSince(tx, ctx, after);
+      const batches = await batchPlaces(tx, ctx, [...new Set(read.items.flatMap((s) => ("voided" in s ? [] : [s.batchId])))]); // FC6: culled hens of a laying flock
+      return mapRead(read, (s) => ("voided" in s ? s : {
         version: s.version,
         event: s.takenBy
           ? { type: "consumption", id: s.id, day: s.day, amount: s.amountCentimes, takenBy: s.takenBy, individual: entity.form === "individual" } // FC7
@@ -88,7 +95,7 @@ const SOURCES: Source[] = [
     module: "sales",
     entity: "buyerPayment",
     read: async (tx, ctx, after) =>
-      (await paymentsChangedSince(tx, ctx, after)).map((p) => ({
+      mapRead(await paymentsChangedSince(tx, ctx, after), (p) => ({
         version: p.version,
         event: { type: "receipt", id: p.id, day: p.day, amount: p.amountCentimes, method: p.method },
       })),
@@ -98,7 +105,7 @@ const SOURCES: Source[] = [
     module: "sales",
     entity: "instrumentStatus",
     read: async (tx, ctx, after) =>
-      (await instrumentStepsChangedSince(tx, ctx, after)).map((i) => ({
+      mapRead(await instrumentStepsChangedSince(tx, ctx, after), (i) => ({
         version: i.version,
         event: { type: "instrument", id: i.id, day: i.day, amount: i.amountCentimes, kind: i.kind, from: i.from, to: i.to },
       })),
@@ -108,21 +115,21 @@ const SOURCES: Source[] = [
     module: "workforce",
     entity: "advance",
     read: async (tx, ctx, after) =>
-      (await advancesChangedSince(tx, ctx, after)).map((a) => ({ version: a.version, event: { type: "advance", id: a.id, day: a.day as FarmDay, amount: BigInt(a.amountCentimes) } })),
+      mapRead(await advancesChangedSince(tx, ctx, after), (a) => ({ version: a.version, event: { type: "advance", id: a.id, day: a.day as FarmDay, amount: BigInt(a.amountCentimes) } })),
   },
   {
     name: "workforce.payPayment",
     module: "workforce",
     entity: "payPayment",
     read: async (tx, ctx, after) =>
-      (await payPaymentsChangedSince(tx, ctx, after)).map((p) => ({ version: p.version, event: { type: "wagesPaid", id: p.id, day: p.day as FarmDay, amount: BigInt(p.netCentimes), from: p.paidFrom } })),
+      mapRead(await payPaymentsChangedSince(tx, ctx, after), (p) => ({ version: p.version, event: { type: "wagesPaid", id: p.id, day: p.day as FarmDay, amount: BigInt(p.netCentimes), from: p.paidFrom } })),
   },
   {
     name: "workforce.payMonth",
     module: "workforce",
     entity: "payMonth",
     read: async (tx, ctx, after) =>
-      (await payMonthsChangedSince(tx, ctx, after)).map((p) => ({
+      mapRead(await payMonthsChangedSince(tx, ctx, after), (p) => ({
         version: p.version,
         event: {
           type: "pay",
@@ -157,8 +164,11 @@ export async function postPending(pusher: TenantContext): Promise<number> {
   for (const source of SOURCES) {
     posted += await db.$transaction(async (tx) => {
       const after = await lockCursor(tx, ctx, source.name);
-      const changes = await source.read(tx, ctx, after, entity);
-      if (changes.length === 0) return 0;
+      const { changes, readTo } = await source.read(tx, ctx, after, entity);
+      if (changes.length === 0) {
+        if (readTo > after) await moveCursor(tx, ctx, source.name, readTo); // only changes the read drops: none pending any more
+        return 0;
+      }
       const all = await ledgerAccounts(tx);
       const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
       const everything = chartOf(all, "cgnc", ["pca"]);
@@ -173,7 +183,13 @@ export async function postPending(pusher: TenantContext): Promise<number> {
         if (!r.ok) throw new Error(`${source.name} ${e.id}: ${r.error}`); // a rule or seed bug: retried at the next run
         n++;
       };
-      for (const { version, event } of changes) {
+      for (const change of changes) {
+        if ("voided" in change) {
+          const standing = await standingEntryFor(tx, ctx, source.module, change.voided);
+          if (standing) await post({ id: uuidv7(), legalEntityId: entity.id, journal: standing.journal, day: openDay(standing.day as FarmDay), label: "Annulation", reversesId: standing.id, lines: reversalOf(standing.lines) });
+          continue;
+        }
+        const { version, event } = change;
         // FC7: a home consumption that can't post (FQ25, no value) is left out, and listed on /books instead
         const rule = event.type === "consumption" && unpostedConsumption(event, everything, chart) ? null : postingOf(event, entity.vatRegistered, classicHens);
         // FN8: the owner's overrides in force when the source was first posted (a new source: today's)
@@ -191,7 +207,7 @@ export async function postPending(pusher: TenantContext): Promise<number> {
           await post({ id: uuidv7(), legalEntityId: entity.id, journal: posting.journal, day, label: posting.label, reversesId: null, lines: posting.lines, source: key });
         }
       }
-      await moveCursor(tx, ctx, source.name, changes.at(-1)!.version);
+      await moveCursor(tx, ctx, source.name, readTo);
       return n;
     }, SYNC_TX);
   }

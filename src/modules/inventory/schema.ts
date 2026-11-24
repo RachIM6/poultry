@@ -55,3 +55,5 @@ export const AdjustStock = z.object({
   quantity: z.int32().refine((q) => q !== 0), // signed: + found, − lost
   reason: text(200),
 });
+/** SPEC-finance §9 "Cancelled records": a purchase typed wrong, cancelled (it is then typed again). */
+export const CancelPurchase = z.object({ purchaseId: z.uuid() });

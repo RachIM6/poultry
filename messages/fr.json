@@ -150,6 +150,7 @@
         "recordWeighing": "Pesée",
         "closeBatch": "Clôture d’un lot",
         "transferToLaying": "Transfert en ponte",
+        "correctPlacement": "Correction de la mise en place d’un lot",
         "recordBatchCost": "Charge d’un lot"
       },
       "eggs": {

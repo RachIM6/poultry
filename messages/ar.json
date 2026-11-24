@@ -150,6 +150,7 @@
         "recordWeighing": "وزن",
         "closeBatch": "إغلاق دفعة",
         "transferToLaying": "نقل إلى مرحلة البيض",
+        "correctPlacement": "تصحيح وضع دفعة",
         "recordBatchCost": "تكلفة دفعة"
       },
       "eggs": {

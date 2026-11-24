@@ -148,8 +148,8 @@ function Stepper({ name, label, defaultValue, step, decimal = false, big = false
   };
   const button = `grid ${big ? "size-[52px] text-2xl" : "size-11 text-lg"} shrink-0 place-items-center rounded-2xl font-semibold active:scale-95`;
   return (
-    <div className="flex items-center justify-between gap-3">
-      <label htmlFor={id} className={big ? "text-lg font-semibold" : "text-base text-ink-2"}>{label}</label>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <label htmlFor={id} className={`flex-1 ${big ? "text-lg font-semibold" : "text-base text-ink-2"}`}>{label}</label>
       <div className="inline-flex items-center rounded-2xl bg-shell">
         <button type="button" aria-label={t("minus", { step: String(step), label })} onClick={() => bump(-step)} className={button}>−</button>
         <input
@@ -161,7 +161,7 @@ function Stepper({ name, label, defaultValue, step, decimal = false, big = false
           pattern={decimal ? undefined : "\\d*"}
           dir="ltr"
           placeholder="0"
-          className={`${big ? "w-24 text-[28px]" : "w-20 text-xl"} min-w-0 bg-transparent text-center font-semibold placeholder:text-muted`}
+          className={`${big ? "w-24 text-[28px]" : "w-20 text-xl"} min-w-0 self-stretch bg-transparent text-center font-semibold placeholder:text-muted`}
         />
         <button type="button" aria-label={t("plus", { step: String(step), label })} onClick={() => bump(step)} className={button}>+</button>
       </div>

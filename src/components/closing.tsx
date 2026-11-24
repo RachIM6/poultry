@@ -10,7 +10,7 @@ import { useFieldError, useInline } from "@/components/focus";
 import { formatDay, formatKg, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, FLOCK_MUTATIONS as M, TRANSFER_REASON, ageOfBatch, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
-import { danger, field, primary, secondary } from "@/components/ui";
+import { danger, field, link, primary, secondary } from "@/components/ui";
 
 // SPEC B6 on the batch screen: its other costs (read-only, FN13), closing by hand with a reason, and the figures once
 // closed. The last sale closes the batch by itself (sales); until the next sync after closing, the phone shows the batch
@@ -80,7 +80,7 @@ export function BatchCosts({ batch, costs, manage }: { batch: BatchDto; costs: B
           </ul>
         </>
       )}
-      {batch.status === "open" && <Link href="/expenses" className="underline underline-offset-4">{t("Closing.addCost")}</Link>}
+      {batch.status === "open" && <Link href="/expenses" className={link}>{t("Closing.addCost")}</Link>}
     </section>
   );
 }

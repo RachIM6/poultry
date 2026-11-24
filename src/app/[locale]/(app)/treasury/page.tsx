@@ -10,7 +10,7 @@ import { associateAccount, cashForecast, catchUpBooks, creditExpensesToPay, plac
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, field, table } from "@/components/ui";
-import { Num } from "@/components/num";
+import { Num, Scroll } from "@/components/num";
 import { payCreditExpenseAction, payPlacementAction, recordAssociateAction } from "./actions";
 import { TreasuryForm } from "./pay-form";
 
@@ -111,26 +111,28 @@ async function Treasury() {
       <section className="flex flex-col gap-2" aria-labelledby="schedule">
         <h2 id="schedule" className="text-[17px] font-semibold text-ink-2">{t("Treasury.schedule")}</h2>
         <p className="text-sm text-ink-2">{t("Treasury.scheduleStart", { amount: formatMoney(forecast.value.startCentimes) })}</p>
-        <table className={table} aria-label={t("Treasury.schedule")}>
-          <thead>
-            <tr>
-              <th className="p-2 text-start">{t("Treasury.weekOf")}</th>
-              <th className="p-2 text-end">{t("Treasury.inflow")}</th>
-              <th className="p-2 text-end">{t("Treasury.outflow")}</th>
-              <th className="p-2 text-end">{t("Treasury.cashAfter")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {forecast.value.weeks.map((w) => (
-              <tr key={w.from} className={`border-t border-line ${w.afterCentimes < 0n ? "font-semibold text-brick-fg" : ""}`}>
-                <td className="whitespace-nowrap p-2">{dayMonth(w.from, lang)}</td>
-                <Num>{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</Num>
-                <Num>{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</Num>
-                <Num>{formatMoney(w.afterCentimes)}</Num>
+        <Scroll label={t("Treasury.schedule")}>
+          <table className={table} aria-label={t("Treasury.schedule")}>
+            <thead>
+              <tr>
+                <th className="p-2 text-start">{t("Treasury.weekOf")}</th>
+                <th className="p-2 text-end">{t("Treasury.inflow")}</th>
+                <th className="p-2 text-end">{t("Treasury.outflow")}</th>
+                <th className="p-2 text-end">{t("Treasury.cashAfter")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {forecast.value.weeks.map((w) => (
+                <tr key={w.from} className={`border-t border-line ${w.afterCentimes < 0n ? "font-semibold text-brick-fg" : ""}`}>
+                  <td className="whitespace-nowrap p-2">{dayMonth(w.from, lang)}</td>
+                  <Num>{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</Num>
+                  <Num>{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</Num>
+                  <Num>{formatMoney(w.afterCentimes)}</Num>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Scroll>
         <p className="text-sm text-ink-2">{t("Treasury.scheduleNote")}</p>
       </section>
       {/* SPEC-finance §9 "Placement debts": the chicks or point-of-lay hens still owed, paid here (owner, manager) */}

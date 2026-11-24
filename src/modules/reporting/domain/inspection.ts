@@ -2,7 +2,7 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { CleanoutDto, RodentCheckDto } from "@/modules/biosecurity/shared";
 import { documentState, type DocumentDto } from "@/modules/documents/shared";
 import type { BatchDto, ProductionType } from "@/modules/flock/shared";
-import type { VaccinationDto, VetVisitDto } from "@/modules/health/shared";
+import { REQUIRED_VACCINES, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
 import { batchMonths } from "@/modules/reporting/domain/register";
 
 // SPEC-m2-compliance RP4: the inspection pack of one farm and its checklist. ONSSA publishes no inspection grid (CQ2):
@@ -24,9 +24,6 @@ export function inspectionSince(today: FarmDay, months: number = INSPECTION_LOOK
 
 /** Is this batch's register still in the pack: open, or left within its retention period. */
 export const inPack = (b: BatchDto, today: FarmDay) => b.status === "open" || (b.closedOn ?? "") >= inspectionSince(today, lookbackMonths(b.species));
-
-/** The Newcastle vaccine of the reference catalogue (prisma/seed/reference/products.json). */
-export const NEWCASTLE_VACCINE = "vaccine-newcastle";
 
 export type Missing =
   | { key: "authorization" | "authorizationExpired" | "vetContract" | "noRodentCheck" }
@@ -115,7 +112,7 @@ export function inspectionChecklist({ today, farm, documents, batches, cleanouts
   // one past its day and not done, or one done without a lot.
   const lot = (id: string) => stockItems.find((s) => s.id === id)?.lot;
   const newcastle = pack.flatMap((b): Missing[] => {
-    const lines = vaccinations.filter((v) => v.batchId === b.id && v.productId === NEWCASTLE_VACCINE);
+    const lines = vaccinations.filter((v) => v.batchId === b.id && REQUIRED_VACCINES.some((r) => r.disease === "newcastle" && r.productId === v.productId));
     if (lines.length === 0 || lines.some((v) => !v.done && v.dueOn < today)) return [{ key: "newcastle", batchId: b.id }];
     return lines.some((v) => v.done && !lot(v.done.stockItemId)) ? [{ key: "newcastleLot", batchId: b.id }] : [];
   });

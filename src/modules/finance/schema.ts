@@ -126,6 +126,9 @@ export const FixedAssetUpdate = z.object({ assetId: z.uuid(), lifeMonths, residu
 /** FC1: a later payment of an asset bought on credit. Its id comes from the form, so a retry posts once. */
 export const FixedAssetPayment = z.object({ id: z.uuid(), assetId: z.uuid(), day: z.iso.date(), amountCentimes: positive, paidWith: z.enum(["cash", "transfer", "cheque"]), treasuryId });
 
+/** §9 "Placement debts": a payment of a placement's chicks or point-of-lay hens (FN6, FC6). Its id comes from the form. */
+export const PlacementPayment = z.object({ id: z.uuid(), batchId: z.uuid(), day: z.iso.date(), amountCentimes: positive, paidWith: z.enum(["cash", "transfer", "cheque"]), treasuryId });
+
 /** FC1: sold or scrapped (price 0), the price received in cash or at the bank. */
 export const FixedAssetDisposal = z.object({ assetId: z.uuid(), day: z.iso.date(), priceCentimes: centimes, receivedIn: z.enum(["cash", "bank"]), treasuryId });
 

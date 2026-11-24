@@ -515,6 +515,7 @@
     "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier.",
     "VAT_MORE_THAN_AMOUNT": "La TVA dépasse le montant total.",
     "PAID_MORE_THAN_OWED": "Ce paiement dépasse ce qui est dû au fournisseur.",
+    "NOTHING_OWED": "Il ne reste rien à payer pour cette mise en place.",
     "PAY_MONTH_NOT_VALIDATED": "Validez d’abord la paie de ce mois.",
     "LINE_AFTER_STATEMENT": "Cette opération est datée après la fin du relevé.",
     "LINE_ALREADY_TICKED": "Cette opération est déjà pointée sur un relevé.",
@@ -910,7 +911,13 @@
     "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur (les retards comptent cette semaine). Ventes et achats à venir non compris.",
     "receipt": "Reçu",
     "receiptView": "Voir",
-    "receiptMissing": "Manquant"
+    "receiptMissing": "Manquant",
+    "placements": "Poussins et poulettes à payer",
+    "placementsHint": "Ce qui reste dû pour chaque mise en place, avec le couvoir saisi à la mise en place.",
+    "placedOn": "Mise en place du {day}",
+    "owed": "Reste dû : {amount}",
+    "pay": "Payer",
+    "paid": "Paiement enregistré."
   },
   "Bank": {
     "open": "Rapprochement bancaire",

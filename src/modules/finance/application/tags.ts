@@ -41,6 +41,7 @@ export async function entryTags(ctx: TenantContext, month: string): Promise<Entr
     ...workforce,
     ...expenses.map((x) => [x.id, { party: null, farmId: null, batchId: x.batchId }] as const),
     ...idsOf("flock").map((id) => [id, { party: null, farmId: null, batchId: id }] as const), // the chicks of a placement
+    ...idsOf("finance").flatMap((source) => (source.startsWith("placement:") ? [[source, { party: null, farmId: null, batchId: source.split(":")[1] }] as const] : [])), // their payment (§9)
     ...assetSources.flatMap(([source, id]) => {
       const a = assetOf.get(id);
       return a ? [[source, { party: null, farmId: a.farmId, batchId: null, houseId: a.houseId }] as const] : [];

@@ -40,7 +40,7 @@ async function LoansView() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const [result, grants] = await Promise.all([loanRegister(ctx.value), subsidyRegister(ctx.value)]);
-  if (!result.ok || !grants.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!result.ok || !grants.ok) return <p>{t("Loans.forbidden")}</p>;
   const { books, loans, banks } = result.value;
   const { subsidies, assets } = grants.value;
   const owner = can(ctx.value, "finance.manage");

@@ -39,7 +39,7 @@ async function AssetsView() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await assetRegister(ctx.value);
-  if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!result.ok) return <p>{t("Assets.forbidden")}</p>;
   const register = result.value;
   const owner = can(ctx.value, "finance.manage") && register.farms !== undefined;
   const today = farmDayOf(new Date());

@@ -50,7 +50,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
   const today = farmDayOf(new Date());
   const month = typeof search.month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : today.slice(0, 7);
   const result = await readBooks(ctx.value, month);
-  if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!result.ok) return <p>{t("Books.forbidden")}</p>;
   const books = result.value;
   const bilan = books.balanceSheet;
   const views = books.books === "ledger" ? VIEWS : (["cash"] as const);

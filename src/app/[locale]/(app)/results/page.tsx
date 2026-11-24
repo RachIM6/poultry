@@ -34,7 +34,7 @@ async function Results() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const results = await batchResults(ctx.value);
-  if (!results.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!results.ok) return <p>{t("Results.forbidden")}</p>;
   const money = (c: bigint | null) => (c === null ? "—" : formatMoney(c));
   // FN13: the comparison with the farm's last batches, under each batch
   const kpis = (c: (typeof results.value)[number]["comparison"]) =>

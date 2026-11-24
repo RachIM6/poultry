@@ -8,7 +8,8 @@ import { redirect } from "@/i18n/navigation";
 import { chartView } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 
-// Mockup F-Chart, SPEC-finance FN2, FN6: each operation and the account it is posted to, in both charts. Online, read-only.
+// Mockup F-Chart, SPEC-finance FN2, FN6, FN8: each operation and the account it is posted to, in both charts, and the
+// owner's replacement when there is one (set on /settings/posting). Online, read-only.
 export default function ChartPage() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
@@ -28,7 +29,7 @@ async function Content() {
   const opLabel = (op: string) => (op.startsWith("expense.") ? t(`Expenses.categories.${op.slice(8)}`) : t(`Chart.ops.${op}`));
   const account = (title: string, a: { number: string; label: string } | null, active: boolean) => (
     <span className={`flex gap-2 text-sm ${active ? "font-semibold" : "text-ink-2"}`}>
-      <span className="w-12 shrink-0">{title}</span>
+      <span className="w-20 shrink-0">{title}</span>
       {/* account labels stay in French: the official charts and the accountants use them (same as the export) */}
       <bdi dir="ltr" lang="fr">{a ? `${a.number} · ${a.label}` : "—"}</bdi>
     </span>
@@ -43,8 +44,9 @@ async function Content() {
         {rows.map((r) => (
           <li key={r.op} className={card}>
             <span className="font-semibold">{opLabel(r.op)}</span>
-            {account(t("Chart.pca"), r.pca, pca)}
-            {account(t("Chart.cgnc"), r.cgnc, !pca)}
+            {account(t("Chart.pca"), r.pca, pca && !r.override)}
+            {account(t("Chart.cgnc"), r.cgnc, !pca && !r.override)}
+            {r.override && account(t("Chart.override"), r.override, true)}
           </li>
         ))}
       </ul>

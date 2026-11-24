@@ -777,7 +777,7 @@
     "linePrice": "الثمن · {what} (درهم)",
     "saveCorrection": "حفظ الثمن",
     "void": "إلغاء البيع",
-    "voidOf": "إلغاء: {sale}",
+    "voidOf": "إلغاء البيع: {sale}",
     "voidConfirm": "إلغاء {sale}؟ تعود الطيور أو البيض ويُلغى قيده المحاسبي. يمكنك تسجيله من جديد."
   },
   "Receivables": {

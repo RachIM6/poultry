@@ -73,7 +73,7 @@ test("an offline sale is refused during a withdrawal, then recorded for a day be
   await outboxEmpty(page);
   await expect.poll(server).toEqual([{ amount: "900000", birds: 300, status: "open" }]);
   page.once("dialog", (dialog) => dialog.accept());
-  await sales.nth(0).getByRole("button", { name: /^Annuler : .*Abattoir Atlas · 300 oiseaux/ }).click();
+  await sales.nth(0).getByRole("button", { name: /^Annuler la vente : .*Abattoir Atlas · 300 oiseaux/ }).click();
   await expect(sales).toHaveCount(0);
   await expect(page.getByText("Oiseaux présents : 1 000")).toBeVisible(); // B5: the birds are back
   await outboxEmpty(page);

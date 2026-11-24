@@ -777,7 +777,7 @@
     "linePrice": "Prix · {what} (DH)",
     "saveCorrection": "Enregistrer le prix",
     "void": "Annuler la vente",
-    "voidOf": "Annuler : {sale}",
+    "voidOf": "Annuler la vente : {sale}",
     "voidConfirm": "Annuler {sale} ? Les oiseaux ou les œufs reviennent et son écriture est contre-passée. Vous pourrez la ressaisir."
   },
   "Receivables": {

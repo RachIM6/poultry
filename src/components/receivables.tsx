@@ -27,6 +27,7 @@ import {
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
+import { useInline } from "@/components/focus";
 import { card, field, primary, secondary } from "@/components/ui";
 
 // SPEC V4 on the static /receivables shell, offline: what each buyer owes, their cheques and bills with due dates, and
@@ -55,7 +56,7 @@ function Receivables(scope: Scope) {
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf("buyer", "sale", "buyerPayment", "instrumentStatus").toArray(), [userId, organizationId]);
-  const [paying, setPaying] = useState<string>();
+  const { open: paying, opener, close } = useInline<string>();
   const [message, setMessage] = useState<string>();
   if (!can(scope, "sales.manage")) return <p>{t("Receivables.forbidden")}</p>;
   if (!records) return null;
@@ -121,7 +122,7 @@ function Receivables(scope: Scope) {
     try {
       await writeLocal(db, { type: S.recordPayment, payload: payment }, [{ entity: "buyerPayment", id: payment.id, data: payment }]);
       setMessage("Farms.saved");
-      setPaying(undefined);
+      close();
     } catch {
       setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
     }
@@ -203,9 +204,9 @@ function Receivables(scope: Scope) {
                   </span>
                 ))}
                 {paying === b.id ? (
-                  <PaymentForm buyerId={b.id} balance={balance} onSave={save} onCancel={() => setPaying(undefined)} />
+                  <PaymentForm buyerId={b.id} balance={balance} onSave={save} onCancel={close} />
                 ) : (
-                  <button type="button" onClick={() => setPaying(b.id)} className={secondary}>{t("Receivables.pay")}</button>
+                  <button type="button" {...opener(b.id)} className={secondary}>{t("Receivables.pay")}</button>
                 )}
               </li>
             );
@@ -227,7 +228,7 @@ function Receivables(scope: Scope) {
 /** FN12: the owner sets or removes a buyer's credit limit. */
 function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint | null) => Promise<void> }) {
   const t = useTranslations();
-  const [editing, setEditing] = useState(false);
+  const { open: editing, opener, close } = useInline<"limit">();
   const [error, setError] = useState<string>();
   const limit = buyer.creditLimitCentimes ? BigInt(buyer.creditLimitCentimes) : null;
   // The current limit in the input as the farmer types it ("10000,50"), centimes kept.
@@ -238,22 +239,22 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
     const value = text === "" ? null : parseCentimes(text);
     if (text !== "" && value === null) return setError("errors.INVALID_INPUT");
     await onSave(value);
-    setEditing(false);
+    close();
   };
   return (
     <li className={card}>
       <span>{buyer.name} · {limit === null ? t("Receivables.noLimit") : t("Receivables.limit", { amount: formatMoney(limit) })}</span>
       {editing ? (
         <form onSubmit={submit} className="flex flex-col gap-2">
-          <Field label={t("Receivables.limitLabel")}>{(id) => <input id={id} name="limit" inputMode="decimal" dir="ltr" defaultValue={shown} className={field} />}</Field>
+          <Field label={t("Receivables.limitLabel")}>{(id) => <input id={id} name="limit" inputMode="decimal" dir="ltr" defaultValue={shown} autoFocus className={field} />}</Field>
           {error && <p role="alert">{t(error)}</p>}
           <div className="flex gap-3">
             <button type="submit" className={primary}>{t("Receivables.saveLimit")}</button>
-            <button type="button" onClick={() => setEditing(false)} className={secondary}>{t("Receivables.cancel")}</button>
+            <button type="button" onClick={close} className={secondary}>{t("Receivables.cancel")}</button>
           </div>
         </form>
       ) : (
-        <button type="button" onClick={() => setEditing(true)} className={secondary}>{t("Receivables.editLimit")}</button>
+        <button type="button" {...opener("limit")} className={secondary}>{t("Receivables.editLimit")}</button>
       )}
     </li>
   );
@@ -291,7 +292,7 @@ function PaymentForm({ buyerId, balance, onSave, onCancel }: { buyerId: string; 
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <Field label={t("Receivables.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} max={today()} required className={field} />}</Field>
+      <Field label={t("Receivables.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} max={today()} required autoFocus className={field} />}</Field>
       <Field label={t("Receivables.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" required dir="ltr" className={field} />}</Field>
       <Field label={t("Receivables.method")}>
         {(id) => (

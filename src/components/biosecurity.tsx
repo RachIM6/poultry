@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { useInline } from "@/components/focus";
 import { Field, FileUpload, Shell, of, useOnline, type Save, type Screen } from "@/components/local-screen";
 import { card, danger, field, primary, secondary, warn } from "@/components/ui";
 import { formatCount, formatDateTime, formatDay, formatKg } from "@/lib/format";
@@ -71,15 +72,15 @@ function correct<T extends { id: string }>(save: Save, type: string, entity: str
   return Object.keys(changes).length === 0 ? Promise.resolve(true) : save({ type, payload: { id: before.id, changes } }, entity, local);
 }
 
-/** A record of the log, and its "Modifier" button that opens `form` in its place. Records are never deleted (D6). */
+/** A record of the log, and its "Modifier" button that opens `form` in its place (its first field autoFocus). Records are never deleted (D6). */
 function Editable({ name, form, children }: { name: string; form: (close: () => void) => ReactNode; children: ReactNode }) {
   const t = useTranslations("Biosecurity");
-  const [open, setOpen] = useState(false);
-  if (open) return form(() => setOpen(false));
+  const { open, opener, close } = useInline<"edit">();
+  if (open) return form(close);
   return (
     <>
       {children}
-      <button type="button" onClick={() => setOpen(true)} className={`${secondary} self-start`} aria-label={t("editNamed", { record: name })}>
+      <button type="button" {...opener("edit")} className={`${secondary} self-start`} aria-label={t("editNamed", { record: name })}>
         {t("edit")}
       </button>
     </>
@@ -170,7 +171,7 @@ function VisitForm({ farmId, visit, onSave, onCancel }: { farmId: string; visit?
 
   return (
     <form key={key} onSubmit={submit} className="flex flex-col gap-3" aria-label={visit && t("Biosecurity.editNamed", { record: visit.visitor })}>
-      <Field label={t("Visitors.visitor")}>{(id) => <input id={id} name="visitor" required maxLength={120} defaultValue={visit?.visitor} className={field} />}</Field>
+      <Field label={t("Visitors.visitor")}>{(id) => <input id={id} name="visitor" required maxLength={120} defaultValue={visit?.visitor} autoFocus={!!visit} className={field} />}</Field>
       <Field label={t("Visitors.vehicle")}>{(id) => <input id={id} name="vehicle" maxLength={20} dir="ltr" defaultValue={visit?.vehicle ?? ""} className={field} />}</Field>
       <Field label={t("Visitors.purpose")}>
         {(id) => (
@@ -363,7 +364,7 @@ function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps
 
   return (
     <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={disposal?.day ?? today} max={today} required className={field} />}</Field>
+      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={disposal?.day ?? today} max={today} required autoFocus={!!disposal} className={field} />}</Field>
       <Field label={t("Disposal.batchField")}>
         {(id) => (
           <select id={id} name="batch" defaultValue={disposal ? (disposal.batchId ?? "") : undefined} className={field}>
@@ -461,7 +462,7 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
 
   return (
     <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={removal?.day ?? today} max={today} required className={field} />}</Field>
+      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={removal?.day ?? today} max={today} required autoFocus={!!removal} className={field} />}</Field>
       <Field label={t("Disposal.house")}>
         {(id) => (
           <select id={id} name="house" defaultValue={removal ? (removal.houseId ?? "") : undefined} className={field}>
@@ -563,7 +564,7 @@ function Cleanouts(props: Parameters<Screen>[0]) {
 
 function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string) => string; save: Save }) {
   const t = useTranslations();
-  const [open, setOpen] = useState<CleanoutStepKey>();
+  const { open, opener, close } = useInline<CleanoutStepKey>();
   const [error, setError] = useState<string>();
   const today = farmDayOf(new Date());
 
@@ -582,7 +583,7 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
     const saved = done
       ? await correct(save, B.editCleanoutStep, "cleanout", done, step, next)
       : await save({ type: B.recordCleanoutStep, payload: { ...step, cleanoutId: cleanout.id } }, "cleanout", next);
-    if (saved) setOpen(undefined);
+    if (saved) close();
   };
 
   return (
@@ -600,7 +601,7 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
               {open !== key && (
                 <button
                   type="button"
-                  onClick={() => (setOpen(key), setError(undefined))}
+                  {...opener(key, () => setError(undefined))}
                   className={secondary}
                   aria-label={done ? t("Biosecurity.editNamed", { record: t(`Cleanout.steps.${key}`) }) : t("Cleanout.markNamed", { step: t(`Cleanout.steps.${key}`) })}
                 >
@@ -610,7 +611,7 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
             </div>
             {open === key && (
               <form onSubmit={submit} className="flex flex-col gap-3">
-                <Field label={t("Cleanout.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={done?.day ?? today} max={today} required className={field} />}</Field>
+                <Field label={t("Cleanout.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={done?.day ?? today} max={today} required autoFocus className={field} />}</Field>
                 {key === "disinfection" && (
                   <>
                     <Field label={t("Cleanout.product")}>{(id) => <input id={id} name="product" required maxLength={120} defaultValue={done?.product ?? ""} className={field} />}</Field>
@@ -620,7 +621,7 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
                 )}
                 <Field label={t("Cleanout.note")}>{(id) => <input id={id} name="note" maxLength={200} defaultValue={done?.note ?? ""} className={field} />}</Field>
                 {error && <p role="alert">{t(error)}</p>}
-                <Submit label={t("Cleanout.save")} onCancel={done ? () => setOpen(undefined) : undefined} />
+                <Submit label={t("Cleanout.save")} onCancel={done ? close : undefined} />
               </form>
             )}
           </li>
@@ -706,7 +707,7 @@ function RodentForm({ farmId, houses, check, onSave, onCancel, onError }: FormPr
 
   return (
     <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={check?.day ?? today} max={today} required className={field} />}</Field>
+      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={check?.day ?? today} max={today} required autoFocus={!!check} className={field} />}</Field>
       <Field label={t("Disposal.house")}>
         {(id) => (
           <select id={id} name="house" defaultValue={check ? (check.houseId ?? "") : undefined} className={field}>

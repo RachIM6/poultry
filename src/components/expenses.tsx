@@ -15,6 +15,7 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { FileUpload, useOnline } from "@/components/local-screen";
+import { useInline } from "@/components/focus";
 import { card, field, primary, secondary } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
@@ -46,7 +47,7 @@ function Expenses(scope: Scope) {
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf("treasuryAccount", "expense", "batch", "house").toArray(), [userId, organizationId]);
   const [message, setMessage] = useState<string>();
-  const [adding, setAdding] = useState(false);
+  const { open: adding, opener, close } = useInline<"account">();
   const [uploadError, setUploadError] = useState<string>();
   const online = useOnline();
   const queued = useLiveQuery(() => db.outbox.toArray(), [userId, organizationId]);
@@ -109,12 +110,12 @@ function Expenses(scope: Scope) {
       {adding ? (
         <AccountForm
           onSave={async (a) => {
-            if (await write({ type: F.createTreasuryAccount, payload: a }, "treasuryAccount", a)) setAdding(false);
+            if (await write({ type: F.createTreasuryAccount, payload: a }, "treasuryAccount", a)) close();
           }}
-          onCancel={() => setAdding(false)}
+          onCancel={close}
         />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t("Expenses.addAccount")}</button>
+        <button type="button" {...opener("account")} className={secondary}>{t("Expenses.addAccount")}</button>
       )}
     </>
   );
@@ -225,7 +226,7 @@ function AccountForm({ onSave, onCancel }: { onSave: (a: TreasuryAccountDto) => 
     <form onSubmit={submit} className={card}>
       <Field label={t("Expenses.kind")}>
         {(id) => (
-          <select id={id} name="kind" className={field}>
+          <select id={id} name="kind" autoFocus className={field}>
             {TREASURY_KINDS.map((k) => <option key={k} value={k}>{t(`Expenses.kinds.${k}`)}</option>)}
           </select>
         )}

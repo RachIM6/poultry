@@ -11,6 +11,7 @@ import type { MovementDto, StockItemDto } from "@/modules/inventory/shared";
 import type { Product, ProtocolDto } from "@/modules/reference-data/schema";
 import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 import type { Write } from "@/components/daily-entry";
+import { useInline } from "@/components/focus";
 import { field, primary, secondary } from "@/components/ui";
 
 // SPEC H2 on the batch screen, offline: the batch's plan, and "mark done" with the lot it came from. The phone runs the
@@ -48,14 +49,13 @@ export function Vaccinations({
 }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [doing, setDoing] = useState<string>(); // "done:<id>", "move:<id>", "remove:<id>" or "add"
+  const { open: doing, opener, close } = useInline<string>(); // "done:<id>", "move:<id>", "remove:<id>" or "add"
   const vaccine = (id: string) => {
     const p = products.find((x) => x.id === id);
     return p ? (locale === "ar" ? p.nameAr : p.nameFr) : id;
   };
   const day = (d: string) => formatDay(d as FarmDay, locale);
   const plan = [...vaccinations].sort((a, b) => a.dayOfAge - b.dayOfAge || a.productId.localeCompare(b.productId));
-  const close = () => setDoing(undefined);
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="vaccination-title">
@@ -109,14 +109,14 @@ export function Vaccinations({
                         >
                           {t("Vaccination.removeYes")}
                         </button>
-                        <button type="button" onClick={close} className={secondary}>{t("Vaccination.cancel")}</button>
+                        <button type="button" onClick={close} autoFocus className={secondary}>{t("Vaccination.cancel")}</button>
                       </div>
                     </div>
                   ) : (
                     <div className="mt-1 flex flex-wrap gap-3">
-                      <button type="button" onClick={() => setDoing(`done:${v.id}`)} className={secondary}>{t("Vaccination.markDone")}</button>
-                      {manage && <button type="button" onClick={() => setDoing(`move:${v.id}`)} className={secondary}>{t("Vaccination.move")}</button>}
-                      {manage && <button type="button" onClick={() => setDoing(`remove:${v.id}`)} className={secondary}>{t("Vaccination.remove")}</button>}
+                      <button type="button" {...opener(`done:${v.id}`)} className={secondary}>{t("Vaccination.markDone")}</button>
+                      {manage && <button type="button" {...opener(`move:${v.id}`)} className={secondary}>{t("Vaccination.move")}</button>}
+                      {manage && <button type="button" {...opener(`remove:${v.id}`)} className={secondary}>{t("Vaccination.remove")}</button>}
                     </div>
                   ))}
               </li>
@@ -128,7 +128,7 @@ export function Vaccinations({
         (doing === "add" ? (
           <AddForm batch={batch} vaccines={products.filter((p) => p.kind === "vaccine")} vaccine={vaccine} write={write} onDone={close} />
         ) : (
-          <button type="button" onClick={() => setDoing("add")} className={secondary}>{t("Vaccination.add")}</button>
+          <button type="button" {...opener("add")} className={secondary}>{t("Vaccination.add")}</button>
         ))}
     </section>
   );
@@ -140,6 +140,17 @@ function Labelled({ label, children }: { label: string; children: (id: string) =
     <div className="flex flex-col gap-1">
       <label htmlFor={id}>{label}</label>
       {children(id)}
+    </div>
+  );
+}
+
+/** A form that cannot open, and the way back to its button. */
+function Blocked({ message, onDone }: { message: string; onDone: () => void }) {
+  const t = useTranslations("Vaccination");
+  return (
+    <div className="mt-2 flex flex-col gap-3">
+      <p role="alert">{message}</p>
+      <button type="button" onClick={onDone} autoFocus className={`${secondary} self-start`}>{t("cancel")}</button>
     </div>
   );
 }
@@ -172,7 +183,7 @@ function ApplyProtocol({ batch, protocols, write }: { batch: BatchDto; protocols
 function AddForm({ batch, vaccines, vaccine, write, onDone }: { batch: BatchDto; vaccines: Product[]; vaccine: (id: string) => string; write: Write; onDone: () => void }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
-  if (vaccines.length === 0) return <p role="alert">{t("Protocol.noReference")}</p>; // the catalogue comes with one sync online
+  if (vaccines.length === 0) return <Blocked message={t("Protocol.noReference")} onDone={onDone} />; // the catalogue comes with one sync online
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -190,7 +201,7 @@ function AddForm({ batch, vaccines, vaccine, write, onDone }: { batch: BatchDto;
     <form onSubmit={submit} className="flex flex-col gap-3">
       <Labelled label={t("Protocol.vaccine")}>
         {(id) => (
-          <select id={id} name="productId" className={field}>
+          <select id={id} name="productId" autoFocus className={field}>
             {vaccines.map((p) => <option key={p.id} value={p.id}>{vaccine(p.id)}</option>)}
           </select>
         )}
@@ -228,7 +239,7 @@ function MoveForm({ batch, vaccination, write, onDone }: { batch: BatchDto; vacc
   return (
     <form onSubmit={submit} className="mt-2 flex flex-col gap-3">
       <Labelled label={t("Protocol.day")}>
-        {(id) => <input id={id} name="dayOfAge" inputMode="numeric" pattern="\d+" defaultValue={String(vaccination.dayOfAge)} required dir="ltr" className={field} />}
+        {(id) => <input id={id} name="dayOfAge" inputMode="numeric" pattern="\d+" defaultValue={String(vaccination.dayOfAge)} required autoFocus dir="ltr" className={field} />}
       </Labelled>
       {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
@@ -259,7 +270,7 @@ function DoneForm({
   const t = useTranslations();
   const locale = useLocale();
   const [error, setError] = useState<string>();
-  if (lots.length === 0) return <p role="alert">{t("Vaccination.noLot")}</p>;
+  if (lots.length === 0) return <Blocked message={t("Vaccination.noLot")} onDone={onDone} />;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -284,7 +295,7 @@ function DoneForm({
 
   return (
     <form onSubmit={submit} className="mt-2 flex flex-col gap-3">
-      <Labelled label={t("Vaccination.on")}>{(id) => <input id={id} name="on" type="date" defaultValue={today()} required className={field} />}</Labelled>
+      <Labelled label={t("Vaccination.on")}>{(id) => <input id={id} name="on" type="date" defaultValue={today()} required autoFocus className={field} />}</Labelled>
       <Labelled label={t("Vaccination.lot")}>
         {(id) => (
           <select id={id} name="stockItemId" className={field}>

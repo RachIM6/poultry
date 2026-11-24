@@ -6,6 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { useBatchResults } from "@/components/batch-results";
 import type { Write } from "@/components/daily-entry";
+import { useInline } from "@/components/focus";
 import { formatDay, formatKg, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, FLOCK_MUTATIONS as M, TRANSFER_REASON, ageOfBatch, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
@@ -84,9 +85,9 @@ export function BatchCosts({ batch, costs, manage }: { batch: BatchDto; costs: B
 
 export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write }) {
   const t = useTranslations();
-  const [closing, setClosing] = useState(false);
+  const { open, opener, close } = useInline<"close">();
   const [error, setError] = useState<string>();
-  if (!closing) return <button type="button" onClick={() => setClosing(true)} className={secondary}>{t("Closing.close")}</button>;
+  if (!open) return <button type="button" {...opener("close")} className={secondary}>{t("Closing.close")}</button>;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -104,12 +105,12 @@ export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
       <p>{t("Closing.warning")}</p>
-      <Field label={t("Closing.reason")}>{(id) => <input id={id} name="reason" required maxLength={200} className={field} />}</Field>
+      <Field label={t("Closing.reason")}>{(id) => <input id={id} name="reason" required maxLength={200} autoFocus className={field} />}</Field>
       <Field label={t("Closing.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required className={field} />}</Field>
       {error && <p role="alert">{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Closing.confirm")}</button>
-        <button type="button" onClick={() => setClosing(false)} className={secondary}>{t("Closing.cancel")}</button>
+        <button type="button" onClick={close} className={secondary}>{t("Closing.cancel")}</button>
       </div>
     </form>
   );
@@ -118,11 +119,11 @@ export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write
 /** SPEC-m3 B13: a pullet batch moves to a laying house. The server culls the birds left behind and closes it. */
 export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto; onHand: number; houses: { id: string; label: string; free: boolean }[]; write: Write }) {
   const t = useTranslations();
-  const [open, setOpen] = useState(false);
+  const { open, opener, close } = useInline<"transfer">();
   const [hens, setHens] = useState(String(onHand));
   const [error, setError] = useState<string>();
   const free = houses.filter((h) => h.free);
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className={secondary}>{t("Transfer.title")}</button>;
+  if (!open) return <button type="button" {...opener("transfer")} className={secondary}>{t("Transfer.title")}</button>;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -163,12 +164,15 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
     <form onSubmit={submit} className="flex flex-col gap-3" aria-labelledby="transfer-title">
       <h3 id="transfer-title" className="text-lg font-semibold">{t("Transfer.title")}</h3>
       {free.length === 0 ? (
-        <p>{t("Transfer.noHouse")}</p>
+        <>
+          <p>{t("Transfer.noHouse")}</p>
+          <button type="button" onClick={close} autoFocus className={`${secondary} self-start`}>{t("Closing.cancel")}</button>
+        </>
       ) : (
         <>
           <Field label={t("Transfer.house")}>
             {(id) => (
-              <select id={id} name="houseId" className={field}>
+              <select id={id} name="houseId" autoFocus className={field}>
                 {free.map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
               </select>
             )}
@@ -181,7 +185,7 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
           {error && <p role="alert">{t(error)}</p>}
           <div className="flex gap-3">
             <button type="submit" className={primary}>{t("Transfer.save")}</button>
-            <button type="button" onClick={() => setOpen(false)} className={secondary}>{t("Closing.cancel")}</button>
+            <button type="button" onClick={close} className={secondary}>{t("Closing.cancel")}</button>
           </div>
         </>
       )}

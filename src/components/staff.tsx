@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
+import { useInline } from "@/components/focus";
 import { card, done, field, primary, secondary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -27,7 +28,7 @@ function Staff(scope: Scope) {
   const locale = useLocale();
   const db = localDb(scope);
   const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance", "labourRules", "payMonth", "payPayment", "staffRecord").toArray(), [scope.userId, scope.organizationId]);
-  const [editing, setEditing] = useState<EmployeeDto | "new" | null>(null);
+  const { open, opener, close } = useInline<string>(); // an employee's id, or "new"
   const [message, setMessage] = useState<string>();
   if (!can(scope, "workforce.manage")) return <p>{t("Staff.forbidden")}</p>;
   if (!records) return null;
@@ -41,12 +42,12 @@ function Staff(scope: Scope) {
   const save = async (e: EmployeeDto, before: EmployeeDto | null) => {
     // An edit sends only what changed: an edit of other fields on another phone survives (ADR-003 §5).
     const changes = before && Object.fromEntries(EDITABLE.filter((k) => JSON.stringify(e[k] ?? null) !== JSON.stringify(before[k] ?? null)).map((k) => [k, e[k]]));
-    if (changes && Object.keys(changes).length === 0) return setEditing(null);
+    if (changes && Object.keys(changes).length === 0) return close();
     const mutation = changes ? { type: W.updateEmployee, payload: { id: e.id, changes } } : { type: W.createEmployee, payload: e };
     try {
       await writeLocal(db, mutation, { entity: "employee", id: e.id, data: e });
       setMessage("Farms.saved");
-      setEditing(null);
+      close();
     } catch {
       setMessage("Farms.saveFailed"); // QuotaExceededError: never pretend it was saved
     }
@@ -73,16 +74,16 @@ function Staff(scope: Scope) {
                     e.leftOn ? t("Staff.leftOn", { date: formatDay(e.leftOn as FarmDay, locale) }) : e.userId ? t("Staff.usesApp") : t("Staff.noApp"),
                   ].filter(Boolean).join(" · ")}
                 </span>
-                <button type="button" onClick={() => setEditing(e)} className={`${secondary} self-start`}>{t("Staff.edit", { name: e.name })}</button>
+                <button type="button" {...opener(e.id)} className={`${secondary} self-start`}>{t("Staff.edit", { name: e.name })}</button>
               </li>
             ))}
           </ul>
         </section>
       ))}
-      {editing ? (
-        <EmployeeForm key={editing === "new" ? "new" : editing.id} employee={editing === "new" ? null : editing} farms={farms} houses={houses} onSave={save} onCancel={() => setEditing(null)} />
+      {open ? (
+        <EmployeeForm key={open} employee={employees.find((e) => e.id === open) ?? null} farms={farms} houses={houses} onSave={save} onCancel={close} />
       ) : (
-        <button type="button" onClick={() => setEditing("new")} className={primary}>{t("Staff.add")}</button>
+        <button type="button" {...opener("new")} className={primary}>{t("Staff.add")}</button>
       )}
       <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
       <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={(a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
@@ -149,7 +150,7 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
           )}
         </Field>
       )}
-      <Field label={t("Staff.name")}>{(id) => <input id={id} name="name" required maxLength={120} defaultValue={employee?.name} className={field} />}</Field>
+      <Field label={t("Staff.name")}>{(id) => <input id={id} name="name" required maxLength={120} defaultValue={employee?.name} autoFocus className={field} />}</Field>
       <Field label={t("Staff.job")}>
         {(id) => (
           <select id={id} name="job" defaultValue={employee?.job ?? "worker"} className={field}>
@@ -426,7 +427,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
   const today = farmDayOf(new Date());
   const [month, setMonth] = useState(today.slice(0, 7));
   const [farmId, setFarmId] = useState(farms[0].id);
-  const [editingRules, setEditingRules] = useState(false);
+  const { open: editingRules, opener, close } = useInline<"rules">();
   const inForce = rulesOn(rules, monthEnd(month));
   const frozen = months.find((p) => p.id === payMonthId(farmId, month));
   const working = employees.filter((e) => e.farmId === farmId && e.startedOn <= monthEnd(month) && (!e.leftOn || e.leftOn > `${month}-01`));
@@ -506,9 +507,9 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
       {owner && frozen && <WagesPaid farmId={farmId} month={month} net={sum((l) => (BigInt(l.netCentimes) > 0n ? l.netCentimes : "0")) ?? "0"} paid={payments.find((p) => p.id === payPaymentId(farmId, month))} today={today} write={write} />}
       {owner &&
         (editingRules ? (
-          <RulesForm onCancel={() => setEditingRules(false)} onSave={(r) => write(W.saveLabourRules, "labourRules", r).then(() => setEditingRules(false))} />
+          <RulesForm onCancel={close} onSave={(r) => write(W.saveLabourRules, "labourRules", r).then(close)} />
         ) : (
-          <button type="button" onClick={() => setEditingRules(true)} className={secondary}>{t("Pay.enterRules")}</button>
+          <button type="button" {...opener("rules")} className={secondary}>{t("Pay.enterRules")}</button>
         ))}
     </section>
   );
@@ -561,7 +562,7 @@ function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<v
   return (
     <form onSubmit={submit} className={card} aria-label={t("Pay.enterRules")}>
       <p className="text-sm text-ink-2">{t("Pay.rulesHint")}</p>
-      <Field label={t("Pay.source")}>{(id) => <input id={id} name="source" required minLength={3} maxLength={300} className={field} />}</Field>
+      <Field label={t("Pay.source")}>{(id) => <input id={id} name="source" required minLength={3} maxLength={300} autoFocus className={field} />}</Field>
       <Field label={t("Pay.validFrom")}>{(id) => <input id={id} name="validFrom" type="date" required className={field} />}</Field>
       <Field label={t("Pay.smag")}>{(id) => <input id={id} name="smag" inputMode="decimal" dir="ltr" className={field} />}</Field>
       {pctField("employeeCapped", t("Pay.employeeCapped"))}

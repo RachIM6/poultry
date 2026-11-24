@@ -69,6 +69,7 @@ async function Results() {
                     <div className="font-semibold">{r.houseName} · {formatDay(r.placedOn as FarmDay, lang)}</div>
                     <div className="text-muted">{r.closedOn ? t("Results.closed", { date: formatDay(r.closedOn as FarmDay, lang) }) : t("Results.open_")}</div>
                     <div>{kpis(r.comparison)}</div>
+                    {r.byBirdDays && <div className="text-muted">{t("Results.byBirdDays")}</div>}
                     <div className="text-muted">
                       {t("Results.costs", { chicks: money(r.costs.chicks), consumption: money(r.costs.consumption), other: money(r.costs.other), direct: money(r.costs.direct), allocated: money(r.costs.allocated) })}
                     </div>

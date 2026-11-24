@@ -10,6 +10,7 @@ export type BatchMoneyFacts = {
   farmId: string;
   houseId: string;
   houseName: string;
+  houseAreaM2: number; // SPEC-finance FN14: the house m² key
   species: ProductionType; // SPEC-finance FC3: the count sheet shows the production type
   placedOn: string;
   closedOn: string | null;
@@ -23,7 +24,7 @@ export type BatchMoneyFacts = {
   sold: number; // birds sold (SPEC-finance FC4's split by head)
   lost: number; // dead and culled, from the daily entries (FN13's mortality)
   out: { day: string; birds: number }[]; // deaths, culls and sales, by day (for bird-days)
-  soldOut: { day: string; birds: number }[]; // the sales alone, by day (SPEC-finance FC6: a laying flock's culls)
+  soldOut: { day: string; birds: number; grams: number }[]; // the sales alone, by day (SPEC-finance FC6: a laying flock's culls; FN14: kg sold)
   fromBatchId: string | null; // SPEC-m3 B13: a layer batch transferred from this pullet batch (SPEC-finance FC6)
 };
 
@@ -41,13 +42,14 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext, asOf?: strin
     tx.batchCost.groupBy({ by: ["batchId"], where: dated, _sum: { amountCentimes: true } }),
   ]);
   const other = new Map(costs.map((c) => [c.batchId, c._sum.amountCentimes ?? 0n]));
-  const houses = new Map<string, string>();
-  for (const id of new Set(batches.map((b) => b.houseId))) houses.set(id, (await houseOf(tx, ctx, id))?.name ?? "");
+  const houses = new Map<string, { name: string; areaM2: number }>();
+  for (const id of new Set(batches.map((b) => b.houseId))) houses.set(id, (await houseOf(tx, ctx, id)) ?? { name: "", areaM2: 0 });
   return batches.map((b) => ({
     id: b.id,
     farmId: b.farmId,
     houseId: b.houseId,
-    houseName: houses.get(b.houseId) ?? "",
+    houseName: houses.get(b.houseId)?.name ?? "",
+    houseAreaM2: houses.get(b.houseId)?.areaM2 ?? 0,
     species: b.species as ProductionType,
     placedOn: day(b.placedOn),
     closedOn: b.closedOn && !(asOf && day(b.closedOn) > asOf) ? day(b.closedOn) : null,
@@ -64,7 +66,7 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext, asOf?: strin
       ...entries.filter((e) => e.batchId === b.id).map((e) => ({ day: day(e.day), birds: e.dead + e.culled })),
       ...sold.filter((s) => s.batchId === b.id).map((s) => ({ day: day(s.day), birds: s.birds })),
     ],
-    soldOut: sold.filter((s) => s.batchId === b.id).map((s) => ({ day: day(s.day), birds: s.birds })),
+    soldOut: sold.filter((s) => s.batchId === b.id).map((s) => ({ day: day(s.day), birds: s.birds, grams: s.liveWeightGrams })),
     fromBatchId: b.fromBatchId,
   }));
 }

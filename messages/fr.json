@@ -997,7 +997,8 @@
     "costs": "Poussins {chicks} · consommations {consumption} · autres {other} · direct {direct} · réparti (charges communes et salaires) {allocated}",
     "open_": "en cours",
     "closed": "clôturée le {date}",
-    "kpis": "Mortalité {lost} · IC {fcr} · aliment {feed}/kg · vendu {price}/kg"
+    "kpis": "Mortalité {lost} · IC {fcr} · aliment {feed}/kg · vendu {price}/kg",
+    "byBirdDays": "Une partie des charges communes est répartie selon les sujets présents par jour : aucune bande n’avait de poids selon la clé choisie sur la période."
   },
   "Budget": {
     "title": "Budget d’une bande",
@@ -2382,6 +2383,21 @@
       "simplified": {
         "title": "Méthode simplifiée",
         "desc": "Achats et ventes en charges et produits ; à la clôture, le cheptel compté est inscrit à sa valeur d’entrée et celle de l’exercice précédent annulée. Pas d’amortissement."
+      }
+    },
+    "allocation": "Répartition des charges communes",
+    "allocationKeys": {
+      "birdDays": {
+        "title": "Sujets présents par jour",
+        "desc": "Chaque bande prend sa part selon le nombre de sujets présents chaque jour de la période. Clé par défaut."
+      },
+      "houseArea": {
+        "title": "Surface du bâtiment",
+        "desc": "Selon les m² du bâtiment de la bande, multipliés par ses jours de présence dans la période : une bande présente la moitié du mois en prend la moitié."
+      },
+      "kgSold": {
+        "title": "Kilos vendus",
+        "desc": "Selon le poids vif vendu par chaque bande pendant la période. Si aucune bande n’a vendu, la charge est répartie selon les sujets présents par jour."
       }
     },
     "save": "Enregistrer",

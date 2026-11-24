@@ -8,7 +8,7 @@ import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { parseCentimes } from "@/lib/kernel/money";
+import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import { bankOnly, EXPENSE_CATEGORIES, FINANCE_MUTATIONS as F, TREASURY_KINDS, type ExpenseDto, type TreasuryAccountDto } from "@/modules/finance/shared";
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
@@ -25,7 +25,7 @@ import { card, danger, field, primary, secondary } from "@/components/ui";
 // SPEC-finance §9 "Cancelled records": a recent expense is corrected in the same form, or cancelled after a confirmation.
 
 const today = () => farmDayOf(new Date());
-const typed = (centimes: string) => `${BigInt(centimes) / 100n},${String(BigInt(centimes) % 100n).padStart(2, "0")}`; // as parseCentimes reads it
+const typed = (centimes: string) => typedCentimes(BigInt(centimes));
 
 /** An expense as the form's fields, to correct it. */
 const fieldsOf = (e: ExpenseDto): Pick<URLSearchParams, "get"> => {

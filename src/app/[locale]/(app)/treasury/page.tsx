@@ -6,11 +6,11 @@ import { v7 as uuidv7 } from "uuid";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { cashForecast, creditExpensesToPay, placementsToPay, treasuryOverview } from "@/modules/finance";
+import { associateAccount, cashForecast, creditExpensesToPay, placementsToPay, treasuryOverview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, field, table } from "@/components/ui";
-import { payCreditExpenseAction, payPlacementAction } from "./actions";
+import { payCreditExpenseAction, payPlacementAction, recordAssociateAction } from "./actions";
 import { TreasuryForm } from "./pay-form";
 
 // SPEC-finance FN10: an online page for the owner and the manager (the web side of SPEC's split): each bank account's
@@ -39,7 +39,13 @@ async function Treasury() {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const today = farmDayOf(new Date());
   const month = today.slice(0, 7);
-  const [overview, forecast, toPay, expensesToPay] = await Promise.all([treasuryOverview(ctx.value, month), cashForecast(ctx.value), placementsToPay(ctx.value), creditExpensesToPay(ctx.value)]);
+  const [overview, forecast, toPay, expensesToPay, owners] = await Promise.all([
+    treasuryOverview(ctx.value, month),
+    cashForecast(ctx.value),
+    placementsToPay(ctx.value),
+    creditExpensesToPay(ctx.value),
+    associateAccount(ctx.value), // the owner only
+  ]);
   if (!overview.ok || !forecast.ok) return <p>{t("Expenses.forbidden")}</p>;
   const { accounts, unassignedCentimes, movements } = overview.value;
   const nameOf = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? t(id === null ? "Treasury.untagged" : "Treasury.unknown");
@@ -153,6 +159,36 @@ async function Treasury() {
               {payForm(payCreditExpenseAction, <input type="hidden" name="expenseId" value={e.expenseId} />)}
             </article>
           ))}
+        </section>
+      )}
+      {/* SPEC-finance FN6, FQ11 (§9 "Associate contributions"): money an associate or the exploitant brings in or takes out (owner) */}
+      {owners.ok && (
+        <section className="flex flex-col gap-2" aria-labelledby="associate">
+          <h2 id="associate" className="text-[17px] font-semibold text-ink-2">{t(owners.value.individual ? "Treasury.exploitant" : "Treasury.associate")}</h2>
+          <p className="text-sm text-ink-2">{t(owners.value.individual ? "Treasury.exploitantHint" : "Treasury.associateHint", { account: owners.value.account })}</p>
+          {accounts.length === 0 ? (
+            <p>{t("Treasury.associateNoAccount")}</p>
+          ) : (
+            <TreasuryForm action={recordAssociateAction} submit={t("Treasury.associateSave")}>
+              <input type="hidden" name="id" value={uuidv7()} />
+              {label(
+                t("Treasury.direction"),
+                <select name="direction" required defaultValue="contribution" className={field}>
+                  {(["contribution", "withdrawal"] as const).map((d) => <option key={d} value={d}>{t(`Treasury.directions.${d}`)}</option>)}
+                </select>,
+              )}
+              {label(t("Treasury.day"), <input type="date" name="day" defaultValue={today} max={today} required className={field} />)}
+              {label(t("Treasury.amount"), <input name="amount" inputMode="decimal" required dir="ltr" className={field} />)}
+              {label(
+                t("Treasury.into"),
+                <select name="treasuryId" required defaultValue="" className={field}>
+                  <option value="" disabled>—</option>
+                  {accounts.map((a) => <option key={a.id} value={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</option>)}
+                </select>,
+              )}
+              {!owners.value.individual && label(t("Treasury.associateName"), <input name="associate" maxLength={80} className={field} />)}
+            </TreasuryForm>
+          )}
         </section>
       )}
       {/* SPEC-finance FC9: ticking each bank account's lines against its statements */}

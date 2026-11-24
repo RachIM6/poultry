@@ -132,6 +132,16 @@ export const PlacementPayment = z.object({ id: z.uuid(), batchId: z.uuid(), day:
 /** §9 "Credit expenses": a payment of a quick expense recorded on credit (FN6). Its id comes from the form. */
 export const CreditExpensePayment = z.object({ id: z.uuid(), expenseId: z.uuid(), day: z.iso.date(), amountCentimes: positive, paidWith: z.enum(["cash", "transfer", "cheque"]), treasuryId });
 
+/** §9 "Associate contributions": money an associate or the exploitant brings in or takes out (FN6, FQ11). Its id comes from the form. */
+export const AssociateMovement = z.object({
+  id: z.uuid(),
+  day: z.iso.date(),
+  direction: z.enum(["contribution", "withdrawal"]),
+  amountCentimes: positive,
+  treasuryId: z.uuid(), // the cash box or bank account the money goes into or leaves
+  associate: z.string().trim().max(80).transform((x) => x || null).nullable().default(null),
+});
+
 /** FC1: sold or scrapped (price 0), the price received in cash or at the bank. */
 export const FixedAssetDisposal = z.object({ assetId: z.uuid(), day: z.iso.date(), priceCentimes: centimes, receivedIn: z.enum(["cash", "bank"]), treasuryId });
 

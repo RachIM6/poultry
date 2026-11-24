@@ -920,7 +920,22 @@
     "pay": "Payer",
     "paid": "Paiement enregistré.",
     "creditExpenses": "Dépenses à crédit à payer",
-    "creditExpensesHint": "Les dépenses rapides enregistrées « à payer plus tard », avec ce qui reste dû pour chacune."
+    "creditExpensesHint": "Les dépenses rapides enregistrées « à payer plus tard », avec ce qui reste dû pour chacune.",
+    "associate": "Apport ou retrait de l’associé",
+    "exploitant": "Apport ou retrait de l’exploitant",
+    "associateHint": "L’argent qu’un associé apporte à la ferme ou en retire, au compte {account}.",
+    "exploitantHint": "L’argent que vous apportez à la ferme ou en retirez pour vous, au compte {account} (capital personnel).",
+    "associateNoAccount": "Ajoutez d’abord une caisse ou un compte bancaire depuis « Dépense rapide ».",
+    "direction": "Opération",
+    "directions": {
+      "contribution": "Apport",
+      "withdrawal": "Retrait"
+    },
+    "amount": "Montant (DH)",
+    "into": "Caisse ou compte bancaire",
+    "associateName": "Associé (facultatif)",
+    "associateSave": "Enregistrer",
+    "associateSaved": "Opération enregistrée."
   },
   "Bank": {
     "open": "Rapprochement bancaire",
@@ -2423,7 +2438,9 @@
       "socialCharges": "Charges sociales (CNSS employeur)",
       "staffAdvances": "Avances sur salaire",
       "wagesDue": "Salaires à payer",
-      "cnss": "CNSS à payer"
+      "cnss": "CNSS à payer",
+      "associates": "Apports et retraits des associés",
+      "exploitant": "Apports et retraits de l’exploitant"
     }
   }
 }

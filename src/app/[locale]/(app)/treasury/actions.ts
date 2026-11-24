@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { parseCentimes } from "@/lib/kernel/money";
 import type { TenantContext } from "@/lib/tenant";
-import { payCreditExpense, payPlacement } from "@/modules/finance";
+import { payCreditExpense, payPlacement, recordAssociateMovement } from "@/modules/finance";
 import { getTenantContext, limitSignedIn } from "@/modules/identity";
 
 export type TreasuryFormState = { ok?: boolean; messageKey?: string };
@@ -37,4 +37,18 @@ export async function payPlacementAction(_: TreasuryFormState, form: FormData): 
 export async function payCreditExpenseAction(_: TreasuryFormState, form: FormData): Promise<TreasuryFormState> {
   const p = await paymentFrom(form);
   return "failed" in p ? p.failed : outcome(await payCreditExpense(p.ctx, { ...p.fields, expenseId: form.get("expenseId") }));
+}
+
+// §9 "Associate contributions": the owner only (finance.manage, checked by finance).
+export async function recordAssociateAction(_: TreasuryFormState, form: FormData): Promise<TreasuryFormState> {
+  const h = await headers();
+  const ctx = await getTenantContext(h);
+  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  if (await limitSignedIn("authenticated", h, ctx.value.userId)) return { messageKey: "errors.TOO_MANY_REQUESTS" };
+  const amount = parseCentimes(String(form.get("amount") ?? "").trim());
+  if (amount === null) return { messageKey: "errors.INVALID_INPUT" };
+  const done = await recordAssociateMovement(ctx.value, { id: form.get("id"), day: form.get("day"), direction: form.get("direction"), amountCentimes: String(amount), treasuryId: form.get("treasuryId"), associate: form.get("associate") ?? null });
+  if (!done.ok) return { messageKey: `errors.${done.error}` };
+  refresh();
+  return { ok: true, messageKey: "Treasury.associateSaved" };
 }

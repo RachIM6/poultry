@@ -2,6 +2,7 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import { leafAccounts, postingAccount, type ChartOfAccounts } from "@/modules/finance/domain/chart";
 import type { Line } from "@/modules/finance/domain/entry";
 import { ASSET_DEBTS } from "@/modules/finance/domain/assets";
+import { ASSOCIATES, EXPLOITANT } from "@/modules/finance/domain/contribution";
 import { HENS_ADULTS, HENS_CULL_SALE, layPosting } from "@/modules/finance/domain/hens";
 import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 
@@ -96,6 +97,8 @@ export const POSTED_ACCOUNTS: readonly { op: string; account: string }[] = [
   { op: "staffAdvances", account: STAFF_ADVANCES },
   { op: "wagesDue", account: WAGES_DUE },
   { op: "cnss", account: CNSS },
+  { op: "associates", account: ASSOCIATES }, // contributions and withdrawals (§9, contribution.ts)
+  { op: "exploitant", account: EXPLOITANT },
   { op: "cash", account: PAID_AT_ONCE },
   { op: "bank", account: BANK },
   { op: "cheques", account: RECEIVED.cheque.account },

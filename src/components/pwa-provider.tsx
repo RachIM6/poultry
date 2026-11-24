@@ -46,7 +46,7 @@ function UpdateBanner() {
           serwist.addEventListener("controlling", () => window.location.reload());
           serwist.messageSkipWaiting();
         }}
-        className="rounded-lg border border-white px-3 py-2 font-semibold"
+        className="min-h-11 rounded-lg border border-white px-3 py-2 font-semibold"
       >
         {t("update")}
       </button>

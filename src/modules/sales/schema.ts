@@ -114,3 +114,9 @@ export const SetCreditLimit = z.object({ buyerId: z.uuid(), limitCentimes: centi
 
 /** FN12: the owner approves a credit sale that went past the buyer's limit. */
 export const ApproveCredit = z.object({ saleId: z.uuid() });
+
+/** SPEC-finance §9 "Cancelled records": a sale typed wrong, cancelled (it is then typed again). */
+export const CancelSale = z.object({ saleId: z.uuid() });
+
+/** SPEC-finance §9 "Cancelled records": a sale's prices corrected: per kg (live birds), or per line in order. */
+export const CorrectSale = z.object({ saleId: z.uuid(), pricePerKgCentimes: centimes.nullable(), linePrices: z.array(centimes).max(20).default([]), vatCentimes: centimes.default("0") });

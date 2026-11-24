@@ -17,7 +17,9 @@ export async function GET(_: Request, { params }: RouteContext<"/[locale]/manife
     description: t("description"),
     lang: locale,
     dir: dirOf(locale),
-    start_url: `/${locale}`,
+    // The installed app opens on the farmer's day: /today is a precached shell (offline too), with a login link
+    // when nobody has signed in on this phone yet.
+    start_url: `/${locale}/today`,
     scope: "/",
     display: "standalone",
     background_color: "#f5f3ee",

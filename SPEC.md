@@ -248,7 +248,9 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 - X1. **Offline for at least 7 days:**
   - every M1 action works offline and survives a reload;
   - the sync status is always visible (pending count, last sync);
-  - **no data is lost or duplicated** when syncing (idempotent).
+  - **no data is lost or duplicated** when syncing (idempotent);
+  - dead link, decided default, to review: on a connected-but-dead link (one bar of 3G), a page or a tap on a link gives up after **5 s** and opens its offline shell or the offline page (`src/sw.ts`). For 10 s after a timed-out tap, page requests get 1 s, so Next's reload after the failed tap doesn't wait 5 s more: a tab reaches its shell in about 7 s (5 s, 1 s, then the shell's load). `/api/*` has no timeout: a sync pull can take longer on 3G. `e2e/dead-link.spec.ts` checks it;
+  - start screen, decided default, to review: the installed app opens on `/{locale}/today` (the manifest's `start_url`), the farmer's day, a precached shell that works offline and shows a login link when nobody has signed in on the phone.
 - X2. Two devices editing the same farm converge after sync. For the same daily entry, the last write received by the server wins, and the overwritten version stays in the audit log.
 - X3. **Tenant isolation:** no API returns or accepts data from another organisation. Integration tests prove it for every endpoint.
 - X4. Accessibility basics: touch targets ≥ 44 px, WCAG AA contrast, labels on every input, works at 200% zoom.

@@ -1,6 +1,6 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
-import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import type { PrecacheEntry, RouteMatchCallback, SerwistGlobalConfig, SerwistPlugin } from "serwist";
 import { CacheFirst, ExpirationPlugin, NetworkOnly, Serwist, StaleWhileRevalidate } from "serwist";
 import { currentScope, localDb } from "./offline/db";
 import { BACKGROUND_SYNC_TAG, syncOnce } from "./offline/sync";
@@ -16,9 +16,20 @@ declare const self: ServiceWorkerGlobalScope;
 
 const DAY = 24 * 60 * 60;
 
+// Pages and RSC fetches (a tap on a link), not /api/*: a sync pull can take longer than this on 3G.
+const isPage: RouteMatchCallback = ({ request, url, sameOrigin }) =>
+  sameOrigin && !url.pathname.startsWith("/api/") && (request.mode === "navigate" || request.headers.get("RSC") === "1" || url.searchParams.has("_rsc"));
+// SPEC X1: on a connected-but-dead link a page gives up after 5 s and reaches the offline fallbacks below. A failed RSC
+// fetch makes Next reload the page; for 10 s after a timeout, page requests get 1 s, so that reload doesn't wait 5 s
+// more. Only the 5 s rule opens the window: a slow-but-alive link can't stay stuck on the 1 s rule.
+let deadUntil = 0;
+const watchLink: SerwistPlugin = { handlerDidRespond: async ({ response }) => void (deadUntil = response ? 0 : Date.now() + 10_000) };
+
 const serwist = new Serwist({
   // Next's static assets plus the public shells: home, offline and sync pages per locale. Served before the rules below.
   precacheEntries: self.__SW_MANIFEST,
+  // Three downloads at a time (default 10), so the first install doesn't saturate a 3G link.
+  precacheOptions: { concurrency: 3 },
   // poultry-pwa §0.6: a new version waits until the user accepts it (PwaProvider's update banner sends SKIP_WAITING).
   skipWaiting: false,
   clientsClaim: true,
@@ -34,6 +45,8 @@ const serwist = new Serwist({
       matcher: ({ sameOrigin, url }) => sameOrigin && /\.(?:png|svg|ico|webp|woff2?)$/i.test(url.pathname),
       handler: new StaleWhileRevalidate({ cacheName: "static-assets", plugins: [new ExpirationPlugin({ maxEntries: 64 })] }),
     },
+    { matcher: (options) => Date.now() < deadUntil && isPage(options), handler: new NetworkOnly({ networkTimeoutSeconds: 1 }) },
+    { matcher: isPage, handler: new NetworkOnly({ networkTimeoutSeconds: 5, plugins: [watchLink] }) },
     // Pages, RSC payloads, /api/* and everything else: network only. Offline data lives in IndexedDB (src/offline).
     { matcher: /.*/i, handler: new NetworkOnly() },
   ],

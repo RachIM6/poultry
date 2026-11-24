@@ -14,13 +14,16 @@ import { twoTenants } from "@/test/tenant";
 const m = <P,>(type: string, payload: P) => ({ id: uuidv7(), type, payload, createdAt: "2026-11-05T08:00:00+01:00" });
 const statuses = async (ctx: TenantContext, ...ms: { id: string; type: string; payload: unknown; createdAt: string }[]) =>
   (await push(ctx, ms, registry)).results.map((r) => (r.status === "rejected" ? r.messageKey : r.status));
-const clock = fixedClock("2026-11-20T10:00:00Z"); // fiscal year 2026, as the expense below
+// The expense below is booked in fiscal year 2026 as soon as it syncs, which locks that year's choices (FN1): the owner
+// changes the key in January 2027, before that year's first entry. It applies to the batches' live shares all the same.
+const in2027 = fixedClock("2027-01-15T10:00:00Z");
+const in2026 = fixedClock("2026-11-20T10:00:00Z");
 
 // SPEC-finance FN14 (§9 "FN14 allocation keys", 2026-11-23): shared costs follow the entity's key.
 describe("shared-cost allocation keys (SPEC-finance FN14)", () => {
   let a: TenantContext, b: TenantContext, entity: string;
   const ids = { farm: uuidv7(), h1: uuidv7(), h2: uuidv7(), batchA: uuidv7(), batchB: uuidv7(), buyer: uuidv7() };
-  const setKey = (allocationKey: unknown, ctx = a) => changeAccountingChoices(ctx, entity, { books: null, pcaOverlay: null, fiscalYearStartMonth: 1, allocationKey }, clock);
+  const setKey = (allocationKey: unknown, ctx = a, clock = in2027) => changeAccountingChoices(ctx, entity, { books: null, pcaOverlay: null, fiscalYearStartMonth: 1, allocationKey }, clock);
   const results = async () => {
     const r = await batchResults(a);
     if (!r.ok) throw new Error(r.error);
@@ -82,7 +85,7 @@ describe("shared-cost allocation keys (SPEC-finance FN14)", () => {
     expect(await setKey("houseArea", b)).toEqual({ ok: false, error: "NOT_FOUND" });
     expect(await setKey("houseArea", { ...a, role: "manager" })).toEqual({ ok: false, error: "FORBIDDEN" });
     await postPending(a); // the expense and the sale are booked in fiscal year 2026
-    expect(await setKey("birdDays")).toEqual({ ok: false, error: "FISCAL_YEAR_HAS_ENTRIES" });
+    expect(await setKey("birdDays", a, in2026)).toEqual({ ok: false, error: "FISCAL_YEAR_HAS_ENTRIES" });
     expect((await listLegalEntities(a))[0].allocationKey).toBe("kgSold");
   });
 });

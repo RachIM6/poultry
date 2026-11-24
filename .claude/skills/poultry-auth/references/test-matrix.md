@@ -9,7 +9,7 @@ Run these as **real HTTP requests** in Vitest integration tests (`*.int.test.ts`
 
 ## Sessions and cookies
 
-- [ ] Login sets `__Host-sid` with `HttpOnly; Secure; SameSite=Lax; Path=/` and an expiry
+- [ ] Login sets `__Secure-sid` with `HttpOnly; Secure; SameSite=Lax; Path=/` and an expiry
 - [ ] The session id differs before and after login. The database stores only its hash
 - [ ] Logout → the old cookie gets 401
 - [ ] Logout with unsynced changes → refused unless confirmed (e2e)

@@ -25,7 +25,7 @@ Decisions: ADR-005 (auth), ADR-006 (tenancy + audit), ADR-007 (law 09-08). Requi
 3. **Sessions are opaque and server-side** (Postgres `Session` table).
    - No JWT sessions, no tokens in `localStorage` / IndexedDB.
    - Revocation takes effect on the next online request: member removed, role changed (`roleVersion` bump), owner "log out all devices".
-4. **Cookie:** `__Host-sid; HttpOnly; Secure; SameSite=Lax; Path=/`, with an explicit expiry.
+4. **Cookie:** `__Secure-sid; HttpOnly; Secure; SameSite=Lax; Path=/`, with an explicit expiry. (Better Auth prefixes `__Secure-`, not `__Host-`: ADR-005. The org cookie `__Host-org` is separate.)
    - Never `Strict`: it breaks opening the app from a WhatsApp / SMS link.
    - Chrome and Firefox accept `Secure` on `http://localhost`, so the same name works in dev.
 5. **Offline:**

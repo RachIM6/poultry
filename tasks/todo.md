@@ -16,6 +16,35 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 
 ---
 
+## Pilot readiness (2026-11-24)
+
+Where the pilot stands. The features of M1 to M6 are built (index in [plan.md](plan.md)); what is left is what needs the host, a vendor, a person or a real device.
+
+**Done without the host:**
+- Login with the self-hosted captcha, the auth audit table, the security headers and the T25 fixes (T26 below, [t25 report](../docs/t25-security-and-performance.md)).
+- Production start check, `GET /api/health` and a privacy-safe error log line (#256). The server refuses to start in production on an unsafe config; [`.env.example`](../.env.example) lists every variable.
+- Encrypted daily backup, restore script and a round-trip drill in CI (#254, [backup.md](../docs/backup.md)).
+- Export and deletion of an organisation's data, books kept 10 years (#255, [data-requests.md](../docs/data-requests.md)).
+- Scheduler that runs every step even when one fails, and the `sms_cap_50` / `sms_cap_100` alert lines (#257).
+- CI on every push to `develop` and `main` (#117), the JS size check, the demo farm and the quick guides ([FR](../docs/quick-guide-fr.md), [AR](../docs/quick-guide-ar.md)).
+- The deployment recipe (Docker image, `docs/deploy.md`) is coming with #258. Not merged yet: don't read it as done.
+
+**Waits on the owner:**
+- **Host (OQ1):** the deployment itself, `TRUSTED_PROXY_HOPS`, the backup cron line, one timed real restore, brotli.
+- **SMS vendor (OQ2):** without it production can't send login codes (the console sink is refused in production).
+- **Alert channel:** a webhook or an email for `alertOps()` (the SMS cap). Until then the host must alert on the SMS-cap and scheduler error log lines.
+- **Off-site backup storage** and who keeps the passphrase.
+- **CNDP filing** ([ADR-007](../docs/decisions/ADR-007-data-protection-and-hosting.md)).
+- **Retention periods:** the defaults in [data-requests.md](../docs/data-requests.md) and how long `AuthEvent` rows are kept are decided but not reviewed.
+- **A lawyer's review** of [data-requests.md](../docs/data-requests.md).
+- **Vet review:** Checkpoint F (OQ4), and the register and disposal methods of M2-compliance.
+- **Expert-comptable review** of the charts, posting rules and an exported month (M2-finance, M6).
+- **A native Arabic review** of the interface and of [the Arabic guide](../docs/quick-guide-ar.md).
+- **Real-device checks:** Checkpoints A, C and D (install, offline sync, push on Android and iPhone), the 60 s daily entry with 3 testers (T16), the performance measurement on a mid-range Android (T25), the captcha timing on a low-end phone.
+- **Breed curves licence (OQ5):** until then no curve values are committed (T11).
+
+---
+
 ## Phase 1: Foundation
 
 ### T1: Scaffold app and tooling
@@ -436,10 +465,13 @@ Also done without the host (2026-11-14; OQ1 hosting and OQ2 SMS set aside by the
 - [x] JS size check in CI: `e2e/budget.spec.ts` fails if `/fr/login` or `/fr/batches` loads more than 200 KB of compressed JS (now 147.8 and 191.3 KB, after precompiling the messages on 2026-11-23; `docs/t25-security-and-performance.md` §2).
 - [x] Demo farm: `pnpm db:seed:demo` (after `pnpm db:seed`) creates a demo owner (`DEMO_PHONE`, default +212600000099), a farm, two houses, stock and a 21-day batch with daily entries and two weighings, through the app's own mutations. Made-up figures, demo only.
 - [x] Quick guides: `docs/quick-guide-fr.md`, `docs/quick-guide-ar.md` (the Arabic one needs a native review).
+- [x] Production start check, 2026-11-24 (#256, branch `feat/production-env-guard`): with `NODE_ENV=production` the server refuses to start, and exits with code 1, on a missing `DATABASE_URL`, a non-https `APP_ORIGIN`, a missing, placeholder or short `BETTER_AUTH_SECRET` or `CAPTCHA_HMAC_KEY`, `CAPTCHA_DISABLED`, an unset `TRUSTED_PROXY_HOPS`, a half-set VAPID pair or `OTP_CONSOLE_SINK`; it warns on `TRUSTED_PROXY_HOPS=0` and on no `CRON_SECRET` (`src/lib/env.ts`, `src/lib/env.test.ts`). `GET /api/health` answers 200 `{status:"ok"}` or 503 `{status:"unavailable"}` from a `SELECT 1`, no auth, no details (`src/app/api/health/health.int.test.ts`). A request error writes one JSON line with the path without query, method, error name and digest, never a body or a header (`src/instrumentation.test.ts`). `.env.example` lists every variable the code reads.
+- [x] Export and deletion of an organisation's data, 2026-11-24 (#255, branch `feat/organization-export`, law 09-08, [docs/data-requests.md](../docs/data-requests.md)): `pnpm org:export`, `pnpm org:left` and `pnpm org:delete` (refused until the organisation left 30 days ago and its exact name is typed), keeping the books and their supporting documents 10 years (law 9-88, art. 22). The retention defaults and the text are **to review** by the owner and a lawyer.
+- [x] CI on every push to `develop`, 2026-11-24 (#117): `.github/workflows/ci.yml` runs on `main` and `develop`; PRs target `develop`, `main` is production.
 - [x] Scheduler, 2026-11-24 (branch `fix/scheduler-and-sms-alert`): `POST /api/push/dispatch` runs each of its eight steps (six reminders, postings, pushes) even when one throws, logs `{"level":"error","scheduler":"<step>","error":"<error name>"}`, and answers `{ok, failed}`, with 500 when a step failed so the host's scheduler alerts (`src/app/api/push/dispatch.int.test.ts`).
 - [x] Auth audit (poultry-auth §6), 2026-11-23 (branch `feat/auth-audit`): a new `AuthEvent` table owned by identity holds one row per request for code requested (eligible or not), verify failure (with a reason), login, logout, rate-limit block (request-code, verify-code, captcha challenge) and captcha failure (request-code, verify-code). Each row keeps the user id when known, the masked phone, the /24 or /64 subnet (none without `TRUSTED_PROXY_HOPS`) and the user agent, cut to 256 characters. It never holds a code, session id or captcha payload. Not in `AuditEvent`, because these events happen before any organisation is known and `AuditEvent` is per organisation (ADR-006). Invitation, membership and session-revoke events stay there. A failed write is logged and never changes the answer (`src/modules/identity/auth-events.int.test.ts`). Still open: how long these rows are kept (no rule yet in ADR-006 or ADR-007), and an "invitation expired" event, because nothing acts when an invitation expires (it is just ignored).
 
-Waiting on OQ1/OQ2: the deployment, the real SMS sender, backups, brotli, `TRUSTED_PROXY_HOPS`, the SMS-cap alert's channel, and the pilot farm's first day. Captcha needs a new dependency (ALTCHA), which poultry-auth says to ask about first.
+Waiting on OQ1/OQ2: the deployment, the real SMS sender, the backup cron and a real restore, brotli, `TRUSTED_PROXY_HOPS`, the SMS-cap alert's channel, and the pilot farm's first day. See "Pilot readiness" at the top.
 
 **Verify:** smoke test on production. Backup restore drill.
 **Dependencies:** T25, **OQ1, OQ2 resolved**

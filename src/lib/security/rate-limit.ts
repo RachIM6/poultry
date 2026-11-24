@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { isIPv4, isIPv6 } from "node:net";
 import { db } from "@/lib/db";
-import { POLICIES, type Dimension, type PolicyName } from "./policies";
+import { alertOps } from "@/lib/ops/alert";
+import { POLICIES, type Dimension, type PolicyName, type Rule } from "./policies";
 
 /**
  * Counts this request on every dimension given and returns the dimensions now over their limit (empty = allowed).
@@ -20,14 +21,27 @@ export async function consume(policy: PolicyName, dims: Partial<Record<Dimension
 
   const countOf = new Map(counts.map((c) => [c.hit_key, c.hits])); // earlier hits in the window, this one excluded
   const blocked = new Set<Dimension>();
-  rules.forEach((rule, i) => {
+  for (const [i, rule] of rules.entries()) {
     const n = countOf.get(keys[i]) ?? 0;
     if (n >= rule.limit) blocked.add(rule.dim);
-    if (rule.dim === "global" && n + 1 === Math.ceil(rule.limit / 2)) {
-      console.warn(`[rate-limit] ${policy}: global usage at 50 % (${n + 1}/${rule.limit}); possible SMS pumping`);
+    if (policy === "requestCode" && rule.dim === "global") {
+      if (n + 1 === Math.ceil(rule.limit / 2)) await alertSmsCapOnce("sms_cap_50", rule, n + 1);
+      if (n + 1 === rule.limit) await alertSmsCapOnce("sms_cap_100", rule, n + 1); // the last code allowed
     }
-  });
+  }
   return [...blocked];
+}
+
+/**
+ * The SMS cap reached 50 % (possible SMS pumping) or 100 % (no more codes). The window slides, so the count can dip
+ * and cross again within minutes: a marker hit per event, taken under the same per-policy lock on every instance,
+ * lets only the first crossing of a window alert. Every crossing renews the marker, so steady traffic around the
+ * threshold alerts once, not once an hour.
+ */
+async function alertSmsCapOnce(event: "sms_cap_50" | "sms_cap_100", rule: Rule, count: number) {
+  const [{ hits }] = await db.$queryRaw<{ hits: number }[]>`
+    SELECT hits FROM rate_limit_consume('requestCode', ${[`requestCode:alert:${rule.windowSec}:${event}`]}::text[], ${[rule.windowSec]}::int[])`;
+  if (hits === 0) alertOps(event, { count, cap: rule.limit, windowSec: rule.windowSec });
 }
 
 /** Forgets every hit of this policy on the given dimensions: a successful login clears its failure count. */

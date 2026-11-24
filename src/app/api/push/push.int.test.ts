@@ -15,6 +15,9 @@ describe("POST /api/push/dispatch", () => {
     expect((await call("Bearer wrong-token-xyz")).status).toBe(404);
     const ok = await call("Bearer s3cret-for-tests");
     expect(ok.status).toBe(200);
-    expect(await ok.json()).toEqual({ reminded: 0, posted: 0, sent: 0 });
+    expect(await ok.json()).toEqual({
+      ok: ["vaccinationReminders", "instrumentReminders", "issuedReminders", "placementReminders", "documentReminders", "loanReminders", "postings", "pushes"],
+      failed: [],
+    });
   });
 });

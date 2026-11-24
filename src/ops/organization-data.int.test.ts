@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { v7 as uuidv7 } from "uuid";
@@ -75,6 +75,7 @@ describe("organisation export and deletion (ADR-007, law 09-08)", () => {
     const out = join(tmpdir(), `org-export-${uuidv7()}.zip`);
     const summary = await exportOrganization(a.organizationId, out);
     const files = unzipBytes(readFileSync(out));
+    rmSync(out);
     const json = (t: string) => JSON.parse(files.get(`tables/${t}.json`)!.toString("utf8")) as Record<string, unknown>[];
 
     for (const [t, n] of Object.entries(before)) expect(json(t)).toHaveLength(n);

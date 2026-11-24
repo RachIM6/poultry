@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { audit } from "@/lib/audit";
 import { db, type Tx } from "@/lib/db";
 import { fail, ok, type Result } from "@/lib/kernel/result";
@@ -36,11 +37,11 @@ export async function getLegalEntity(ctx: TenantContext, id: string): Promise<Le
   return row && toDto(row);
 }
 
-export async function listLegalEntities(ctx: TenantContext): Promise<LegalEntityDto[]> {
+export const listLegalEntities = cache(async (ctx: TenantContext): Promise<LegalEntityDto[]> => {
   if (!can(ctx, "organization.read")) return [];
   const rows = await db.legalEntity.findMany({ where: { organizationId: ctx.organizationId }, orderBy: { createdAt: "asc" } });
   return rows.map(toDto);
-}
+});
 
 /**
  * For finance (ADR-010), inside its transaction: the entity with its accounting profile, row-locked so that a profile

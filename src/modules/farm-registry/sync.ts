@@ -163,6 +163,12 @@ export const houseOf = async (tx: Tx, ctx: TenantContext, houseId: string) => {
   return house && { id: house.id, farmId: house.farmId, name: house.name, areaM2: house.areaM2 };
 };
 
+/** For other modules: the caller's organisation's houses among `ids`, by id (another organisation's are left out). */
+export async function housesOf(tx: Tx, ctx: TenantContext, ids: string[]) {
+  const rows = await tx.house.findMany({ where: { organizationId: ctx.organizationId, id: { in: ids } }, select: { id: true, farmId: true, name: true, areaM2: true } });
+  return new Map(rows.map((h) => [h.id, h]));
+}
+
 /** For finance's export (SPEC-finance FN18): the names of the caller's organisation's farms and houses, by id. */
 export async function placeNames(tx: Tx, ctx: TenantContext, ids: string[]) {
   const where = { organizationId: ctx.organizationId, id: { in: ids } };

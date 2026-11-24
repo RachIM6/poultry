@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { db, SYNC_TX, type Tx } from "@/lib/db";
 import { can } from "@/lib/permissions";
@@ -165,6 +166,9 @@ const SOURCES: Source[] = [
  * commits, so the second waits, then reads past the moved cursor. Returns the entries posted.
  */
 export async function postPending(pusher: TenantContext): Promise<number> {
+  // Most pushes (a daily entry) change nothing the books read: one query, not a transaction per source. A batch's
+  // closing is a pending `batch` change, so freezeClosedBatches below still runs for it.
+  if ((await pendingOrganizations(db, SOURCES, 1, pusher.organizationId)).length === 0) return 0;
   // ponytail: one legal entity per organisation in M1 (onboarding); farms get their entity when there are several.
   const [entity] = await listLegalEntities(pusher);
   if (!entity) return 0;
@@ -252,13 +256,14 @@ export async function postAllPending(limit = 10): Promise<number> {
 
 /**
  * §9 "Postings catch up": a read of the books posts what is pending first; a page running several reads at once calls
- * it once before them. Never throws: on failure it logs, and the reads show what is posted.
+ * it once before them. Never throws: on failure it logs, and the reads show what is posted. Once per page render
+ * (React `cache`, by the ctx object): the page's own call and its reads' calls share it; outside a render it always runs.
  */
-export async function catchUpBooks(ctx: TenantContext): Promise<void> {
+export const catchUpBooks = cache(async (ctx: TenantContext): Promise<void> => {
   if (!can(ctx, "money.read")) return; // the reads refuse anyway
   try {
-    if ((await pendingOrganizations(db, SOURCES, 1, ctx.organizationId)).length > 0) await postPending(ctx);
+    await postPending(ctx); // nothing pending: one query
   } catch (error) {
     console.error("[finance] posting failed", error);
   }
-}
+});

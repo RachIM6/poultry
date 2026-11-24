@@ -9,15 +9,13 @@ import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { batchesForFinance, batchFacts, type BatchMoneyFacts } from "@/modules/flock";
 import { chicksCost } from "@/modules/flock/shared";
-import { batchConsumption } from "@/modules/inventory";
+import { batchConsumptions, type BatchConsumption } from "@/modules/inventory";
 import { batchResults, type BatchResultRow } from "@/modules/finance/application/batch-results";
 import type { BudgetInputs } from "@/modules/finance/domain/budget";
 import type { CashTiming } from "@/modules/finance/domain/budget-cash";
 
 /** FN15: a closed batch as a budget's starting point: its figures as what-if inputs, and when its money moved. */
 export type BudgetBase = { batchId: string; label: string; inputs: BudgetInputs; timing: CashTiming };
-
-type Consumed = Awaited<ReturnType<typeof batchConsumption>>;
 
 const perKg = (centimes: bigint, grams: bigint) => (grams > 0n ? divHalfUp(centimes * 1000n, grams) : 0n);
 
@@ -26,7 +24,7 @@ const perKg = (centimes: bigint, grams: bigint) => (grams > 0n ? divHalfUp(centi
  * days, the other costs by the days of its other consumptions, of its expenses and of the placement's VAT, plus its
  * undated part (shared costs, M1 other costs) in equal shares each day; the sales by the kg sold each day.
  */
-function timingOf(r: BatchResultRow, f: BatchMoneyFacts, consumed: Consumed, expenses: { day: Date; amountCentimes: bigint }[]): CashTiming {
+function timingOf(r: BatchResultRow, f: BatchMoneyFacts, consumed: BatchConsumption, expenses: { day: Date; amountCentimes: bigint }[]): CashTiming {
   const placed = f.placedOn as FarmDay;
   const at = (day: string) => daysBetween(placed, day as FarmDay);
   const lastDay = at(r.closedOn!);
@@ -52,13 +50,17 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
   const closed = results.value.filter((r) => r.closedOn !== null);
   if (closed.length === 0) return ok([]);
   // A read: each query on the pool, no interactive transaction holding a connection (P2028 under load).
-  const facts = new Map((await batchesForFinance(db, ctx)).map((b) => [b.id, b]));
+  const ids = closed.map((r) => r.id);
+  const [facts, consumptions, expenses] = await Promise.all([
+    batchesForFinance(db, ctx).then((all) => new Map(all.map((b) => [b.id, b]))),
+    batchConsumptions(db, ctx, ids),
+    db.expense.findMany({ where: { organizationId: ctx.organizationId, batchId: { in: ids } }, select: { batchId: true, day: true, amountCentimes: true } }),
+  ]);
   const bases: BudgetBase[] = [];
   for (const r of closed) {
     const f = facts.get(r.id)!;
-    const consumed = await batchConsumption(db, ctx, r.id);
+    const consumed = consumptions.get(r.id)!;
     const feed = consumed.get("feed") ?? { quantity: 0n, centimes: 0n };
-    const expenses = await db.expense.findMany({ where: { organizationId: ctx.organizationId, batchId: r.id }, select: { day: true, amountCentimes: true } });
     const grams = BigInt(r.soldGrams);
     bases.push({
       batchId: r.id,
@@ -72,7 +74,7 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
         plannedGrams: grams,
         salePricePerKgCentimes: perKg(r.salesCentimes, grams),
       },
-      timing: timingOf(r, f, consumed, expenses),
+      timing: timingOf(r, f, consumed, expenses.filter((e) => e.batchId === r.id)),
     });
   }
   return ok(bases);

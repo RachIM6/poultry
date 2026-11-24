@@ -43,12 +43,12 @@ async function plannedSales(ctx: TenantContext, budgets: SavedBudget[], year: { 
   for (const b of budgets) if (b.batchId && !latest.has(b.batchId)) latest.set(b.batchId, b); // newest first
   let total = budgets.filter((b) => !b.batchId && b.createdAt.slice(0, 10) >= year.from && b.createdAt.slice(0, 10) <= year.to).reduce((s, b) => s + sales(b), 0n);
   if (latest.size === 0) return total;
-  const sold = await salesByBatch(db, ctx);
-  for (const [batchId, b] of latest) {
-    if ((await batchFacts(db, ctx, batchId))?.status !== "open") continue;
+  const [sold, facts] = await Promise.all([salesByBatch(db, ctx), Promise.all([...latest.keys()].map((id) => batchFacts(db, ctx, id)))]);
+  [...latest].forEach(([batchId, b], i) => {
+    if (facts[i]?.status !== "open") return;
     const left = sales(b) - (sold.get(batchId) ?? 0n);
     if (left > 0n) total += left;
-  }
+  });
   return total;
 }
 
@@ -66,17 +66,15 @@ export async function thresholdTracker(ctx: TenantContext, clock: Clock = system
   if (!threshold) return ok(null); // no threshold configured for today
   const year = fiscalYearOf(today, entity.fiscalYearStartMonth);
 
-  const budgets = await listBudgets(ctx);
-  const planned = budgets.ok ? await plannedSales(ctx, budgets.value, year) : 0n;
-  const booked = await bookedSales(ctx, entity.id, year.from, year.to);
-
-  const history: ThresholdTracker["history"] = [];
-  let before = year;
-  for (let i = 0; i < 3; i++) {
-    before = fiscalYearOf(addFarmDays(before.from as FarmDay, -1), entity.fiscalYearStartMonth);
-    const sales = await bookedSales(ctx, entity.id, before.from, before.to);
-    history.push({ from: before.from, to: before.to, bookedCentimes: sales, over: sales >= threshold.centimes });
-  }
+  const years = [fiscalYearOf(addFarmDays(year.from as FarmDay, -1), entity.fiscalYearStartMonth)]; // the last 3, newest first
+  while (years.length < 3) years.push(fiscalYearOf(addFarmDays(years[years.length - 1].from as FarmDay, -1), entity.fiscalYearStartMonth));
+  // Independent reads, all at once on the pool
+  const [planned, booked, ...past] = await Promise.all([
+    listBudgets(ctx).then((budgets) => (budgets.ok ? plannedSales(ctx, budgets.value, year) : 0n)),
+    bookedSales(ctx, entity.id, year.from, year.to),
+    ...years.map((y) => bookedSales(ctx, entity.id, y.from, y.to)),
+  ]);
+  const history = years.map((y, i) => ({ from: y.from, to: y.to, bookedCentimes: past[i], over: past[i] >= threshold.centimes }));
   return ok({ threshold, fiscalYear: year, bookedCentimes: booked, plannedCentimes: planned, usage: thresholdUsage(booked, planned, threshold.centimes), history });
 }
 

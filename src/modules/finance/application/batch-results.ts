@@ -5,7 +5,7 @@ import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { batchesForFinance, type BatchMoneyFacts } from "@/modules/flock";
-import { batchConsumption } from "@/modules/inventory";
+import { batchConsumptions } from "@/modules/inventory";
 import { salesByBatch } from "@/modules/sales";
 import { payCosts } from "@/modules/workforce";
 import { catchUpBooks } from "@/modules/finance/application/posting";
@@ -41,9 +41,9 @@ type Split = ReturnType<typeof splitShared>;
  * FN14: each shared expense's parts for the batches not yet frozen: what's left of it after the frozen shares, split
  * by the entity's key over its service period (largest remainder, so the parts and the frozen shares sum to the expense).
  */
-async function liveParts(tx: Tx, ctx: TenantContext, key: AllocationKey, batches: BatchMoneyFacts[], frozen: Set<string>, expenses: SharedExpense[]): Promise<Map<string, Split>> {
-  const frozenSums = await tx.frozenAllocation.groupBy({ by: ["expenseId"], where: { organizationId: ctx.organizationId, batchId: { in: [...frozen] } }, _sum: { amountCentimes: true } });
-  const taken = new Map(frozenSums.map((f) => [f.expenseId, f._sum.amountCentimes ?? 0n]));
+function liveParts(key: AllocationKey, batches: BatchMoneyFacts[], frozen: Set<string>, expenses: SharedExpense[], frozenRows: { batchId: string; expenseId: string; amountCentimes: bigint }[]): Map<string, Split> {
+  const taken = new Map<string, bigint>();
+  for (const f of frozenRows) if (frozen.has(f.batchId)) taken.set(f.expenseId, (taken.get(f.expenseId) ?? 0n) + f.amountCentimes);
   const open = batches.filter((b) => !frozen.has(b.id));
   return new Map(expenses.map((e) => [e.id, splitShared(e.amount - (taken.get(e.id) ?? 0n), key, open.map((b) => ({ id: b.id, facts: factsOver(b, e) })))]));
 }
@@ -61,10 +61,12 @@ export async function freezeClosedBatches(ctx: TenantContext): Promise<number> {
     const closing = batches.filter((b) => b.status === "closed" && !frozen.has(b.id));
     const expenses = await sharedExpenses(tx, ctx);
     const key = await keyOf(ctx);
+    const frozenRows = closing.length > 0 ? await tx.frozenAllocation.findMany({ where: { organizationId: ctx.organizationId } }) : [];
     for (const b of closing) {
-      const parts = await liveParts(tx, ctx, key, batches, frozen, expenses);
+      const parts = liveParts(key, batches, frozen, expenses, frozenRows);
       const rows = [...parts].flatMap(([expenseId, { parts: split }]) => (split.get(b.id) ? [{ organizationId: ctx.organizationId, batchId: b.id, expenseId, amountCentimes: split.get(b.id)! }] : []));
       await tx.frozenAllocation.createMany({ data: rows });
+      frozenRows.push(...rows);
       await tx.frozenBatch.create({ data: { batchId: b.id, organizationId: ctx.organizationId } });
       frozen.add(b.id);
     }
@@ -133,16 +135,18 @@ export async function batchResultsIn(tx: Tx, ctx: TenantContext, asOf?: FarmDay)
   const counted = new Set(expenses.map((e) => e.id));
   const closedBy = new Set(batches.filter((b) => b.closedOn !== null).map((b) => b.id)); // as of the day, if any
   const frozen = new Set((await tx.frozenBatch.findMany({ where: org, select: { batchId: true } })).map((f) => f.batchId).filter((id) => closedBy.has(id)));
-  const frozenRows = (await tx.frozenAllocation.findMany({ where: org })).filter((f) => frozen.has(f.batchId) && counted.has(f.expenseId));
-  const live = await liveParts(tx, ctx, await keyOf(ctx), batches, frozen, expenses);
+  const allFrozen = await tx.frozenAllocation.findMany({ where: org });
+  const frozenRows = allFrozen.filter((f) => frozen.has(f.batchId) && counted.has(f.expenseId));
+  const live = liveParts(await keyOf(ctx), batches, frozen, expenses, allFrozen);
   const allocatedTo = (id: string) =>
     frozen.has(id)
       ? frozenRows.filter((f) => f.batchId === id).reduce((s, f) => s + f.amountCentimes, 0n)
       : [...live.values()].reduce((s, split) => s + (split.parts.get(id) ?? 0n), 0n);
 
+  const consumptions = await batchConsumptions(tx, ctx, batches.map((b) => b.id), asOf);
   const rows: BatchResultRow[] = [];
   for (const b of [...batches].reverse()) {
-    const consumed = await batchConsumption(tx, ctx, b.id, asOf);
+    const consumed = consumptions.get(b.id)!;
     const consumption = [...consumed.values()].reduce((s, k) => s + k.centimes, 0n);
     const feed = consumed.get("feed") ?? { quantity: 0n, centimes: 0n };
     const costs = { chicks: b.chicksCentimes, consumption, other: b.otherCentimes, direct: direct.get(b.id) ?? 0n, allocated: allocatedTo(b.id) };

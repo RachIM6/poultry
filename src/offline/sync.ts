@@ -1,6 +1,6 @@
 import { MAX_MUTATIONS_PER_PUSH, SCOPE_HEADER, type PullResponse, type PushResponse } from "@/lib/sync/protocol";
 import type { ReferenceData } from "@/modules/reference-data/schema";
-import { cachedReference, localDb, metaValue, scopeKey, storeReference, type LocalDb, type Scope, type SyncOutcome } from "./db";
+import { applyRecords, cachedReference, localDb, metaValue, scopeKey, storeReference, type LocalDb, type Scope, type SyncOutcome } from "./db";
 
 type Fetch = typeof fetch;
 const BACKGROUND_SYNC_TAG = "poultry-outbox";
@@ -85,12 +85,7 @@ async function pullChanges(db: LocalDb, scope: Scope, fetchFn: Fetch): Promise<S
     await db.transaction("rw", db.records, db.outbox, db.meta, async () => {
       // A record with a write still queued keeps its local value; the server's change for that write comes later.
       const pending = new Set((await db.outbox.toArray()).flatMap((e) => e.recordKeys ?? []));
-      for (const change of page.changes) {
-        const key = `${change.entity}:${change.id}`;
-        if (pending.has(key)) continue;
-        if (change.data === null) await db.records.delete(key);
-        else await db.records.put({ key, entity: change.entity, id: change.id, data: change.data });
-      }
+      await applyRecords(db, page.changes.filter((change) => !pending.has(`${change.entity}:${change.id}`)));
       await db.meta.put({ key: "cursor", value: page.version });
     });
     if (!page.hasMore) return "ok";

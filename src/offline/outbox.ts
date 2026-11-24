@@ -1,5 +1,5 @@
 import { v7 as uuidv7 } from "uuid";
-import type { LocalDb, OutboxEntry } from "./db";
+import { applyRecords, type LocalDb, type OutboxEntry } from "./db";
 import { requestSync } from "./sync";
 
 type LocalChange = { entity: string; id: string; data: unknown };
@@ -18,10 +18,7 @@ export async function writeLocal(
   const recordKeys = changes.map((r) => `${r.entity}:${r.id}`);
   const entry: OutboxEntry = { id: uuidv7(), ...mutation, createdAt: new Date().toISOString(), recordKeys };
   await db.transaction("rw", db.outbox, db.records, async () => {
-    for (const [i, change] of changes.entries()) {
-      if (change.data === null) await db.records.delete(recordKeys[i]);
-      else await db.records.put({ key: recordKeys[i], ...change });
-    }
+    await applyRecords(db, changes);
     await db.outbox.add(entry);
   });
   requestSync();

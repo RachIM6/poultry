@@ -9,6 +9,11 @@ import { redirect } from "@/i18n/navigation";
 import { can } from "@/lib/permissions";
 import { batchResultDtos } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["LocaleSwitcher", "Nav", "Report", "Sync.refused", "Weighing"];
 
 // SPEC-m2-compliance RP3: the batch report, printable. Online, owner and manager: the money is finance's batch result
 // (FN13), read on the server like /results; flock and health figures come from the phone's records.
@@ -16,7 +21,7 @@ type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function ReportPage({ searchParams }: { searchParams: Search }) {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="flex items-center justify-between gap-4 p-4 print:hidden">
         <BackLink href="/batches" />
         <LocaleSwitcher />
@@ -26,7 +31,7 @@ export default function ReportPage({ searchParams }: { searchParams: Search }) {
           <Report searchParams={searchParams} />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

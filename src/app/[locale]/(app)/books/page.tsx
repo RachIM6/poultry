@@ -12,6 +12,11 @@ import { BackLink } from "@/components/app-nav";
 import { card, link, table } from "@/components/ui";
 import { Num, Scroll } from "@/components/num";
 import { ManualEntryForm, PeriodLockForm, ReverseEntryForm } from "./form";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Books", "Files", "Nav", "Offline", "Sync.refused", "errors"];
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
 // FCX3: the owner's manual entry form; a cash_book entity's carries its opening bank and cash balances (FN3, FQ11).
@@ -25,7 +30,7 @@ const VIEWS = ["cash", "journals", "ledger", "trial", "cpc", "bilan"] as const;
 
 export default function BooksPage({ searchParams }: { searchParams: Search }) {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4">
         <BackLink href="/more" />
       </header>
@@ -34,7 +39,7 @@ export default function BooksPage({ searchParams }: { searchParams: Search }) {
           <BooksView searchParams={searchParams} />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

@@ -11,11 +11,16 @@ import { budgetBases, budgetBatches, budgetCash, budgetOf, listBudgets, plainTim
 import { getTenantContext } from "@/modules/identity";
 import { saveBudgetAction } from "./actions";
 import { BackLink } from "@/components/app-nav";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Budget", "Nav", "Offline", "Sync.refused", "errors"];
 
 // SPEC-finance FN15: plan the next batch from a closed one, with what-if feed and sale prices. Online, owner and manager.
 export default function BudgetPage() {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4">
         <BackLink href="/more" />
       </header>
@@ -24,7 +29,7 @@ export default function BudgetPage() {
           <Budget />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

@@ -26,7 +26,8 @@ export default defineConfig({
     // OTP_CONSOLE_SINK lets the production build "send" codes without an SMS provider (tests read them from the DB).
     // The real captcha runs (CAPTCHA_DISABLED is refused in production; CAPTCHA_HMAC_KEY comes from .env or CI),
     // made easy so ~100 logins stay fast.
-    env: { APP_ORIGIN: origin, OTP_CONSOLE_SINK: "1", CAPTCHA_MAX_NUMBER: "4" },
+    // STRICT_MESSAGES: a message a page didn't pick throws (src/i18n/strict-messages.tsx).
+    env: { APP_ORIGIN: origin, OTP_CONSOLE_SINK: "1", CAPTCHA_MAX_NUMBER: "4", STRICT_MESSAGES: "1" },
     url: origin,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

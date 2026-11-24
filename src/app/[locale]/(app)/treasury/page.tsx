@@ -14,12 +14,17 @@ import { card, field, table } from "@/components/ui";
 import { Num, Scroll } from "@/components/num";
 import { payCreditExpenseAction, payPlacementAction, recordAssociateAction } from "./actions";
 import { TreasuryForm } from "./pay-form";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Nav", "Offline", "Sync.refused", "Treasury.associateSaved", "Treasury.paid", "errors"];
 
 // SPEC-finance FN10: an online page for the owner and the manager (the web side of SPEC's split): each bank account's
 // and cash box's balance, and this month's movements on 5141 / 5161. Server-rendered from the ledger, never cached.
 export default function TreasuryPage() {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4">
         <BackLink href="/more" />
       </header>
@@ -28,7 +33,7 @@ export default function TreasuryPage() {
           <Treasury />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

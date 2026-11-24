@@ -13,6 +13,11 @@ import { can } from "@/lib/permissions";
 import { closePreview, type CloseBatchView, type CloseHensView, type CloseStockView } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { CloseForm, HensForm, OpenYearForm, ValuesForm, YearForm } from "./form";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Close", "Nav", "Offline", "Sync.refused", "errors"];
 
 // SPEC-finance FCX4 (T103), FCX2: "Préparer la clôture", online like /books. Each kind's year-end entry, OD on the
 // fiscal year's last day, as the run would post it; the owner posts it, the manager and the accountant read it.
@@ -27,7 +32,7 @@ type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function ClosingPage({ searchParams }: { searchParams: Search }) {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4">
         <BackLink href="/more" />
       </header>
@@ -36,7 +41,7 @@ export default function ClosingPage({ searchParams }: { searchParams: Search }) 
           <CloseView searchParams={searchParams} />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

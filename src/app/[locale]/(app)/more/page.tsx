@@ -9,15 +9,22 @@ import { Link, redirect } from "@/i18n/navigation";
 import { can } from "@/lib/permissions";
 import { pulls } from "@/lib/sync/views";
 import { getTenantContext, myOrganizations } from "@/modules/identity";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Account", "LocaleSwitcher", "errors.NETWORK"];
 
 // The "Plus" tab (tasks/plan-ui.md U2): every screen that isn't a tab, by role. Online, like the dashboard.
 export default function More() {
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-4">
-      <Suspense>
-        <Content />
-      </Suspense>
-    </main>
+    <ClientMessages paths={MESSAGES}>
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-4">
+        <Suspense>
+          <Content />
+        </Suspense>
+      </main>
+    </ClientMessages>
   );
 }
 

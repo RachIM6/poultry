@@ -11,6 +11,11 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import { officialStatements, type OfficialStatements } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { PrintButton } from "../count/form";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Count.print", "Count.save", "Count.saved", "Nav", "Offline", "Sync.refused", "errors"];
 
 // SPEC-finance FC8 (T116): the bilan, the CPC and the ETIC tables the ledger fills, in the CGNC's simplified model (its
 // PCA variant with the overlay), with N-1. "Projet" until the year close (FCX6). Printable (print CSS). Online, like /books.
@@ -19,7 +24,7 @@ type Ledger = Extract<OfficialStatements, { books: "ledger" }>;
 
 export default function StatementsPage({ searchParams }: { searchParams: Search }) {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4 print:hidden">
         <BackLink href="/more" />
       </header>
@@ -28,7 +33,7 @@ export default function StatementsPage({ searchParams }: { searchParams: Search 
           <StatementsView searchParams={searchParams} />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

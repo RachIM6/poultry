@@ -78,4 +78,10 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
   await expect(doc).toContainText("القرار رقم 2126-05");
   await expect(doc.locator('bdi[dir="ltr"]').first()).toHaveText("AV-2026-0412");
   await printsOnA4(page, "register-ar");
+
+  // The header's language switch keeps the batch (#id): the same register, now in French.
+  await page.getByRole("navigation", { name: "اللغة" }).getByRole("link", { name: "Français" }).click();
+  await expect(page).toHaveURL(new RegExp(`/fr/register#${ids.batch}$`));
+  await expect(doc.getByRole("heading", { level: 1 })).toHaveText("Registre de suivi sanitaire");
+  await expect(doc).toContainText("Ferme El Kheir");
 });

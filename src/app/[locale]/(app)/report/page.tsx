@@ -2,9 +2,10 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
+import { BackLink } from "@/components/app-nav";
 import { BatchReportView } from "@/components/batch-report";
 import { LocaleSwitcher } from "@/components/locale-switcher";
-import { Link, redirect } from "@/i18n/navigation";
+import { redirect } from "@/i18n/navigation";
 import { can } from "@/lib/permissions";
 import { batchResultDtos } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
@@ -16,8 +17,8 @@ type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 export default function ReportPage({ searchParams }: { searchParams: Search }) {
   return (
     <>
-      <header className="flex justify-between gap-4 p-4 print:hidden">
-        <Link href="/batches" className="py-2 underline underline-offset-4">←</Link>
+      <header className="flex items-center justify-between gap-4 p-4 print:hidden">
+        <BackLink href="/batches" />
         <LocaleSwitcher />
       </header>
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 print:max-w-none print:p-0">

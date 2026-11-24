@@ -82,7 +82,8 @@ export type { Sample } from "@/modules/flock/domain/weighing";
 export type WeighingDto = { id: string; batchId: string; day: string; count: number; totalGrams: number; weightsGrams: number[] };
 
 // SPEC B4: live KPIs, computed on the phone from its local data.
-export { batchKpis, closedBatchFigures, waterPerFeed } from "@/modules/flock/domain/kpi";
+export { batchKpis, closedBatchFigures, feedConversionRatio, waterPerFeed } from "@/modules/flock/domain/kpi";
+export { shownFcrEpef } from "@/modules/flock/domain/shown-fcr";
 export { hatcheryFigures } from "@/modules/flock/domain/hatcheries";
 export { houseFigure, houseWeight, layingVersusStandard } from "@/modules/flock/domain/house-figures"; // SPEC-m3 D1, B9
 export type { BatchKpis } from "@/modules/flock/domain/kpi";

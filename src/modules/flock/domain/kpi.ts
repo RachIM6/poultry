@@ -15,7 +15,7 @@ export type BatchTotals = {
 };
 
 /** FCR = feed consumed / live weight produced. Null until something has been weighed and fed (0 would read as perfect). */
-export function feedConversionRatio(t: BatchTotals): number | null {
+export function feedConversionRatio(t: Pick<BatchTotals, "feedGrams" | "liveWeightGrams">): number | null {
   return t.liveWeightGrams > 0 && t.feedGrams > 0 ? t.feedGrams / t.liveWeightGrams : null;
 }
 

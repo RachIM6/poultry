@@ -1,5 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { batchKpis, birdsPlaced, birdsStarted, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { batchKpis, birdsPlaced, birdsStarted, shownFcrEpef, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { TreatmentDto, VaccinationDto } from "@/modules/health/shared";
 
 // SPEC-m2-compliance RP3 (SCOPE §13): the batch report. KPIs and health from the phone's records with flock's own
@@ -47,8 +47,9 @@ function figures(b: BatchDto, i: Pick<Input, "entries" | "weighings" | "sold" | 
     sold: sold.reduce((n, s) => n + s.birds, 0),
     soldGrams,
     feedGrams,
-    // A closed batch: feed over the live weight that left (all of it was sold). Open: from the latest weighing.
-    fcr: b.status === "closed" ? (soldGrams > 0 ? feedGrams / soldGrams : null) : (k.weighed?.fcr ?? null),
+    // A closed batch: feed over the live weight that left (all of it was sold), as the batch screen and /compare.
+    // Open: the estimate at the latest weighing.
+    ...shownFcrEpef({ ...started, status: b.status, closedOn: b.closedOn }, k.weighed, entries, sold),
   };
 }
 
@@ -63,7 +64,8 @@ export function buildBatchReport(i: Input) {
   return {
     kpis,
     // RP3: the latest weighing against the strain's standard at its age; nothing without a curve (OQ5), never invented.
-    standard: w && standard ? { bodyWeightGrams: standard.bodyWeightGrams, gapPercent: versusStandard(w.averageGrams, standard.bodyWeightGrams) } : null,
+    // A closed batch shows the average sold instead (shownFcrEpef), so no weighing to compare.
+    standard: w && standard && batch.status !== "closed" ? { bodyWeightGrams: standard.bodyWeightGrams, gapPercent: versusStandard(w.averageGrams, standard.bodyWeightGrams) } : null,
     health: {
       vaccinesDone: vaccinations.filter((v) => v.done).length,
       vaccinesPlanned: vaccinations.length,

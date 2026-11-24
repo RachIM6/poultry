@@ -86,29 +86,31 @@ export function registerOf(batchId: string, records: LocalRecord[], reference: R
   });
 }
 
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children, heading: H = "h2" }: { title: string; children: ReactNode; heading?: "h2" | "h3" }) {
   return (
     <section className="flex flex-col gap-1">
-      <h2 className="text-base font-semibold">{title}</h2>
+      <H className="text-base font-semibold">{title}</H>
       {children}
     </section>
   );
 }
 
-/** A table that says "none" rather than print an empty grid. */
+/** A table that says "none" rather than print an empty grid. On screen a wide one scrolls (zoom, phone); on paper it fits the page. */
 export function Table({ head, rows, none }: { head: string[]; rows: ReactNode[][]; none: string }) {
   if (rows.length === 0) return <p className="text-sm">{none}</p>;
   return (
-    <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:px-1.5 [&_td]:py-1 [&_td]:align-top [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:px-1.5 [&_th]:py-1 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black">
-      <thead>
-        <tr>{head.map((h) => <th key={h} scope="col">{h}</th>)}</tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr key={i} className="break-inside-avoid">{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto print:overflow-visible">
+      <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:px-1.5 [&_td]:py-1 [&_td]:align-top [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:px-1.5 [&_th]:py-1 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black">
+        <thead>
+          <tr>{head.map((h) => <th key={h} scope="col">{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="break-inside-avoid">{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -125,7 +127,8 @@ function Line({ label, children, lines = 1 }: { label: string; children?: ReactN
 // Art. 8: a paginated paper register. "n / N" needs no word, so it reads the same in both languages.
 const PAGINATION = '@page { @bottom-center { content: counter(page) " / " counter(pages); font-size: 9pt; } }';
 
-export function RegisterDocument({ register: r, printButton = true }: { register: Register; printButton?: boolean }) {
+/** embedded: inside the inspection pack, under its h1 (an h2 title, h3 sections) and printed with it (no button). */
+export function RegisterDocument({ register: r, embedded = false }: { register: Register; embedded?: boolean }) {
   const t = useTranslations("Register");
   const tr = useTranslations();
   const locale = useLocale();
@@ -133,6 +136,8 @@ export function RegisterDocument({ register: r, printButton = true }: { register
   const month = (m: string) => new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${m}-01T00:00:00Z`));
   const code = (c: string) => <bdi dir="ltr">{c}</bdi>; // a code keeps its order in Arabic
   const c = r.cover;
+  const H = embedded ? "h2" : "h1";
+  const sub = embedded ? "h3" : "h2";
   const species = tr(`Types.${c.species}`);
   const vet = c.vet ? [c.vet.name, c.vet.address, c.vet.phone && code(c.vet.phone)].filter(Boolean).map((x, i) => <span key={i} className="block">{x}</span>) : undefined;
   const keepers = c.keepers.length > 0
@@ -143,12 +148,12 @@ export function RegisterDocument({ register: r, printButton = true }: { register
     <article className="flex flex-col gap-4">
       <style>{PAGINATION}</style>
       <header className="flex flex-col border-b-2 border-ink pb-2">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <H className="text-2xl font-semibold">{t("title")}</H>
         <p>{t("law")}</p>
         <p className="text-ink-2">{t("batchOf", { date: day(c.placedOn) })}</p>
       </header>
 
-      <Section title={t("cover")}>
+      <Section heading={sub} title={t("cover")}>
         <dl className="grid gap-x-6 text-sm sm:grid-cols-2 print:grid-cols-2">
           <Line label={t("onssaNumber")}>{c.onssa ? t.rich("onssaValue", { number: c.onssa.number, date: day(c.onssa.expiresOn), code: (x) => code(String(x)) }) : undefined}</Line>
           <Line label={t("farmName")}>{c.farmName}</Line>
@@ -166,7 +171,7 @@ export function RegisterDocument({ register: r, printButton = true }: { register
         </dl>
       </Section>
 
-      <Section title={t("supervision")}>
+      <Section heading={sub} title={t("supervision")}>
         <dl className="grid gap-x-6 text-sm sm:grid-cols-2 print:grid-cols-2">
           <Line label={t("vetSanitary")} lines={2}>{vet}</Line>
           <Line label={t("vetContract")}>
@@ -178,7 +183,7 @@ export function RegisterDocument({ register: r, printButton = true }: { register
         </dl>
       </Section>
 
-      <Section title={t("daily")}>
+      <Section heading={sub} title={t("daily")}>
         <Table
           none={t("none")}
           head={[t("date"), t("age"), t("onHand"), t("dead"), t("culled"), t("cumulative"), ...r.feedTypes.map((name) => t("feedOf", { name })), t("waterL"), ...(r.laying ? [t("eggs")] : []), t("observations")]}
@@ -206,7 +211,7 @@ export function RegisterDocument({ register: r, printButton = true }: { register
         />
       </Section>
 
-      <Section title={t("treatments")}>
+      <Section heading={sub} title={t("treatments")}>
         <Table
           none={t("none")}
           head={[t("commercialName"), t("lot"), t("dose"), t("method"), t("startOn"), t("endOn"), t("reason"), t("prescriber"), t("prescriptionRef"), t("withdrawalEnd")]}
@@ -225,7 +230,7 @@ export function RegisterDocument({ register: r, printButton = true }: { register
         />
       </Section>
 
-      <Section title={t("vaccinations")}>
+      <Section heading={sub} title={t("vaccinations")}>
         <Table
           none={t("none")}
           head={[t("age"), t("vaccine"), t("commercialName"), t("lot"), t("method"), t("doneOn"), t("doses"), t("species")]}
@@ -242,7 +247,7 @@ export function RegisterDocument({ register: r, printButton = true }: { register
         />
       </Section>
 
-      <Section title={t("birdsOut")}>
+      <Section heading={sub} title={t("birdsOut")}>
         <Table
           none={t("none")}
           head={[t("date"), t("birds"), t("recipient"), t("destination"), t("weightKg"), t("originDocument")]}
@@ -257,7 +262,7 @@ export function RegisterDocument({ register: r, printButton = true }: { register
         />
       </Section>
 
-      <Section title={t("disposals")}>
+      <Section heading={sub} title={t("disposals")}>
         <Table
           none={t("none")}
           head={[t("date"), t("birds"), t("weightKg"), t("disposalMethod")]}
@@ -265,11 +270,11 @@ export function RegisterDocument({ register: r, printButton = true }: { register
         />
       </Section>
 
-      <Section title={t("labReports")}>
+      <Section heading={sub} title={t("labReports")}>
         <Table none={t("none")} head={[t("date"), t("labReport")]} rows={r.labReports.map((l) => [day(l.issuedOn), l.title])} />
       </Section>
 
-      <Section title={t("visas")}>
+      <Section heading={sub} title={t("visas")}>
         <p className="text-sm text-ink-2 print:text-black">{t("visasHint")}</p>
         <Table
           none={t("none")}
@@ -278,7 +283,7 @@ export function RegisterDocument({ register: r, printButton = true }: { register
         />
       </Section>
 
-      <Section title={t("annexes")}>
+      <Section heading={sub} title={t("annexes")}>
         <Table
           none={t("none")}
           head={[t("piece"), t("references"), tr("Inspection.state")]}
@@ -293,7 +298,7 @@ export function RegisterDocument({ register: r, printButton = true }: { register
         <p className="text-sm">{t("retention")}</p>
         <p className="text-center text-sm text-ink-2">{t("editedWith", { app: tr("App.name") })}</p>
       </footer>
-      {printButton && <button type="button" onClick={() => window.print()} className={`${primary} print:hidden`}>{t("print")}</button>}
+      {!embedded && <button type="button" onClick={() => window.print()} className={`${primary} print:hidden`}>{t("print")}</button>}
     </article>
   );
 }

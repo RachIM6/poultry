@@ -12,6 +12,11 @@ import { bankReconciliation, IMPORT_MAX_BYTES } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { done, warn } from "@/components/ui";
 import { ImportedTable, ImportForm, MatchTable, StatementForm } from "./forms";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Bank", "Nav", "Offline", "Sync.refused", "Treasury.label", "errors"];
 
 // SPEC-finance FC9, FCX1, FCX2: bank reconciliation by manual matching. Online, server-rendered from the ledger.
 // Owner and manager tick; the accountant reads; workers are refused by finance.
@@ -19,7 +24,7 @@ type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function BankPage({ searchParams }: { searchParams: Search }) {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4">
         <BackLink href="/treasury" />
       </header>
@@ -28,7 +33,7 @@ export default function BankPage({ searchParams }: { searchParams: Search }) {
           <Bank searchParams={searchParams} />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

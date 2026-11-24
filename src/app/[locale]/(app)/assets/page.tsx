@@ -13,12 +13,17 @@ import { can } from "@/lib/permissions";
 import { ASSET_ACCOUNTS, ASSET_CATEGORIES, assetRegister, type AssetView } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { AssetActionForm, AssetForm, TreasurySelect } from "./form";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Assets", "Files", "Nav", "Offline", "Sync.refused", "errors"];
 
 // SPEC-finance FC1 (T102), FCX2: the fixed-asset register, online like /books. Per asset: cost, accumulated
 // depreciation and net book value, and its schedule by year. The owner writes; the manager and the accountant read.
 export default function AssetsPage() {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4">
         <BackLink href="/more" />
       </header>
@@ -27,7 +32,7 @@ export default function AssetsPage() {
           <AssetsView />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

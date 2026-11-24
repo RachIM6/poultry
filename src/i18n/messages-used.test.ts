@@ -97,6 +97,8 @@ it("every full key written as a string (messageKey, label tables) exists in fr.j
     [...text.matchAll(/["`]([A-Za-z]+(?:\.\w+)+)["`]/g)]
       .map((m) => m[1])
       .filter((key) => namespaces.has(key.split(".")[0]) && typeof at(key) !== "string")
+      // A page's client messages (MessagePath, src/i18n/pick.ts) may name a group: "Stock.units".
+      .filter((key) => !(typeof at(key) === "object" && text.includes("MessagePath")))
       .map((key) => `${file}: ${key}`),
   );
   expect(missing).toEqual([]);

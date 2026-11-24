@@ -13,13 +13,18 @@ import { can } from "@/lib/permissions";
 import { loanRegister, subsidyRegister, type LoanView, type SubsidyView } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { LoanActionForm, LoanForm, ScheduleForm, SubsidyForm } from "./form";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Loans", "Nav", "Offline", "Subsidies", "Sync.refused", "errors"];
 
 // SPEC-finance FC2 (T105, T106), FCX2: "Emprunts et subventions", online like /books. Each loan's schedule with its
 // paid and due installments, and each subsidy with its release by year. The owner writes; a manager marks installments
 // paid; the accountant reads.
 export default function LoansPage() {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4">
         <BackLink href="/more" />
       </header>
@@ -28,7 +33,7 @@ export default function LoansPage() {
           <LoansView />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

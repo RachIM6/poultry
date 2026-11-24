@@ -10,6 +10,11 @@ import { can } from "@/lib/permissions";
 import { yearEndCount, type CountBatchLine, type CountEggsLine, type CountLine, type CountStockLine } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { CountForm, PrintButton } from "./form";
+import { ClientMessages } from "@/i18n/client-messages";
+import type { MessagePath } from "@/i18n/pick";
+
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Count.print", "Count.save", "Count.saved", "Nav", "Offline", "Sync.refused", "errors"];
 
 // SPEC-finance FC3 (T107): the year-end count sheet, per farm, printable on A4 with an empty "Compté" column and no
 // amount; then the quantities counted, entered online by the owner or a manager, and the gap per line. Online, like /books.
@@ -18,7 +23,7 @@ type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function CountPage({ searchParams }: { searchParams: Search }) {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4 print:hidden">
         <BackLink href="/more" />
       </header>
@@ -27,7 +32,7 @@ export default function CountPage({ searchParams }: { searchParams: Search }) {
           <CountView searchParams={searchParams} />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 

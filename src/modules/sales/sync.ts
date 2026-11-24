@@ -48,7 +48,7 @@ export const salesSync: SyncRegistry = {
     [M.correctSale]: defineMutation({ schema: CorrectSale, action: "sales.manage", apply: (tx, ctx, cmd, meta) => correctSale(tx, ctx, cmd, meta) }),
   },
   entities: {
-    buyer: (ctx, data: BuyerDto) => withoutMoney(ctx, data, ["creditLimitCentimes"]),
+    buyer: (ctx, data: BuyerDto) => withoutMoney(ctx, data, ["creditLimitCentimes", "creditBlocked"]), // FN12: credit is money (I5)
     sale: (ctx, data: SaleDto) => withoutMoney(ctx, data, SALE_MONEY),
     buyerPayment: (ctx, data: PaymentDto) => withoutMoney(ctx, data, ["amountCentimes", "method", "instrument"]),
     instrumentStatus: (ctx, data: InstrumentStatusDto) => (can(ctx, "money.read") ? data : undefined),

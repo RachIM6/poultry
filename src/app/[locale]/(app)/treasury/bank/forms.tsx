@@ -3,9 +3,11 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent } from "react";
 import { addStatementAction, importAction, matchAction, type ImportState } from "./actions";
-import { field, primary, secondary, table } from "@/components/ui";
+import { danger, field, primary, secondary, table } from "@/components/ui";
+import { Num } from "@/components/num";
 import { Link } from "@/i18n/navigation";
-import { formatMoney } from "@/lib/format";
+import { formatDay, formatMoney } from "@/lib/format";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import { CSV_DATE_FORMATS } from "@/modules/finance/shared";
 
 const SEPARATORS = [
@@ -40,6 +42,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
     </label>
   );
   const preview = state.preview;
+  const badFile = state.messageKey === "errors.IMPORT_TOO_LARGE" || state.messageKey === "errors.IMPORT_FILE_TYPE";
   return (
     <form onSubmit={submit} onChange={() => preview && setState({})} className="flex flex-col gap-3">
       <input type="hidden" name="treasuryId" value={treasuryId} />
@@ -48,7 +51,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
       <fieldset className="flex flex-col gap-1">
         <legend className="font-semibold">{t("format")}</legend>
         {(["mt940", "csv"] as const).map((f) => (
-          <label key={f} className="flex items-center gap-2">
+          <label key={f} className="flex min-h-11 items-center gap-2">
             <input type="radio" name="format" value={f} checked={format === f} onChange={() => setFormat(f)} />
             {t(f === "mt940" ? "formatMt940" : "formatCsv")}
           </label>
@@ -56,7 +59,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
       </fieldset>
       <label className="flex flex-col gap-1">
         <span className="font-semibold">{t("file")}</span>
-        <input type="file" name="file" required accept={format === "mt940" ? ".sta,.mt940,.940,.fin,.txt" : ".csv,.txt,text/csv"} className={field} />
+        <input type="file" name="file" required accept={format === "mt940" ? ".sta,.mt940,.940,.fin,.txt" : ".csv,.txt,text/csv"} aria-invalid={badFile || undefined} aria-describedby={badFile ? "import-error" : undefined} className={`${field} aria-invalid:border-alert`} />
       </label>
       {format === "csv" && (
         <fieldset className="flex flex-col gap-3">
@@ -82,11 +85,11 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
           {number("labelColumn", t("labelColumn"), 2)}
           <fieldset className="flex flex-col gap-1">
             <legend className="font-semibold">{t("amountKind")}</legend>
-            <label className="flex items-center gap-2">
+            <label className="flex min-h-11 items-center gap-2">
               <input type="radio" name="amountKind" value="split" checked={!signed} onChange={() => setSigned(false)} />
               {t("amountSplit")}
             </label>
-            <label className="flex items-center gap-2">
+            <label className="flex min-h-11 items-center gap-2">
               <input type="radio" name="amountKind" value="signed" checked={signed} onChange={() => setSigned(true)} />
               {t("amountSigned")}
             </label>
@@ -99,7 +102,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
               {number("creditColumn", t("creditColumn"), 4)}
             </>
           )}
-          <label className="flex items-center gap-2">
+          <label className="flex min-h-11 items-center gap-2">
             <input type="checkbox" name="decimalComma" defaultChecked />
             {t("decimalComma")}
           </label>
@@ -114,13 +117,13 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
           </div>
         </fieldset>
       )}
-      {state.messageKey && <p role="alert">{tAll(state.messageKey, state.values)}</p>}
+      {state.messageKey && <p id="import-error" role="alert" className={danger}>{tAll(state.messageKey, state.values)}</p>}
       {preview && (
         <section role="status" className="flex flex-col gap-3">
           <h3 className="font-semibold">{t("previewTitle")}</h3>
           {preview.statements.map((s) => (
             <div key={s.endDay} className="flex flex-col gap-1">
-              <p className="font-semibold">{t("previewStatement", { day: s.endDay, count: s.lineCount })}</p>
+              <p className="font-semibold">{t("previewStatement", { day: formatDay(s.endDay as FarmDay, locale), count: s.lineCount })}</p>
               <p>
                 {s.openingCentimes === null
                   ? t("previewClosing", { closing: formatMoney(BigInt(s.closingCentimes)) })
@@ -133,9 +136,9 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
                     <tr key={i} className="border-t border-line">
                       <td className="p-2">
                         <span className="block">{l.label}</span>
-                        <span className="block text-ink-2" dir="ltr">{l.day}</span>
+                        <span className="block text-ink-2">{formatDay(l.day as FarmDay, locale)}</span>
                       </td>
-                      <td dir="ltr" className="whitespace-nowrap p-2 text-end tabular-nums">{formatMoney(BigInt(l.amountCentimes))}</td>
+                      <Num className="whitespace-nowrap">{formatMoney(BigInt(l.amountCentimes))}</Num>
                     </tr>
                   ))}
                 </tbody>
@@ -166,7 +169,7 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="statementId" value={statementId} />
-      {state.messageKey && <p role="alert">{tAll(state.messageKey)}</p>}
+      {state.messageKey && <p role="alert" className={danger}>{tAll(state.messageKey)}</p>}
       <table className={table}>
         <thead>
           <tr>
@@ -182,7 +185,7 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
                 <span className="block">{l.label}</span>
                 <span className="block text-ink-2">{l.day}</span>
               </td>
-              <td dir="ltr" className="whitespace-nowrap p-2 text-end tabular-nums">{l.amount}</td>
+              <Num className="whitespace-nowrap">{l.amount}</Num>
               <td className="p-2">
                 {l.ticked ? (
                   <span>
@@ -190,7 +193,7 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
                     {t("importedTicked")}
                   </span>
                 ) : l.lineId && canWrite ? (
-                  <button type="submit" name="tick" value={l.lineId} disabled={pending} className={secondary}>{t("tick")}</button>
+                  <button type="submit" name="tick" value={l.lineId} disabled={pending} aria-label={t("tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>{t("tick")}</button>
                 ) : (
                   <span className="flex flex-col gap-1">
                     <span className="text-ink-2">{t(l.lineId ? "importedToTick" : "importedMissing")}</span>
@@ -214,6 +217,7 @@ export function StatementForm({ treasuryId, today }: { treasuryId: string; today
   const tAll = useTranslations();
   const locale = useLocale();
   const [state, action, pending] = useActionState(addStatementAction, {});
+  const badClosing = state.messageKey === "errors.INVALID_INPUT"; // the server reads only the closing balance itself
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="treasuryId" value={treasuryId} />
@@ -224,10 +228,10 @@ export function StatementForm({ treasuryId, today }: { treasuryId: string; today
       </label>
       <div className="flex flex-col gap-1">
         <label htmlFor="closing" className="font-semibold">{t("closing")}</label>
-        <input id="closing" name="closing" required dir="ltr" autoComplete="off" className={field} aria-describedby="closing-hint" />
+        <input id="closing" name="closing" required dir="ltr" autoComplete="off" className={`${field} aria-invalid:border-alert`} aria-invalid={badClosing || undefined} aria-describedby={badClosing ? "closing-hint closing-error" : "closing-hint"} />
         <span id="closing-hint" className="text-sm text-ink-2">{t("closingHint")}</span>
       </div>
-      {state.messageKey && <p role="alert">{tAll(state.messageKey)}</p>}
+      {state.messageKey && <p id="closing-error" role="alert" className={danger}>{tAll(state.messageKey)}</p>}
       <button type="submit" disabled={pending} className={primary}>{t("save")}</button>
     </form>
   );
@@ -243,7 +247,7 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="statementId" value={statementId} />
-      {state.messageKey && <p role="alert">{tAll(state.messageKey)}</p>}
+      {state.messageKey && <p role="alert" className={danger}>{tAll(state.messageKey)}</p>}
       <table className={table}>
         <thead>
           <tr>
@@ -259,7 +263,7 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
                 <span className="block">{l.label}</span>
                 <span className="block text-ink-2">{l.day} · {l.journal}</span>
               </td>
-              <td dir="ltr" className="whitespace-nowrap p-2 text-end tabular-nums">{l.amount}</td>
+              <Num className="whitespace-nowrap">{l.amount}</Num>
               <td className="p-2">
                 {l.tickedOn ? (
                   <span className="text-ink-2">{t("tickedOn", { day: l.tickedOn })}</span>
@@ -267,7 +271,7 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
                   <span className="flex items-center gap-2">
                     {l.ticked && <span><span aria-hidden="true">✓</span><span className="sr-only">{t("ticked")}</span></span>}
                     {canWrite && (
-                      <button type="submit" name={l.ticked ? "untick" : "tick"} value={l.id} disabled={pending} className={secondary}>
+                      <button type="submit" name={l.ticked ? "untick" : "tick"} value={l.id} disabled={pending} aria-label={t(l.ticked ? "untickOf" : "tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>
                         {t(l.ticked ? "untick" : "tick")}
                       </button>
                     )}

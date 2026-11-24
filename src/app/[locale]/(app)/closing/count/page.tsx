@@ -34,7 +34,7 @@ export default function CountPage({ searchParams }: { searchParams: Search }) {
 // As the register's tables: ruled cells that print black (src/components/register-document.tsx).
 const sheet =
   "w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:p-2 [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:p-2 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black";
-const box = "w-28 rounded-lg border border-line bg-card px-2 py-1 text-end";
+const box = "min-h-11 w-28 rounded-lg border border-line bg-card px-2 text-end";
 
 async function CountView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);
@@ -93,9 +93,9 @@ async function CountView({ searchParams }: { searchParams: Search }) {
     <>
       <h1 className="text-2xl font-semibold print:hidden">{t("Count.title")}</h1>
       <nav className="flex flex-wrap items-center gap-3 print:hidden" aria-label={t("Count.year")}>
-        <Link href={{ pathname: "/closing/count", query: { year: year - 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">←</Link>
+        <Link href={{ pathname: "/closing/count", query: { year: year - 1 } }} aria-label={t("Count.previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
         <span className="font-semibold" dir="ltr">{year}</span>
-        <Link href={{ pathname: "/closing/count", query: { year: year + 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">→</Link>
+        <Link href={{ pathname: "/closing/count", query: { year: year + 1 } }} aria-label={t("Count.nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
         {farms.length > 0 && <span className="ms-auto"><PrintButton /></span>}
       </nav>
       <p className="text-sm text-ink-2 print:hidden">{t("Count.hint")}</p>

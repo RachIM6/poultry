@@ -10,6 +10,7 @@ import { batchOf, readBooks, type IncomeStatement } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, table } from "@/components/ui";
+import { Num, Scroll } from "@/components/num";
 import { ManualEntryForm, PeriodLockForm, ReverseEntryForm } from "./form";
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
@@ -64,14 +65,16 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
   const one = (k: string, v = search[k]) => (typeof v === "string" ? v : "");
   const prefill = /^\d{4}-\d{2}-\d{2}$/.test(one("day")) && one("bank") ? { day: one("day"), label: one("label"), debit: one("debit"), bank: one("bank") } : undefined;
   const lockedInYear = books.lockedMonths.filter((m) => m >= books.fiscalYear.from.slice(0, 7) && m <= books.fiscalYear.to.slice(0, 7));
+  // "novembre 2026", not "2026-11" (as the register's months; not in lib/format, which /batches ships)
+  const monthName = (m: string) => new Intl.DateTimeFormat(lang === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${m}-01T00:00:00Z`));
 
   return (
     <>
       <h1 className="text-2xl font-semibold">{t(books.books === "ledger" ? "Books.titleLedger" : "Books.titleCashBook")}</h1>
       <nav className="flex flex-wrap items-center gap-3" aria-label={t("Books.month")}>
-        <Link href={href(view, shift(month, -1))} className="underline underline-offset-4">←</Link>
-        <span className="font-semibold" dir="ltr">{month}</span>
-        <Link href={href(view, shift(month, 1))} className="underline underline-offset-4">→</Link>
+        <Link href={href(view, shift(month, -1))} aria-label={t("Books.previousMonth")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
+        <span className="font-semibold">{monthName(month)}</span>
+        <Link href={href(view, shift(month, 1))} aria-label={t("Books.nextMonth")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
         {/* FN18: a file, not a page, so a plain link to the route handler */}
         <a href={`/api/finance/export?month=${month}`} download className="ms-auto underline underline-offset-4">{t("Books.export")}</a>
         {books.books === "ledger" && <a href={`/api/finance/export?month=${month}&format=fec`} download className="underline underline-offset-4">{t("Books.exportFec")}</a>}
@@ -85,7 +88,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
             {lockedInYear.map((m, i) => (
               <Fragment key={m}>
                 {i > 0 && ", "}
-                <Link href={href(view, m)} className="underline underline-offset-4" dir="ltr">{m}</Link>
+                <Link href={href(view, m)} className="underline underline-offset-4">{monthName(m)}</Link>
               </Fragment>
             ))}
           </p>
@@ -102,7 +105,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       </section>
       {manage && (
         <details open={!!prefill} className={card}>
-          <summary className="cursor-pointer font-semibold">{t("Books.manual")}</summary>
+          <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Books.manual")}</summary>
           <p className="text-sm text-ink-2">{t(books.books === "ledger" ? "Books.manualOpening" : "Books.manualCashBook", { from: day(books.fiscalYear.from) })}</p>
           <datalist id="ledger-accounts">
             {books.postingAccounts?.map((a) => <option key={a.number} value={a.number}>{`${a.number} ${a.label}`}</option>)}
@@ -139,7 +142,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       )}
 
       {view === "cash" && (
-        <div className="overflow-x-auto">
+        <Scroll label={t("Books.cash")}>
           <table className={table} aria-label={t("Books.cash")}>
             <thead>
               <tr>
@@ -158,71 +161,91 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
                   <td className="p-2">{r.label}{r.counterAccounts.length > 0 && <span className="text-muted"> · {r.counterAccounts.map((a) => books.labels[a] ?? a).join(", ")}</span>}</td>
                   <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
                   <td className="p-2">{batchOf(books.tags, r.entryId)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.receipt)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.expense)}</td>
+                  <Num>{money(r.receipt)}</Num>
+                  <Num>{money(r.expense)}</Num>
                 </tr>
               ))}
               <tr className="border-t-2 border-line font-semibold">
                 <td className="p-2" colSpan={4}>{t("Books.total")}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.receipts)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.expenses)}</td>
+                <Num>{formatMoney(books.cashBook.receipts)}</Num>
+                <Num>{formatMoney(books.cashBook.expenses)}</Num>
               </tr>
             </tbody>
           </table>
-        </div>
+        </Scroll>
       )}
 
       {view === "journals" &&
         books.journals?.map((j) => (
           <section key={j.journal} className="flex flex-col gap-2">
             <h2 className="text-[17px] font-semibold text-ink-2">{t("Books.journal", { journal: j.journal })}</h2>
-            {j.entries.map((e) => (
-              <Fragment key={e.id}>
-                <table className={table}>
-                  <caption className="text-start font-semibold">
-                    {day(e.day)} · {e.label}
-                    {e.piece && <> · {t("Books.pieceOf", { piece: e.piece })}</>}
-                    {e.receipt && <> · <a href={`/api/files/${e.receipt}`} className="underline underline-offset-4">{t("Books.receiptOf")}</a></>}
-                    {e.reversed && <> · {t("Books.reversedTag")}</>}
-                  </caption>
-                  <tbody>
-                    {e.lines.map((l, i) => (
-                      <tr key={i} className="border-t border-line">
-                        <td className="p-2"><bdi dir="ltr">{account(l.account)}</bdi></td>
-                        <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
-                        <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
+            {/* One scroll per journal, not per entry: one tab stop */}
+            <Scroll label={t("Books.journal", { journal: j.journal })} className="flex flex-col gap-2">
+              {j.entries.map((e) => (
+                <Fragment key={e.id}>
+                  <table className={table}>
+                    <caption className="text-start font-semibold">
+                      {day(e.day)} · {e.label}
+                      {e.piece && <> · {t("Books.pieceOf", { piece: e.piece })}</>}
+                      {e.receipt && <> · <a href={`/api/files/${e.receipt}`} className="underline underline-offset-4">{t("Books.receiptOf")}</a></>}
+                      {e.reversed && <> · {t("Books.reversedTag")}</>}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col" className="p-2 text-start">{t("Books.account")}</th>
+                        <th scope="col" className="p-2 text-end">{t("Books.debit")}</th>
+                        <th scope="col" className="p-2 text-end">{t("Books.credit")}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {manage && e.reversed !== undefined && <ReverseEntryForm entryId={e.id} name={`${day(e.day)} · ${e.label}`} reversed={e.reversed} />}
-              </Fragment>
-            ))}
+                    </thead>
+                    <tbody>
+                      {e.lines.map((l, i) => (
+                        <tr key={i} className="border-t border-line">
+                          <td className="p-2"><bdi dir="ltr">{account(l.account)}</bdi></td>
+                          <Num>{money(l.debit)}</Num>
+                          <Num>{money(l.credit)}</Num>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {manage && e.reversed !== undefined && <ReverseEntryForm entryId={e.id} name={`${day(e.day)} · ${e.label}`} reversed={e.reversed} />}
+                </Fragment>
+              ))}
+            </Scroll>
           </section>
         ))}
 
-      {view === "ledger" &&
-        books.generalLedger?.map((a) => (
-          <div key={a.account} className="overflow-x-auto">
-            <table className={table}>
+      {view === "ledger" && books.generalLedger && (
+        <Scroll label={t("Books.ledger")} className="flex flex-col gap-6">
+          {books.generalLedger.map((a) => (
+            <table key={a.account} className={table}>
               <caption className="text-start font-semibold"><bdi dir="ltr">{account(a.account)}</bdi></caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="p-2 text-start">{t("Books.day")}</th>
+                  <th scope="col" className="p-2 text-start">{t("Books.label")}</th>
+                  <th scope="col" className="p-2 text-end">{t("Books.debit")}</th>
+                  <th scope="col" className="p-2 text-end">{t("Books.credit")}</th>
+                  <th scope="col" className="p-2 text-end">{t("Books.balance")}</th>
+                </tr>
+              </thead>
               <tbody>
                 {a.lines.map((l, i) => (
                   <tr key={i} className="border-t border-line">
                     <td className="p-2">{day(l.day)}</td>
                     <td className="p-2">{l.journal} · {l.label}</td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.running)}</td>
+                    <Num>{money(l.debit)}</Num>
+                    <Num>{money(l.credit)}</Num>
+                    <Num>{formatMoney(l.running)}</Num>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        ))}
+          ))}
+        </Scroll>
+      )}
 
       {view === "trial" && books.trialBalance && (
-        <div className="overflow-x-auto">
+        <Scroll label={t("Books.trial")}>
           <table className={table} aria-label={t("Books.trial")}>
             <caption className="text-start">{t("Books.since", { from: day(books.fiscalYear.from) })}</caption>
             <thead>
@@ -237,58 +260,62 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
               {books.trialBalance.rows.map((r) => (
                 <tr key={r.account} className="border-t border-line">
                   <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.debit)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.credit)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.balance)}</td>
+                  <Num>{money(r.debit)}</Num>
+                  <Num>{money(r.credit)}</Num>
+                  <Num>{formatMoney(r.balance)}</Num>
                 </tr>
               ))}
               <tr className="border-t-2 border-line font-semibold">
                 <td className="p-2">{t(books.trialBalance.balanced ? "Books.balanced" : "Books.unbalanced")}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.debit)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.credit)}</td>
+                <Num>{formatMoney(books.trialBalance.debit)}</Num>
+                <Num>{formatMoney(books.trialBalance.credit)}</Num>
                 <td />
               </tr>
             </tbody>
           </table>
-        </div>
+        </Scroll>
       )}
       {view === "cpc" && books.incomeStatement && (
-        <table className={table} aria-label={t("Books.cpc")}>
-          <caption className="text-start">{closed ? t("Books.cpcClosed", { closed, from: day(books.fiscalYear.from) }) : t("Books.cpcDraft", { from: day(books.fiscalYear.from) })}</caption>
-          <tbody>
-            {cpcRows(books.incomeStatement).map((r) => (
-              <tr key={r.key} className={`border-t border-line ${r.kind === "line" ? "" : "font-semibold"} ${r.kind === "head" ? "bg-shell" : ""} ${r.kind === "total" ? "border-t-2" : ""}`}>
-                <td className={`p-2 ${r.kind === "line" ? "ps-6" : ""}`}>{r.kind === "line" ? <bdi dir="ltr">{account(r.label)}</bdi> : t(r.label)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Scroll label={t("Books.cpc")}>
+          <table className={table} aria-label={t("Books.cpc")}>
+            <caption className="text-start">{closed ? t("Books.cpcClosed", { closed, from: day(books.fiscalYear.from) }) : t("Books.cpcDraft", { from: day(books.fiscalYear.from) })}</caption>
+            <tbody>
+              {cpcRows(books.incomeStatement).map((r) => (
+                <tr key={r.key} className={`border-t border-line ${r.kind === "line" ? "" : "font-semibold"} ${r.kind === "head" ? "bg-shell" : ""} ${r.kind === "total" ? "border-t-2" : ""}`}>
+                  <td className={`p-2 ${r.kind === "line" ? "ps-6" : ""}`}>{r.kind === "line" ? <bdi dir="ltr">{account(r.label)}</bdi> : t(r.label)}</td>
+                  <Num>{formatMoney(r.amount)}</Num>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Scroll>
       )}
       {view === "bilan" && bilan && (
-        <table className={table} aria-label={t(closed ? "Books.bilanClosed" : "Books.bilan")}>
-          <caption className="text-start">{closed ? t("Books.bilanClosedCaption", { closed, from: day(books.fiscalYear.from) }) : t("Books.bilanDraft", { from: day(books.fiscalYear.from) })}</caption>
-          <tbody>
-            {([["assets", bilan.totalAssets], ["liabilities", bilan.totalLiabilities]] as const).map(([side, total]) => (
-              <Fragment key={side}>
-                <tr className="border-t-2 border-line bg-shell font-semibold">
-                  <td className="p-2">{t(`Books.bilanSides.${side}`)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(total)}</td>
-                </tr>
-                {bilan[side].map((l) => (
-                  <tr key={l.account} className="border-t border-line">
-                    <td className="p-2 ps-6"><bdi dir="ltr">{account(l.account)}</bdi></td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.amount)}</td>
+        <Scroll label={t(closed ? "Books.bilanClosed" : "Books.bilan")}>
+          <table className={table} aria-label={t(closed ? "Books.bilanClosed" : "Books.bilan")}>
+            <caption className="text-start">{closed ? t("Books.bilanClosedCaption", { closed, from: day(books.fiscalYear.from) }) : t("Books.bilanDraft", { from: day(books.fiscalYear.from) })}</caption>
+            <tbody>
+              {([["assets", bilan.totalAssets], ["liabilities", bilan.totalLiabilities]] as const).map(([side, total]) => (
+                <Fragment key={side}>
+                  <tr className="border-t-2 border-line bg-shell font-semibold">
+                    <td className="p-2">{t(`Books.bilanSides.${side}`)}</td>
+                    <Num>{formatMoney(total)}</Num>
                   </tr>
-                ))}
-              </Fragment>
-            ))}
-            <tr className="border-t border-line">
-              <td className="p-2 ps-6">{t("Books.cpcNet")}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(bilan.result)}</td>
-            </tr>
-          </tbody>
-        </table>
+                  {bilan[side].map((l) => (
+                    <tr key={l.account} className="border-t border-line">
+                      <td className="p-2 ps-6"><bdi dir="ltr">{account(l.account)}</bdi></td>
+                      <Num>{formatMoney(l.amount)}</Num>
+                    </tr>
+                  ))}
+                </Fragment>
+              ))}
+              <tr className="border-t border-line">
+                <td className="p-2 ps-6">{t("Books.cpcNet")}</td>
+                <Num>{formatMoney(bilan.result)}</Num>
+              </tr>
+            </tbody>
+          </table>
+        </Scroll>
       )}
     </>
   );

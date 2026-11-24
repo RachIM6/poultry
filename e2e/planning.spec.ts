@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T96, T97 (SPEC-m5 PL1, PL2, PL5): batches planned offline on /planning, with the overlap and short-downtime
 // warnings; they survive a reload and sync once. Without a rule the official 20 days apply (CQ3); the 30-day rule is a
@@ -50,6 +50,7 @@ test("batches planned offline show overlaps and a short downtime, survive a relo
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ chicks: number; age: number | null }>(
       `SELECT p.chicks, p."saleAge" AS age FROM "PlannedBatch" p

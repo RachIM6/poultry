@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, scopeRemembered } from "./auth";
+import { outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T11 acceptance: reference data is on the phone after the first sync; the organisation copies the template and edits
 // its copy offline; the template stays as it was. Needs `pnpm db:seed` (CI runs it).
@@ -35,6 +35,7 @@ test("the vaccination template is available offline, and a farm's copy is edited
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const items = async () =>
     (
       await query<{ items: unknown }>(

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 
@@ -36,6 +36,7 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ expenses: number; entries: number }>(
       `SELECT (SELECT count(*)::int FROM "Expense" x WHERE x."organizationId" = m."organizationId") AS expenses,

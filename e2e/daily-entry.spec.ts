@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, queuedWrites, scopeRemembered } from "./auth";
+import { farmWithBatch, outboxEmpty, ownerWithFarm, query, queuedWrites, scopeRemembered } from "./auth";
 
 // T16 acceptance (browser part): the daily entry offline, its feed as one consumption movement, edited not duplicated.
 // The two-phones merge is tested on the server (src/modules/flock/daily-entries.int.test.ts). "Under 60 s" is timed
@@ -37,6 +37,7 @@ test("the day's entry works offline; its feed lowers stock once, and editing the
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ dead: number; feed: number; movements: number; quantity: number }>(
       `SELECT d.dead, d."feedGrams" AS feed,

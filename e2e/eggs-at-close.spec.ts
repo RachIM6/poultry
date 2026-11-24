@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { closeRun, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
 
@@ -40,7 +40,7 @@ test("the owner counts the eggs, types a value per egg, and posts them in the st
   const line = stock.getByRole("table", { name: "Œufs en stock" }).getByRole("row").filter({ hasText: "Ferme Atlas" });
   await expect(line).toContainText(/Ferme Atlas\s*1\s180\s*Valeur par œuf à saisir\./);
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Saisissez la valeur par œuf" })).toHaveText("Saisissez la valeur par œuf des œufs en stock avant de comptabiliser.");
+  await expect(page.getByRole("alert").filter({ hasText: "Saisissez la valeur par œuf" })).toHaveText("Saisissez la valeur par œuf des œufs en stock avant de comptabiliser.", closeRun);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // fits the phone
 
   // FQ18: the owner's value per egg; the stock entry, D 3152 / C 71321 at 1 180 × 0,95.
@@ -54,7 +54,7 @@ test("the owner counts the eggs, types a value per egg, and posts them in the st
   await expect(entry.nth(2)).toContainText(/^71321 Variation des stocks de produits finis\s*1\s121,00/);
 
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
-  await expect(page.getByText("Écritures comptabilisées : 1.")).toBeVisible();
+  await expect(page.getByText("Écritures comptabilisées : 1.")).toBeVisible(closeRun);
   await expect(stock).toContainText("Comptabilisée, sans changement.");
   await expect(stock.getByRole("textbox")).toHaveCount(0);
 

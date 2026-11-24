@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T13 acceptance: a purchase made offline increases stock and, after sync, the unpaid part is supplier credit.
 test("an offline feed purchase shows in stock and in the supplier's balance, then syncs exactly", async ({ page, context }) => {
@@ -53,6 +53,7 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const purchase = async () =>
     (
       await query<{ amount: string; paid: string; quantity: number }>(

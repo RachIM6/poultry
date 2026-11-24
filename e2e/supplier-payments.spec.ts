@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // S2, SPEC-finance FN6: a supplier paid later, offline, lowers what is owed; once synced, the cheque leaves the bank.
 test("a supplier paid by cheque offline owes less, after a reload and on the server", async ({ page, context }) => {
@@ -44,6 +44,7 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const lines = async () =>
     (
       await query<{ journal: string; account: string; debit: string; credit: string }>(

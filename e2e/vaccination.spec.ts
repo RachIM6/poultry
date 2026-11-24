@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T19 acceptance (browser part): a batch placed offline gets its vaccination plan from the farm's protocol, and a
 // vaccine marked done offline takes its doses out of the lot. The dates and the reminders are checked on the server:
@@ -59,6 +59,7 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ due: string; doses: number | null; stock: number }>(
       `SELECT v."dueOn"::text AS due, v.doses,

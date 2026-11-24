@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T70 (SPEC-m4 WF1): an employee added offline on /staff survives a reload and reaches the server once.
 // Workers' view without wages is covered by src/modules/workforce/employees.int.test.ts.
@@ -33,6 +33,7 @@ test("an employee added offline survives a reload and syncs once", async ({ page
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ name: string; wage: string }>(
       `SELECT e.name, e."dailyWageCentimes"::text AS wage FROM "Employee" e

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { closeRun, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
 
@@ -44,7 +44,7 @@ test("the owner reads an open batch at cost in the close preview, types its curr
 
   // The run refuses while the batch has no current value.
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Saisissez la valeur actuelle" })).toHaveText("Saisissez la valeur actuelle des bandes en cours sans pesée ou sans vente avant de comptabiliser.");
+  await expect(page.getByRole("alert").filter({ hasText: "Saisissez la valeur actuelle" })).toHaveText("Saisissez la valeur actuelle des bandes en cours sans pesée ou sans vente avant de comptabiliser.", closeRun);
 
   // The owner's 45 000,00: a provision of 2 500,00, D 61961 / C 3913.
   await section.getByRole("textbox", { name: "Valeur actuelle : B1 · Poulet de chair" }).fill("45 000");
@@ -58,7 +58,7 @@ test("the owner reads an open batch at cost in the close preview, types its curr
 
   // Posted, then frozen.
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
-  await expect(page.getByText("Écritures comptabilisées : 2.")).toBeVisible();
+  await expect(page.getByText("Écritures comptabilisées : 2.")).toBeVisible(closeRun);
   await expect(section).toContainText("Comptabilisée, sans changement.");
   await expect(section.getByRole("textbox")).toHaveCount(0);
   await expect(line).toContainText(/45\s000,00\sDH/);

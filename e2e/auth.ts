@@ -91,6 +91,22 @@ export async function queuedWrites(page: Page) {
   });
 }
 
+/**
+ * Back online: waits until the outbox is empty, i.e. the server has answered every queued write (an applied one is on
+ * the server; a refused one moves to "À vérifier" and the server check that follows shows it). A server check polled
+ * right after going online races the push, which takes longer than its timeout under load.
+ */
+export async function outboxEmpty(page: Page) {
+  await expect.poll(() => queuedWrites(page), { timeout: 30_000 }).toBe(0);
+}
+
+/**
+ * The close run and the year close go through a whole year in one transaction, allowed SYNC_TX (src/lib/db.ts: 15 s,
+ * after up to 5 s waiting for a connection). Under load the answer took ~10 s, the default expect timeout: wait past
+ * the server's own budget for it.
+ */
+export const closeRun = { timeout: 30_000 };
+
 /** A new owner with an organisation, signed in on the French dashboard. */
 export async function ownerWithFarm(page: Page, farmName: string) {
   const e164 = await login(page, "fr");

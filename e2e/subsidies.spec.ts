@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { closeRun, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
 
@@ -60,7 +60,7 @@ test("the owner records a subsidy with the asset it finances, reads its release 
   await expect(rows.nth(1)).toContainText(/^1319 Subventions d’investissement inscrites au compte de produits et charges\s*676,43/);
   await expect(rows.nth(2)).toContainText(/^7577 Reprises sur subventions d’investissement de l’exercice\s*676,43/);
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
-  await expect(page.getByText("Écritures comptabilisées : 2.")).toBeVisible();
+  await expect(page.getByText("Écritures comptabilisées : 2.")).toBeVisible(closeRun);
   await expect(release).toContainText("Comptabilisée, sans changement.");
 
   await page.goto("/fr/books?view=journals&month=2026-12");

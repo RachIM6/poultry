@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T98 (SPEC-m5 PL3): a plan for today is placed offline from /planning; the house then shows the batch with the
 // plan's sale day, and online one batch is placed and the plan is marked placed.
@@ -40,6 +40,7 @@ test("a planned batch is placed offline from its plan, and the batch keeps the p
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ batches: number; status: string; linked: boolean }>(
       `SELECT (SELECT count(*)::int FROM "Batch" b WHERE b."houseId" = $1) AS batches, p.status, p."batchId" IS NOT NULL AS linked

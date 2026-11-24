@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T22 acceptance (browser part): what a buyer owes, their cheque with its due date, and later payments recorded offline,
 // no more than what is owed. The balance rule is unit-tested; the due-date reminder is checked on the server
@@ -49,6 +49,7 @@ test("a buyer's balance and cheque show offline, and later payments bring it to 
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ paid: string }>(
       `SELECT SUM(p."amountCentimes")::text AS paid FROM "BuyerPayment" p
@@ -91,6 +92,7 @@ test("a cheque marked unpaid offline is owed again and blocks the buyer, until t
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ state: string; blocked: boolean }>(
       `SELECT s.state, b."creditBlocked" AS blocked FROM "InstrumentStatus" s JOIN "Buyer" b ON b."organizationId" = s."organizationId"
@@ -148,6 +150,7 @@ test("the owner sees what a buyer owes by age, approves a credit past the limit 
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ approval: string; limit: string }>(
       `SELECT s."creditApproval" AS approval, b."creditLimitCentimes"::text AS limit FROM "Sale" s JOIN "Buyer" b ON b.id = s."buyerId"

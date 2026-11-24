@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T15 acceptance: a batch placed offline counts its age from the placement day; a second open batch in the same house
 // is refused with a clear message (the two-phones case is tested on the server: src/modules/flock/batches.int.test.ts).
@@ -59,6 +59,7 @@ test("a batch placed offline starts at day 0, and a second one in the same house
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const batches = async () =>
     await query<{ status: string; price: string; chicks: number }>(
       `SELECT b.status, b."chickUnitPriceCentimes"::text AS price, b."chicksPlaced" AS chicks FROM "Batch" b

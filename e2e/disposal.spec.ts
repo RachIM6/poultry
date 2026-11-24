@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T41 acceptance (browser part): dead birds disposed of and manure taken out, recorded offline, synced once; the
 // day's mortality shows next to the birds disposed (SPEC-m2-compliance BS6, BS7, CX1); spreading is declared (CQ4).
@@ -46,6 +46,7 @@ test("disposal and manure are recorded offline, synced once, with the day's mort
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ disposals: number; manure: number }>(
       `SELECT (SELECT count(*)::int FROM "Disposal" d WHERE d."organizationId" = m."organizationId") AS disposals,

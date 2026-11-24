@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T59 acceptance (SPEC-m3 E1): collections recorded offline on a layer batch, one corrected, kept across a reload,
 // synced; the Arabic screen shows them too.
@@ -46,6 +46,7 @@ test("egg collections offline: two a day, one corrected, synced", async ({ page,
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const eggs = async () =>
     await query<{ normal: number; n: number }>(
       `SELECT sum(c.normal)::int AS normal, count(*)::int AS n FROM "EggCollection" c JOIN "Membership" m ON m."organizationId" = c."organizationId"
@@ -103,6 +104,7 @@ test("egg stock: grade a day's eggs, discard some, offline", async ({ page, cont
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const written = async () =>
     await query<{ graded: number; discarded: number }>(
       `SELECT (SELECT count(*)::int FROM "EggGrading" g WHERE g."organizationId" = m."organizationId") AS graded,
@@ -188,6 +190,7 @@ test("a layer batch's treatment withholds its eggs until the egg withdrawal ends
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const stored = async () =>
     await query<{ days: number }>(
       `SELECT t."eggWithdrawalDays" AS days FROM "Treatment" t JOIN "Membership" m ON m."organizationId" = t."organizationId"
@@ -234,6 +237,7 @@ test("egg sale by the tray, offline: stock drops, the buyer owes the amount", as
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const sold = async () =>
     await query<{ amount: string; drawn: number }>(
       `SELECT s."amountCentimes"::text AS amount, (SELECT sum(eggs)::int FROM "EggDraw" d WHERE d."saleId" = s.id) AS drawn

@@ -18,8 +18,9 @@ type Meta = { mutationId: string; deviceCreatedAt: Date };
 
 /**
  * SPEC-m3 B13, applied by the sync push, in one transaction: the pullets left behind are culled on the day, the pullet
- * batch closes (its costs stay with it), and a layer batch starts in the laying house with the birds' age. The hens cost
- * nothing at this placement, so finance posts no chick purchase for it (a zero amount posts nothing).
+ * batch closes (its costs stay with it), and a layer batch starts in the laying house, theirs or another, with the
+ * birds' age. The hens cost nothing at this placement, so finance posts no chick purchase for it (a zero amount posts
+ * nothing).
  */
 export async function transferToLaying(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof TransferToLaying>, meta: Meta, clock: Clock = systemClock) {
   const pullets = await loadBatch(tx, ctx, cmd.batchId);
@@ -57,7 +58,7 @@ export async function transferToLaying(tx: Tx, ctx: TenantContext, cmd: z.infer<
   );
   if (!hens.ok) return hens;
   await lockHouse(tx, house.id);
-  const joins = canJoinHouse("layer", await openInHouse(tx, ctx, house.id));
+  const joins = canJoinHouse("layer", await openInHouse(tx, ctx, house.id, p.id)); // the pullets close below: their own house is free
   if (!joins.ok) return joins;
 
   const left = onHand - cmd.hens;

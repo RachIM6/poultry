@@ -3,10 +3,12 @@ import { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
+import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { batchesForFinance, batchFacts, type BatchMoneyFacts } from "@/modules/flock";
+import { chicksCost } from "@/modules/flock/shared";
 import { batchConsumption } from "@/modules/inventory";
 import { batchResults, type BatchResultRow } from "@/modules/finance/application/batch-results";
 import type { BudgetInputs } from "@/modules/finance/domain/budget";
@@ -17,7 +19,7 @@ export type BudgetBase = { batchId: string; label: string; inputs: BudgetInputs;
 
 type Consumed = Awaited<ReturnType<typeof batchConsumption>>;
 
-const perKg = (centimes: bigint, grams: bigint) => (grams > 0n ? (centimes * 2000n + grams) / (2n * grams) : 0n);
+const perKg = (centimes: bigint, grams: bigint) => (grams > 0n ? divHalfUp(centimes * 1000n, grams) : 0n);
 
 /**
  * FN15, §9 "Budget cash need": when a closed batch's money moved, by day since placement: the feed by its consumption
@@ -67,7 +69,7 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
             chickPriceCentimes: f.chickUnitPriceCentimes,
             feedGrams: feed.quantity,
             feedPricePerKgCentimes: perKg(feed.centimes, feed.quantity),
-            otherCostCentimes: r.costCentimes - BigInt(f.chicksPlaced) * f.chickUnitPriceCentimes - feed.centimes, // the placement's VAT (FQ30) lands here
+            otherCostCentimes: r.costCentimes - chicksCost(f.chicksPlaced, f.chickUnitPriceCentimes) - feed.centimes, // the placement's VAT (FQ30) lands here
             plannedGrams: grams,
             salePricePerKgCentimes: perKg(r.salesCentimes, grams),
           },

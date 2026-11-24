@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { breakEvenPrice, budgetOf, type BudgetInputs } from "@/modules/finance/domain/budget";
+import { divHalfUp } from "@/lib/kernel/money";
+import { breakEvenPrice, budgetOf, mulDiv, type BudgetInputs } from "@/modules/finance/domain/budget";
 
 describe("budget and break-even (SPEC-finance FN15, §7)", () => {
   it("break-even: 270 800,00 ÷ 23 700 kg → 11,43 DH/kg", () => {
@@ -35,5 +36,12 @@ describe("budget and break-even (SPEC-finance FN15, §7)", () => {
     const lowerPrice = budgetOf({ ...base, salePricePerKgCentimes: 1150n }); // below the break-even: a loss
     expect(lowerPrice.plannedMarginCentimes).toBe(27_255_000n - 28_000_000n);
     expect(lowerPrice.breakEvenPerKgCentimes).toBe(1181n); // the sale price doesn't move the break-even
+  });
+});
+
+describe("mulDiv", () => {
+  it("is the kernel's divHalfUp, copied only because prisma/seed.ts loads this file under plain Node", () => {
+    for (const [a, b, c] of [[5n, 1n, 2n], [7n, 3n, 4n], [1n, 1n, 3n], [2n, 1n, 3n], [27_080_000n, 1000n, 23_700_000n], [0n, 9n, 7n]] as const)
+      expect(mulDiv(a, b, c)).toBe(divHalfUp(a * b, c));
   });
 });

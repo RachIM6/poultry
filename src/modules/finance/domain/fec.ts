@@ -1,4 +1,4 @@
-import { decimal } from "@/lib/kernel/sheet";
+import { typedCentimes } from "@/lib/kernel/money";
 import type { Line } from "@/modules/finance/domain/entry";
 import type { EntryTags } from "@/modules/finance/domain/export";
 
@@ -26,7 +26,7 @@ const text = (s: string) => s.replace(/[\t\r\n]+/g, " "); // VI 1° c: the tab s
  */
 export function toFec(entries: readonly FecEntry[], labels: Record<string, string>, tags: EntryTags = new Map()): string {
   const rows = entries.flatMap((e, i) =>
-    e.lines.map((l) => [e.journal, JOURNALS[e.journal] ?? e.journal, String(i + 1), date(e.day), l.account, labels[l.account] ?? "", "", "", e.piece || e.id, date(e.day), e.label, decimal(l.debit), decimal(l.credit), "", "", date(e.validated), "", "", ...(tags.get(e.id) ?? ["", "", "", ""])]),
+    e.lines.map((l) => [e.journal, JOURNALS[e.journal] ?? e.journal, String(i + 1), date(e.day), l.account, labels[l.account] ?? "", "", "", e.piece || e.id, date(e.day), e.label, typedCentimes(l.debit), typedCentimes(l.credit), "", "", date(e.validated), "", "", ...(tags.get(e.id) ?? ["", "", "", ""])]),
   );
   return [HEADER, ...rows].map((r) => r.map(text).join("\t")).join("\r\n") + "\r\n";
 }

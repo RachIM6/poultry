@@ -9,7 +9,7 @@ import { useFieldError, useInline } from "@/components/focus";
 import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { parseCentimes } from "@/lib/kernel/money";
+import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { ATTENDANCE, attendanceId, JOBS, monthEnd, payFor, payMonthId, rulesOn, TRAINING_TOPICS, WORKFORCE_MUTATIONS as W, type AdvanceDto, type AttendanceDto, type EmployeeDto, type LabourRules, type PayLine, type PayMonthDto, type PayPaymentDto, type StaffRecordDto, PAY_FROM, payPaymentId } from "@/modules/workforce/shared";
@@ -160,7 +160,7 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
       </Field>
       <Field label={t("Staff.phone")}>{(id) => <input id={id} name="phone" type="tel" inputMode="tel" dir="ltr" maxLength={20} defaultValue={employee?.phone ?? ""} className={field} />}</Field>
       <p className="text-sm text-ink-2">{t("Staff.phoneHint")}</p>
-      <Field label={t("Staff.wage")}>{(id) => <input id={id} name="wage" inputMode="decimal" dir="ltr" required {...bad("wage")} defaultValue={wage ? `${BigInt(wage) / 100n},${String(BigInt(wage) % 100n).padStart(2, "0")}` : ""} className={field} />}</Field>
+      <Field label={t("Staff.wage")}>{(id) => <input id={id} name="wage" inputMode="decimal" dir="ltr" required {...bad("wage")} defaultValue={wage ? typedCentimes(BigInt(wage)) : ""} className={field} />}</Field>
       <Field label={t("Staff.startedOn")}>{(id) => <input id={id} name="startedOn" type="date" required defaultValue={employee?.startedOn ?? farmDayOf(new Date())} className={field} />}</Field>
       <Field label={t("Staff.cnss")}>{(id) => <input id={id} name="cnss" dir="ltr" maxLength={20} defaultValue={employee?.cnssNumber ?? ""} className={field} />}</Field>
       <label className="flex min-h-11 items-center gap-3">

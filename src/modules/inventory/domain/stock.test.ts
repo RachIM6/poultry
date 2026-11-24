@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCentimes } from "@/lib/kernel/money";
+import { divHalfUp, parseCentimes } from "@/lib/kernel/money";
 import { checkAdjustment, checkItem, checkPurchase, crossedBelow, parseQuantity, purchaseAmount, stockOnHand } from "./stock";
 import { checkSupplierPayment, supplierDues, supplierBalances } from "./suppliers";
 
@@ -114,5 +114,12 @@ describe("low-stock threshold (SPEC S6)", () => {
     });
     expect(alerts).toEqual([false, true, false, false, true]);
     expect(crossedBelow(1_000, 0, null)).toBe(false); // no threshold set
+  });
+});
+
+describe("purchaseAmount's rounding", () => {
+  it("is the kernel's divHalfUp, written out only to keep /batches' first load as it is", () => {
+    for (const [q, unit, price] of [[1_001, "kg", 333n], [1_500, "kg", 1n], [500, "kg", 1n], [3, "dose", 7n], [0, "ml", 9n]] as const)
+      expect(purchaseAmount(q, unit, price)).toBe(divHalfUp(BigInt(q) * price, unit === "kg" ? 1000n : 1n));
   });
 });

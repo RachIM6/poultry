@@ -8,8 +8,9 @@ const money = new Intl.NumberFormat("fr", { numberingSystem: "latn", minimumFrac
 const kg = new Intl.NumberFormat("fr", { numberingSystem: "latn", maximumFractionDigits: 3 });
 
 export function formatMoney(centimes: bigint): string {
+  // Intl formats decimal strings exactly, so bigint amounts never pass through a float. typedCentimes(centimes, ".")
+  // (@/lib/kernel/money) written out: this file ships with /batches, which has no room for that module (SPEC §9.3).
   const abs = centimes < 0n ? -centimes : centimes;
-  // Intl formats decimal strings exactly, so bigint amounts never pass through a float.
   const decimal = `${centimes < 0n ? "-" : ""}${abs / 100n}.${String(abs % 100n).padStart(2, "0")}`;
   return `${money.format(decimal as Intl.StringNumericLiteral)} DH`;
 }

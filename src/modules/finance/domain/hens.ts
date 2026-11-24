@@ -1,4 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
+import { assetCost } from "@/modules/finance/domain/assets";
 import type { Line } from "@/modules/finance/domain/entry";
 import type { Posting } from "@/modules/finance/domain/posting";
 import { batchInProgressValue } from "@/modules/finance/domain/stocks";
@@ -175,3 +176,11 @@ export function simplifiedYearEnd(flocks: readonly { species: "layer" | "pullet"
   ];
   return lines.length > 0 ? { journal: "OD", label: "Cheptel reproducteur (méthode simplifiée)", lines } : null;
 }
+
+/**
+ * FC6: each batch's production cost, an accounting value (23962, the transfer to lay, the pullets' entry value): FN13's
+ * cost less the VAT a registered entity recovers on the batch (CGNC: a production cost excludes recoverable taxes); an
+ * entity not registered keeps FN13's cost, VAT included (FQ30).
+ */
+export const productionCosts = (costs: readonly { id: string; costCentimes: bigint }[], recoverableVat: ReadonlyMap<string, bigint>, vatRegistered: boolean) =>
+  new Map(costs.map((c) => [c.id, assetCost(c.costCentimes, recoverableVat.get(c.id) ?? 0n, vatRegistered)]));

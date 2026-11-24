@@ -37,7 +37,7 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
             chickPriceCentimes: f.chickUnitPriceCentimes,
             feedGrams: feed.quantity,
             feedPricePerKgCentimes: perKg(feed.centimes, feed.quantity),
-            otherCostCentimes: r.costCentimes - r.costs.chicks - feed.centimes,
+            otherCostCentimes: r.costCentimes - BigInt(f.chicksPlaced) * f.chickUnitPriceCentimes - feed.centimes, // the placement's VAT (FQ30) lands here
             plannedGrams: grams,
             salePricePerKgCentimes: perKg(r.salesCentimes, grams),
           },

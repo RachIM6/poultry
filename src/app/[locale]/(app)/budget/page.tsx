@@ -3,9 +3,10 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BudgetPlanner } from "@/components/budget";
+import { BudgetCashView } from "@/components/budget-cash";
 import { redirect } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
-import { budgetBases, budgetBatches, budgetOf, listBudgets, type CashTiming } from "@/modules/finance";
+import { budgetBases, budgetBatches, budgetCash, budgetOf, listBudgets, plainTiming, type CashTiming } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { saveBudgetAction } from "./actions";
 import { BackLink } from "@/components/app-nav";
@@ -35,6 +36,7 @@ async function Budget() {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const [bases, batches, saved] = await Promise.all([budgetBases(ctx.value), budgetBatches(ctx.value), listBudgets(ctx.value)]);
   if (!bases.ok || !batches.ok || !saved.ok) return <p>{t("Expenses.forbidden")}</p>;
+  const timingOf = new Map(bases.value.map((b) => [b.batchId, b.timing]));
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Budget.title")}</h1>
@@ -46,13 +48,24 @@ async function Budget() {
         <ul className="flex flex-col gap-2" aria-label={t("Budget.saved")}>
           {saved.value.map((s) => {
             const b = budgetOf(s.inputs);
+            // §9 "Budget cash need": its base batch's timing, or the plain rule from its saved sale day
+            const timing = s.basedOn ? timingOf.get(s.basedOn) : s.saleDay === null ? undefined : plainTiming(s.saleDay);
+            const cash = timing && budgetCash(s.inputs, timing);
             return (
-              <li key={s.id} className="rounded-2xl border border-line bg-card p-3">
-                <span className="font-semibold">{s.name}</span> ·{" "}
-                {t("Budget.line", {
-                  breakEven: b.breakEvenPerKgCentimes === null ? "—" : formatMoney(b.breakEvenPerKgCentimes),
-                  margin: formatMoney(b.plannedMarginCentimes),
-                })}
+              <li key={s.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
+                <p>
+                  <span className="font-semibold">{s.name}</span> ·{" "}
+                  {t("Budget.line", {
+                    breakEven: b.breakEvenPerKgCentimes === null ? "—" : formatMoney(b.breakEvenPerKgCentimes),
+                    margin: formatMoney(b.plannedMarginCentimes),
+                  })}
+                </p>
+                {cash && (
+                  <details className="flex flex-col gap-2">
+                    <summary className="min-h-11 cursor-pointer content-center text-ink-2">{t("Budget.cash")}</summary>
+                    <BudgetCashView cash={cash} label={`${t("Budget.cash")} · ${s.name}`} fromBase={s.basedOn !== null} />
+                  </details>
+                )}
               </li>
             );
           })}

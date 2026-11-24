@@ -41,5 +41,21 @@ test("a budget copied from a closed batch recomputes its break-even and margin a
 
   await page.getByLabel("Nom du budget").fill("Bande de janvier");
   await page.getByRole("button", { name: "Enregistrer le budget" }).click();
-  await expect(page.getByRole("list", { name: "Budgets enregistrés" }).getByRole("listitem")).toHaveText([/^Bande de janvier · seuil 10,25\sDH \/ kg, marge 3.500,00\sDH$/]);
+  const saved = page.getByRole("list", { name: "Budgets enregistrés" }).getByRole("listitem");
+  await expect(saved.locator("p").first()).toHaveText(/^Bande de janvier · seuil 10,25\sDH \/ kg, marge 3.500,00\sDH$/);
+  // §9 "Budget cash need": a saved budget's weeks, collapsed until asked for, from its base batch's timing
+  const janvier = page.getByRole("table", { name: "Besoin de trésorerie par semaine · Bande de janvier" });
+  await expect(janvier).toBeHidden();
+  await saved.getByText("Besoin de trésorerie par semaine").click();
+  await expect(janvier.getByRole("row")).toHaveCount(8);
+
+  // Without a base batch: the sale day typed, saved, and the plain rule (feed daily, the rest on placement day)
+  await page.getByLabel("Copié de la bande").selectOption({ label: "Partir de zéro" });
+  await page.getByLabel("Jour de la vente (jours après la mise en place)").fill("41");
+  await page.getByLabel("Nom du budget").fill("Sans base");
+  await page.getByRole("button", { name: "Enregistrer le budget" }).click();
+  const plain = saved.filter({ hasText: "Sans base" });
+  await plain.getByText("Besoin de trésorerie par semaine").click();
+  await expect(page.getByRole("table", { name: "Besoin de trésorerie par semaine · Sans base" }).getByRole("row")).toHaveCount(7); // the header and 6 weeks
+  await expect(plain.locator("p", { hasText: "Besoin de trésorerie maximal" })).toContainText(/semaine 6.*20.500,00\sDH/); // 5 500,00 + 15 000,00 before the sale
 });

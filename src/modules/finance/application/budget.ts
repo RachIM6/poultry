@@ -99,9 +99,10 @@ export const SaveBudget = z.object({
   otherCostCentimes: amount,
   plannedGrams: amount,
   salePricePerKgCentimes: amount,
+  saleDay: z.string().trim().regex(/^\d{1,3}$/).transform(Number).nullable().default(null), // §9 "Budget cash need": kept without a base only
 });
 
-export type SavedBudget = { id: string; name: string; basedOn: string | null; batchId: string | null; inputs: BudgetInputs; createdAt: string };
+export type SavedBudget = { id: string; name: string; basedOn: string | null; batchId: string | null; saleDay: number | null; inputs: BudgetInputs; createdAt: string };
 
 /**
  * FN15: saves a planned batch's budget (owner, manager), audited. `basedOn` must be a batch of the organisation,
@@ -111,7 +112,7 @@ export async function saveBudget(ctx: TenantContext, input: unknown): Promise<Re
   if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
   const parsed = SaveBudget.safeParse(input);
   if (!parsed.success || parsed.data.chicks > 2_147_483_647n) return fail("INVALID_INPUT");
-  const { id, chicks, ...rest } = parsed.data;
+  const { id, chicks, saleDay, ...rest } = parsed.data;
   const retry = (prior: { organizationId: string } | null) => (prior?.organizationId === ctx.organizationId ? ok(id) : fail("ALREADY_EXISTS"));
   return db
     .$transaction(async (tx) => {
@@ -119,8 +120,9 @@ export async function saveBudget(ctx: TenantContext, input: unknown): Promise<Re
       if (prior) return retry(prior); // a retry
       if (rest.basedOn && !(await batchFacts(tx, ctx, rest.basedOn))) return fail("INVALID_INPUT");
       if (rest.batchId && (await batchFacts(tx, ctx, rest.batchId))?.status !== "open") return fail("INVALID_INPUT");
-      await tx.budget.create({ data: { id, organizationId: ctx.organizationId, ...rest, chicks: Number(chicks), createdBy: ctx.userId } });
-      await audit(tx, ctx, { entity: "Budget", entityId: id, action: "create", after: { name: rest.name, basedOn: rest.basedOn, batchId: rest.batchId } }); // a web action, not a sync mutation: no mutation id
+      const kept = rest.basedOn ? null : saleDay; // a copied budget takes its base batch's timing
+      await tx.budget.create({ data: { id, organizationId: ctx.organizationId, ...rest, saleDay: kept, chicks: Number(chicks), createdBy: ctx.userId } });
+      await audit(tx, ctx, { entity: "Budget", entityId: id, action: "create", after: { name: rest.name, basedOn: rest.basedOn, batchId: rest.batchId, saleDay: kept } }); // a web action, not a sync mutation: no mutation id
       return ok(id);
     })
     .catch(async (err) => {
@@ -139,6 +141,7 @@ export async function listBudgets(ctx: TenantContext): Promise<Result<SavedBudge
       name: b.name,
       basedOn: b.basedOn,
       batchId: b.batchId,
+      saleDay: b.saleDay,
       createdAt: b.createdAt.toISOString(),
       inputs: {
         chicks: BigInt(b.chicks),

@@ -7,7 +7,8 @@ import { formatKg, formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
 import { budgetCash, budgetOf, plainTiming, type BudgetInputs, type CashTiming } from "@/modules/finance/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import { field, primary, table } from "@/components/ui";
+import { field, primary } from "@/components/ui";
+import { BudgetCashView } from "@/components/budget-cash";
 
 // SPEC-finance FN15: a planned batch's budget, copied from a closed batch, with its feed and sale prices as what-if
 // inputs. The figures recompute on every keystroke with the same pure function the server uses.
@@ -135,38 +136,9 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
       {/* SPEC-finance FN15, §9 "Budget cash need": the batch's cash week by week, from the base batch's timing or the plain rule */}
       <section className="flex flex-col gap-2" aria-labelledby="budget-cash">
         <h2 id="budget-cash" className="text-[17px] font-semibold text-ink-2">{t("cash")}</h2>
-        {!base && <Field label={t("saleDay")}>{(id) => <input id={id} value={saleDay} onChange={(e) => setSaleDay(e.target.value)} inputMode="numeric" dir="ltr" className={field} />}</Field>}
+        {!base && <Field label={t("saleDay")}>{(id) => <input id={id} name="saleDay" value={saleDay} onChange={(e) => setSaleDay(e.target.value)} inputMode="numeric" dir="ltr" className={field} />}</Field>}
         {cash ? (
-          <>
-            <p className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl border border-line bg-card p-3" aria-live="polite">
-              <span>
-                {t("peakNeed")}
-                {cash.peakWeek !== null && <span className="text-sm text-ink-2"> · {t("peakWeek", { week: cash.peakWeek })}</span>}
-              </span>
-              <bdi dir="ltr" className="text-xl font-semibold tabular-nums">{formatMoney(cash.peakNeedCentimes)}</bdi>
-            </p>
-            <table className={table} aria-label={t("cash")}>
-              <thead>
-                <tr>
-                  <th scope="col" className="p-2 text-start">{t("week")}</th>
-                  <th scope="col" className="p-2 text-end">{t("outflow")}</th>
-                  <th scope="col" className="p-2 text-end">{t("inflow")}</th>
-                  <th scope="col" className="p-2 text-end">{t("cumulative")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cash.weeks.map((w) => (
-                  <tr key={w.week} className={`border-t border-line ${w.week === cash.peakWeek ? "font-semibold" : ""}`}>
-                    <th scope="row" className="p-2 text-start font-normal">{w.week}</th>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</td>
-                    <td dir="ltr" className={`p-2 text-end tabular-nums ${w.cumulativeCentimes < 0n ? "text-brick-fg" : ""}`}>{formatMoney(w.cumulativeCentimes)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="text-sm text-ink-2">{t(base ? "cashFromBase" : "cashPlain")} {t("cashNote")}</p>
-          </>
+          <BudgetCashView cash={cash} label={t("cash")} fromBase={!!base} live />
         ) : (
           inputs && <p className="text-sm text-ink-2">{t("saleDayMissing")}</p>
         )}

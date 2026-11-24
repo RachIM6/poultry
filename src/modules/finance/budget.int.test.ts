@@ -86,6 +86,20 @@ describe("budget from a closed batch (SPEC-finance FN15, T35)", () => {
     expect(await budgetBases({ ...a, role: "worker" })).toEqual({ ok: false, error: "FORBIDDEN" });
   });
 
+  it("keeps the sale day of a budget without a base batch only (SPEC-finance §9 \"Budget cash need\")", async () => {
+    const form = { id: uuidv7(), name: "Sans base", basedOn: null, chicks: "1000", chickPriceCentimes: "550", feedGrams: "3000000", feedPricePerKgCentimes: "460", otherCostCentimes: "0", plannedGrams: "2000000", salePricePerKgCentimes: "1400", saleDay: " 41 " };
+    expect(await saveBudget(a, { ...form, id: uuidv7(), saleDay: "4 1" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await saveBudget(a, { ...form, id: uuidv7(), saleDay: "1000" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await saveBudget(a, form)).toEqual({ ok: true, value: form.id });
+    const copied = { ...form, id: uuidv7(), name: "Copié", basedOn: ids.batch }; // its base batch's timing: the day isn't kept
+    expect(await saveBudget(a, copied)).toEqual({ ok: true, value: copied.id });
+    const saved = await listBudgets(a);
+    if (!saved.ok) throw new Error(saved.error);
+    expect(saved.value.filter((s) => s.id === form.id || s.id === copied.id).map((s) => [s.name, s.saleDay])).toEqual([["Copié", null], ["Sans base", 41]]);
+    const audit = await db.auditEvent.findFirst({ where: { entityId: form.id } });
+    expect(audit?.after).toMatchObject({ saleDay: 41 });
+  });
+
   it("saves the same id once (SPEC §7: a double submit, a retry), and copies only a batch of the organisation", async () => {
     const form = { id: uuidv7(), name: "Bande de mars", basedOn: ids.batch, chicks: "1000", chickPriceCentimes: "550", feedGrams: "3000000", feedPricePerKgCentimes: "460", otherCostCentimes: "0", plannedGrams: "2000000", salePricePerKgCentimes: "1400" };
     const twice = await Promise.all([saveBudget(a, form), saveBudget(a, form)]); // at once: one insert wins, the other is a retry

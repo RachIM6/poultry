@@ -1270,6 +1270,7 @@ model Budget {
   otherCostCentimes      BigInt
   plannedGrams           BigInt
   salePricePerKgCentimes BigInt
+  saleDay                Int? // FN15 (§9 "Budget cash need"): days after placement, for a budget not copied from a batch
   createdBy              String   @db.Uuid
   createdAt              DateTime @default(now()) @db.Timestamptz
 

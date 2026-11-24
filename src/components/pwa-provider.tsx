@@ -36,6 +36,10 @@ function UpdateBanner() {
       if (registration.waiting) setWaiting(registration.waiting);
       onUpdate(); // one may already be installing
       registration.addEventListener("updatefound", onUpdate);
+      // clients.claim() skips a page still loading: one opened while the first install ran stays uncontrolled until its
+      // next full load, and offline its next chunk fails. Ask the worker to claim it (src/sw.ts).
+      const ready = await navigator.serviceWorker.ready;
+      if (!navigator.serviceWorker.controller) ready.active?.postMessage({ type: "CLAIM" });
     };
     if (document.readyState === "complete") void register();
     else window.addEventListener("load", () => void register(), { once: true });

@@ -18,6 +18,7 @@ export async function saveAccountingAction(_: SaveState, form: FormData): Promis
     fiscalYearStartMonth: Number(f.month),
     vatRegistered: f.vatRegistered === "on",
     hensMethod: f.hensMethod,
+    allocationKey: f.allocationKey,
   });
   if (!saved.ok) return { messageKey: `errors.${saved.error}` };
   refresh();

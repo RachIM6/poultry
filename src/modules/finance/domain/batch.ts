@@ -80,6 +80,37 @@ export function birdDays(b: {
   return total;
 }
 
+/** FN14: the entity's key for shared costs (farm-registry `LegalEntity.allocationKey`). */
+export type AllocationKey = "birdDays" | "houseArea" | "kgSold";
+
+/** What a batch's weight under any key needs, over the service period [from, to]. */
+export type KeyFacts = Parameters<typeof birdDays>[0] & { areaM2: number; soldOut: readonly { day: string; grams: number }[] };
+
+/**
+ * FN14: a batch's weight over [from, to] by the key. `houseArea`: its house's m² × the days of the period it was in it
+ * (placement to closing day), so a batch present half the month weighs half (§9 decided default, 2026-11-23).
+ * `kgSold`: the live weight it sold in the period, in grams.
+ */
+export function keyWeight(key: AllocationKey, b: KeyFacts): bigint {
+  if (key === "birdDays") return birdDays(b);
+  if (key === "kgSold") return b.soldOut.reduce((s, o) => (o.day >= b.from && o.day <= b.to ? s + BigInt(o.grams) : s), 0n);
+  const first = b.placedOn > b.from ? b.placedOn : b.from;
+  const last = b.lastDay !== null && b.lastDay < b.to ? b.lastDay : b.to;
+  return first > last ? 0n : BigInt(b.areaM2) * BigInt((Date.parse(last) - Date.parse(first)) / 86_400_000 + 1);
+}
+
+/**
+ * FN14: splits a shared cost across the batches by the key (`allocate`). A batch with no weight gets nothing; when no
+ * batch has any (no kg sold in the period, say), by bird-days instead and `byBirdDays` says so (§9 decided default,
+ * 2026-11-23). `facts` null: the batch can't take this cost (another farm's pay).
+ */
+export function splitShared(total: bigint, key: AllocationKey, batches: readonly { id: string; facts: KeyFacts | null }[]): { parts: Map<string, bigint>; byBirdDays: boolean } {
+  const by = (k: AllocationKey) => batches.map((b) => ({ id: b.id, weight: b.facts ? keyWeight(k, b.facts) : 0n }));
+  const keyed = by(key);
+  if (key === "birdDays" || keyed.some((k) => k.weight > 0n)) return { parts: allocate(total, keyed), byBirdDays: false };
+  return { parts: allocate(total, by("birdDays")), byBirdDays: true };
+}
+
 const nextDay = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
 /** FN14: a shared line's service period from a month ("2026-10" → 1–31 Oct). */

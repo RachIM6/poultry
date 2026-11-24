@@ -103,6 +103,7 @@ Turn what the farm already records (purchases, consumption, sales, payments) int
 ### Batch accounting
 - **FN13. Batch result.** For each batch: sales (712x lines tagged with the batch) − direct costs (valued consumptions from `inventory`, chick cost from the placement, non-stock charges tagged with the batch) − allocated shared costs = **margin**. A purchase of a stocked item (feed, vet products, litter, gas) is never a batch cost, even if tagged: only its consumption counts, so nothing is counted twice. Shows DH, DH/kg sold and % of sales, plus the comparison with the farm's last batches (mortality, FCR, feed price, cost/kg, price/kg, margin/kg). Replaces the "other cost" entry of M1 T24, whose amounts are migrated as direct charges.
 - **FN14. Shared-cost allocation.** A `shared` line carries a **service period** (from, to; default: the month of the line's date). It is split across the farm's batches present during that period, by the entity's key measured over that period: **bird-days** (default), house m², or kg sold. Largest-remainder rounding (§7). At batch close the key and the allocated amounts are frozen.
+  - **Built (2026-11-23):** the key is `LegalEntity.allocationKey` (`birdDays` | `houseArea` | `kgSold`), on `/settings/accounting`, changed only while the fiscal year has no entry (FN1). It applies to every shared line, the validated pay months included, and to the share of a batch not yet frozen; a frozen batch keeps its amounts. House m² and the fallback: §9 "FN14 allocation keys".
 - **FN15. Budget and break-even.** A budget per planned batch, copied from a closed batch, with what-if inputs for feed price and sale price. Break-even price/kg and planned margin update live. Weekly cash need of the batch from the purchase dates and supplier credit terms.
 
 ### Views, tax helper, export
@@ -371,6 +372,7 @@ Every formula is a pure function in `src/modules/finance/domain/`, in integer ce
 | `batchResult` | sales − direct − allocated | B-2026-13: 315 010,00 − 270 800,00 → margin 44 210,00; 1,87 DH/kg; 14,0 % |
 | `costPerKg` | total cost ÷ kg sold | 270 800,00 ÷ 23 700 kg → 11,43 |
 | `allocate` | largest remainder over keys | 16 500,00 by 405 000 / 337 500 bird-days → 9 000,00 / 7 500,00; parts always sum to the total |
+| `splitShared` | `allocate` by the entity's key (FN14); bird-days when no batch has any weight by it | 3 900,00 by 31 000 / 12 800 m²·days → 2 760,27 / 1 139,73; by 600 / 100 kg sold → 3 342,86 / 557,14 |
 | `breakEvenPrice` | planned cost ÷ planned kg | 270 800,00 ÷ 23 700 → 11,43 |
 | `weightedAverageCost` | (value + cost in) ÷ (qty + qty in) | 9 200,00 for 2 000 kg + 36 950,00 for 8 000 kg → 4,615 DH/kg |
 | `ageingBucket` | today − due date | due 20 Aug, today 5 Nov → 77 days → 61–90 |
@@ -520,6 +522,13 @@ Decided from the official texts on the owner's instruction (2026-11-23), built o
   - **company, GIE, association: 4463 Comptes courants des associés créditeurs**, "crédité du montant des fonds laissés par les associés à la disposition de l'entreprise à titre temporaire" (PCA p. 107), as FC7 debits an associate's home consumption.
   - **indivision and cooperative: 4463 too**, to review: an indivision's co-owners hold shares (`coOwnerShares`) as associates do, and a cooperative keeps the CGNC until FQ2. A contribution to the social capital (1111) is the accountant's manual entry (FCX3), not this form.
   - Every books profile posts it (`cash_book` too: the money moves on 51xx, so it shows in the cash book). No cap on a withdrawal: a 4463 left in debit is the accountant's to reclassify (3468 Autres comptes d'associés débiteurs). The chart screen lists both accounts (F-Chart). FN3's opening counter-account for a `cash_book` entity and FC7's exploitant home consumption are not changed by this decision: they can now use 1117, each as its own task.
+
+### FN14 allocation keys: decided defaults, to review (2026-11-23)
+
+- **House m² counts the days of presence.** A batch weighs its house's m² × the days of the service period it was in the house, from placement to the closing day: a batch present half the month takes half its house's weight. Plain m² would charge a batch placed on the 30th like one present all month.
+- **Kg sold is the live (farm) weight sold in the service period**, from the flock's sales records, the weight FN13 divides by. A batch that sells in the next month takes none of this month's charges by this key.
+- **A batch with no weight gets nothing; when no batch has any** (kg sold in a month without sales, for example), the line is split by bird-days instead, and `/results` says so under the batch. With no bird-days either, nothing is split, as before.
+- **Rounding stays FN14's largest remainder (§7 `allocate`)**: parts rounded down, the centimes left go to the largest remainders, so the parts always sum to the line.
 
 ### Bank statement import (T117): decided default, to review (2026-11-23)
 

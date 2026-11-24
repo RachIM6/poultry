@@ -181,6 +181,9 @@
     "yours": "Vos programmes",
     "none": "Aucun programme pour l’instant.",
     "noItems": "Aucun vaccin prévu.",
+    "required": {
+      "newcastle": "Aucune vaccination contre la maladie de Newcastle dans ce programme. Elle est obligatoire pour toutes les volailles ({source}) et suit le programme validé par l’ONSSA pour votre élevage. Les poussins peuvent avoir été vaccinés au couvoir."
+    },
     "item": "Jour {day} · {vaccine} · {method}",
     "addItem": "Ajouter un vaccin",
     "day": "Âge (jours)",
@@ -624,7 +627,10 @@
     "moveSave": "Enregistrer le jour",
     "remove": "Retirer du plan",
     "removeConfirm": "Retirer ce vaccin du plan de la bande ? Il ne sera plus rappelé.",
-    "removeYes": "Oui, retirer"
+    "removeYes": "Oui, retirer",
+    "required": {
+      "newcastle": "Aucune vaccination contre la maladie de Newcastle dans le plan de cette bande. Elle est obligatoire pour toutes les volailles ({source}) et suit le programme validé par l’ONSSA pour votre élevage. Les poussins peuvent avoir été vaccinés au couvoir."
+    }
   },
   "Treatment": {
     "withdrawal": "Délai d’attente en cours jusqu’au {date} inclus : pas de vente de cette bande avant.",
@@ -641,7 +647,7 @@
     "reason": "Motif",
     "prescriber": "Prescrit par",
     "withdrawalDays": "Délai d’attente viande (jours)",
-    "withdrawalHint": "Indiqué sur l’étiquette ou l’ordonnance.",
+    "withdrawalHint": "Délai d’attente : voir la notice (AMM) ou l’ordonnance du vétérinaire (loi 49-99, art. 9).",
     "save": "Enregistrer le traitement",
     "cancel": "Annuler",
     "line": "{medicine} · du {start} au {end}",
@@ -1015,7 +1021,8 @@
     "costs": "Poussins {chicks} · consommations {consumption} · autres {other} · direct {direct} · réparti (charges communes et salaires) {allocated}",
     "open_": "en cours",
     "closed": "clôturée le {date}",
-    "kpis": "Mortalité {lost} · IC {fcr} · aliment {feed}/kg · vendu {price}/kg"
+    "kpis": "Mortalité {lost} · IC {fcr} · aliment {feed}/kg · vendu {price}/kg",
+    "byBirdDays": "Une partie des charges communes est répartie selon les sujets présents par jour : aucune bande n’avait de poids selon la clé choisie sur la période."
   },
   "Budget": {
     "title": "Budget d’une bande",
@@ -1523,6 +1530,8 @@
     "margin": "Marge : {margin}",
     "costPerKg": "{cost} / kg",
     "laying": "Ponte {rate} % · {eggs} œufs le dernier jour ramassé",
+    "layingStandard": "{gap} pt par rapport au standard ({standard} %)",
+    "weight": "Poids moyen {weight}",
     "fcr": "IC {fcr}",
     "eggsYesterday": "Œufs ramassés hier"
   },
@@ -2400,6 +2409,21 @@
       "simplified": {
         "title": "Méthode simplifiée",
         "desc": "Achats et ventes en charges et produits ; à la clôture, le cheptel compté est inscrit à sa valeur d’entrée et celle de l’exercice précédent annulée. Pas d’amortissement."
+      }
+    },
+    "allocation": "Répartition des charges communes",
+    "allocationKeys": {
+      "birdDays": {
+        "title": "Sujets présents par jour",
+        "desc": "Chaque bande prend sa part selon le nombre de sujets présents chaque jour de la période. Clé par défaut."
+      },
+      "houseArea": {
+        "title": "Surface du bâtiment",
+        "desc": "Selon les m² du bâtiment de la bande, multipliés par ses jours de présence dans la période : une bande présente la moitié du mois en prend la moitié."
+      },
+      "kgSold": {
+        "title": "Kilos vendus",
+        "desc": "Selon le poids vif vendu par chaque bande pendant la période. Si aucune bande n’a vendu, la charge est répartie selon les sujets présents par jour."
       }
     },
     "save": "Enregistrer",

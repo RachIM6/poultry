@@ -12,6 +12,10 @@ export type Books = (typeof BOOKS)[number];
 export const HENS_METHODS = ["classic", "simplified"] as const;
 export type HensMethod = (typeof HENS_METHODS)[number];
 
+/** SPEC-finance FN14: the key shared costs are split by; bird-days by default. */
+export const ALLOCATION_KEYS = ["birdDays", "houseArea", "kgSold"] as const;
+export type AllocationKey = (typeof ALLOCATION_KEYS)[number];
+
 /**
  * ADR-010 §2: which books Dawra shows and exports, and the chart = one base + overlays. The engine is the same
  * double-entry ledger for every form. `coOwnerShares`: results are split between the co-owners of an indivision.

@@ -3,6 +3,7 @@ import { farmDaysAgo, ownerWithFarm, pushAs, referenceCached, scopeRemembered } 
 
 // T23 acceptance: a sale's origin document, offline, in French and in Arabic (right to left), with every field of the
 // task, printed on one A4 page with nothing wider than the page. The PDFs are kept in test-results/ for a look.
+// With the buyer's address and the birds' destination (arrêté 2126-05 art. 4) when the sale has them.
 
 /** Print media, A4 width at 96 dpi: the document fits the page width, and it prints as one A4 page. */
 async function printsOnOneA4Page(page: Page, name: string) {
@@ -31,10 +32,10 @@ test("a sale's origin document prints offline on one A4 page, in French and in A
       type: "flock.placeBatch",
       payload: { id: ids.batch, houseId: ids.house, strainId: "ross-308", placedOn: farmDaysAgo(35), chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "450", dayOldWeightGrams: null },
     },
-    { type: "sales.createBuyer", payload: { id: ids.buyer, name: "Abattoir Atlas", phone: "0612345678", type: "abattoir" } },
+    { type: "sales.createBuyer", payload: { id: ids.buyer, name: "Abattoir Atlas", phone: "0612345678", type: "abattoir", address: "Zone industrielle, Meknès" } },
     {
       type: "sales.recordSale",
-      payload: { id: ids.sale, batchId: ids.batch, buyerId: ids.buyer, day: farmDaysAgo(0), birds: 300, farmWeightGrams: 660_000, buyerWeightGrams: null, pricePerKgCentimes: "1500", paymentMethod: "cash", paidCentimes: "990000", instrument: null },
+      payload: { id: ids.sale, batchId: ids.batch, buyerId: ids.buyer, day: farmDaysAgo(0), birds: 300, farmWeightGrams: 660_000, buyerWeightGrams: null, pricePerKgCentimes: "1500", paymentMethod: "cash", paidCentimes: "990000", instrument: null, destination: { name: "Abattoir du Saïs", address: "Route de Fès, Meknès" } },
     },
   ]);
 
@@ -62,6 +63,10 @@ test("a sale's origin document prints offline on one A4 page, in French and in A
     "2,2 kg",
     "Abattoir Atlas",
     "0612345678",
+    "Zone industrielle, Meknès",
+    "Destination des volailles",
+    "Abattoir du Saïs",
+    "Route de Fès, Meknès",
     "Signature et cachet de l’éleveur",
     "Signature de l’acheteur",
   ]) {
@@ -73,7 +78,7 @@ test("a sale's origin document prints offline on one A4 page, in French and in A
   await page.getByRole("link", { name: "Document d’origine (العربية)" }).click();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(doc.getByRole("heading", { level: 1 })).toHaveText("وثيقة مصدر الدواجن");
-  for (const text of ["القانون رقم 49-99، المادة 10", "Ferme Atlas", "35 يوم", "توقيع وختم المربي", "توقيع المشتري"]) {
+  for (const text of ["القانون رقم 49-99، المادة 10", "Ferme Atlas", "35 يوم", "وجهة الدواجن", "Abattoir du Saïs", "توقيع وختم المربي", "توقيع المشتري"]) {
     await expect(doc).toContainText(text);
   }
   await expect(doc.locator('bdi[dir="ltr"]')).toHaveText("AV-2024-0123"); // the code keeps its order in right-to-left text

@@ -1,6 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
@@ -19,6 +20,7 @@ import { card, field, primary, secondary } from "@/components/ui";
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
 // crew, bank fees) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts
 // (FN3). Bank fees: from a bank account only (FC9). Posted by the server once it syncs. Owners and managers only (FX2).
+// FC9: /treasury/bank opens it prefilled with a statement's bank debit (?category=bank_fees&amount=&day=&from=<bank id>).
 
 const today = () => farmDayOf(new Date());
 
@@ -48,6 +50,7 @@ function Expenses(scope: Scope) {
   const [uploadError, setUploadError] = useState<string>();
   const online = useOnline();
   const queued = useLiveQuery(() => db.outbox.toArray(), [userId, organizationId]);
+  const prefill = useSearchParams();
   const unsent = new Set((queued ?? []).flatMap((e) => e.recordKeys ?? []));
   if (!can(scope, "finance.record")) return <p>{t("Expenses.forbidden")}</p>;
   if (!records) return null;
@@ -75,7 +78,7 @@ function Expenses(scope: Scope) {
   return (
     <>
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
-      <ExpenseForm accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
+      <ExpenseForm key={prefill.toString()} prefill={prefill} accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
 
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.recent")}</h2>
       {uploadError && <p role="alert" className="text-brick-fg">{t(uploadError)}</p>}
@@ -127,11 +130,12 @@ function Field({ label, children }: { label: string; children: (id: string) => R
   );
 }
 
-function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountDto[]; batches: { id: string; label: string }[]; onSave: (e: ExpenseDto) => Promise<boolean> }) {
+function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URLSearchParams, "get">; accounts: TreasuryAccountDto[]; batches: { id: string; label: string }[]; onSave: (e: ExpenseDto) => Promise<boolean> }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
   const [key, setKey] = useState(0); // a new key empties the form after a save
-  const [bank, setBank] = useState(false); // FC9 (T119): bank fees are paid from a bank account only
+  const pre = (name: string) => (key === 0 ? (prefill.get(name) ?? undefined) : undefined); // the first form only
+  const [bank, setBank] = useState(() => bankOnly(pre("category") ?? "")); // FC9 (T119): bank fees are paid from a bank account only
   const sources = bank ? accounts.filter((a) => a.kind === "bank") : accounts;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -175,16 +179,16 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
     <form key={key} onSubmit={submit} className={card}>
       <Field label={t("Expenses.category")}>
         {(id) => (
-          <select id={id} name="category" onChange={(e) => setBank(bankOnly(e.target.value))} className={field}>
+          <select id={id} name="category" defaultValue={pre("category")} onChange={(e) => setBank(bankOnly(e.target.value))} className={field}>
             {EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{t(`Expenses.categories.${c}`)}</option>)}
           </select>
         )}
       </Field>
-      <Field label={t("Expenses.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" required dir="ltr" className={field} />}</Field>
+      <Field label={t("Expenses.amount")}>{(id) => <input id={id} name="amount" defaultValue={pre("amount")} inputMode="decimal" required dir="ltr" className={field} />}</Field>
       <Field label={t("Sale.vat")}>{(id) => <input id={id} name="vat" inputMode="decimal" dir="ltr" className={field} />}</Field>
       <Field label={t("Expenses.from")}>
         {(id) => (
-          <select id={id} name="from" className={field}>
+          <select id={id} name="from" defaultValue={pre("from")} className={field}>
             {!bank && accounts.length === 0 && <option value="cash">{t("Expenses.kinds.cash")}</option>}
             {sources.map((a) => <option key={a.id} value={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</option>)}
             {!bank && accounts.length === 0 && <option value="bank">{t("Expenses.kinds.bank")}</option>}
@@ -201,8 +205,8 @@ function ExpenseForm({ accounts, batches, onSave }: { accounts: TreasuryAccountD
           </select>
         )}
       </Field>
-      <Field label={t("Expenses.month")}>{(id) => <input id={id} name="month" type="month" defaultValue={today().slice(0, 7)} max={today().slice(0, 7)} className={field} />}</Field>
-      <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} max={today()} required className={field} />}</Field>
+      <Field label={t("Expenses.month")}>{(id) => <input id={id} name="month" type="month" defaultValue={(pre("day") ?? today()).slice(0, 7)} max={today().slice(0, 7)} className={field} />}</Field>
+      <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={pre("day") ?? today()} max={today()} required className={field} />}</Field>
       <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
       {error && <p role="alert">{t(error)}</p>}
       <button type="submit" className={primary}>{t("Expenses.save")}</button>

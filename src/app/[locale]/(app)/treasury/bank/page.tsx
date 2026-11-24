@@ -6,6 +6,7 @@ import { BackLink } from "@/components/app-nav";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { can } from "@/lib/permissions";
 import { bankReconciliation, IMPORT_MAX_BYTES } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { done, warn } from "@/components/ui";
@@ -31,6 +32,11 @@ export default function BankPage({ searchParams }: { searchParams: Search }) {
 }
 
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
+/** Centimes as the forms take them: 45.00, without its sign. */
+const typed = (c: bigint) => {
+  const a = c < 0n ? -c : c;
+  return `${a / 100n}.${String(a % 100n).padStart(2, "0")}`;
+};
 
 async function Bank({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);
@@ -39,6 +45,12 @@ async function Bank({ searchParams }: { searchParams: Search }) {
   if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
   const { canWrite, accounts, account, statements, statement: s } = result.value;
   const day = (d: string) => formatDay(d as FarmDay, lang);
+  // FC9: a statement line not in the books is booked where it belongs: a debit as bank fees (T119) on /expenses, the
+  // rest by the owner's manual entry (FCX3) on /books, its 5141 line on this account. Prefilled, the user checks it.
+  const bookIt = (l: { day: string; label: string; amountCentimes: bigint }, accountId: string): { pathname: string; query: Record<string, string> } | false =>
+    l.amountCentimes < 0n
+      ? canWrite && { pathname: "/expenses", query: { category: "bank_fees", amount: typed(l.amountCentimes), day: l.day, from: accountId } }
+      : can(ctx.value, "finance.manage") && { pathname: "/books", query: { day: l.day, label: l.label.slice(0, 200), debit: typed(l.amountCentimes), bank: accountId } };
 
   return (
     <>
@@ -92,7 +104,7 @@ async function Bank({ searchParams }: { searchParams: Search }) {
                   <ImportedTable
                     statementId={s.id}
                     canWrite={canWrite}
-                    lines={s.imported.map((l) => ({ id: l.id, day: day(l.day), label: l.label, amount: formatMoney(l.amountCentimes), lineId: l.lineId, ticked: l.ticked }))}
+                    lines={s.imported.map((l) => ({ id: l.id, day: day(l.day), label: l.label, amount: formatMoney(l.amountCentimes), lineId: l.lineId, ticked: l.ticked, book: (!l.lineId && bookIt(l, account.id)) || null }))}
                   />
                 </>
               )}

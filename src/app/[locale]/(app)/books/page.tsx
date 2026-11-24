@@ -18,6 +18,7 @@ import { ManualEntryForm, PeriodLockForm, ReverseEntryForm } from "./form";
 // FN5: the month's lock, the owner locks or unlocks it (a closed year's months: its reopen, on /closing); the owner
 // cancels a manual entry from the journal.
 // FC7: the month's home consumptions that post nothing (FQ11, FQ25, no value) are listed, whatever the view.
+// FC9: /treasury/bank opens the manual entry prefilled with a statement line not in the books (?day&label&debit&bank).
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 const VIEWS = ["cash", "journals", "ledger", "trial", "cpc", "bilan"] as const;
 
@@ -60,6 +61,8 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
   const href = (v: string, m: string) => ({ pathname: "/books", query: { view: v, month: m } });
   const manage = can(ctx.value, "finance.manage");
   const locked = books.lockedMonths.includes(month);
+  const one = (k: string, v = search[k]) => (typeof v === "string" ? v : "");
+  const prefill = /^\d{4}-\d{2}-\d{2}$/.test(one("day")) && one("bank") ? { day: one("day"), label: one("label"), debit: one("debit"), bank: one("bank") } : undefined;
   const lockedInYear = books.lockedMonths.filter((m) => m >= books.fiscalYear.from.slice(0, 7) && m <= books.fiscalYear.to.slice(0, 7));
 
   return (
@@ -98,7 +101,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           ))}
       </section>
       {manage && (
-        <details className={card}>
+        <details open={!!prefill} className={card}>
           <summary className="cursor-pointer font-semibold">{t("Books.manual")}</summary>
           {books.books === "ledger" ? (
             <p className="text-sm text-ink-2">{t("Books.manualOpening", { from: day(books.fiscalYear.from) })}</p>
@@ -108,7 +111,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           <datalist id="ledger-accounts">
             {books.postingAccounts?.map((a) => <option key={a.number} value={a.number}>{`${a.number} ${a.label}`}</option>)}
           </datalist>
-          <ManualEntryForm today={today} accounts="ledger-accounts" treasuries={books.treasuryAccounts ?? []} blocked={books.books !== "ledger"} />
+          <ManualEntryForm today={today} accounts="ledger-accounts" treasuries={books.treasuryAccounts ?? []} blocked={books.books !== "ledger"} prefill={prefill} />
         </details>
       )}
       {books.unposted.length > 0 && (

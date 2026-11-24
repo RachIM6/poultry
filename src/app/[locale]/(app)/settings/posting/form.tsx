@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { saveOverrideAction } from "./actions";
-import { card, field, primary } from "@/components/ui";
+import { card, danger, field, primary } from "@/components/ui";
 
 type Account = { number: string; label: string };
 type Props = {
@@ -38,7 +38,7 @@ export function OverridesForm({ rows, choices }: Props) {
                 <form action={action}>
                   <input type="hidden" name="ruleAccount" value={r.ruleAccount} />
                   <input type="hidden" name="account" value="" />
-                  <button type="submit" disabled={pending} className="py-2 text-sm underline underline-offset-4">{t("Overrides.reset")}</button>
+                  <button type="submit" disabled={pending} aria-label={t("Overrides.resetOf", { rule: opLabel(r.op) })} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">{t("Overrides.reset")}</button>
                 </form>
               </>
             )}
@@ -59,7 +59,7 @@ export function OverridesForm({ rows, choices }: Props) {
             {choices.filter((a) => a.number[0] === rule[0]).map((a) => <option key={a.number} value={a.number}>{`${a.number} · ${a.label}`}</option>)}
           </select>
         </label>
-        {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+        {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
         <button type="submit" disabled={pending} className={primary}>{t("Overrides.save")}</button>
       </form>
     </>

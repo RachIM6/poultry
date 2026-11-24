@@ -3,6 +3,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Fragment, Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
+import { Num, Scroll } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
@@ -32,7 +33,6 @@ export default function StatementsPage({ searchParams }: { searchParams: Search 
 
 const sheet =
   "w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:p-2 [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:p-2 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black";
-const num = "text-end tabular-nums";
 
 async function StatementsView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations("Statements"), searchParams]);
@@ -42,9 +42,9 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
   const s = result.value;
   const nav = (
     <nav className="flex flex-wrap items-center gap-3 print:hidden" aria-label={t("year")}>
-      <Link href={{ pathname: "/closing/statements", query: { year: s.year - 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">←</Link>
+      <Link href={{ pathname: "/closing/statements", query: { year: s.year - 1 } }} aria-label={t("previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
       <span className="font-semibold" dir="ltr">{s.year}</span>
-      <Link href={{ pathname: "/closing/statements", query: { year: s.year + 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">→</Link>
+      <Link href={{ pathname: "/closing/statements", query: { year: s.year + 1 } }} aria-label={t("nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
       {s.books === "ledger" && <span className="ms-auto"><PrintButton /></span>}
     </nav>
   );
@@ -90,18 +90,18 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
                   <Fragment key={r.key}>
                     <tr className="font-semibold">
                       <td>{label(r)}</td>
-                      {actif && <td dir="ltr" className={num}>{money(r.gross)}</td>}
-                      {actif && <td dir="ltr" className={num}>{money(r.contra)}</td>}
-                      <td dir="ltr" className={num}>{money(r.net)}</td>
-                      <td dir="ltr" className={num}>{money(prevNet(side, r.key))}</td>
+                      {actif && <Num>{money(r.gross)}</Num>}
+                      {actif && <Num>{money(r.contra)}</Num>}
+                      <Num>{money(r.net)}</Num>
+                      <Num>{money(prevNet(side, r.key))}</Num>
                     </tr>
                     {r.postes.map((x) => (
                       <tr key={x.key}>
                         <td className="ps-6">{label(x)}</td>
-                        {actif && <td dir="ltr" className={num}>{money(x.gross)}</td>}
-                        {actif && <td dir="ltr" className={num}>{money(x.contra)}</td>}
-                        <td dir="ltr" className={num}>{money(x.net)}</td>
-                        <td dir="ltr" className={num}>{money(prevNet(side, x.key))}</td>
+                        {actif && <Num>{money(x.gross)}</Num>}
+                        {actif && <Num>{money(x.contra)}</Num>}
+                        <Num>{money(x.net)}</Num>
+                        <Num>{money(prevNet(side, x.key))}</Num>
                       </tr>
                     ))}
                   </Fragment>
@@ -112,8 +112,8 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
             <td>{t("total")}</td>
             {actif && <td />}
             {actif && <td />}
-            <td dir="ltr" className={num}>{money(actif ? s.bilan.totalActif : s.bilan.totalPassif)}</td>
-            <td dir="ltr" className={num}>{money(prev ? (actif ? prev.bilan.totalActif : prev.bilan.totalPassif) : undefined)}</td>
+            <Num>{money(actif ? s.bilan.totalActif : s.bilan.totalPassif)}</Num>
+            <Num>{money(prev ? (actif ? prev.bilan.totalActif : prev.bilan.totalPassif) : undefined)}</Num>
           </tr>
         </tbody>
       </table>
@@ -122,23 +122,25 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
 
   const etic = (key: "s1" | "s1bis" | "s1_1" | "s1ter", rows: Ledger["etic"]["s1"] | undefined) =>
     rows && (
-      <table key={key} className={sheet}>
-        <caption className="pb-1 text-start font-semibold">{t(`etic.${key}`)}</caption>
-        <thead>
-          <tr>
-            <th />
-            {(["start", "increase", "decrease", "end"] as const).map((c) => <th key={c} className="text-end!">{t(`etic.${key === "s1bis" ? "amort" : key === "s1ter" ? "stock" : "gross"}.${c}`)}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((x) => (
-            <tr key={x.key}>
-              <td>{label(x)}</td>
-              {[x.start, x.increase, x.decrease, x.end].map((v, i) => <td key={i} dir="ltr" className={num}>{money(v)}</td>)}
+      <Scroll key={key} label={t(`etic.${key}`)}>
+        <table className={sheet}>
+          <caption className="pb-1 text-start font-semibold">{t(`etic.${key}`)}</caption>
+          <thead>
+            <tr>
+              <th />
+              {(["start", "increase", "decrease", "end"] as const).map((c) => <th key={c} className="text-end!">{t(`etic.${key === "s1bis" ? "amort" : key === "s1ter" ? "stock" : "gross"}.${c}`)}</th>)}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((x) => (
+              <tr key={x.key}>
+                <td>{label(x)}</td>
+                {[x.start, x.increase, x.decrease, x.end].map((v, i) => <Num key={i}>{money(v)}</Num>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Scroll>
     );
 
   return (
@@ -182,22 +184,22 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
                   {g.lines.map((x) => (
                     <tr key={x.key}>
                       <td className="ps-6">{label(x)}</td>
-                      <td dir="ltr" className={num}>{money(x.amount)}</td>
-                      <td dir="ltr" className={num}>{money(prevCpc(x.key))}</td>
+                      <Num>{money(x.amount)}</Num>
+                      <Num>{money(prevCpc(x.key))}</Num>
                     </tr>
                   ))}
                   <tr className="font-semibold">
                     <td>{label(g)}</td>
-                    <td dir="ltr" className={num}>{money(g.total)}</td>
-                    <td dir="ltr" className={num}>{money(prevCpc(g.key))}</td>
+                    <Num>{money(g.total)}</Num>
+                    <Num>{money(prevCpc(g.key))}</Num>
                   </tr>
                 </Fragment>
               ))}
               {s.cpc.results.map((r) => (
                 <tr key={r.key} className="bg-shell font-semibold">
                   <td>{label(r)}</td>
-                  <td dir="ltr" className={num}>{formatMoney(r.amount)}</td>
-                  <td dir="ltr" className={num}>{money(prevCpc(r.key))}</td>
+                  <Num>{formatMoney(r.amount)}</Num>
+                  <Num>{money(prevCpc(r.key))}</Num>
                 </tr>
               ))}
             </tbody>

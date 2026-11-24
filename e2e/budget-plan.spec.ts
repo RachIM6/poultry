@@ -42,6 +42,19 @@ test("a budget copied from a closed batch recomputes its break-even and margin a
   await expect(figures.nth(1)).toHaveText(/^10,25\sDH \/ kg$/);
   await expect(figures.nth(3)).toHaveText(/^3.500,00\sDH$/);
 
+  // WCAG 3.3.1, 4.1.3: a field that doesn't read is named once the user leaves it, not on each keystroke.
+  const feedPrice = page.getByLabel("Prix de l’aliment (DH/kg)");
+  const check = page.getByRole("alert").filter({ hasText: "Vérifiez :" });
+  await feedPrice.fill("5,0x");
+  await expect(check).toHaveCount(0);
+  await feedPrice.blur();
+  await expect(check).toHaveText("Vérifiez : Prix de l’aliment (DH/kg).");
+  await expect(feedPrice).toHaveAttribute("aria-invalid", "true");
+  await feedPrice.fill("5,00");
+  await feedPrice.blur();
+  await expect(check).toHaveCount(0);
+  await expect(figures.nth(3)).toHaveText(/^3.500,00\sDH$/);
+
   await page.getByLabel("Nom du budget").fill("Bande de janvier");
   await page.getByRole("button", { name: "Enregistrer le budget" }).click();
   const saved = page.getByRole("list", { name: "Budgets enregistrés" }).getByRole("listitem");

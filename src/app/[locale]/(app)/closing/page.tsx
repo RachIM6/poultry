@@ -7,6 +7,7 @@ import { card, done, table, warn } from "@/components/ui";
 import { Num } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney } from "@/lib/format";
+import { typedCentimes } from "@/lib/kernel/money";
 import { addFarmDays } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import { closePreview, type CloseBatchView, type CloseHensView, type CloseStockView } from "@/modules/finance";
@@ -52,7 +53,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   const typeable = (l: { missing: boolean }) => owner || (manage && l.missing); // after the run: a value still missing (FCX4)
   const quantity = (l: CloseStockView) => (l.unit === "kg" ? formatKg(l.quantity) : `${formatCount(l.quantity)} ${t(`Stock.units.${l.unit}`)}`);
   const label = (l: CloseStockView) => `${t(`Stock.kinds.${l.kind}`)} · ${l.name}${l.lot ? ` · ${l.lot}` : ""}`;
-  const typed = (c: bigint | null) => (c === null ? "" : `${c / 100n},${String(c % 100n).padStart(2, "0")}`);
+  const typed = (c: bigint | null) => (c === null ? "" : typedCentimes(c));
   const stockTable = stocks.length > 0 && (
     <ValuesForm year={year} write={owner}>
       <p className="text-sm text-ink-2">{t("Close.stocksHint")}</p>

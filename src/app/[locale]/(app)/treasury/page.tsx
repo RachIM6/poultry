@@ -6,7 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { associateAccount, cashForecast, creditExpensesToPay, placementsToPay, treasuryOverview } from "@/modules/finance";
+import { associateAccount, cashForecast, catchUpBooks, creditExpensesToPay, placementsToPay, treasuryOverview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, field, table } from "@/components/ui";
@@ -40,6 +40,7 @@ async function Treasury() {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const today = farmDayOf(new Date());
   const month = today.slice(0, 7);
+  await catchUpBooks(ctx.value); // SPEC-finance §9: once, so every read below sees the same, caught-up books
   const [overview, forecast, toPay, expensesToPay, owners] = await Promise.all([
     treasuryOverview(ctx.value, month),
     cashForecast(ctx.value),

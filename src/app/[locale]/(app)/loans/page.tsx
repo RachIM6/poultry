@@ -7,6 +7,7 @@ import { card, field, table, warn } from "@/components/ui";
 import { Num } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
+import { typedCentimes } from "@/lib/kernel/money";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import { loanRegister, subsidyRegister, type LoanView, type SubsidyView } from "@/modules/finance";
@@ -33,8 +34,6 @@ export default function LoansPage() {
 
 /** 5 550 (1/100 000) → "5,55". */
 const percent = (rate: number) => `${Math.floor(rate / 1000)}${rate % 1000 ? `,${String(rate % 1000).padStart(3, "0").replace(/0+$/, "")}` : ""}`;
-/** Centimes as typed back into a field: "16666,67". */
-const typed = (c: bigint) => `${c / 100n},${String(c % 100n).padStart(2, "0")}`;
 
 async function LoansView() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
@@ -150,10 +149,10 @@ async function LoansView() {
                   <>
                     <td className="p-2">
                       <input type="hidden" name="number" value={r.number} />
-                      <input name={`interest-${r.number}`} defaultValue={typed(r.interest)} aria-label={t("Loans.interestOf", { number: r.number })} inputMode="decimal" required dir="ltr" className={`${field} w-36 text-end`} />
+                      <input name={`interest-${r.number}`} defaultValue={typedCentimes(r.interest)} aria-label={t("Loans.interestOf", { number: r.number })} inputMode="decimal" required dir="ltr" className={`${field} w-36 text-end`} />
                     </td>
                     <td className="p-2">
-                      <input name={`capital-${r.number}`} defaultValue={typed(r.capital)} aria-label={t("Loans.capitalOf", { number: r.number })} inputMode="decimal" required dir="ltr" className={`${field} w-36 text-end`} />
+                      <input name={`capital-${r.number}`} defaultValue={typedCentimes(r.capital)} aria-label={t("Loans.capitalOf", { number: r.number })} inputMode="decimal" required dir="ltr" className={`${field} w-36 text-end`} />
                     </td>
                   </>
                 ) : (

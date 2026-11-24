@@ -7,7 +7,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import type { Batch } from "@/modules/flock/domain/batch";
-import { batchCost } from "@/modules/flock/domain/closing";
+import { batchCost, chicksCost } from "@/modules/flock/domain/closing";
 import { closingTotals, loadBatch, saveClosing } from "@/modules/flock/infrastructure/batches";
 import type { CloseBatch } from "@/modules/flock/schema";
 import { batchConsumptionCost } from "@/modules/inventory";
@@ -26,7 +26,7 @@ export async function closeBatchOn(tx: Tx, ctx: TenantContext, batch: Batch, day
   const p = batch.placement;
   const [consumedCentimes, { otherCentimes, soldGrams, chickVatCentimes }] = await Promise.all([batchConsumptionCost(tx, ctx, p.id), closingTotals(tx, ctx, p.id)]);
   // The chicks with their placement's VAT: management figures count amounts with VAT (SPEC-finance FQ30), as FN13.
-  const cost = batchCost({ chicksCentimes: BigInt(p.chicksPlaced) * p.chickUnitPriceCentimes + chickVatCentimes, consumedCentimes, otherCentimes, soldGrams });
+  const cost = batchCost({ chicksCentimes: chicksCost(p.chicksPlaced, p.chickUnitPriceCentimes) + chickVatCentimes, consumedCentimes, otherCentimes, soldGrams });
   const dto = await saveClosing(tx, batch, { closedOn: day, closeReason: reason, soldGrams, costCentimes: cost.totalCentimes, costPerKgCentimes: cost.perKgCentimes });
   await recordChange(tx, ctx, "batch", dto.id, dto);
   await audit(tx, ctx, {

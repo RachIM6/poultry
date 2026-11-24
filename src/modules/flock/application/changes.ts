@@ -1,6 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
+import { chicksCost } from "@/modules/flock/domain/closing";
 import type { BatchDto } from "@/modules/flock/shared";
 
 // species, fromBatchId: SPEC-finance FC6 (point-of-lay hens bought, the transfer to lay of SPEC-m3 B13); vatCentimes: FN9,
@@ -21,6 +22,6 @@ export async function placementsChangedSince(tx: Tx, ctx: TenantContext, after: 
     .filter((c) => c.data !== null)
     .map((c) => {
       const b = c.data as unknown as BatchDto;
-      return { version: c.version, id: b.id, farmId: b.farmId, placedOn: b.placedOn as FarmDay, chicksCentimes: BigInt(b.chicksPlaced) * BigInt(b.chickUnitPriceCentimes ?? "0"), vatCentimes: BigInt(b.chickVatCentimes ?? "0"), species: b.species, fromBatchId: b.fromBatchId ?? null };
+      return { version: c.version, id: b.id, farmId: b.farmId, placedOn: b.placedOn as FarmDay, chicksCentimes: chicksCost(b.chicksPlaced, BigInt(b.chickUnitPriceCentimes ?? "0")), vatCentimes: BigInt(b.chickVatCentimes ?? "0"), species: b.species, fromBatchId: b.fromBatchId ?? null };
     });
 }

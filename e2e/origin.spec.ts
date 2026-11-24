@@ -81,6 +81,8 @@ test("a sale's origin document prints offline on one A4 page, in French and in A
   for (const text of ["القانون رقم 49-99، المادة 10", "Ferme Atlas", "35 يوم", "وجهة الدواجن", "Abattoir du Saïs", "توقيع وختم المربي", "توقيع المشتري"]) {
     await expect(doc).toContainText(text);
   }
-  await expect(doc.locator('bdi[dir="ltr"]')).toHaveText("AV-2024-0123"); // the code keeps its order in right-to-left text
+  // the code keeps its order in right-to-left text (the weights are isolated too, so the ONSSA line's value is the one)
+  const onssa = doc.getByRole("term").filter({ hasText: "(أونسا)" }).locator("xpath=following-sibling::dd[1]");
+  await expect(onssa.locator('bdi[dir="ltr"]')).toHaveText("AV-2024-0123");
   await printsOnOneA4Page(page, "origin-ar");
 });

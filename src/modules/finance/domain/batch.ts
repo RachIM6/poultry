@@ -1,3 +1,4 @@
+import { divHalfUp } from "@/lib/kernel/money";
 import { feedConversionRatio } from "@/modules/flock/shared";
 
 // SPEC-finance FN13, FN14, §7. Pure; integer centimes, rounded once at the end.
@@ -22,13 +23,6 @@ export function allocate(total: bigint, keys: readonly { id: string; weight: big
   return parts;
 }
 
-/** a ÷ b rounded half away from zero, for signed amounts (a margin can be a loss). */
-const divRound = (a: bigint, b: bigint) => {
-  const q = a / b;
-  const r = a % b;
-  return 2n * (r < 0n ? -r : r) >= b ? q + (a < 0n ? -1n : 1n) : q;
-};
-
 export type BatchResult = {
   marginCentimes: bigint;
   costPerKgCentimes: bigint | null; // null when nothing was sold
@@ -39,12 +33,12 @@ export type BatchResult = {
 /** FN13, §7: margin = sales − cost; per kg sold (farm weight) and as a share of sales. */
 export function batchResult(r: { salesCentimes: bigint; costCentimes: bigint; soldGrams: bigint }): BatchResult {
   const margin = r.salesCentimes - r.costCentimes;
-  const perKg = (c: bigint) => (r.soldGrams > 0n ? divRound(c * 1000n, r.soldGrams) : null);
+  const perKg = (c: bigint) => (r.soldGrams > 0n ? divHalfUp(c * 1000n, r.soldGrams) : null);
   return {
     marginCentimes: margin,
     costPerKgCentimes: perKg(r.costCentimes),
     marginPerKgCentimes: perKg(margin),
-    marginPermille: r.salesCentimes > 0n ? divRound(margin * 1000n, r.salesCentimes) : null,
+    marginPermille: r.salesCentimes > 0n ? divHalfUp(margin * 1000n, r.salesCentimes) : null,
   };
 }
 
@@ -59,10 +53,10 @@ export type BatchComparison = { lostPermille: bigint | null; fcr: number | null;
  */
 export function batchComparison(r: { started: number; lost: number; eatenGrams: number; feedGrams: bigint; feedCentimes: bigint; soldGrams: bigint; salesCentimes: bigint }): BatchComparison {
   return {
-    lostPermille: r.started > 0 ? divRound(BigInt(r.lost) * 1000n, BigInt(r.started)) : null,
+    lostPermille: r.started > 0 ? divHalfUp(BigInt(r.lost) * 1000n, BigInt(r.started)) : null,
     fcr: feedConversionRatio({ feedGrams: r.eatenGrams, liveWeightGrams: Number(r.soldGrams) }),
-    feedPricePerKgCentimes: r.feedGrams > 0n ? divRound(r.feedCentimes * 1000n, r.feedGrams) : null,
-    pricePerKgCentimes: r.soldGrams > 0n ? divRound(r.salesCentimes * 1000n, r.soldGrams) : null,
+    feedPricePerKgCentimes: r.feedGrams > 0n ? divHalfUp(r.feedCentimes * 1000n, r.feedGrams) : null,
+    pricePerKgCentimes: r.soldGrams > 0n ? divHalfUp(r.salesCentimes * 1000n, r.soldGrams) : null,
   };
 }
 

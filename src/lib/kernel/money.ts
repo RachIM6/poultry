@@ -5,3 +5,14 @@ export function parseCentimes(text: string): bigint | null {
   const m = /^(\d+)(?:[.,](\d{1,2}))?$/.exec(text.replace(/[\s  ]/g, ""));
   return m ? BigInt(m[1]) * 100n + BigInt((m[2] ?? "").padEnd(2, "0")) : null;
 }
+
+/**
+ * n ÷ d rounded half up (SPEC-finance §7.1: "0,5 going up"), the one rounding of the app. A signed amount rounds the
+ * same on both sides, a half away from zero (−2,5 → −3), so a loss rounds like the gain it mirrors. d ≠ 0.
+ */
+export function divHalfUp(n: bigint, d: bigint): bigint {
+  const a = n < 0n ? -n : n;
+  const b = d < 0n ? -d : d;
+  const q = (2n * a + b) / (2n * b);
+  return n < 0n !== d < 0n ? -q : q;
+}

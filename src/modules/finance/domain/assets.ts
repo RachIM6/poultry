@@ -1,4 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
+import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
 import type { Journal, Posting } from "@/modules/finance/domain/posting";
@@ -76,8 +77,6 @@ export type ScheduleYear = { from: FarmDay; to: FarmDay; months: number; charge:
 
 const monthIndex = (day: FarmDay) => Number(day.slice(0, 4)) * 12 + Number(day.slice(5, 7)) - 1;
 const firstDayOf = (index: number) => `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}-01` as FarmDay;
-/** n ÷ d rounded half up, for n ≥ 0 and d > 0 (§7.1: "half up rounds a positive amount to the nearest centime"). */
-const halfUp = (n: bigint, d: bigint) => (2n * n + d) / (2n * d);
 
 /**
  * FC1, FQ9 default: whole months, the in-service month counts in full, the disposal month doesn't. Months are counted
@@ -94,7 +93,7 @@ function depreciation(a: DepreciableAsset) {
   const base = a.cost - a.residual - already; // what is left to spread
   const end = a.disposedOn ? monthIndex(a.disposedOn) : Infinity; // the disposal month is excluded
   const used = (index: number) => Math.min(Math.max(0, Math.min(index, end) - start), Math.max(life, 0));
-  const accumulatedAt = (index: number) => already + (life > 0 ? halfUp(base * BigInt(used(index)), BigInt(life)) : 0n);
+  const accumulatedAt = (index: number) => already + (life > 0 ? divHalfUp(base * BigInt(used(index)), BigInt(life)) : 0n);
   return { start, life, end, used, accumulatedAt };
 }
 

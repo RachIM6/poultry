@@ -1,4 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
+import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { ASSET_ACCOUNTS, straightLine, type AssetCategory, type DepreciableAsset, type ScheduleYear } from "@/modules/finance/domain/assets";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
@@ -15,8 +16,6 @@ const BANK = "5141";
 export type Subsidy = { amount: bigint; receivedOn: FarmDay; assets: readonly (DepreciableAsset & { category: AssetCategory })[] };
 type FiscalYear = { from: FarmDay; to: FarmDay };
 
-/** n ÷ d rounded half up, for n ≥ 0 and d > 0 (§7.1). */
-const halfUp = (n: bigint, d: bigint) => (2n * n + d) / (2n * d);
 
 export type SubsidyError = "INVALID_INPUT" | "SUBSIDY_NO_ASSET" | "SUBSIDY_ON_LAND";
 
@@ -39,7 +38,7 @@ function releasedTo(s: Subsidy, fiscalYearStartMonth: number, upTo: (y: Schedule
     base += a.cost - a.residual;
     accumulated += straightLine(a, fiscalYearStartMonth).filter(upTo).at(-1)?.accumulated ?? a.opening?.accumulated ?? 0n;
   }
-  return base > 0n ? halfUp(s.amount * accumulated, base) : 0n;
+  return base > 0n ? divHalfUp(s.amount * accumulated, base) : 0n;
 }
 
 /**

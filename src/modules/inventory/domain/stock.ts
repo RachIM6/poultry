@@ -1,3 +1,4 @@
+import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 
 // SPEC S1–S3. Pure: the phone shows stock and balances with these, the server enforces them with the same code.
@@ -34,7 +35,7 @@ export function checkItem(item: { kind: ItemKind; lot: string | null; expiresOn:
 /** Quantity (base units) × price per displayed unit, rounded half up to the centime, exactly. */
 export function purchaseAmount(quantity: number, unit: Unit, unitPriceCentimes: bigint): bigint {
   const base = BigInt(BASE[unit]);
-  return (BigInt(quantity) * unitPriceCentimes * 2n + base) / (2n * base);
+  return divHalfUp(BigInt(quantity) * unitPriceCentimes, base);
 }
 
 type PurchaseError = "INVALID_QUANTITY" | "PAID_MORE_THAN_AMOUNT" | "DUE_DATE_WITHOUT_CREDIT" | "VAT_MORE_THAN_AMOUNT";

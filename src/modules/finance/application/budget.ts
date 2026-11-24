@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
+import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -17,7 +18,7 @@ export type BudgetBase = { batchId: string; label: string; inputs: BudgetInputs;
 
 type Consumed = Awaited<ReturnType<typeof batchConsumption>>;
 
-const perKg = (centimes: bigint, grams: bigint) => (grams > 0n ? (centimes * 2000n + grams) / (2n * grams) : 0n);
+const perKg = (centimes: bigint, grams: bigint) => (grams > 0n ? divHalfUp(centimes * 1000n, grams) : 0n);
 
 /**
  * FN15, §9 "Budget cash need": when a closed batch's money moved, by day since placement: the feed by its consumption

@@ -1,3 +1,5 @@
+import { divHalfUp } from "@/lib/kernel/money";
+
 // SPEC B6. Pure: the server locks these figures when the batch closes; the phone shows them with the same code.
 
 /**
@@ -7,5 +9,5 @@
 export function batchCost(c: { chicksCentimes: bigint; consumedCentimes: bigint; otherCentimes: bigint; soldGrams: number }) {
   const totalCentimes = c.chicksCentimes + c.consumedCentimes + c.otherCentimes;
   const grams = BigInt(c.soldGrams);
-  return { totalCentimes, perKgCentimes: grams > 0n ? (totalCentimes * 2000n + grams) / (2n * grams) : null };
+  return { totalCentimes, perKgCentimes: grams > 0n ? divHalfUp(totalCentimes * 1000n, grams) : null };
 }

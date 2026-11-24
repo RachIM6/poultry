@@ -9,6 +9,7 @@ import { batchConsumption } from "@/modules/inventory";
 import { salesByBatch } from "@/modules/sales";
 import { payCosts } from "@/modules/workforce";
 import { batchComparison, batchResult, monthPeriod, splitShared, type AllocationKey, type BatchComparison, type BatchResult } from "@/modules/finance/domain/batch";
+import type { BatchResultDto } from "@/modules/finance/shared";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -94,6 +95,25 @@ export type BatchResultRow = BatchResult & {
 export async function batchResults(ctx: TenantContext, asOf?: FarmDay): Promise<Result<BatchResultRow[], "FORBIDDEN">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   return ok(await db.$transaction((tx) => batchResultsIn(tx, ctx, asOf)));
+}
+
+/** FN13 as text for the screens that show a batch's money (§9 "One cost per kg"): the report, the closing card, /compare. */
+export async function batchResultDtos(ctx: TenantContext): Promise<Result<BatchResultDto[], "FORBIDDEN">> {
+  const results = await batchResults(ctx);
+  if (!results.ok) return results;
+  const text = (c: bigint | null) => (c === null ? null : String(c));
+  return ok(
+    results.value.map((r) => ({
+      id: r.id,
+      salesCentimes: String(r.salesCentimes),
+      costCentimes: String(r.costCentimes),
+      marginCentimes: String(r.marginCentimes),
+      soldGrams: r.soldGrams,
+      costPerKgCentimes: text(r.costPerKgCentimes),
+      marginPerKgCentimes: text(r.marginPerKgCentimes),
+      marginPermille: text(r.marginPermille),
+    })),
+  );
 }
 
 /** FN13 inside the caller's transaction (the close run, FC4). */

@@ -128,7 +128,7 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
     expect(await post(a, { day: d("2027-02-02") })).toEqual({ ok: false, error: "UNKNOWN_ACCOUNT" });
     expect(await post(a, { day: d("2027-02-02"), lines: [line("6121", 100n, 0n), line("4411", 0n, 100n)] })).toMatchObject({ ok: true });
     expect(await changeAccountingChoices(a, entityA, { ...choices, pcaOverlay: true }, today)).toEqual({ ok: false, error: "FISCAL_YEAR_HAS_ENTRIES" });
-    expect(await accountingSettings(a, today)).toMatchObject({ ok: true, value: { locked: true } });
+    expect(await accountingSettings(a, today)).toMatchObject({ ok: true, value: { locked: true, nextYearFrom: "2028-01-01" } }); // when they can change again
   });
 
   it("keeps a company on full books (law 9-88)", async () => {

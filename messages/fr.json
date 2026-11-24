@@ -2472,7 +2472,10 @@
       }
     },
     "save": "Enregistrer",
-    "saved": "Paramètres enregistrés."
+    "saved": "Paramètres enregistrés.",
+    "choicesFirst": "Choisissez la tenue des comptes, la TVA, le début d’exercice… avant la première écriture. Une mise en place, un achat ou une dépense en passent une dès leur synchronisation ; ces choix ne changent ensuite qu’au prochain exercice.",
+    "later": "Plus tard",
+    "lockedHow": "Pour les changer : le {day}, premier jour du prochain exercice, revenez ici avant toute écriture de ce nouvel exercice."
   },
   "Chart": {
     "open": "Plan de comptes",

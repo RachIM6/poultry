@@ -211,13 +211,17 @@ const yearHasEntries = async (tx: Tx, ctx: TenantContext, entity: { id: string; 
   return (await entriesBetween(tx, ctx, entity.id, year.from, year.to)) > 0;
 };
 
-/** The profile screen: the entity, the books its form allows, and whether this fiscal year still lets them change. */
+/**
+ * The profile screen: the entity, the books its form allows, whether this fiscal year still lets them change, and the
+ * first day of the next one, when they can change again before its first entry.
+ */
 export async function accountingSettings(ctx: TenantContext, clock: Clock = systemClock) {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
   const [first] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation (see postPending)
   if (!first) return ok(null);
   return db.$transaction(async (tx) => {
     const entity = (await legalEntityIn(tx, ctx, first.id))!;
-    return ok({ entity, books: booksAllowed(entity.form), locked: await yearHasEntries(tx, ctx, entity, clock) });
+    const nextYearFrom = addFarmDays(fiscalYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth).to, 1);
+    return ok({ entity, books: booksAllowed(entity.form), locked: await yearHasEntries(tx, ctx, entity, clock), nextYearFrom });
   });
 }

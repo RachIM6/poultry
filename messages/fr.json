@@ -823,6 +823,7 @@
     "buyerName": "Nom",
     "buyerType": "Type",
     "buyerPhone": "Téléphone",
+    "destination": "Destination des volailles",
     "signFarm": "Signature et cachet de l’éleveur",
     "signBuyer": "Signature de l’acheteur",
     "print": "Imprimer",
@@ -1005,7 +1006,9 @@
     "importedNote": "Chaque opération du relevé est rapprochée d’une opération des livres de même montant. Pointez-la pour la confirmer ; une opération absente des livres reste dans l’écart jusqu’à ce qu’elle soit enregistrée.",
     "importedTicked": "Pointée",
     "importedToTick": "Dans les livres",
-    "importedMissing": "Absente des livres"
+    "importedMissing": "Absente des livres",
+    "bookFees": "Enregistrer en frais bancaires",
+    "bookManual": "Passer une écriture manuelle"
   },
   "Results": {
     "title": "Résultats des bandes",

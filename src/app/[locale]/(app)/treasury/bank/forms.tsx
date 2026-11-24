@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent } from "react";
 import { addStatementAction, importAction, matchAction, type ImportState } from "./actions";
 import { field, primary, secondary, table } from "@/components/ui";
+import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
 import { CSV_DATE_FORMATS } from "@/modules/finance/shared";
 
@@ -152,9 +153,12 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
   );
 }
 
-type Imported = { id: string; day: string; label: string; amount: string; lineId: string | null; ticked: boolean };
+type Imported = { id: string; day: string; label: string; amount: string; lineId: string | null; ticked: boolean; book: { pathname: string; query: Record<string, string> } | null };
 
-/** T117: the imported statement's lines, each with its book line: ticked, to tick here (T111's tick), or missing. */
+/**
+ * T117: the imported statement's lines, each with its book line: ticked, to tick here (T111's tick), or missing, with
+ * the form that books it (FC9).
+ */
 export function ImportedTable({ statementId, lines, canWrite }: { statementId: string; lines: Imported[]; canWrite: boolean }) {
   const t = useTranslations("Bank");
   const tAll = useTranslations();
@@ -188,7 +192,12 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
                 ) : l.lineId && canWrite ? (
                   <button type="submit" name="tick" value={l.lineId} disabled={pending} className={secondary}>{t("tick")}</button>
                 ) : (
-                  <span className="text-ink-2">{t(l.lineId ? "importedToTick" : "importedMissing")}</span>
+                  <span className="flex flex-col gap-1">
+                    <span className="text-ink-2">{t(l.lineId ? "importedToTick" : "importedMissing")}</span>
+                    {l.book && (
+                      <Link href={l.book} className="underline underline-offset-4">{t(l.book.pathname === "/expenses" ? "bookFees" : "bookManual")}</Link>
+                    )}
+                  </span>
                 )}
               </td>
             </tr>

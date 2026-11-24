@@ -4,7 +4,7 @@ export { chartOf, postingAccount, rollUp, type ChartOfAccounts } from "./domain/
 export { type Line } from "./domain/entry";
 export type { EntryRow } from "./infrastructure/ledger";
 export { CHARTS, type AccountRow, type Chart } from "./schema";
-export { postPending } from "./application/posting";
+export { postAllPending, postPending } from "./application/posting";
 export { financeSync } from "./sync";
 export { attachExpenseReceipt, cashForecast, treasuryOverview, type TreasuryOverview } from "./application/treasury";
 export { payPlacement, placementsToPay, type PlacementPayError, type PlacementToPay } from "./application/placements";

@@ -5,6 +5,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
+import { catchUp } from "@/modules/finance/application/posting";
 import { trialBalance } from "@/modules/finance/domain/books";
 import { countDay, countYearOf } from "@/modules/finance/domain/count";
 import { fiscalYearOf, type Line } from "@/modules/finance/domain/entry";
@@ -55,6 +56,7 @@ export type OfficialStatements =
  */
 export async function officialStatements(ctx: TenantContext, year: number | null, clock: Clock = systemClock): Promise<Result<OfficialStatements, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN");
+  await catchUp(ctx); // §9
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
   const y = year ?? countYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth);

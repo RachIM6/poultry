@@ -17,15 +17,16 @@ import { chartOf } from "@/modules/finance/domain/chart";
 import { hensMethodOf } from "@/modules/finance/domain/hens";
 import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
 import { inChart, postingOf, samePosting, unpostedConsumption, type FarmEvent } from "@/modules/finance/domain/posting";
-import { firstPostedAt, ledgerAccounts, lockCursor, lockedMonths, moveCursor, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
+import { firstPostedAt, ledgerAccounts, lockCursor, lockedMonths, moveCursor, pendingOrganizations, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 
 type Change = { version: bigint; event: FarmEvent };
-type Source = { name: string; module: string; read: (tx: Tx, ctx: TenantContext, after: bigint, entity: LegalEntityDto) => Promise<Change[]> };
+type Source = { name: string; module: string; entity: string; read: (tx: Tx, ctx: TenantContext, after: bigint, entity: LegalEntityDto) => Promise<Change[]> };
 
 const SOURCES: Source[] = [
   {
     name: "inventory.purchase",
     module: "inventory",
+    entity: "purchase", // what its read takes from the change log
     read: async (tx, ctx, after) =>
       (await purchasesChangedSince(tx, ctx, after)).map((p) => ({
         version: p.version,
@@ -35,6 +36,7 @@ const SOURCES: Source[] = [
   {
     name: "inventory.supplierPayment",
     module: "inventory",
+    entity: "supplierPayment",
     read: async (tx, ctx, after) =>
       (await supplierPaymentsChangedSince(tx, ctx, after)).map((p) => ({
         version: p.version,
@@ -44,12 +46,14 @@ const SOURCES: Source[] = [
   {
     name: "inventory.issuedDebit",
     module: "inventory",
+    entity: "issuedDebit",
     read: async (tx, ctx, after) =>
       (await issuedDebitsChangedSince(tx, ctx, after)).map((d) => ({ version: d.version, event: { type: "issuedDebit", id: d.id, day: d.day, amount: d.amountCentimes, kind: d.kind } })),
   },
   {
     name: "flock.placement",
     module: "flock",
+    entity: "batch",
     read: async (tx, ctx, after) =>
       (await placementsChangedSince(tx, ctx, after)).map((b) => ({
         version: b.version,
@@ -60,11 +64,13 @@ const SOURCES: Source[] = [
     // FC6 classic (T115): the transfer to lay (SPEC-m3 B13), once per layer batch, source `lay:<batch>`
     name: "flock.transfer",
     module: "flock",
+    entity: "batch",
     read: async (tx, ctx, after, entity) => layEvents(tx, ctx, entity, await placementsChangedSince(tx, ctx, after)),
   },
   {
     name: "sales.sale",
     module: "sales",
+    entity: "sale",
     read: async (tx, ctx, after, entity) => {
       const sales = await salesChangedSince(tx, ctx, after);
       const batches = await batchPlaces(tx, ctx, [...new Set(sales.map((s) => s.batchId))]); // FC6: culled hens of a laying flock
@@ -79,6 +85,7 @@ const SOURCES: Source[] = [
   {
     name: "sales.payment",
     module: "sales",
+    entity: "buyerPayment",
     read: async (tx, ctx, after) =>
       (await paymentsChangedSince(tx, ctx, after)).map((p) => ({
         version: p.version,
@@ -88,6 +95,7 @@ const SOURCES: Source[] = [
   {
     name: "sales.instrument",
     module: "sales",
+    entity: "instrumentStatus",
     read: async (tx, ctx, after) =>
       (await instrumentStepsChangedSince(tx, ctx, after)).map((i) => ({
         version: i.version,
@@ -97,18 +105,21 @@ const SOURCES: Source[] = [
   {
     name: "workforce.advance",
     module: "workforce",
+    entity: "advance",
     read: async (tx, ctx, after) =>
       (await advancesChangedSince(tx, ctx, after)).map((a) => ({ version: a.version, event: { type: "advance", id: a.id, day: a.day as FarmDay, amount: BigInt(a.amountCentimes) } })),
   },
   {
     name: "workforce.payPayment",
     module: "workforce",
+    entity: "payPayment",
     read: async (tx, ctx, after) =>
       (await payPaymentsChangedSince(tx, ctx, after)).map((p) => ({ version: p.version, event: { type: "wagesPaid", id: p.id, day: p.day as FarmDay, amount: BigInt(p.netCentimes), from: p.paidFrom } })),
   },
   {
     name: "workforce.payMonth",
     module: "workforce",
+    entity: "payMonth",
     read: async (tx, ctx, after) =>
       (await payMonthsChangedSince(tx, ctx, after)).map((p) => ({
         version: p.version,
@@ -130,7 +141,9 @@ const SOURCES: Source[] = [
  * SPEC-finance FN7: posts the farm events recorded since each source's cursor, on the server only. Idempotent: a
  * replay finds the cursor moved and the source key taken. A newer version of a record that changes its entry gets a
  * reversal and a new entry; one that doesn't (a batch closing) posts nothing. A locked month sends the entry to the
- * first open month (FN5). Runs after each sync push (api/sync/push) and on demand. Returns the entries posted.
+ * first open month (FN5). Runs after each sync push (api/sync/push), from the scheduler and before a read of the books
+ * (§9 "Postings catch up"). Two runs at once are safe: each source's cursor row stays locked until its transaction
+ * commits, so the second waits, then reads past the moved cursor. Returns the entries posted.
  */
 export async function postPending(pusher: TenantContext): Promise<number> {
   // ponytail: one legal entity per organisation in M1 (onboarding); farms get their entity when there are several.
@@ -156,7 +169,7 @@ export async function postPending(pusher: TenantContext): Promise<number> {
       let n = 0;
       const post = async (e: Parameters<typeof postEntry>[2]) => {
         const r = await postEntry(tx, ctx, e);
-        if (!r.ok) throw new Error(`${source.name} ${e.id}: ${r.error}`); // a rule or seed bug: retried at the next push
+        if (!r.ok) throw new Error(`${source.name} ${e.id}: ${r.error}`); // a rule or seed bug: retried at the next run
         n++;
       };
       for (const { version, event } of changes) {
@@ -184,4 +197,36 @@ export async function postPending(pusher: TenantContext): Promise<number> {
   await freezeClosedBatches(ctx); // FN14: a batch that closed in this push gets its allocation frozen
   if (posted > 0) await alertThresholdOnce(ctx); // FN17: the 90 % notification, once a fiscal year
   return posted;
+}
+
+// Not a member: the nil id the reminders notify with, as the scheduler's entries' createdBy.
+const SCHEDULER = "00000000-0000-0000-0000-000000000000";
+
+/**
+ * §9 "Postings catch up", from the host's scheduler (api/push/dispatch, every minute): posts what is pending for up to
+ * `limit` organisations, each on its own so one failure holds no other back. Returns the entries posted.
+ */
+export async function postAllPending(limit = 10): Promise<number> {
+  const organizations = await pendingOrganizations(db, SOURCES, limit);
+  let posted = 0;
+  let failed = 0;
+  for (const organizationId of organizations) {
+    try {
+      posted += await postPending({ organizationId, userId: SCHEDULER, role: "owner" });
+    } catch (error) {
+      failed++;
+      console.error("[finance] posting failed", organizationId, error);
+    }
+  }
+  if (failed > 0) console.error(`[finance] posting failed for ${failed} of ${organizations.length} organisations`);
+  return posted;
+}
+
+/** §9 "Postings catch up": a read of the books posts what is pending first. On failure it logs and reads what is posted. */
+export async function catchUp(ctx: TenantContext): Promise<void> {
+  try {
+    if ((await pendingOrganizations(db, SOURCES, 1, ctx.organizationId)).length > 0) await postPending(ctx);
+  } catch (error) {
+    console.error("[finance] posting failed", error);
+  }
 }

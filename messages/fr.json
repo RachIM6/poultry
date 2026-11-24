@@ -925,6 +925,8 @@
     "placedOn": "Mise en place du {day}",
     "owed": "Reste dû : {amount}",
     "pay": "Payer",
+    "payOf": "Payer : {name}",
+    "receiptViewOf": "Voir le reçu : {line}",
     "paid": "Paiement enregistré.",
     "creditExpenses": "Dépenses à crédit à payer",
     "creditExpensesHint": "Les dépenses rapides enregistrées « à payer plus tard », avec ce qui reste dû pour chacune.",
@@ -969,6 +971,8 @@
     "none": "Aucune opération.",
     "tick": "Pointer",
     "untick": "Dépointer",
+    "tickOf": "Pointer : {line}",
+    "untickOf": "Dépointer : {line}",
     "tickedOn": "Pointée au relevé du {day}",
     "state": "Pointage",
     "amount": "Montant",
@@ -2491,6 +2495,7 @@
     "override": "Remplacé par",
     "notApplied": "Ce compte n’est plus un compte de détail de votre plan : le compte par défaut s’applique.",
     "reset": "Revenir au compte par défaut",
+    "resetOf": "Revenir au compte par défaut : {rule}",
     "save": "Enregistrer",
     "saved": "Compte enregistré pour les nouvelles écritures."
   }

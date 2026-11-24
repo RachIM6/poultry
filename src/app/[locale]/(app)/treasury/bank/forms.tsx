@@ -193,7 +193,7 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
                     {t("importedTicked")}
                   </span>
                 ) : l.lineId && canWrite ? (
-                  <button type="submit" name="tick" value={l.lineId} disabled={pending} className={secondary}>{t("tick")}</button>
+                  <button type="submit" name="tick" value={l.lineId} disabled={pending} aria-label={t("tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>{t("tick")}</button>
                 ) : (
                   <span className="flex flex-col gap-1">
                     <span className="text-ink-2">{t(l.lineId ? "importedToTick" : "importedMissing")}</span>
@@ -271,7 +271,7 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
                   <span className="flex items-center gap-2">
                     {l.ticked && <span><span aria-hidden="true">✓</span><span className="sr-only">{t("ticked")}</span></span>}
                     {canWrite && (
-                      <button type="submit" name={l.ticked ? "untick" : "tick"} value={l.id} disabled={pending} className={secondary}>
+                      <button type="submit" name={l.ticked ? "untick" : "tick"} value={l.id} disabled={pending} aria-label={t(l.ticked ? "untickOf" : "tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>
                         {t(l.ticked ? "untick" : "tick")}
                       </button>
                     )}

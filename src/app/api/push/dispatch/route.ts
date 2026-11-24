@@ -7,6 +7,7 @@ import { sendVaccinationReminders } from "@/modules/health";
 import { dispatchDuePushes } from "@/modules/notifications";
 import { sendPlacementReminders } from "@/modules/planning";
 import { sendInstrumentReminders } from "@/modules/sales";
+import { purgeExpiredDaily } from "@/ops/retention";
 import { render } from "../render";
 
 // For the host's scheduler (every minute, T26): announces the day's vaccinations (H2), the cheques and bills due (V4),
@@ -23,6 +24,7 @@ const STEPS: [name: string, run: () => Promise<unknown>][] = [
   ["loanReminders", () => sendLoanReminders()],
   ["postings", () => postAllPending()],
   ["pushes", () => dispatchDuePushes(render)],
+  ["retention", () => purgeExpiredDaily()], // once a day: data past its retention period (ADR-007)
 ];
 
 // Each step runs even when an earlier one throws. A failure answers 500: 207 and "200 with failed" are 2xx, which

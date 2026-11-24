@@ -46,7 +46,7 @@ export const defineMutation = <P>(handler: MutationHandler<P>) => handler as unk
  * The counter row stays locked until commit, so versions become visible in order and a pull never skips one.
  */
 // ponytail: one counter row per organisation serializes its writes; fine for farm-sized traffic.
-export async function recordChange(tx: Tx, ctx: TenantContext, entity: string, entityId: string, data: object | null) {
+export async function recordChange(tx: Tx, ctx: Pick<TenantContext, "organizationId">, entity: string, entityId: string, data: object | null) {
   const [{ version }] = await tx.$queryRaw<{ version: bigint }[]>`
     INSERT INTO "SyncVersion" ("organizationId", version) VALUES (${ctx.organizationId}::uuid, 1)
     ON CONFLICT ("organizationId") DO UPDATE SET version = "SyncVersion".version + 1

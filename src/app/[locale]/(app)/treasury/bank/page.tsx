@@ -42,7 +42,7 @@ async function Bank({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await bankReconciliation(ctx.value, one(search.account), one(search.statement));
-  if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!result.ok) return <p>{t("Bank.forbidden")}</p>;
   const { canWrite, accounts, account, statements, statement: s } = result.value;
   const day = (d: string) => formatDay(d as FarmDay, lang);
   // FC9: a statement line not in the books is booked where it belongs: a debit as bank fees (T119) on /expenses, the
@@ -104,7 +104,7 @@ async function Bank({ searchParams }: { searchParams: Search }) {
                   <ImportedTable
                     statementId={s.id}
                     canWrite={canWrite}
-                    lines={s.imported.map((l) => ({ id: l.id, day: day(l.day), label: l.label, amount: formatMoney(l.amountCentimes), lineId: l.lineId, ticked: l.ticked, book: (!l.lineId && bookIt(l, account.id)) || null }))}
+                    lines={s.imported.map((l) => ({ id: l.id, day: day(l.day), label: l.label, amount: formatMoney(l.amountCentimes), lineId: l.lineId, ticked: l.ticked, book: (!l.lineId && bookIt(l, account.id)) || null, byOwner: !l.lineId && canWrite && l.amountCentimes >= 0n && !can(ctx.value, "finance.manage") }))}
                   />
                 </>
               )}

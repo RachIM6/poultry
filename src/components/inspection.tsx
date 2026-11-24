@@ -3,7 +3,8 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useSyncExternalStore } from "react";
-import { REGISTER_ENTITIES, RegisterDocument, Section, Table, registerOf } from "@/components/register-document";
+import { REGISTER_ENTITIES } from "@/components/register-access";
+import { RegisterDocument, Section, Table, registerOf } from "@/components/register-document";
 import { danger, done, field, primary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDateTime, formatDay } from "@/lib/format";

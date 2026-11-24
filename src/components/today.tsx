@@ -8,6 +8,9 @@ import { BatchStrip, stripDays } from "@/components/batch-strip";
 import { card } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatDecimal, formatKg, formatPercent } from "@/lib/format";
+import { can } from "@/lib/permissions";
+import { pulls } from "@/lib/sync/views";
+import type { Role } from "@/lib/tenant";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { ageOn, birdsOnHand, birdsStarted, houseFigure, houseWeight, layingVersusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
@@ -46,10 +49,10 @@ export function TodayShell() {
       </main>
     );
   }
-  return <Today key={scopeKey(scope)} userId={scope.userId} organizationId={scope.organizationId} sync={<SyncBadge {...scope} />} alert={null} />;
+  return <Today key={scopeKey(scope)} userId={scope.userId} organizationId={scope.organizationId} role={scope.role} sync={<SyncBadge {...scope} />} alert={null} />;
 }
 
-export function Today({ title, userId, organizationId, sync, alert, money = null }: { title?: string; userId: string; organizationId: string; sync: ReactNode; alert: ReactNode; money?: ReactNode }) {
+export function Today({ title, userId, organizationId, role, sync, alert, money = null }: { title?: string; userId: string; organizationId: string; role: Role; sync: ReactNode; alert: ReactNode; money?: ReactNode }) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb({ userId, organizationId });
@@ -58,6 +61,9 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
   if (!records || reference === undefined) return null;
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
+  const scope = { userId, organizationId, role };
+  const farming = pulls(role, "dailyEntry"); // SPEC-m5 §5: none on the accountant's phone, so no count, strip or figure
+  const recording = can(scope, "flock.record"); // the day's entry and the days missing are the recorders' tasks
   const today = farmDayOf(new Date());
   const farms = of<FarmDto>("farm");
   const houses = of<HouseDto>("house");
@@ -145,9 +151,9 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
           <Link key={b.id} href={{ pathname: "/batches", hash: b.id }} className="flex flex-col gap-3">
             <span className="flex items-baseline justify-between gap-3">
               <span className="text-lg font-semibold">{house} · {strain}</span>
-              <span className="text-[15px] text-sand">{t("Today.birds", { count: formatCount(birds) })}</span>
+              {farming && <span className="text-[15px] text-sand">{t("Today.birds", { count: formatCount(birds) })}</span>}
             </span>
-            <BatchStrip days={days} onDark label={t("Today.stripLabel", { day: String(age), missing: String(missing.length) })} />
+            {farming && <BatchStrip days={days} onDark label={t("Today.stripLabel", { day: String(age), missing: String(missing.length) })} />}
             {b.species === "layer" && (() => {
               const last = laying(b);
               if (last?.layingRate == null) return null;
@@ -156,10 +162,10 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
               return <span className="text-sm text-sand">{vs ? `${text} · ${t("Today.layingStandard", { gap: formatPercent(vs.gapPoints, true), standard: formatPercent(vs.standardPercent) })}` : text}</span>;
             })()}
             {weight && <span className="text-sm text-sand">{weight}</span>}
-            {figure && <span className="text-sm text-sand">{figure}</span>}
+            {farming && figure && <span className="text-sm text-sand">{figure}</span>}
             <span className="flex justify-between gap-3 text-sm text-sand">
               <span>{b.species === "broiler" ? t("Today.dayOf", { day: String(age), total: String(days.length) }) : ageText(t, b, today)}</span>
-              <span>{missing.length > 0 ? t("Today.missingOn", { date: shortDay(missing[missing.length - 1].day) }) : t("Today.allEntered")}</span>
+              {farming && <span>{missing.length > 0 ? t("Today.missingOn", { date: shortDay(missing[missing.length - 1].day) }) : t("Today.allEntered")}</span>}
             </span>
           </Link>
         ))}
@@ -178,9 +184,11 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
         {batches.length === 0 && (
           <div className={card}>
             <p>{farms.length === 0 ? t("Farms.none") : t("Today.none")}</p>
-            <Link href={farms.length === 0 ? "/farms" : "/batches"} className="font-semibold underline underline-offset-4">
-              {farms.length === 0 ? t("Farms.title") : t("Batches.place")}
-            </Link>
+            {can(scope, farms.length === 0 ? "farms.manage" : "flock.manage") && (
+              <Link href={farms.length === 0 ? "/farms" : "/batches"} className="font-semibold underline underline-offset-4">
+                {farms.length === 0 ? t("Farms.title") : t("Batches.place")}
+              </Link>
+            )}
           </div>
         )}
         {batches.map(({ b, house, until, due, enteredToday, missing }) => (
@@ -191,7 +199,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
                 {t("Treatment.withdrawal", { date: day(until) })}
               </p>
             )}
-            {enteredToday ? (
+            {!recording ? null : enteredToday ? (
               <p className={`${task} bg-olive-soft text-olive`}>{t("Today.entryDone", { house })}</p>
             ) : (
               <Link href={{ pathname: "/batches", hash: b.id }} className={`${task} bg-chick text-ink shadow-[0_2px_0_var(--color-chick-edge)]`}>
@@ -219,7 +227,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
                   </Link>
                 );
               })}
-            {missing.length > 0 && (
+            {recording && missing.length > 0 && (
               <Link href={{ pathname: "/batches", hash: b.id }} className={`${task} bg-card`}>
                 <span className={`${icon} bg-brick-soft text-brick-fg`}><Icon d={ICONS.missing} /></span>
                 <span className="flex flex-1 flex-col gap-0.5">

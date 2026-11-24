@@ -1,4 +1,5 @@
 import type { SyncRegistry } from "@/lib/sync/server";
+import { PULL_VIEWS } from "@/lib/sync/views";
 import { eggsSync } from "@/modules/eggs";
 import { biosecuritySync } from "@/modules/biosecurity";
 import { documentsSync } from "@/modules/documents";
@@ -21,12 +22,5 @@ const modules: SyncRegistry[] = [farmRegistrySync, referenceDataSync, notificati
 export const registry: SyncRegistry = {
   mutations: Object.assign({}, ...modules.map((m) => m.mutations)),
   entities: Object.assign({}, ...modules.map((m) => m.entities)),
-  // SPEC-m5 PA4, PA5 (ADR-013): what a partner's phone receives; anything else, a new entity included, never leaves.
-  views: {
-    vet: ["farm", "house", "batch", "dailyEntry", "weighing", "soldBirds", "protocol", "vaccination", "treatment", "vetVisit", "stockItem", "movement", "notification"],
-    accountant: [
-      "farm", "house", "batch", "soldBirds", "batchCost", "supplier", "stockItem", "movement", "purchase", "supplierPayment", "issuedDebit", "buyer", "sale", "buyerPayment", "instrumentStatus",
-      "treasuryAccount", "expense", "transfer", "employee", "advance", "payMonth", "payPayment", "labourRules", "price", "notification",
-    ],
-  },
+  views: PULL_VIEWS, // SPEC-m5 PA4, PA5 (ADR-013)
 };

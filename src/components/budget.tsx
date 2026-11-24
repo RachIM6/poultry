@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useId, useState, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { formatKg, formatMoney } from "@/lib/format";
@@ -77,6 +77,7 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
   const inputs = parse(text);
   const b = inputs && budgetOf(inputs);
   const errorId = useId();
+  const list = new Intl.ListFormat(useLocale() === "ar" ? "ar" : "fr"); // "a, b et c" in French
   // Set when the user leaves a field: the fields to check, else the result to say.
   const [checked, setChecked] = useState<{ bad: (keyof Text)[]; said: string }>({ bad: [], said: "" });
   const check = () =>
@@ -128,7 +129,7 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
       </div>
       {checked.bad.length > 0 && (
         <p id={errorId} role="alert" className={danger}>
-          {t("check", { fields: checked.bad.map((k) => t(LABEL[k])).join(", ") })}
+          {t("check", { fields: list.format(checked.bad.map((k) => t(LABEL[k]))) })}
         </p>
       )}
       <p role="status" className="sr-only">{checked.bad.length === 0 && checked.said}</p>

@@ -5,7 +5,7 @@ import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
 import { push, recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { postingOverrides, postPending, setPostingOverride } from "@/modules/finance";
+import { chartView, postingOverrides, postPending, setPostingOverride } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
 
@@ -81,6 +81,12 @@ describe("posting overrides (SPEC-finance FN8)", () => {
     expect(view.value.rows.find((r) => r.op === "feed")).toMatchObject({ ruleAccount: "612122", default: { number: "612122" }, override: { number: "61213", applies: true } });
     expect(view.value.rows.find((r) => r.op === "expense.water")).toMatchObject({ ruleAccount: "612511", override: null });
     expect(view.value.choices.every((c) => /^[67]/.test(c.number))).toBe(true);
+
+    // The chart screen shows it to the manager too, read-only.
+    const chart = await chartView({ ...a, role: "manager" });
+    if (!chart.ok) throw new Error(chart.error);
+    expect(chart.value.rows.find((r) => r.op === "feed")).toMatchObject({ pca: { number: "612122" }, override: { number: "61213" } });
+    expect(chart.value.rows.find((r) => r.op === "expense.water")?.override).toBeNull();
   });
 
   it("posts a later version of a source posted before the override on its first accounts (FN7)", async () => {

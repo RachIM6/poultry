@@ -32,6 +32,9 @@ export async function overridesFor(tx: Tx, ctx: TenantContext, entity: Pick<Lega
   return (p: Posting, firstPosted: Date | null) => withOverrides(p, overridesAt(history, firstPosted), c);
 }
 
+/** FN8: the entity's overrides in force now, rule account → replacement. */
+export const currentOverrides = async (tx: Tx, ctx: TenantContext, legalEntityId: string) => overridesAt(await historyOf(tx, ctx, legalEntityId), null);
+
 const AccountNumber = z.string().regex(/^\d{1,10}$/);
 const OverrideInput = z.object({ ruleAccount: AccountNumber, account: AccountNumber.nullable() });
 
@@ -70,7 +73,7 @@ export async function postingOverrides(ctx: TenantContext): Promise<Result<Posti
   const all = await ledgerAccounts(db);
   const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
   const everything = chartOf(all, "cgnc", ["pca"]);
-  const current = overridesAt(await historyOf(db, ctx, entity.id), null);
+  const current = await currentOverrides(db, ctx, entity.id);
   const leaves = leafAccounts(chart).filter((a) => /^[67]/.test(a.number)).sort((a, b) => a.number.localeCompare(b.number));
   const named = (number: string): Account => ({ number, label: (chart.get(number) ?? everything.get(number))?.label ?? "" });
   return ok({

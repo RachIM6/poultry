@@ -2414,6 +2414,7 @@
     "activeCgnc": "Votre entité utilise le PCGE sans le plan agricole (en gras).",
     "pca": "PCA",
     "cgnc": "PCGE",
+    "override": "Remplacé",
     "review": "Ces imputations sont celles proposées à l’expert-comptable, à valider avant la clôture.",
     "ops": {
       "chicks": "Achat de poussins",

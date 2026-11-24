@@ -114,7 +114,127 @@
     "dismiss": "J’ai compris",
     "signedOut": "Connectez-vous pour synchroniser ce téléphone.",
     "login": "Se connecter",
-    "open": "Synchronisation"
+    "open": "Synchronisation",
+    "refused": "{count, plural, one {1 écriture refusée à vérifier} other {{n} écritures refusées à vérifier}}",
+    "unknownType": "Action inconnue",
+    "redo": "Saisir à nouveau",
+    "values": "Ce que vous aviez saisi",
+    "value": "{label} : {value}",
+    "dismissConfirm": "Retirer cette écriture refusée ? Ce que vous aviez saisi sera effacé de ce téléphone.",
+    "types": {
+      "farm-registry": {
+        "createFarm": "Nouvelle ferme",
+        "updateFarm": "Modification d’une ferme",
+        "createHouse": "Nouveau bâtiment",
+        "updateHouse": "Modification d’un bâtiment"
+      },
+      "reference-data": {
+        "copyProtocol": "Copie d’un programme de vaccination",
+        "updateProtocol": "Modification d’un programme de vaccination"
+      },
+      "notifications": {
+        "markRead": "Notification lue"
+      },
+      "inventory": {
+        "createSupplier": "Nouveau fournisseur",
+        "createStockItem": "Nouvel article de stock",
+        "recordPurchase": "Achat",
+        "adjustStock": "Ajustement de stock",
+        "setThreshold": "Seuil d’alerte de stock",
+        "recordSupplierPayment": "Paiement d’un fournisseur",
+        "debitIssued": "Débit d’un chèque ou effet émis"
+      },
+      "flock": {
+        "placeBatch": "Mise en place d’un lot",
+        "recordDay": "Saisie du jour",
+        "recordWeighing": "Pesée",
+        "closeBatch": "Clôture d’un lot",
+        "transferToLaying": "Transfert en ponte",
+        "recordBatchCost": "Charge d’un lot"
+      },
+      "eggs": {
+        "recordCollection": "Ramassage des œufs",
+        "correctCollection": "Correction d’un ramassage",
+        "gradeEggs": "Calibrage des œufs",
+        "discardEggs": "Œufs écartés"
+      },
+      "health": {
+        "planVaccinations": "Plan de vaccination",
+        "addVaccination": "Ajout d’une vaccination",
+        "moveVaccination": "Report d’une vaccination",
+        "cancelVaccination": "Annulation d’une vaccination",
+        "recordVaccination": "Vaccination faite",
+        "recordTreatment": "Traitement",
+        "recordVetVisit": "Visite du vétérinaire"
+      },
+      "sales": {
+        "createBuyer": "Nouvel acheteur",
+        "setBuyerAddress": "Adresse d’un acheteur",
+        "recordSale": "Vente de poulets",
+        "recordHeadSale": "Vente à la tête",
+        "recordConsumption": "Prélèvement",
+        "recordEggSale": "Vente d’œufs",
+        "recordPayment": "Encaissement",
+        "setInstrumentState": "Suivi d’un chèque ou effet",
+        "unblockBuyer": "Déblocage d’un acheteur",
+        "setCreditLimit": "Plafond de crédit",
+        "approveCredit": "Accord de crédit"
+      },
+      "finance": {
+        "createTreasuryAccount": "Nouveau compte de trésorerie",
+        "recordExpense": "Dépense",
+        "recordTransfer": "Virement entre comptes"
+      },
+      "workforce": {
+        "createEmployee": "Nouvel employé",
+        "updateEmployee": "Modification d’un employé",
+        "saveRoutine": "Tâches habituelles",
+        "addTask": "Nouvelle tâche",
+        "cancelTask": "Annulation d’une tâche",
+        "assignTask": "Attribution d’une tâche",
+        "tickTask": "Tâche faite",
+        "untickTask": "Tâche décochée",
+        "checkIn": "Pointage",
+        "setAttendance": "Présence",
+        "recordAdvance": "Avance sur salaire",
+        "addStaffRecord": "Note au dossier d’un employé",
+        "saveLabourRules": "Règles de paie",
+        "validatePay": "Validation de la paie",
+        "payWages": "Paiement des salaires"
+      },
+      "climate": {
+        "saveTargets": "Consignes de climat",
+        "recordReading": "Relevé de climat",
+        "startPowerCut": "Début d’une coupure de courant",
+        "endPowerCut": "Fin d’une coupure de courant"
+      },
+      "market-prices": {
+        "recordPrice": "Prix du marché"
+      },
+      "planning": {
+        "savePlan": "Lot prévu",
+        "cancelPlan": "Annulation d’un lot prévu",
+        "placeFromPlan": "Mise en place d’un lot prévu",
+        "saveDowntime": "Vide sanitaire prévu"
+      },
+      "biosecurity": {
+        "recordVisit": "Entrée d’un visiteur",
+        "recordDisposal": "Élimination de cadavres",
+        "recordManure": "Sortie de fumier",
+        "startCleanout": "Début du nettoyage",
+        "recordCleanoutStep": "Étape du nettoyage",
+        "recordRodentCheck": "Contrôle des rongeurs",
+        "editVisit": "Correction d’une visite",
+        "editDisposal": "Correction d’une élimination",
+        "editManure": "Correction d’une sortie de fumier",
+        "editRodentCheck": "Correction d’un contrôle des rongeurs",
+        "editCleanoutStep": "Correction d’une étape du nettoyage"
+      },
+      "documents": {
+        "createDocument": "Nouveau document",
+        "updateDocument": "Modification d’un document"
+      }
+    }
   },
   "Pwa": {
     "updateAvailable": "Une nouvelle version de l’application est prête.",

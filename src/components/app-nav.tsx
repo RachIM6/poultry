@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { BrandLockup } from "@/components/brand";
 import { Link, usePathname } from "@/i18n/navigation";
 import { can, type Action } from "@/lib/permissions";
-import { currentScope } from "@/offline/db";
+import { currentScope, localDb } from "@/offline/db";
 
 // tasks/plan-ui.md U2: the phone's bottom tab bar (Today.dc.html) and, on wide screens, the dark sidebar
 // (WebOverview.dc.html). Static, so the offline shells stay static: what depends on the role lives on /more.
@@ -26,8 +26,14 @@ const WIDE: { href: string; key: string; action: Action; icon: string }[] = [
 
 export function AppNav() {
   const t = useTranslations("Nav");
+  const ts = useTranslations("Sync");
   const pathname = usePathname();
   const scope = useLiveQuery(() => currentScope(), []);
+  // ADR-003 §7: refused writes wait on the user; "Plus" leads to /sync, where they are listed.
+  const refused = useLiveQuery(async () => {
+    const s = await currentScope();
+    return s ? localDb(s).needsAttention.count() : 0;
+  }, [], 0);
   const wide = scope ? WIDE.filter((w) => can(scope, w.action)) : [];
   const isIn = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   // Everything that isn't one of the first three tabs is reached from "Plus".
@@ -48,12 +54,18 @@ export function AppNav() {
               aria-current={current === tab.key ? "page" : undefined}
               className="group flex h-full flex-col items-center justify-center gap-1 text-[13px] text-muted aria-[current=page]:font-semibold aria-[current=page]:text-ink lg:min-h-11 lg:flex-row lg:justify-start lg:gap-3 lg:rounded-xl lg:px-3 lg:text-[15px] lg:text-shell lg:hover:bg-shell/10 lg:aria-[current=page]:bg-chick lg:aria-[current=page]:text-ink"
             >
-              <span className="grid h-[30px] w-[52px] place-items-center rounded-full group-aria-[current=page]:bg-chick-soft lg:w-auto lg:group-aria-[current=page]:bg-transparent">
+              <span className="relative grid h-[30px] w-[52px] place-items-center rounded-full group-aria-[current=page]:bg-chick-soft lg:w-auto lg:group-aria-[current=page]:bg-transparent">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d={tab.icon} />
                 </svg>
+                {tab.key === "more" && refused > 0 && (
+                  <span aria-hidden="true" className="absolute -top-1 end-1 min-w-5 rounded-full bg-alert px-1 text-center text-xs font-semibold leading-5 text-white lg:-end-3">
+                    {refused}
+                  </span>
+                )}
               </span>
               {t(tab.key)}
+              {tab.key === "more" && refused > 0 && <span className="sr-only">, {ts("refused", { count: refused, n: String(refused) })}</span>}
             </Link>
           </li>
         ))}

@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { BudgetPlanner } from "@/components/budget";
 import { redirect } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
-import { budgetBases, budgetBatches, budgetOf, listBudgets } from "@/modules/finance";
+import { budgetBases, budgetBatches, budgetOf, listBudgets, type CashTiming } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { saveBudgetAction } from "./actions";
 import { BackLink } from "@/components/app-nav";
@@ -27,6 +27,8 @@ export default function BudgetPage() {
 }
 
 const asText = <T extends Record<string, bigint>>(o: T) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, String(v)])) as Record<keyof T, string>;
+const weightsText = (w: CashTiming["feed"]): [number, string][] => w.map(([d, x]) => [d, String(x)]);
+const timingText = (t: CashTiming) => ({ lastDay: t.lastDay, feed: weightsText(t.feed), other: weightsText(t.other), sales: weightsText(t.sales) });
 
 async function Budget() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
@@ -36,7 +38,7 @@ async function Budget() {
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Budget.title")}</h1>
-      <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs) }))} batches={batches.value} save={saveBudgetAction} />
+      <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs), timing: timingText(b.timing) }))} batches={batches.value} save={saveBudgetAction} />
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Budget.saved")}</h2>
       {saved.value.length === 0 ? (
         <p>{t("Budget.none")}</p>

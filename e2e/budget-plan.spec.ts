@@ -28,6 +28,9 @@ test("a budget copied from a closed batch recomputes its break-even and margin a
   await expect(page.getByLabel("Prix de l’aliment (DH/kg)")).toHaveValue("4,60");
   await expect(figures.nth(1)).toHaveText(/^9,65\sDH \/ kg$/);
   await expect(figures.nth(3)).toHaveText(/^8.700,00\sDH$/);
+  // SPEC-finance §9 "Budget cash need": the copied batch's timing; every cost is paid before its one sale, on day 44
+  await expect(page.getByRole("table", { name: "Besoin de trésorerie par semaine" }).getByRole("row")).toHaveCount(8); // the header and 7 weeks
+  await expect(page.locator("p", { hasText: "Besoin de trésorerie maximal" })).toContainText(/semaine 7.*19.300,00\sDH/);
 
   await page.getByLabel("Prix de l’aliment (DH/kg)").fill("5,00"); // +1 200,00 of feed
   await expect(figures.nth(1)).toHaveText(/^10,25\sDH \/ kg$/);

@@ -1051,7 +1051,19 @@
     "savedOk": "Budget enregistré.",
     "saved": "Budgets enregistrés",
     "none": "Aucun budget enregistré.",
-    "line": "seuil {breakEven} / kg, marge {margin}"
+    "line": "seuil {breakEven} / kg, marge {margin}",
+    "saleDay": "Jour de la vente (jours après la mise en place)",
+    "saleDayMissing": "Indiquez le jour de la vente pour voir le besoin de trésorerie.",
+    "cash": "Besoin de trésorerie par semaine",
+    "peakNeed": "Besoin de trésorerie maximal",
+    "peakWeek": "semaine {week}",
+    "week": "Semaine",
+    "outflow": "Sorties",
+    "inflow": "Entrées",
+    "cumulative": "Trésorerie cumulée",
+    "cashFromBase": "Au rythme de la bande copiée, mis à l’échelle de ce budget : l’aliment aux jours où elle l’a consommé ; les autres coûts aux jours de ses traitements et dépenses, les coûts partagés à parts égales chaque jour ; les ventes aux jours de ses ventes.",
+    "cashPlain": "Sans bande copiée : l’aliment à parts égales chaque jour jusqu’à la vente ; les poussins et les autres coûts le jour de la mise en place ; les ventes le jour de la vente.",
+    "cashNote": "Chaque dépense est payée le jour où elle a lieu : les délais de paiement des fournisseurs ne sont pas enregistrés. Semaine 1 : le jour de la mise en place et les 6 jours suivants."
   },
   "Books": {
     "open": "Comptabilité",

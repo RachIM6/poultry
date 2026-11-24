@@ -4,7 +4,7 @@ import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { budgetBases, budgetOf, listBudgets, saveBudget } from "@/modules/finance";
+import { budgetBases, budgetCash, budgetOf, listBudgets, saveBudget } from "@/modules/finance";
 import { twoTenants } from "@/test/tenant";
 
 const m = <P,>(type: string, payload: P) => ({ id: uuidv7(), type, payload, createdAt: "2026-11-05T08:00:00+01:00" });
@@ -55,6 +55,23 @@ describe("budget from a closed batch (SPEC-finance FN15, T35)", () => {
     ]);
     // The same batch's actual figures: 5 500,00 + 13 800,00 + 500,00 = 19 800,00; break-even 9,90 DH/kg.
     expect(budgetOf(bases.value[0].inputs)).toMatchObject({ plannedCostCentimes: 1_980_000n, breakEvenPerKgCentimes: 990n, plannedMarginCentimes: 820_000n });
+  });
+
+  it("gives the weekly cash need the base batch's timing (SPEC-finance §9 \"Budget cash need\")", async () => {
+    const bases = await budgetBases(a);
+    if (!bases.ok) throw new Error(bases.error);
+    const { inputs, timing } = bases.value[0];
+    // placed 1 Sep, the feed eaten on day 1, the one sale on day 44 (it closed the batch)
+    expect(timing.lastDay).toBe(44);
+    expect(timing.feed).toEqual([[1, 1_380_000n]]);
+    expect(timing.sales).toEqual([[44, 2_000_000n]]);
+    // T24's electricity has no day in the batch: an equal share each of its 45 days
+    expect(timing.other.filter(([, w]) => w > 0n)).toEqual(Array.from({ length: 45 }, (_, d) => [d, 50_000n]));
+    const cash = budgetCash(inputs, timing);
+    expect(cash.weeks).toHaveLength(7);
+    expect(cash.weeks[0].outCentimes).toBe(550_000n + 1_380_000n + 7_778n); // chicks, all the feed, 7/45 of 500,00
+    expect([cash.peakNeedCentimes, cash.peakWeek]).toEqual([1_980_000n, 7]);
+    expect(cash.weeks.at(-1)!.cumulativeCentimes).toBe(820_000n);
   });
 
   it("saves a budget for the owner and the manager only, each organisation its own", async () => {

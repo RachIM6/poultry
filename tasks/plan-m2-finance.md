@@ -170,7 +170,7 @@ Done 2026-11-15 (branch `feat/t35-budget`):
 - **Saved budgets** (`Budget`: the inputs only, the figures are recomputed) through a server action, owner and manager, audited.
 - `/budget` is online.
 
-The weekly cash need came on 2026-11-20 (branch `feat/cash-schedule`) from facts, not from the budget: `/treasury` runs today's cash and bank (5161, 5141) forward over 4 weeks with the cheques and bills to collect and what is due to suppliers, overdue amounts in the first week (F-Effects' schedule). Not yet: a budget's own week-by-week need, which would need feed bought by week and supplier credit terms the app doesn't record.
+The weekly cash need came on 2026-11-20 (branch `feat/cash-schedule`) from facts, not from the budget: `/treasury` runs today's cash and bank (5161, 5141) forward over 4 weeks with the cheques and bills to collect and what is due to suppliers, overdue amounts in the first week (F-Effects' schedule). A budget's own week-by-week need came on 2026-11-24 (branch `feat/budget-weekly-cash`): `budgetCash` spreads the budget's amounts by the copied batch's timing (feed by its consumption days, other costs by its treatments and expenses, sales by its sale days), or by a plain rule from a typed sale day, each outflow paid on its day; peak cash need shown on `/budget` (SPEC-finance §9 "Budget cash need"). Supplier credit terms are still not recorded.
 
 **Size:** M
 

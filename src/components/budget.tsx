@@ -5,15 +5,16 @@ import { useActionState, useId, useState, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { formatKg, formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
-import { budgetOf, type BudgetInputs } from "@/modules/finance/shared";
+import { budgetCash, budgetOf, plainTiming, type BudgetInputs, type CashTiming } from "@/modules/finance/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import { field, primary } from "@/components/ui";
+import { field, primary, table } from "@/components/ui";
 
 // SPEC-finance FN15: a planned batch's budget, copied from a closed batch, with its feed and sale prices as what-if
 // inputs. The figures recompute on every keystroke with the same pure function the server uses.
 
 
-type Base = { batchId: string; label: string; inputs: Record<keyof BudgetInputs, string> }; // centimes and grams as strings
+type TimingText = { lastDay: number; feed: [number, string][]; other: [number, string][]; sales: [number, string][] };
+type Base = { batchId: string; label: string; inputs: Record<keyof BudgetInputs, string>; timing: TimingText }; // centimes and grams as strings
 type Text = Record<keyof BudgetInputs, string>;
 export type SaveState = { ok?: boolean; messageKey?: string };
 
@@ -36,6 +37,9 @@ const toText = (i: Base["inputs"]): Text => ({
   salePricePerKgCentimes: dh(i.salePricePerKgCentimes),
 });
 const EMPTY: Text = { chicks: "", chickPriceCentimes: "", feedGrams: "", feedPricePerKgCentimes: "", otherCostCentimes: "", plannedGrams: "", salePricePerKgCentimes: "" };
+
+const weights = (w: [number, string][]): CashTiming["feed"] => w.map(([d, x]) => [d, BigInt(x)]);
+const timingOf = (t: TimingText): CashTiming => ({ lastDay: t.lastDay, feed: weights(t.feed), other: weights(t.other), sales: weights(t.sales) });
 
 /** The typed values, or null while one of them doesn't parse. */
 function parse(t: Text): BudgetInputs | null {
@@ -68,8 +72,12 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
     if (saved.ok) setId(uuidv7()); // the next budget is a new one
     return saved;
   }, {});
+  const [saleDay, setSaleDay] = useState(""); // without a base batch: when the sale is planned (§9 "Budget cash need")
   const inputs = parse(text);
   const b = inputs && budgetOf(inputs);
+  const base = bases.find((x) => x.batchId === basedOn);
+  const timing = base ? timingOf(base.timing) : /^\d{1,3}$/.test(saleDay.trim()) ? plainTiming(Number(saleDay.trim())) : null;
+  const cash = inputs && timing && budgetCash(inputs, timing);
 
   const set = (k: keyof Text) => (e: { target: { value: string } }) => setText({ ...text, [k]: e.target.value });
   const pick = (id: string) => {
@@ -123,6 +131,46 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
       ) : (
         <p role="alert">{tr("errors.INVALID_INPUT")}</p>
       )}
+
+      {/* SPEC-finance FN15, §9 "Budget cash need": the batch's cash week by week, from the base batch's timing or the plain rule */}
+      <section className="flex flex-col gap-2" aria-labelledby="budget-cash">
+        <h2 id="budget-cash" className="text-[17px] font-semibold text-ink-2">{t("cash")}</h2>
+        {!base && <Field label={t("saleDay")}>{(id) => <input id={id} value={saleDay} onChange={(e) => setSaleDay(e.target.value)} inputMode="numeric" dir="ltr" className={field} />}</Field>}
+        {cash ? (
+          <>
+            <p className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl border border-line bg-card p-3" aria-live="polite">
+              <span>
+                {t("peakNeed")}
+                {cash.peakWeek !== null && <span className="text-sm text-ink-2"> · {t("peakWeek", { week: cash.peakWeek })}</span>}
+              </span>
+              <bdi dir="ltr" className="text-xl font-semibold tabular-nums">{formatMoney(cash.peakNeedCentimes)}</bdi>
+            </p>
+            <table className={table} aria-label={t("cash")}>
+              <thead>
+                <tr>
+                  <th scope="col" className="p-2 text-start">{t("week")}</th>
+                  <th scope="col" className="p-2 text-end">{t("outflow")}</th>
+                  <th scope="col" className="p-2 text-end">{t("inflow")}</th>
+                  <th scope="col" className="p-2 text-end">{t("cumulative")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cash.weeks.map((w) => (
+                  <tr key={w.week} className={`border-t border-line ${w.week === cash.peakWeek ? "font-semibold" : ""}`}>
+                    <th scope="row" className="p-2 text-start font-normal">{w.week}</th>
+                    <td dir="ltr" className="p-2 text-end tabular-nums">{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</td>
+                    <td dir="ltr" className="p-2 text-end tabular-nums">{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</td>
+                    <td dir="ltr" className={`p-2 text-end tabular-nums ${w.cumulativeCentimes < 0n ? "text-brick-fg" : ""}`}>{formatMoney(w.cumulativeCentimes)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-sm text-ink-2">{t(base ? "cashFromBase" : "cashPlain")} {t("cashNote")}</p>
+          </>
+        ) : (
+          inputs && <p className="text-sm text-ink-2">{t("saleDayMissing")}</p>
+        )}
+      </section>
 
       {/* What the server saves: the parsed inputs, in centimes and grams. */}
       {inputs && Object.entries(inputs).map(([k, v]) => <input key={k} type="hidden" name={k} value={String(v)} />)}

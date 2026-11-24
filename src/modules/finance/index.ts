@@ -15,6 +15,7 @@ export { IMPORT_MAX_BYTES, importBankFile, type BankImport, type ImportFailure }
 export { batchResults, freezeClosedBatches, type BatchResultRow } from "./application/batch-results";
 export { budgetBases, budgetBatches, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";
+export { budgetCash, plainTiming, type BudgetCash, type CashTiming, type CashWeek } from "./domain/budget-cash";
 export { readBooks, type Books } from "./application/books";
 export { attachManualEntryReceipt, postManualEntry, type ManualEntryError } from "./application/manual";
 export type { IncomeStatement } from "./domain/statements";

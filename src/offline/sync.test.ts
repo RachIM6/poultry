@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { Dexie } from "dexie";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MutationResult, PullResponse } from "@/lib/sync/protocol";
 import { cachedReference, currentScope, localDb, metaValue, rememberScope, signOutLocally, type Scope } from "./db";
 import { writeLocal } from "./outbox";
@@ -114,6 +114,40 @@ describe("pull merge (ADR-003)", () => {
 
     expect(await db.records.toArray()).toEqual([{ key: "farm:f1", entity: "farm", id: "f1", data: { name: "v2" } }]);
     expect(await metaValue(db, "cursor")).toBe(4);
+  });
+
+  it("applies a page of 1,000 changes in bulk, to the state applying them one by one gives", async () => {
+    const s = scope();
+    const db = localDb(s);
+    for (let i = 0; i < 100; i++) await db.records.put({ key: `dailyEntry:e${i}`, entity: "dailyEntry", id: `e${i}`, data: { v: 0 } });
+    // Updates, deletions, records changed several times in the page (the last change wins), some deleted then created again.
+    const changes = Array.from({ length: 1_000 }, (_, i) => ({ entity: "dailyEntry", id: `e${i % 300}`, version: i + 1, data: i % 7 === 0 ? null : { v: i } }));
+    const expected = new Map((await db.records.toArray()).map((r) => [r.key, r]));
+    expected.set("dailyEntry:e7", { key: "dailyEntry:e7", entity: "dailyEntry", id: "e7", data: { local: true } });
+    for (const c of changes) {
+      const key = `${c.entity}:${c.id}`;
+      if (key === "dailyEntry:e7") continue; // saved on the phone during the pull: its write is still queued
+      if (c.data === null) expected.delete(key);
+      else expected.set(key, { key, entity: c.entity, id: c.id, data: c.data });
+    }
+    const srv = server({ changes });
+    const savingDuringPull = (async (url: string, init?: RequestInit) => {
+      if (url.startsWith("/api/sync/pull")) await writeLocal(db, { type: "flock.recordDay", payload: {} }, { entity: "dailyEntry", id: "e7", data: { local: true } });
+      return srv.fetchFn(url, init);
+    }) as typeof fetch;
+    const put = vi.spyOn(db.records, "put");
+    const del = vi.spyOn(db.records, "delete");
+    const bulkPut = vi.spyOn(db.records, "bulkPut");
+    const bulkDelete = vi.spyOn(db.records, "bulkDelete");
+
+    expect(await syncOnce(db, s, savingDuringPull)).toBe("ok");
+    expect(put).not.toHaveBeenCalled();
+    expect(del).not.toHaveBeenCalled();
+    expect(bulkPut).toHaveBeenCalledTimes(2); // the local write, then the page
+    expect(bulkDelete).toHaveBeenCalledTimes(2);
+    const byKey = (a: { key: string }, b: { key: string }) => a.key.localeCompare(b.key);
+    expect((await db.records.toArray()).sort(byKey)).toEqual([...expected.values()].sort(byKey));
+    expect(await metaValue(db, "cursor")).toBe(1_000);
   });
 
   it("doesn't overwrite a record saved on the phone while the pull was on its way", async () => {

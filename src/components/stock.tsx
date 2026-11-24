@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney } from "@/lib/format";
@@ -35,6 +35,7 @@ import {
   type IssuedDebitDto,
 } from "@/modules/inventory/schema";
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
+import { groupRecords } from "@/offline/group";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useFieldError, useInline } from "@/components/focus";
@@ -75,10 +76,10 @@ function Stock(scope: Scope) {
   const [farmId, setFarmId] = useState<string>();
   const { open, opener, close } = useInline<"item" | "purchase" | "adjust">();
   const [message, setMessage] = useState<string>();
+  const { of } = useMemo(() => groupRecords(records ?? []), [records]); // once per read
   if (!records || reference === undefined) return null;
 
-  const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
-  const farms = of<FarmDto>("farm").sort((x, y) => x.name.localeCompare(y.name));
+  const farms = [...of<FarmDto>("farm")].sort((x, y) => x.name.localeCompare(y.name));
   if (farms.length === 0) {
     return (
       <p>
@@ -92,13 +93,23 @@ function Stock(scope: Scope) {
   const onHand = stockOnHand(movements);
   // S5: what the stock is worth at weighted average cost. Purchases carry amounts only for those who manage stock.
   const paid = new Map(of<PurchaseDto>("purchase").map((p) => [p.id, BigInt(p.amountCentimes ?? 0)]));
-  const valueOf = (itemId: string) =>
-    valuate(
-      movements
-        .filter((m) => m.stockItemId === itemId)
-        .map((m) => ({ id: m.id, day: m.day, quantity: m.quantity, purchaseAmountCentimes: m.purchaseId ? (paid.get(m.purchaseId) ?? 0n) : undefined })),
-    ).valueCentimes;
-  const suppliers = of<SupplierDto>("supplier").sort((x, y) => x.name.localeCompare(y.name));
+  const movementsOf = new Map<string, MovementDto[]>();
+  for (const m of movements) {
+    const own = movementsOf.get(m.stockItemId);
+    if (own) own.push(m);
+    else movementsOf.set(m.stockItemId, [m]);
+  }
+  const worth = new Map<string, bigint>();
+  const valueOf = (itemId: string) => {
+    let value = worth.get(itemId);
+    if (value === undefined) {
+      const own = movementsOf.get(itemId) ?? [];
+      value = valuate(own.map((m) => ({ id: m.id, day: m.day, quantity: m.quantity, purchaseAmountCentimes: m.purchaseId ? (paid.get(m.purchaseId) ?? 0n) : undefined }))).valueCentimes;
+      worth.set(itemId, value);
+    }
+    return value;
+  };
+  const suppliers = [...of<SupplierDto>("supplier")].sort((x, y) => x.name.localeCompare(y.name));
   const manage = can(scope, "stock.manage");
 
   const write: Write = async (mutation, recs) => {

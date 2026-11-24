@@ -38,6 +38,20 @@ export function localDb(scope: Pick<Scope, "userId" | "organizationId">): LocalD
   return db;
 }
 
+/**
+ * Saves local records, or deletes them (`data: null`), in bulk inside the caller's transaction: one bulkDelete and one
+ * bulkPut, not a request per record. The last change to a key wins, as applying them one by one in order would.
+ */
+export async function applyRecords(db: LocalDb, changes: Iterable<{ entity: string; id: string; data: unknown }>) {
+  const latest = new Map<string, LocalRecord | null>();
+  for (const { entity, id, data } of changes) {
+    const key = `${entity}:${id}`;
+    latest.set(key, data === null ? null : { key, entity, id, data });
+  }
+  await db.records.bulkDelete([...latest].flatMap(([key, record]) => (record ? [] : [key])));
+  await db.records.bulkPut([...latest.values()].filter((record) => record !== null));
+}
+
 export const metaValue = async <K extends Meta["key"]>(db: LocalDb, key: K) =>
   (await db.meta.get(key))?.value as Extract<Meta, { key: K }>["value"] | undefined;
 

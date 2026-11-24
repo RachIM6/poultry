@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { ageText } from "@/components/batch-age";
 import { BatchStrip, stripDays } from "@/components/batch-strip";
 import { card } from "@/components/ui";
@@ -18,6 +18,7 @@ import { eggsIn, layerKpis, type EggCollectionDto } from "@/modules/eggs/shared"
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
 import { SyncBadge } from "@/components/sync-status";
 import { cachedReference, currentScope, localDb, scopeKey } from "@/offline/db";
+import { groupRecords } from "@/offline/group";
 
 // tasks/plan-ui.md U3, Today.dc.html: the home screen. A dark header with each open batch's 42-day strip, then the
 // day's tasks: today's entry, vaccines due, missing days, a withdrawal in progress. Read from the phone's database.
@@ -58,9 +59,9 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "soldBirds", "vaccination", "treatment", "eggCollection").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
+  const { of, ofBatch } = useMemo(() => groupRecords(records ?? []), [records]); // once per read, not per batch
   if (!records || reference === undefined) return null;
 
-  const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const scope = { userId, organizationId, role };
   const farming = pulls(role, "dailyEntry"); // SPEC-m5 §5: none on the accountant's phone, so no count, strip or figure
   const recording = can(scope, "flock.record"); // the day's entry and the days missing are the recorders' tasks
@@ -68,11 +69,8 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   const farms = of<FarmDto>("farm");
   const houses = of<HouseDto>("house");
   const open = of<BatchDto>("batch").filter((b) => b.status === "open").sort((a, b) => a.placedOn.localeCompare(b.placedOn));
-  const entries = of<DailyEntryDto>("dailyEntry");
-  const weighings = of<WeighingDto>("weighing");
-  const sold = of<SoldBirdsDto>("soldBirds");
-  const vaccinations = of<VaccinationDto>("vaccination");
-  const treatments = of<TreatmentDto>("treatment");
+  const entriesOf = (b: BatchDto) => ofBatch<DailyEntryDto>("dailyEntry", b.id);
+  const soldOf = (b: BatchDto) => ofBatch<SoldBirdsDto>("soldBirds", b.id);
   const strains = reference?.data.strains ?? [];
   const products = reference?.data.products ?? [];
   const day = (d: string) => formatDay(d as FarmDay, locale);
@@ -81,21 +79,21 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   const farm = farms.find((f) => f.id === open[0]?.farmId) ?? farms[0];
   const strainOf = (b: BatchDto) => strains.find((s) => s.id === b.strainId);
   // SPEC-m3 D1 (P-Owner): layers show their latest laying rate vs the standard; the headline counts yesterday's eggs.
-  const collections = of<EggCollectionDto>("eggCollection");
+  const collectionsOf = (b: BatchDto) => ofBatch<EggCollectionDto>("eggCollection", b.id);
   const yesterday = addFarmDays(today, -1);
-  const eggsYesterday = collections.filter((c) => c.day === yesterday && open.some((b) => b.id === c.batchId)).reduce((n, c) => n + eggsIn(c.counts), 0);
+  const eggsYesterday = open.flatMap((b) => collectionsOf(b).filter((c) => c.day === yesterday)).reduce((n, c) => n + eggsIn(c.counts), 0);
   const laying = (b: BatchDto) =>
     layerKpis(
       { placedOn: b.placedOn as FarmDay, ageAtPlacementDays: b.ageAtPlacementDays, hensHoused: birdsStarted(b) },
-      entries.filter((e) => e.batchId === b.id),
-      sold.filter((s) => s.batchId === b.id),
-      collections.filter((c) => c.batchId === b.id),
+      entriesOf(b),
+      soldOf(b),
+      collectionsOf(b),
       today,
     ).lastDay;
   // SPEC-m3 D1: broilers, turkeys and pullets show their weight vs the standard (the weight alone until a curve is
   // loaded: OQ5), then broilers and turkeys their FCR, pullets their uniformity.
   const weight = (b: BatchDto) => {
-    const w = houseWeight(b, weighings.filter((x) => x.batchId === b.id), strainOf(b)?.curves ?? []);
+    const w = houseWeight(b, ofBatch<WeighingDto>("weighing", b.id), strainOf(b)?.curves ?? []);
     if (!w) return null;
     const vs = w.standard && t("Weighing.versusStandard", { gap: formatPercent(w.standard.gapPercent, true), standard: formatKg(w.standard.grams) });
     return [t("Today.weight", { weight: formatKg(w.averageGrams) }), vs].filter(Boolean).join(" · ");
@@ -103,21 +101,21 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   const figure = (b: BatchDto) => {
     const f = houseFigure(
       { placedOn: b.placedOn as FarmDay, birdsStarted: birdsStarted(b), dayOldWeightGrams: b.dayOldWeightGrams, ageAtPlacementDays: b.ageAtPlacementDays, species: b.species },
-      entries.filter((e) => e.batchId === b.id),
-      weighings.filter((w) => w.batchId === b.id),
+      entriesOf(b),
+      ofBatch<WeighingDto>("weighing", b.id),
       today,
-      sold.filter((s) => s.batchId === b.id),
+      soldOf(b),
     );
     return f && (f.kind === "fcr" ? t("Today.fcr", { fcr: formatDecimal(f.value, 2) }) : t("Weighing.uniformity", { percent: formatPercent(f.value) }));
   };
 
   const batches = open.map((b) => {
     const placedOn = b.placedOn as FarmDay;
-    const own = entries.filter((e) => e.batchId === b.id);
-    const its = treatments.filter((x) => x.batchId === b.id);
+    const own = entriesOf(b);
+    const its = ofBatch<TreatmentDto>("treatment", b.id);
     const until = withdrawalUntil(its.map((x) => ({ ...x, startOn: x.startOn as FarmDay, endOn: x.endOn as FarmDay })), today);
     const from = its.filter((x) => x.withdrawalEndsOn >= today).map((x) => x.startOn).sort()[0];
-    const due = vaccinations.filter((v) => v.batchId === b.id && !v.done);
+    const due = ofBatch<VaccinationDto>("vaccination", b.id).filter((v) => !v.done);
     const age = ageOn(placedOn, today);
     const days = stripDays({
       placedOn,
@@ -128,7 +126,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
       withdrawal: until && from ? { from: from as FarmDay, to: until } : null,
       rolling: b.species !== "broiler", // SPEC-m3: long cycles show a rolling window
     });
-    const birds = birdsOnHand(birdsStarted(b), own, sold.filter((s) => s.batchId === b.id));
+    const birds = birdsOnHand(birdsStarted(b), own, soldOf(b));
     const house = houses.find((h) => h.id === b.houseId)?.name ?? "";
     // SPEC-m3 R5: a "non précisée" strain shows the production type instead; turkeys show their sex.
     const named = b.strainId.startsWith("unspecified-") ? t(`Types.${b.species}`) : (strainOf(b)?.name ?? b.strainId);

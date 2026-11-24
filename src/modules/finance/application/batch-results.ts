@@ -96,7 +96,9 @@ export type BatchResultRow = BatchResult & {
 export async function batchResults(ctx: TenantContext, asOf?: FarmDay): Promise<Result<BatchResultRow[], "FORBIDDEN">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   await catchUpBooks(ctx); // §9: a batch that closed gets its shares frozen too
-  return ok(await db.$transaction((tx) => batchResultsIn(tx, ctx, asOf)));
+  // A read on the pool: an interactive transaction would hold a connection for all of it and, waiting for one under
+  // load, fail the page (P2028). Postgres' READ COMMITTED gives each statement its own snapshot inside one anyway.
+  return ok(await batchResultsIn(db, ctx, asOf));
 }
 
 /** FN13 as text for the screens that show a batch's money (§9 "One cost per kg"): the report, the closing card, /compare. */
@@ -118,7 +120,7 @@ export async function batchResultDtos(ctx: TenantContext): Promise<Result<BatchR
   );
 }
 
-/** FN13 inside the caller's transaction (the close run, FC4). */
+/** FN13 inside the caller's transaction (the close run, FC4), or on `db` for a read. */
 export async function batchResultsIn(tx: Tx, ctx: TenantContext, asOf?: FarmDay): Promise<BatchResultRow[]> {
   const batches = await batchesForFinance(tx, ctx, asOf);
   const sales = await salesByBatch(tx, ctx, asOf);

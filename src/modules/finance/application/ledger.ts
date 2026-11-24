@@ -222,11 +222,9 @@ export async function accountingChoicesOpen(ctx: TenantContext, entity: LegalEnt
  */
 export async function accountingSettings(ctx: TenantContext, clock: Clock = systemClock) {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
-  const [first] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation (see postPending)
-  if (!first) return ok(null);
-  return db.$transaction(async (tx) => {
-    const entity = (await legalEntityIn(tx, ctx, first.id))!;
-    const nextYearFrom = addFarmDays(fiscalYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth).to, 1);
-    return ok({ entity, books: booksAllowed(entity.form), locked: await yearHasEntries(tx, ctx, entity, clock), nextYearFrom });
-  });
+  const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation (see postPending)
+  if (!entity) return ok(null);
+  // A read: no row lock nor interactive transaction (P2028 under load); the change re-checks under the lock.
+  const nextYearFrom = addFarmDays(fiscalYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth).to, 1);
+  return ok({ entity, books: booksAllowed(entity.form), locked: await yearHasEntries(db, ctx, entity, clock), nextYearFrom });
 }

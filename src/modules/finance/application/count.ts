@@ -44,15 +44,11 @@ export async function yearEndCount(ctx: TenantContext, year: number | null, cloc
   const y = year ?? countYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth);
   if (!yearIn(y)) return fail("INVALID_INPUT");
   const day = countDay(y, entity.fiscalYearStartMonth);
-  return ok(
-    await db.$transaction(async (tx) => {
-      const { lines } = await sheet(tx, ctx, entity.id, day);
-      const frozen = await closePosted(tx, ctx, entity.id, y);
-      const names = await placeNames(tx, ctx, [...new Set(lines.map((l) => l.farmId))]);
-      const farms = [...new Set(lines.map((l) => l.farmId))].map((id) => ({ id, name: names.get(id) ?? "", lines: lines.filter((l) => l.farmId === id) }));
-      return { year: y, day, frozen, farms: farms.sort((a, b) => a.name.localeCompare(b.name)) };
-    }),
-  );
+  // A read: on the pool, no interactive transaction holding a connection (P2028 under load).
+  const [{ lines }, frozen] = await Promise.all([sheet(db, ctx, entity.id, day), closePosted(db, ctx, entity.id, y)]);
+  const names = await placeNames(db, ctx, [...new Set(lines.map((l) => l.farmId))]);
+  const farms = [...new Set(lines.map((l) => l.farmId))].map((id) => ({ id, name: names.get(id) ?? "", lines: lines.filter((l) => l.farmId === id) }));
+  return ok({ year: y, day, frozen, farms: farms.sort((a, b) => a.name.localeCompare(b.name)) });
 }
 
 export const SaveCount = z.object({ year: z.number().int(), counts: z.record(z.string(), z.string().trim().max(20)) });

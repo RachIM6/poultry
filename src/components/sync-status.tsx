@@ -73,8 +73,8 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
       metaValue(db, "lastSyncAt"),
       metaValue(db, "lastOutcome"),
     ]);
-    // The house and farm names that say where each refused write belongs.
-    const places = rejected.length > 0 ? await db.records.where("entity").anyOf("batch", "house", "farm").toArray() : [];
+    // The names that say where each refused write belongs and who or what it was about.
+    const places = rejected.length > 0 ? await db.records.where("entity").anyOf("batch", "house", "farm", "buyer", "stockItem", "supplier").toArray() : [];
     return { pending, rejected, lastSyncAt, outcome, places };
   }, [userId, organizationId]);
 
@@ -113,7 +113,7 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
           <ul className="flex flex-col gap-3">
             {rejected.map((entry) => {
               const { place, day } = refusalContext(entry.payload, places);
-              const values = payloadSummary(entry.payload);
+              const values = payloadSummary(entry.payload, places, (key, v) => t(key, v), locale);
               const href = redoHref(entry.type, entry.payload);
               return (
                 <li key={entry.id} className="flex flex-col gap-2 rounded-2xl bg-alert-soft p-3 text-alert-fg">
@@ -123,7 +123,7 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
                   {values.length > 0 && (
                     <div className="text-sm">
                       <p className="font-medium">{t("Sync.values")}</p>
-                      <p dir="ltr" className="break-words">{values.join(" · ")}</p>
+                      <p className="break-words">{values.join(" · ")}</p>
                     </div>
                   )}
                   <p className="text-sm text-muted">{formatDateTime(entry.createdAt, locale)}</p>

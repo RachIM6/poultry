@@ -119,6 +119,7 @@
     "unknownType": "Action inconnue",
     "redo": "Saisir à nouveau",
     "values": "Ce que vous aviez saisi",
+    "value": "{label} : {value}",
     "dismissConfirm": "Retirer cette écriture refusée ? Ce que vous aviez saisi sera effacé de ce téléphone.",
     "types": {
       "farm-registry": {

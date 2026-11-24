@@ -55,7 +55,7 @@ test("an offline write survives a reload, then syncs; a refused one waits in 'ne
   // Each refused write says what it was, what was typed and where to type it again; the nav counts them.
   await expect(page.getByRole("heading", { name: "Action inconnue" })).toBeVisible();
   const day = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name: "Saisie du jour" }) });
-  await expect(day.getByText("changes.dead: 3")).toBeVisible();
+  await expect(day.getByText("Morts : 3")).toBeVisible();
   await expect(day.getByRole("link", { name: "Saisir à nouveau" })).toHaveAttribute("href", `/fr/batches#${batchId}`);
   await expect(page.getByRole("link", { name: /2 écritures refusées à vérifier/ })).toBeVisible();
   await page.goto("/fr/dashboard");

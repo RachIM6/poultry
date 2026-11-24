@@ -40,9 +40,43 @@ describe("refused writes (ADR-003 §7)", () => {
     expect(refusalContext("not an object", records)).toEqual({ place: undefined, day: undefined });
   });
 
-  it("sums up what was typed, without ids or empty fields, long values cut", () => {
-    const payload = { id: "e", batchId: "b1", day: "2026-11-20", dead: 3, deathCause: "", note: null, vaccinated: false, feed: { stockItemId: "s", grams: 85_000 }, lines: [{ eggs: 30 }], staffIds: ["a"], file: "x".repeat(50) };
-    expect(payloadSummary(payload)).toEqual(["day: 2026-11-20", "dead: 3", "vaccinated: false", "feed.grams: 85000", "lines.0.eggs: 30", `file: ${"x".repeat(40)}…`]);
-    expect(payloadSummary(undefined)).toEqual([]);
+  // The forms' own labels (plain messages: no ICU here), in both languages.
+  const translator = (messages: typeof fr) => (key: string, values: Record<string, string> = {}) =>
+    String(key.split(".").reduce<unknown>((node, k) => (node as Record<string, unknown>)[k], messages)).replace(/\{(\w+)\}/g, (_, k: string) => values[k]);
+  // Intl puts narrow no-break spaces in numbers and amounts.
+  const summary = (...args: Parameters<typeof payloadSummary>) => payloadSummary(...args).map((line) => line.replace(/\s/g, " "));
+  const records = [
+    { key: "buyer:u1", data: { id: "u1", name: "Hassan" } },
+    { key: "stockItem:s1", data: { id: "s1", name: "Démarrage" } },
+  ];
+
+  it("says what was typed in the form's words and units, without bare ids or empty fields", () => {
+    const day = { id: "e", batchId: "b1", day: "2026-11-20", changes: { dead: 3, deathCause: "heat", culled: 0, feed: { stockItemId: "s1", grams: 85_500 }, waterMl: 120_000, note: "" } };
+    expect(summary(day, records, translator(fr), "fr")).toEqual([
+      "Jour : 20 novembre 2026",
+      "Morts : 3",
+      "Cause : Chaleur",
+      "Réformés (éliminés) : 0",
+      "Article : Démarrage",
+      "Aliment : 85,5 kg",
+      "Eau : 120,0 L",
+    ]);
+    expect(summary(day, records, translator(ar), "ar")).toContain("النافق: 3");
+  });
+
+  it("reads money in DH and weights in kg; an unknown field keeps its name, an unknown id is left out", () => {
+    const sale = { id: "x", batchId: "b1", buyerId: "u1", birds: 200, farmWeightGrams: 500_000, pricePerKgCentimes: "1850", takenBy: "owner", staffIds: ["a"], payment: { treasuryId: "t", dueOn: "2026-12-01" }, file: "x".repeat(50) };
+    expect(summary(sale, records, translator(fr), "fr")).toEqual([
+      "Acheteur : Hassan",
+      "Nombre d’oiseaux : 200",
+      "Poids total à la ferme : 500 kg",
+      "Prix au kg (DH) : 18,50 DH",
+      "takenBy : owner",
+      "payment.dueOn : 1 décembre 2026",
+      `file : ${"x".repeat(40)}…`,
+    ]);
+    expect(summary({ sample: { weightsGrams: [2_100, 2_250] } }, [], translator(fr), "fr")).toEqual(["Poids : 2,1 kg, 2,25 kg"]);
+    expect(summary({ buyerId: "gone" }, [], translator(fr), "fr")).toEqual([]);
+    expect(summary(undefined, [], translator(fr), "fr")).toEqual([]);
   });
 });

@@ -119,6 +119,7 @@
     "unknownType": "عملية غير معروفة",
     "redo": "أدخلها من جديد",
     "values": "ما كنت قد أدخلته",
+    "value": "{label}: {value}",
     "dismissConfirm": "حذف هذه الكتابة المرفوضة؟ سيُمحى ما كنت قد أدخلته من هذا الهاتف.",
     "types": {
       "farm-registry": {

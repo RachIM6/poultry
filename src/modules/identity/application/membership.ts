@@ -4,7 +4,7 @@ import { farmDayOf } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Role, TenantContext } from "@/lib/tenant";
 import { getSession } from "@/modules/identity/application/login";
-import { SaveLocale } from "@/modules/identity/schema";
+import { PARTNER_ROLES, SaveLocale } from "@/modules/identity/schema";
 
 /** SPEC-m5 PA2 (ADR-013): the organisation the user chose. Only a hint: it opens nothing unless it is a live membership. */
 export const ORG_COOKIE = "__Host-org";
@@ -15,6 +15,11 @@ const chosenOrganization = (headers: Headers) =>
 const live = (clock: Clock) => ({ OR: [{ accessUntil: null }, { accessUntil: { gte: new Date(`${farmDayOf(clock.now())}T00:00:00Z`) } }] });
 const liveMemberships = (userId: string, clock: Clock) =>
   db.membership.findMany({ where: { userId, ...live(clock) }, orderBy: { createdAt: "asc" }, include: { organization: { select: { name: true } } } });
+/** The membership a request opens: the chosen organisation when it is a live membership, else the oldest. */
+const openedMembership = async (userId: string, headers: Headers, clock: Clock) => {
+  const memberships = await liveMemberships(userId, clock);
+  return memberships.find((m) => m.organizationId === chosenOrganization(headers)) ?? memberships[0];
+};
 
 /**
  * ADR-006 choke point: session cookie → membership → tenant context. A signed-in user with no membership onboards.
@@ -23,9 +28,7 @@ const liveMemberships = (userId: string, clock: Clock) =>
 export async function getTenantContext(headers: Headers, clock: Clock = systemClock): Promise<Result<TenantContext, "UNAUTHENTICATED" | "NO_MEMBERSHIP">> {
   const session = await getSession(headers);
   if (!session) return fail("UNAUTHENTICATED");
-  const memberships = await liveMemberships(session.userId, clock);
-  const chosen = chosenOrganization(headers);
-  const membership = memberships.find((m) => m.organizationId === chosen) ?? memberships[0];
+  const membership = await openedMembership(session.userId, headers, clock);
   if (!membership) return fail("NO_MEMBERSHIP");
   return ok({ userId: session.userId, organizationId: membership.organizationId, role: membership.role });
 }
@@ -62,6 +65,17 @@ export async function chooseOrganization(headers: Headers, organizationId: strin
   if (!membership) return fail("NOT_FOUND");
   await db.auditEvent.create({ data: { organizationId, userId: session.userId, entity: "Membership", entityId: membership.id, action: "open", after: { role: membership.role } } });
   return ok(undefined);
+}
+
+/**
+ * SPEC-m5 PA6: a partner's sign-in opens the organisation getTenantContext will open (the chosen one, else the oldest),
+ * and that organisation's audit log gets the same `Membership/open` as a switch (chooseOrganization). Once, at login:
+ * the session then stays in it until a switch, which is audited there.
+ */
+export async function auditPartnerSignIn(userId: string, headers: Headers, clock: Clock = systemClock) {
+  const membership = await openedMembership(userId, headers, clock);
+  if (!membership || !PARTNER_ROLES.includes(membership.role)) return;
+  await db.auditEvent.create({ data: { organizationId: membership.organizationId, userId, entity: "Membership", entityId: membership.id, action: "open", after: { role: membership.role, signIn: true } } });
 }
 
 /** SPEC-m5 PA2: a signed-in user accepts an invitation sent to their own phone; returns the organisation it opens. */

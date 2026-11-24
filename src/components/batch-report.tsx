@@ -84,7 +84,7 @@ function ReportDocument({ batch, house, report: r }: { batch: BatchDto; house: H
         <h2 className="text-lg font-semibold">{t("production")}</h2>
         <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4 print:grid-cols-4">
           <Figure label={t("age")}>{t("days", { days: k.ageDays })}</Figure>
-          <Figure label={t("placed")}>{formatCount(k.placed)}</Figure>
+          <Figure label={t("placed")}>{k.freeChicks > 0 ? t("placedFree", { birds: formatCount(k.placed), free: formatCount(k.freeChicks) }) : formatCount(k.placed)}</Figure>
           <Figure label={t("dead")}>{formatCount(k.dead)} · {formatPercent(k.mortalityPercent)} %</Figure>
           <Figure label={t("sold")}>{formatCount(k.sold)} · {formatKg(k.soldGrams)}</Figure>
           <Figure label={t("feed")}>{formatKg(k.feedGrams)}</Figure>

@@ -46,7 +46,8 @@ describe("buildRegister", () => {
       hatchery: "Couvoir Chaouia",
       deliveryNote: "CC-26-0974",
       placedOn: "2026-09-21",
-      chicksPlaced: 10000,
+      placed: 10000,
+      freeChicks: 0,
       deadOnArrival: 0,
       closedOn: "2026-11-03",
       // a farm stored before the register's fields: lines left to fill by hand
@@ -96,8 +97,9 @@ describe("buildRegister", () => {
   });
 
   it("daily rows: birds on hand start from the birds started, free chicks included (SPEC-m3 B10)", () => {
-    const days = buildRegister(input({ batch: { ...input().batch, freeChicks: 200, deadOnArrival: 50 } })).days;
-    expect(days.map((d) => d.onHand)).toEqual([9774, 9770, 5770]); // 10 000 + 200 free − 50 on arrival − 376 …
+    const r = buildRegister(input({ batch: { ...input().batch, freeChicks: 200, deadOnArrival: 50 } }));
+    expect(r.days.map((d) => d.onHand)).toEqual([9774, 9770, 5770]); // 10 000 + 200 free − 50 on arrival − 376 …
+    expect(r.cover).toMatchObject({ placed: 10200, freeChicks: 200, deadOnArrival: 50 }); // art. 3: all the birds placed
   });
 
   it("daily rows: a sale on a day nobody entered still takes its birds off the birds on hand", () => {

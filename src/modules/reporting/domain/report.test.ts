@@ -37,7 +37,7 @@ const input = {
 describe("buildBatchReport", () => {
   it("final figures of a closed batch: mortality, feed conversion on the kg sold, health summary", () => {
     const r = buildBatchReport(input);
-    expect(r.kpis).toMatchObject({ placed: 1000, dead: 40, sold: 960, soldGrams: 2_370_000, feedGrams: 4_000_000, mortalityPercent: 4, fcr: 4000 / 2370 });
+    expect(r.kpis).toMatchObject({ placed: 1000, freeChicks: 0, dead: 40, sold: 960, soldGrams: 2_370_000, feedGrams: 4_000_000, mortalityPercent: 4, fcr: 4000 / 2370 });
     expect(r.health).toEqual({ vaccinesDone: 1, vaccinesPlanned: 2, treatments: 1, lastWithdrawalEnd: "2026-10-31" });
   });
 
@@ -57,6 +57,7 @@ describe("buildBatchReport", () => {
     const b = { ...b13, freeChicks: 20, deadOnArrival: 20, ageAtPlacementDays: 10 }; // 1 000 + 20 free − 20 on arrival
     const k = buildBatchReport({ ...input, batch: b, batches: [b, b11] }).kpis;
     expect(k.mortalityPercent).toBe(4); // 40 of 1 000, not of 980
+    expect(k).toMatchObject({ placed: 1020, freeChicks: 20 }); // placed: billed + free
     expect(k.ageDays).toBe(53); // 43 days in the house + 10 at placement
   });
 

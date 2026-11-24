@@ -41,7 +41,8 @@ function figures(b: BatchDto, i: Pick<Input, "entries" | "weighings" | "sold" | 
   const soldGrams = sold.reduce((n, s) => n + s.liveWeightGrams, 0);
   return {
     ...k,
-    placed: b.chicksPlaced,
+    placed: b.chicksPlaced + (b.freeChicks ?? 0), // billed + free supplement (SPEC-m3 B10), as the register's art. 3
+    freeChicks: b.freeChicks ?? 0,
     dead: entries.reduce((n, e) => n + e.dead + e.culled, 0),
     sold: sold.reduce((n, s) => n + s.birds, 0),
     soldGrams,

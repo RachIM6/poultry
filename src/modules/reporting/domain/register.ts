@@ -134,7 +134,9 @@ export function buildRegister(i: RegisterInput) {
       hatchery: batch.hatchery,
       deliveryNote: batch.deliveryNote,
       placedOn: batch.placedOn,
-      chicksPlaced: batch.chicksPlaced,
+      // Art. 3: the birds placed, the hatchery's free supplement included (SPEC-m3 B10); the free part shown apart.
+      placed: batch.chicksPlaced + (batch.freeChicks ?? 0),
+      freeChicks: batch.freeChicks ?? 0,
       deadOnArrival: batch.deadOnArrival,
       closedOn: batch.closedOn ?? null,
       // Art. 3: as entered on the farm's settings; null or none is a line the keeper fills by hand

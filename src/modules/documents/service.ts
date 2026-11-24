@@ -61,6 +61,12 @@ export async function readFile(ctx: TenantContext, id: string): Promise<Result<{
   return ok({ bytes: f.bytes, contentType: f.contentType as FileType, sha256: f.sha256 });
 }
 
+/** The total size of these files of the caller's organisation, read before any of their bytes (the books export's cap). */
+export async function sizeOfFiles(ctx: TenantContext, ids: string[]): Promise<number> {
+  const { _sum } = await db.storedFile.aggregate({ where: { id: { in: ids }, organizationId: ctx.organizationId }, _sum: { sizeBytes: true } });
+  return _sum.sizeBytes ?? 0;
+}
+
 // DC1: the vault, offline like every farm record. Owners and managers only, for writes and for pull.
 
 type DocumentRow = { id: string; title: string; category: string; farmId: string | null; issuedOn: Date | null; expiresOn: Date | null; notes: string | null; fileId: string | null };

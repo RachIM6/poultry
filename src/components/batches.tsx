@@ -55,6 +55,8 @@ const TurkeySexes = dynamic(() => import("@/components/turkey-sexes").then((m) =
 // here for a quick answer and enforced by the server, which rejects the second of two phones placing offline.
 
 const today = () => farmDayOf(new Date());
+// WebBatch.dc.html: on wide screens the batch's lower sections sit in two columns; one column on the phone.
+const lower = "flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6 lg:gap-y-8";
 
 // A batch's day opens as /batches#<id>: the path stays the precached shell, offline included.
 const onHashChange = (cb: () => void) => {
@@ -162,8 +164,14 @@ function Batches(scope: Scope) {
         ) : (
           <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={ofBatch<WeighingDto>("weighing", shown.id)} sold={soldOf(shown.id)} curves={curves} />
         )}
-        <BatchCosts batch={shown} costs={costsOf(shown.id)} manage={can(scope, "flock.manage")} />
-        {can(scope, "sales.manage") && <Sales batch={shown} sales={of<SaleDto>("sale")} buyers={of<BuyerDto>("buyer")} treatments={[]} birdsOnHand={0} write={write} />}
+        <div className={lower}>
+          <BatchCosts batch={shown} costs={costsOf(shown.id)} manage={can(scope, "flock.manage")} />
+          {can(scope, "sales.manage") && (
+            <div className="lg:col-span-full">
+              <Sales batch={shown} sales={of<SaleDto>("sale")} buyers={of<BuyerDto>("buyer")} treatments={[]} birdsOnHand={0} write={write} />
+            </div>
+          )}
+        </div>
       </>
     );
   }
@@ -203,80 +211,86 @@ function Batches(scope: Scope) {
         {open.species === "layer" ? (
           <LayerDashboard batch={open} entries={entriesOf(open.id)} sold={soldOf(open.id)} collections={collectionsOf(open.id)} curve={layingCurve(open)} />
         ) : (
-          <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curves={curves} />
+          <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curves={curves} money={can(scope, "money.read")} />
         )}
-        {can(scope, "flock.record") && (
-          <DayForm
-            batch={open}
-            entries={entriesOf(open.id)}
-            sold={soldOf(open.id)}
-            feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
-            write={write}
-          />
-        )}
-        {open.species === "layer" && can(scope, "eggs.record") && (
-          <>
-            <Link href="/eggs" className={link}>{t("EggStock.title")}</Link>
-            <EggCollections batch={open} collections={collectionsOf(open.id)} write={write} />
-          </>
-        )}
-        <Weighings
-          batch={open}
-          weighings={weighings}
-          curves={curves}
-          write={can(scope, "flock.record") ? write : undefined} // the vet reads them (SPEC-m5 PA4)
-        />
-        <Vaccinations
-          batch={open}
-          vaccinations={vaccinationsOf(open.id)}
-          products={reference?.data.products ?? []}
-          lots={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "vaccine")}
-          birdsOnHand={onHand(open)}
-          userId={userId}
-          protocols={of<ProtocolDto>("protocol")}
-          manage={can(scope, "health.manage")}
-          write={write}
-        />
-        {can(scope, "health.record") && (
-          <>
-            <Treatments
+        <div className={lower}>
+          {can(scope, "flock.record") && (
+            <DayForm
               batch={open}
-              treatments={treatments}
-              medicines={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "medicine")}
-              userId={userId}
+              entries={entriesOf(open.id)}
+              sold={soldOf(open.id)}
+              feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
               write={write}
             />
-            <VetVisits batch={open} visits={ofBatch<VetVisitDto>("vetVisit", open.id)} userId={userId} write={write} />
-          </>
-        )}
-        {can(scope, "flock.record") && (
-          <Sales
+          )}
+          {open.species === "layer" && can(scope, "eggs.record") && (
+            <div className="flex flex-col gap-5">
+              <Link href="/eggs" className={link}>{t("EggStock.title")}</Link>
+              <EggCollections batch={open} collections={collectionsOf(open.id)} write={write} />
+            </div>
+          )}
+          <Weighings
             batch={open}
-            sales={of<SaleDto>("sale")}
-            buyers={of<BuyerDto>("buyer")}
-            treatments={treatments}
+            weighings={weighings}
+            curves={curves}
+            write={can(scope, "flock.record") ? write : undefined} // the vet reads them (SPEC-m5 PA4)
+          />
+          <Vaccinations
+            batch={open}
+            vaccinations={vaccinationsOf(open.id)}
+            products={reference?.data.products ?? []}
+            lots={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "vaccine")}
             birdsOnHand={onHand(open)}
-            seller={can(scope, "sales.manage")}
+            userId={userId}
+            protocols={of<ProtocolDto>("protocol")}
+            manage={can(scope, "health.manage")}
             write={write}
           />
-        )}
-        <BatchCosts batch={open} costs={costsOf(open.id)} manage={can(scope, "flock.manage")} />
-        {can(scope, "flock.manage") && open.species === "pullet" && (
-          <TransferForm
-            batch={open}
-            onHand={onHand(open)}
-            houses={houses.map((h) => ({
-              id: h.id,
-              label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
-              free: canJoinHouse("layer", batches.filter((b) => b.status === "open" && b.houseId === h.id && b.id !== open.id)).ok, // its own house too (B13)
-            }))}
-            write={write}
-          />
-        )}
-        {can(scope, "flock.manage") && !open.fromBatchId && (
-          <CorrectPlacement batch={open} title={title(open)} houses={houses} batches={batches} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} strains={strains} vaccinations={vaccinationsOf(open.id)} write={write} />
-        )}
-        {can(scope, "flock.manage") && <CloseBatchForm batch={open} write={write} />}
+          {can(scope, "health.record") && (
+            <>
+              <Treatments
+                batch={open}
+                treatments={treatments}
+                medicines={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "medicine")}
+                userId={userId}
+                write={write}
+              />
+              <VetVisits batch={open} visits={ofBatch<VetVisitDto>("vetVisit", open.id)} userId={userId} write={write} />
+            </>
+          )}
+          {can(scope, "flock.record") && (
+            <div className="lg:col-span-full">
+              <Sales
+                batch={open}
+                sales={of<SaleDto>("sale")}
+                buyers={of<BuyerDto>("buyer")}
+                treatments={treatments}
+                birdsOnHand={onHand(open)}
+                seller={can(scope, "sales.manage")}
+                write={write}
+              />
+            </div>
+          )}
+          <BatchCosts batch={open} costs={costsOf(open.id)} manage={can(scope, "flock.manage")} />
+        </div>
+        <div className="flex flex-col gap-5 empty:hidden lg:max-w-xl">
+          {can(scope, "flock.manage") && open.species === "pullet" && (
+            <TransferForm
+              batch={open}
+              onHand={onHand(open)}
+              houses={houses.map((h) => ({
+                id: h.id,
+                label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
+                free: canJoinHouse("layer", batches.filter((b) => b.status === "open" && b.houseId === h.id && b.id !== open.id)).ok, // its own house too (B13)
+              }))}
+              write={write}
+            />
+          )}
+          {can(scope, "flock.manage") && !open.fromBatchId && (
+            <CorrectPlacement batch={open} title={title(open)} houses={houses} batches={batches} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} strains={strains} vaccinations={vaccinationsOf(open.id)} write={write} />
+          )}
+          {can(scope, "flock.manage") && <CloseBatchForm batch={open} write={write} />}
+        </div>
       </>
     );
   }
@@ -294,11 +308,11 @@ function Batches(scope: Scope) {
       {batches.length === 0 ? (
         <p>{t("Batches.none")}</p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
           {batches.map((b, i) => (
             <Fragment key={b.id}>
             {farming && band(b) && (i === 0 || band(batches[i - 1]) !== band(b)) ? (
-              <li className="pt-2 font-semibold">
+              <li className="pt-2 font-semibold lg:col-span-full">
                 {(() => {
                   const run = batches.filter((x) => band(x) === band(b));
                   return t("Batches.run", { house: houseName(b.houseId), bands: String(run.length), birds: formatCount(run.reduce((n, x) => n + onHand(x), 0)) });
@@ -323,32 +337,34 @@ function Batches(scope: Scope) {
           ))}
         </ul>
       )}
-      {can(scope, "flock.manage") &&
-        (houses.length === 0 ? (
-          <p>
-            {t("Batches.noHouse")} <Link href="/farms" className="underline underline-offset-4">{t("Farms.title")}</Link>
-          </p>
-        ) : strains.length === 0 ? (
-          <p>{t("Protocol.noReference")}</p> // strains come with the reference data, after one sync online
-        ) : placing ? (
-          <PlacementForm
-            houses={houses.map((h) => ({
-              ...h,
-              label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
-              busy: busy.has(h.id),
-              open: batches.filter((b) => b.status === "open" && b.houseId === h.id),
-            }))}
-            downtime={{ batches, cleanouts: of<CleanoutDto>("cleanout"), rules: of<DowntimeRule>("downtimeRule") }}
-            strains={strains.map((s) => ({ id: s.id, name: strainName(s.id), productionTypes: s.productionTypes ?? ["broiler"] }))}
-            protocols={protocols}
-            db={db}
-            cashBoxes={can(scope, "finance.record") ? of<TreasuryAccountDto>("treasuryAccount").filter((a) => a.kind === "cash") : undefined} // SPEC-finance §9
-            onPlaced={placed}
-            onCancel={() => setPlacing(false)}
-          />
-        ) : (
-          <button type="button" onClick={() => setPlacing(true)} className={primary}>{t("Batches.place")}</button>
-        ))}
+      <div className="flex flex-col gap-5 empty:hidden lg:max-w-xl">
+        {can(scope, "flock.manage") &&
+          (houses.length === 0 ? (
+            <p>
+              {t("Batches.noHouse")} <Link href="/farms" className="underline underline-offset-4">{t("Farms.title")}</Link>
+            </p>
+          ) : strains.length === 0 ? (
+            <p>{t("Protocol.noReference")}</p> // strains come with the reference data, after one sync online
+          ) : placing ? (
+            <PlacementForm
+              houses={houses.map((h) => ({
+                ...h,
+                label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
+                busy: busy.has(h.id),
+                open: batches.filter((b) => b.status === "open" && b.houseId === h.id),
+              }))}
+              downtime={{ batches, cleanouts: of<CleanoutDto>("cleanout"), rules: of<DowntimeRule>("downtimeRule") }}
+              strains={strains.map((s) => ({ id: s.id, name: strainName(s.id), productionTypes: s.productionTypes ?? ["broiler"] }))}
+              protocols={protocols}
+              db={db}
+              cashBoxes={can(scope, "finance.record") ? of<TreasuryAccountDto>("treasuryAccount").filter((a) => a.kind === "cash") : undefined} // SPEC-finance §9
+              onPlaced={placed}
+              onCancel={() => setPlacing(false)}
+            />
+          ) : (
+            <button type="button" onClick={() => setPlacing(true)} className={primary}>{t("Batches.place")}</button>
+          ))}
+      </div>
     </>
   );
 }

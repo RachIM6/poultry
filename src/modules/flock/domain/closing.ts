@@ -24,3 +24,12 @@ export function batchCost(c: { chicksCentimes: bigint; consumedCentimes: bigint;
   const grams = BigInt(c.soldGrams);
   return { totalCentimes, perKgCentimes: grams > 0n ? divHalfUp(totalCentimes * 1000n, grams) : null };
 }
+
+/**
+ * Batch.dc.html's cost per kg on an open batch: the costs so far ÷ the estimated live weight (birds on hand × the latest
+ * average weight), in centimes per kg, rounded half up. Null without a cost, a bird or a weighing: nothing to estimate.
+ */
+export function liveCostPerKg(costCentimes: bigint, birdsOnHand: number, averageGrams: number): bigint | null {
+  const grams = BigInt(birdsOnHand) * BigInt(averageGrams);
+  return costCentimes > 0n && grams > 0n ? divHalfUp(costCentimes * 1000n, grams) : null;
+}

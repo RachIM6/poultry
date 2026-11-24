@@ -4,7 +4,7 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { listLegalEntities } from "@/modules/farm-registry";
+import { legalIds, listLegalEntities, type LegalIds, type LegalForm } from "@/modules/farm-registry";
 import { catchUpBooks } from "@/modules/finance/application/posting";
 import { trialBalance } from "@/modules/finance/domain/books";
 import { countDay, countYearOf } from "@/modules/finance/domain/count";
@@ -48,6 +48,7 @@ export type OfficialStatements =
       aboveLimit: boolean; // revenue over the simplified model's limit (FQ22): the normal model applies, out of scope
       previous: ReturnType<typeof statementsOf> | null; // N-1, when it has entries
       etic: ReturnType<typeof eticTables>;
+      entity: { name: string; form: LegalForm; ids: LegalIds | null }; // the header: who the statements are of (F-Profile)
     } & ReturnType<typeof statementsOf>);
 
 /**
@@ -65,10 +66,11 @@ export async function officialStatements(ctx: TenantContext, year: number | null
   const pca = entity.accountingProfile.overlays.includes("pca");
   const { from, to } = fiscalYear(y, entity.fiscalYearStartMonth);
   const previousYear = fiscalYear(y - 1, entity.fiscalYearStartMonth);
-  const [current, before, closed] = await Promise.all([
+  const [current, before, closed, ids] = await Promise.all([
     linesOf(ctx, entity.id, from, to),
     linesOf(ctx, entity.id, previousYear.from, previousYear.to),
     yearClose(db, ctx, entity.id, to),
+    legalIds(ctx),
   ]);
   const statements = statementsOf([...current.opening, ...current.movements], pca);
   const revenue = statements.cpc.results.find((r) => r.key === "chiffreAffaires")?.amount ?? 0n;
@@ -83,5 +85,6 @@ export async function officialStatements(ctx: TenantContext, year: number | null
     ...statements,
     previous: before.count > 0 ? statementsOf([...before.opening, ...before.movements], pca) : null,
     etic: eticTables(trialBalance(current.opening).rows, trialBalance(current.movements).rows, pca),
+    entity: { name: entity.name, form: entity.form, ids },
   });
 }

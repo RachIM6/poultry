@@ -26,7 +26,7 @@ test("the owner changes the accounting choices until the year has an entry", asy
   await page.getByLabel("Début d’exercice").selectOption({ label: "juillet" });
   await page.getByLabel("Assujetti à la TVA").check();
   await page.getByLabel(/Surface du bâtiment/).check();
-  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Paramètres enregistrés.");
   expect(await entityOf(e164)).toEqual({ books: "ledger", pca: false, month: 7, vat: true, key: "houseArea" });
 
@@ -43,13 +43,44 @@ test("the owner changes the accounting choices until the year has an entry", asy
     .toBe(1);
   await page.reload();
   await expect(page.getByRole("note")).toContainText("L’exercice a déjà des écritures");
-  await expect(page.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Enregistrer", exact: true })).toBeDisabled();
 
   await page.goto("/ar/settings/accounting");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("الإعدادات المحاسبية");
   await expect(page.getByLabel("خاضع للضريبة على القيمة المضافة")).toBeChecked();
   await expect(page.getByLabel(/مساحة المبنى/)).toBeChecked();
+});
+
+// F-Profile: the owner types the entity's ICE, IF, RC and CNSS numbers; they head the official statements, which the
+// accountant reads too. The ICE is 15 digits, checked by the form and by the server (farm-registry/legal-ids.int.test.ts).
+test("the owner records the registration numbers and they head the statements", async ({ page }) => {
+  test.setTimeout(90_000);
+  const e164 = await ownerWithFarm(page, "Élevage des Numéros");
+  await scopeRemembered(page);
+  await query(`UPDATE "LegalEntity" SET books = 'ledger' WHERE "organizationId" = (SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`, [e164]);
+
+  await page.goto("/fr/settings/accounting");
+  const form = page.getByRole("form", { name: "Identité de l’entreprise" });
+  const ice = form.getByLabel(/^ICE/);
+  await ice.fill("12345");
+  await form.getByRole("button", { name: "Enregistrer l’identité" }).click();
+  expect(await ice.evaluate((el: HTMLInputElement) => el.validity.patternMismatch)).toBe(true); // not sent
+  await ice.fill("001534290 0000 57");
+  await form.getByLabel("Identifiant fiscal (IF)").fill("12345678");
+  await form.getByLabel(/numéro$/).fill("98765");
+  await form.getByLabel(/^Tribunal/).fill("Casablanca");
+  await form.getByLabel(/CNSS/).fill("1234567");
+  await form.getByRole("button", { name: "Enregistrer l’identité" }).click();
+  await expect(form.getByRole("status")).toHaveText("Identité enregistrée.");
+  await page.reload();
+  await expect(page.getByRole("form", { name: "Identité de l’entreprise" }).getByLabel(/^ICE/)).toHaveValue("001534290000057");
+
+  await query(`UPDATE "Membership" SET role = 'accountant' WHERE "organizationId" = (SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`, [e164]);
+  await page.goto("/fr/closing/statements");
+  const ids = page.getByRole("definition");
+  await expect(page.getByText("Élevage des Numéros · Exploitant individuel")).toBeVisible();
+  await expect(ids).toHaveText(["001534290000057", "12345678", "98765 · Casablanca", "1234567"]);
 });
 
 // U15 (mockup F-Chart, SPEC-finance FN2, FN6): what each operation is posted to, in both charts.

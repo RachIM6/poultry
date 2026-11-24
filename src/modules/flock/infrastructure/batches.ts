@@ -22,10 +22,11 @@ export const openInHouse = async (tx: Tx, ctx: TenantContext, houseId: string) =
 
 export const batchIdTaken = async (tx: Tx, id: string) => (await tx.batch.count({ where: { id } })) > 0;
 
-export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Promise<BatchDto> {
+/** `chickVatCentimes`: SPEC-finance FN9, the delivery's VAT, kept for finance (no flock rule reads it). */
+export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch, chickVatCentimes: bigint | null = null): Promise<BatchDto> {
   const p = batch.placement;
   await tx.batch.create({
-    data: { ...p, organizationId: ctx.organizationId, placedOn: date(p.placedOn), status: batch.status },
+    data: { ...p, chickVatCentimes, organizationId: ctx.organizationId, placedOn: date(p.placedOn), status: batch.status },
   });
   return {
     id: p.id,
@@ -48,6 +49,7 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Pr
     fromBatchId: p.fromBatchId ?? null,
     status: batch.status,
     chickUnitPriceCentimes: String(p.chickUnitPriceCentimes),
+    chickVatCentimes: chickVatCentimes === null ? null : String(chickVatCentimes),
   };
 }
 
@@ -140,6 +142,7 @@ export async function saveClosing(
     fromBatchId: r.fromBatchId,
     status: batch.status,
     chickUnitPriceCentimes: String(r.chickUnitPriceCentimes),
+    chickVatCentimes: r.chickVatCentimes === null ? null : String(r.chickVatCentimes), // the closing's version keeps it (FN7)
     closedOn: c.closedOn,
     closeReason: c.closeReason,
     soldGrams: c.soldGrams,

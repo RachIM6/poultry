@@ -370,6 +370,7 @@
     "hatchery": "Couvoir",
     "deliveryNote": "N° de bon de livraison",
     "chickPrice": "Prix d’un poussin (DH)",
+    "chickVat": "TVA de la livraison, en plus du prix (DH, facultatif)",
     "dayOldWeight": "Poids moyen à 1 jour (g, facultatif)",
     "save": "Enregistrer",
     "cancel": "Annuler",

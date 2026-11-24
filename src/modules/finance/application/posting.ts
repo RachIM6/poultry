@@ -52,7 +52,7 @@ const SOURCES: Source[] = [
     read: async (tx, ctx, after) =>
       (await placementsChangedSince(tx, ctx, after)).map((b) => ({
         version: b.version,
-        event: { type: "chicks", id: b.id, day: b.placedOn, amount: b.chicksCentimes, layers: b.species === "layer" && !b.fromBatchId }, // FC6: point-of-lay hens
+        event: { type: "chicks", id: b.id, day: b.placedOn, amount: b.chicksCentimes, vat: b.vatCentimes, layers: b.species === "layer" && !b.fromBatchId }, // FC6: point-of-lay hens
       })),
   },
   {

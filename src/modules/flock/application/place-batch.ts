@@ -40,7 +40,7 @@ export async function placeBatch(
   if (!joins.ok) return joins;
   if (await batchIdTaken(tx, cmd.id)) return fail("ALREADY_EXISTS");
 
-  const dto = await saveNewBatch(tx, ctx, batch.value);
+  const dto = await saveNewBatch(tx, ctx, batch.value, cmd.chickVatCentimes === null ? null : BigInt(cmd.chickVatCentimes));
   await recordChange(tx, ctx, "batch", dto.id, dto);
   await audit(tx, ctx, { entity: "Batch", entityId: dto.id, action: "create", after: dto, ...meta });
   return ok(undefined);

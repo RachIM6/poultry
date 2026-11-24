@@ -555,6 +555,7 @@ model Batch {
   hatchery               String
   deliveryNote           String
   chickUnitPriceCentimes BigInt
+  chickVatCentimes       BigInt? // SPEC-finance FN9: the delivery's VAT, on top of the chicks' price; null: none typed
   dayOldWeightGrams      Int?
   ageAtPlacementDays     Int       @default(0) // SPEC-m3 B7: started pullets or point-of-lay hens arrive older
   sex                    String    @default("mixed") // SPEC-m3 B9: mixed | female | male (turkeys raised apart)

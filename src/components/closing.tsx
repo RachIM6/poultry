@@ -146,6 +146,7 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
       fromBatchId: batch.id,
       status: "open",
       chickUnitPriceCentimes: batch.chickUnitPriceCentimes === undefined ? undefined : "0",
+      chickVatCentimes: null, // the pullets' VAT stays on their placement
     };
     await write({ type: M.transferToLaying, payload }, [
       { entity: "batch", id: batch.id, data: closedLocally(batch, day, TRANSFER_REASON) },

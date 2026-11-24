@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { REGISTER_ENTITIES, RegisterDocument, Section, Table, registerOf } from "@/components/register-document";
 import { danger, done, field, primary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
@@ -48,7 +48,6 @@ function Pack(scope: Scope) {
   const t = useTranslations();
   const locale = useLocale();
   const hash = useHash();
-  const [chosen, setChosen] = useState<string>();
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf(ENTITIES).toArray(), [userId, organizationId]);
@@ -58,7 +57,7 @@ function Pack(scope: Scope) {
 
   const all = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const farms = all<FarmDto>("farm").sort((x, y) => x.name.localeCompare(y.name));
-  const farm = farms.find((f) => f.id === (chosen ?? hash)) ?? farms[0];
+  const farm = farms.find((f) => f.id === hash) ?? farms[0];
   if (!farm) return <p>{t("Inspection.noFarm")}</p>;
   const today = farmDayOf(new Date());
   const since = inspectionSince(today);
@@ -107,7 +106,8 @@ function Pack(scope: Scope) {
       {farms.length > 1 && (
         <label className="flex flex-col gap-1 print:hidden">
           {t("Biosecurity.farm")}
-          <select value={farm.id} onChange={(e) => setChosen(e.target.value)} className={field}>
+          {/* the farm goes in the hash: a reload or a language switch keeps it */}
+          <select value={farm.id} onChange={(e) => window.location.replace(`#${encodeURIComponent(e.target.value)}`)} className={field}>
             {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
         </label>

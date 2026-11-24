@@ -12,7 +12,7 @@ export { creditExpensesToPay, payCreditExpense, type CreditExpense } from "./app
 export { associateAccount, recordAssociateMovement, type AssociateMovementError } from "./application/contributions";
 export { addBankStatement, bankReconciliation, matchBankLine, type BankReconciliation } from "./application/bank";
 export { IMPORT_MAX_BYTES, importBankFile, type BankImport, type ImportFailure } from "./application/bank-import";
-export { batchResultDtos, batchResults, freezeClosedBatches, type BatchResultRow } from "./application/batch-results";
+export { batchResultDtos, batchResults, type BatchResultRow } from "./application/batch-results";
 export { budgetBases, budgetBatches, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";
 export { budgetCash, plainTiming, type BudgetCash, type CashTiming, type CashWeek } from "./domain/budget-cash";
@@ -24,7 +24,7 @@ export { chartView } from "./application/chart";
 export { postingOverrides, setPostingOverride, type PostingOverrides } from "./application/overrides";
 export { exportBooks, exportFec } from "./application/export";
 export { batchOf } from "./domain/export";
-export { alertThresholdOnce, thresholdTracker, type ThresholdTracker } from "./application/threshold";
+export { thresholdTracker, type ThresholdTracker } from "./application/threshold";
 export { saveYearEndCount, yearEndCount, type CountSheet } from "./application/count";
 export type { CountBatchLine, CountEggsLine, CountLine, CountStockLine } from "./domain/count";
 export { assetRegister, attachFixedAssetReceipt, createFixedAsset, disposeFixedAsset, payFixedAsset, updateFixedAsset, type AssetRegister, type AssetView, type AssetWriteError } from "./application/assets";

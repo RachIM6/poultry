@@ -9,7 +9,7 @@ import { can } from "@/lib/permissions";
 import { batchOf, readBooks, type IncomeStatement } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
-import { card, table } from "@/components/ui";
+import { card, link, table } from "@/components/ui";
 import { Num, Scroll } from "@/components/num";
 import { ManualEntryForm, PeriodLockForm, ReverseEntryForm } from "./form";
 
@@ -76,8 +76,8 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
         <span className="font-semibold">{monthName(month)}</span>
         <Link href={href(view, shift(month, 1))} aria-label={t("Books.nextMonth")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
         {/* FN18: a file, not a page, so a plain link to the route handler */}
-        <a href={`/api/finance/export?month=${month}`} download className="ms-auto underline underline-offset-4">{t("Books.export")}</a>
-        {books.books === "ledger" && <a href={`/api/finance/export?month=${month}&format=fec`} download className="underline underline-offset-4">{t("Books.exportFec")}</a>}
+        <a href={`/api/finance/export?month=${month}`} download className={`${link} ms-auto`}>{t("Books.export")}</a>
+        {books.books === "ledger" && <a href={`/api/finance/export?month=${month}&format=fec`} download className={link}>{t("Books.exportFec")}</a>}
       </nav>
       <section className={card} aria-labelledby="period-title">
         <h2 id="period-title" className="font-semibold">{t("Books.period")}</h2>
@@ -134,7 +134,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       {views.length > 1 && (
         <nav className="flex flex-wrap gap-3" aria-label={t("Books.views")}>
           {views.map((v) => (
-            <Link key={v} href={href(v, month)} aria-current={v === view ? "page" : undefined} className={v === view ? "font-semibold" : "underline underline-offset-4"}>
+            <Link key={v} href={href(v, month)} aria-current={v === view ? "page" : undefined} className={`inline-flex min-h-11 items-center ${v === view ? "font-semibold" : "underline underline-offset-4"}`}>
               {t(v === "bilan" && closed ? "Books.bilanClosed" : `Books.${v}`)}
             </Link>
           ))}

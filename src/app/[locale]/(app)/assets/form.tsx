@@ -161,7 +161,7 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
         )}
         <label className={row}>
           {t("Assets.receipt")}
-          <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf" />
+          <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf" className="min-h-11" />
         </label>
         {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
         <OfflineHint online={online} />

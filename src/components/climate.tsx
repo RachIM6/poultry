@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { parseTenths, tenths } from "@/components/climate-targets";
 import { Scoped } from "@/components/scoped";
-import { card, danger, done, field, primary } from "@/components/ui";
+import { card, danger, done, field, link, primary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDay } from "@/lib/format";
 import { can } from "@/lib/permissions";
@@ -116,7 +116,7 @@ function Climate(scope: Scope) {
         </>
       )}
       <History house={house} readings={of<ReadingDto>("climateReading")} cuts={of<PowerCutDto>("powerCut")} batches={of<BatchDto>("batch")} sets={sets} />
-      <Link href="/climate/targets" className="text-sm underline underline-offset-4">{t("Climate.targetsOpen")}</Link>
+      <Link href="/climate/targets" className={`${link} text-sm`}>{t("Climate.targetsOpen")}</Link>
     </>
   );
 }

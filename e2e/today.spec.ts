@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, scopeRemembered } from "./auth";
 
 // tasks/plan-ui.md U10: "Aujourd'hui" opens without network, from the phone's database, after one online visit.
 test("the home screen works offline with the batch's strip and today's tasks", async ({ page, context }) => {
@@ -9,7 +9,7 @@ test("the home screen works offline with the batch's strip and today's tasks", a
   await farmWithBatch(page, "ross-308", farmDaysAgo(5));
   await page.reload(); // online: the dashboard pulls the batch onto the phone
   await expect(page.getByRole("link", { name: /Saisie du jour · Bâtiment 1/ })).toBeVisible({ timeout: 30_000 });
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined)); // shells precached
+  await controlled(page); // shells precached
 
   // setOffline alone doesn't cut the service worker's own fetches in Chromium; aborting every request does.
   await context.setOffline(true);

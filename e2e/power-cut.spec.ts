@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T83 (SPEC-m4 CL5): a power cut started and ended offline, with the generator's details, reaches the server once.
 test("a power cut started and ended offline syncs once with the generator's details", async ({ page, context }) => {
@@ -9,7 +9,7 @@ test("a power cut started and ended offline syncs once with the generator's deta
   await farmWithBatch(page);
   await page.goto("/fr/climate");
   await expect(page.getByText("Lot en place : J0")).toBeVisible(); // the farm reached the phone
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));

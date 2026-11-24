@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T43 acceptance (browser part): a rodent check recorded offline, then, online, its proof photo uploaded once and
 // downloadable (SPEC-m2-compliance BS8, DC2, ADR-011). Types, sizes, roles and isolation: src/app/api/files/files.int.test.ts.
@@ -11,7 +11,7 @@ test("a rodent check is recorded offline, then gets its proof photo online", asy
   await scopeRemembered(page);
   await farmWithBatch(page);
   await page.goto("/fr/disposal");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await page.getByRole("button", { name: "Nuisibles", exact: true }).click();
 
   await context.setOffline(true);

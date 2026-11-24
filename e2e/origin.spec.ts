@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { farmDaysAgo, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
 
 // T23 acceptance: a sale's origin document, offline, in French and in Arabic (right to left), with every field of the
 // task, printed on one A4 page with nothing wider than the page. The PDFs are kept in test-results/ for a look.
@@ -40,7 +40,7 @@ test("a sale's origin document prints offline on one A4 page, in French and in A
   ]);
 
   await page.goto(`/fr/batches#${ids.batch}`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByRole("link", { name: "Document d’origine (Français)" })).toBeVisible(); // pulled
   await context.setOffline(true);

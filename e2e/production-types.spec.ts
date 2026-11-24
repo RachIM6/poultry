@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pulled, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T53 acceptance (SPEC-m3 B7, B8): a layer batch placed at 18 weeks counts its age in weeks, and two beldi bands share a
 // run, offline, then synced; the Arabic screen shows the same age.
@@ -16,8 +16,9 @@ test("hens placed at 18 weeks show their age in weeks, and beldi bands share a r
   ]);
 
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
+  await pulled(page, [`farm:${ids.farm}`, `house:${ids.house}`, `house:${ids.run}`]);
   await expect(page.getByRole("button", { name: "Mettre en place une bande" })).toBeVisible(); // the houses reached the phone
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -90,8 +91,9 @@ test("turkeys placed by sex become two batches side by side", async ({ page, con
     { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment D1", areaM2: 1500, capacity: 3000, type: "closed" } },
   ]);
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
+  await pulled(page, [`farm:${ids.farm}`, `house:${ids.house}`]);
   await expect(page.getByRole("button", { name: "Mettre en place une bande" })).toBeVisible(); // the house reached the phone
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -145,9 +147,10 @@ test("chick arrival: supplement, density and the hatchery claim above the farm's
     { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment 1", areaM2: 1000, capacity: 12000, type: "closed" } },
   ]);
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   // The house pushed above must be on the phone before going offline: without a free house there is nothing to place.
+  await pulled(page, [`farm:${ids.farm}`, `house:${ids.house}`]);
   await expect(page.getByRole("button", { name: "Mettre en place une bande" })).toBeVisible({ timeout: 30_000 });
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -184,8 +187,9 @@ test("a pullet weighing shows the uniformity", async ({ page, context }) => {
     },
   ]);
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
+  await pulled(page, [`farm:${ids.farm}`, `house:${ids.house}`, `batch:${ids.batch}`]);
   await expect(page.getByText("11 sem.", { exact: true })).toBeVisible();
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -212,8 +216,9 @@ test("pullets move to the laying house and become a layer batch", async ({ page,
     },
   ]);
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
+  await pulled(page, [`farm:${ids.farm}`, `house:${ids.rearing}`, `house:${ids.laying}`, `batch:${ids.batch}`]); // the laying house too
   await expect(page.getByText("17 sem.", { exact: true })).toBeVisible();
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -255,8 +260,9 @@ test("a beldi band sold by the head: 6 roosters and 4 hens, 790,00 DH", async ({
     },
   ]);
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
+  await pulled(page, [`farm:${ids.farm}`, `house:${ids.run}`, `batch:${ids.band}`]);
   await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -366,7 +372,7 @@ test("closed broiler batches compared side by side", async ({ page, context }) =
     ...batch(45, 4, 230, "Couvoir B"), // 96 sold, 2,4 kg each; IC 1,83
   ]);
   await page.goto("/fr/compare");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByRole("table", { name: "Indicateurs par lot clôturé" })).toBeVisible();
   // Online, FN13's cost per kg, as /results: chicks 500 + feed 1 890 (+ the vet bill 245) DH over the kg sold.
   const online = page.getByRole("table", { name: "Indicateurs par lot clôturé" }).getByRole("row");

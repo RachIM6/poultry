@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // S2, SPEC-finance FN6: a supplier paid later, offline, lowers what is owed; once synced, the cheque leaves the bank.
 test("a supplier paid by cheque offline owes less, after a reload and on the server", async ({ page, context }) => {
@@ -17,7 +17,7 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
   ]);
 
   await page.goto("/fr/stock");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByText(/Reste dû : 9.000,00.DH/)).toBeVisible();
   const dues = page.getByRole("list", { name: "Échéances de Alf Sahel" }).getByRole("listitem");
   await expect(dues).toHaveText([/^9.000,00.DH en retard depuis le /]); // no due date: due on the purchase day (FN12)

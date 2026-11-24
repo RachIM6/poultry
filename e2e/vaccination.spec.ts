@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T19 acceptance (browser part): a batch placed offline gets its vaccination plan from the farm's protocol, and a
 // vaccine marked done offline takes its doses out of the lot. The dates and the reminders are checked on the server:
@@ -24,7 +24,7 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
   ]);
 
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await page.getByRole("button", { name: "Mettre en place une bande" }).click();
   await expect(page.getByLabel("Programme de vaccination")).toHaveValue(ids.protocol); // pulled, preselected

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, farmDaysAgo, ownerWithFarm, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, farmDaysAgo, ownerWithFarm, scopeRemembered } from "./auth";
 
 // T44 acceptance (browser part): a document added offline shows by its expiry state, then gets its PDF online
 // (SPEC-m2-compliance DC1–DC3). Roles and isolation: src/modules/documents/documents.int.test.ts.
@@ -12,7 +12,7 @@ test("a document is added offline, shows as due soon, then gets its PDF", async 
   await farmWithBatch(page);
   await page.goto("/fr/more");
   await page.getByRole("link", { name: "Documents et échéances" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));

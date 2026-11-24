@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // T68, SPEC-m3 §6.1: the layer farm's journey, offline, in each language on a phone: pullets → transfer to the laying
 // house → a collection → grading → an egg sale by the tray → old hens sold by the head → reload → online → synced.
@@ -37,7 +37,7 @@ for (const locale of ["fr", "ar"] as const) {
     ]);
 
     await page.goto(`/${locale}/batches`);
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await controlled(page);
     await referenceCached(page);
     await expect(page.getByRole("link", { name: t("Day", "open"), exact: true })).toBeVisible();
     await page.goto(`/${locale}/eggs`); // both shells visited once online

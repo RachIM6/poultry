@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T59 acceptance (SPEC-m3 E1): collections recorded offline on a layer batch, one corrected, kept across a reload,
 // synced; the Arabic screen shows them too.
@@ -18,7 +18,7 @@ test("egg collections offline: two a day, one corrected, synced", async ({ page,
     },
   ]);
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
   await context.setOffline(true);
@@ -77,7 +77,7 @@ test("egg stock: grade a day's eggs, discard some, offline", async ({ page, cont
     { type: "eggs.recordCollection", payload: { id: uuidv7(), batchId: ids.batch, day: farmDaysAgo(3), counts, sample: null } },
   ]);
   await page.goto("/fr/eggs");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByText(/2.760 œufs en stock · 92 plateaux/)).toBeVisible();
   await context.setOffline(true);
@@ -133,7 +133,7 @@ test("layer KPIs: hens, laying rate, eggs per hen housed, downgraded, weekly tab
     { type: "eggs.recordCollection", payload: { id: uuidv7(), batchId: ids.batch, day: farmDaysAgo(0), counts, sample: { count: 10, grams: 618 } } },
   ]);
   await page.goto(`/fr/batches`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
   await context.setOffline(true);
@@ -171,7 +171,7 @@ test("a layer batch's treatment withholds its eggs until the egg withdrawal ends
     },
   ]);
   await page.goto(`/fr/batches`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
   await context.setOffline(true);
@@ -221,7 +221,7 @@ test("egg sale by the tray, offline: stock drops, the buyer owes the amount", as
     { type: "sales.createBuyer", payload: { id: ids.buyer, name: "Grossiste Al Wafa", phone: null, type: "trader" } },
   ]);
   await page.goto("/fr/eggs");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByText(/900 œufs en stock · 30 plateaux/)).toBeVisible();
   await context.setOffline(true);

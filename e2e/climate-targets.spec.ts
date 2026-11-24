@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T80 (SPEC-m4 CL1, §2): no targets until the owner types them from a source; a version saved offline syncs once.
 // The numbers below are made up for the test, NOT husbandry targets (MQ1).
@@ -9,7 +9,7 @@ test("the owner enters climate targets from a source, offline, and they sync onc
   await scopeRemembered(page);
 
   await page.goto("/fr/climate/targets"); // linked from /climate, which needs a house first
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByRole("note")).toContainText("Aucune cible saisie");
 
   await context.setOffline(true);

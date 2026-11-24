@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T11 acceptance: reference data is on the phone after the first sync; the organisation copies the template and edits
 // its copy offline; the template stays as it was. Needs `pnpm db:seed` (CI runs it).
@@ -8,7 +8,7 @@ test("the vaccination template is available offline, and a farm's copy is edited
   const e164 = await ownerWithFarm(page, "Élevage Référence");
   await scopeRemembered(page);
   await page.goto("/fr/protocol");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined)); // shells precached
+  await controlled(page); // shells precached
   await expect(page.getByText("Programme de vaccination poulet de chair")).toBeVisible(); // reference data cached
   const broiler = page.getByText("Programme de vaccination poulet de chair").locator(".."); // one template per type (SPEC-m3 R9)
   await expect(broiler.getByText(/Pas encore vérifié par un vétérinaire/)).toBeVisible();

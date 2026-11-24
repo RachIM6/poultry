@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, queuedWrites, randomMobile, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, queuedWrites, randomMobile, scopeRemembered } from "./auth";
 
 // SPEC-m2-compliance §10.2 with a real worker: a visitor, a disposal and a clean-out step recorded offline on the
 // worker's phone reach the server once, and stay once after another sync; the worker never opens the vault (DC1).
@@ -43,7 +43,7 @@ for (const locale of ["fr", "ar"] as const) {
     await expect(worker.getByRole("link", { name: t("Disposal", "open") })).toBeVisible();
     await expect(worker.getByRole("link", { name: t("Documents", "open") })).toHaveCount(0);
     await worker.getByRole("link", { name: t("Cleanout", "open") }).click();
-    await worker.evaluate(() => navigator.serviceWorker.ready.then(() => undefined)); // shells precached
+    await controlled(worker); // shells precached
     const house = worker.getByRole("region", { name: "Bâtiment 1" });
     const manureOut = t("Cleanout", "steps.manureOut");
     await expect(house.getByRole("button", { name: t("Cleanout", "markNamed", { step: manureOut }) })).toBeVisible(); // the clean-out reached the phone

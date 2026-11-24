@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, scopeRemembered } from "./auth";
+import { controlled, ownerWithFarm, scopeRemembered } from "./auth";
 
 // T9 acceptance: offline write → reload offline → back online → sent; a refused one waits in "needs attention".
 test("an offline write survives a reload, then syncs; a refused one waits in 'needs attention'", async ({ page, context }) => {
@@ -8,7 +8,7 @@ test("an offline write survives a reload, then syncs; a refused one waits in 'ne
   await expect(page.getByRole("link", { name: "Tout est envoyé." })).toBeVisible();
   await scopeRemembered(page); // the badge renders before its effect has stored the scope
   await page.goto("/fr/sync");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined)); // shells precached
+  await controlled(page); // shells precached
   await expect(page.getByText("Tout est envoyé.")).toBeVisible();
 
   // setOffline alone doesn't cut the service worker's own fetches in Chromium; aborting every request does.
@@ -77,7 +77,7 @@ test("an offline write survives a reload, then syncs; a refused one waits in 'ne
 test("signed-in pages and API responses are never kept by the service worker", async ({ page }) => {
   await ownerWithFarm(page, "Ferme Cache");
   await page.goto("/fr/sync");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   const pulled = page.waitForResponse((res) => res.url().includes("/api/sync/pull") && res.status() === 200);
   await page.goto("/fr/dashboard");
   await pulled; // sync data went through the service worker

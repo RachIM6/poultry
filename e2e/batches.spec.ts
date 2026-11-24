@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T15 acceptance: a batch placed offline counts its age from the placement day; a second open batch in the same house
 // is refused with a clear message (the two-phones case is tested on the server: src/modules/flock/batches.int.test.ts).
@@ -23,7 +23,7 @@ test("a batch placed offline starts at day 0, and a second one in the same house
   await expect(page.getByText("Bâtiment 1")).toBeVisible();
 
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByText("Aucune bande pour l’instant.")).toBeVisible();
   await referenceCached(page); // the strains come with it
   await context.setOffline(true);

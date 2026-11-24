@@ -11,10 +11,11 @@ import { legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules
 import { batchesForFinance, type PlacementChange } from "@/modules/flock";
 import { batchResultsIn } from "@/modules/finance/application/batch-results";
 import { closePosted } from "@/modules/finance/application/count";
+import { assetCost } from "@/modules/finance/domain/assets";
 import { closeSource } from "@/modules/finance/domain/close";
 import { countDay, countYearOf } from "@/modules/finance/domain/count";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
-import { HENS_ADULTS, classicYearEnd, flockYear, hensMethodOf, simplifiedProvision, simplifiedValue, simplifiedYearEnd, type HensMethod } from "@/modules/finance/domain/hens";
+import { HENS_ADULTS, classicYearEnd, productionCosts, flockYear, hensMethodOf, simplifiedProvision, simplifiedValue, simplifiedYearEnd, type HensMethod } from "@/modules/finance/domain/hens";
 import type { FarmEvent, Posting } from "@/modules/finance/domain/posting";
 import { standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 
@@ -50,7 +51,17 @@ export type HensAtClose = {
 export type HensClose = { method: HensMethod | null; lines: HensAtClose[]; posting: Posting | null };
 
 /** The FN13 cost of each batch on a day (facts dated on or before it). */
-const costsOn = async (tx: Tx, ctx: TenantContext, day: FarmDay) => new Map((await batchResultsIn(tx, ctx, day)).map((r) => [r.id, r.costCentimes]));
+/** Each batch's production cost on `day` (`productionCosts`): the VAT recovered is the placement's and the batch's expenses'. */
+async function costsOn(tx: Tx, ctx: TenantContext, day: FarmDay, vatRegistered: boolean) {
+  const [rows, batches, expenses] = await Promise.all([
+    batchResultsIn(tx, ctx, day),
+    batchesForFinance(tx, ctx, day),
+    tx.expense.groupBy({ by: ["batchId"], where: { organizationId: ctx.organizationId, batchId: { not: null }, day: { lte: date(day) } }, _sum: { vatCentimes: true } }),
+  ]);
+  const vat = new Map(batches.map((b) => [b.id, b.chickVatCentimes]));
+  for (const e of expenses) vat.set(e.batchId!, (vat.get(e.batchId!) ?? 0n) + (e._sum.vatCentimes ?? 0n));
+  return productionCosts(rows, vat, vatRegistered);
+}
 
 /** FC6: the layer and pullet batches of a fiscal year, and the "hens" entry the close run posts for them. */
 export async function hensAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, year: FiscalYear): Promise<HensClose> {
@@ -59,7 +70,7 @@ export async function hensAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntit
   if (batches.length === 0) return { method, lines: [], posting: null };
   const where = { organizationId: ctx.organizationId, legalEntityId: entity.id, day: date(year.to) };
   const [costs, counted, typed, schedules] = await Promise.all([
-    costsOn(tx, ctx, year.to),
+    costsOn(tx, ctx, year.to, entity.vatRegistered),
     tx.yearEndCount.findMany({ where: { ...where, kind: "batch" }, select: { subjectId: true, quantity: true } }),
     tx.yearEndValue.findMany({ where: { ...where, kind: "hens" }, select: { subjectId: true, valueCentimes: true } }),
     tx.hensSchedule.findMany({ where: { organizationId: ctx.organizationId, legalEntityId: entity.id } }),
@@ -83,7 +94,9 @@ export async function hensAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntit
   if (method === "simplified") {
     const lines = open.map((b): HensAtClose => {
       const base = lineOf(b);
-      const entry = b.species === "pullet" ? (costs.get(b.id) ?? 0n) : b.fromBatchId ? (costs.get(b.fromBatchId) ?? 0n) : b.chicksCentimes;
+      // Hens bought: their value as posted (FN9), without the VAT a registered entity recovered, with it otherwise.
+      const bought = assetCost(b.chicksCentimes, b.chickVatCentimes, entity.vatRegistered);
+      const entry = b.species === "pullet" ? (costs.get(b.id) ?? 0n) : b.fromBatchId ? (costs.get(b.fromBatchId) ?? 0n) : bought;
       const value = simplifiedValue(base.species, entry, b.started, base.onHand, b.sold);
       const perBird = perBirdOf.get(b.id) ?? null;
       return { ...base, ...none, entry, value, perBird, provision: perBird === null ? 0n : simplifiedProvision(value, perBird, base.onHand), missing: value > 0n && perBird === null };
@@ -95,7 +108,7 @@ export async function hensAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntit
   // Classic: the pullets still rearing capitalise this year's cost (their cost at the last year end was, at that close).
   const lastYearEnd = addFarmDays(year.from, -1);
   const pullets = open.filter((b) => b.species === "pullet");
-  const before = pullets.some((b) => b.placedOn <= lastYearEnd) ? await costsOn(tx, ctx, lastYearEnd) : new Map<string, bigint>();
+  const before = pullets.some((b) => b.placedOn <= lastYearEnd) ? await costsOn(tx, ctx, lastYearEnd, entity.vatRegistered) : new Map<string, bigint>();
   const lines: HensAtClose[] = pullets.map((b) => ({ ...lineOf(b), ...none, entry: (costs.get(b.id) ?? 0n) - (b.placedOn <= lastYearEnd ? (before.get(b.id) ?? 0n) : 0n) }));
   const flocks = [];
   // The laying flocks on 23711 this year: their value there is what the purchase or the transfer posted (the books).
@@ -125,7 +138,7 @@ export async function layEvents(tx: Tx, ctx: TenantContext, entity: LegalEntityD
   const classic = hensMethodOf(entity.accountingProfile, entity.hensMethod) === "classic";
   const costs = new Map<string, Map<string, bigint>>();
   const costOn = async (id: string, day: FarmDay) => {
-    if (!costs.has(day)) costs.set(day, await costsOn(tx, ctx, day));
+    if (!costs.has(day)) costs.set(day, await costsOn(tx, ctx, day, entity.vatRegistered));
     return costs.get(day)!.get(id) ?? 0n;
   };
   const out: { version: bigint; event: FarmEvent }[] = [];

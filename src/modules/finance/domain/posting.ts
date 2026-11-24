@@ -1,7 +1,7 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { leafAccounts, postingAccount, type ChartOfAccounts } from "@/modules/finance/domain/chart";
 import type { Line } from "@/modules/finance/domain/entry";
-import { ASSET_DEBTS } from "@/modules/finance/domain/assets";
+import { ASSET_DEBTS, ASSET_VAT_RECOVERABLE } from "@/modules/finance/domain/assets";
 import { ASSOCIATES, EXPLOITANT } from "@/modules/finance/domain/contribution";
 import { HENS_ADULTS, HENS_CULL_SALE, layPosting } from "@/modules/finance/domain/hens";
 import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
@@ -9,7 +9,7 @@ import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 /** A farm event finance posts (SPEC-finance FN6), read from a module's change log (FN7). Amounts in centimes. */
 export type FarmEvent =
   | { type: "purchase"; id: string; day: FarmDay; itemKind: string; amount: bigint; paid: bigint; vat?: bigint; method?: string } // vat: part of amount (FN9); method: of the paid part, cash when absent
-  | { type: "chicks"; id: string; day: FarmDay; amount: bigint; layers?: boolean } // the chicks bought at placement (SPEC B1); layers: point-of-lay hens (FC6)
+  | { type: "chicks"; id: string; day: FarmDay; amount: bigint; vat?: bigint; layers?: boolean } // the chicks bought at placement (SPEC B1); vat: on top of amount (FN9); layers: point-of-lay hens (FC6)
   | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead"; vat?: bigint; layers?: boolean } // SPEC V2, SPEC-m3 V6, V7; layers: from a laying flock (FC6)
   | { type: "lay"; id: string; day: FarmDay; amount: bigint; capitalised: bigint } // FC6: a pullet batch's FN13 cost at its transfer to lay, and at the last year end
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
@@ -117,7 +117,7 @@ export const POSTED_ACCOUNTS: readonly { op: string; account: string }[] = [
  */
 export function postingOf(e: FarmEvent, vatRegistered = false, classicHens = false): Posting | null {
   if (e.type === "pay" ? e.gross <= 0n : e.amount <= 0n) return null;
-  const vat = vatRegistered && (e.type === "purchase" || e.type === "sale") ? (e.vat ?? 0n) : 0n;
+  const vat = vatRegistered && (e.type === "purchase" || e.type === "sale" || e.type === "chicks") ? (e.vat ?? 0n) : 0n;
   if (e.type === "sale") {
     const eggs = e.kind === "eggs";
     const lines = [line(BUYERS, e.amount, 0n), line(eggs ? EGGS_SOLD : classicHens && e.layers ? HENS_CULL_SALE : BIRDS_SOLD, 0n, e.amount - vat)];
@@ -169,8 +169,14 @@ export function postingOf(e: FarmEvent, vatRegistered = false, classicHens = fal
     return { journal: e.to === "remitted" ? "EF" : "BQ", label, lines: [line(to, e.amount, 0n), line(from, 0n, e.amount)] };
   }
   if (e.type === "chicks") {
+    // FN9: the placement's VAT comes on top of the chicks' price, so the debt is both; a registered entity recovers it
+    // (34551 on point-of-lay hens, a fixed asset as FC1; 34552 on chicks, a charge), otherwise it is part of the cost.
     const hens = classicHens && e.layers;
-    return { journal: "AC", label: hens ? "Achat de poules" : "Achat de poussins", lines: [{ account: hens ? HENS_ADULTS : CHICKS, debit: e.amount, credit: 0n }, { account: hens ? ASSET_DEBTS : SUPPLIERS, debit: 0n, credit: e.amount }] };
+    const total = e.amount + (e.vat ?? 0n);
+    const lines = [line(hens ? HENS_ADULTS : CHICKS, total - vat, 0n)];
+    if (vat > 0n) lines.push(line(hens ? ASSET_VAT_RECOVERABLE : VAT_RECOVERABLE, vat, 0n));
+    lines.push(line(hens ? ASSET_DEBTS : SUPPLIERS, 0n, total));
+    return { journal: "AC", label: hens ? "Achat de poules" : "Achat de poussins", lines };
   }
   if (e.type === "lay") return classicHens ? layPosting(e.amount, e.capitalised) : null;
   const lines: Line[] = [{ account: CHARGE_BY_ITEM[e.itemKind] ?? CHARGE_BY_ITEM.other, debit: e.amount - vat, credit: 0n }];

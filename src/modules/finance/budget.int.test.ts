@@ -28,7 +28,6 @@ describe("budget from a closed batch (SPEC-finance FN15, T35)", () => {
         purchase(ids.feed, 4_000_000, "460"), // 4 t at 4,60 DH/kg
         m("flock.placeBatch", { id: ids.batch, houseId: ids.house, strainId: "ross-308", placedOn: "2026-09-01", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "550", dayOldWeightGrams: null }),
         m("flock.recordDay", { batchId: ids.batch, day: "2026-09-02", changes: { dead: 0, culled: 0, feed: { stockItemId: ids.feed, grams: 3_000_000 } } }), // 3 t eaten
-        m("flock.recordBatchCost", { id: uuidv7(), batchId: ids.batch, day: "2026-09-10", label: "Électricité", amountCentimes: "50000" }),
         m("sales.createBuyer", { id: ids.buyer, name: "Hamid", phone: null, type: "trader" }),
         // all 1 000 birds, 2 000 kg at 14,00 DH/kg = 28 000,00: the batch closes
         m("sales.recordSale", { id: uuidv7(), batchId: ids.batch, buyerId: ids.buyer, day: "2026-10-15", birds: 1000, farmWeightGrams: 2_000_000, buyerWeightGrams: null, pricePerKgCentimes: "1400", paymentMethod: "cash", paidCentimes: "2800000", instrument: null }),
@@ -36,6 +35,8 @@ describe("budget from a closed batch (SPEC-finance FN15, T35)", () => {
       registry,
     );
     expect(pushed.results.filter((r) => r.status !== "applied")).toEqual([]);
+    // A T24 other cost recorded before FN13 refused new ones: it still counts.
+    await db.batchCost.create({ data: { id: uuidv7(), organizationId: a.organizationId, batchId: ids.batch, day: new Date("2026-09-10T00:00:00Z"), label: "Électricité", amountCentimes: 50_000n } });
   });
 
   it("turns a closed batch into what-if inputs, with the feed apart", async () => {

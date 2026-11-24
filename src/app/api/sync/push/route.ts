@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { isSameOriginRequest } from "@/lib/security/csrf";
-import { readJson } from "@/lib/security/body";
+import { readJson, tooLarge } from "@/lib/security/body";
 import { consume } from "@/lib/security/rate-limit";
 import { z } from "zod";
 import { MAX_MUTATIONS_PER_PUSH } from "@/lib/sync/protocol";
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   }
 
   const json = await readJson(req, MAX_BODY_BYTES);
-  if (!json.ok) return Response.json({ ok: false, messageKey: "errors.INVALID_INPUT" }, { status: 413 });
+  if (!json.ok) return tooLarge();
   const body = PushBody.safeParse(json.value);
   if (!body.success) return Response.json({ ok: false, messageKey: "errors.INVALID_INPUT" }, { status: 400 });
 

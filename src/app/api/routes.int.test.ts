@@ -134,6 +134,7 @@ describe("route handlers' security matrix", () => {
     const big = JSON.stringify({ phone: "0680000001", pad: "x".repeat(row.body!) });
     const res = await call(row, "POST", path, { ...sameSite, ...aAuth }, big);
     expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ ok: false, messageKey: "errors.TOO_LARGE" });
     expect(await db.authEvent.count()).toBe(before); // the login routes stopped before the limits and the audit
     // Just under the cap is read as usual (refused as invalid by the route, not as too large).
     const small = JSON.stringify({ pad: "x".repeat(row.body! - 64) });

@@ -32,4 +32,4 @@ export async function readJson(req: Request, max = MAX_JSON_BYTES): Promise<Resu
 }
 
 /** The answer to a body past its cap. */
-export const tooLarge = () => Response.json({ ok: false, messageKey: "errors.INVALID_INPUT" }, { status: 413 });
+export const tooLarge = () => Response.json({ ok: false, messageKey: "errors.TOO_LARGE" }, { status: 413 });

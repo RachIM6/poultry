@@ -10,6 +10,9 @@ import { getTenantContext } from "@/modules/identity";
 import { registry } from "../registry";
 
 const MAX_BODY_BYTES = 2_000_000; // 500 mutations of a few KB
+// Seconds the host lets one call run (Vercel, docs/deploy-vercel-supabase.md): the transaction itself gives up after
+// 20 s (SYNC_TX), plus the posting after() runs once the phone has its answer.
+export const maxDuration = 60;
 
 const PushBody = z.object({
   mutations: z

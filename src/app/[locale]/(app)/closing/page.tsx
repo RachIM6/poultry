@@ -28,6 +28,10 @@ const MESSAGES: MessagePath[] = ["Close", "Nav", "Offline", "Sync.refused", "err
 // FN3: until the previous year is closed, the owner opens this one from it as it stands, marked provisional for everyone.
 // FC6 (T114, T115): the layer and pullet batches by the hens' method; the owner types each laying flock's life and cull
 // value (classic) or the current value of a bird (simplified), required before the run posts.
+// Seconds the host lets one call run (Vercel, docs/deploy-vercel-supabase.md), this page's server actions included:
+// the close run posts a whole year's entries.
+export const maxDuration = 300;
+
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 export default function ClosingPage({ searchParams }: { searchParams: Search }) {

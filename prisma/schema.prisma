@@ -147,10 +147,10 @@ enum LegalForm {
 // ids come from the uuidv7() default (Better Auth runs with generateId: false).
 model User {
   id                  String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  phoneNumber         String?      @unique // E.164 +2126… / +2127…, the login identifier
-  phoneNumberVerified Boolean?     @default(false)
-  name                String // Better Auth requires it; set to the phone number until onboarding
-  email               String       @unique // Better Auth requires it; placeholder <digits>@phone.invalid
+  phoneNumber         String?      @unique // E.164 +2126… / +2127…, a login identifier (ADR-015)
+  phoneNumberVerified Boolean?     @default(false) // true only after an SMS code login (AUTH_SMS_ENABLED)
+  name                String // Better Auth requires it; the phone number (or the email)
+  email               String       @unique // a login identifier, lowercase (CHECK); placeholder <digits>@phone.invalid when none
   emailVerified       Boolean      @default(false)
   image               String?
   locale              Locale       @default(ar)
@@ -159,6 +159,7 @@ model User {
   memberships         Membership[]
   sessions            Session[]
   accounts            Account[]
+  passwordResets      PasswordReset[]
 }
 
 model Session {
@@ -175,7 +176,7 @@ model Session {
   @@index([userId])
 }
 
-// Unused by phone login; Better Auth's adapter expects the model.
+// Better Auth's: the "credential" row (accountId = userId) holds the scrypt password hash (ADR-015).
 model Account {
   id                    String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   accountId             String
@@ -253,6 +254,7 @@ model Invitation {
   role           MemberRole
   accessUntil    DateTime?    @db.Date // copied to the membership
   invitedById    String       @db.Uuid
+  codeHash       String?      @unique // ADR-015: HMAC of the one-time invite code; null for one made before codes
   expiresAt      DateTime     @db.Timestamptz
   createdAt      DateTime     @default(now()) @db.Timestamptz
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -271,9 +273,23 @@ model AuthEvent {
   action    String // identity/infrastructure/auth-events.ts AuthAction
   reason    String? // outcome, e.g. eligible, wrong_code, requestCode:phone
   userId    String?  @db.Uuid // when known: login, logout
-  phone     String? // masked: +2126•••••12
+  phone     String? // the masked identifier: +2126•••••12, or a•••@example.ma (ADR-015)
   ip        String? // coarse: /24 or /64 subnet, absent without TRUSTED_PROXY_HOPS
   userAgent String? // truncated
+}
+
+// Owner: identity. ADR-015: a pending one-time password reset code, issued by an owner (settings → members) or by
+// the operator (pnpm user:reset, issuedById null). One per user; deleted when used. Only the code's HMAC is kept.
+model PasswordReset {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId      String   @db.Uuid
+  codeHash    String   @unique
+  issuedById  String?  @db.Uuid
+  expiresAt   DateTime @db.Timestamptz
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 enum MemberRole {

@@ -16,5 +16,6 @@ export const getSession = cache(async (headers: Headers, clock: Clock = systemCl
     await db.session.deleteMany({ where: { id: current.session.id } });
     return null;
   }
-  return { userId: current.user.id, phone: current.user.phoneNumber, locale: current.user.locale };
+  // phoneVerified: only an SMS code login proves the number (ADR-015); a password account's phone is just typed.
+  return { userId: current.user.id, phone: current.user.phoneNumber, phoneVerified: current.user.phoneNumberVerified === true, locale: current.user.locale };
 });

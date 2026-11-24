@@ -45,6 +45,11 @@ export function checkProductionEnv(env: NodeJS.ProcessEnv = process.env): string
   }
 
   if (env.OTP_CONSOLE_SINK && !testServer) errors.push("OTP_CONSOLE_SINK is test only: it prints login codes to the log.");
+  // ADR-015: login is by password; SMS code login stays off, and needs no setting, until a provider exists (OQ2).
+  // Only the e2e test server may turn it on, with its console sink.
+  if (env.AUTH_SMS_ENABLED === "true" && !(testServer && env.OTP_CONSOLE_SINK === "1")) {
+    errors.push("AUTH_SMS_ENABLED=true needs an SMS provider, and none is wired yet (OQ2, ADR-015).");
+  }
   if (!env.CRON_SECRET) warnings.push("CRON_SECRET is not set: POST /api/push/dispatch is off: no reminders, pushes or postings catch-up.");
 
   if (errors.length > 0) throw new Error(`Refusing to start in production:\n- ${errors.join("\n- ")}`);

@@ -4,6 +4,6 @@
  * is chosen (OQ1; tasks/todo.md T26).
  * Data holds numbers only, so no phone number or IP can slip in (law 09-08).
  */
-export function alertOps(event: "sms_cap_50" | "sms_cap_100", data: Record<string, number>) {
+export function alertOps(event: "sms_cap_50" | "sms_cap_100" | `${string}_cap`, data: Record<string, number>) {
   console.error(JSON.stringify({ level: "error", alert: event, ...data }));
 }

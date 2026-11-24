@@ -25,22 +25,25 @@ export async function consume(policy: PolicyName, dims: Partial<Record<Dimension
     const n = countOf.get(keys[i]) ?? 0;
     if (n >= rule.limit) blocked.add(rule.dim);
     if (policy === "requestCode" && rule.dim === "global") {
-      if (n + 1 === Math.ceil(rule.limit / 2)) await alertSmsCapOnce("sms_cap_50", rule, n + 1);
-      if (n + 1 === rule.limit) await alertSmsCapOnce("sms_cap_100", rule, n + 1); // the last code allowed
+      if (n + 1 === Math.ceil(rule.limit / 2)) await alertCapOnce(policy, "sms_cap_50", rule, n + 1);
+      if (n + 1 === rule.limit) await alertCapOnce(policy, "sms_cap_100", rule, n + 1); // the last code allowed
+    } else if (rule.dim === "global" && n + 1 === rule.limit) {
+      await alertCapOnce(policy, `${policy}_cap`, rule, n + 1); // rate-limiting.md §7: a global hit alerts
     }
   }
   return [...blocked];
 }
 
 /**
- * The SMS cap reached 50 % (possible SMS pumping) or 100 % (no more codes). The window slides, so the count can dip
+ * The SMS cap reached 50 % (possible SMS pumping) or 100 % (no more codes), or another policy's global cap was reached
+ * (credential stuffing, a sign-up flood: `<policy>_cap`). The window slides, so the count can dip
  * and cross again within minutes: a marker hit per event, taken under the same per-policy lock on every instance,
  * lets only the first crossing of a window alert. Every crossing renews the marker, so steady traffic around the
  * threshold alerts once, not once an hour.
  */
-async function alertSmsCapOnce(event: "sms_cap_50" | "sms_cap_100", rule: Rule, count: number) {
+async function alertCapOnce(policy: PolicyName, event: Parameters<typeof alertOps>[0], rule: Rule, count: number) {
   const [{ hits }] = await db.$queryRaw<{ hits: number }[]>`
-    SELECT hits FROM rate_limit_consume('requestCode', ${[`requestCode:alert:${rule.windowSec}:${event}`]}::text[], ${[rule.windowSec]}::int[])`;
+    SELECT hits FROM rate_limit_consume(${policy}, ${[`${policy}:alert:${rule.windowSec}:${event}`]}::text[], ${[rule.windowSec]}::int[])`;
   if (hits === 0) alertOps(event, { count, cap: rule.limit, windowSec: rule.windowSec });
 }
 
@@ -54,9 +57,9 @@ function keysOf(policy: PolicyName, dims: Partial<Record<Dimension, string>>) {
   return { rules, keys: rules.map((rule) => `${policy}:${rule.dim}:${rule.windowSec}:${keyValue(rule.dim, dims[rule.dim]!)}`) };
 }
 
-// Phone numbers are hashed so the limiter table holds no personal data (law 09-08).
+// Phone numbers and login identifiers are hashed so the limiter table holds no personal data (law 09-08).
 const keyValue = (dim: Dimension, value: string) =>
-  dim === "phone" ? createHash("sha256").update(value).digest("base64url") : value;
+  dim === "phone" || dim === "account" ? createHash("sha256").update(value).digest("base64url") : value;
 
 /**
  * Client IP from X-Forwarded-For, counted from the right past our own proxies (TRUSTED_PROXY_HOPS).

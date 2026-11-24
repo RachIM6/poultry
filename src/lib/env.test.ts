@@ -73,6 +73,14 @@ describe("checkProductionEnv", () => {
     expect(check({ ...ci, APP_ORIGIN: "http://ferme.example" })).toThrow(/APP_ORIGIN/);
   });
 
+  it("needs no SMS setting, and refuses AUTH_SMS_ENABLED=true without a provider (ADR-015)", () => {
+    expect(check({ AUTH_SMS_ENABLED: "false" })()).toEqual([]);
+    expect(check({ AUTH_SMS_ENABLED: "true" })).toThrow(/AUTH_SMS_ENABLED/);
+    const ci = { ALLOW_TEST_SERVER_IN_CI: "1", CI: "true" };
+    expect(check({ ...ci, AUTH_SMS_ENABLED: "true" })).toThrow(/AUTH_SMS_ENABLED/);
+    expect(check({ ...ci, AUTH_SMS_ENABLED: "true", OTP_CONSOLE_SINK: "1" })()).toEqual([]); // the e2e server's console sink
+  });
+
   it("lists every problem at once and never prints a value", () => {
     const leaked = "postgresql://secret-user:secret-pass@db/poultry";
     let message = "";

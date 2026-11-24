@@ -34,7 +34,7 @@ export async function getTenantContext(headers: Headers, clock: Clock = systemCl
 export type MyOrganizations = {
   current: string | null;
   memberships: { organizationId: string; name: string; role: Role; accessUntil: string | null }[];
-  invitations: { id: string; organizationId: string; name: string; role: Role }[]; // pending, for this user's phone
+  invitations: { id: string; organizationId: string; name: string; role: Role }[]; // pending, for this user's verified phone
 };
 
 /** SPEC-m5 PA2: the farms this user can open, and the invitations waiting for them (a partner already elsewhere). */
@@ -43,7 +43,8 @@ export async function myOrganizations(headers: Headers, clock: Clock = systemClo
   if (!session) return fail("UNAUTHENTICATED");
   const [memberships, invitations] = await Promise.all([
     liveMemberships(session.userId, clock),
-    session.phone ? db.invitation.findMany({ where: { phoneNumber: session.phone, expiresAt: { gt: clock.now() } }, include: { organization: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
+    // ADR-015: only a phone an SMS code verified lists that number's invitations; otherwise joining needs the code.
+    session.phone && session.phoneVerified ? db.invitation.findMany({ where: { phoneNumber: session.phone, expiresAt: { gt: clock.now() } }, include: { organization: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
   ]);
   return ok({
     current: opened(memberships, headers)?.organizationId ?? null, // the one getTenantContext opens
@@ -75,10 +76,13 @@ export async function auditPartnerSignIn(userId: string, headers: Headers, clock
   await db.auditEvent.create({ data: { organizationId: membership.organizationId, userId, entity: "Membership", entityId: membership.id, action: "open", after: { role: membership.role, signIn: true } } });
 }
 
-/** SPEC-m5 PA2: a signed-in user accepts an invitation sent to their own phone; returns the organisation it opens. */
+/**
+ * SPEC-m5 PA2: a signed-in user accepts an invitation sent to their own phone; returns the organisation it opens.
+ * ADR-015: only when an SMS code verified that phone (AUTH_SMS_ENABLED). Everyone else joins with the invite code.
+ */
 export async function acceptInvitation(headers: Headers, invitationId: string, clock: Clock = systemClock): Promise<Result<string, "UNAUTHENTICATED" | "NOT_FOUND">> {
   const session = await getSession(headers);
-  if (!session?.phone) return fail("UNAUTHENTICATED");
+  if (!session?.phone || !session.phoneVerified) return fail("UNAUTHENTICATED");
   const phone = session.phone;
   return db.$transaction(async (tx) => {
     const inv = await tx.invitation.findFirst({ where: { id: invitationId, phoneNumber: phone, expiresAt: { gt: clock.now() } } });

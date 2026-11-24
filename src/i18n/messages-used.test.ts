@@ -11,6 +11,9 @@ import fr from "../../messages/fr.json";
 /** Codes that never reach the screen. */
 const SILENT_CODES: Record<string, string> = {
   NO_MEMBERSHIP: "getTenantContext's signal to redirect to /onboarding; never shown",
+  NOT_LEFT: "src/ops: printed by the operator's pnpm org:delete, never on a screen",
+  TOO_SOON: "src/ops: printed by the operator's pnpm org:delete, never on a screen",
+  WRONG_NAME: "src/ops: printed by the operator's pnpm org:delete, never on a screen",
 };
 
 const src = fileURLToPath(new URL("..", import.meta.url));

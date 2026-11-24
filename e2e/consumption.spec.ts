@@ -118,6 +118,7 @@ test("a worker records a consumption without seeing a price, an amount or the bu
   await expect(sales).toHaveCount(1);
   await expect(sales).toContainText("Consommation · Un employé · 5 oiseaux");
   await expect(worker.getByText("Oiseaux présents : 895")).toBeVisible();
+  await outboxEmpty(worker);
 
   // On the server, priced from the last sale: 10 kg × 14,50 DH.
   const server = async () =>

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T39 (SPEC-finance FN9): a purchase's VAT, entered on the form, is booked apart for a VAT-registered entity.
 test("a VAT-registered farm's purchase and quick expense book their VAT on 34552", async ({ page }) => {
@@ -26,6 +26,7 @@ test("a VAT-registered farm's purchase and quick expense book their VAT on 34552
   await page.getByLabel("Dont TVA (DH, facultatif)").fill("200");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText(/En stock : 1.000.kg/)).toBeVisible();
+  await outboxEmpty(page);
 
   const lines = async () =>
     (
@@ -46,5 +47,7 @@ test("a VAT-registered farm's purchase and quick expense book their VAT on 34552
   await page.getByLabel("Dont TVA (DH, facultatif)").fill("200");
   await page.getByLabel("Payé avec").selectOption({ label: "Caisse · Caisse ferme" });
   await page.getByRole("button", { name: "Enregistrer la dépense" }).click();
+  await expect(page.getByRole("list", { name: "Dernières dépenses" }).getByRole("listitem")).toHaveText([/^Électricité : 1.200,00\sDH, le/]); // saved on the phone
+  await outboxEmpty(page);
   await expect.poll(lines).toEqual(["34552 20000 0", "34552 20000 0", "4411 0 120000", "5161 0 120000", "612122 100000 0", "612512 100000 0"]);
 });

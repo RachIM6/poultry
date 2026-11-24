@@ -103,6 +103,7 @@ test("a cheque marked unpaid offline is owed again and blocks the buyer, until t
 
   await page.getByRole("button", { name: "Lever le blocage" }).click();
   await expect(page.getByText("Hamid Volailles : crédit bloqué après un impayé")).toHaveCount(0);
+  await outboxEmpty(page);
   await expect.poll(server).toEqual([{ state: "unpaid", blocked: false }]);
 });
 

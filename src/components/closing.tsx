@@ -176,7 +176,7 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
           <Field label={t("Transfer.house")}>
             {(id) => (
               <select id={id} name="houseId" autoFocus className={field}>
-                {free.map((h) => <option key={h.id} value={h.id}>{h.label}</option>)}
+                {free.map((h) => <option key={h.id} value={h.id}>{h.id === batch.houseId ? t("Transfer.sameHouse", { house: h.label }) : h.label}</option>)}
               </select>
             )}
           </Field>

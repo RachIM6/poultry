@@ -251,7 +251,7 @@ function Batches(scope: Scope) {
             houses={houses.map((h) => ({
               id: h.id,
               label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
-              free: canJoinHouse("layer", batches.filter((b) => b.status === "open" && b.houseId === h.id)).ok,
+              free: canJoinHouse("layer", batches.filter((b) => b.status === "open" && b.houseId === h.id && b.id !== open.id)).ok, // its own house too (B13)
             }))}
             write={write}
           />

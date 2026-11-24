@@ -13,9 +13,9 @@ const date = (day: string) => new Date(`${day}T00:00:00Z`); // a farm day, store
 /** B1: serializes placements in one house until the transaction ends, so the open-batch check can't race. */
 export const lockHouse = (tx: Tx, houseId: string) => tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${houseId}, 0))`;
 
-/** SPEC-m3 B8: the house's open batches, with what the sharing rule needs. */
-export const openInHouse = async (tx: Tx, ctx: TenantContext, houseId: string) =>
-  (await tx.batch.findMany({ where: { organizationId: ctx.organizationId, houseId, status: "open" }, select: { species: true, sex: true } })).map((b) => ({
+/** SPEC-m3 B8: the house's open batches, with what the sharing rule needs, but `except` (one closing in the same step). */
+export const openInHouse = async (tx: Tx, ctx: TenantContext, houseId: string, except?: string) =>
+  (await tx.batch.findMany({ where: { organizationId: ctx.organizationId, houseId, status: "open", ...(except && { id: { not: except } }) }, select: { species: true, sex: true } })).map((b) => ({
     species: b.species as ProductionType,
     sex: b.sex as BirdSex,
   }));

@@ -1908,7 +1908,8 @@
     "hens": "Poules transférées",
     "left": "{birds} non transférées seront réformées ce jour-là.",
     "save": "Transférer",
-    "noHouse": "Aucun bâtiment libre pour la ponte."
+    "noHouse": "Aucun bâtiment ne peut accueillir les poules : chacun a déjà une bande en cours.",
+    "sameHouse": "{house} (le même bâtiment)"
   },
   "Eggs": {
     "title": "Ramassage des œufs",

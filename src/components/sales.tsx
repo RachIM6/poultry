@@ -13,6 +13,7 @@ import { Batch, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared"
 import { withdrawalUntil, type TreatmentDto } from "@/modules/health/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
 import { card, danger, field, primary, secondary } from "@/components/ui";
+import { useInline } from "@/components/focus";
 import {
   BUYER_TYPES,
   PAYMENT_METHODS,
@@ -22,6 +23,7 @@ import {
   checkHeadSale,
   checkSale,
   lastPrices,
+  repriceSale,
   saleAmount,
   typedPrice,
   weighingGap,
@@ -71,8 +73,16 @@ export function Sales({
   const locale = useLocale();
   const [adding, setAdding] = useState(false);
   const buyerName = (id: string | null) => buyers.find((b) => b.id === id)?.name ?? "—";
-  // egg sales: /eggs. A worker sees the consumptions only, not the farm's sales and buyers.
-  const list = sales.filter((s) => s.batchId === batch.id && s.kind !== "eggs" && (seller || s.takenBy)).sort((a, b) => b.day.localeCompare(a.day));
+  // A worker sees the consumptions only, not the farm's sales and buyers; egg sales are recorded on /eggs.
+  const list = sales.filter((s) => s.batchId === batch.id && (seller || (s.takenBy && s.kind !== "eggs"))).sort((a, b) => b.day.localeCompare(a.day));
+  const labelOf = (s: SaleDto) => {
+    const date = formatDay(s.day as FarmDay, locale);
+    const who = s.takenBy ? t(`Sale.takers.${s.takenBy}`) : buyerName(s.buyerId);
+    if (s.kind === "eggs") return t("Sale.eggLine", { date, buyer: who, eggs: formatCount((s.lines ?? []).reduce((n, l) => n + l.eggs, 0)) });
+    if (s.takenBy) return t("Sale.consumptionLine", { date, who, birds: formatCount(s.birds) });
+    if (s.kind === "perHead") return t("Sale.headLine", { date, buyer: who, birds: formatCount(s.birds) });
+    return t("Sale.line", { date, buyer: who, birds: formatCount(s.birds), kg: formatKg(s.farmWeightGrams) });
+  };
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="sale-title">
@@ -83,33 +93,35 @@ export function Sales({
         <ul className="flex flex-col gap-3" aria-labelledby="sale-title">
           {list.map((s) => {
             const gap = weighingGap(s.farmWeightGrams, s.buyerWeightGrams);
+            // SPEC-finance §9 "Cancelled records": birds can't come back to a closed batch (no reopening in v1)
+            const actions = seller && <SaleActions sale={s} label={labelOf(s)} cancellable={batch.status === "open" || s.kind === "eggs"} write={write} />;
             if (s.takenBy) {
               return (
                 <li key={s.id} className={card}>
-                  <span className="font-semibold">{t("Sale.consumptionLine", { date: formatDay(s.day as FarmDay, locale), who: t(`Sale.takers.${s.takenBy}`), birds: formatCount(s.birds) })}</span>
+                  <span className="font-semibold">{labelOf(s)}</span>
                   {s.amountCentimes && <span>{t("Sale.value", { amount: formatMoney(BigInt(s.amountCentimes)) })}</span>}
+                  {actions}
                 </li>
               );
             }
             return (
               <li key={s.id} className={card}>
-                <span className="font-semibold">
-                  {s.kind === "perHead"
-                    ? t("Sale.headLine", { date: formatDay(s.day as FarmDay, locale), buyer: buyerName(s.buyerId), birds: formatCount(s.birds) })
-                    : t("Sale.line", { date: formatDay(s.day as FarmDay, locale), buyer: buyerName(s.buyerId), birds: formatCount(s.birds), kg: formatKg(s.farmWeightGrams) })}
-                </span>
+                <span className="font-semibold">{labelOf(s)}</span>
                 {s.amountCentimes && s.paymentMethod && (
                   <span>{t("Sale.detail", { amount: formatMoney(BigInt(s.amountCentimes)), method: t(`Sale.methods.${s.paymentMethod}`), paid: formatMoney(BigInt(s.paidCentimes ?? "0")) })}</span>
                 )}
                 {gap && <span>{t("Sale.gap", { kg: formatKg(gap.grams), percent: formatPercent(gap.percent) })}</span>}
-                {/* V5: printed in either language, whatever the screen's */}
-                <span className="flex gap-4">
-                  {(["fr", "ar"] as const).map((l) => (
-                    <Link key={l} href={`/origin#${s.id}`} locale={l} className="py-2 underline underline-offset-4">
-                      {t("Sale.origin", { language: t(`LocaleSwitcher.${l}`) })}
-                    </Link>
-                  ))}
-                </span>
+                {/* V5: printed in either language, whatever the screen's (live birds) */}
+                {s.kind !== "eggs" && (
+                  <span className="flex gap-4">
+                    {(["fr", "ar"] as const).map((l) => (
+                      <Link key={l} href={`/origin#${s.id}`} locale={l} className="py-2 underline underline-offset-4">
+                        {t("Sale.origin", { language: t(`LocaleSwitcher.${l}`) })}
+                      </Link>
+                    ))}
+                  </span>
+                )}
+                {actions}
               </li>
             );
           })}
@@ -121,6 +133,71 @@ export function Sales({
         <button type="button" onClick={() => setAdding(true)} className={secondary}>{t(seller ? "Sale.add" : "Sale.addConsumption")}</button>
       )}
     </section>
+  );
+}
+
+/**
+ * SPEC-finance §9 "Cancelled records": a sale typed wrong. Its prices and VAT are corrected here; anything else (birds,
+ * weight, buyer, day) is cancelled, after a confirmation, then typed again. The server refuses either once a payment
+ * covers it (SALE_HAS_PAYMENT), and a cancel once its batch is closed.
+ */
+function SaleActions({ sale, label, cancellable, write }: { sale: SaleDto; label: string; cancellable: boolean; write: Write }) {
+  const t = useTranslations();
+  const { open, opener, close } = useInline<"price">();
+  const [error, setError] = useState<string>();
+  const live = (sale.kind ?? "live") === "live";
+  const lines = sale.lines ?? [];
+  const lineName = (item: string) => (sale.kind === "eggs" ? (item.startsWith("grade:") ? item.slice(6).toUpperCase() : t(`EggStock.items.${item}`)) : t(`Sale.heads.${item}`));
+
+  const cancel = async () => {
+    if (!confirm(t("Sale.voidConfirm", { sale: label }))) return;
+    await write({ type: S.cancelSale, payload: { saleId: sale.id } }, [
+      { entity: "sale", id: sale.id, data: null },
+      ...(sale.kind === "eggs" ? [] : [{ entity: "soldBirds", id: sale.id, data: null }]), // B5: the birds are back at once; eggs at the next sync
+    ]);
+  };
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const text = (k: string) => String(data.get(k) ?? "").trim();
+    const kg = live ? parseCentimes(text("perKg")) : null;
+    const linePrices = lines.map((_, n) => parseCentimes(text(`line${n}`)));
+    const vat = sale.takenBy || !text("vat") ? 0n : parseCentimes(text("vat"));
+    if ((live ? kg === null : linePrices.some((p) => p === null)) || vat === null) return setError("errors.INVALID_INPUT");
+    const priced = repriceSale(sale, { pricePerKgCentimes: kg, linePrices: linePrices as bigint[], vatCentimes: vat });
+    if (!priced.ok) return setError(`errors.${priced.error}`);
+    setError(undefined);
+    const payload = { saleId: sale.id, pricePerKgCentimes: kg === null ? null : String(kg), linePrices: linePrices.map(String), vatCentimes: String(vat) };
+    const corrected: SaleDto = { ...sale, pricePerKgCentimes: String(priced.value.pricePerKgCentimes), amountCentimes: String(priced.value.amountCentimes), vatCentimes: String(vat), lines: priced.value.lines };
+    if (await write({ type: S.correctSale, payload }, [{ entity: "sale", id: sale.id, data: corrected }])) close();
+  };
+
+  if (open === "price") {
+    return (
+      <form onSubmit={submit} aria-label={t("Sale.correctOf", { sale: label })} className="mt-2 flex flex-col gap-2.5">
+        <p className="text-sm text-ink-2">{t("Sale.correctHint")}</p>
+        {live ? (
+          <Input label={t("Sale.price")} name="perKg" defaultValue={typedPrice(BigInt(sale.pricePerKgCentimes ?? "0"))} inputMode="decimal" required dir="ltr" autoFocus />
+        ) : (
+          lines.map((l, n) => (
+            <Input key={n} label={t("Sale.linePrice", { what: lineName(l.item) })} name={`line${n}`} defaultValue={typedPrice(BigInt(l.unitPriceCentimes))} inputMode="decimal" required dir="ltr" autoFocus={n === 0} />
+          ))
+        )}
+        {!sale.takenBy && <Input label={t("Sale.vat")} name="vat" defaultValue={sale.vatCentimes && sale.vatCentimes !== "0" ? typedPrice(BigInt(sale.vatCentimes)) : ""} inputMode="decimal" dir="ltr" />}
+        {error && <p role="alert" className={danger}>{t(error)}</p>}
+        <div className="flex gap-3">
+          <button type="submit" className={primary}>{t("Sale.saveCorrection")}</button>
+          <button type="button" onClick={close} className={secondary}>{t("Sale.cancel")}</button>
+        </div>
+      </form>
+    );
+  }
+  return (
+    <span className="mt-1 flex flex-wrap gap-2">
+      <button type="button" {...opener("price")} aria-label={t("Sale.correctOf", { sale: label })} className={`${secondary} text-sm`}>{t("Sale.correct")}</button>
+      {cancellable && <button type="button" onClick={cancel} aria-label={t("Sale.voidOf", { sale: label })} className={`${secondary} text-sm`}>{t("Sale.void")}</button>}
+    </span>
   );
 }
 

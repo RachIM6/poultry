@@ -1,7 +1,7 @@
 import { can } from "@/lib/permissions";
 import { defineMutation, type SyncRegistry } from "@/lib/sync/server";
-import { createTreasuryAccount, recordExpense, recordTransfer } from "@/modules/finance/application/treasury";
-import { CreateTreasuryAccount, FINANCE_MUTATIONS as M, RecordExpense, RecordTransfer, type ExpenseDto, type TransferDto, type TreasuryAccountDto } from "@/modules/finance/schema";
+import { cancelExpense, correctExpense, createTreasuryAccount, recordExpense, recordTransfer } from "@/modules/finance/application/treasury";
+import { CancelExpense, CreateTreasuryAccount, FINANCE_MUTATIONS as M, RecordExpense, RecordTransfer, type ExpenseDto, type TransferDto, type TreasuryAccountDto } from "@/modules/finance/schema";
 
 // SPEC-finance FX2: owners and managers record expenses and treasury moves, offline (FX4). Workers get none of it,
 // neither the mutations nor the records.
@@ -12,6 +12,9 @@ export const financeSync: SyncRegistry = {
     [M.createTreasuryAccount]: defineMutation({ schema: CreateTreasuryAccount, action: "finance.record", apply: (tx, ctx, cmd, meta) => createTreasuryAccount(tx, ctx, cmd, meta) }),
     [M.recordExpense]: defineMutation({ schema: RecordExpense, action: "finance.record", apply: (tx, ctx, cmd, meta) => recordExpense(tx, ctx, cmd, meta) }),
     [M.recordTransfer]: defineMutation({ schema: RecordTransfer, action: "finance.record", apply: (tx, ctx, cmd, meta) => recordTransfer(tx, ctx, cmd, meta) }),
+    // §9 "Cancelled records": a quick expense corrected (the same fields as a new one, with its id) or cancelled
+    [M.correctExpense]: defineMutation({ schema: RecordExpense, action: "finance.record", apply: (tx, ctx, cmd, meta) => correctExpense(tx, ctx, cmd, meta) }),
+    [M.cancelExpense]: defineMutation({ schema: CancelExpense, action: "finance.record", apply: (tx, ctx, cmd, meta) => cancelExpense(tx, ctx, cmd, meta) }),
   },
   entities: {
     treasuryAccount: (ctx, data: TreasuryAccountDto) => forFinance(ctx, data),

@@ -10,6 +10,7 @@ export type { AgeingBucket } from "@/modules/sales/domain/receivables";
 export { INSTRUMENT_STATES, checkTransition, instrumentsOf } from "@/modules/sales/domain/instruments";
 export type { Instrument, InstrumentKind, InstrumentState } from "@/modules/sales/domain/instruments";
 export { TAKERS, lastPrices, typedPrice } from "@/modules/sales/domain/consumption";
+export { repriceSale } from "@/modules/sales/domain/correction";
 export type { Taker } from "@/modules/sales/domain/consumption";
 import type { Taker } from "@/modules/sales/domain/consumption";
 
@@ -86,4 +87,6 @@ export const SALES_MUTATIONS = {
   unblockBuyer: "sales.unblockBuyer",
   setCreditLimit: "sales.setCreditLimit",
   approveCredit: "sales.approveCredit",
+  cancelSale: "sales.cancelSale",
+  correctSale: "sales.correctSale",
 } as const;

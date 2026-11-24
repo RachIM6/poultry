@@ -45,4 +45,6 @@ export const FINANCE_MUTATIONS = {
   createTreasuryAccount: "finance.createTreasuryAccount",
   recordExpense: "finance.recordExpense",
   recordTransfer: "finance.recordTransfer",
+  correctExpense: "finance.correctExpense",
+  cancelExpense: "finance.cancelExpense",
 } as const;

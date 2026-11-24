@@ -20,7 +20,8 @@ import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/en
 import { inChart, postingOf, samePosting, unpostedConsumption, type FarmEvent } from "@/modules/finance/domain/posting";
 import { firstPostedAt, ledgerAccounts, lockCursor, lockedMonths, moveCursor, pendingOrganizations, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 
-type Change = { version: bigint; event: FarmEvent };
+// voided: a record cancelled at its source (SPEC-finance §9 "Cancelled records"), by id: its standing entry is reversed.
+type Change = { version: bigint; event: FarmEvent } | { version: bigint; voided: string };
 type Source = { name: string; module: string; entity: string; read: (tx: Tx, ctx: TenantContext, after: bigint, entity: LegalEntityDto) => Promise<Change[]> };
 
 const SOURCES: Source[] = [
@@ -29,7 +30,7 @@ const SOURCES: Source[] = [
     module: "inventory",
     entity: "purchase", // what its read takes from the change log
     read: async (tx, ctx, after) =>
-      (await purchasesChangedSince(tx, ctx, after)).map((p) => ({
+      (await purchasesChangedSince(tx, ctx, after)).map((p) => ("voided" in p ? p : {
         version: p.version,
         event: { type: "purchase", id: p.id, day: p.day, itemKind: p.itemKind, amount: p.amountCentimes, paid: p.paidCentimes, vat: p.vatCentimes, method: p.paidMethod },
       })),
@@ -74,8 +75,8 @@ const SOURCES: Source[] = [
     entity: "sale",
     read: async (tx, ctx, after, entity) => {
       const sales = await salesChangedSince(tx, ctx, after);
-      const batches = await batchPlaces(tx, ctx, [...new Set(sales.map((s) => s.batchId))]); // FC6: culled hens of a laying flock
-      return sales.map((s) => ({
+      const batches = await batchPlaces(tx, ctx, [...new Set(sales.flatMap((s) => ("voided" in s ? [] : [s.batchId])))]); // FC6: culled hens of a laying flock
+      return sales.map((s): Change => ("voided" in s ? s : {
         version: s.version,
         event: s.takenBy
           ? { type: "consumption", id: s.id, day: s.day, amount: s.amountCentimes, takenBy: s.takenBy, individual: entity.form === "individual" } // FC7
@@ -173,7 +174,13 @@ export async function postPending(pusher: TenantContext): Promise<number> {
         if (!r.ok) throw new Error(`${source.name} ${e.id}: ${r.error}`); // a rule or seed bug: retried at the next run
         n++;
       };
-      for (const { version, event } of changes) {
+      for (const change of changes) {
+        if ("voided" in change) {
+          const standing = await standingEntryFor(tx, ctx, source.module, change.voided);
+          if (standing) await post({ id: uuidv7(), legalEntityId: entity.id, journal: standing.journal, day: openDay(standing.day as FarmDay), label: "Annulation", reversesId: standing.id, lines: reversalOf(standing.lines) });
+          continue;
+        }
+        const { version, event } = change;
         // FC7: a home consumption that can't post (FQ25, no value) is left out, and listed on /books instead
         const rule = event.type === "consumption" && unpostedConsumption(event, everything, chart) ? null : postingOf(event, entity.vatRegistered, classicHens);
         // FN8: the owner's overrides in force when the source was first posted (a new source: today's)

@@ -157,6 +157,7 @@ function Stock(scope: Scope) {
               </div>
             </>
           )}
+          <Purchases items={items} purchases={of<PurchaseDto>("purchase")} movements={movements} onHand={onHand} write={write} />
           <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} payments={of<SupplierPaymentDto>("supplierPayment")} debits={of<IssuedDebitDto>("issuedDebit")} write={write} />
         </section>
       )}
@@ -223,6 +224,45 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
           </button>
         ))}
     </li>
+  );
+}
+
+/**
+ * SPEC-finance §9 "Cancelled records": the farm's recent purchases, each cancelled after a confirmation (then typed
+ * again) while all the stock it brought is still there; the server also refuses one a payment covers.
+ */
+function Purchases({ items, purchases, movements, onHand, write }: { items: StockItemDto[]; purchases: PurchaseDto[]; movements: MovementDto[]; onHand: Map<string, number>; write: Write }) {
+  const t = useTranslations();
+  const locale = useLocale();
+  const show = useQuantityText();
+  const [error, setError] = useState<string>();
+  const itemOf = new Map(items.map((i) => [i.id, i]));
+  const recent = purchases.filter((p) => itemOf.has(p.stockItemId)).sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 10);
+  if (recent.length === 0) return null;
+  const labelOf = (p: PurchaseDto) => {
+    const item = itemOf.get(p.stockItemId)!;
+    return t("Stock.purchaseLine", { date: formatDay(p.day as FarmDay, locale), item: item.name, quantity: show(p.quantity, item.unit), amount: formatMoney(BigInt(p.amountCentimes ?? 0)) });
+  };
+  const cancel = async (p: PurchaseDto) => {
+    if ((onHand.get(p.stockItemId) ?? 0) < p.quantity) return setError("errors.STOCK_ALREADY_USED"); // as the server
+    setError(undefined);
+    if (!confirm(t("Stock.voidConfirm", { purchase: labelOf(p) }))) return;
+    const own = movements.filter((m) => m.purchaseId === p.id);
+    await write({ type: M.cancelPurchase, payload: { purchaseId: p.id } }, [{ entity: "purchase", id: p.id, data: null }, ...own.map((m) => ({ entity: "movement", id: m.id, data: null }))]);
+  };
+  return (
+    <>
+      <h2 id="purchases" className="text-[17px] font-semibold text-ink-2">{t("Stock.purchases")}</h2>
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
+      <ul className="flex flex-col gap-2" aria-labelledby="purchases">
+        {recent.map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-card p-3">
+            <span>{labelOf(p)}</span>
+            <button type="button" onClick={() => cancel(p)} aria-label={t("Stock.voidOf", { purchase: labelOf(p) })} className={`${secondary} text-sm`}>{t("Stock.void")}</button>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

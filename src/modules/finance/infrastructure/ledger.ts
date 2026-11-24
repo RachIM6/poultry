@@ -100,7 +100,8 @@ export async function moveCursor(tx: Tx, ctx: TenantContext, source: string, ver
 
 /**
  * FN7, §9 "Postings catch up": organisations with a change recorded past a source's cursor, up to `limit`, in random
- * order so a few that keep failing don't hold the others back; `organizationId`: that one only. Tombstones post nothing.
+ * order so a few that keep failing don't hold the others back; `organizationId`: that one only. A tombstone counts: a
+ * cancelled sale or purchase reverses its entry (§9 "Cancelled records"), and every source's reader moves past one.
  */
 export async function pendingOrganizations(tx: Tx, sources: { name: string; entity: string }[], limit: number, organizationId: string | null = null): Promise<string[]> {
   const rows = await tx.$queryRaw<{ organizationId: string }[]>`
@@ -111,7 +112,7 @@ export async function pendingOrganizations(tx: Tx, sources: { name: string; enti
         WHERE EXISTS (
           -- the cursor as a subquery, not a join: the index then seeks past it (organizationId, entity, version)
           SELECT 1 FROM "Change" c
-          WHERE c."organizationId" = v."organizationId" AND c.entity = s.entity AND c.data IS NOT NULL
+          WHERE c."organizationId" = v."organizationId" AND c.entity = s.entity
             AND c.version > COALESCE((SELECT p.version FROM "PostingCursor" p WHERE p."organizationId" = v."organizationId" AND p.source = s.source), 0)))
     ORDER BY random() LIMIT ${limit}`;
   return rows.map((r) => r.organizationId);

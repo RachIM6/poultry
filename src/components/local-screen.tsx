@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { done, secondary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { can, type Action } from "@/lib/permissions";
@@ -71,12 +71,7 @@ export function Field({ label, children }: { label: string; children: (id: strin
   );
 }
 
-const onOnline = (notify: () => void) => {
-  window.addEventListener("online", notify);
-  window.addEventListener("offline", notify);
-  return () => (window.removeEventListener("online", notify), window.removeEventListener("offline", notify));
-};
-export const useOnline = () => useSyncExternalStore(onOnline, () => navigator.onLine, () => true);
+export { useOnline } from "@/components/online";
 
 /**
  * ADR-011: sends one file to POST /api/files, which attaches it to its record; the record then comes back by sync.

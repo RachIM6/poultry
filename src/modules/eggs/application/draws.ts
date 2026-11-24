@@ -3,7 +3,7 @@ import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { drawFifo, eggLots, type EggItem } from "@/modules/eggs/domain/stock";
-import { eggFlowsOf, lockEggs, saveDraws } from "@/modules/eggs/infrastructure/collections";
+import { deleteDraws, eggFlowsOf, lockEggs, saveDraws } from "@/modules/eggs/infrastructure/collections";
 import { drawId, type EggDrawDto } from "@/modules/eggs/schema";
 import { batchFacts } from "@/modules/flock";
 
@@ -22,4 +22,9 @@ export async function drawEggs(tx: Tx, ctx: TenantContext, d: { saleId: string; 
   await saveDraws(tx, ctx, batch.farmId, draws);
   for (const x of draws) await recordChange(tx, ctx, "eggDraw", x.id, x);
   return ok(undefined);
+}
+
+/** For sales, inside its transaction: a cancelled sale's eggs go back to the stock, in the lots they were taken from. */
+export async function undrawEggs(tx: Tx, ctx: TenantContext, saleId: string) {
+  for (const id of await deleteDraws(tx, ctx, saleId)) await recordChange(tx, ctx, "eggDraw", id, null);
 }

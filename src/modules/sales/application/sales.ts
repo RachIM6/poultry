@@ -108,7 +108,7 @@ export async function recordSale(tx: Tx, ctx: TenantContext, cmd: z.infer<typeof
  * FN12: a buyer whose cheque or bill came back unpaid pays everything at once until the owner lifts the block. A credit
  * sale that takes them past their limit is recorded (the goods have left), but waits for the owner's approval.
  */
-async function creditDecision(tx: Tx, ctx: TenantContext, buyerId: string, credit: bigint) {
+export async function creditDecision(tx: Tx, ctx: TenantContext, buyerId: string, credit: bigint) {
   const terms = await creditTerms(tx, ctx, buyerId);
   if (credit > 0n && terms?.creditBlocked) return fail("BUYER_CREDIT_BLOCKED");
   let creditApproval: "pending" | null = null;
@@ -121,7 +121,7 @@ async function creditDecision(tx: Tx, ctx: TenantContext, buyerId: string, credi
   return ok({ creditApproval, terms });
 }
 
-async function askOwnerToApprove(tx: Tx, ctx: TenantContext, buyerId: string, credit: bigint, limit: bigint, clock: Clock) {
+export async function askOwnerToApprove(tx: Tx, ctx: TenantContext, buyerId: string, credit: bigint, limit: bigint, clock: Clock) {
   const buyer = await tx.buyer.findUniqueOrThrow({ where: { id: buyerId }, select: { name: true } });
   const params = { buyer: buyer.name, amount: formatMoney(credit), limit: formatMoney(limit) };
   await notify(tx, ctx, { roles: ["owner"], templateKey: "creditApproval", params, urgency: "normal" }, clock);

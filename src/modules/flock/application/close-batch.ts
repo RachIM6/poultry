@@ -17,15 +17,16 @@ const todayOf = (clock: Clock) => nextFarmDay(farmDayOf(clock.now())); // a phon
 
 /**
  * SPEC B6, inside the caller's transaction and under the batch's lock: the Batch closes on `day`, and its figures are
- * locked on the batch: kg sold and cost per kg sold = (chicks + valued consumptions + other costs) ÷ kg sold. Its house
+ * locked on the batch: kg sold and cost per kg sold = (chicks with their VAT + valued consumptions + other costs) ÷ kg sold. Its house
  * is free for a new batch. `reason` is null when the sale of its last birds closed it.
  */
 export async function closeBatchOn(tx: Tx, ctx: TenantContext, batch: Batch, day: FarmDay, reason: string | null, meta: Meta, clock: Clock) {
   const closed = batch.close(day, todayOf(clock));
   if (!closed.ok) return closed;
   const p = batch.placement;
-  const [consumedCentimes, { otherCentimes, soldGrams }] = await Promise.all([batchConsumptionCost(tx, ctx, p.id), closingTotals(tx, ctx, p.id)]);
-  const cost = batchCost({ chicksCentimes: BigInt(p.chicksPlaced) * p.chickUnitPriceCentimes, consumedCentimes, otherCentimes, soldGrams });
+  const [consumedCentimes, { otherCentimes, soldGrams, chickVatCentimes }] = await Promise.all([batchConsumptionCost(tx, ctx, p.id), closingTotals(tx, ctx, p.id)]);
+  // The chicks with their placement's VAT: management figures count amounts with VAT (SPEC-finance FQ30), as FN13.
+  const cost = batchCost({ chicksCentimes: BigInt(p.chicksPlaced) * p.chickUnitPriceCentimes + chickVatCentimes, consumedCentimes, otherCentimes, soldGrams });
   const dto = await saveClosing(tx, batch, { closedOn: day, closeReason: reason, soldGrams, costCentimes: cost.totalCentimes, costPerKgCentimes: cost.perKgCentimes });
   await recordChange(tx, ctx, "batch", dto.id, dto);
   await audit(tx, ctx, {

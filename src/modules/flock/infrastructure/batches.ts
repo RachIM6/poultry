@@ -104,14 +104,15 @@ export async function batchFacts(tx: Tx, ctx: TenantContext, id: string) {
   };
 }
 
-/** B6: what the closing needs: other costs and the farm weight of every bird sold. */
+/** B6: what the closing needs: other costs, the farm weight of every bird sold and the placement's VAT (SPEC-finance FN9). */
 export async function closingTotals(tx: Tx, ctx: TenantContext, batchId: string) {
   const where = { batchId, organizationId: ctx.organizationId };
-  const [other, sold] = await Promise.all([
+  const [other, sold, placed] = await Promise.all([
     tx.batchCost.aggregate({ where, _sum: { amountCentimes: true } }),
     tx.soldBirds.aggregate({ where, _sum: { liveWeightGrams: true } }),
+    tx.batch.findFirst({ where: { id: batchId, organizationId: ctx.organizationId }, select: { chickVatCentimes: true } }),
   ]);
-  return { otherCentimes: other._sum.amountCentimes ?? 0n, soldGrams: sold._sum.liveWeightGrams ?? 0 };
+  return { otherCentimes: other._sum.amountCentimes ?? 0n, soldGrams: sold._sum.liveWeightGrams ?? 0, chickVatCentimes: placed?.chickVatCentimes ?? 0n };
 }
 
 /** B6: the batch closed, with its locked figures. Returns what pull sends (money stripped there for workers). */

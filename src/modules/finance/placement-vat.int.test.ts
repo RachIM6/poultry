@@ -144,6 +144,31 @@ describe("placement VAT (SPEC-finance FN9, FC6)", () => {
     ]); // not an asset under the simplified method: the VAT is recovered on the charges
   });
 
+  it("capitalises a registered entity's pullets without the VAT it recovered (23962; CGNC), an unregistered one's with it", async () => {
+    // Pullets: 1 000 at 3,00 + 600,00 VAT; electricity charged to them 1 200,00, of which 200,00 VAT. FN13 cost 4 800,00.
+    const year = { from: "2026-01-01" as FarmDay, to: "2026-12-31" as FarmDay };
+    const pulletsEntry = async (ctx: TenantContext, farm: string) => {
+      const [house, pullets] = [uuidv7(), uuidv7()];
+      const pushed = await push(
+        ctx,
+        [
+          m("farm-registry.createHouse", { id: house, farmId: farm, name: "P1", areaM2: 1000, capacity: 12000, type: "closed" }),
+          m("flock.placeBatch", { id: pullets, houseId: house, species: "pullet", strainId: "isa-brown", placedOn: "2026-04-01", chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "300", chickVatCentimes: "60000", dayOldWeightGrams: null }),
+          m("finance.recordExpense", { id: uuidv7(), day: "2026-04-10", category: "electricity", amountCentimes: "120000", vatCentimes: "20000", paidFrom: "credit", treasuryId: null, note: null, batchId: pullets }),
+        ],
+        registry,
+      );
+      expect(pushed.results.filter((x) => x.status !== "applied")).toEqual([]);
+      const rows = await batchResults(ctx);
+      expect(rows.ok && rows.value.find((x) => x.id === pullets)?.costCentimes).toBe(480_000n); // FN13: with VAT (FQ30)
+      const entity = (await listLegalEntities(ctx))[0];
+      const close = await db.$transaction((tx) => hensAtClose(tx, ctx, entity, year));
+      return [close.method, close.lines.find((l) => l.id === pullets)?.entry];
+    };
+    expect(await pulletsEntry(registered, r.farm)).toEqual(["classic", 400_000n]);
+    expect(await pulletsEntry(notRegistered, n.farm)).toEqual(["classic", 480_000n]);
+  });
+
   it("closing the batch keeps it: the closing's version posts nothing new (FN7)", async () => {
     const entries = () => db.journalEntry.count({ where: { organizationId: registered.organizationId, sourceModule: "flock", sourceId: r.chicks } });
     const before = await entries();
@@ -151,6 +176,8 @@ describe("placement VAT (SPEC-finance FN9, FC6)", () => {
     expect(closed.results.map((x) => x.status)).toEqual(["applied"]);
     await postPending(registered);
     expect(await entries()).toBe(before);
+    // B6: the cost locked at closing counts the chicks with their VAT (FQ30): 4 500,00 + 900,00, nothing eaten yet.
+    expect((await db.batch.findUniqueOrThrow({ where: { id: r.chicks } })).costCentimes).toBe(540_000n);
     expect(await placementLines(r.chicks)).toEqual([
       ["612121", 450_000n, 0n],
       ["34552", 90_000n, 0n],

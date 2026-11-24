@@ -103,7 +103,7 @@ export const expensePaid = async (tx: Tx, ctx: TenantContext, expenseId: string)
 
 /** The credit expenses still owed, oldest first (the payer's list). */
 export async function creditExpensesToPay(ctx: TenantContext): Promise<Result<CreditExpense[], "FORBIDDEN">> {
-  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // the accountant reads it too (SPEC-m5 PA5)
   return ok((await creditExpenses(db, ctx)).filter((e) => e.owed > 0n));
 }
 

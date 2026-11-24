@@ -35,8 +35,6 @@ const SKIPPED: Record<string, string> = {
   postPending: "posting job: runs as the server after a push, whoever pushed (§9)",
   postAllPending: "posting job: the scheduler's, no user",
   catchUpBooks: "posting trigger before a read: returns nothing, and the reads it precedes are in the table",
-  freezeClosedBatches: "posting job: called by postPending only (FN14)",
-  alertThresholdOnce: "posting job: called by postPending only (FN17); notifies owners and managers",
   sendLoanReminders: "the scheduler's, no user (FC2)",
 };
 
@@ -97,11 +95,21 @@ const ROWS: Row[] = [
       return changes.length > 0 ? { ok: true, value: changes } : { ok: false, error: "FORBIDDEN" };
     },
   },
-  // Reads behind a write permission: the payer's lists and the chart (finance.record), the owner's settings (finance.manage)
-  { name: "placementsToPay", gate: "record", kind: "read", run: (c) => finance.placementsToPay(c) },
-  { name: "creditExpensesToPay", gate: "record", kind: "read", run: (c) => finance.creditExpensesToPay(c) },
-  { name: "chartView", gate: "record", kind: "read", run: (c) => finance.chartView(c) },
+  // The lists to pay and the chart: decided default, to review (SPEC-m5 §9), the accountant reads them
+  { name: "placementsToPay", gate: "read", kind: "read", run: (c) => finance.placementsToPay(c) },
+  { name: "creditExpensesToPay", gate: "read", kind: "read", run: (c) => finance.creditExpensesToPay(c) },
+  { name: "chartView", gate: "read", kind: "read", run: (c) => finance.chartView(c) },
+  // The owner's settings (finance.manage, FX2: profile, overrides)
   { name: "accountingSettings", gate: "manage", kind: "read", run: (c) => finance.accountingSettings(c, clock) },
+  {
+    name: "accountingChoicesOpen", // a boolean, false when refused: asked for a year without entries, the owner alone gets true
+    gate: "manage",
+    kind: "read",
+    run: async (c) => {
+      const [entity] = await listLegalEntities(c);
+      return (await finance.accountingChoicesOpen(c, entity, fixedClock("2030-06-15T10:00:00Z"))) ? { ok: true } : { ok: false, error: "FORBIDDEN" };
+    },
+  },
   { name: "postingOverrides", gate: "manage", kind: "read", run: (c) => finance.postingOverrides(c) },
   { name: "associateAccount", gate: "manage", kind: "read", run: (c) => finance.associateAccount(c) },
 
@@ -133,7 +141,15 @@ const ROWS: Row[] = [
   },
   { name: "attachExpenseReceipt", gate: "record", kind: "write", ours: true, run: (c, s) => finance.attachExpenseReceipt(c, s.expense, uuidv7()) },
   { name: "payPlacement", gate: "record", kind: "write", ours: true, run: (c, s) => finance.payPlacement(c, pay({ batchId: s.batch, treasuryId: s.box }), clock) },
+  {
+    name: "financeSync push finance.correctExpense",
+    gate: "record",
+    kind: "write",
+    ours: true,
+    run: (c, s) => pushed(c, m("finance.correctExpense", { id: s.expense, day: "2026-03-02", category: "electricity", amountCentimes: "60000", paidFrom: "credit", treasuryId: null, note: null })),
+  },
   { name: "payCreditExpense", gate: "record", kind: "write", ours: true, run: (c, s) => finance.payCreditExpense(c, pay({ expenseId: s.expense, treasuryId: s.box }), clock) },
+  { name: "financeSync push finance.cancelExpense", gate: "record", kind: "write", ours: true, run: (c, s) => pushed(c, m("finance.cancelExpense", { expenseId: s.expense })) },
   { name: "addBankStatement", gate: "record", kind: "write", ours: true, run: (c, s) => finance.addBankStatement(c, { treasuryId: s.bank, endDay: "2026-04-30", closingCentimes: "0" }, clock) },
   { name: "matchBankLine", gate: "record", kind: "write", ours: true, run: (c, s) => finance.matchBankLine(c, { statementId: s.statement, lineId: s.bankLine, ticked: true }) },
   {

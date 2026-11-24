@@ -6,6 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { can } from "@/lib/permissions";
 import { associateAccount, cashForecast, catchUpBooks, creditExpensesToPay, placementsToPay, treasuryOverview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
@@ -39,6 +40,7 @@ async function Treasury() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const today = farmDayOf(new Date());
+  const canPay = can(ctx.value, "finance.record"); // the accountant reads the lists to pay, without the forms (SPEC-m5 PA5)
   const month = today.slice(0, 7);
   await catchUpBooks(ctx.value); // SPEC-finance §9: once, so every read below sees the same, caught-up books
   const [overview, forecast, toPay, expensesToPay, owners] = await Promise.all([
@@ -133,7 +135,7 @@ async function Treasury() {
         </table>
         <p className="text-sm text-ink-2">{t("Treasury.scheduleNote")}</p>
       </section>
-      {/* SPEC-finance §9 "Placement debts": the chicks or point-of-lay hens still owed, paid here (owner, manager) */}
+      {/* SPEC-finance §9 "Placement debts": the chicks or point-of-lay hens still owed, paid here (owner, manager; the accountant reads) */}
       {toPay.ok && toPay.value.length > 0 && (
         <section className="flex flex-col gap-2" aria-labelledby="placements">
           <h2 id="placements" className="text-[17px] font-semibold text-ink-2">{t("Treasury.placements")}</h2>
@@ -143,12 +145,12 @@ async function Treasury() {
               <p className="font-semibold">{p.hatchery}</p>
               <p className="text-sm text-ink-2">{p.place} · {t("Treasury.placedOn", { day: formatDay(p.placedOn, lang) })} · <bdi dir="ltr">{p.account}</bdi></p>
               <p>{t("Treasury.owed", { amount: formatMoney(p.owed) })}</p>
-              {payForm(payPlacementAction, p.hatchery, <input type="hidden" name="batchId" value={p.batchId} />)}
+              {canPay && payForm(payPlacementAction, p.hatchery, <input type="hidden" name="batchId" value={p.batchId} />)}
             </article>
           ))}
         </section>
       )}
-      {/* SPEC-finance §9 "Credit expenses": the quick expenses recorded on credit still owed, paid here (owner, manager) */}
+      {/* SPEC-finance §9 "Credit expenses": the quick expenses recorded on credit still owed, paid here (owner, manager; the accountant reads) */}
       {expensesToPay.ok && expensesToPay.value.length > 0 && (
         <section className="flex flex-col gap-2" aria-labelledby="credit-expenses">
           <h2 id="credit-expenses" className="text-[17px] font-semibold text-ink-2">{t("Treasury.creditExpenses")}</h2>
@@ -158,7 +160,7 @@ async function Treasury() {
               <p className="font-semibold">{t(`Expenses.categories.${e.category}`)}</p>
               <p className="text-sm text-ink-2">{formatDay(e.day, lang)}{e.note && <> · {e.note}</>} · <bdi dir="ltr">{e.account}</bdi></p>
               <p>{t("Treasury.owed", { amount: formatMoney(e.owed) })}</p>
-              {payForm(payCreditExpenseAction, `${t(`Expenses.categories.${e.category}`)} · ${formatDay(e.day, lang)}`, <input type="hidden" name="expenseId" value={e.expenseId} />)}
+              {canPay && payForm(payCreditExpenseAction, `${t(`Expenses.categories.${e.category}`)} · ${formatDay(e.day, lang)}`, <input type="hidden" name="expenseId" value={e.expenseId} />)}
             </article>
           ))}
         </section>

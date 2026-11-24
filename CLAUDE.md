@@ -11,7 +11,7 @@
 - `docs/decisions/`: ADRs. Don't re-decide an accepted ADR; write a superseding one.
 - `tasks/plan.md` + `tasks/todo.md`: current milestone plan; work tasks in order, tick them when verified.
 - Next.js is 16.4: read the relevant guide in `node_modules/next/dist/docs/` before writing Next.js code (see AGENTS.md).
-- `CONTRIBUTING.md`: branch `feat/t<N>-<slug>` from `main`, Conventional Commits with module scope, merge commits.
+- `CONTRIBUTING.md`: branch `feat/t<N>-<slug>` from `develop`, PRs target `develop`; `main` is production and receives only releases from `develop` (when the owner says a feature is production-ready) and hotfixes. Conventional Commits with module scope, merge commits.
 
 ## Tooling installed for this project
 - **Project plugins** (`.claude/settings.json`, shared through git):

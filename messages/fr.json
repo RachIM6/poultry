@@ -647,7 +647,7 @@
     "reason": "Motif",
     "prescriber": "Prescrit par",
     "withdrawalDays": "Délai d’attente viande (jours)",
-    "withdrawalHint": "Indiqué sur l’étiquette ou l’ordonnance.",
+    "withdrawalHint": "Délai d’attente : voir la notice (AMM) ou l’ordonnance du vétérinaire (loi 49-99, art. 9).",
     "save": "Enregistrer le traitement",
     "cancel": "Annuler",
     "line": "{medicine} · du {start} au {end}",

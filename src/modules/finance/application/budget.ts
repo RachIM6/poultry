@@ -51,34 +51,31 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
   if (!results.ok) return results;
   const closed = results.value.filter((r) => r.closedOn !== null);
   if (closed.length === 0) return ok([]);
-  return ok(
-    await db.$transaction(async (tx) => {
-      const facts = new Map((await batchesForFinance(tx, ctx)).map((b) => [b.id, b]));
-      const bases: BudgetBase[] = [];
-      for (const r of closed) {
-        const f = facts.get(r.id)!;
-        const consumed = await batchConsumption(tx, ctx, r.id);
-        const feed = consumed.get("feed") ?? { quantity: 0n, centimes: 0n };
-        const expenses = await tx.expense.findMany({ where: { organizationId: ctx.organizationId, batchId: r.id }, select: { day: true, amountCentimes: true } });
-        const grams = BigInt(r.soldGrams);
-        bases.push({
-          batchId: r.id,
-          label: `${r.houseName} · ${r.placedOn}`,
-          inputs: {
-            chicks: BigInt(f.chicksPlaced),
-            chickPriceCentimes: f.chickUnitPriceCentimes,
-            feedGrams: feed.quantity,
-            feedPricePerKgCentimes: perKg(feed.centimes, feed.quantity),
-            otherCostCentimes: r.costCentimes - chicksCost(f.chicksPlaced, f.chickUnitPriceCentimes) - feed.centimes, // the placement's VAT (FQ30) lands here
-            plannedGrams: grams,
-            salePricePerKgCentimes: perKg(r.salesCentimes, grams),
-          },
-          timing: timingOf(r, f, consumed, expenses),
-        });
-      }
-      return bases;
-    }),
-  );
+  // A read: each query on the pool, no interactive transaction holding a connection (P2028 under load).
+  const facts = new Map((await batchesForFinance(db, ctx)).map((b) => [b.id, b]));
+  const bases: BudgetBase[] = [];
+  for (const r of closed) {
+    const f = facts.get(r.id)!;
+    const consumed = await batchConsumption(db, ctx, r.id);
+    const feed = consumed.get("feed") ?? { quantity: 0n, centimes: 0n };
+    const expenses = await db.expense.findMany({ where: { organizationId: ctx.organizationId, batchId: r.id }, select: { day: true, amountCentimes: true } });
+    const grams = BigInt(r.soldGrams);
+    bases.push({
+      batchId: r.id,
+      label: `${r.houseName} · ${r.placedOn}`,
+      inputs: {
+        chicks: BigInt(f.chicksPlaced),
+        chickPriceCentimes: f.chickUnitPriceCentimes,
+        feedGrams: feed.quantity,
+        feedPricePerKgCentimes: perKg(feed.centimes, feed.quantity),
+        otherCostCentimes: r.costCentimes - chicksCost(f.chicksPlaced, f.chickUnitPriceCentimes) - feed.centimes, // the placement's VAT (FQ30) lands here
+        plannedGrams: grams,
+        salePricePerKgCentimes: perKg(r.salesCentimes, grams),
+      },
+      timing: timingOf(r, f, consumed, expenses),
+    });
+  }
+  return ok(bases);
 }
 
 /** FN17, SPEC-finance §9 FQ32: the open batches a budget can plan, for the form. */

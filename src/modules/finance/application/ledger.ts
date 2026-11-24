@@ -214,10 +214,8 @@ const yearHasEntries = async (tx: Tx, ctx: TenantContext, entity: { id: string; 
 /** The profile screen: the entity, the books its form allows, and whether this fiscal year still lets them change. */
 export async function accountingSettings(ctx: TenantContext, clock: Clock = systemClock) {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
-  const [first] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation (see postPending)
-  if (!first) return ok(null);
-  return db.$transaction(async (tx) => {
-    const entity = (await legalEntityIn(tx, ctx, first.id))!;
-    return ok({ entity, books: booksAllowed(entity.form), locked: await yearHasEntries(tx, ctx, entity, clock) });
-  });
+  const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation (see postPending)
+  if (!entity) return ok(null);
+  // A read: no row lock nor interactive transaction (P2028 under load); the change re-checks under the lock.
+  return ok({ entity, books: booksAllowed(entity.form), locked: await yearHasEntries(db, ctx, entity, clock) });
 }

@@ -74,33 +74,32 @@ export type BankReconciliation = {
 /** The screen: the bank accounts, one account's statements (latest first) and one statement's reconciliation. */
 export async function bankReconciliation(ctx: TenantContext, accountId?: string, statementId?: string): Promise<Result<BankReconciliation, "FORBIDDEN">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN");
-  return db.$transaction(async (tx) => {
-    const accounts = await bankAccountsOf(tx, ctx);
-    const account = accounts.find((a) => a.id === accountId) ?? accounts[0] ?? null;
-    const statements = account ? await statementsOf(tx, ctx, account.id) : [];
-    const s = statements.find((x) => x.id === statementId) ?? statements[0];
-    const base = { canWrite: can(ctx, "finance.record"), accounts, account, statements: statements.map(({ id, endDay, closingCentimes }) => ({ id, endDay, closingCentimes })) };
-    if (!s) return ok({ ...base, statement: null });
-    const lines = await bankLinesUpTo(tx, ctx, s.treasuryId, s.endDay);
-    const r = reconciliation(s, lines);
-    const imported = await importedLinesOf(tx, ctx, s.id);
-    const pairs = pairImported(s, imported, lines);
-    const unticked = new Set(r.unticked.map((l) => l.id));
-    return ok({
-      ...base,
-      statement: {
-        id: s.id,
-        endDay: s.endDay,
-        closingCentimes: s.closingCentimes,
-        bookCentimes: r.bookCentimes,
-        tickedCentimes: r.tickedCentimes,
-        differenceCentimes: r.differenceCentimes,
-        reconciled: r.reconciled,
-        lines: lines
-          .filter((l) => unticked.has(l.id) || l.match?.statementId === s.id)
-          .map((l) => ({ id: l.id, day: l.day, journal: l.journal, label: l.label, debitCentimes: l.debitCentimes, creditCentimes: l.creditCentimes, ticked: l.match?.statementId === s.id, tickedOn: l.match && l.match.statementId !== s.id ? l.match.endDay : null })),
-        imported: imported.map((i) => ({ id: i.id, day: i.day, label: i.label, amountCentimes: i.amount, lineId: pairs.get(i.id)?.lineId ?? null, ticked: pairs.get(i.id)?.ticked ?? false })),
-      },
-    });
+  // A read: on the pool, no interactive transaction holding a connection (P2028 under load).
+  const accounts = await bankAccountsOf(db, ctx);
+  const account = accounts.find((a) => a.id === accountId) ?? accounts[0] ?? null;
+  const statements = account ? await statementsOf(db, ctx, account.id) : [];
+  const s = statements.find((x) => x.id === statementId) ?? statements[0];
+  const base = { canWrite: can(ctx, "finance.record"), accounts, account, statements: statements.map(({ id, endDay, closingCentimes }) => ({ id, endDay, closingCentimes })) };
+  if (!s) return ok({ ...base, statement: null });
+  const lines = await bankLinesUpTo(db, ctx, s.treasuryId, s.endDay);
+  const r = reconciliation(s, lines);
+  const imported = await importedLinesOf(db, ctx, s.id);
+  const pairs = pairImported(s, imported, lines);
+  const unticked = new Set(r.unticked.map((l) => l.id));
+  return ok({
+    ...base,
+    statement: {
+      id: s.id,
+      endDay: s.endDay,
+      closingCentimes: s.closingCentimes,
+      bookCentimes: r.bookCentimes,
+      tickedCentimes: r.tickedCentimes,
+      differenceCentimes: r.differenceCentimes,
+      reconciled: r.reconciled,
+      lines: lines
+        .filter((l) => unticked.has(l.id) || l.match?.statementId === s.id)
+        .map((l) => ({ id: l.id, day: l.day, journal: l.journal, label: l.label, debitCentimes: l.debitCentimes, creditCentimes: l.creditCentimes, ticked: l.match?.statementId === s.id, tickedOn: l.match && l.match.statementId !== s.id ? l.match.endDay : null })),
+      imported: imported.map((i) => ({ id: i.id, day: i.day, label: i.label, amountCentimes: i.amount, lineId: pairs.get(i.id)?.lineId ?? null, ticked: pairs.get(i.id)?.ticked ?? false })),
+    },
   });
 }

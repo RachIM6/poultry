@@ -1,6 +1,6 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import { houseOf } from "@/modules/farm-registry";
+import { housesOf } from "@/modules/farm-registry";
 import { birdsStarted } from "@/modules/flock/domain/batch";
 import { birdsOnHand } from "@/modules/flock/domain/birds";
 import { chicksCost } from "@/modules/flock/domain/closing";
@@ -48,8 +48,7 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext, asOf?: strin
     tx.batchCost.groupBy({ by: ["batchId"], where: dated, _sum: { amountCentimes: true } }),
   ]);
   const other = new Map(costs.map((c) => [c.batchId, c._sum.amountCentimes ?? 0n]));
-  const houses = new Map<string, { name: string; areaM2: number }>();
-  for (const id of new Set(batches.map((b) => b.houseId))) houses.set(id, (await houseOf(tx, ctx, id)) ?? { name: "", areaM2: 0 });
+  const houses = await housesOf(tx, ctx, [...new Set(batches.map((b) => b.houseId))]);
   return batches.map((b) => ({
     id: b.id,
     farmId: b.farmId,

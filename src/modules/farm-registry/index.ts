@@ -4,4 +4,4 @@ export { accountingProfileOf, ALLOCATION_KEYS, BOOKS, booksAllowed, HENS_METHODS
 export type { AccountingChoices, AccountingProfile, AllocationKey, Books, HensMethod, LegalForm, OnboardingInput } from "./schema";
 export { createOrganization, getLegalEntity, legalEntityIn, listLegalEntities, saveAccountingChoices } from "./service";
 export type { LegalEntityDto } from "./service";
-export { farmBelongsTo, farmRegistrySync, farmsWithHouses, houseOf, onssaAuthorizationsDueBy, placeNames } from "./sync";
+export { farmBelongsTo, farmRegistrySync, farmsWithHouses, houseOf, housesOf, onssaAuthorizationsDueBy, placeNames } from "./sync";

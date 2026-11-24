@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T21 acceptance (browser part): offline, a sale on a day under withdrawal is refused with the explanation; the same
 // sale dated before the treatment began is recorded, with its amount and weighing gap, and lowers birds on hand while
@@ -54,6 +54,7 @@ test("an offline sale is refused during a withdrawal, then recorded for a day be
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ amount: string; birds: number; status: string }>(
       `SELECT s."amountCentimes"::text AS amount, sb.birds, b.status

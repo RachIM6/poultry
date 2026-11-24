@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T83 (SPEC-m4 CL5): a power cut started and ended offline, with the generator's details, reaches the server once.
 test("a power cut started and ended offline syncs once with the generator's details", async ({ page, context }) => {
@@ -25,6 +25,7 @@ test("a power cut started and ended offline syncs once with the generator's deta
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ ended: boolean; seconds: number; ml: number }>(
       `SELECT c."endedAt" IS NOT NULL AS ended, c."generatorSeconds" AS seconds, c."dieselMl" AS ml FROM "PowerCut" c

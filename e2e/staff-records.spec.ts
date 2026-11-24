@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T86 (SPEC-m4 WF13): a training and a work accident recorded offline on /staff survive a reload and sync once.
 // Labels come from the app's messages, so the Arabic run checks the Arabic screen; the owner signs up in French.
@@ -45,6 +45,7 @@ for (const locale of ["fr", "ar"] as const) {
 
     await context.unroute("**");
     await context.setOffline(false);
+    await outboxEmpty(page);
     const server = () =>
       query<{ kind: string; topic: string | null; daysOff: number | null }>(
         `SELECT r.kind, r.topic, r."daysOff" FROM "StaffRecord" r

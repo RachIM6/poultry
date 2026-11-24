@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { closeRun, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
 
@@ -57,7 +57,7 @@ test("the owner counts a stock item, reads its value at cost in the close previe
 
   // Posted: both entries, then the values are frozen with the count.
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
-  await expect(page.getByText("Écritures comptabilisées : 2.")).toBeVisible();
+  await expect(page.getByText("Écritures comptabilisées : 2.")).toBeVisible(closeRun);
   await expect(stock).toContainText("Comptabilisée, sans changement.");
   await expect(provision).toContainText("Comptabilisée, sans changement.");
   await expect(stock.getByText("Valeurs figées : les écritures de clôture de cet exercice sont comptabilisées.")).toBeVisible();

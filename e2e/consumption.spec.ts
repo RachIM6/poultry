@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, login, ownerWithFarm, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // T112 acceptance (browser part, SPEC-finance FC7): offline, a home consumption on the sale form is prefilled with the
 // last sale's price, refused during a withdrawal, then recorded for a day before it, lowering birds on hand; it syncs
@@ -49,6 +49,7 @@ test("an offline home consumption is refused during a withdrawal, then recorded 
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = async () =>
     await query<{ buyer: string | null; takenBy: string; amount: string; method: string; birds: number }>(
       `SELECT s."buyerId" AS buyer, s."takenBy", s."amountCentimes"::text AS amount, s."paymentMethod" AS method, sb.birds
@@ -117,6 +118,7 @@ test("a worker records a consumption without seeing a price, an amount or the bu
   await expect(sales).toHaveCount(1);
   await expect(sales).toContainText("Consommation · Un employé · 5 oiseaux");
   await expect(worker.getByText("Oiseaux présents : 895")).toBeVisible();
+  await outboxEmpty(worker);
 
   // On the server, priced from the last sale: 10 kg × 14,50 DH.
   const server = async () =>

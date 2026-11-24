@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T42 acceptance (browser part): the clean-out of a house after its closed batch, marked offline step by step; the
 // downtime counts from the disinfection against the official 20 days (arrêté n° 2127-05, art. 4, CQ3); placing the next
@@ -34,6 +34,7 @@ test("clean-out steps are marked offline, the downtime counts, and an early plac
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   await page.reload();
   const server = async () =>
     await query<{ steps: string[] }>(

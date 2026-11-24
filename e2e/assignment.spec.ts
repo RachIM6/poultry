@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T74 (SPEC-m4 WF7): the owner gives today's entry to another employee offline; it syncs once. Who sees it on their
 // phone afterwards is the domain rule (workforce/domain/tasks.test.ts) the worker's screen runs (e2e/my-tasks.spec.ts).
@@ -29,6 +29,7 @@ test("a task given to another employee offline shows their name and reaches the 
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ name: string }>(
       `SELECT e.name FROM "TaskAssignment" t JOIN "Employee" e ON e.id = t."employeeId"

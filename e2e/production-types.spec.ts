@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T53 acceptance (SPEC-m3 B7, B8): a layer batch placed at 18 weeks counts its age in weeks, and two beldi bands share a
 // run, offline, then synced; the Arabic screen shows the same age.
@@ -56,6 +56,7 @@ test("hens placed at 18 weeks show their age in weeks, and beldi bands share a r
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const dead = async () =>
     await query<{ dead: number }>(
       `SELECT sum(d.dead)::int AS dead FROM "DailyEntry" d JOIN "Batch" b ON b.id = d."batchId" JOIN "Membership" m ON m."organizationId" = b."organizationId"
@@ -122,6 +123,7 @@ test("turkeys placed by sex become two batches side by side", async ({ page, con
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const batches = async () =>
     await query<{ sex: string; birds: number }>(
       `SELECT b.sex, b."chicksPlaced" - b."deadOnArrival" AS birds FROM "Batch" b JOIN "Membership" m ON m."organizationId" = b."organizationId"
@@ -225,6 +227,7 @@ test("pullets move to the laying house and become a layer batch", async ({ page,
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const batches = async () =>
     await query<{ species: string; status: string; age: number; culled: number | null }>(
       `SELECT b.species, b.status, b."ageAtPlacementDays" AS age, (SELECT sum(culled)::int FROM "DailyEntry" d WHERE d."batchId" = b.id) AS culled
@@ -272,6 +275,7 @@ test("a beldi band sold by the head: 6 roosters and 4 hens, 790,00 DH", async ({
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const sold = async () =>
     await query<{ kind: string; amount: string; birds: number }>(
       `SELECT s.kind, s."amountCentimes"::text AS amount, s.birds FROM "Sale" s JOIN "Membership" m ON m."organizationId" = s."organizationId"

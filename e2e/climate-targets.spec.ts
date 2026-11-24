@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query, scopeRemembered } from "./auth";
+import { outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T80 (SPEC-m4 CL1, §2): no targets until the owner types them from a source; a version saved offline syncs once.
 // The numbers below are made up for the test, NOT husbandry targets (MQ1).
@@ -42,6 +42,7 @@ test("the owner enters climate targets from a source, offline, and they sync onc
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ type: string | null; from: number }>(
       `SELECT t."productionType" AS type, (t.bands->0->>'fromAge')::int AS from FROM "ClimateTargetSet" t JOIN "Membership" m ON m."organizationId" = t."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1 ORDER BY t."createdAt"`,

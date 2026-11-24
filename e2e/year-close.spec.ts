@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query } from "./auth";
+import { closeRun, ownerWithFarm, query } from "./auth";
 
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
 
@@ -28,12 +28,12 @@ test("the owner runs the close, closes the year, reads « Exercice clôturé le 
   // The close run first: the year close refuses while the preview still has an entry to post.
   await page.goto("/fr/closing?year=2025");
   await page.getByRole("button", { name: "Clôturer l’exercice" }).click();
-  await expect(page.getByText("Comptabilisez d’abord les écritures de clôture : l’aperçu en montre encore à passer.")).toBeVisible();
+  await expect(page.getByText("Comptabilisez d’abord les écritures de clôture : l’aperçu en montre encore à passer.")).toBeVisible(closeRun);
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
-  await expect(page.getByText("Écritures comptabilisées : 1.")).toBeVisible();
+  await expect(page.getByText("Écritures comptabilisées : 1.")).toBeVisible(closeRun);
 
   await page.getByRole("button", { name: "Clôturer l’exercice" }).click();
-  await expect(page.getByText("Exercice clôturé. Écritures d’ouverture passées : 1.")).toBeVisible();
+  await expect(page.getByText("Exercice clôturé. Écritures d’ouverture passées : 1.")).toBeVisible(closeRun);
   await expect(page.getByText(/^Exercice clôturé le \d{1,2} \S+ \d{4}\.$/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Comptabiliser les écritures de clôture" })).toBeDisabled(); // every month locked
   await expect(page.getByRole("button", { name: "Rouvrir l’exercice" })).toBeVisible();

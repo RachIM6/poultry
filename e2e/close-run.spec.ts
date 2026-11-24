@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ownerWithFarm, query } from "./auth";
+import { closeRun, ownerWithFarm, query } from "./auth";
 
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
 
@@ -41,7 +41,7 @@ test("the owner previews and posts the year's depreciation, finds it in the jour
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // fits the phone
 
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
-  await expect(page.getByText("Écritures comptabilisées : 1.")).toBeVisible();
+  await expect(page.getByText("Écritures comptabilisées : 1.")).toBeVisible(closeRun);
   await expect(depreciation).toContainText("Comptabilisée, sans changement.");
   await expect(page.getByText("Rien à comptabiliser.", { exact: true })).toBeVisible();
 
@@ -54,7 +54,7 @@ test("the owner previews and posts the year's depreciation, finds it in the jour
   // Running it again with the same facts posts nothing.
   await page.goto("/fr/closing?year=2026");
   await page.getByRole("button", { name: "Comptabiliser les écritures de clôture" }).click();
-  await expect(page.getByText("Rien à comptabiliser : aucune écriture passée.")).toBeVisible();
+  await expect(page.getByText("Rien à comptabiliser : aucune écriture passée.")).toBeVisible(closeRun);
   await page.goto("/fr/books?view=journals&month=2026-12");
   await expect(page.getByRole("table").filter({ hasText: "Dotations aux amortissements de l’exercice" })).toHaveCount(1);
 

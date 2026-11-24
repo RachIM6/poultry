@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { farmDaysAgo, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T94, T95 (SPEC-m5 MP1, MP2): two prices noted offline on /prices; the latest shows with its change, survives a
 // reload and syncs once. Made-up prices.
@@ -40,6 +40,7 @@ test("prices noted offline show the latest with its change, survive a reload and
 
   await context.unroute("**");
   await context.setOffline(false);
+  await outboxEmpty(page);
   const server = () =>
     query<{ product: string; price: string }>(
       `SELECT p.product, p."priceCentimes"::text AS price FROM "PriceObservation" p

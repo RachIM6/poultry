@@ -15,6 +15,9 @@ model Organization {
   id            String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
   name          String
   createdAt     DateTime      @default(now()) @db.Timestamptz
+  // ADR-007, docs/data-requests.md: when it left the platform (scripts/mark-organization-left.ts). Its data is deleted
+  // 30 days later (scripts/delete-organization.ts); the books stay, read-only, for their retention period.
+  leftAt        DateTime?     @db.Timestamptz
   memberships   Membership[]
   legalEntities LegalEntity[]
   invitations   Invitation[]

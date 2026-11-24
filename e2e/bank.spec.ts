@@ -33,7 +33,7 @@ test("a bank statement is reconciled by ticking its lines", async ({ page }) => 
   const row = (text: string | RegExp) => page.getByRole("row").filter({ hasText: text });
   const [deposit, power, water] = [row("Virement de fonds"), row(/1.200,00/), row(/300,00/)];
   for (const line of [deposit, power]) {
-    await line.getByRole("button", { name: "Pointer" }).click();
+    await line.getByRole("button", { name: /^Pointer : / }).click(); // WCAG 2.4.6: the line in the name
     await expect(line.getByRole("button", { name: "Dépointer" })).toBeVisible();
   }
   await expect(status).toHaveText("Rapproché");

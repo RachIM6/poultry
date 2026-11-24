@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { saveAccountingAction } from "./actions";
-import { field, primary } from "@/components/ui";
+import { danger, field, primary } from "@/components/ui";
 
 type Props = {
   legalEntityId: string;
@@ -57,7 +57,7 @@ export function AccountingForm(p: Props) {
       </label>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-lg font-semibold">{t("vat")}</legend>
-        <label className="flex items-center gap-3">
+        <label className="flex min-h-11 items-center gap-3">
           <input type="checkbox" name="vatRegistered" defaultChecked={p.vatRegistered} disabled={off} className="size-5 accent-ink" />
           {t("vatRegistered")}
         </label>
@@ -75,7 +75,7 @@ export function AccountingForm(p: Props) {
           <Choice key={k} name="allocationKey" value={k} checked={p.allocationKey === k} title={t(`allocationKeys.${k}.title`)} desc={t(`allocationKeys.${k}.desc`)} disabled={off} />
         ))}
       </fieldset>
-      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{tAll(state.messageKey)}</p>}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{tAll(state.messageKey)}</p>}
       <button type="submit" disabled={off} className={primary}>{t("save")}</button>
     </form>
   );

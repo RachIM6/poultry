@@ -22,6 +22,10 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Comptabilité" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Livre des recettes et dépenses");
+  // WCAG 4.1.2: the month's arrows have a name
+  const months = page.getByRole("navigation", { name: "Mois", exact: true });
+  await expect(months.getByRole("link", { name: "Mois précédent" })).toBeVisible();
+  await expect(months.getByRole("link", { name: "Mois suivant" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Balance" })).toHaveCount(0); // a cash_book entity has no ledger views
   await expect(page.getByRole("link", { name: "Bilan (projet)" })).toHaveCount(0); // nor a balance sheet (T110)
   const book = page.getByRole("table", { name: "Recettes et dépenses" });

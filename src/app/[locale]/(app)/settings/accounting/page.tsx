@@ -48,9 +48,9 @@ async function Content() {
         allocationKey={entity.allocationKey}
         locked={locked}
       />
-      <Link href="/settings/chart" className="py-2 underline underline-offset-4">{t("Chart.open")}</Link>
-      <Link href="/settings/posting" className="py-2 underline underline-offset-4">{t("Overrides.open")}</Link>
-      <Link href="/threshold" className="py-2 underline underline-offset-4">{t("Threshold.open")}</Link>
+      <Link href="/settings/chart" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Chart.open")}</Link>
+      <Link href="/settings/posting" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Overrides.open")}</Link>
+      <Link href="/threshold" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Threshold.open")}</Link>
     </>
   );
 }

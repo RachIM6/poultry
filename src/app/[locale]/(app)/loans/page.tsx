@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
 import { card, field, table, warn } from "@/components/ui";
+import { Num } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -54,7 +55,7 @@ async function LoansView() {
       <p className="text-sm text-ink-2">{t("Loans.hint")}</p>
       {owner && (
         <details className={card}>
-          <summary className="cursor-pointer font-semibold">{t("Loans.add")}</summary>
+          <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Loans.add")}</summary>
           {banks.length === 0 ? (
             <p className={warn}>
               {t("Loans.noBank")} <Link href="/expenses" className="underline underline-offset-4">{t("Expenses.open")}</Link>
@@ -70,7 +71,7 @@ async function LoansView() {
       <p className="text-sm text-ink-2">{t(books === "ledger" ? "Subsidies.hint" : "Subsidies.cashBook")}</p>
       {owner && (
         <details className={card}>
-          <summary className="cursor-pointer font-semibold">{t("Subsidies.add")}</summary>
+          <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Subsidies.add")}</summary>
           {banks.length === 0 ? (
             <p className={warn}>
               {t("Loans.noBank")} <Link href="/expenses" className="underline underline-offset-4">{t("Expenses.open")}</Link>
@@ -109,10 +110,10 @@ async function LoansView() {
             <tbody>
               {s.years.map((y) => (
                 <tr key={y.from} className="border-t border-line">
-                  <td dir="ltr" className="p-2 text-start tabular-nums">{y.from.slice(0, 4) === y.to.slice(0, 4) ? y.from.slice(0, 4) : `${y.from.slice(0, 4)}–${y.to.slice(0, 4)}`}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(y.release)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(y.released)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(s.amount - y.released)}</td>
+                  <td className="p-2"><bdi dir="ltr" className="tabular-nums">{y.from.slice(0, 4) === y.to.slice(0, 4) ? y.from.slice(0, 4) : `${y.from.slice(0, 4)}–${y.to.slice(0, 4)}`}</bdi></td>
+                  <Num>{formatMoney(y.release)}</Num>
+                  <Num>{formatMoney(y.released)}</Num>
+                  <Num>{formatMoney(s.amount - y.released)}</Num>
                 </tr>
               ))}
             </tbody>
@@ -142,9 +143,9 @@ async function LoansView() {
           <tbody>
             {l.rows.map((r) => (
               <tr key={r.number} className="border-t border-line">
-                <td dir="ltr" className="p-2 tabular-nums">{r.number}</td>
+                <td className="p-2 tabular-nums">{r.number}</td>
                 <td className="whitespace-nowrap p-2">{day(r.dueOn)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.outstandingBefore)}</td>
+                <Num>{formatMoney(r.outstandingBefore)}</Num>
                 {draft ? (
                   <>
                     <td className="p-2">
@@ -157,11 +158,11 @@ async function LoansView() {
                   </>
                 ) : (
                   <>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.interest)}</td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.capital)}</td>
+                    <Num>{formatMoney(r.interest)}</Num>
+                    <Num>{formatMoney(r.capital)}</Num>
                   </>
                 )}
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.capital + r.interest)}</td>
+                <Num>{formatMoney(r.capital + r.interest)}</Num>
                 {l.confirmed && (
                   <td className="p-2">
                     {r.paidOn ? (
@@ -181,9 +182,9 @@ async function LoansView() {
             ))}
             <tr className="border-t-2 border-line font-semibold">
               <td className="p-2" colSpan={3}>{t("Loans.totals")}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.rows.reduce((s, r) => s + r.interest, 0n))}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.rows.reduce((s, r) => s + r.capital, 0n))}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.rows.reduce((s, r) => s + r.capital + r.interest, 0n))}</td>
+              <Num>{formatMoney(l.rows.reduce((s, r) => s + r.interest, 0n))}</Num>
+              <Num>{formatMoney(l.rows.reduce((s, r) => s + r.capital, 0n))}</Num>
+              <Num>{formatMoney(l.rows.reduce((s, r) => s + r.capital + r.interest, 0n))}</Num>
               {l.confirmed && <td />}
             </tr>
           </tbody>

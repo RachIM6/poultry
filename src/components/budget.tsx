@@ -1,16 +1,17 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useId, useState, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { formatKg, formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
 import { budgetOf, type BudgetInputs } from "@/modules/finance/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import { field, primary } from "@/components/ui";
+import { danger, field, primary } from "@/components/ui";
 
 // SPEC-finance FN15: a planned batch's budget, copied from a closed batch, with its feed and sale prices as what-if
-// inputs. The figures recompute on every keystroke with the same pure function the server uses.
+// inputs. The figures recompute on every keystroke with the same pure function the server uses; a screen reader hears
+// them, and the fields to check, when the user leaves a field (WCAG 4.1.3), not on each keystroke.
 
 
 type Base = { batchId: string; label: string; inputs: Record<keyof BudgetInputs, string> }; // centimes and grams as strings
@@ -37,24 +38,29 @@ const toText = (i: Base["inputs"]): Text => ({
 });
 const EMPTY: Text = { chicks: "", chickPriceCentimes: "", feedGrams: "", feedPricePerKgCentimes: "", otherCostCentimes: "", plannedGrams: "", salePricePerKgCentimes: "" };
 
+const grams = (s: string) => {
+  const g = parseQuantity(s, "kg");
+  return g === null ? null : BigInt(g);
+};
+const PARSE: Record<keyof Text, (s: string) => bigint | null> = {
+  chicks: (s) => (/^\d{1,9}$/.test(s.trim()) ? BigInt(s.trim()) : null),
+  chickPriceCentimes: parseCentimes,
+  feedGrams: grams,
+  feedPricePerKgCentimes: parseCentimes,
+  otherCostCentimes: parseCentimes,
+  plannedGrams: grams,
+  salePricePerKgCentimes: parseCentimes,
+};
+/** Each field's label, in the form's order. */
+const LABEL: Record<keyof Text, string> = { chicks: "chicks", chickPriceCentimes: "chickPrice", feedGrams: "feedKg", feedPricePerKgCentimes: "feedPrice", otherCostCentimes: "other", plannedGrams: "plannedKg", salePricePerKgCentimes: "salePrice" };
+const KEYS = Object.keys(LABEL) as (keyof Text)[];
+
+/** The fields that don't parse. */
+const unread = (t: Text) => KEYS.filter((k) => PARSE[k](t[k]) === null);
+
 /** The typed values, or null while one of them doesn't parse. */
 function parse(t: Text): BudgetInputs | null {
-  const money = (s: string) => parseCentimes(s);
-  const grams = (s: string) => {
-    const g = parseQuantity(s, "kg");
-    return g === null ? null : BigInt(g);
-  };
-  const chicks = /^\d{1,9}$/.test(t.chicks.trim()) ? BigInt(t.chicks.trim()) : null;
-  const v = {
-    chicks,
-    chickPriceCentimes: money(t.chickPriceCentimes),
-    feedGrams: grams(t.feedGrams),
-    feedPricePerKgCentimes: money(t.feedPricePerKgCentimes),
-    otherCostCentimes: money(t.otherCostCentimes),
-    plannedGrams: grams(t.plannedGrams),
-    salePricePerKgCentimes: money(t.salePricePerKgCentimes),
-  };
-  return Object.values(v).every((x) => x !== null) ? (v as BudgetInputs) : null;
+  return unread(t).length > 0 ? null : (Object.fromEntries(KEYS.map((k) => [k, PARSE[k](t[k])])) as BudgetInputs);
 }
 
 export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches: { batchId: string; label: string }[]; save: (state: SaveState, form: FormData) => Promise<SaveState> }) {
@@ -70,12 +76,22 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
   }, {});
   const inputs = parse(text);
   const b = inputs && budgetOf(inputs);
+  const errorId = useId();
+  const list = new Intl.ListFormat(useLocale() === "ar" ? "ar" : "fr"); // "a, b et c" in French
+  // Set when the user leaves a field: the fields to check, else the result to say.
+  const [checked, setChecked] = useState<{ bad: (keyof Text)[]; said: string }>({ bad: [], said: "" });
+  const check = () =>
+    setChecked({
+      bad: unread(text),
+      said: b ? t("line", { breakEven: b.breakEvenPerKgCentimes === null ? "—" : formatMoney(b.breakEvenPerKgCentimes), margin: formatMoney(b.plannedMarginCentimes) }) : "",
+    });
 
   const set = (k: keyof Text) => (e: { target: { value: string } }) => setText({ ...text, [k]: e.target.value });
   const pick = (id: string) => {
     setBasedOn(id);
     const base = bases.find((x) => x.batchId === id);
     if (base) setText(toText(base.inputs));
+    setChecked({ bad: [], said: "" });
   };
 
   return (
@@ -99,35 +115,42 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
           </select>
         )}
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label={t("chicks")}>{(id) => <input id={id} value={text.chicks} onChange={set("chicks")} inputMode="numeric" dir="ltr" className={field} />}</Field>
-        <Field label={t("chickPrice")}>{(id) => <input id={id} value={text.chickPriceCentimes} onChange={set("chickPriceCentimes")} inputMode="decimal" dir="ltr" className={field} />}</Field>
-        <Field label={t("feedKg")}>{(id) => <input id={id} value={text.feedGrams} onChange={set("feedGrams")} inputMode="decimal" dir="ltr" className={field} />}</Field>
-        <Field label={t("feedPrice")}>{(id) => <input id={id} value={text.feedPricePerKgCentimes} onChange={set("feedPricePerKgCentimes")} inputMode="decimal" dir="ltr" className={field} />}</Field>
-        <Field label={t("other")}>{(id) => <input id={id} value={text.otherCostCentimes} onChange={set("otherCostCentimes")} inputMode="decimal" dir="ltr" className={field} />}</Field>
-        <Field label={t("plannedKg")}>{(id) => <input id={id} value={text.plannedGrams} onChange={set("plannedGrams")} inputMode="decimal" dir="ltr" className={field} />}</Field>
-        <Field label={t("salePrice")}>{(id) => <input id={id} value={text.salePricePerKgCentimes} onChange={set("salePricePerKgCentimes")} inputMode="decimal" dir="ltr" className={field} />}</Field>
+      <div className="grid grid-cols-2 gap-3" onBlur={check}>
+        {KEYS.map((k) => {
+          const bad = checked.bad.includes(k);
+          return (
+            <Field key={k} label={t(LABEL[k])}>
+              {(id) => (
+                <input id={id} value={text[k]} onChange={set(k)} inputMode={k === "chicks" ? "numeric" : "decimal"} dir="ltr" aria-invalid={bad || undefined} aria-describedby={bad ? errorId : undefined} className={`${field} aria-invalid:border-alert`} />
+              )}
+            </Field>
+          );
+        })}
       </div>
+      {checked.bad.length > 0 && (
+        <p id={errorId} role="alert" className={danger}>
+          {t("check", { fields: list.format(checked.bad.map((k) => t(LABEL[k]))) })}
+        </p>
+      )}
+      <p role="status" className="sr-only">{checked.bad.length === 0 && checked.said}</p>
 
-      {b && inputs ? (
-        <dl className="grid grid-cols-2 gap-2 rounded-2xl border border-line bg-card p-3" aria-label={t("figures")} aria-live="polite">
+      {b && inputs && (
+        <dl className="grid grid-cols-2 gap-2 rounded-2xl border border-line bg-card p-3" aria-label={t("figures")}>
           <dt>{t("plannedCost")}</dt>
-          <dd dir="ltr" className="text-end tabular-nums">{formatMoney(b.plannedCostCentimes)}</dd>
+          <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedCostCentimes)}</bdi></dd>
           <dt>{t("breakEven")}</dt>
-          <dd dir="ltr" className="text-end font-semibold tabular-nums">{b.breakEvenPerKgCentimes === null ? "—" : `${formatMoney(b.breakEvenPerKgCentimes)} / kg`}</dd>
+          <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{b.breakEvenPerKgCentimes === null ? "—" : `${formatMoney(b.breakEvenPerKgCentimes)} / kg`}</bdi></dd>
           <dt>{t("plannedSales")}</dt>
-          <dd dir="ltr" className="text-end tabular-nums">{formatMoney(b.plannedSalesCentimes)} ({formatKg(Number(inputs.plannedGrams))})</dd>
+          <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedSalesCentimes)} ({formatKg(Number(inputs.plannedGrams))})</bdi></dd>
           <dt>{t("plannedMargin")}</dt>
-          <dd dir="ltr" className="text-end font-semibold tabular-nums">{formatMoney(b.plannedMarginCentimes)}</dd>
+          <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedMarginCentimes)}</bdi></dd>
         </dl>
-      ) : (
-        <p role="alert">{tr("errors.INVALID_INPUT")}</p>
       )}
 
       {/* What the server saves: the parsed inputs, in centimes and grams. */}
       {inputs && Object.entries(inputs).map(([k, v]) => <input key={k} type="hidden" name={k} value={String(v)} />)}
       <Field label={t("name")}>{(id) => <input id={id} name="name" required maxLength={80} className={field} />}</Field>
-      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{tr(state.messageKey)}</p>}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{tr(state.messageKey)}</p>}
       <button type="submit" disabled={!inputs || pending} className={primary}>{t("save")}</button>
     </form>
   );

@@ -290,15 +290,16 @@ export async function closeDepreciation(tx: Tx, ctx: TenantContext, legalEntityI
 }
 
 /** ADR-011: the invoice the upload route has just stored, attached once to the owner's asset. */
-export async function attachFixedAssetReceipt(ctx: TenantContext, assetId: string, fileId: string): Promise<Result<void>> {
+export async function attachFixedAssetReceipt(ctx: TenantContext, assetId: string, fileId: string, inTx?: Tx): Promise<Result<void>> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
-  return db.$transaction(async (tx) => {
+  const attach = async (tx: Tx) => {
     // Conditional update: of two uploads at once, only the first attaches.
     const { count } = await tx.fixedAsset.updateMany({ where: { id: assetId, organizationId: ctx.organizationId, receiptFileId: null }, data: { receiptFileId: fileId } });
     if (count === 0) return (await tx.fixedAsset.count({ where: { id: assetId, organizationId: ctx.organizationId } })) ? fail("FILE_ALREADY_ATTACHED") : fail("NOT_FOUND");
     await audit(tx, ctx, { entity: "FixedAsset", entityId: assetId, action: "update", before: { receiptFileId: null }, after: { receiptFileId: fileId } });
     return ok(undefined);
-  });
+  };
+  return inTx ? attach(inTx) : db.$transaction(attach); // inTx: the upload's own transaction
 }
 
 export type AssetView = {

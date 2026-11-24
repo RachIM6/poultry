@@ -18,18 +18,39 @@ const WHO: Record<FilePurpose, Action> = { proof: "biosecurity.record", document
 // Reading may be wider than uploading: the accountant partner reads the books and their export (SPEC-m5 PA5), receipts included.
 const READERS: Record<FilePurpose, Action> = { ...WHO, receipt: "money.read" };
 
-export async function storeFile(ctx: TenantContext, purpose: FilePurpose, bytes: Uint8Array): Promise<Result<{ id: string }, "FORBIDDEN" | "FILE_TOO_LARGE" | "FILE_TYPE_NOT_ALLOWED">> {
+/** A refused attach, thrown to roll the stored file back with it. */
+class Refused {
+  constructor(readonly error: string) {}
+}
+
+/**
+ * Stores the file and, in the same transaction, `attach`es it to its record (the upload route): a refused attach (the
+ * record is another organisation's, or already has its file) keeps no bytes.
+ */
+export async function storeFile<E extends string = never>(
+  ctx: TenantContext,
+  purpose: FilePurpose,
+  bytes: Uint8Array,
+  attach?: (tx: Tx, fileId: string) => Promise<Result<void, E>>,
+): Promise<Result<{ id: string }, "FORBIDDEN" | "FILE_TOO_LARGE" | "FILE_TYPE_NOT_ALLOWED" | E>> {
   if (!can(ctx, WHO[purpose])) return fail("FORBIDDEN");
   const type = checkFile(bytes);
   if (!type.ok) return type;
   const id = uuidv7(); // an online upload, not a record created offline: the server names it
   const sha256 = createHash("sha256").update(bytes).digest("hex");
-  await db.$transaction(async (tx) => {
-    await tx.storedFile.create({
-      data: { id, organizationId: ctx.organizationId, purpose, contentType: type.value, sizeBytes: bytes.length, sha256, bytes: Buffer.from(bytes), uploadedBy: ctx.userId },
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.storedFile.create({
+        data: { id, organizationId: ctx.organizationId, purpose, contentType: type.value, sizeBytes: bytes.length, sha256, bytes: Buffer.from(bytes), uploadedBy: ctx.userId },
+      });
+      await audit(tx, ctx, { entity: "StoredFile", entityId: id, action: "create", after: { purpose, contentType: type.value, sizeBytes: bytes.length, sha256 } });
+      const attached = await attach?.(tx, id);
+      if (attached && !attached.ok) throw new Refused(attached.error);
     });
-    await audit(tx, ctx, { entity: "StoredFile", entityId: id, action: "create", after: { purpose, contentType: type.value, sizeBytes: bytes.length, sha256 } });
-  });
+  } catch (e) {
+    if (e instanceof Refused) return fail(e.error as E);
+    throw e;
+  }
   return ok({ id });
 }
 
@@ -98,9 +119,9 @@ export const documentsSync: SyncRegistry = {
 };
 
 /** DC2: attaches the scan the upload route has just stored for this organisation, once. */
-export async function attachDocumentFile(ctx: TenantContext, documentId: string, fileId: string): Promise<Result<void>> {
+export async function attachDocumentFile(ctx: TenantContext, documentId: string, fileId: string, inTx?: Tx): Promise<Result<void>> {
   if (!can(ctx, "documents.manage")) return fail("FORBIDDEN");
-  return db.$transaction(async (tx) => {
+  const attach = async (tx: Tx) => {
     // Conditional update: of two uploads at once, only the first attaches.
     const { count } = await tx.document.updateMany({ where: { id: documentId, organizationId: ctx.organizationId, fileId: null }, data: { fileId } });
     const row = await tx.document.findFirst({ where: { id: documentId, organizationId: ctx.organizationId } });
@@ -110,7 +131,8 @@ export async function attachDocumentFile(ctx: TenantContext, documentId: string,
     await recordChange(tx, ctx, "document", documentId, dto);
     await audit(tx, ctx, { entity: "Document", entityId: documentId, action: "update", before: { fileId: null }, after: { fileId } });
     return ok(undefined);
-  });
+  };
+  return inTx ? attach(inTx) : db.$transaction(attach); // inTx: the upload's own transaction
 }
 
 // DC4: expiry reminders, from the host's scheduler (POST /api/push/dispatch), like the vaccination reminders.

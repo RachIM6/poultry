@@ -1,6 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/lib/audit";
-import { db } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
@@ -63,13 +63,14 @@ export async function postManualEntry(ctx: TenantContext, input: unknown, clock:
 }
 
 /** ADR-011: the receipt the upload route has just stored, attached once to the owner's manual entry. */
-export async function attachManualEntryReceipt(ctx: TenantContext, entryId: string, fileId: string): Promise<Result<void>> {
+export async function attachManualEntryReceipt(ctx: TenantContext, entryId: string, fileId: string, inTx?: Tx): Promise<Result<void>> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
-  return db.$transaction(async (tx) => {
+  const attach = async (tx: Tx) => {
     // Conditional update: of two uploads at once, only the first attaches.
     const { count } = await tx.manualEntry.updateMany({ where: { id: entryId, organizationId: ctx.organizationId, receiptFileId: null }, data: { receiptFileId: fileId } });
     if (count === 0) return (await tx.manualEntry.count({ where: { id: entryId, organizationId: ctx.organizationId } })) ? fail("FILE_ALREADY_ATTACHED") : fail("NOT_FOUND");
     await audit(tx, ctx, { entity: "ManualEntry", entityId: entryId, action: "update", before: { receiptFileId: null }, after: { receiptFileId: fileId } });
     return ok(undefined);
-  });
+  };
+  return inTx ? attach(inTx) : db.$transaction(attach); // inTx: the upload's own transaction
 }

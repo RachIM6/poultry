@@ -16,6 +16,7 @@ import * as file from "./files/[id]/route";
 import * as files from "./files/route";
 import * as batchResults from "./finance/batch-results/route";
 import * as financeExport from "./finance/export/route";
+import * as health from "./health/route";
 import * as locale from "./locale/route";
 import * as quietHours from "./notifications/quiet-hours/route";
 import * as testPush from "./notifications/test/route";
@@ -50,6 +51,7 @@ const ROUTES: Record<string, Row> = {
   "files/[id]": { route: file, session: true },
   "finance/batch-results": { route: batchResults, session: true },
   "finance/export": { route: financeExport, session: true },
+  health: { route: health }, // the host's uptime check: no session, GET only, no details (health/health.int.test.ts)
   locale: { route: locale, session: true, body: MAX_JSON_BYTES },
   "notifications/quiet-hours": { route: quietHours, session: true, body: MAX_JSON_BYTES },
   "notifications/test": { route: testPush, session: true },

@@ -33,6 +33,10 @@ test("the inspection pack opens offline, lists the missing pieces and prints", a
     await expect(missing.getByRole("listitem").filter({ hasText: item })).toHaveCount(1);
   }
   await expect(pack).toContainText("Arrêté n° 2127-05, art. 4"); // each checklist line prints its source
+  await expect(pack).toContainText("Arrêté n° 2127-05, art. 4 ; décret n° 2-04-684, art. 12"); // R1: the manure line
+  await expect(pack).toContainText("ouvertures munies de filets ou de grillage contre les oiseaux et les rongeurs"); // R1: buildings
+  await expect(pack).not.toContainText("local de stockage des œufs"); // a broiler farm: no layer stores line
+  await expect(pack).toContainText("Maladies à déclaration obligatoire (dahir n° 1-75-292, art. 1 et 3"); // R2
   await expect(pack).toContainText("Dr Naïma R.");
   await expect(pack).toContainText("Appâts posés");
   await expect(page.getByRole("heading", { level: 2, name: "Registre de suivi sanitaire" })).toHaveCount(1); // the open batch's register

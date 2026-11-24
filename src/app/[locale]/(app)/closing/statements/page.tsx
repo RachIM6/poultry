@@ -42,9 +42,9 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
   const s = result.value;
   const nav = (
     <nav className="flex flex-wrap items-center gap-3 print:hidden" aria-label={t("year")}>
-      <Link href={{ pathname: "/closing/statements", query: { year: s.year - 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">←</Link>
+      <Link href={{ pathname: "/closing/statements", query: { year: s.year - 1 } }} aria-label={t("previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
       <span className="font-semibold" dir="ltr">{s.year}</span>
-      <Link href={{ pathname: "/closing/statements", query: { year: s.year + 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">→</Link>
+      <Link href={{ pathname: "/closing/statements", query: { year: s.year + 1 } }} aria-label={t("nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
       {s.books === "ledger" && <span className="ms-auto"><PrintButton /></span>}
     </nav>
   );

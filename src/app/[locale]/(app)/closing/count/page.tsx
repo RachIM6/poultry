@@ -93,9 +93,9 @@ async function CountView({ searchParams }: { searchParams: Search }) {
     <>
       <h1 className="text-2xl font-semibold print:hidden">{t("Count.title")}</h1>
       <nav className="flex flex-wrap items-center gap-3 print:hidden" aria-label={t("Count.year")}>
-        <Link href={{ pathname: "/closing/count", query: { year: year - 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">←</Link>
+        <Link href={{ pathname: "/closing/count", query: { year: year - 1 } }} aria-label={t("Count.previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
         <span className="font-semibold" dir="ltr">{year}</span>
-        <Link href={{ pathname: "/closing/count", query: { year: year + 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">→</Link>
+        <Link href={{ pathname: "/closing/count", query: { year: year + 1 } }} aria-label={t("Count.nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
         {farms.length > 0 && <span className="ms-auto"><PrintButton /></span>}
       </nav>
       <p className="text-sm text-ink-2 print:hidden">{t("Count.hint")}</p>

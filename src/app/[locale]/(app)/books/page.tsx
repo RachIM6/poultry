@@ -65,14 +65,16 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
   const one = (k: string, v = search[k]) => (typeof v === "string" ? v : "");
   const prefill = /^\d{4}-\d{2}-\d{2}$/.test(one("day")) && one("bank") ? { day: one("day"), label: one("label"), debit: one("debit"), bank: one("bank") } : undefined;
   const lockedInYear = books.lockedMonths.filter((m) => m >= books.fiscalYear.from.slice(0, 7) && m <= books.fiscalYear.to.slice(0, 7));
+  // "novembre 2026", not "2026-11" (as the register's months; not in lib/format, which /batches ships)
+  const monthName = (m: string) => new Intl.DateTimeFormat(lang === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${m}-01T00:00:00Z`));
 
   return (
     <>
       <h1 className="text-2xl font-semibold">{t(books.books === "ledger" ? "Books.titleLedger" : "Books.titleCashBook")}</h1>
       <nav className="flex flex-wrap items-center gap-3" aria-label={t("Books.month")}>
-        <Link href={href(view, shift(month, -1))} className="underline underline-offset-4">←</Link>
-        <span className="font-semibold" dir="ltr">{month}</span>
-        <Link href={href(view, shift(month, 1))} className="underline underline-offset-4">→</Link>
+        <Link href={href(view, shift(month, -1))} aria-label={t("Books.previousMonth")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
+        <span className="font-semibold">{monthName(month)}</span>
+        <Link href={href(view, shift(month, 1))} aria-label={t("Books.nextMonth")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
         {/* FN18: a file, not a page, so a plain link to the route handler */}
         <a href={`/api/finance/export?month=${month}`} download className="ms-auto underline underline-offset-4">{t("Books.export")}</a>
         {books.books === "ledger" && <a href={`/api/finance/export?month=${month}&format=fec`} download className="underline underline-offset-4">{t("Books.exportFec")}</a>}
@@ -86,7 +88,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
             {lockedInYear.map((m, i) => (
               <Fragment key={m}>
                 {i > 0 && ", "}
-                <Link href={href(view, m)} className="underline underline-offset-4" dir="ltr">{m}</Link>
+                <Link href={href(view, m)} className="underline underline-offset-4">{monthName(m)}</Link>
               </Fragment>
             ))}
           </p>

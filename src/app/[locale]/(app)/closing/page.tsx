@@ -237,9 +237,9 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
     <>
       <h1 className="text-2xl font-semibold">{t("Close.title")}</h1>
       <nav className="flex flex-wrap items-center gap-3" aria-label={t("Count.year")}>
-        <Link href={{ pathname: "/closing", query: { year: year - 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">←</Link>
+        <Link href={{ pathname: "/closing", query: { year: year - 1 } }} aria-label={t("Count.previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
         <span className="font-semibold" dir="ltr">{year}</span>
-        <Link href={{ pathname: "/closing", query: { year: year + 1 } }} className="inline-block underline underline-offset-4 rtl:-scale-x-100">→</Link>
+        <Link href={{ pathname: "/closing", query: { year: year + 1 } }} aria-label={t("Count.nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
         <Link href={{ pathname: "/closing/count", query: { year } }} className="ms-auto underline underline-offset-4">{t("Count.open")}</Link>
       </nav>
       <p className="text-sm text-ink-2">{t("Close.hint", { day: formatDay(day, lang) })}</p>

@@ -6,7 +6,8 @@ import { addStatementAction, importAction, matchAction, type ImportState } from 
 import { field, primary, secondary, table } from "@/components/ui";
 import { Num } from "@/components/num";
 import { Link } from "@/i18n/navigation";
-import { formatMoney } from "@/lib/format";
+import { formatDay, formatMoney } from "@/lib/format";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import { CSV_DATE_FORMATS } from "@/modules/finance/shared";
 
 const SEPARATORS = [
@@ -121,7 +122,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
           <h3 className="font-semibold">{t("previewTitle")}</h3>
           {preview.statements.map((s) => (
             <div key={s.endDay} className="flex flex-col gap-1">
-              <p className="font-semibold">{t("previewStatement", { day: s.endDay, count: s.lineCount })}</p>
+              <p className="font-semibold">{t("previewStatement", { day: formatDay(s.endDay as FarmDay, locale), count: s.lineCount })}</p>
               <p>
                 {s.openingCentimes === null
                   ? t("previewClosing", { closing: formatMoney(BigInt(s.closingCentimes)) })
@@ -134,7 +135,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
                     <tr key={i} className="border-t border-line">
                       <td className="p-2">
                         <span className="block">{l.label}</span>
-                        <span className="block text-ink-2" dir="ltr">{l.day}</span>
+                        <span className="block text-ink-2">{formatDay(l.day as FarmDay, locale)}</span>
                       </td>
                       <Num className="whitespace-nowrap">{formatMoney(BigInt(l.amountCentimes))}</Num>
                     </tr>

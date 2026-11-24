@@ -43,9 +43,10 @@ async function Tracker() {
           {t(usage.over ? "Threshold.over" : "Threshold.alert", { percent: String(usage.percent) })}
         </p>
       )}
-      <section className="flex flex-col gap-2" aria-label={t("Threshold.year", { from: day(fiscalYear.from), to: day(fiscalYear.to) })}>
-        <h2 className="text-[17px] font-semibold text-ink-2">{t("Threshold.year", { from: day(fiscalYear.from), to: day(fiscalYear.to) })}</h2>
-        <div className="h-3 w-full rounded-full bg-line" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(usage.percent)}>
+      <section className="flex flex-col gap-2" aria-labelledby="threshold-year">
+        <h2 id="threshold-year" className="text-[17px] font-semibold text-ink-2">{t("Threshold.year", { from: day(fiscalYear.from), to: day(fiscalYear.to) })}</h2>
+        {/* aria-valuenow stays within its max; the text says the real share, over 100 % too */}
+        <div className="h-3 w-full rounded-full bg-line" role="progressbar" aria-labelledby="threshold-year" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Number(usage.percent))} aria-valuetext={`${String(usage.percent)} %`}>
           <div className={`h-3 rounded-full ${usage.alert ? "bg-alert" : "bg-olive"}`} style={{ width }} />
         </div>
         <dl className="grid grid-cols-2 gap-2">

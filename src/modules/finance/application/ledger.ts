@@ -1,4 +1,5 @@
 import { v7 as uuidv7 } from "uuid";
+import { Prisma } from "@/generated/prisma/client";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -22,6 +23,7 @@ import {
   saveEntry,
   sourceAlreadyPosted,
   standingEntryFor,
+  yearClose,
   type EntryRow,
 } from "@/modules/finance/infrastructure/ledger";
 
@@ -59,35 +61,50 @@ export async function postEntry(tx: Tx, ctx: TenantContext, e: EntryRow): Promis
 }
 
 /**
- * FN5: cancels a posted entry with the same lines, sides swapped, linked to it. Dated `day`, or the 1st of the first
- * open month after it when that month is locked. An entry is reversed at most once.
+ * FN5, FCX3: the owner cancels a manual entry with the same lines, sides swapped, linked to it ("Annuler l'écriture"),
+ * then types a new one. Dated on the entry's day, or the 1st of the first open month after it when that month is
+ * locked. An entry is reversed at most once. Other entries are reversed by their own module's flow (FN7): refused here.
  */
-export async function reverseEntry(ctx: TenantContext, entryId: string, day: FarmDay, label: string): Promise<Result<string, PostError | "ALREADY_REVERSED">> {
-  return db.$transaction(async (tx) => {
-    const original = await loadEntry(tx, ctx, entryId);
-    if (!original) return fail("NOT_FOUND");
-    if (original.reversed) return fail("ALREADY_REVERSED");
-    const month = firstOpenMonth(monthOf(day), await lockedMonths(tx, ctx, original.legalEntityId));
-    const id = uuidv7(); // created on the server, never offline
-    const posted = await postEntry(tx, ctx, {
-      id,
-      legalEntityId: original.legalEntityId,
-      journal: original.journal,
-      day: month === monthOf(day) ? day : (`${month}-01` as FarmDay),
-      label,
-      reversesId: original.id,
-      lines: reversalOf(original.lines),
+export async function reverseEntry(ctx: TenantContext, entryId: string): Promise<Result<string, PostError | "ALREADY_REVERSED" | "NOT_MANUAL_ENTRY">> {
+  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  if (!z.uuid().safeParse(entryId).success) return fail("NOT_FOUND");
+  return db
+    .$transaction(async (tx) => {
+      const original = await loadEntry(tx, ctx, entryId);
+      if (!original) return fail("NOT_FOUND");
+      if (!(await tx.manualEntry.count({ where: { id: entryId, organizationId: ctx.organizationId } }))) return fail("NOT_MANUAL_ENTRY");
+      if (original.reversed) return fail("ALREADY_REVERSED");
+      const month = firstOpenMonth(monthOf(original.day), await lockedMonths(tx, ctx, original.legalEntityId));
+      const id = uuidv7(); // created on the server, never offline
+      const posted = await postEntry(tx, ctx, {
+        id,
+        legalEntityId: original.legalEntityId,
+        journal: original.journal,
+        day: month === monthOf(original.day) ? original.day : (`${month}-01` as FarmDay),
+        label: `Annulation : ${original.label}`,
+        reversesId: original.id,
+        lines: reversalOf(original.lines),
+      });
+      return posted.ok ? ok(id) : posted;
+    })
+    .catch((err) => {
+      // Two cancels at once: the second hits the unique reversesId once the first commits.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return fail("ALREADY_REVERSED" as const);
+      throw err;
     });
-    return posted.ok ? ok(id) : posted;
-  });
 }
 
-/** FN5: locking and unlocking a month of a legal entity's books, owner only, audited. */
-export async function setPeriodLocked(ctx: TenantContext, legalEntityId: string, month: string, locked: boolean): Promise<Result<void, "FORBIDDEN" | "NOT_FOUND">> {
+/**
+ * FN5: locking and unlocking a month of a legal entity's books, owner only, audited. A month of a closed fiscal year
+ * stays locked: the year's reopen (FCX6) is the way back.
+ */
+export async function setPeriodLocked(ctx: TenantContext, legalEntityId: string, month: string, locked: boolean): Promise<Result<void, "FORBIDDEN" | "NOT_FOUND" | "FISCAL_YEAR_CLOSED">> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("NOT_FOUND");
   return db.$transaction(async (tx) => {
-    if (!(await legalEntityIn(tx, ctx, legalEntityId))) return fail("NOT_FOUND");
+    const entity = await legalEntityIn(tx, ctx, legalEntityId); // row-locked, like the year close and reopen
+    if (!entity) return fail("NOT_FOUND");
+    if (!locked && (await yearClose(tx, ctx, legalEntityId, fiscalYearOf(`${month}-01` as FarmDay, entity.fiscalYearStartMonth).to))) return fail("FISCAL_YEAR_CLOSED");
     await lockMonth(tx, ctx, legalEntityId, month, locked);
     return ok(undefined);
   });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { formatCount, formatDecimal, formatKg, formatPercent } from "@/lib/format";
+import { formatDecimal, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { ageOfBatch, batchKpis, birdsStarted, doaClaim, waterPerFeed, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { CurvePoint, ReferenceData } from "@/modules/reference-data/schema";
@@ -160,28 +160,19 @@ export function OpenBatchCard({ strip, ageLabel, birds, next }: { strip: { age: 
   );
 }
 
-/** SPEC-m3 B9, B10 under the batch's card: the other sex's batch, the density and a hatchery claim. */
+/** SPEC-m3 B10 under the batch's card: the density and a hatchery claim (B9's other sex: turkey-sexes.tsx). */
 export function BatchNotes({
   batch,
-  other,
-  onHand,
   areaM2,
   claimPermille,
 }: {
   batch: BatchDto;
-  other: BatchDto | undefined;
-  onHand: (b: BatchDto) => number;
   areaM2: number | undefined;
   claimPermille: number | null | undefined;
 }) {
   const t = useTranslations();
   return (
     <>
-      {other && (
-        <a href={`#${other.id}`} className="rounded-2xl border border-line bg-card p-3 underline underline-offset-4">
-          {t("Batches.otherSex", { sex: t(`Batches.sexes.${other.sex ?? "mixed"}`), birds: formatCount(onHand(other)) })}
-        </a>
-      )}
       {areaM2 && <p>{t("Batches.density", { density: formatDecimal(birdsStarted(batch) / areaM2, 1) })}</p>}
       {doaClaim(batch, claimPermille) && <p role="alert" className={warn}>{t("Batches.claim")}</p>}
     </>

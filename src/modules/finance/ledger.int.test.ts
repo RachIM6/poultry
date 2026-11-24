@@ -21,6 +21,8 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
     db.$transaction((tx) =>
       postEntry(tx, ctx, { id: uuidv7(), legalEntityId: entityA, journal: "AC", label: "Aliment", reversesId: null, lines: feedPurchase, ...e }),
     );
+  // FN5: only a manual entry (FCX3) is reversed through reverseEntry; its row, as postManualEntry writes it
+  const manual = (id: string) => db.manualEntry.create({ data: { id, organizationId: a.organizationId, createdBy: a.userId } });
 
   beforeAll(async () => {
     const { accounts } = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
@@ -59,12 +61,14 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
     await expect(db.$executeRaw`UPDATE "JournalLine" SET "debitCentimes" = 1 WHERE "entryId" = ${id}::uuid AND "debitCentimes" > 0`).rejects.toThrow(/immutable/);
     await expect(db.$executeRaw`DELETE FROM "JournalEntry" WHERE id = ${id}::uuid`).rejects.toThrow(/immutable/);
 
-    const reversed = await reverseEntry(a, id, d("2025-04-20"), "Annulation");
+    await manual(id);
+    const reversed = await reverseEntry(a, id);
     if (!reversed.ok) throw new Error(reversed.error);
     const rev = await db.journalEntry.findUniqueOrThrow({ where: { id: reversed.value }, include: { lines: { orderBy: { account: "asc" } } } });
     expect(rev.reversesId).toBe(id);
+    expect([rev.day.toISOString().slice(0, 10), rev.label]).toEqual(["2025-04-02", "Annulation : Aliment"]); // the entry's day: its month is open
     expect(rev.lines.map((l) => [l.account, l.debitCentimes, l.creditCentimes])).toEqual([["4411", 450_000n, 0n], ["612122", 0n, 450_000n]]);
-    expect(await reverseEntry(a, id, d("2025-04-21"), "Encore")).toEqual({ ok: false, error: "ALREADY_REVERSED" });
+    expect(await reverseEntry(a, id)).toEqual({ ok: false, error: "ALREADY_REVERSED" });
   });
 
   it("locks a period for the owner only: no entry lands in it, a correction goes to the first open month", async () => {
@@ -77,7 +81,9 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
     expect(await db.auditEvent.count({ where: { entity: "LockedPeriod", action: "lock" } })).toBe(2);
 
     expect(await post(manager, { day: d("2025-05-20") })).toEqual({ ok: false, error: "PERIOD_LOCKED" });
-    const reversed = await reverseEntry(manager, id, d("2025-05-31"), "Correction");
+    await manual(id);
+    expect(await reverseEntry(manager, id)).toEqual({ ok: false, error: "FORBIDDEN" });
+    const reversed = await reverseEntry(a, id);
     if (!reversed.ok) throw new Error(reversed.error);
     expect((await db.journalEntry.findUniqueOrThrow({ where: { id: reversed.value } })).day.toISOString().slice(0, 10)).toBe("2025-07-01");
 
@@ -138,7 +144,7 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
   it("keeps each organisation's books apart, and workers out", async () => {
     expect(await post(b, { day: d("2025-08-01") })).toEqual({ ok: false, error: "NOT_FOUND" }); // A's entity
     const [entryOfA] = await db.journalEntry.findMany({ where: { legalEntityId: entityA }, take: 1 });
-    expect(await reverseEntry(b, entryOfA.id, d("2025-08-01"), "x")).toEqual({ ok: false, error: "NOT_FOUND" });
+    expect(await reverseEntry(b, entryOfA.id)).toEqual({ ok: false, error: "NOT_FOUND" });
     expect(await setPeriodLocked(b, entityA, "2025-08", true)).toEqual({ ok: false, error: "NOT_FOUND" });
     expect(await post({ ...a, role: "worker" }, { day: d("2025-08-01") })).toEqual({ ok: false, error: "FORBIDDEN" });
     const source = { module: "flock", id: uuidv7(), version: 1 };

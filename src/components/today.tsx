@@ -7,10 +7,10 @@ import { ageText } from "@/components/batch-age";
 import { BatchStrip, stripDays } from "@/components/batch-strip";
 import { card } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
-import { formatCount, formatDay, formatPercent } from "@/lib/format";
+import { formatCount, formatDay, formatDecimal, formatPercent } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ageOn, birdsOnHand, birdsStarted, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import { ageOn, birdsOnHand, birdsStarted, houseFigure, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import { eggsIn, layerKpis, type EggCollectionDto } from "@/modules/eggs/shared";
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
 import { SyncBadge } from "@/components/sync-status";
@@ -53,7 +53,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb({ userId, organizationId });
-  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "soldBirds", "vaccination", "treatment", "eggCollection").toArray(), [userId, organizationId]);
+  const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "soldBirds", "vaccination", "treatment", "eggCollection").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   if (!records || reference === undefined) return null;
 
@@ -63,6 +63,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
   const houses = of<HouseDto>("house");
   const open = of<BatchDto>("batch").filter((b) => b.status === "open").sort((a, b) => a.placedOn.localeCompare(b.placedOn));
   const entries = of<DailyEntryDto>("dailyEntry");
+  const weighings = of<WeighingDto>("weighing");
   const sold = of<SoldBirdsDto>("soldBirds");
   const vaccinations = of<VaccinationDto>("vaccination");
   const treatments = of<TreatmentDto>("treatment");
@@ -84,6 +85,17 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
       collections.filter((c) => c.batchId === b.id),
       today,
     ).lastDay;
+  // SPEC-m3 D1: broilers and turkeys show their FCR, pullets their uniformity (weight vs standard waits for curves, OQ5).
+  const figure = (b: BatchDto) => {
+    const f = houseFigure(
+      { placedOn: b.placedOn as FarmDay, birdsStarted: birdsStarted(b), dayOldWeightGrams: b.dayOldWeightGrams, ageAtPlacementDays: b.ageAtPlacementDays, species: b.species },
+      entries.filter((e) => e.batchId === b.id),
+      weighings.filter((w) => w.batchId === b.id),
+      today,
+      sold.filter((s) => s.batchId === b.id),
+    );
+    return f && (f.kind === "fcr" ? t("Today.fcr", { fcr: formatDecimal(f.value, 2) }) : t("Weighing.uniformity", { percent: formatPercent(f.value) }));
+  };
 
   const batches = open.map((b) => {
     const placedOn = b.placedOn as FarmDay;
@@ -107,7 +119,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
     // SPEC-m3 R5: a "non précisée" strain shows the production type instead; turkeys show their sex.
     const named = b.strainId.startsWith("unspecified-") ? t(`Types.${b.species}`) : (strains.find((s) => s.id === b.strainId)?.name ?? b.strainId);
     const strain = b.sex && b.sex !== "mixed" ? `${named} · ${t(`Batches.sexes.${b.sex}`)}` : named;
-    return { b, age, days, birds, house, strain, until, due, enteredToday: own.some((e) => e.day === today), missing: days.filter((d) => d.state === "missing") };
+    return { b, age, days, birds, house, strain, figure: figure(b), until, due, enteredToday: own.some((e) => e.day === today), missing: days.filter((d) => d.state === "missing") };
   });
 
   return (
@@ -121,7 +133,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
           </div>
           {sync}
         </div>
-        {batches.map(({ b, age, days, birds, house, strain, missing }) => (
+        {batches.map(({ b, age, days, birds, house, strain, figure, missing }) => (
           <Link key={b.id} href={{ pathname: "/batches", hash: b.id }} className="flex flex-col gap-3">
             <span className="flex items-baseline justify-between gap-3">
               <span className="text-lg font-semibold">{house} · {strain}</span>
@@ -132,6 +144,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
               const last = laying(b);
               return last?.layingRate != null ? <span className="text-sm text-sand">{t("Today.laying", { rate: formatPercent(last.layingRate), eggs: formatCount(last.eggs) })}</span> : null;
             })()}
+            {figure && <span className="text-sm text-sand">{figure}</span>}
             <span className="flex justify-between gap-3 text-sm text-sand">
               <span>{b.species === "broiler" ? t("Today.dayOf", { day: String(age), total: String(days.length) }) : ageText(t, b, today)}</span>
               <span>{missing.length > 0 ? t("Today.missingOn", { date: shortDay(missing[missing.length - 1].day) }) : t("Today.allEntered")}</span>

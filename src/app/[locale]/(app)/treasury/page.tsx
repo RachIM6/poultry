@@ -1,14 +1,16 @@
 import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
+import { v7 as uuidv7 } from "uuid";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { cashForecast, treasuryOverview } from "@/modules/finance";
+import { cashForecast, placementsToPay, treasuryOverview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
-import { table } from "@/components/ui";
+import { card, field, table } from "@/components/ui";
+import { PlacementPayForm } from "./pay-form";
 
 // SPEC-finance FN10: an online page for the owner and the manager (the web side of SPEC's split): each bank account's
 // and cash box's balance, and this month's movements on 5141 / 5161. Server-rendered from the ledger, never cached.
@@ -34,12 +36,19 @@ const dayMonth = (day: string, lang: string) =>
 async function Treasury() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
-  const month = farmDayOf(new Date()).slice(0, 7);
-  const [overview, forecast] = await Promise.all([treasuryOverview(ctx.value, month), cashForecast(ctx.value)]);
+  const today = farmDayOf(new Date());
+  const month = today.slice(0, 7);
+  const [overview, forecast, toPay] = await Promise.all([treasuryOverview(ctx.value, month), cashForecast(ctx.value), placementsToPay(ctx.value)]);
   if (!overview.ok || !forecast.ok) return <p>{t("Expenses.forbidden")}</p>;
   const { accounts, movements } = overview.value;
   const nameOf = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? t(id === null ? "Treasury.untagged" : "Treasury.unknown");
   const total = accounts.reduce((s, a) => s + a.balanceCentimes, 0n);
+  const label = (text: string, input: ReactNode) => (
+    <label className="flex flex-col gap-1">
+      {text}
+      {input}
+    </label>
+  );
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Treasury.title")}</h1>
@@ -81,6 +90,45 @@ async function Treasury() {
         </table>
         <p className="text-sm text-ink-2">{t("Treasury.scheduleNote")}</p>
       </section>
+      {/* SPEC-finance §9 "Placement debts": the chicks or point-of-lay hens still owed, paid here (owner, manager) */}
+      {toPay.ok && toPay.value.length > 0 && (
+        <section className="flex flex-col gap-2" aria-labelledby="placements">
+          <h2 id="placements" className="text-[17px] font-semibold text-ink-2">{t("Treasury.placements")}</h2>
+          <p className="text-sm text-ink-2">{t("Treasury.placementsHint")}</p>
+          {toPay.value.map((p) => (
+            <article key={p.batchId} className={card}>
+              <p className="font-semibold">{p.hatchery}</p>
+              <p className="text-sm text-ink-2">{p.place} · {t("Treasury.placedOn", { day: formatDay(p.placedOn, lang) })} · <bdi dir="ltr">{p.account}</bdi></p>
+              <p>{t("Treasury.owed", { amount: formatMoney(p.owed) })}</p>
+              <details className="rounded-2xl border border-line p-3">
+                <summary className="cursor-pointer">{t("Treasury.pay")}</summary>
+                <div className="pt-3">
+                  <PlacementPayForm submit={t("Assets.paySave")}>
+                    <input type="hidden" name="batchId" value={p.batchId} />
+                    <input type="hidden" name="id" value={uuidv7()} />
+                    {label(t("Assets.payDay"), <input type="date" name="day" defaultValue={today} max={today} required className={field} />)}
+                    {label(t("Assets.payAmount"), <input name="amount" inputMode="decimal" required dir="ltr" className={field} />)}
+                    {label(
+                      t("Assets.paidWith"),
+                      <select name="paidWith" required defaultValue="" className={field}>
+                        <option value="" disabled>—</option>
+                        {(["cash", "transfer", "cheque"] as const).map((m) => <option key={m} value={m}>{t(`Assets.methods.${m}`)}</option>)}
+                      </select>,
+                    )}
+                    {label(
+                      t("Assets.treasury"),
+                      <select name="treasuryId" defaultValue="" className={field}>
+                        <option value="">—</option>
+                        {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>,
+                    )}
+                  </PlacementPayForm>
+                </div>
+              </details>
+            </article>
+          ))}
+        </section>
+      )}
       {/* SPEC-finance FC9: ticking each bank account's lines against its statements */}
       <Link href="/treasury/bank" className="py-2 underline underline-offset-4">{t("Bank.open")}</Link>
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Treasury.movements")}</h2>

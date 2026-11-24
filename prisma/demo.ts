@@ -10,6 +10,12 @@ import { createOrganization } from "@/modules/farm-registry";
 // mutations as a phone, so every rule and audit event applies. Run `pnpm db:seed` first (strains, catalogue).
 // The figures are made up to look plausible: DEMO ONLY, never a reference (no breeder curve, no vaccine schedule).
 
+// The production image runs with NODE_ENV=production: a demo farm there is a mistake unless asked for explicitly.
+if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "1") {
+  console.error("demo: refused with NODE_ENV=production; set ALLOW_DEMO_SEED=1 to seed the demo farm anyway");
+  process.exit(1);
+}
+
 const phone = process.env.DEMO_PHONE ?? "+212600000099";
 if (await db.user.findUnique({ where: { phoneNumber: phone } })) {
   console.log(`demo: ${phone} already exists, nothing to do`);

@@ -1,0 +1,18 @@
+# The image builds from source (Dockerfile). Never secrets, local builds or tooling state.
+.env*
+.git
+.github
+.claude
+.mcp.json
+node_modules
+.next
+src/generated
+coverage
+playwright-report
+test-results
+graphify-out
+docs
+tasks
+*.md
+Dockerfile
+.dockerignore

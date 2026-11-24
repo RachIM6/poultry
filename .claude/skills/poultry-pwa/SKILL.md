@@ -50,7 +50,7 @@ Written from primary sources only (web.dev, MDN, WebKit, Serwist docs), plus wha
 
 ```
 src/sw.ts                                     the worker: precache, runtime caching, fallbacks
-src/app/serwist/[path]/route.ts               builds and serves /serwist/sw.js (revision = git commit)
+src/app/serwist/[path]/route.ts               builds and serves /serwist/sw.js (revision = Next build id)
 src/components/pwa-provider.tsx               registration, storage.persist(), no reload on reconnect
 src/app/[locale]/manifest.webmanifest/route.ts  per-locale manifest
 src/app/[locale]/offline/page.tsx             fallback for pages never opened online

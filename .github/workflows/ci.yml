@@ -83,6 +83,14 @@ jobs:
             test-results/
           retention-days: 7
 
+  # The production image builds (docs/deploy.md). Build only: nothing is pushed until a registry is chosen.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -t poultry:ci .
+
   # Backup round trip (docs/backup.md, T26): backup.sh, then restore.sh into a fresh database, then compare.
   backup-drill:
     runs-on: ubuntu-latest

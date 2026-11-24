@@ -22,6 +22,7 @@ import {
   type SoldBirdsDto,
   type WeighingDto,
 } from "@/modules/flock/shared";
+import { movedWithPlacement, type VaccinationDto } from "@/modules/health/shared";
 import type { ProductionType } from "@/modules/reference-data/shared";
 
 // SPEC B1 "Correcting a placement" on an open batch, in its own chunk: /batches has no room to grow (SPEC §9.3). The
@@ -59,6 +60,7 @@ export function CorrectPlacement({
   weighings,
   sold,
   strains,
+  vaccinations,
   write,
 }: {
   batch: BatchDto;
@@ -69,6 +71,7 @@ export function CorrectPlacement({
   weighings: WeighingDto[];
   sold: SoldBirdsDto[];
   strains: { id: string; name: string; productionTypes?: readonly ProductionType[] }[];
+  vaccinations: VaccinationDto[];
   write: Write;
 }) {
   const t = useTranslations();
@@ -127,7 +130,10 @@ export function CorrectPlacement({
     const checked = correctPlacement(aggregate, placement, { firstDay, birdsOut, houseFreeFrom: freeFrom }, today()); // as the server
     if (!checked.ok) return setError(checked.error === "INVALID_QUANTITY" ? "Batches.invalid" : `errors.${checked.error}`, form, FIELD_OF[checked.error]);
     setError(undefined);
-    const saved = await write({ type: M.correctPlacement, payload: { batchId: batch.id, changes } }, [{ entity: "batch", id: batch.id, data: { ...batch, ...changes } }]);
+    // The plan's lines not yet done move with the placement day, as the server moves them (B1).
+    const moved = placement.placedOn ? movedWithPlacement(vaccinations, { ...batch, placedOn: placement.placedOn }) : [];
+    const records = [{ entity: "batch", id: batch.id, data: { ...batch, ...changes } }, ...moved.map((v) => ({ entity: "vaccination", id: v.id, data: v }))];
+    const saved = await write({ type: M.correctPlacement, payload: { batchId: batch.id, changes } }, records);
     if (saved) close();
   };
 

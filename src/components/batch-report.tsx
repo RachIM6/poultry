@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, type ReactNode } from "react";
+import { Scroll } from "@/components/num";
 import { primary } from "@/components/ui";
 import { formatCount, formatDay, formatDecimal, formatKg, formatMoney, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -123,28 +124,30 @@ function ReportDocument({ batch, house, report: r }: { batch: BatchDto; house: H
 
       <section className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">{t("comparison")}</h2>
-        <table className="w-full text-sm" aria-label={t("comparison")}>
-          <thead>
-            <tr className="text-ink-2">
-              <th className="p-1 text-start">{t("batch")}</th>
-              <th className="p-1 text-end">{t("mortality")}</th>
-              <th className="p-1 text-end">{t("fcr")}</th>
-              <th className="p-1 text-end">{t("costPerKg")}</th>
-              <th className="p-1 text-end">{t("marginPerKg")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {r.comparison.map((c) => (
-              <tr key={c.id} className={`border-t border-line ${c.id === batch.id ? "font-semibold" : ""}`}>
-                <td className="p-1">{day(c.placedOn)}</td>
-                <td className="p-1 text-end">{formatPercent(c.mortalityPercent)} %</td>
-                <td className="p-1 text-end">{fcr(c.fcr)}</td>
-                <td className="p-1 text-end">{money(c.costPerKgCentimes)}</td>
-                <td className="p-1 text-end">{money(c.marginPerKgCentimes)}</td>
+        <Scroll label={t("comparison")}>
+          <table className="w-full text-sm" aria-label={t("comparison")}>
+            <thead>
+              <tr className="text-ink-2">
+                <th className="p-1 text-start">{t("batch")}</th>
+                <th className="p-1 text-end">{t("mortality")}</th>
+                <th className="p-1 text-end">{t("fcr")}</th>
+                <th className="p-1 text-end">{t("costPerKg")}</th>
+                <th className="p-1 text-end">{t("marginPerKg")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {r.comparison.map((c) => (
+                <tr key={c.id} className={`border-t border-line ${c.id === batch.id ? "font-semibold" : ""}`}>
+                  <td className="p-1">{day(c.placedOn)}</td>
+                  <td className="p-1 text-end">{formatPercent(c.mortalityPercent)} %</td>
+                  <td className="p-1 text-end">{fcr(c.fcr)}</td>
+                  <td className="p-1 text-end">{money(c.costPerKgCentimes)}</td>
+                  <td className="p-1 text-end">{money(c.marginPerKgCentimes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Scroll>
       </section>
       <button type="button" onClick={() => window.print()} className={`${primary} print:hidden`}>{t("print")}</button>
     </article>

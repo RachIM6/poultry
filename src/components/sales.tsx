@@ -12,7 +12,7 @@ import { parseCentimes } from "@/lib/kernel/money";
 import { Batch, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { withdrawalUntil, type TreatmentDto } from "@/modules/health/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import { card, danger, field, primary, secondary } from "@/components/ui";
+import { card, danger, field, link, primary, secondary } from "@/components/ui";
 import { useInline } from "@/components/focus";
 import {
   BUYER_TYPES,
@@ -115,7 +115,7 @@ export function Sales({
                 {s.kind !== "eggs" && (
                   <span className="flex gap-4">
                     {(["fr", "ar"] as const).map((l) => (
-                      <Link key={l} href={`/origin#${s.id}`} locale={l} className="py-2 underline underline-offset-4">
+                      <Link key={l} href={`/origin#${s.id}`} locale={l} className={link}>
                         {t("Sale.origin", { language: t(`LocaleSwitcher.${l}`) })}
                       </Link>
                     ))}

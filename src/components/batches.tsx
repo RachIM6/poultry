@@ -25,7 +25,7 @@ import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { BatchStrip, stripDays } from "@/components/batch-strip";
-import { card, primary } from "@/components/ui";
+import { card, link, primary } from "@/components/ui";
 
 // SPEC §9.3 budget (ADR-009, T25): the day's entry loads with the page; the rest of the batch screen comes in its own
 // chunks right after. The service worker precaches every chunk, so they load offline too.
@@ -225,7 +225,7 @@ function Batches(scope: Scope) {
         )}
         {open.species === "layer" && can(scope, "eggs.record") && (
           <>
-            <Link href="/eggs" className="underline underline-offset-4">{t("EggStock.title")}</Link>
+            <Link href="/eggs" className={link}>{t("EggStock.title")}</Link>
             <EggCollections batch={open} collections={collectionsOf(open.id)} write={write} />
           </>
         )}
@@ -325,7 +325,7 @@ function Batches(scope: Scope) {
               {b.status === "open" ? (
                 <a href={`#${b.id}`} className={`${primary} mt-2`}>{t("Day.open")}</a>
               ) : (
-                <a href={`#${b.id}`} className="py-2 underline underline-offset-4">{t("Closing.open")}</a>
+                <a href={`#${b.id}`} className={link}>{t("Closing.open")}</a>
               )}
             </li>
             </Fragment>

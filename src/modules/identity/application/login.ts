@@ -117,11 +117,16 @@ export async function verifyCode(
   }
 }
 
-/** Deletes the server session; the returned headers clear the cookie. */
-export async function logout(headers: Headers): Promise<Headers> {
+/**
+ * Deletes the server session; the returned headers clear the cookie. `forgetDevice` stops this browser's pushes on the
+ * server too, even when the phone's own unsubscribe fails (identity can't depend on notifications: the app passes it).
+ */
+export async function logout(headers: Headers, forgetDevice?: (userId: string) => Promise<unknown>): Promise<Headers> {
   const session = await getSession(headers);
   const out = await signOut(headers);
-  if (session) await recordLogout(headers, session);
+  if (!session) return out;
+  await forgetDevice?.(session.userId);
+  await recordLogout(headers, session);
   return out;
 }
 

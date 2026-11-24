@@ -3,7 +3,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
-import { card, done, table, warn } from "@/components/ui";
+import { card, done, link, table, warn } from "@/components/ui";
 import { Num } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney } from "@/lib/format";
@@ -241,7 +241,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
         <Link href={{ pathname: "/closing", query: { year: year - 1 } }} aria-label={t("Count.previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
         <span className="font-semibold" dir="ltr">{year}</span>
         <Link href={{ pathname: "/closing", query: { year: year + 1 } }} aria-label={t("Count.nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
-        <Link href={{ pathname: "/closing/count", query: { year } }} className="ms-auto underline underline-offset-4">{t("Count.open")}</Link>
+        <Link href={{ pathname: "/closing/count", query: { year } }} className={`${link} ms-auto`}>{t("Count.open")}</Link>
       </nav>
       <p className="text-sm text-ink-2">{t("Close.hint", { day: formatDay(day, lang) })}</p>
       {books !== "ledger" && <p className={warn}>{t("Close.cashBook")}</p>}

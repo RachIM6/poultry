@@ -30,7 +30,7 @@ export function LocaleSwitcher() {
           lang={locale}
           aria-current={locale === current ? "page" : undefined}
           onClick={locale === current ? undefined : () => save(locale)}
-          className="py-2 underline-offset-4 aria-[current=page]:font-semibold aria-[current=page]:underline"
+          className="inline-flex min-h-11 items-center underline-offset-4 aria-[current=page]:font-semibold aria-[current=page]:underline"
         >
           {t(locale)}
         </Link>

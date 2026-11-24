@@ -8,7 +8,9 @@ import { FILE_PURPOSES, MAX_FILE_BYTES, type FilePurpose } from "@/modules/docum
 import { attachExpenseReceipt, attachFixedAssetReceipt, attachManualEntryReceipt } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 
-const STATUS: Record<string, number> = { FORBIDDEN: 403, NOT_FOUND: 404, FILE_TOO_LARGE: 413, FILE_TYPE_NOT_ALLOWED: 415 }; // else 409: already attached
+// STORAGE_FULL is 413, not 507: the organisation's quota refuses this content, the server isn't failing. A 5xx would
+// trip server-error alerts and invite retries; the message key tells it apart from one oversized file.
+const STATUS: Record<string, number> = { FORBIDDEN: 403, NOT_FOUND: 404, FILE_TOO_LARGE: 413, STORAGE_FULL: 413, FILE_TYPE_NOT_ALLOWED: 415 }; // else 409: already attached
 const error = (messageKey: string, status: number, headers?: HeadersInit) => Response.json({ ok: false, messageKey }, { status, headers });
 
 // Each purpose's record: the query parameter naming it, and the module function attaching the file to it.

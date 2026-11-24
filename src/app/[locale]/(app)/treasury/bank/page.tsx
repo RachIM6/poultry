@@ -73,7 +73,7 @@ async function Bank({ searchParams }: { searchParams: Search }) {
             ) : (
               <nav className="flex flex-wrap gap-3" aria-label={t("Bank.statements")}>
                 {statements.map((x) => (
-                  <Link key={x.id} href={{ pathname: "/treasury/bank", query: { account: account.id, statement: x.id } }} aria-current={x.id === s?.id ? "page" : undefined} className={x.id === s?.id ? "font-semibold" : "underline underline-offset-4"}>
+                  <Link key={x.id} href={{ pathname: "/treasury/bank", query: { account: account.id, statement: x.id } }} aria-current={x.id === s?.id ? "page" : undefined} className={`inline-flex min-h-11 items-center ${x.id === s?.id ? "font-semibold" : "underline underline-offset-4"}`}>
                     {t("Bank.statementOf", { day: day(x.endDay) })}
                   </Link>
                 ))}

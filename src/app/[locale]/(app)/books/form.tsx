@@ -117,7 +117,7 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
         <p role="status" className="sr-only">{said}</p>
         <label className="flex flex-col gap-1">
           {t("Books.receiptFile")}
-          <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf" />
+          <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf" className="min-h-11" />
         </label>
         {state.messageKey && (
           <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>

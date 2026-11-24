@@ -18,6 +18,9 @@ const WHO: Record<FilePurpose, Action> = { proof: "biosecurity.record", document
 // Reading may be wider than uploading: the accountant partner reads the books and their export (SPEC-m5 PA5), receipts included.
 const READERS: Record<FilePurpose, Action> = { ...WHO, receipt: "money.read" };
 
+/** All of an organisation's files together. Decided default, to review (SPEC-m2-compliance D4): 2 GB, env ORG_STORAGE_MAX_BYTES. */
+export const MAX_ORG_STORAGE_BYTES = Number(process.env.ORG_STORAGE_MAX_BYTES) || 2 * 1024 ** 3;
+
 /** A refused attach, thrown to roll the stored file back with it. */
 class Refused {
   constructor(readonly error: string) {}
@@ -32,7 +35,7 @@ export async function storeFile<E extends string = never>(
   purpose: FilePurpose,
   bytes: Uint8Array,
   attach?: (tx: Tx, fileId: string) => Promise<Result<void, E>>,
-): Promise<Result<{ id: string }, "FORBIDDEN" | "FILE_TOO_LARGE" | "FILE_TYPE_NOT_ALLOWED" | E>> {
+): Promise<Result<{ id: string }, "FORBIDDEN" | "FILE_TOO_LARGE" | "FILE_TYPE_NOT_ALLOWED" | "STORAGE_FULL" | E>> {
   if (!can(ctx, WHO[purpose])) return fail("FORBIDDEN");
   const type = checkFile(bytes);
   if (!type.ok) return type;
@@ -40,6 +43,11 @@ export async function storeFile<E extends string = never>(
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   try {
     await db.$transaction(async (tx) => {
+      // One upload at a time per organisation, so two can't both take the last space. Summed as bigint: past 2^31 bytes.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${ctx.organizationId}, 3))`;
+      const [{ used }] = await tx.$queryRaw<{ used: bigint }[]>`
+        SELECT COALESCE(SUM("sizeBytes"), 0)::bigint AS used FROM "StoredFile" WHERE "organizationId" = ${ctx.organizationId}::uuid`;
+      if (Number(used) + bytes.length > MAX_ORG_STORAGE_BYTES) throw new Refused("STORAGE_FULL");
       await tx.storedFile.create({
         data: { id, organizationId: ctx.organizationId, purpose, contentType: type.value, sizeBytes: bytes.length, sha256, bytes: Buffer.from(bytes), uploadedBy: ctx.userId },
       });
@@ -48,7 +56,7 @@ export async function storeFile<E extends string = never>(
       if (attached && !attached.ok) throw new Refused(attached.error);
     }, SYNC_TX); // the bytes and the attach in one transaction: under load the default 2 s wait isn't enough (P2028)
   } catch (e) {
-    if (e instanceof Refused) return fail(e.error as E);
+    if (e instanceof Refused) return fail(e.error as E | "STORAGE_FULL");
     throw e;
   }
   return ok({ id });

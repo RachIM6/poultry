@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { fixedClock } from "@/lib/kernel/clock";
 import { pull, push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { dispatchDuePushes, notificationsSync as registry, notify, savePushSubscription, setQuietHours, type PushSender } from "@/modules/notifications";
+import { changeRole, logoutEverywhere, removeMember, requestCode, verifyCode } from "@/modules/identity";
+import { dispatchDuePushes, forgetPushSubscriptions, notificationsSync as registry, notify, savePushSubscription, setQuietHours, type PushSender } from "@/modules/notifications";
 import { NOTIFICATION_MUTATIONS as M } from "@/modules/notifications/schema";
 import { tenant } from "@/test/tenant";
 
@@ -88,5 +89,72 @@ describe("notifications (SPEC N1–N3)", () => {
     }
     expect((await savePushSubscription(owner.userId, { endpoint: "https://web.push.apple.com/QGx", keys })).ok).toBe(true);
     expect(await setQuietHours(owner.userId, { start: "25:00", end: "06:00" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+  });
+});
+
+// Security audit: a push reaches only someone who still has access, and only what their current role may see.
+describe("pushes after access ends", () => {
+  const sent: { endpoint: string; title: string }[] = [];
+  const send: PushSender = async (target, payload) => void sent.push({ endpoint: target.endpoint, title: JSON.parse(payload).title });
+  let org: TenantContext;
+  const member = async (phone: string, role: "worker" | "manager" | "accountant", accessUntil?: string) => {
+    const user = await db.user.create({ data: { phoneNumber: phone, name: phone, email: `${phone.slice(1)}@phone.invalid`, locale: "fr" } });
+    const m = await db.membership.create({ data: { organizationId: org.organizationId, userId: user.id, role, accessUntil: accessUntil && new Date(`${accessUntil}T00:00:00Z`) } });
+    return { userId: user.id, membershipId: m.id };
+  };
+  const subscribe = async (userId: string, n: number) => expect((await savePushSubscription(userId, { endpoint: endpoint(n), keys })).ok).toBe(true);
+  const subscriptionsOf = (userId: string) => db.pushSubscription.count({ where: { userId } });
+
+  beforeAll(async () => {
+    org = await tenant("+212660000010");
+  });
+
+  it("sends nothing to a removed member or a partner past their end day, and no amount to a demoted manager", async () => {
+    const removed = await member("+212660000011", "worker");
+    const partner = await member("+212660000012", "accountant", "2026-03-31"); // night is 2026-04-01
+    const demoted = await member("+212660000013", "manager");
+    for (const [userId, n] of [[removed.userId, 11], [partner.userId, 12], [demoted.userId, 13], [org.userId, 14]] as const) await subscribe(userId, n);
+    const everyone = [removed.userId, partner.userId, demoted.userId, org.userId];
+    await db.$transaction((tx) => notify(tx, org, { userIds: everyone, templateKey: "test", urgency: "urgent" }, night));
+    await db.$transaction((tx) => notify(tx, org, { userIds: everyone, templateKey: "loanDue", params: { amount: "1 000,00 DH" }, urgency: "urgent" }, night));
+    await db.membership.delete({ where: { id: removed.membershipId } });
+    await db.membership.update({ where: { id: demoted.membershipId }, data: { role: "worker" } });
+
+    sent.length = 0;
+    await dispatchDuePushes(render, send, night);
+    expect(sent.map((s) => `${s.endpoint} ${s.title}`).sort()).toEqual([`${endpoint(13)} fr:test`, `${endpoint(14)} fr:loanDue`, `${endpoint(14)} fr:test`]);
+    sent.length = 0;
+    await dispatchDuePushes(render, send, night); // the skipped ones were claimed too: never sent later
+    expect(sent).toEqual([]);
+  });
+
+  it("log out everywhere forgets the user's push subscriptions with their sessions", async () => {
+    await requestCode("0660000014", {}); // a manager who lost a phone
+    const code = (await db.verification.findFirstOrThrow({ where: { identifier: "phone-number-otp-+212660000014" } })).value.split(":")[0];
+    const res = await verifyCode("0660000014", code, "fr", {});
+    if (!res.ok) throw new Error(res.error);
+    const userId = (await db.user.findUniqueOrThrow({ where: { phoneNumber: "+212660000014" } })).id;
+    await db.membership.create({ data: { organizationId: org.organizationId, userId, role: "manager" } });
+    await subscribe(userId, 15);
+    await subscribe(org.userId, 16);
+    await logoutEverywhere(new Headers({ cookie: res.value.getSetCookie().map((c) => c.split(";")[0]).join("; ") }), forgetPushSubscriptions);
+    expect(await subscriptionsOf(userId)).toBe(0);
+    expect(await subscriptionsOf(org.userId)).toBe(2); // someone else's stay
+  });
+
+  it("removing someone's last membership forgets their subscriptions; another membership or a role change keeps them", async () => {
+    const other = await tenant("+212660000020");
+    const solo = await member("+212660000021", "worker");
+    const twice = await member("+212660000022", "worker");
+    await db.membership.create({ data: { organizationId: other.organizationId, userId: twice.userId, role: "worker" } });
+    await subscribe(solo.userId, 21);
+    await subscribe(twice.userId, 22);
+
+    expect(await changeRole(org, { membershipId: solo.membershipId, role: "manager" })).toEqual({ ok: true, value: undefined });
+    expect(await subscriptionsOf(solo.userId)).toBe(1);
+    expect(await removeMember(org, { membershipId: twice.membershipId }, forgetPushSubscriptions)).toEqual({ ok: true, value: undefined });
+    expect(await subscriptionsOf(twice.userId)).toBe(1); // still a member of the other farm
+    expect(await removeMember(org, { membershipId: solo.membershipId }, forgetPushSubscriptions)).toEqual({ ok: true, value: undefined });
+    expect(await subscriptionsOf(solo.userId)).toBe(0);
   });
 });

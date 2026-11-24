@@ -11,6 +11,12 @@ import { CancelInvitation, ChangeRole, InviteMember, PARTNER_ROLES, RemoveMember
 
 type MemberError = "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "LAST_OWNER";
 
+/**
+ * Forgets what still reaches a user's devices outside a session (notifications' push subscriptions), in the caller's
+ * transaction. The app passes notifications' function: identity can't depend on notifications (CAPABILITY-MAP.md).
+ */
+export type ForgetDevices = (tx: Tx, userId: string) => Promise<unknown>;
+
 export type MembersDto = {
   members: { membershipId: string; userId: string; phone: string | null; role: Role; accessUntil: string | null }[];
   invitations: { id: string; phone: string; role: Role; expiresAt: Date; accessUntil: string | null }[];
@@ -89,8 +95,8 @@ export async function changeRole(ctx: TenantContext, raw: unknown): Promise<Resu
   });
 }
 
-/** Owner only. The member's devices are logged out at their next online request. */
-export async function removeMember(ctx: TenantContext, raw: unknown): Promise<Result<void, MemberError>> {
+/** Owner only. The member's devices are logged out at their next online request; a last membership forgets them too. */
+export async function removeMember(ctx: TenantContext, raw: unknown, forgetDevices: ForgetDevices): Promise<Result<void, MemberError>> {
   if (!can(ctx, "members.manage")) return fail("FORBIDDEN");
   const input = RemoveMember.safeParse(raw);
   if (!input.success) return fail("INVALID_INPUT");
@@ -100,7 +106,7 @@ export async function removeMember(ctx: TenantContext, raw: unknown): Promise<Re
     const { id, userId, role, isLastOwner } = member.value;
     if (isLastOwner) return fail("LAST_OWNER");
     await tx.membership.delete({ where: { id } });
-    await revokeSessions(tx, ctx, userId);
+    await revokeSessions(tx, ctx, userId, forgetDevices);
     await audit(tx, ctx, "Membership", id, "delete", { userId, role }, null);
     return ok(undefined);
   });
@@ -157,9 +163,11 @@ async function lockMember(tx: Tx, ctx: TenantContext, membershipId: string) {
 // poultry-auth §0.3: revocation takes effect on the next online request. Better Auth's sessions are per user, not per
 // organisation, so they are only deleted when this was the user's only organisation: one owner must not log a person
 // out of another farm. Access to this organisation still ends at once, since getTenantContext re-reads the membership.
-const revokeSessions = async (tx: Tx, ctx: TenantContext, userId: string) => {
+// `forgetDevices`: on removal, a last membership also stops the user's push subscriptions.
+const revokeSessions = async (tx: Tx, ctx: TenantContext, userId: string, forgetDevices?: ForgetDevices) => {
   const elsewhere = await tx.membership.count({ where: { userId, organizationId: { not: ctx.organizationId } } });
   if (elsewhere > 0) return;
+  await forgetDevices?.(tx, userId);
   const { count } = await tx.session.deleteMany({ where: { userId } });
   if (count > 0) await audit(tx, ctx, "Session", userId, "revoke", null, { count });
 };

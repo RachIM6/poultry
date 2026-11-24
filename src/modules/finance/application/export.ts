@@ -5,11 +5,18 @@ import { toCsv } from "@/lib/kernel/sheet";
 import type { TenantContext } from "@/lib/tenant";
 import { toXlsx } from "@/lib/xlsx";
 import { zip } from "@/lib/zip";
-import { readFile } from "@/modules/documents";
+import { readFile, sizeOfFiles } from "@/modules/documents";
 import { readBooks } from "@/modules/finance/application/books";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { exportSheets, receiptName } from "@/modules/finance/domain/export";
 import { fecFileName, toFec } from "@/modules/finance/domain/fec";
+
+/**
+ * The most receipt bytes one export reads and deflates in memory. Past it the receipts stay out of the zip, and a text
+ * file lists them instead: the books themselves still go to the accountant.
+ */
+// ponytail: a whole-month zip built in memory; stream it if farms often pass this cap.
+export const MAX_EXPORT_RECEIPT_BYTES = 50 * 1024 * 1024;
 
 /**
  * FN18: a month of books for the accountant, as one .zip: one CSV per sheet, the same sheets in one .xlsx, and the
@@ -57,6 +64,8 @@ async function receipts(ctx: TenantContext, month: string) {
     select: { id: true, day: true, sourceId: true },
   });
   const fileOf = new Map(expenses.map((e) => [e.id, e.receiptFileId!]));
+  const size = await sizeOfFiles(ctx, entries.map((e) => fileOf.get(e.sourceId!)!));
+  if (size > MAX_EXPORT_RECEIPT_BYTES) return [{ name: "pieces/pieces-non-incluses.txt", data: receiptsLeftOut(size, entries) }];
   const files = [];
   for (const e of entries) {
     const file = await readFile(ctx, fileOf.get(e.sourceId!)!);
@@ -64,3 +73,14 @@ async function receipts(ctx: TenantContext, month: string) {
   }
   return files;
 }
+
+const megabytes = (bytes: number) => Math.ceil(bytes / (1024 * 1024));
+const receiptsLeftOut = (size: number, entries: { id: string; day: Date }[]) =>
+  [
+    `Les pièces justificatives de ce mois pèsent ${megabytes(size)} Mo, plus que les ${megabytes(MAX_EXPORT_RECEIPT_BYTES)} Mo d'un export.`,
+    "Elles ne sont pas dans ce fichier : chacune se télécharge depuis la trésorerie de l'application.",
+    "",
+    "Jour        Pièce",
+    ...entries.map((e) => `${e.day.toISOString().slice(0, 10)}  ${e.id}`).sort(),
+    "",
+  ].join("\n");

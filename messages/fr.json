@@ -587,6 +587,7 @@
   "errors": {
     "INVALID_OR_EXPIRED_CODE": "Code incorrect ou expiré.",
     "TOO_MANY_REQUESTS": "Trop d’essais. Réessayez plus tard.",
+    "TOO_LARGE": "La requête est trop volumineuse.",
     "CAPTCHA_REQUIRED": "La vérification de sécurité a échoué. Réessayez.",
     "FORBIDDEN": "Action refusée.",
     "NETWORK": "Pas de connexion. Réessayez.",

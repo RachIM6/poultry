@@ -1,9 +1,12 @@
 import { isSameOriginRequest } from "@/lib/security/csrf";
+import { readJson, tooLarge } from "@/lib/security/body";
 import { clientOf, verifyCode } from "@/modules/identity";
 
 export async function POST(req: Request) {
   if (!isSameOriginRequest(req)) return Response.json({ ok: false, messageKey: "errors.FORBIDDEN" }, { status: 403 });
-  const body = (await req.json().catch(() => null)) as { phone?: unknown; code?: unknown; locale?: unknown; captcha?: unknown } | null;
+  const read = await readJson(req);
+  if (!read.ok) return tooLarge();
+  const body = read.value as { phone?: unknown; code?: unknown; locale?: unknown; captcha?: unknown } | null;
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const locale = body?.locale === "fr" ? "fr" : "ar";
   const result = await verifyCode(str(body?.phone), str(body?.code), locale, clientOf(req.headers), body?.captcha, req.headers);

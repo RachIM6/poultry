@@ -4,7 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { SyncBadge } from "@/components/sync-status";
 import { Today } from "@/components/today";
+import { ClientMessages } from "@/i18n/client-messages";
 import { Link, redirect } from "@/i18n/navigation";
+import type { MessagePath } from "@/i18n/pick";
 import { can } from "@/lib/permissions";
 import { listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
 import { accountingChoicesOpen, batchResults, catchUpBooks, thresholdTracker, treasuryOverview } from "@/modules/finance";
@@ -14,12 +16,23 @@ import type { TenantContext } from "@/lib/tenant";
 import { getTenantContext } from "@/modules/identity";
 import { ChoicesBanner } from "./choices-banner";
 
+// What this page's client components read (src/i18n/client-messages.tsx): Today, its SyncBadge and the ChoicesBanner.
+// The money card and the threshold alert are server-rendered. No error codes: nothing here submits.
+const MESSAGES: MessagePath[] = [
+  "Accounting.choicesFirst", "Accounting.later", "Accounting.open", "Accounting.title", "App.name", "Batches.age",
+  "Batches.ageWeeks", "Batches.ageWeeksDays", "Batches.place", "Batches.sexes", "Farms.none", "Farms.title",
+  "Protocol.methods", "Sync.pending", "Sync.refused", "Sync.upToDate", "Today", "Treatment.withdrawal", "Types",
+  "Vaccination.status", "Weighing.uniformity", "Weighing.versusStandard",
+];
+
 // "Aujourd'hui" (tasks/plan-ui.md U3, Today.dc.html): the batches and the day's tasks, from the phone's database.
 export default function Dashboard() {
   return (
-    <Suspense>
-      <Content />
-    </Suspense>
+    <ClientMessages paths={MESSAGES}>
+      <Suspense>
+        <Content />
+      </Suspense>
+    </ClientMessages>
   );
 }
 

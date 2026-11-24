@@ -68,6 +68,7 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
   }
   const daily = doc.getByRole("table").first();
   await expect(daily.getByRole("row").nth(1)).toContainText(/35\s*993\s*4\s*1/); // 1 000 − 2 at arrival − 4 dead − 1 culled
+  await expect(daily.getByRole("row").nth(2)).toContainText(/36\s*693\s*0\s*0/); // the sale's day, with no daily entry: 993 − 300 sold
   await printsOnA4(page, "register-fr");
 
   await page.goBack();

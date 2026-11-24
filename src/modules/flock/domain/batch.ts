@@ -32,15 +32,18 @@ export type Placement = {
   fromBatchId?: string | null; // SPEC-m3 B13
 };
 
-/** SPEC-m3 B10: birds that started the batch: billed + free supplement − dead on arrival. */
-export const birdsStarted = (b: { chicksPlaced: number; freeChicks?: number; deadOnArrival: number }) => b.chicksPlaced + (b.freeChicks ?? 0) - b.deadOnArrival;
+/** SPEC-m3 B10: birds placed (delivered): billed + the hatchery's free supplement. */
+export const birdsPlaced = (b: { chicksPlaced: number; freeChicks?: number }) => b.chicksPlaced + (b.freeChicks ?? 0);
+
+/** SPEC-m3 B10: birds that started the batch: birds placed − dead on arrival. */
+export const birdsStarted = (b: { chicksPlaced: number; freeChicks?: number; deadOnArrival: number }) => birdsPlaced(b) - b.deadOnArrival;
 
 /**
  * SPEC-m3 B10: is dead on arrival above the farm's claim threshold (per mille of the chicks delivered)? Never without a
  * threshold: none is assumed (MQ6).
  */
 export const doaClaim = (b: { chicksPlaced: number; freeChicks?: number; deadOnArrival: number }, thresholdPermille: number | null | undefined) =>
-  !!thresholdPermille && b.deadOnArrival * 1000 > thresholdPermille * (b.chicksPlaced + (b.freeChicks ?? 0));
+  !!thresholdPermille && b.deadOnArrival * 1000 > thresholdPermille * birdsPlaced(b);
 
 export type PlacementError = "INVALID_QUANTITY" | "DEAD_ON_ARRIVAL_TOO_HIGH" | "PLACEMENT_IN_FUTURE" | "INVALID_INPUT";
 
@@ -82,7 +85,7 @@ export class Batch {
     if (!Number.isSafeInteger(p.deadOnArrival) || p.deadOnArrival < 0) return fail("INVALID_QUANTITY");
     const extra = [p.freeChicks ?? 0, p.weakChicks ?? 0];
     if (extra.some((n) => !Number.isSafeInteger(n) || n < 0)) return fail("INVALID_QUANTITY");
-    if (p.deadOnArrival >= p.chicksPlaced + extra[0]) return fail("DEAD_ON_ARRIVAL_TOO_HIGH");
+    if (p.deadOnArrival >= birdsPlaced(p)) return fail("DEAD_ON_ARRIVAL_TOO_HIGH");
     if (p.chickUnitPriceCentimes < 0n || (p.dayOldWeightGrams !== null && p.dayOldWeightGrams <= 0)) return fail("INVALID_QUANTITY");
     if ((p.sex ?? "mixed") !== "mixed" && !SEXED_TYPES.includes(p.species)) return fail("INVALID_INPUT");
     const age = p.ageAtPlacementDays ?? 0;

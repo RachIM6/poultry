@@ -7,9 +7,10 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities, placeNames } from "@/modules/farm-registry";
-import { batchPlaces } from "@/modules/flock";
+import { batchPlaces, paidOnDeliveryBetween, type PlacementChange } from "@/modules/flock";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
 import { treasuryKindOf } from "@/modules/finance/domain/assets";
+import type { FarmEvent } from "@/modules/finance/domain/posting";
 import { checkPlacementPayment, placementDebt, placementPaymentPosting, type PlacementDebt } from "@/modules/finance/domain/placement-debt";
 import { sourceAlreadyPosted } from "@/modules/finance/infrastructure/ledger";
 import { PlacementPayment } from "@/modules/finance/schema";
@@ -20,6 +21,43 @@ const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, late
 const PAYMENT = "placement:"; // source `placement:<batch>:pay:<payment>`, module finance
 const paymentsOf = (batchId: string) => `${PAYMENT}${batchId}:pay:`;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; // a placement's source; `lay:<batch>` is FC6's transfer
+const deliveryPaymentOf = (batchId: string) => `${paymentsOf(batchId)}delivery`; // §9 "Chicks paid on delivery": one per placement
+
+/**
+ * §9 "Chicks paid on delivery", for the posting pipeline (FN7): the payment typed with a placement, posted as a payment
+ * from /treasury (source `placement:<batch>:pay:delivery`), so the debt to pay is what is left. Only from the batch's
+ * version whose purchase finance posted first: once, never again from a correction or the closing, which republish
+ * the batch. Left out, and listed on /books (`unpostedDeliveryPayments`): a cash box that isn't one of the
+ * organisation's, or a purchase that posted nothing. Runs after the `flock.placement` source.
+ */
+export async function deliveryPayments(tx: Tx, ctx: TenantContext, changes: readonly PlacementChange[]): Promise<{ version: bigint; event: FarmEvent }[]> {
+  const out: { version: bigint; event: FarmEvent }[] = [];
+  for (const b of changes) {
+    if (!b.paidOnDelivery) continue;
+    const first = await tx.journalEntry.findFirst({
+      where: { organizationId: ctx.organizationId, sourceModule: "flock", sourceId: b.id },
+      orderBy: { sourceVersion: "asc" },
+      select: { sourceVersion: true, lines: { where: { creditCentimes: { gt: 0n } }, select: { account: true } } },
+    });
+    const account = first?.sourceVersion === Number(b.version) ? first.lines[0]?.account : undefined;
+    if (!account) continue;
+    const box = await tx.treasuryAccount.findFirst({ where: { id: b.paidOnDelivery.cashAccountId, organizationId: ctx.organizationId, kind: "cash" }, select: { id: true } });
+    if (!box) continue;
+    const event = { type: "placementPaid", id: deliveryPaymentOf(b.id), day: b.placedOn, amount: b.paidOnDelivery.amountCentimes, account, treasuryId: box.id, hatchery: b.hatchery } as const;
+    out.push({ version: b.version, event });
+  }
+  return out;
+}
+
+/** §9: the placements of a period paid at delivery whose payment didn't post, while they still owe (FC7's unposted, alike). */
+export async function unpostedDeliveryPayments(ctx: TenantContext, from: string, to: string) {
+  const paid = await paidOnDeliveryBetween(db, ctx, from, to);
+  if (paid.length === 0) return [];
+  const ids = paid.map((p) => deliveryPaymentOf(p.batchId));
+  const posted = new Set((await db.journalEntry.findMany({ where: { organizationId: ctx.organizationId, sourceModule: "finance", sourceId: { in: ids } }, select: { sourceId: true } })).map((e) => e.sourceId));
+  const debts = await debtsOf(db, ctx, paid.map((p) => p.batchId));
+  return paid.filter((p) => !posted.has(deliveryPaymentOf(p.batchId)) && (debts.get(p.batchId)?.owed ?? 0n) > 0n);
+}
 
 /**
  * Each placement's debt, from finance's own entries: its purchase posted by FN7 (source `flock`, batch id) and the

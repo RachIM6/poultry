@@ -564,6 +564,10 @@ model Batch {
   deliveryNote           String
   chickUnitPriceCentimes BigInt
   chickVatCentimes       BigInt? // SPEC-finance FN9: the delivery's VAT, on top of the chicks' price; null: none typed
+  // SPEC-finance §9 "Chicks paid on delivery": paid in cash at delivery, from this cash box (finance's id, unchecked here:
+  // flock can't see finance). Both null, or both set.
+  paidOnDeliveryCentimes BigInt?
+  paidOnDeliveryCashAccountId String? @db.Uuid
   dayOldWeightGrams      Int?
   ageAtPlacementDays     Int       @default(0) // SPEC-m3 B7: started pullets or point-of-lay hens arrive older
   sex                    String    @default("mixed") // SPEC-m3 B9: mixed | female | male (turkeys raised apart)

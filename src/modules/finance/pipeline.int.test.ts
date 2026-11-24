@@ -27,6 +27,7 @@ const SOURCES = [
   { name: "inventory.supplierPayment", entity: "supplierPayment" },
   { name: "inventory.issuedDebit", entity: "issuedDebit" },
   { name: "flock.placement", entity: "batch" },
+  { name: "flock.paidOnDelivery", entity: "batch" },
   { name: "flock.transfer", entity: "batch" },
   { name: "sales.sale", entity: "sale" },
   { name: "sales.payment", entity: "buyerPayment" },

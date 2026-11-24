@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { batchCost } from "./closing";
+import { batchCost, checkPaidOnDelivery } from "./closing";
 
 // Reference batch (as kpi.test.ts), computed by hand. 10 050 chicks placed at 4,50 DH = 45 225 DH. Consumptions valued
 // at weighted average cost: feed 139 650 DH + vaccines 1 200 DH + medicines 1 150 DH = 142 000 DH. Other costs:
@@ -17,5 +17,16 @@ describe("cost per kg sold (SPEC B6)", () => {
     expect(batchCost({ chicksCentimes: 1n, consumedCentimes: 0n, otherCentimes: 0n, soldGrams: 2000 }).perKgCentimes).toBe(1n); // 0,5 → 1
     expect(batchCost({ chicksCentimes: 1n, consumedCentimes: 0n, otherCentimes: 0n, soldGrams: 2001 }).perKgCentimes).toBe(0n); // 0,4998 → 0
     expect(batchCost({ chicksCentimes: 4_522_500n, consumedCentimes: 0n, otherCentimes: 0n, soldGrams: 0 })).toEqual({ totalCentimes: 4_522_500n, perKgCentimes: null });
+  });
+});
+
+describe("paid on delivery (SPEC-finance §9)", () => {
+  // 1 000 chicks at 5,00 DH + 1 000,00 DH of VAT = 6 000,00 DH
+  const check = (amount: bigint) => checkPaidOnDelivery(amount, 1000, 500n, 100_000n);
+  it("takes an amount above zero, up to the chicks and their VAT", () => {
+    expect(check(600_000n).ok).toBe(true);
+    expect(check(1n).ok).toBe(true);
+    expect(check(600_001n)).toEqual({ ok: false, error: "PAID_MORE_THAN_OWED" });
+    expect(check(0n)).toEqual({ ok: false, error: "INVALID_INPUT" });
   });
 });

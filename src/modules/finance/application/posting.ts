@@ -11,6 +11,7 @@ import { advancesChangedSince, payMonthsChangedSince, payPaymentsChangedSince } 
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { freezeClosedBatches } from "@/modules/finance/application/batch-results";
 import { layEvents } from "@/modules/finance/application/hens";
+import { deliveryPayments } from "@/modules/finance/application/placements";
 import { alertThresholdOnce } from "@/modules/finance/application/threshold";
 import { postEntry } from "@/modules/finance/application/ledger";
 import { overridesFor } from "@/modules/finance/application/overrides";
@@ -64,6 +65,16 @@ const SOURCES: Source[] = [
         version: b.version,
         event: { type: "chicks", id: b.id, day: b.placedOn, amount: b.chicksCentimes, vat: b.vatCentimes, layers: b.species === "layer" && !b.fromBatchId }, // FC6: point-of-lay hens
       })),
+  },
+  {
+    // §9 "Chicks paid on delivery": after flock.placement, whose purchase it pays (source `placement:<batch>:pay:delivery`)
+    name: "flock.paidOnDelivery",
+    module: "finance",
+    entity: "batch",
+    read: async (tx, ctx, after) => {
+      const { items, readTo } = await placementsChangedSince(tx, ctx, after);
+      return { changes: await deliveryPayments(tx, ctx, items), readTo };
+    },
   },
   {
     // FC6 classic (T115): the transfer to lay (SPEC-m3 B13), once per layer batch, source `lay:<batch>`

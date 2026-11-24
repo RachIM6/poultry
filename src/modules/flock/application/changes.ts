@@ -5,8 +5,20 @@ import { chicksCost } from "@/modules/flock/domain/closing";
 import type { BatchDto } from "@/modules/flock/shared";
 
 // species, fromBatchId: SPEC-finance FC6 (point-of-lay hens bought, the transfer to lay of SPEC-m3 B13); vatCentimes: FN9,
-// the delivery's VAT on top of chicksCentimes (0 when none was typed)
-export type PlacementChange = { version: bigint; id: string; farmId: string; placedOn: FarmDay; chicksCentimes: bigint; vatCentimes: bigint; species: string; fromBatchId: string | null };
+// the delivery's VAT on top of chicksCentimes (0 when none was typed); hatchery, paidOnDelivery: §9, what was paid in
+// cash at delivery and from which cash box (finance's id, unchecked here)
+export type PlacementChange = {
+  version: bigint;
+  id: string;
+  farmId: string;
+  placedOn: FarmDay;
+  chicksCentimes: bigint;
+  vatCentimes: bigint;
+  species: string;
+  fromBatchId: string | null;
+  hatchery: string;
+  paidOnDelivery: { cashAccountId: string; amountCentimes: bigint } | null;
+};
 
 /**
  * For finance (SPEC-finance FN7): batches placed or changed after `after` (this organisation's change-log version),
@@ -23,7 +35,19 @@ export async function placementsChangedSince(tx: Tx, ctx: TenantContext, after: 
     .filter((c) => c.data !== null)
     .map((c) => {
       const b = c.data as unknown as BatchDto;
-      return { version: c.version, id: b.id, farmId: b.farmId, placedOn: b.placedOn as FarmDay, chicksCentimes: chicksCost(b.chicksPlaced, BigInt(b.chickUnitPriceCentimes ?? "0")), vatCentimes: BigInt(b.chickVatCentimes ?? "0"), species: b.species, fromBatchId: b.fromBatchId ?? null };
+      const paid = b.paidOnDelivery ?? null;
+      return {
+        version: c.version,
+        id: b.id,
+        farmId: b.farmId,
+        placedOn: b.placedOn as FarmDay,
+        chicksCentimes: chicksCost(b.chicksPlaced, BigInt(b.chickUnitPriceCentimes ?? "0")),
+        vatCentimes: BigInt(b.chickVatCentimes ?? "0"),
+        species: b.species,
+        fromBatchId: b.fromBatchId ?? null,
+        hatchery: b.hatchery,
+        paidOnDelivery: paid && { cashAccountId: paid.cashAccountId, amountCentimes: BigInt(paid.amountCentimes) },
+      };
     });
   return { items, readTo: changes.at(-1)?.version ?? after };
 }

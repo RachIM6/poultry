@@ -1,12 +1,12 @@
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
-import { fail, ok } from "@/lib/kernel/result";
+import { fail, ok, type Result } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { closeBatchOn } from "@/modules/flock/application/close-batch";
 import { loadBatch } from "@/modules/flock/infrastructure/batches";
-import { birdsOnHandBesides, saveSoldBirds } from "@/modules/flock/infrastructure/daily-entries";
+import { birdsOnHandBesides, deleteSoldBirds, findSoldBirds, saveSoldBirds } from "@/modules/flock/infrastructure/daily-entries";
 import type { SoldBirdsDto } from "@/modules/flock/schema";
 
 /**
@@ -29,4 +29,18 @@ export async function recordBirdsSold(tx: Tx, ctx: TenantContext, s: SoldBirdsDt
     if (!closed.ok) throw new Error(closed.error); // can't happen: the same day just passed the same check
   }
   return ok({ farmId: batch.placement.farmId });
+}
+
+/**
+ * For sales, inside its transaction: a cancelled sale's birds come back to the batch (SPEC-finance §9 "Cancelled
+ * records"). Refused once the batch is closed: no reopening in v1. Checks before it writes; nothing to do without them.
+ */
+export async function removeBirdsSold(tx: Tx, ctx: TenantContext, saleId: string): Promise<Result<void, "BATCH_CLOSED">> {
+  const sold = await findSoldBirds(tx, ctx, saleId);
+  if (!sold) return ok(undefined);
+  const batch = await loadBatch(tx, ctx, sold.batchId);
+  if (batch?.status !== "open") return fail("BATCH_CLOSED");
+  await deleteSoldBirds(tx, ctx, saleId);
+  await recordChange(tx, ctx, "soldBirds", saleId, null);
+  return ok(undefined);
 }

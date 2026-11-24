@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { db, type Tx } from "@/lib/db";
+import { db, SYNC_TX, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
@@ -170,7 +170,7 @@ export async function runClose(
     let posted = 0;
     for (const k of (await plan(tx, ctx, entity, year)).kinds) posted += await postVersion(tx, ctx, entity.id, k.source, to, k.posting);
     return ok(posted);
-  });
+  }, SYNC_TX); // a whole year's figures: Prisma's 5 s default expired on a busy host (P2028)
 }
 
 /**
@@ -195,7 +195,7 @@ export async function openFiscalYear(ctx: TenantContext, input: unknown, clock: 
     if (from > farmDayOf(clock.now())) return fail("YEAR_NOT_BEGUN");
     const opened = await postOpening(tx, ctx, entity, from);
     return opened.ok ? ok(opened.value.posted) : opened;
-  });
+  }, SYNC_TX);
 }
 
 const audit = (tx: Tx, ctx: TenantContext, action: string, legalEntityId: string, before: object | undefined, after: object) =>
@@ -243,7 +243,7 @@ export async function closeFiscalYear(ctx: TenantContext, input: unknown, clock:
       await audit(tx, ctx, "close", entity.id, undefined, { day: to, closedAt });
     }
     return ok(opened.value.posted);
-  });
+  }, SYNC_TX);
 }
 
 /**

@@ -7,7 +7,7 @@ import { Today } from "@/components/today";
 import { Link, redirect } from "@/i18n/navigation";
 import { can } from "@/lib/permissions";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { batchResults, thresholdTracker, treasuryOverview } from "@/modules/finance";
+import { batchResults, catchUpBooks, thresholdTracker, treasuryOverview } from "@/modules/finance";
 import { formatMoney } from "@/lib/format";
 import { farmDayOf } from "@/lib/kernel/farm-day";
 import { getTenantContext } from "@/modules/identity";
@@ -26,6 +26,7 @@ async function Content() {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const { userId, organizationId, role } = ctx.value;
   const [entity] = await listLegalEntities(ctx.value);
+  await catchUpBooks(ctx.value); // SPEC-finance §9: once, before the tracker and the "Argent" card's reads
   // FN17: from 90 % of the exemption threshold, the owner and the manager see it first thing.
   const tracker = can(ctx.value, "money.read") ? await thresholdTracker(ctx.value) : null;
   const nearThreshold = tracker?.ok && tracker.value?.usage.alert ? tracker.value.usage.percent : null;

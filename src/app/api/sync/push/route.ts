@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   if (!body.success) return Response.json({ ok: false, messageKey: "errors.INVALID_INPUT" }, { status: 400 });
 
   const result = await push(ctx.value, body.data.mutations, registry);
-  // SPEC-finance FN7: post what this push recorded, once the phone has its answer. A failure is retried at the next push.
+  // SPEC-finance FN7: post what this push recorded, once the phone has its answer. A failure is caught up by the scheduler or the next read of the books (§9).
   after(() => postPending(ctx.value).catch((error) => console.error("[finance] posting failed", error)));
   return Response.json(result);
 }

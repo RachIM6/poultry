@@ -304,6 +304,7 @@ model Change {
   data           Json?
 
   @@id([organizationId, version])
+  @@index([organizationId, entity, version]) // a module's changes since its cursor; finance's pending check (FN7)
 }
 
 // Owner: reference-data (SPEC R1–R4). Global, not per organisation: read-only for farms, seeded from

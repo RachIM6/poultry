@@ -3,7 +3,7 @@ import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { farmDayOf } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Role, TenantContext } from "@/lib/tenant";
-import { getSession } from "@/modules/identity/application/login";
+import { getSession } from "@/modules/identity/application/session";
 import { PARTNER_ROLES, SaveLocale } from "@/modules/identity/schema";
 
 /** SPEC-m5 PA2 (ADR-013): the organisation the user chose. Only a hint: it opens nothing unless it is a live membership. */

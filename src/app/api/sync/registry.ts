@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { defineMutation, type MutationHandler, type SyncRegistry } from "@/lib/sync/server";
+import { defineMutation, Rejection, type MutationHandler, type SyncRegistry } from "@/lib/sync/server";
 import { PULL_VIEWS } from "@/lib/sync/views";
 import { eggsSync } from "@/modules/eggs";
 import { biosecuritySync } from "@/modules/biosecurity";
@@ -22,13 +22,17 @@ import { workforceSync } from "@/modules/workforce";
 const modules: SyncRegistry[] = [farmRegistrySync, referenceDataSync, notificationsSync, inventorySync, flockSync, eggsSync, healthSync, salesSync, financeSync, workforceSync, climateSync, marketPricesSync, planningSync, biosecuritySync, documentsSync];
 
 // SPEC B1: a corrected placement day moves the batch's vaccination plan, in the same transaction. Flock may not call
-// health (CAPABILITY-MAP.md), so the two are chained here.
+// health (CAPABILITY-MAP.md), so the two are chained here. Health refuses a day after its first record once flock has
+// written: thrown, so the whole correction rolls back and is recorded as rejected.
 const correct = flockSync.mutations[FLOCK_MUTATIONS.correctPlacement] as unknown as MutationHandler<z.infer<typeof CorrectPlacement>>;
 const correctPlacement = defineMutation({
   ...correct,
   async apply(tx, ctx, cmd, meta) {
     const corrected = await correct.apply(tx, ctx, cmd, meta);
-    return corrected.ok && cmd.changes.placedOn !== undefined ? moveWithPlacement(tx, ctx, cmd.batchId, meta) : corrected;
+    if (!corrected.ok || cmd.changes.placedOn === undefined) return corrected;
+    const moved = await moveWithPlacement(tx, ctx, cmd.batchId, meta);
+    if (!moved.ok) throw new Rejection(moved.error);
+    return moved;
   },
 });
 

@@ -79,6 +79,15 @@ export async function saveLine(tx: Tx, ctx: TenantContext, v: VaccinationDto) {
 export const undoneLines = async (tx: Tx, ctx: TenantContext, batchId: string) =>
   (await tx.vaccination.findMany({ where: { organizationId: ctx.organizationId, batchId, doneOn: null } })).map(toDto);
 
+/** SPEC B1: the first day of each kind health recorded on the batch: a vaccine given, a treatment started, a vet visit. */
+export async function recordedDays(tx: Tx, ctx: TenantContext, batchId: string) {
+  const where = { organizationId: ctx.organizationId, batchId };
+  const given = await tx.vaccination.aggregate({ where, _min: { doneOn: true } });
+  const treated = await tx.treatment.aggregate({ where, _min: { startOn: true } });
+  const visited = await tx.vetVisit.aggregate({ where, _min: { on: true } });
+  return [given._min.doneOn, treated._min.startOn, visited._min.on].flatMap((d) => (d ? [dayOf(d)] : []));
+}
+
 /** The line on its new day; its reminders go out again when `remindAgain`. Null when it was done meanwhile. */
 export async function saveMove(tx: Tx, ctx: TenantContext, id: string, move: { dayOfAge: number; dueOn: FarmDay; remindAgain: boolean }) {
   const reminders = move.remindAgain ? { remindedBeforeAt: null, remindedDueAt: null } : {};

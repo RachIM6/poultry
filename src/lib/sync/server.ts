@@ -8,7 +8,8 @@ import { PULL_PAGE, SCOPE_HEADER, type MutationResult, type PullResponse, type P
 
 /**
  * One offline write, declared by its module (poultry-ddd §5). `apply` validates and decides before it writes: a
- * rejection is recorded in the same transaction, so writes made before returning `fail` would be kept.
+ * rejection is recorded in the same transaction, so writes made before returning `fail` would be kept. A refusal that
+ * comes after writes (two modules chained in the app layer) throws `Rejection` instead.
  */
 export type MutationHandler<P> = {
   schema: z.ZodType<P>;
@@ -29,6 +30,13 @@ export type SyncRegistry = {
 };
 
 export const scopeMatches = (req: Request, ctx: TenantContext) => req.headers.get(SCOPE_HEADER) === `${ctx.userId}:${ctx.organizationId}`;
+
+/** A business refusal after writes: its transaction rolls back, then it is recorded as rejected, so a replay gives it again. */
+export class Rejection extends Error {
+  constructor(readonly code: string) {
+    super(code);
+  }
+}
 
 /** Keeps the payload type between schema and apply, then erases it for the registry. */
 export const defineMutation = <P>(handler: MutationHandler<P>) => handler as unknown as MutationHandler<never>;
@@ -70,7 +78,8 @@ function applyOnce(ctx: TenantContext, m: PushedMutation, registry: SyncRegistry
   const attempt = () => claimed(ctx, m, (tx) => decide(tx, ctx, m, registry));
   return attempt()
     .catch((error) => (isTakenKey(error) ? attempt() : Promise.reject(error)))
-    .catch((error) => (isTakenKey(error) ? claimed(ctx, m, async () => rejected("ALREADY_EXISTS")) : Promise.reject(error)));
+    .catch((error) => (isTakenKey(error) ? claimed(ctx, m, async () => rejected("ALREADY_EXISTS")) : Promise.reject(error)))
+    .catch((error) => (error instanceof Rejection ? claimed(ctx, m, async () => rejected(error.code)) : Promise.reject(error)));
 }
 
 const isTakenKey = (error: unknown) => error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";

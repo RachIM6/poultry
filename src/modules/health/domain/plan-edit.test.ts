@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { checkAdd, checkEdit, lineDueOn, moveLine, movedWithPlacement } from "@/modules/health/domain/plan-edit";
+import { checkAdd, checkEdit, checkPlacementBeforeRecords, lineDueOn, moveLine, movedWithPlacement } from "@/modules/health/domain/plan-edit";
 import { planVaccinations } from "@/modules/health/domain/vaccination";
 
 const day = (d: string) => d as FarmDay;
@@ -59,5 +59,13 @@ describe("editing a batch's vaccination plan (SPEC H1, SPEC-m5 PA4)", () => {
     expect(movedWithPlacement(lines, { ...open, placedOn: day("2026-10-23") }).map((l) => l.dueOn)).toEqual(["2026-11-06", "2026-11-08"]);
     expect(movedWithPlacement(lines, open)).toEqual([]); // the same day: nothing moves
     expect(movedWithPlacement([{ dayOfAge: 14, dueOn: "2026-11-01", done: null }], { ...started, placedOn: day("2026-10-26") })).toEqual([{ dayOfAge: 14, dueOn: "2026-11-02", done: null }]); // arrived 7 days old
+  });
+
+  it("B1: a placement day stays on or before the first day health recorded on the batch", () => {
+    const recorded = ["2026-11-05", "2026-11-01", "2026-11-03"]; // a vaccine given, a treatment started, a vet visit
+    expect(checkPlacementBeforeRecords(day("2026-10-28"), recorded)).toEqual({ ok: true, value: undefined });
+    expect(checkPlacementBeforeRecords(day("2026-11-01"), recorded)).toEqual({ ok: true, value: undefined }); // given on the day the birds arrived
+    expect(checkPlacementBeforeRecords(day("2026-11-02"), recorded)).toEqual({ ok: false, error: "PLACEMENT_AFTER_HEALTH_RECORD" });
+    expect(checkPlacementBeforeRecords(day("2026-12-01"), [])).toEqual({ ok: true, value: undefined }); // nothing recorded yet
   });
 });

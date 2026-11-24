@@ -16,15 +16,19 @@ import { wagesDue } from "@/modules/workforce";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
 import { entryTags } from "@/modules/finance/application/tags";
 import { loanInstallmentsDue } from "@/modules/finance/application/loans";
+import { assetDues } from "@/modules/finance/application/assets";
+import { creditExpenseDues } from "@/modules/finance/application/expense-debts";
+import { placementDues } from "@/modules/finance/application/placements";
 import { overridesFor } from "@/modules/finance/application/overrides";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { OPENING_PREFIX } from "@/modules/finance/domain/close";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
 import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
 import { batchOf } from "@/modules/finance/domain/export";
-import type { Posting } from "@/modules/finance/domain/posting";
+import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
+import { inChart, type Posting } from "@/modules/finance/domain/posting";
 import { bankOnly, expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
-import { lockedMonths } from "@/modules/finance/infrastructure/ledger";
+import { ledgerAccounts, lockedMonths } from "@/modules/finance/infrastructure/ledger";
 import type { CreateTreasuryAccount, ExpenseDto, RecordExpense, RecordTransfer, TransferDto, TreasuryAccountDto } from "@/modules/finance/schema";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
@@ -45,12 +49,23 @@ export async function createTreasuryAccount(tx: Tx, ctx: TenantContext, cmd: z.o
 const treasuryOf = (tx: Tx, ctx: TenantContext, id: string) =>
   tx.treasuryAccount.findFirst({ where: { id, organizationId: ctx.organizationId } }).then((a) => a && { id: a.id, kind: a.kind as TreasuryKind });
 
-/** Posts a farm-side record's entries in the same transaction, into the first open month when its month is locked. */
+/**
+ * Posts a farm-side record's entries in the same transaction, into the first open month when its month is locked. The
+ * rules' PCA accounts land in the entity's chart as the posting pipeline's do (FN2: PCA off → the CGNC fallback). As
+ * FC7 (FQ25), a line with no leaf to go on posts nothing and invents no account (FN4): the record is kept, unposted.
+ */
 async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string, build: (entity: { vatRegistered: boolean }) => Posting[]): Promise<Result<void, PostError>> {
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
-  const override = await overridesFor(tx, ctx, entity);
-  const postings = build(entity).map((p) => (override ? override(p, null) : p)); // FN8: posted once, today's overrides
+  const all = await ledgerAccounts(tx);
+  const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
+  const leaves = new Set(leafAccounts(chart).map((a) => a.number));
+  const override = await overridesFor(tx, ctx, entity, chart);
+  // As the posting pipeline: FN8's overrides first (posted once, today's), then the lines in the entity's chart (FN2).
+  const mapped = build(entity).map((p) => inChart(override ? override(p, null) : p, chartOf(all, "cgnc", ["pca"]), chart));
+  // ponytail: no expense or transfer account lacks a CGNC leaf today; list such a record on /books (as FC7) if one does.
+  if (!mapped.every((p) => p?.lines.every((l) => leaves.has(l.account)))) return ok(undefined);
+  const postings = mapped as Posting[];
   const locked = await lockedMonths(tx, ctx, entity.id);
   const onDay = (locked.has(monthOf(day as FarmDay)) ? `${firstOpenMonth(monthOf(day as FarmDay), locked)}-01` : day) as FarmDay;
   for (const [i, p] of postings.entries()) {
@@ -245,19 +260,25 @@ const nextMonth = (month: string) => {
 
 /**
  * F-Effects' schedule, the weekly cash need from facts: today's cash and bank (5161, 5141 in the ledger) run forward
- * with the cheques and bills to collect, what is due to suppliers, the bills accepted and not yet debited, the validated wages not yet paid and the loan installments not yet paid (FC2). Owners, managers and the accountant (a read).
+ * with the cheques and bills to collect, what is due to suppliers, the bills accepted and not yet debited, the validated
+ * wages not yet paid, the loan installments not yet paid (FC2), and the debts with no due date, on their own day (late
+ * ones this week): placements' chicks or hens, assets bought on credit (4481), quick expenses on credit (§9). Owners,
+ * managers and the accountant (a read).
  */
 export async function cashForecast(ctx: TenantContext, clock: Clock = systemClock) {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN");
-  const [balances, ins, outs, wages, bills, loans] = await Promise.all([
+  const [balances, ins, outs, wages, bills, loans, placements, assets, expenses] = await Promise.all([
     treasuryBalances(ctx), // the accounts' balances, and the cash the farm-event rules post on no account
     instrumentsToCollect(ctx),
     supplierDuesOf(ctx),
     wagesDue(ctx),
     issuedBillsDue(ctx), // FN11: accepted bills leave the bank at their agreed date
     loanInstallmentsDue(ctx), // FC2: the installments not yet paid, on their due day
+    placementDues(ctx), // §9 "Placement debts"
+    assetDues(ctx), // FC1: 4481 still owed
+    creditExpenseDues(ctx), // §9 "Credit expenses"
   ]);
   const start = [...balances.values()].reduce((s, b) => s + b, 0n);
-  const flows = [...ins.map((f) => ({ ...f, direction: "in" as const })), ...[...outs, ...wages, ...bills, ...loans].map((f) => ({ ...f, direction: "out" as const }))];
+  const flows = [...ins.map((f) => ({ ...f, direction: "in" as const })), ...[...outs, ...wages, ...bills, ...loans, ...placements, ...assets, ...expenses].map((f) => ({ ...f, direction: "out" as const }))];
   return ok({ startCentimes: start, weeks: cashSchedule(farmDayOf(clock.now()), start, flows) });
 }

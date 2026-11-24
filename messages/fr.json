@@ -518,7 +518,7 @@
     "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier.",
     "VAT_MORE_THAN_AMOUNT": "La TVA dépasse le montant total.",
     "PAID_MORE_THAN_OWED": "Ce paiement dépasse ce qui est dû au fournisseur.",
-    "NOTHING_OWED": "Il ne reste rien à payer pour cette mise en place.",
+    "NOTHING_OWED": "Il ne reste rien à payer.",
     "PAY_MONTH_NOT_VALIDATED": "Validez d’abord la paie de ce mois.",
     "LINE_AFTER_STATEMENT": "Cette opération est datée après la fin du relevé.",
     "LINE_ALREADY_TICKED": "Cette opération est déjà pointée sur un relevé.",
@@ -917,7 +917,7 @@
     "inflow": "À encaisser",
     "outflow": "À payer",
     "cashAfter": "Trésorerie prévue",
-    "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur (les retards comptent cette semaine). Ventes et achats à venir non compris.",
+    "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur ; poussins et poulettes, immobilisations et dépenses à crédit encore dus, au jour de leur achat (les retards comptent cette semaine). Ventes et achats à venir non compris.",
     "receipt": "Reçu",
     "receiptView": "Voir",
     "receiptMissing": "Manquant",
@@ -926,7 +926,24 @@
     "placedOn": "Mise en place du {day}",
     "owed": "Reste dû : {amount}",
     "pay": "Payer",
-    "paid": "Paiement enregistré."
+    "paid": "Paiement enregistré.",
+    "creditExpenses": "Dépenses à crédit à payer",
+    "creditExpensesHint": "Les dépenses rapides enregistrées « à payer plus tard », avec ce qui reste dû pour chacune.",
+    "associate": "Apport ou retrait de l’associé",
+    "exploitant": "Apport ou retrait de l’exploitant",
+    "associateHint": "L’argent qu’un associé apporte à la ferme ou en retire, au compte {account}.",
+    "exploitantHint": "L’argent que vous apportez à la ferme ou en retirez pour vous, au compte {account} (capital personnel).",
+    "associateNoAccount": "Ajoutez d’abord une caisse ou un compte bancaire depuis « Dépense rapide ».",
+    "direction": "Opération",
+    "directions": {
+      "contribution": "Apport",
+      "withdrawal": "Retrait"
+    },
+    "amount": "Montant (DH)",
+    "into": "Caisse ou compte bancaire",
+    "associateName": "Associé (facultatif)",
+    "associateSave": "Enregistrer",
+    "associateSaved": "Opération enregistrée."
   },
   "Bank": {
     "open": "Rapprochement bancaire",
@@ -2450,7 +2467,9 @@
       "socialCharges": "Charges sociales (CNSS employeur)",
       "staffAdvances": "Avances sur salaire",
       "wagesDue": "Salaires à payer",
-      "cnss": "CNSS à payer"
+      "cnss": "CNSS à payer",
+      "associates": "Apports et retraits des associés",
+      "exploitant": "Apports et retraits de l’exploitant"
     }
   },
   "Overrides": {

@@ -26,7 +26,7 @@ Vets and accountants come in M5.
 
 | Layer | Choice | ADR |
 |---|---|---|
-| Client | **PWA**: Next.js App Router pages, service worker (Serwist), IndexedDB (Dexie) | [ADR-001](docs/decisions/ADR-001-pwa-only-client.md), [ADR-003](docs/decisions/ADR-003-offline-first-sync.md) |
+| Client | **PWA**: Next.js App Router pages, service worker (Serwist), IndexedDB (Dexie) | [ADR-001](docs/decisions/ADR-001-pwa-only-client.md), [ADR-003](docs/decisions/ADR-003-offline-first-sync.md), [ADR-014](docs/decisions/ADR-014-compacted-pull.md) |
 | Server | **Single Next.js app** (route handlers + server actions), TypeScript strict. Modular monolith, scaled out as copies of the same app | [ADR-002](docs/decisions/ADR-002-nextjs-modular-monolith-postgres.md), [ADR-012](docs/decisions/ADR-012-no-separate-backend.md) |
 | Database | **PostgreSQL 16+** through **Prisma** | ADR-002 |
 | Validation | **Zod**. The same schemas run on the client (offline writes) and the server (sync push) | ADR-003 |
@@ -152,7 +152,7 @@ No global coverage percentage. The bar is: every domain rule in this spec has a 
 - **Ask first**
   - Adding a dependency.
   - A migration that drops or renames columns.
-  - Changing the sync protocol. (2026-11-23: optional `messageValues` added to rejected results, decided by the product owner; backward compatible, old phones ignore it.)
+  - Changing the sync protocol. (2026-11-23: optional `messageValues` added to rejected results, decided by the product owner; backward compatible, old phones ignore it. 2026-11-24: compacted pull, snapshot from 0 and read-back of refused records, [ADR-014](docs/decisions/ADR-014-compacted-pull.md), decided under the owner's standing instruction; additive, old phones keep working.)
   - Adding an external service (SMS / WhatsApp provider, hosting, analytics).
   - Changing a module's dependencies in the capability map.
 - **Never**

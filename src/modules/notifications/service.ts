@@ -122,6 +122,15 @@ export async function dispatchDuePushes(render: Render, send: PushSender = webPu
 /** "Log out all my devices", or a last membership removed: no push reaches this user's browsers any more (identity's ForgetDevices). */
 export const forgetPushSubscriptions = (tx: Tx, userId: string) => tx.pushSubscription.deleteMany({ where: { userId } });
 
+/**
+ * Logout on one device: the endpoint that browser sends stops reaching this user. Only theirs (a foreign endpoint
+ * deletes nothing), and their other devices keep theirs. Anything not a push service URL is ignored.
+ */
+export async function forgetPushSubscription(userId: string, raw: unknown) {
+  const input = PushSubscriptionInput.pick({ endpoint: true }).safeParse(raw);
+  if (input.success) await db.pushSubscription.deleteMany({ where: { userId, endpoint: input.data.endpoint } });
+}
+
 /** N1. A browser's endpoint belongs to whoever signed in last on it (shared phones). */
 export async function savePushSubscription(userId: string, raw: unknown): Promise<Result<void, "INVALID_INPUT">> {
   const input = PushSubscriptionInput.safeParse(raw);

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { MAX_JSON_BYTES } from "@/lib/security/body";
 import { SCOPE_HEADER } from "@/lib/sync/protocol";
 import type { TenantContext } from "@/lib/tenant";
+import { MAX_ORG_STORAGE_BYTES } from "@/modules/documents";
 import { requestCode as sendCode, verifyCode as checkCode } from "@/modules/identity";
 import { tenant } from "@/test/tenant";
 import * as logout from "./auth/logout/route";
@@ -41,7 +42,7 @@ type Row = {
 };
 
 const ROUTES: Record<string, Row> = {
-  "auth/logout": { route: logout }, // no session is fine: already logged out
+  "auth/logout": { route: logout }, // no session is fine: already logged out. Its capped body: the push test below
   "auth/request-code": { route: requestCode, body: MAX_JSON_BYTES },
   "auth/verify-code": { route: verifyCode, body: MAX_JSON_BYTES },
   "captcha/challenge": { route: captcha },
@@ -165,6 +166,40 @@ describe("route handlers' security matrix", () => {
     const read = (auth: Record<string, string>) => handler(ROUTES["files/[id]"], "GET")(new Request(`${origin}/api/files/${id}`, { headers: auth }), { params: Promise.resolve({ id }) });
     expect((await read(aAuth)).status).toBe(200);
     expect((await read(bAuth)).status).toBe(404);
+
+    // The organisation's storage is full (a size faked on a tiny row): 413 STORAGE_FULL, nothing kept.
+    const used = Number((await db.storedFile.aggregate({ where: { organizationId: a.organizationId }, _sum: { sizeBytes: true } }))._sum.sizeBytes);
+    await db.storedFile.create({
+      data: { id: uuidv7(), organizationId: a.organizationId, purpose: "document", contentType: "application/pdf", sizeBytes: MAX_ORG_STORAGE_BYTES - used, sha256: "0".repeat(64), bytes: Buffer.from(pdf), uploadedBy: a.userId },
+    });
+    const docFull = uuidv7();
+    await db.document.create({ data: { id: docFull, organizationId: a.organizationId, title: "Bail", category: "lease", createdBy: a.userId } });
+    const stored = await db.storedFile.count();
+    const full = await upload(`purpose=document&document=${docFull}`);
+    expect(full.status).toBe(413);
+    expect(await full.json()).toEqual({ ok: false, messageKey: "errors.STORAGE_FULL" });
+    expect(await db.storedFile.count()).toBe(stored);
+    expect((await db.document.findUniqueOrThrow({ where: { id: docFull } })).fileId).toBeNull();
+  });
+
+  it("auth/logout: the server forgets this browser's push subscription, never the user's others or someone else's", async () => {
+    const c = await tenant("+212680000004");
+    const [phone1, phone2] = [await login("0680000004", c), await login("0680000004", c)]; // two devices
+    const endpoint = (n: number) => `https://fcm.googleapis.com/fcm/send/device-${n}`;
+    const sub = (userId: string, n: number) => ({ userId, endpoint: endpoint(n), p256dh: "p256dh", auth: "auth" });
+    await db.pushSubscription.createMany({ data: [sub(c.userId, 1), sub(c.userId, 2), sub(a.userId, 3)] });
+    const out = (auth: Record<string, string>, body: string) => call(ROUTES["auth/logout"], "POST", "auth/logout", { ...sameSite, ...auth }, body);
+    const left = async () => (await db.pushSubscription.findMany({ orderBy: { endpoint: "asc" } })).map((s) => s.endpoint);
+    const sessions = () => db.session.count({ where: { userId: c.userId } });
+
+    expect((await out(phone1, JSON.stringify({ endpoint: endpoint(1), pad: "x".repeat(MAX_JSON_BYTES) }))).status).toBe(413); // capped, unread
+    expect(await sessions()).toBe(2);
+    expect((await out(phone1, JSON.stringify({ endpoint: endpoint(3) }))).status).toBe(200); // another user's endpoint
+    expect(await sessions()).toBe(1);
+    expect(await left()).toEqual([endpoint(1), endpoint(2), endpoint(3)]);
+    expect((await out(phone2, JSON.stringify({ endpoint: endpoint(1) }))).status).toBe(200);
+    expect(await sessions()).toBe(0);
+    expect(await left()).toEqual([endpoint(2), endpoint(3)]);
   });
 
   it("sync/push: another organisation's record is not found, per mutation", async () => {

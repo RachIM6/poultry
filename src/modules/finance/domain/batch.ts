@@ -1,3 +1,5 @@
+import { feedConversionRatio } from "@/modules/flock/shared";
+
 // SPEC-finance FN13, FN14, §7. Pure; integer centimes, rounded once at the end.
 
 /**
@@ -46,14 +48,19 @@ export function batchResult(r: { salesCentimes: bigint; costCentimes: bigint; so
   };
 }
 
-/** FN13's comparison with the farm's last batches, in integers: ‰ lost, FCR × 1000, DH/kg of feed and of sales. */
-export type BatchComparison = { lostPermille: bigint | null; fcrMilli: bigint | null; feedPricePerKgCentimes: bigint | null; pricePerKgCentimes: bigint | null };
+/** FN13's comparison with the farm's last batches: ‰ lost, the FCR (flock's ratio, unrounded), DH/kg of feed and of sales. */
+export type BatchComparison = { lostPermille: bigint | null; fcr: number | null; feedPricePerKgCentimes: bigint | null; pricePerKgCentimes: bigint | null };
 
-/** FN13: dead and culled per started bird, feed ÷ kg sold (farm weight), the feed's cost per kg and the sales' price per kg. */
-export function batchComparison(r: { started: number; lost: number; feedGrams: bigint; feedCentimes: bigint; soldGrams: bigint; salesCentimes: bigint }): BatchComparison {
+/**
+ * FN13: dead and culled per started bird, feed ÷ kg sold (farm weight), the feed's cost per kg and the sales' price per kg.
+ * The FCR is a management figure: the feed the batch ate (`eatenGrams`, its daily entries), with flock's own formula, so a
+ * closed batch reads the same here as on its screen, its report and /compare. The feed price stays on the valued
+ * consumptions (`feedGrams`, `feedCentimes`, from inventory): the same movements on both sides of that ratio.
+ */
+export function batchComparison(r: { started: number; lost: number; eatenGrams: number; feedGrams: bigint; feedCentimes: bigint; soldGrams: bigint; salesCentimes: bigint }): BatchComparison {
   return {
     lostPermille: r.started > 0 ? divRound(BigInt(r.lost) * 1000n, BigInt(r.started)) : null,
-    fcrMilli: r.soldGrams > 0n && r.feedGrams > 0n ? divRound(r.feedGrams * 1000n, r.soldGrams) : null,
+    fcr: feedConversionRatio({ feedGrams: r.eatenGrams, liveWeightGrams: Number(r.soldGrams) }),
     feedPricePerKgCentimes: r.feedGrams > 0n ? divRound(r.feedCentimes * 1000n, r.feedGrams) : null,
     pricePerKgCentimes: r.soldGrams > 0n ? divRound(r.salesCentimes * 1000n, r.soldGrams) : null,
   };

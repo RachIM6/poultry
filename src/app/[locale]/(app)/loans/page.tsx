@@ -55,7 +55,7 @@ async function LoansView() {
       <p className="text-sm text-ink-2">{t("Loans.hint")}</p>
       {owner && (
         <details className={card}>
-          <summary className="cursor-pointer font-semibold">{t("Loans.add")}</summary>
+          <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Loans.add")}</summary>
           {banks.length === 0 ? (
             <p className={warn}>
               {t("Loans.noBank")} <Link href="/expenses" className="underline underline-offset-4">{t("Expenses.open")}</Link>
@@ -71,7 +71,7 @@ async function LoansView() {
       <p className="text-sm text-ink-2">{t(books === "ledger" ? "Subsidies.hint" : "Subsidies.cashBook")}</p>
       {owner && (
         <details className={card}>
-          <summary className="cursor-pointer font-semibold">{t("Subsidies.add")}</summary>
+          <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Subsidies.add")}</summary>
           {banks.length === 0 ? (
             <p className={warn}>
               {t("Loans.noBank")} <Link href="/expenses" className="underline underline-offset-4">{t("Expenses.open")}</Link>

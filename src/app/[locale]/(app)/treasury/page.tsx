@@ -60,7 +60,7 @@ async function Treasury() {
   // A debt's pay form (placement, credit expense): day, amount, how, from which cash box or bank account.
   const payForm = (action: typeof payPlacementAction, hidden: ReactNode) => (
     <details className="rounded-2xl border border-line p-3">
-      <summary className="cursor-pointer">{t("Treasury.pay")}</summary>
+      <summary className="min-h-11 cursor-pointer py-2.5">{t("Treasury.pay")}</summary>
       <div className="pt-3">
         <TreasuryForm action={action} submit={t("Assets.paySave")}>
           {hidden}
@@ -193,7 +193,7 @@ async function Treasury() {
         </section>
       )}
       {/* SPEC-finance FC9: ticking each bank account's lines against its statements */}
-      <Link href="/treasury/bank" className="py-2 underline underline-offset-4">{t("Bank.open")}</Link>
+      <Link href="/treasury/bank" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Bank.open")}</Link>
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Treasury.movements")}</h2>
       {movements.length === 0 ? (
         <p>{t("Treasury.none")}</p>

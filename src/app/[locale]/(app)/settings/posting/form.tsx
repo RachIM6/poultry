@@ -38,7 +38,7 @@ export function OverridesForm({ rows, choices }: Props) {
                 <form action={action}>
                   <input type="hidden" name="ruleAccount" value={r.ruleAccount} />
                   <input type="hidden" name="account" value="" />
-                  <button type="submit" disabled={pending} className="py-2 text-sm underline underline-offset-4">{t("Overrides.reset")}</button>
+                  <button type="submit" disabled={pending} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">{t("Overrides.reset")}</button>
                 </form>
               </>
             )}

@@ -105,7 +105,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       </section>
       {manage && (
         <details open={!!prefill} className={card}>
-          <summary className="cursor-pointer font-semibold">{t("Books.manual")}</summary>
+          <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Books.manual")}</summary>
           <p className="text-sm text-ink-2">{t(books.books === "ledger" ? "Books.manualOpening" : "Books.manualCashBook", { from: day(books.fiscalYear.from) })}</p>
           <datalist id="ledger-accounts">
             {books.postingAccounts?.map((a) => <option key={a.number} value={a.number}>{`${a.number} ${a.label}`}</option>)}

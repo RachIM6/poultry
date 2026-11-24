@@ -53,7 +53,7 @@ async function AssetsView() {
       {register.books !== "ledger" && <p className={warn}>{t("Assets.cashBook")}</p>}
       {owner && (
         <details className={card}>
-          <summary className="cursor-pointer font-semibold">{t("Assets.add")}</summary>
+          <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Assets.add")}</summary>
           <AssetForm today={today} openingDay={register.fiscalYear.from} groups={GROUPS} farms={register.farms ?? []} treasury={register.treasury ?? []} />
         </details>
       )}
@@ -145,7 +145,7 @@ async function AssetsView() {
     );
     const fold = (summary: string, body: ReactNode) => (
       <details className="rounded-2xl border border-line p-3">
-        <summary className="cursor-pointer">{summary}</summary>
+        <summary className="min-h-11 cursor-pointer py-2.5">{summary}</summary>
         <div className="pt-3">{body}</div>
       </details>
     );

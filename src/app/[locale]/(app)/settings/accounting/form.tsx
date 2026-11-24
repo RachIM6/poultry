@@ -57,7 +57,7 @@ export function AccountingForm(p: Props) {
       </label>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-lg font-semibold">{t("vat")}</legend>
-        <label className="flex items-center gap-3">
+        <label className="flex min-h-11 items-center gap-3">
           <input type="checkbox" name="vatRegistered" defaultChecked={p.vatRegistered} disabled={off} className="size-5 accent-ink" />
           {t("vatRegistered")}
         </label>

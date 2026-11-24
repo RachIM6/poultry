@@ -128,8 +128,8 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
             </>
           )}
         </div>
-        <label className="flex items-start gap-2">
-          <input type="checkbox" name="opening" checked={opening} onChange={(e) => setOpening(e.target.checked)} className="mt-1 size-5" />
+        <label className="flex min-h-11 items-center gap-2">
+          <input type="checkbox" name="opening" checked={opening} onChange={(e) => setOpening(e.target.checked)} className="size-5 shrink-0" />
           {t("Assets.opening")}
         </label>
         {opening ? (

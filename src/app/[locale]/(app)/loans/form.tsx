@@ -49,8 +49,8 @@ export function LoanForm({ today, banks }: { today: string; banks: { id: string;
             {banks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         </label>
-        <label className="flex items-start gap-2">
-          <input type="checkbox" name="opening" checked={opening} onChange={(e) => setOpening(e.target.checked)} className="mt-1 size-5" />
+        <label className="flex min-h-11 items-center gap-2">
+          <input type="checkbox" name="opening" checked={opening} onChange={(e) => setOpening(e.target.checked)} className="size-5 shrink-0" />
           {t("Loans.opening")}
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -150,8 +150,8 @@ export function SubsidyForm({ today, banks, assets }: { today: string; banks: { 
         <fieldset className="flex min-w-0 flex-col gap-2">
           <legend className="mb-1">{t("Subsidies.assets")}</legend>
           {assets.map((a) => (
-            <label key={a.id} className="flex items-start gap-2">
-              <input type="checkbox" name="assetId" value={a.id} className="mt-1 size-5" />
+            <label key={a.id} className="flex min-h-11 items-center gap-2">
+              <input type="checkbox" name="assetId" value={a.id} className="size-5 shrink-0" />
               {a.label}
             </label>
           ))}

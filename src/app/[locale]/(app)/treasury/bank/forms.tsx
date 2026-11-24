@@ -50,7 +50,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
       <fieldset className="flex flex-col gap-1">
         <legend className="font-semibold">{t("format")}</legend>
         {(["mt940", "csv"] as const).map((f) => (
-          <label key={f} className="flex items-center gap-2">
+          <label key={f} className="flex min-h-11 items-center gap-2">
             <input type="radio" name="format" value={f} checked={format === f} onChange={() => setFormat(f)} />
             {t(f === "mt940" ? "formatMt940" : "formatCsv")}
           </label>
@@ -84,11 +84,11 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
           {number("labelColumn", t("labelColumn"), 2)}
           <fieldset className="flex flex-col gap-1">
             <legend className="font-semibold">{t("amountKind")}</legend>
-            <label className="flex items-center gap-2">
+            <label className="flex min-h-11 items-center gap-2">
               <input type="radio" name="amountKind" value="split" checked={!signed} onChange={() => setSigned(false)} />
               {t("amountSplit")}
             </label>
-            <label className="flex items-center gap-2">
+            <label className="flex min-h-11 items-center gap-2">
               <input type="radio" name="amountKind" value="signed" checked={signed} onChange={() => setSigned(true)} />
               {t("amountSigned")}
             </label>
@@ -101,7 +101,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
               {number("creditColumn", t("creditColumn"), 4)}
             </>
           )}
-          <label className="flex items-center gap-2">
+          <label className="flex min-h-11 items-center gap-2">
             <input type="checkbox" name="decimalComma" defaultChecked />
             {t("decimalComma")}
           </label>

@@ -226,6 +226,13 @@ export async function payFixedAsset(ctx: TenantContext, input: unknown, clock: C
   });
 }
 
+/** F-Effects: what each asset bought on credit still owes on 4481 (`payFixedAsset`'s cap), due on its acquisition day. */
+export async function assetDues(ctx: TenantContext): Promise<{ dueOn: string; amountCentimes: bigint }[]> {
+  const rows = await db.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, paidWith: "credit" }, select: { id: true, acquiredOn: true } });
+  const owed = await owedOn(db, ctx, rows.map((r) => r.id));
+  return rows.flatMap((r) => (owed.get(r.id)! > 0n ? [{ dueOn: dayOf(r.acquiredOn), amountCentimes: owed.get(r.id)! }] : []));
+}
+
 /** What is still owed on 4481 for each asset: its acquisition's credit less its payments. */
 async function owedOn(tx: Tx, ctx: TenantContext, ids: string[]): Promise<Map<string, bigint>> {
   const lines = await tx.journalLine.findMany({

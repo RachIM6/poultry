@@ -909,7 +909,7 @@
     "inflow": "À encaisser",
     "outflow": "À payer",
     "cashAfter": "Trésorerie prévue",
-    "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur (les retards comptent cette semaine). Ventes et achats à venir non compris.",
+    "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur ; poussins et poulettes, immobilisations et dépenses à crédit encore dus, au jour de leur achat (les retards comptent cette semaine). Ventes et achats à venir non compris.",
     "receipt": "Reçu",
     "receiptView": "Voir",
     "receiptMissing": "Manquant",

@@ -103,3 +103,8 @@ export async function creditExpensesToPay(ctx: TenantContext): Promise<Result<Cr
   return ok((await creditExpenses(db, ctx)).filter((e) => e.owed > 0n));
 }
 
+
+/** F-Effects: what the credit expenses still owe, due on their own day (a quick expense has no due date). */
+export async function creditExpenseDues(ctx: TenantContext): Promise<{ dueOn: string; amountCentimes: bigint }[]> {
+  return (await creditExpenses(db, ctx)).filter((e) => e.owed > 0n).map((e) => ({ dueOn: e.day, amountCentimes: e.owed }));
+}

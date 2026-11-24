@@ -50,3 +50,17 @@ export function checkProductionEnv(env: NodeJS.ProcessEnv = process.env): string
   if (errors.length > 0) throw new Error(`Refusing to start in production:\n- ${errors.join("\n- ")}`);
   return warnings;
 }
+
+/**
+ * Startup (src/instrumentation.ts): logs the warnings, or the refusal and exits with code 1. A throw would leave
+ * `next start` up, answering 500 to everything; a crash is what a supervisor sees. Only production can exit:
+ * checkProductionEnv never throws otherwise.
+ */
+export function assertProductionEnv(env: NodeJS.ProcessEnv = process.env) {
+  try {
+    for (const warning of checkProductionEnv(env)) console.warn(`[env] ${warning}`);
+  } catch (e) {
+    console.error((e as Error).message); // variable names only, never values
+    process.exit(1);
+  }
+}

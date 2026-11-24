@@ -34,5 +34,8 @@ it("runs every step when one throws, lists it, answers 500 and logs no message",
   });
   expect(postAllPending).toHaveBeenCalledOnce();
   expect(dispatchDuePushes).toHaveBeenCalledOnce();
-  expect(log.mock.calls).toEqual([[JSON.stringify({ level: "error", scheduler: "vaccinationReminders", error: "TypeError" })]]);
+  expect(log.mock.calls).toEqual([
+    [JSON.stringify({ level: "error", scheduler: "vaccinationReminders", error: "TypeError" })],
+    [JSON.stringify({ level: "error", alert: "scheduler_failed", step: "vaccinationReminders" })],
+  ]);
 });

@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { alertOps } from "@/lib/ops/alert";
 import { sendDocumentReminders } from "@/modules/documents";
 import { postAllPending, sendLoanReminders } from "@/modules/finance";
 import { sendIssuedReminders } from "@/modules/inventory";
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
       failed.push(step);
       // The error's name only: messages can carry names or phone numbers.
       console.error(JSON.stringify({ level: "error", scheduler: step, error: e instanceof Error ? e.name : typeof e }));
+      alertOps("scheduler_failed", { step });
     }
   }
   return Response.json({ ok, failed }, { status: failed.length > 0 ? 500 : 200 });

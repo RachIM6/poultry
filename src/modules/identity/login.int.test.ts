@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { fixedClock } from "@/lib/kernel/clock";
 import { getSession, logout, logoutEverywhere, requestCode, verifyCode } from "@/modules/identity";
 
+const keepDevices = async () => {}; // notifications forgets them: tested in notifications.int.test.ts
+
 // Codes come from the Verification row (Better Auth stores "<code>:<attempts>").
 const latestCode = async (e164: string) =>
   (await db.verification.findFirst({ where: { identifier: `phone-number-otp-${e164}` }, orderBy: { createdAt: "desc" } }))?.value.split(":")[0];
@@ -77,7 +79,7 @@ describe("phone + code login (SPEC I1–I2)", () => {
     const org = await db.organization.create({ data: { name: "Élevage S2" } });
     await db.membership.create({ data: { organizationId: org.id, userId: user.id, role: "owner" } });
 
-    const out = await logoutEverywhere(cookieHeader(phone));
+    const out = await logoutEverywhere(cookieHeader(phone), keepDevices);
     expect(out.getSetCookie().some((c) => c.startsWith("__Secure-sid=;") || /__Secure-sid=[^;]*;.*Max-Age=0/i.test(c))).toBe(true);
     expect(await getSession(cookieHeader(phone))).toBeNull();
     expect(await getSession(lost)).toBeNull();

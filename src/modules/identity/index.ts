@@ -4,12 +4,13 @@ export { getSession } from "./application/session";
 export { recordAuthEvent } from "./infrastructure/auth-events";
 export { limitSignedIn } from "./application/limits";
 export { cancelInvitation, changeRole, inviteMember, listMembers, removeMember } from "./application/members";
-export type { MembersDto } from "./application/members";
+export type { ForgetDevices, MembersDto } from "./application/members";
 export {
   acceptInvitation,
   addOwner,
   chooseOrganization,
   getTenantContext,
+  liveRoles,
   localesOf,
   lockForOnboarding,
   memberByPhone,

@@ -68,7 +68,7 @@ describe("one partner, two farms (SPEC-m5 PA2)", () => {
     expect(await getTenantContext(withOrg(cookie, c.organizationId))).toMatchObject({ ok: true, value: { organizationId: c.organizationId } });
 
     const membership = await db.membership.findFirstOrThrow({ where: { organizationId: c.organizationId, user: { phoneNumber: "+212612000001" } } });
-    expect(await removeMember(c, { membershipId: membership.id })).toEqual({ ok: true, value: undefined });
+    expect(await removeMember(c, { membershipId: membership.id }, async () => {})).toEqual({ ok: true, value: undefined });
     expect(await getTenantContext(withOrg(cookie, c.organizationId))).toMatchObject({ ok: true, value: { organizationId: a.organizationId } });
     expect(await chooseOrganization(new Headers({ cookie }), c.organizationId)).toEqual({ ok: false, error: "NOT_FOUND" });
   });

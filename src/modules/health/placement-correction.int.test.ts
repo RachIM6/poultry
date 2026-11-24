@@ -38,7 +38,9 @@ describe("a corrected placement day moves the batch's vaccination plan (SPEC B1,
   const correct = (changes: object, batchId = ids.a.batch) => m(F.correctPlacement, { batchId, changes });
   // the latest change per line, as a phone ends up with it
   const lines = async (ctx: TenantContext) => new Map((await pull(ctx, 0, registry)).changes.filter((c) => c.entity === "vaccination").map((c) => [c.id, c.data as VaccinationDto]));
-  const dueDays = async (ctx: TenantContext) => [...(await lines(ctx)).values()].map((v) => [v.dayOfAge, v.dueOn, v.done?.on ?? null]);
+  // by day of age: the pull sends each line once, in the order of its latest change (ADR-014)
+  const dueDays = async (ctx: TenantContext) =>
+    [...(await lines(ctx)).values()].sort((x, y) => x.dayOfAge - y.dayOfAge).map((v) => [v.dayOfAge, v.dueOn, v.done?.on ?? null]);
   const sent = async (ctx: TenantContext) =>
     (await db.notification.findMany({ where: { userId: ctx.userId }, orderBy: { createdAt: "asc" } })).map((n) => `${n.templateKey} ${(n.params as { age: string }).age}`);
 

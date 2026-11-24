@@ -275,6 +275,14 @@ describe("what each role's phone pulls (SPEC I5, WF3, FCX1, SPEC-m5 §5)", () =>
     expect(got.filter((c) => c.entity !== "notification")).toEqual(owners);
   });
 
+  for (const role of ROLES) {
+    it(`a ${role}'s snapshot (ADR-014, a new phone) holds the same records as the full pull, deletions left out`, async () => {
+      const snapshot = await pull(as[role]!, 0, registry, { snapshot: true });
+      expect(snapshot.hasMore).toBe(false);
+      expect(snapshot.changes).toEqual(pulled[role]!.filter((c) => c.data !== null));
+    });
+  }
+
   it("another organisation's pull holds none of these records", async () => {
     const theirs = await pullAll(b);
     expect(theirs.length).toBeGreaterThan(0);

@@ -14,6 +14,7 @@ export type LocalRecord = { key: string; entity: string; id: string; data: unkno
 export type SyncOutcome = "ok" | "offline" | "unauthenticated" | "wrong-scope";
 type Meta =
   | { key: "cursor"; value: number }
+  | { key: "refetch"; value: string[] } // ADR-014: "<entity>:<id>" of refused writes, to read back from the server
   | { key: "lastSyncAt"; value: string }
   | { key: "lastOutcome"; value: SyncOutcome };
 

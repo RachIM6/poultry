@@ -5,9 +5,9 @@ import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { push } from "@/lib/sync/server";
 import { createOrganization } from "@/modules/farm-registry";
 
-// `pnpm db:seed:demo` (T26): a demo farm to show the app, owned by DEMO_PHONE (default +212600000099). Log in with
-// that number; in development the code is printed by the console sink. Everything goes through the same sync
-// mutations as a phone, so every rule and audit event applies. Run `pnpm db:seed` first (strains, catalogue).
+// `pnpm db:seed:demo` (T26): a demo farm to show the app, owned by DEMO_PHONE (default +212600000099). To log in with
+// that number, set its password with a reset code: `pnpm user:reset <DEMO_PHONE>`, then /reset (ADR-015).
+// Everything goes through the same sync mutations as a phone, so every rule and audit event applies. Run `pnpm db:seed` first (strains, catalogue).
 // The figures are made up to look plausible: DEMO ONLY, never a reference (no breeder curve, no vaccine schedule).
 
 // The production image runs with NODE_ENV=production: a demo farm there is a mistake unless asked for explicitly.

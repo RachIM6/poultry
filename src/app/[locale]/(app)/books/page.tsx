@@ -139,35 +139,37 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       )}
 
       {view === "cash" && (
-        <table className={table} aria-label={t("Books.cash")}>
-          <thead>
-            <tr>
-              <th className="p-2 text-start">{t("Books.day")}</th>
-              <th className="p-2 text-start">{t("Books.label")}</th>
-              <th className="p-2 text-start">{t("Books.account")}</th>
-              <th className="p-2 text-start">{t("Books.batch")}</th>
-              <th className="p-2 text-end">{t("Books.receipt")}</th>
-              <th className="p-2 text-end">{t("Books.expense")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {books.cashBook.rows.map((r, i) => (
-              <tr key={i} className="border-t border-line">
-                <td className="p-2">{day(r.day)}</td>
-                <td className="p-2">{r.label}{r.counterAccounts.length > 0 && <span className="text-muted"> · {r.counterAccounts.map((a) => books.labels[a] ?? a).join(", ")}</span>}</td>
-                <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
-                <td className="p-2">{batchOf(books.tags, r.entryId)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.receipt)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.expense)}</td>
+        <div className="overflow-x-auto">
+          <table className={table} aria-label={t("Books.cash")}>
+            <thead>
+              <tr>
+                <th className="p-2 text-start">{t("Books.day")}</th>
+                <th className="p-2 text-start">{t("Books.label")}</th>
+                <th className="p-2 text-start">{t("Books.account")}</th>
+                <th className="p-2 text-start">{t("Books.batch")}</th>
+                <th className="p-2 text-end">{t("Books.receipt")}</th>
+                <th className="p-2 text-end">{t("Books.expense")}</th>
               </tr>
-            ))}
-            <tr className="border-t-2 border-line font-semibold">
-              <td className="p-2" colSpan={4}>{t("Books.total")}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.receipts)}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.expenses)}</td>
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {books.cashBook.rows.map((r, i) => (
+                <tr key={i} className="border-t border-line">
+                  <td className="p-2">{day(r.day)}</td>
+                  <td className="p-2">{r.label}{r.counterAccounts.length > 0 && <span className="text-muted"> · {r.counterAccounts.map((a) => books.labels[a] ?? a).join(", ")}</span>}</td>
+                  <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
+                  <td className="p-2">{batchOf(books.tags, r.entryId)}</td>
+                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.receipt)}</td>
+                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.expense)}</td>
+                </tr>
+              ))}
+              <tr className="border-t-2 border-line font-semibold">
+                <td className="p-2" colSpan={4}>{t("Books.total")}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.receipts)}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.expenses)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       )}
 
       {view === "journals" &&
@@ -201,50 +203,54 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
 
       {view === "ledger" &&
         books.generalLedger?.map((a) => (
-          <table key={a.account} className={table}>
-            <caption className="text-start font-semibold"><bdi dir="ltr">{account(a.account)}</bdi></caption>
-            <tbody>
-              {a.lines.map((l, i) => (
-                <tr key={i} className="border-t border-line">
-                  <td className="p-2">{day(l.day)}</td>
-                  <td className="p-2">{l.journal} · {l.label}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.running)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div key={a.account} className="overflow-x-auto">
+            <table className={table}>
+              <caption className="text-start font-semibold"><bdi dir="ltr">{account(a.account)}</bdi></caption>
+              <tbody>
+                {a.lines.map((l, i) => (
+                  <tr key={i} className="border-t border-line">
+                    <td className="p-2">{day(l.day)}</td>
+                    <td className="p-2">{l.journal} · {l.label}</td>
+                    <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
+                    <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
+                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.running)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ))}
 
       {view === "trial" && books.trialBalance && (
-        <table className={table} aria-label={t("Books.trial")}>
-          <caption className="text-start">{t("Books.since", { from: day(books.fiscalYear.from) })}</caption>
-          <thead>
-            <tr>
-              <th className="p-2 text-start">{t("Books.account")}</th>
-              <th className="p-2 text-end">{t("Books.debit")}</th>
-              <th className="p-2 text-end">{t("Books.credit")}</th>
-              <th className="p-2 text-end">{t("Books.balance")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {books.trialBalance.rows.map((r) => (
-              <tr key={r.account} className="border-t border-line">
-                <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.debit)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.credit)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.balance)}</td>
+        <div className="overflow-x-auto">
+          <table className={table} aria-label={t("Books.trial")}>
+            <caption className="text-start">{t("Books.since", { from: day(books.fiscalYear.from) })}</caption>
+            <thead>
+              <tr>
+                <th className="p-2 text-start">{t("Books.account")}</th>
+                <th className="p-2 text-end">{t("Books.debit")}</th>
+                <th className="p-2 text-end">{t("Books.credit")}</th>
+                <th className="p-2 text-end">{t("Books.balance")}</th>
               </tr>
-            ))}
-            <tr className="border-t-2 border-line font-semibold">
-              <td className="p-2">{t(books.trialBalance.balanced ? "Books.balanced" : "Books.unbalanced")}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.debit)}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.credit)}</td>
-              <td />
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {books.trialBalance.rows.map((r) => (
+                <tr key={r.account} className="border-t border-line">
+                  <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
+                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.debit)}</td>
+                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.credit)}</td>
+                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.balance)}</td>
+                </tr>
+              ))}
+              <tr className="border-t-2 border-line font-semibold">
+                <td className="p-2">{t(books.trialBalance.balanced ? "Books.balanced" : "Books.unbalanced")}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.debit)}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.credit)}</td>
+                <td />
+              </tr>
+            </tbody>
+          </table>
+        </div>
       )}
       {view === "cpc" && books.incomeStatement && (
         <table className={table} aria-label={t("Books.cpc")}>

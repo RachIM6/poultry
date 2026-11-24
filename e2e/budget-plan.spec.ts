@@ -32,6 +32,8 @@ test("a budget copied from a closed batch recomputes its break-even and margin a
   // nothing more until its one sale on day 44, so the need peaks in week 1 already (the first week it is reached).
   await expect(page.getByRole("table", { name: "Besoin de trésorerie par semaine" }).getByRole("row")).toHaveCount(8); // the header and 7 weeks
   await expect(page.locator("p", { hasText: "Besoin de trésorerie maximal" })).toContainText(/semaine 1 · 19\s300,00\sDH/);
+  // the weeks' table scrolls on a phone, never the page (a wider page shifts every tap below it)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
 
   await page.getByLabel("Prix de l’aliment (DH/kg)").fill("5,00"); // +1 200,00 of feed
   await expect(figures.nth(1)).toHaveText(/^10,25\sDH \/ kg$/);

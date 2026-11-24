@@ -16,26 +16,29 @@ export function BudgetCashView({ cash, label, fromBase, live = false }: { cash: 
           <bdi dir="ltr" className="text-xl font-semibold tabular-nums">{formatMoney(cash.peakNeedCentimes)}</bdi>
         </span>
       </p>
-      <table className={table} aria-label={label}>
-        <thead>
-          <tr>
-            <th scope="col" className="p-2 text-start">{t("week")}</th>
-            <th scope="col" className="p-2 text-end">{t("outflow")}</th>
-            <th scope="col" className="p-2 text-end">{t("inflow")}</th>
-            <th scope="col" className="p-2 text-end">{t("cumulative")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cash.weeks.map((w) => (
-            <tr key={w.week} className={`border-t border-line ${w.week === cash.peakWeek ? "font-semibold" : ""}`}>
-              <th scope="row" className="p-2 text-start font-normal">{w.week}</th>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</td>
-              <td dir="ltr" className={`p-2 text-end tabular-nums ${w.cumulativeCentimes < 0n ? "text-brick-fg" : ""}`}>{formatMoney(w.cumulativeCentimes)}</td>
+      {/* A phone is narrower than three amounts side by side: the table scrolls, never the page */}
+      <div className="overflow-x-auto">
+        <table className={table} aria-label={label}>
+          <thead>
+            <tr>
+              <th scope="col" className="p-2 text-start">{t("week")}</th>
+              <th scope="col" className="p-2 text-end">{t("outflow")}</th>
+              <th scope="col" className="p-2 text-end">{t("inflow")}</th>
+              <th scope="col" className="p-2 text-end">{t("cumulative")}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {cash.weeks.map((w) => (
+              <tr key={w.week} className={`border-t border-line ${w.week === cash.peakWeek ? "font-semibold" : ""}`}>
+                <th scope="row" className="p-2 text-start font-normal">{w.week}</th>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</td>
+                <td dir="ltr" className="p-2 text-end tabular-nums">{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</td>
+                <td dir="ltr" className={`p-2 text-end tabular-nums ${w.cumulativeCentimes < 0n ? "text-brick-fg" : ""}`}>{formatMoney(w.cumulativeCentimes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className="text-sm text-ink-2">{t(fromBase ? "cashFromBase" : "cashPlain")} {t("cashNote")}</p>
     </>
   );

@@ -29,7 +29,7 @@ async function Tracker() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const tracker = await thresholdTracker(ctx.value);
-  if (!tracker.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!tracker.ok) return <p>{t("Threshold.forbidden")}</p>;
   if (!tracker.value) return <p>{t("Threshold.none")}</p>;
   const { threshold, fiscalYear, bookedCentimes, plannedCentimes, usage, history } = tracker.value;
   const day = (d: string) => formatDay(d as FarmDay, lang);

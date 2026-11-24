@@ -17,7 +17,7 @@ import { localDb, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 
 // SPEC-m4 WF1–WF3 on the static /staff shell (W-Staff), offline: the employees of each farm, added and edited by the
-// owner or a manager. The server links the member who signs in with the employee's phone.
+// owner or a manager, read by the accountant (SPEC-m5 PA5). The server links the member who signs in with the employee's phone.
 
 export const StaffScreen = () => <Scoped>{(scope) => <Staff {...scope} />}</Scoped>;
 
@@ -30,7 +30,8 @@ function Staff(scope: Scope) {
   const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance", "labourRules", "payMonth", "payPayment", "staffRecord").toArray(), [scope.userId, scope.organizationId]);
   const { open, opener, close } = useInline<string>(); // an employee's id, or "new"
   const [message, setMessage] = useState<string>();
-  if (!can(scope, "workforce.manage")) return <p>{t("Staff.forbidden")}</p>;
+  if (!can(scope, "money.read")) return <p>{t("Staff.forbidden")}</p>;
+  const manage = can(scope, "workforce.manage"); // the accountant reads: no attendance or records reach their phone
   if (!records) return null;
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
@@ -74,20 +75,20 @@ function Staff(scope: Scope) {
                     e.leftOn ? t("Staff.leftOn", { date: formatDay(e.leftOn as FarmDay, locale) }) : e.userId ? t("Staff.usesApp") : t("Staff.noApp"),
                   ].filter(Boolean).join(" · ")}
                 </span>
-                <button type="button" {...opener(e.id)} className={`${secondary} self-start`}>{t("Staff.edit", { name: e.name })}</button>
+                {manage && <button type="button" {...opener(e.id)} className={`${secondary} self-start`}>{t("Staff.edit", { name: e.name })}</button>}
               </li>
             ))}
           </ul>
         </section>
       ))}
-      {open ? (
+      {!manage ? null : open ? (
         <EmployeeForm key={open} employee={employees.find((e) => e.id === open) ?? null} farms={farms} houses={houses} onSave={save} onCancel={close} />
       ) : (
         <button type="button" {...opener("new")} className={primary}>{t("Staff.add")}</button>
       )}
-      <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
-      <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={(a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
-      <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
+      {manage && <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
+      <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={manage ? (a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed")) : undefined} />
+      {manage && <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
       <Pay scope={scope} farms={farms} employees={employees} attendance={of<AttendanceDto>("attendance")} advances={of<AdvanceDto>("advance")} rules={of<LabourRules>("labourRules")} months={of<PayMonthDto>("payMonth")} payments={of<PayPaymentDto>("payPayment")} write={(type, entity, data) => writeLocal(db, { type, payload: data }, { entity, id: data.id, data }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
     </>
   );
@@ -261,7 +262,7 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
 }
 
 /** WF10 (W-Staff "Avance en cours"): advances still to be deducted, and a form to record one. */
-function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; advances: AdvanceDto[]; onSave: (a: AdvanceDto) => Promise<void> }) {
+function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; advances: AdvanceDto[]; onSave?: (a: AdvanceDto) => Promise<void> }) {
   const t = useTranslations();
   const locale = useLocale();
   const { id: errorId, error, set: setError, field: bad } = useFieldError();
@@ -282,7 +283,7 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
     if (deductMonth < day.slice(0, 7)) return setError("errors.DEDUCT_BEFORE_ADVANCE", ev.currentTarget, "deductMonth");
     setError(undefined);
     const employee = active.find((e) => e.id === data.get("employee"))!;
-    await onSave({ id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day, amountCentimes: String(amount), deductMonth, note: String(data.get("note") ?? "").trim() || null });
+    await onSave?.({ id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day, amountCentimes: String(amount), deductMonth, note: String(data.get("note") ?? "").trim() || null });
     setKey((k) => k + 1);
   };
 
@@ -298,21 +299,23 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
           ))}
         </ul>
       )}
-      <form key={key} onSubmit={submit} className={card} aria-label={t("Advances.add")}>
-        <Field label={t("Attendance.employee")}>
-          {(id) => (
-            <select id={id} name="employee" className={field}>
-              {active.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
-          )}
-        </Field>
-        <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required {...bad("amount")} className={field} />}</Field>
-        <Field label={t("Advances.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
-        <Field label={t("Advances.deductMonth")}>{(id) => <input id={id} name="deductMonth" type="month" required defaultValue={today.slice(0, 7)} {...bad("deductMonth")} className={field} />}</Field>
-        <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
-        {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-        <button type="submit" className={primary}>{t("Advances.save")}</button>
-      </form>
+      {onSave && (
+        <form key={key} onSubmit={submit} className={card} aria-label={t("Advances.add")}>
+          <Field label={t("Attendance.employee")}>
+            {(id) => (
+              <select id={id} name="employee" className={field}>
+                {active.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            )}
+          </Field>
+          <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required {...bad("amount")} className={field} />}</Field>
+          <Field label={t("Advances.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
+          <Field label={t("Advances.deductMonth")}>{(id) => <input id={id} name="deductMonth" type="month" required defaultValue={today.slice(0, 7)} {...bad("deductMonth")} className={field} />}</Field>
+          <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
+          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+          <button type="submit" className={primary}>{t("Advances.save")}</button>
+        </form>
+      )}
     </section>
   );
 }
@@ -440,6 +443,8 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
   const sum = (pick: (l: PayLine) => string | null) => (lines.some((l) => pick(l) === null) ? null : String(lines.reduce((n, l) => n + BigInt(pick(l)!), 0n)));
   const name = (id: string) => employees.find((e) => e.id === id)?.name ?? "";
   const owner = can(scope, "workforce.validatePay");
+  // A month not validated is computed from attendance, which never reaches the accountant's phone (SPEC-m5 §5).
+  const computed = can(scope, "workforce.manage");
 
   return (
     <section aria-label={t("Pay.title")} className="flex flex-col gap-3">
@@ -453,44 +458,48 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
         )}
       </div>
       {frozen && <p className="font-medium">{t("Pay.validated", { date: formatDay(frozen.validatedOn as FarmDay, locale) })}</p>}
-      <div className="overflow-x-auto rounded-[18px] bg-card">
-        <table className="w-full text-sm" aria-label={t("Pay.table")}>
-          <thead>
-            <tr className="text-ink-2">
-              <th scope="col" className="px-3 py-2 text-start font-medium">{t("Attendance.employee")}</th>
-              <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.days")}</th>
-              <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.gross")}</th>
-              <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.contribution")}</th>
-              <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.advances")}</th>
-              <th scope="col" className="px-3 py-2 text-end font-medium">{t("Pay.net")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((l) => (
-              <tr key={l.employeeId} className="border-t border-line">
-                <th scope="row" className="px-3 py-2 text-start font-semibold">
-                  {name(l.employeeId)}
-                  {l.belowSmag && <span className="block text-xs font-medium text-brick-fg">{t("Pay.belowSmag")}</span>}
-                </th>
-                <td className="px-2 py-2 text-end">{l.paidDays}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.grossCentimes)}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.employeeContributionCentimes)}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.advancesCentimes)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-end font-semibold">{money(l.netCentimes)}</td>
+      {!frozen && !computed ? (
+        <p className="text-ink-2">{t("Pay.notValidated")}</p>
+      ) : (
+        <div className="overflow-x-auto rounded-[18px] bg-card">
+          <table className="w-full text-sm" aria-label={t("Pay.table")}>
+            <thead>
+              <tr className="text-ink-2">
+                <th scope="col" className="px-3 py-2 text-start font-medium">{t("Attendance.employee")}</th>
+                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.days")}</th>
+                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.gross")}</th>
+                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.contribution")}</th>
+                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.advances")}</th>
+                <th scope="col" className="px-3 py-2 text-end font-medium">{t("Pay.net")}</th>
               </tr>
-            ))}
-            <tr className="border-t border-line bg-shell font-semibold">
-              <th scope="row" className="px-3 py-2 text-start">{t("Pay.total")}</th>
-              <td />
-              <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.grossCentimes))}</td>
-              <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.employeeContributionCentimes))}</td>
-              <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.advancesCentimes))}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-end">{money(sum((l) => l.netCentimes))}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      {inForce ? (
+            </thead>
+            <tbody>
+              {lines.map((l) => (
+                <tr key={l.employeeId} className="border-t border-line">
+                  <th scope="row" className="px-3 py-2 text-start font-semibold">
+                    {name(l.employeeId)}
+                    {l.belowSmag && <span className="block text-xs font-medium text-brick-fg">{t("Pay.belowSmag")}</span>}
+                  </th>
+                  <td className="px-2 py-2 text-end">{l.paidDays}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.grossCentimes)}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.employeeContributionCentimes)}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.advancesCentimes)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-end font-semibold">{money(l.netCentimes)}</td>
+                </tr>
+              ))}
+              <tr className="border-t border-line bg-shell font-semibold">
+                <th scope="row" className="px-3 py-2 text-start">{t("Pay.total")}</th>
+                <td />
+                <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.grossCentimes))}</td>
+                <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.employeeContributionCentimes))}</td>
+                <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.advancesCentimes))}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-end">{money(sum((l) => l.netCentimes))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+      {!frozen && !computed ? null : inForce ? (
         <p className="text-[13px] text-ink-2">{t("Pay.rulesInForce", { date: formatDay(inForce.validFrom as FarmDay, locale), source: inForce.source, employer: money(sum((l) => l.employerContributionCentimes)) })}</p>
       ) : (
         <p role="note" className="rounded-2xl bg-chick-soft p-3 text-[13px]">{t("Pay.rulesMissing")}</p>

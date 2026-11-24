@@ -40,7 +40,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await yearEndCount(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
-  if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!result.ok) return <p>{t("Count.forbidden")}</p>;
   const { year, day, frozen, farms } = result.value;
   const write = can(ctx.value, "finance.record") && !frozen; // the accountant reads (FCX1); frozen once the close posted (FCX4)
 

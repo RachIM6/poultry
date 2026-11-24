@@ -31,7 +31,8 @@ import { useFieldError, useInline } from "@/components/focus";
 import { card, danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC V4 on the static /receivables shell, offline: what each buyer owes, their cheques and bills with due dates, and
-// later payments, checked with the same rule as the server. Owners and managers only: workers get no sale money (I5).
+// later payments, checked with the same rule as the server. Owners and managers act, the accountant reads (SPEC-m5 PA5);
+// workers get no sale money (I5).
 
 const today = () => farmDayOf(new Date());
 
@@ -58,7 +59,7 @@ function Receivables(scope: Scope) {
   const records = useLiveQuery(() => db.records.where("entity").anyOf("buyer", "sale", "buyerPayment", "instrumentStatus").toArray(), [userId, organizationId]);
   const { open: paying, opener, close } = useInline<string>();
   const [message, setMessage] = useState<string>();
-  if (!can(scope, "sales.manage")) return <p>{t("Receivables.forbidden")}</p>;
+  if (!can(scope, "money.read")) return <p>{t("Receivables.forbidden")}</p>;
   if (!records) return null;
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
@@ -109,6 +110,7 @@ function Receivables(scope: Scope) {
     );
   const awaiting = sales.filter((s) => s.creditApproval === "pending");
   const owner = can(scope, "finance.manage");
+  const seller = can(scope, "sales.manage"); // payments and cheque states (V4); the accountant reads
   const approve = (saleId: string) => {
     const sale = sales.find((s) => s.id === saleId)!;
     return write({ type: S.approveCredit, payload: { saleId } }, [{ entity: "sale", id: saleId, data: { ...sale, creditApproval: "approved" } }]);
@@ -149,7 +151,7 @@ function Receivables(scope: Scope) {
               </span>
               <span className="text-muted">{t(`Receivables.states.${i.state}`)}</span>
               <div className="flex flex-wrap gap-2">
-                {(["remitted", "cashed", "unpaid"] as const).filter((to) => checkTransition(i.state, to).ok).map((to) => (
+                {(["remitted", "cashed", "unpaid"] as const).filter((to) => seller && checkTransition(i.state, to).ok).map((to) => (
                   <button key={to} type="button" onClick={() => move(i, to)} className={secondary}>
                     {t(to === "remitted" ? "Receivables.remit" : to === "cashed" ? "Receivables.cash" : "Receivables.unpaid")}
                   </button>
@@ -203,7 +205,7 @@ function Receivables(scope: Scope) {
                     })}
                   </span>
                 ))}
-                {paying === b.id ? (
+                {!seller ? null : paying === b.id ? (
                   <PaymentForm buyerId={b.id} balance={balance} onSave={save} onCancel={close} />
                 ) : (
                   <button type="button" {...opener(b.id)} aria-label={t("Receivables.payNamed", { buyer: b.name, amount: formatMoney(balance) })} className={secondary}>{t("Receivables.pay")}</button>

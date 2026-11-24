@@ -1507,6 +1507,8 @@
     "margin": "Marge : {margin}",
     "costPerKg": "{cost} / kg",
     "laying": "Ponte {rate} % · {eggs} œufs le dernier jour ramassé",
+    "layingStandard": "{gap} pt par rapport au standard ({standard} %)",
+    "weight": "Poids moyen {weight}",
     "fcr": "IC {fcr}",
     "eggsYesterday": "Œufs ramassés hier"
   },

@@ -5,7 +5,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
 import { can } from "@/lib/permissions";
 import type { Role, TenantContext } from "@/lib/tenant";
-import { localesOf, membersWithRoles } from "@/modules/identity";
+import { liveRoles, localesOf, membersWithRoles } from "@/modules/identity";
 import {
   MarkRead,
   NOTIFICATION_MUTATIONS,
@@ -82,23 +82,27 @@ const webPushSender: PushSender = async (target, payload, urgent) => {
 /**
  * Sends every push that is due. Rows are claimed first (FOR UPDATE SKIP LOCKED), so two dispatchers never push the
  * same notification twice. Call it after the transaction that notified, and from a scheduler for held ones.
+ * A recipient who has left the organisation since (removed, a partner past their end day) gets no push, and one who
+ * can no longer see money gets none with an amount (T25 S5, as the inbox's pull): the claim marks them done anyway.
  */
 // ponytail: a push that fails after its claim isn't retried; the inbox keeps the notification. Retry if pilots miss pushes.
 export async function dispatchDuePushes(render: Render, send: PushSender = webPushSender, clock: Clock = systemClock): Promise<number> {
   const now = clock.now();
-  const claimed = await db.$queryRaw<{ id: string; userId: string; templateKey: string; params: Record<string, string>; urgent: boolean }[]>`
+  const claimed = await db.$queryRaw<{ id: string; organizationId: string; userId: string; templateKey: string; params: Record<string, string>; urgent: boolean }[]>`
     UPDATE "Notification" SET "pushedAt" = ${now}
     WHERE id IN (
       SELECT id FROM "Notification" WHERE "pushedAt" IS NULL AND "deliverAfter" <= ${now}
       ORDER BY "deliverAfter" LIMIT 500 FOR UPDATE SKIP LOCKED
     )
-    RETURNING id, "userId", "templateKey", params, urgent`;
+    RETURNING id, "organizationId", "userId", "templateKey", params, urgent`;
   if (claimed.length === 0) return 0;
 
   const userIds = [...new Set(claimed.map((n) => n.userId))];
-  const [subscriptions, locales] = await Promise.all([db.pushSubscription.findMany({ where: { userId: { in: userIds } } }), localesOf(userIds)]);
+  const [subscriptions, locales, roles] = await Promise.all([db.pushSubscription.findMany({ where: { userId: { in: userIds } } }), localesOf(userIds), liveRoles(userIds, clock)]);
   let sent = 0;
   for (const n of claimed) {
+    const role = roles.get(`${n.organizationId}:${n.userId}`);
+    if (!role || (MONEY_TEMPLATES.has(n.templateKey as TemplateKey) && !can({ userId: n.userId, organizationId: n.organizationId, role }, "money.read"))) continue;
     const locale = locales.get(n.userId) ?? "ar";
     const payload = JSON.stringify({ ...render(locale, n.templateKey, n.params), url: `/${locale}/inbox` });
     for (const s of subscriptions.filter((s) => s.userId === n.userId)) {
@@ -114,6 +118,9 @@ export async function dispatchDuePushes(render: Render, send: PushSender = webPu
   }
   return sent;
 }
+
+/** "Log out all my devices", or a last membership removed: no push reaches this user's browsers any more (identity's ForgetDevices). */
+export const forgetPushSubscriptions = (tx: Tx, userId: string) => tx.pushSubscription.deleteMany({ where: { userId } });
 
 /** N1. A browser's endpoint belongs to whoever signed in last on it (shared phones). */
 export async function savePushSubscription(userId: string, raw: unknown): Promise<Result<void, "INVALID_INPUT">> {

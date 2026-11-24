@@ -220,9 +220,9 @@ export async function cancelExpense(tx: Tx, ctx: TenantContext, cmd: z.output<ty
  * FN10: attaches the receipt photo the upload route has just stored for this organisation, once (ADR-011, like the
  * rodent check's proof). Owners and managers, like the expense itself.
  */
-export async function attachExpenseReceipt(ctx: TenantContext, expenseId: string, fileId: string): Promise<Result<void>> {
+export async function attachExpenseReceipt(ctx: TenantContext, expenseId: string, fileId: string, inTx?: Tx): Promise<Result<void>> {
   if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
-  return db.$transaction(async (tx) => {
+  const attach = async (tx: Tx) => {
     // Conditional update: of two uploads at once, only the first attaches.
     const { count } = await tx.expense.updateMany({ where: { id: expenseId, organizationId: ctx.organizationId, receiptFileId: null }, data: { receiptFileId: fileId } });
     const row = await tx.expense.findFirst({ where: { id: expenseId, organizationId: ctx.organizationId } });
@@ -231,7 +231,8 @@ export async function attachExpenseReceipt(ctx: TenantContext, expenseId: string
     await recordChange(tx, ctx, "expense", expenseId, expenseDtoOf(row));
     await audit(tx, ctx, { entity: "Expense", entityId: expenseId, action: "update", before: { receiptFileId: null }, after: { receiptFileId: fileId } });
     return ok(undefined);
-  });
+  };
+  return inTx ? attach(inTx) : db.$transaction(attach); // inTx: the upload's own transaction
 }
 
 /** FN6, applied by the sync push: cash deposited in the bank, cash withdrawn, or between two accounts, through 5115. */

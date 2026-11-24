@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { isSameOriginRequest } from "@/lib/security/csrf";
+import { readJson, tooLarge } from "@/lib/security/body";
 import { consume } from "@/lib/security/rate-limit";
 import { z } from "zod";
 import { MAX_MUTATIONS_PER_PUSH } from "@/lib/sync/protocol";
@@ -33,35 +34,13 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, messageKey: "errors.TOO_MANY_REQUESTS" }, { status: 429, headers: { "Retry-After": "60" } });
   }
 
-  const text = await readCapped(req, MAX_BODY_BYTES);
-  if (text === null) return Response.json({ ok: false, messageKey: "errors.INVALID_INPUT" }, { status: 413 });
-  const body = PushBody.safeParse(parseJson(text));
+  const json = await readJson(req, MAX_BODY_BYTES);
+  if (!json.ok) return tooLarge();
+  const body = PushBody.safeParse(json.value);
   if (!body.success) return Response.json({ ok: false, messageKey: "errors.INVALID_INPUT" }, { status: 400 });
 
   const result = await push(ctx.value, body.data.mutations, registry);
   // SPEC-finance FN7: post what this push recorded, once the phone has its answer. A failure is caught up by the scheduler or the next read of the books (§9).
   after(() => postPending(ctx.value).catch((error) => console.error("[finance] posting failed", error)));
   return Response.json(result);
-}
-
-/** The body as text, or null past `max` bytes: stops reading there instead of buffering an oversized body first. */
-async function readCapped(req: Request, max: number): Promise<string | null> {
-  if (Number(req.headers.get("content-length") ?? 0) > max) return null;
-  if (!req.body) return "";
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for await (const chunk of req.body) {
-    size += chunk.byteLength;
-    if (size > max) return null; // leaving the loop cancels the stream
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
-
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
 }

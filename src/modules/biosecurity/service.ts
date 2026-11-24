@@ -284,9 +284,9 @@ export const biosecuritySync: SyncRegistry = {
  * BS8: attaches the proof photo the upload route has just stored for this organisation, once. A proof is never
  * replaced: a new check gets a new photo.
  */
-export async function attachRodentProof(ctx: TenantContext, checkId: string, fileId: string): Promise<Result<void>> {
+export async function attachRodentProof(ctx: TenantContext, checkId: string, fileId: string, inTx?: Tx): Promise<Result<void>> {
   if (!can(ctx, "biosecurity.record")) return fail("FORBIDDEN");
-  return db.$transaction(async (tx) => {
+  const attach = async (tx: Tx) => {
     // Conditional update: of two uploads at once, only the first attaches (the row is locked by the first update).
     const { count } = await tx.rodentCheck.updateMany({ where: { id: checkId, organizationId: ctx.organizationId, proofFileId: null }, data: { proofFileId: fileId } });
     const row = await tx.rodentCheck.findFirst({ where: { id: checkId, organizationId: ctx.organizationId } });
@@ -295,5 +295,6 @@ export async function attachRodentProof(ctx: TenantContext, checkId: string, fil
     await recordChange(tx, ctx, "rodentCheck", checkId, rodentDto(row));
     await audit(tx, ctx, { entity: "RodentCheck", entityId: checkId, action: "update", before: { proofFileId: null }, after: { proofFileId: fileId } });
     return ok(undefined);
-  });
+  };
+  return inTx ? attach(inTx) : db.$transaction(attach); // inTx: the upload's own transaction
 }

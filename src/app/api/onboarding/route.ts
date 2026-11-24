@@ -1,4 +1,5 @@
 import { isSameOriginRequest } from "@/lib/security/csrf";
+import { readJson, tooLarge } from "@/lib/security/body";
 import { createOrganization, parseOnboarding } from "@/modules/farm-registry";
 import { getSession } from "@/modules/identity";
 
@@ -8,7 +9,9 @@ export async function POST(req: Request) {
   const session = await getSession(req.headers);
   if (!session) return Response.json({ ok: false, messageKey: "errors.UNAUTHENTICATED" }, { status: 401 });
 
-  const input = parseOnboarding(await req.json().catch(() => null));
+  const body = await readJson(req);
+  if (!body.ok) return tooLarge();
+  const input = parseOnboarding(body.value);
   if (!input.ok) return Response.json({ ok: false, messageKey: "errors.INVALID_INPUT" }, { status: 400 });
 
   const result = await createOrganization(session.userId, input.value);

@@ -99,6 +99,15 @@ export async function acceptInvitation(headers: Headers, invitationId: string, c
   });
 }
 
+/**
+ * The live memberships of these users (a partner's up to its end day), as "organizationId:userId" → role: who may still
+ * get a push from an organisation, and whether it may show money.
+ */
+export async function liveRoles(userIds: string[], clock: Clock = systemClock): Promise<Map<string, Role>> {
+  const rows = await db.membership.findMany({ where: { userId: { in: userIds }, ...live(clock) }, select: { organizationId: true, userId: true, role: true } });
+  return new Map(rows.map((m) => [`${m.organizationId}:${m.userId}`, m.role]));
+}
+
 /** Each user's language (SPEC I3), for messages sent outside a request: push notifications. */
 export async function localesOf(userIds: string[]): Promise<Map<string, "ar" | "fr">> {
   const users = await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, locale: true } });

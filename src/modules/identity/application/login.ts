@@ -4,7 +4,7 @@ import { verifyCaptcha } from "@/lib/security/captcha";
 import { clientNet, consume, reset } from "@/lib/security/rate-limit";
 import type { PolicyName } from "@/lib/security/policies";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
-import { acceptInvitations } from "@/modules/identity/application/members";
+import { acceptInvitations, type ForgetDevices } from "@/modules/identity/application/members";
 import { auditPartnerSignIn } from "@/modules/identity/application/membership";
 import { getSession } from "@/modules/identity/application/session";
 import { recordAuthEvent, type AuthAction, type Client } from "@/modules/identity/infrastructure/auth-events";
@@ -139,14 +139,18 @@ const recordLogout = (headers: Headers, session: { userId: string; phone?: strin
   return recordAuthEvent("logout", clientOf(headers), { userId: session.userId, phone: phone.ok ? phone.value.masked : undefined, reason });
 };
 
-/** poultry-auth §3, T25 S2: "log out all my devices" for a lost phone. Every session of this user ends, this one too. */
-export async function logoutEverywhere(headers: Headers): Promise<Headers> {
+/**
+ * poultry-auth §3, T25 S2: "log out all my devices" for a lost phone. Every session of this user ends, this one too,
+ * and `forgetDevices` stops the pushes that would still reach the lost phone.
+ */
+export async function logoutEverywhere(headers: Headers, forgetDevices: ForgetDevices): Promise<Headers> {
   const session = await getSession(headers);
   const out = await signOut(headers);
   if (!session) return out;
   await recordLogout(headers, session, "everywhere");
   await db.$transaction(async (tx) => {
     const { count } = await tx.session.deleteMany({ where: { userId: session.userId } });
+    await forgetDevices(tx, session.userId);
     const memberships = await tx.membership.findMany({ where: { userId: session.userId }, select: { organizationId: true } });
     for (const { organizationId } of memberships)
       await tx.auditEvent.create({

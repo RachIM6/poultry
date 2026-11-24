@@ -1,4 +1,5 @@
 import { isSameOriginRequest } from "@/lib/security/csrf";
+import { readJson, tooLarge } from "@/lib/security/body";
 import { getTenantContext, limitSignedIn } from "@/modules/identity";
 import { quietHoursOf, setQuietHours } from "@/modules/notifications";
 
@@ -15,6 +16,8 @@ export async function POST(req: Request) {
   if (!ctx.ok) return Response.json({ ok: false, messageKey: "errors.UNAUTHENTICATED" }, { status: 401 });
   const retry = await limitSignedIn("authenticated", req.headers, ctx.value.userId);
   if (retry) return Response.json({ ok: false, messageKey: "errors.TOO_MANY_REQUESTS" }, { status: 429, headers: { "Retry-After": String(retry) } });
-  const saved = await setQuietHours(ctx.value.userId, await req.json().catch(() => null));
+  const body = await readJson(req);
+  if (!body.ok) return tooLarge();
+  const saved = await setQuietHours(ctx.value.userId, body.value);
   return saved.ok ? Response.json({ ok: true }) : Response.json({ ok: false, messageKey: "errors.INVALID_INPUT" }, { status: 400 });
 }

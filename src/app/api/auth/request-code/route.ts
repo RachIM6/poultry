@@ -1,10 +1,13 @@
 import { isSameOriginRequest } from "@/lib/security/csrf";
+import { readJson, tooLarge } from "@/lib/security/body";
 import { clientOf, requestCode } from "@/modules/identity";
 
 // Always 202 when not flooded and the captcha is solved: the answer never reveals whether a code was sent (poultry-auth §0.9).
 export async function POST(req: Request) {
   if (!isSameOriginRequest(req)) return Response.json({ ok: false, messageKey: "errors.FORBIDDEN" }, { status: 403 });
-  const body = (await req.json().catch(() => null)) as { phone?: unknown; captcha?: unknown } | null;
+  const read = await readJson(req);
+  if (!read.ok) return tooLarge();
+  const body = read.value as { phone?: unknown; captcha?: unknown } | null;
   const result = await requestCode(typeof body?.phone === "string" ? body.phone : "", clientOf(req.headers), body?.captcha);
 
   if (result === "TOO_MANY_REQUESTS")

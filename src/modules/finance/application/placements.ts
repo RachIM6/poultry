@@ -59,7 +59,7 @@ async function debtsOf(tx: Tx, ctx: TenantContext, batchIds?: string[]): Promise
 
 // A refused step rolls back what the transaction already wrote (as assets.ts).
 const REFUSED = Symbol("refused");
-async function atomically<T, E extends string>(work: (tx: Tx) => Promise<Result<T, E>>): Promise<Result<T, E>> {
+export async function atomically<T, E extends string>(work: (tx: Tx) => Promise<Result<T, E>>): Promise<Result<T, E>> {
   const outcome: { refused?: Result<T, E> } = {};
   try {
     return await db.$transaction(async (tx) => {
@@ -112,6 +112,13 @@ export async function payPlacement(ctx: TenantContext, input: unknown, clock: Cl
 }
 
 export type PlacementToPay = { batchId: string; hatchery: string; place: string; placedOn: FarmDay; account: string; owed: bigint };
+
+/** F-Effects: what each placement still owes, due on its placement day (the hatchery's terms aren't recorded). */
+export async function placementDues(ctx: TenantContext): Promise<{ dueOn: string; amountCentimes: bigint }[]> {
+  const debts = [...(await debtsOf(db, ctx))].filter(([, d]) => d.owed > 0n);
+  const batches = await batchPlaces(db, ctx, debts.map(([id]) => id));
+  return debts.flatMap(([id, d]) => { const b = batches.get(id); return b ? [{ dueOn: b.placedOn, amountCentimes: d.owed }] : []; });
+}
 
 /** The placements still owed, oldest first, with the hatchery's name as typed at placement (no supplier record). */
 export async function placementsToPay(ctx: TenantContext): Promise<Result<PlacementToPay[], "FORBIDDEN">> {

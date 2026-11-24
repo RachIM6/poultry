@@ -91,19 +91,20 @@ enum HouseType {
 
 // Owner: farm-registry. SPEC F1: the form sets the accounting profile (derived in code, not stored).
 model LegalEntity {
-  id                   String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  organizationId       String       @db.Uuid
+  id                   String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId       String        @db.Uuid
   name                 String
   form                 LegalForm
   // ADR-010: the owner's accounting choices; null keeps the legal form's default (farm-registry accountingProfileOf).
   // Changed only while the fiscal year has no entry: the check lives in finance (T29), which calls farm-registry.
   books                Books?
   pcaOverlay           Boolean?
-  fiscalYearStartMonth Int          @default(1) // 1 = January: the fiscal year runs 1 Jan–31 Dec
-  vatRegistered        Boolean      @default(false) // SPEC-finance FN9: not registered until FQ4 is answered
-  hensMethod           HensMethod   @default(classic) // SPEC-finance FC6 (FQ7a): laying hens and their pullets
-  createdAt            DateTime     @default(now()) @db.Timestamptz
-  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fiscalYearStartMonth Int           @default(1) // 1 = January: the fiscal year runs 1 Jan–31 Dec
+  vatRegistered        Boolean       @default(false) // SPEC-finance FN9: not registered until FQ4 is answered
+  hensMethod           HensMethod    @default(classic) // SPEC-finance FC6 (FQ7a): laying hens and their pullets
+  allocationKey        AllocationKey @default(birdDays) // SPEC-finance FN14: the key shared costs are split by
+  createdAt            DateTime      @default(now()) @db.Timestamptz
+  organization         Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
 }
@@ -111,6 +112,12 @@ model LegalEntity {
 enum Books {
   cash_book
   ledger
+}
+
+enum AllocationKey {
+  birdDays
+  houseArea
+  kgSold
 }
 
 enum HensMethod {
@@ -945,6 +952,22 @@ model LockedPeriod {
 
   @@id([legalEntityId, month])
   @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FN8: the owner's account for a default posting rule of a legal entity, append-only: the
+// override in force for a source is the latest row saved before the source's first entry (§9 "Posting overrides").
+// `ruleAccount`: the rule's default account as the rules hold it (PCA number); `account` null: back to the default.
+model PostingOverride {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  ruleAccount    String
+  account        String?
+  savedBy        String   @db.Uuid
+  savedAt        DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([legalEntityId, savedAt])
 }
 
 // Owner: finance. SPEC-finance FCX6 (T104): a fiscal year the owner closed, who and when. Reopening deletes it (audited).

@@ -3,12 +3,12 @@
 import { useTranslations } from "next-intl";
 import { useActionState, type ReactNode } from "react";
 import { secondary } from "@/components/ui";
-import { payPlacementAction } from "./actions";
+import type { TreasuryFormState } from "./actions";
 
-/** A placement's payment: the server-rendered fields, sent to the server action (§9 placement debts). */
-export function PlacementPayForm({ submit, children }: { submit: string; children: ReactNode }) {
+/** One of /treasury's forms: the server-rendered fields, sent to its server action (§9 placement debts, credit expenses). */
+export function TreasuryForm({ action: send, submit, children }: { action: (state: TreasuryFormState, form: FormData) => Promise<TreasuryFormState>; submit: string; children: ReactNode }) {
   const t = useTranslations();
-  const [state, action, pending] = useActionState(payPlacementAction, {});
+  const [state, action, pending] = useActionState(send, {});
   return (
     <form action={action} className="flex flex-col gap-3">
       {children}

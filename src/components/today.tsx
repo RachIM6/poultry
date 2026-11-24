@@ -7,10 +7,10 @@ import { ageText } from "@/components/batch-age";
 import { BatchStrip, stripDays } from "@/components/batch-strip";
 import { card } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
-import { formatCount, formatDay, formatDecimal, formatPercent } from "@/lib/format";
+import { formatCount, formatDay, formatDecimal, formatKg, formatPercent } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
-import { ageOn, birdsOnHand, birdsStarted, houseFigure, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { ageOn, birdsOnHand, birdsStarted, houseFigure, houseWeight, layingVersusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import { eggsIn, layerKpis, type EggCollectionDto } from "@/modules/eggs/shared";
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
 import { SyncBadge } from "@/components/sync-status";
@@ -73,7 +73,8 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
   const short = new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", day: "numeric", month: "short", timeZone: "UTC" });
   const shortDay = (d: string) => short.format(new Date(`${d}T00:00:00Z`));
   const farm = farms.find((f) => f.id === open[0]?.farmId) ?? farms[0];
-  // SPEC-m3 D1 (P-Owner): layers show their latest laying rate; the headline counts yesterday's eggs.
+  const strainOf = (b: BatchDto) => strains.find((s) => s.id === b.strainId);
+  // SPEC-m3 D1 (P-Owner): layers show their latest laying rate vs the standard; the headline counts yesterday's eggs.
   const collections = of<EggCollectionDto>("eggCollection");
   const yesterday = addFarmDays(today, -1);
   const eggsYesterday = collections.filter((c) => c.day === yesterday && open.some((b) => b.id === c.batchId)).reduce((n, c) => n + eggsIn(c.counts), 0);
@@ -85,7 +86,14 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
       collections.filter((c) => c.batchId === b.id),
       today,
     ).lastDay;
-  // SPEC-m3 D1: broilers and turkeys show their FCR, pullets their uniformity (weight vs standard waits for curves, OQ5).
+  // SPEC-m3 D1: broilers, turkeys and pullets show their weight vs the standard (the weight alone until a curve is
+  // loaded: OQ5), then broilers and turkeys their FCR, pullets their uniformity.
+  const weight = (b: BatchDto) => {
+    const w = houseWeight(b, weighings.filter((x) => x.batchId === b.id), strainOf(b)?.curves ?? []);
+    if (!w) return null;
+    const vs = w.standard && t("Weighing.versusStandard", { gap: formatPercent(w.standard.gapPercent, true), standard: formatKg(w.standard.grams) });
+    return [t("Today.weight", { weight: formatKg(w.averageGrams) }), vs].filter(Boolean).join(" · ");
+  };
   const figure = (b: BatchDto) => {
     const f = houseFigure(
       { placedOn: b.placedOn as FarmDay, birdsStarted: birdsStarted(b), dayOldWeightGrams: b.dayOldWeightGrams, ageAtPlacementDays: b.ageAtPlacementDays, species: b.species },
@@ -117,9 +125,9 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
     const birds = birdsOnHand(birdsStarted(b), own, sold.filter((s) => s.batchId === b.id));
     const house = houses.find((h) => h.id === b.houseId)?.name ?? "";
     // SPEC-m3 R5: a "non précisée" strain shows the production type instead; turkeys show their sex.
-    const named = b.strainId.startsWith("unspecified-") ? t(`Types.${b.species}`) : (strains.find((s) => s.id === b.strainId)?.name ?? b.strainId);
+    const named = b.strainId.startsWith("unspecified-") ? t(`Types.${b.species}`) : (strainOf(b)?.name ?? b.strainId);
     const strain = b.sex && b.sex !== "mixed" ? `${named} · ${t(`Batches.sexes.${b.sex}`)}` : named;
-    return { b, age, days, birds, house, strain, figure: figure(b), until, due, enteredToday: own.some((e) => e.day === today), missing: days.filter((d) => d.state === "missing") };
+    return { b, age, days, birds, house, strain, weight: weight(b), figure: figure(b), until, due, enteredToday: own.some((e) => e.day === today), missing: days.filter((d) => d.state === "missing") };
   });
 
   return (
@@ -133,7 +141,7 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
           </div>
           {sync}
         </div>
-        {batches.map(({ b, age, days, birds, house, strain, figure, missing }) => (
+        {batches.map(({ b, age, days, birds, house, strain, weight, figure, missing }) => (
           <Link key={b.id} href={{ pathname: "/batches", hash: b.id }} className="flex flex-col gap-3">
             <span className="flex items-baseline justify-between gap-3">
               <span className="text-lg font-semibold">{house} · {strain}</span>
@@ -142,8 +150,12 @@ export function Today({ title, userId, organizationId, sync, alert, money = null
             <BatchStrip days={days} onDark label={t("Today.stripLabel", { day: String(age), missing: String(missing.length) })} />
             {b.species === "layer" && (() => {
               const last = laying(b);
-              return last?.layingRate != null ? <span className="text-sm text-sand">{t("Today.laying", { rate: formatPercent(last.layingRate), eggs: formatCount(last.eggs) })}</span> : null;
+              if (last?.layingRate == null) return null;
+              const vs = layingVersusStandard(b, last.day, last.layingRate, strainOf(b)?.layingCurves ?? []); // a cache from before M3 has none
+              const text = t("Today.laying", { rate: formatPercent(last.layingRate), eggs: formatCount(last.eggs) });
+              return <span className="text-sm text-sand">{vs ? `${text} · ${t("Today.layingStandard", { gap: formatPercent(vs.gapPoints, true), standard: formatPercent(vs.standardPercent) })}` : text}</span>;
             })()}
+            {weight && <span className="text-sm text-sand">{weight}</span>}
             {figure && <span className="text-sm text-sand">{figure}</span>}
             <span className="flex justify-between gap-3 text-sm text-sand">
               <span>{b.species === "broiler" ? t("Today.dayOf", { day: String(age), total: String(days.length) }) : ageText(t, b, today)}</span>

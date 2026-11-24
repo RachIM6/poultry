@@ -68,7 +68,7 @@ Done 2026-11-14 (branch `feat/t30-posting-pipeline`):
 
 Not yet:
 - **Supplier payment rules:** M1 records no supplier payment, only the part paid at the purchase. That part goes to 5161 (cash), because M1 doesn't record how it was paid. ⚠️ until purchases carry a payment method (T32).
-- **`PostingRule` table and FN8 overrides:** the rules are code until an owner needs to override one.
+- **`PostingRule` table:** the rules are code. ~~FN8 overrides~~ built 2026-11-24 (branch `feat/posting-overrides`): `PostingOverride`, an append-only history per entity; `/settings/posting`, owner only, audited; applied by the pipeline and quick expenses before mapping to the chart (SPEC-finance FN8, §9 "Posting overrides").
 - **The "other" item kind:** it goes to 61221; FN6 has no rule for it (for the accountant).
 - **One legal entity per organisation,** as onboarding creates.
 
@@ -147,7 +147,7 @@ Done 2026-11-15 (branch `feat/t34-batch-result`), decisions taken without asking
   - **M1 other costs:** T24's entries count as direct charges as they are; they are not migrated or posted. New ones are quick expenses aimed at the batch.
 - **Allocation:**
   - An expense is aimed at one batch (direct), shared over a month's batches (`serviceMonth`), or general (no batch).
-  - The only key is bird-days. House m² and kg sold come when an owner asks.
+  - ~~The only key is bird-days. House m² and kg sold come when an owner asks.~~ Done 2026-11-23 (branch `feat/allocation-keys`): the entity's key (`LegalEntity.allocationKey`) on `/settings/accounting`: bird-days (default), house m² × days present, or kg sold in the period; bird-days when no batch has any weight by the key (SPEC-finance §9 "FN14 allocation keys").
   - An open batch counts as present until the end of the service period.
 - **Freeze:** after each push, `freezeClosedBatches` stores a closed batch's share of every shared expense (`FrozenAllocation`, `FrozenBatch`). Later splits share only what's left of each expense among the batches still open, so the parts always sum to the expense.
 - **Screens:**

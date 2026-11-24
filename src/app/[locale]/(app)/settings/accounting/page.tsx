@@ -8,7 +8,7 @@ import { accountingSettings } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { AccountingForm } from "./form";
 
-// SPEC-finance FN1, FN9, mockup F-Profile: the owner's accounting choices. Online, owner only (finance.manage).
+// SPEC-finance FN1, FN9, FC6, FN14, mockup F-Profile: the owner's accounting choices. Online, owner only (finance.manage).
 export default function AccountingSettings() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
@@ -45,9 +45,11 @@ async function Content() {
         months={months}
         vatRegistered={entity.vatRegistered}
         hensMethod={entity.hensMethod}
+        allocationKey={entity.allocationKey}
         locked={locked}
       />
       <Link href="/settings/chart" className="py-2 underline underline-offset-4">{t("Chart.open")}</Link>
+      <Link href="/settings/posting" className="py-2 underline underline-offset-4">{t("Overrides.open")}</Link>
       <Link href="/threshold" className="py-2 underline underline-offset-4">{t("Threshold.open")}</Link>
     </>
   );

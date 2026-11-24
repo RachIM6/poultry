@@ -6,11 +6,12 @@ import { v7 as uuidv7 } from "uuid";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { cashForecast, placementsToPay, treasuryOverview } from "@/modules/finance";
+import { associateAccount, cashForecast, creditExpensesToPay, placementsToPay, treasuryOverview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, field, table } from "@/components/ui";
-import { PlacementPayForm } from "./pay-form";
+import { payCreditExpenseAction, payPlacementAction, recordAssociateAction } from "./actions";
+import { TreasuryForm } from "./pay-form";
 
 // SPEC-finance FN10: an online page for the owner and the manager (the web side of SPEC's split): each bank account's
 // and cash box's balance, and this month's movements on 5141 / 5161. Server-rendered from the ledger, never cached.
@@ -38,16 +39,50 @@ async function Treasury() {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const today = farmDayOf(new Date());
   const month = today.slice(0, 7);
-  const [overview, forecast, toPay] = await Promise.all([treasuryOverview(ctx.value, month), cashForecast(ctx.value), placementsToPay(ctx.value)]);
+  const [overview, forecast, toPay, expensesToPay, owners] = await Promise.all([
+    treasuryOverview(ctx.value, month),
+    cashForecast(ctx.value),
+    placementsToPay(ctx.value),
+    creditExpensesToPay(ctx.value),
+    associateAccount(ctx.value), // the owner only
+  ]);
   if (!overview.ok || !forecast.ok) return <p>{t("Expenses.forbidden")}</p>;
-  const { accounts, movements } = overview.value;
+  const { accounts, unassignedCentimes, movements } = overview.value;
   const nameOf = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? t(id === null ? "Treasury.untagged" : "Treasury.unknown");
-  const total = accounts.reduce((s, a) => s + a.balanceCentimes, 0n);
+  const total = accounts.reduce((s, a) => s + a.balanceCentimes, unassignedCentimes); // the forecast's start
   const label = (text: string, input: ReactNode) => (
     <label className="flex flex-col gap-1">
       {text}
       {input}
     </label>
+  );
+  // A debt's pay form (placement, credit expense): day, amount, how, from which cash box or bank account.
+  const payForm = (action: typeof payPlacementAction, hidden: ReactNode) => (
+    <details className="rounded-2xl border border-line p-3">
+      <summary className="cursor-pointer">{t("Treasury.pay")}</summary>
+      <div className="pt-3">
+        <TreasuryForm action={action} submit={t("Assets.paySave")}>
+          {hidden}
+          <input type="hidden" name="id" value={uuidv7()} />
+          {label(t("Assets.payDay"), <input type="date" name="day" defaultValue={today} max={today} required className={field} />)}
+          {label(t("Assets.payAmount"), <input name="amount" inputMode="decimal" required dir="ltr" className={field} />)}
+          {label(
+            t("Assets.paidWith"),
+            <select name="paidWith" required defaultValue="" className={field}>
+              <option value="" disabled>—</option>
+              {(["cash", "transfer", "cheque"] as const).map((m) => <option key={m} value={m}>{t(`Assets.methods.${m}`)}</option>)}
+            </select>,
+          )}
+          {label(
+            t("Assets.treasury"),
+            <select name="treasuryId" defaultValue="" className={field}>
+              <option value="">—</option>
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>,
+          )}
+        </TreasuryForm>
+      </div>
+    </details>
   );
   return (
     <>
@@ -59,6 +94,12 @@ async function Treasury() {
             <span dir="ltr" className="font-semibold tabular-nums">{formatMoney(a.balanceCentimes)}</span>
           </li>
         ))}
+        {unassignedCentimes !== 0n && (
+          <li className="flex justify-between gap-4 rounded-2xl border border-line bg-card p-3">
+            <span>{t("Treasury.unassigned")}</span>
+            <span dir="ltr" className="font-semibold tabular-nums">{formatMoney(unassignedCentimes)}</span>
+          </li>
+        )}
         <li className="flex justify-between gap-4 p-3 font-semibold">
           <span>{t("Treasury.total")}</span>
           <span dir="ltr" className="tabular-nums">{formatMoney(total)}</span>
@@ -100,33 +141,54 @@ async function Treasury() {
               <p className="font-semibold">{p.hatchery}</p>
               <p className="text-sm text-ink-2">{p.place} · {t("Treasury.placedOn", { day: formatDay(p.placedOn, lang) })} · <bdi dir="ltr">{p.account}</bdi></p>
               <p>{t("Treasury.owed", { amount: formatMoney(p.owed) })}</p>
-              <details className="rounded-2xl border border-line p-3">
-                <summary className="cursor-pointer">{t("Treasury.pay")}</summary>
-                <div className="pt-3">
-                  <PlacementPayForm submit={t("Assets.paySave")}>
-                    <input type="hidden" name="batchId" value={p.batchId} />
-                    <input type="hidden" name="id" value={uuidv7()} />
-                    {label(t("Assets.payDay"), <input type="date" name="day" defaultValue={today} max={today} required className={field} />)}
-                    {label(t("Assets.payAmount"), <input name="amount" inputMode="decimal" required dir="ltr" className={field} />)}
-                    {label(
-                      t("Assets.paidWith"),
-                      <select name="paidWith" required defaultValue="" className={field}>
-                        <option value="" disabled>—</option>
-                        {(["cash", "transfer", "cheque"] as const).map((m) => <option key={m} value={m}>{t(`Assets.methods.${m}`)}</option>)}
-                      </select>,
-                    )}
-                    {label(
-                      t("Assets.treasury"),
-                      <select name="treasuryId" defaultValue="" className={field}>
-                        <option value="">—</option>
-                        {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                      </select>,
-                    )}
-                  </PlacementPayForm>
-                </div>
-              </details>
+              {payForm(payPlacementAction, <input type="hidden" name="batchId" value={p.batchId} />)}
             </article>
           ))}
+        </section>
+      )}
+      {/* SPEC-finance §9 "Credit expenses": the quick expenses recorded on credit still owed, paid here (owner, manager) */}
+      {expensesToPay.ok && expensesToPay.value.length > 0 && (
+        <section className="flex flex-col gap-2" aria-labelledby="credit-expenses">
+          <h2 id="credit-expenses" className="text-[17px] font-semibold text-ink-2">{t("Treasury.creditExpenses")}</h2>
+          <p className="text-sm text-ink-2">{t("Treasury.creditExpensesHint")}</p>
+          {expensesToPay.value.map((e) => (
+            <article key={e.expenseId} className={card}>
+              <p className="font-semibold">{t(`Expenses.categories.${e.category}`)}</p>
+              <p className="text-sm text-ink-2">{formatDay(e.day, lang)}{e.note && <> · {e.note}</>} · <bdi dir="ltr">{e.account}</bdi></p>
+              <p>{t("Treasury.owed", { amount: formatMoney(e.owed) })}</p>
+              {payForm(payCreditExpenseAction, <input type="hidden" name="expenseId" value={e.expenseId} />)}
+            </article>
+          ))}
+        </section>
+      )}
+      {/* SPEC-finance FN6, FQ11 (§9 "Associate contributions"): money an associate or the exploitant brings in or takes out (owner) */}
+      {owners.ok && (
+        <section className="flex flex-col gap-2" aria-labelledby="associate">
+          <h2 id="associate" className="text-[17px] font-semibold text-ink-2">{t(owners.value.individual ? "Treasury.exploitant" : "Treasury.associate")}</h2>
+          <p className="text-sm text-ink-2">{t(owners.value.individual ? "Treasury.exploitantHint" : "Treasury.associateHint", { account: owners.value.account })}</p>
+          {accounts.length === 0 ? (
+            <p>{t("Treasury.associateNoAccount")}</p>
+          ) : (
+            <TreasuryForm action={recordAssociateAction} submit={t("Treasury.associateSave")}>
+              <input type="hidden" name="id" value={uuidv7()} />
+              {label(
+                t("Treasury.direction"),
+                <select name="direction" required defaultValue="contribution" className={field}>
+                  {(["contribution", "withdrawal"] as const).map((d) => <option key={d} value={d}>{t(`Treasury.directions.${d}`)}</option>)}
+                </select>,
+              )}
+              {label(t("Treasury.day"), <input type="date" name="day" defaultValue={today} max={today} required className={field} />)}
+              {label(t("Treasury.amount"), <input name="amount" inputMode="decimal" required dir="ltr" className={field} />)}
+              {label(
+                t("Treasury.into"),
+                <select name="treasuryId" required defaultValue="" className={field}>
+                  <option value="" disabled>—</option>
+                  {accounts.map((a) => <option key={a.id} value={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</option>)}
+                </select>,
+              )}
+              {!owners.value.individual && label(t("Treasury.associateName"), <input name="associate" maxLength={80} className={field} />)}
+            </TreasuryForm>
+          )}
         </section>
       )}
       {/* SPEC-finance FC9: ticking each bank account's lines against its statements */}

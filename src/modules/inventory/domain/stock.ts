@@ -1,4 +1,3 @@
-import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 
 // SPEC S1–S3. Pure: the phone shows stock and balances with these, the server enforces them with the same code.
@@ -32,10 +31,14 @@ export function checkItem(item: { kind: ItemKind; lot: string | null; expiresOn:
   return (item.kind === "vaccine" || item.kind === "medicine") && (!item.lot || !item.expiresOn) ? fail("LOT_REQUIRED") : ok(undefined);
 }
 
-/** Quantity (base units) × price per displayed unit, rounded half up to the centime, exactly. */
+/**
+ * Quantity (base units) × price per displayed unit, rounded half up to the centime, exactly. divHalfUp
+ * (@/lib/kernel/money) written out: this file ships with /batches, which has no room for that module (SPEC §9.3);
+ * stock.test.ts holds the two together.
+ */
 export function purchaseAmount(quantity: number, unit: Unit, unitPriceCentimes: bigint): bigint {
   const base = BigInt(BASE[unit]);
-  return divHalfUp(BigInt(quantity) * unitPriceCentimes, base);
+  return (BigInt(quantity) * unitPriceCentimes * 2n + base) / (2n * base);
 }
 
 type PurchaseError = "INVALID_QUANTITY" | "PAID_MORE_THAN_AMOUNT" | "DUE_DATE_WITHOUT_CREDIT" | "VAT_MORE_THAN_AMOUNT";

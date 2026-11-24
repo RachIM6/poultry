@@ -211,6 +211,11 @@ const yearHasEntries = async (tx: Tx, ctx: TenantContext, entity: { id: string; 
   return (await entriesBetween(tx, ctx, entity.id, year.from, year.to)) > 0;
 };
 
+/** FN1, the owner's home: whether the accounting choices can still change. A plain count, no lock or transaction. */
+export async function accountingChoicesOpen(ctx: TenantContext, entity: LegalEntityDto, clock: Clock = systemClock) {
+  return can(ctx, "finance.manage") && !(await yearHasEntries(db, ctx, entity, clock));
+}
+
 /**
  * The profile screen: the entity, the books its form allows, whether this fiscal year still lets them change, and the
  * first day of the next one, when they can change again before its first entry.

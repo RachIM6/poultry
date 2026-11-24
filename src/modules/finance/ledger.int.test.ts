@@ -6,7 +6,7 @@ import { fixedClock } from "@/lib/kernel/clock";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { accountingSettings, changeAccountingChoices, openFiscalYear, postEntry, reverseEntry, setPeriodLocked, type EntryRow, type Line } from "@/modules/finance";
+import { accountingChoicesOpen, accountingSettings, changeAccountingChoices, openFiscalYear, postEntry, reverseEntry, setPeriodLocked, type EntryRow, type Line } from "@/modules/finance";
 import { sourceAlreadyPosted } from "@/modules/finance/infrastructure/ledger";
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant, twoTenants } from "@/test/tenant";
@@ -121,6 +121,8 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
     expect(await changeAccountingChoices({ ...a, role: "manager" }, entityA, choices, today)).toEqual({ ok: false, error: "FORBIDDEN" });
     expect(await changeAccountingChoices(a, entityA, { ...choices, fiscalYearStartMonth: 13 }, today)).toEqual({ ok: false, error: "INVALID_INPUT" });
     expect(await accountingSettings(a, today)).toMatchObject({ ok: true, value: { books: ["cash_book", "ledger"], locked: false } }); // an individual
+    const entity = (await listLegalEntities(a))[0];
+    expect([await accountingChoicesOpen(a, entity, today), await accountingChoicesOpen({ ...a, role: "manager" }, entity, today)]).toEqual([true, false]);
     expect(await changeAccountingChoices(a, entityA, choices, today)).toEqual({ ok: true, value: undefined });
     expect((await listLegalEntities(a))[0].accountingProfile).toMatchObject({ books: "ledger", overlays: [] });
 
@@ -129,6 +131,7 @@ describe("ledger core (SPEC-finance FN3–FN5, T29)", () => {
     expect(await post(a, { day: d("2027-02-02"), lines: [line("6121", 100n, 0n), line("4411", 0n, 100n)] })).toMatchObject({ ok: true });
     expect(await changeAccountingChoices(a, entityA, { ...choices, pcaOverlay: true }, today)).toEqual({ ok: false, error: "FISCAL_YEAR_HAS_ENTRIES" });
     expect(await accountingSettings(a, today)).toMatchObject({ ok: true, value: { locked: true, nextYearFrom: "2028-01-01" } }); // when they can change again
+    expect(await accountingChoicesOpen(a, entity, today)).toBe(false);
   });
 
   it("keeps a company on full books (law 9-88)", async () => {

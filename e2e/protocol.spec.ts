@@ -27,6 +27,8 @@ test("the vaccination template is available offline, and a farm's copy is edited
   await page.getByLabel("Mode d’administration").selectOption({ label: "Eau de boisson" });
   await page.getByRole("button", { name: "Ajouter", exact: true }).click();
   await expect(page.getByText("Jour 14 · Vaccin Gumboro · Eau de boisson")).toBeVisible();
+  // OQ4: no Newcastle line yet, a warning citing the arrêté, not a block
+  await expect(page.getByText(/Aucune vaccination contre la maladie de Newcastle dans ce programme.*Arrêté n° 3308-17, art\. 13/)).toBeVisible();
 
   await page.reload();
   await expect(page.getByText("Jour 14 · Vaccin Gumboro · Eau de boisson")).toBeVisible();

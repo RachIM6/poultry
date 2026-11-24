@@ -7,7 +7,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { z } from "zod";
-import { ALLOCATION_KEYS, BOOKS, booksAllowed, HENS_METHODS, legalEntityIn, listLegalEntities, saveAccountingChoices, type LegalEntityDto } from "@/modules/farm-registry";
+import { ALLOCATION_KEYS, BOOKS, booksAllowed, HENS_METHODS, legalEntityIn, legalIds, listLegalEntities, saveAccountingChoices, type LegalEntityDto } from "@/modules/farm-registry";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { CLOSE_KINDS, REVERSED_AT_OPENING, closeAction, closeSource, openingReversalOf, openingSource, reversalSource } from "@/modules/finance/domain/close";
 import { checkEntry, firstOpenMonth, fiscalYearOf, monthOf, openingLines, reversalOf, type EntryError } from "@/modules/finance/domain/entry";
@@ -226,5 +226,6 @@ export async function accountingSettings(ctx: TenantContext, clock: Clock = syst
   if (!entity) return ok(null);
   // A read: no row lock nor interactive transaction (P2028 under load); the change re-checks under the lock.
   const nextYearFrom = addFarmDays(fiscalYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth).to, 1);
-  return ok({ entity, books: booksAllowed(entity.form), locked: await yearHasEntries(db, ctx, entity, clock), nextYearFrom });
+  const [locked, ids] = await Promise.all([yearHasEntries(db, ctx, entity, clock), legalIds(ctx)]);
+  return ok({ entity, books: booksAllowed(entity.form), locked, nextYearFrom, ids }); // ids: F-Profile, never locked
 }

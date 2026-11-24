@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
+import { saveLegalIds } from "@/modules/farm-registry";
 import { changeAccountingChoices } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 
@@ -23,4 +24,15 @@ export async function saveAccountingAction(_: SaveState, form: FormData): Promis
   if (!saved.ok) return { messageKey: `errors.${saved.error}` };
   refresh();
   return { ok: true, messageKey: "Accounting.saved" };
+}
+
+/** F-Profile: the entity's registration numbers; farm-registry checks finance.manage and the ICE's 15 digits. */
+export async function saveLegalIdsAction(_: SaveState, form: FormData): Promise<SaveState> {
+  const ctx = await getTenantContext(await headers());
+  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const f = Object.fromEntries(form);
+  const saved = await saveLegalIds(ctx.value, String(f.legalEntityId), { ice: f.ice, fiscalId: f.fiscalId, rcNumber: f.rcNumber, rcCourt: f.rcCourt, cnssNumber: f.cnssNumber });
+  if (!saved.ok) return { messageKey: saved.error === "INVALID_INPUT" ? "LegalIds.invalid" : `errors.${saved.error}` };
+  refresh();
+  return { ok: true, messageKey: "LegalIds.saved" };
 }

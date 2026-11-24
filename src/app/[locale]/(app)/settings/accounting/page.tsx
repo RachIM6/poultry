@@ -8,11 +8,12 @@ import { formatDay } from "@/lib/format";
 import { accountingSettings } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { AccountingForm } from "./form";
+import { LegalIdsForm } from "./ids-form";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
 // What this page's client components read (src/i18n/client-messages.tsx).
-const MESSAGES: MessagePath[] = ["Accounting", "Nav", "Offline", "Sync.refused", "errors"];
+const MESSAGES: MessagePath[] = ["Accounting", "LegalIds", "Nav", "Offline", "Sync.refused", "errors"];
 
 // SPEC-finance FN1, FN9, FC6, FN14, mockup F-Profile: the owner's accounting choices. Online, owner only (finance.manage).
 export default function AccountingSettings() {
@@ -43,6 +44,7 @@ async function Content() {
         <span className="font-semibold">{entity.name}</span> · {t(`Onboarding.forms.${entity.form}`)}
       </p>
       {entity.form === "cooperative" && <p className="text-sm text-ink-2">{t("Accounting.coop")}</p>}
+      <LegalIdsForm legalEntityId={entity.id} ids={settings.value.ids} />
       {locked && (
         <div role="note" className="flex flex-col gap-2 rounded-lg border border-line p-3">
           <p>{t("errors.FISCAL_YEAR_HAS_ENTRIES")}</p>

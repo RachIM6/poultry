@@ -11,7 +11,7 @@ export default function ReceivablesPage() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4 lg:max-w-5xl">
         <h1 className="text-2xl font-semibold">{t("Receivables.title")}</h1>
         <ReceivablesScreen />
       </main>

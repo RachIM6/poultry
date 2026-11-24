@@ -38,6 +38,10 @@ import {
 // prices); a home consumption (SPEC-finance FC7) is the workers' too, without its price (I5).
 
 const today = () => farmDayOf(new Date());
+// A sale's row on wide screens: its cells sit in the list's columns. On the phone `contents` leaves the card as it was.
+const row = "lg:col-span-full lg:grid lg:grid-cols-subgrid lg:items-center lg:gap-x-6";
+const cell = "contents lg:flex lg:flex-col lg:gap-1";
+const end = "contents lg:flex lg:flex-col lg:items-end lg:gap-1";
 
 function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
   const id = useId();
@@ -90,38 +94,43 @@ export function Sales({
       {list.length === 0 ? (
         <p>{t("Sale.none")}</p>
       ) : (
-        <ul className="flex flex-col gap-3" aria-labelledby="sale-title">
+        // WebSales.dc.html: on wide screens one row per sale, its parts in columns shared by every row (subgrid).
+        <ul className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.7fr)_auto] lg:gap-y-2" aria-labelledby="sale-title">
           {list.map((s) => {
             const gap = weighingGap(s.farmWeightGrams, s.buyerWeightGrams);
             // SPEC-finance §9 "Cancelled records": birds can't come back to a closed batch (no reopening in v1)
             const actions = seller && <SaleActions sale={s} label={labelOf(s)} cancellable={batch.status === "open" || s.kind === "eggs"} write={write} />;
             if (s.takenBy) {
               return (
-                <li key={s.id} className={card}>
+                <li key={s.id} className={`${card} ${row}`}>
                   <span className="font-semibold">{labelOf(s)}</span>
-                  {s.amountCentimes && <span>{t("Sale.value", { amount: formatMoney(BigInt(s.amountCentimes)) })}</span>}
-                  {actions}
+                  <span className={cell}>{s.amountCentimes && <span>{t("Sale.value", { amount: formatMoney(BigInt(s.amountCentimes)) })}</span>}</span>
+                  <span className={end}>{actions}</span>
                 </li>
               );
             }
             return (
-              <li key={s.id} className={card}>
+              <li key={s.id} className={`${card} ${row}`}>
                 <span className="font-semibold">{labelOf(s)}</span>
-                {s.amountCentimes && s.paymentMethod && (
-                  <span>{t("Sale.detail", { amount: formatMoney(BigInt(s.amountCentimes)), method: t(`Sale.methods.${s.paymentMethod}`), paid: formatMoney(BigInt(s.paidCentimes ?? "0")) })}</span>
-                )}
-                {gap && <span>{t("Sale.gap", { kg: formatKg(gap.grams), percent: formatPercent(gap.percent) })}</span>}
-                {/* V5: printed in either language, whatever the screen's (live birds) */}
-                {s.kind !== "eggs" && (
-                  <span className="flex gap-4">
-                    {(["fr", "ar"] as const).map((l) => (
-                      <Link key={l} href={`/origin#${s.id}`} locale={l} className={link}>
-                        {t("Sale.origin", { language: t(`LocaleSwitcher.${l}`) })}
-                      </Link>
-                    ))}
-                  </span>
-                )}
-                {actions}
+                <span className={cell}>
+                  {s.amountCentimes && s.paymentMethod && (
+                    <span>{t("Sale.detail", { amount: formatMoney(BigInt(s.amountCentimes)), method: t(`Sale.methods.${s.paymentMethod}`), paid: formatMoney(BigInt(s.paidCentimes ?? "0")) })}</span>
+                  )}
+                  {gap && <span>{t("Sale.gap", { kg: formatKg(gap.grams), percent: formatPercent(gap.percent) })}</span>}
+                </span>
+                <span className={end}>
+                  {/* V5: printed in either language, whatever the screen's (live birds) */}
+                  {s.kind !== "eggs" && (
+                    <span className="flex gap-4">
+                      {(["fr", "ar"] as const).map((l) => (
+                        <Link key={l} href={`/origin#${s.id}`} locale={l} className={link}>
+                          {t("Sale.origin", { language: t(`LocaleSwitcher.${l}`) })}
+                        </Link>
+                      ))}
+                    </span>
+                  )}
+                  {actions}
+                </span>
               </li>
             );
           })}

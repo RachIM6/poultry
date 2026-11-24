@@ -762,7 +762,13 @@
     "day": "J{age}",
     "chartLabel": "Poids moyen par âge : {points}",
     "waterFeed": "Eau / aliment",
-    "waterFeedOn": "L par kg, jour {day}"
+    "waterFeedOn": "L par kg, jour {day}",
+    "costPerKg": "Coût / kg vif",
+    "costPerKgValue": "{cost} / kg",
+    "costPerKgNote": "{cost} engagés · {kg} vifs estimés",
+    "costOffline": "En ligne seulement",
+    "costNoWeighing": "Après une pesée",
+    "costNone": "Aucun coût encore"
   },
   "Vaccination": {
     "title": "Vaccinations",
@@ -967,7 +973,11 @@
     "awaitingLine": "Vente à crédit de {amount} à {buyer} le {date} : dépasse le plafond, attend l’accord du propriétaire",
     "approve": "Approuver",
     "saveLimit": "Enregistrer le plafond",
-    "totalLabel": "{count, plural, one {À encaisser · 1 acheteur} other {À encaisser · {n} acheteurs}}"
+    "totalLabel": "{count, plural, one {À encaisser · 1 acheteur} other {À encaisser · {n} acheteurs}}",
+    "colInstrument": "Chèque ou effet",
+    "colState": "État",
+    "colBuyer": "Acheteur et solde",
+    "colDetail": "Ancienneté, plafond et échéances"
   },
   "Origin": {
     "title": "Document d’origine des volailles",
@@ -2669,6 +2679,24 @@
     "choicesFirst": "Choisissez la tenue des comptes, la TVA, le début d’exercice… avant la première écriture. Une mise en place, un achat ou une dépense en passent une dès leur synchronisation ; ces choix ne changent ensuite qu’au prochain exercice.",
     "later": "Plus tard",
     "lockedHow": "Pour les changer : le {day}, premier jour du prochain exercice, revenez ici avant toute écriture de ce nouvel exercice."
+  },
+  "LegalIds": {
+    "title": "Identité de l’entreprise",
+    "hint": "Facultatifs. Ils figurent en tête des états de synthèse.",
+    "ice": "ICE (identifiant commun de l’entreprise, 15 chiffres)",
+    "fiscalId": "Identifiant fiscal (IF)",
+    "rcNumber": "Registre de commerce (RC), numéro",
+    "rcCourt": "Tribunal du registre de commerce (ville)",
+    "cnssNumber": "Numéro d’affiliation CNSS",
+    "save": "Enregistrer l’identité",
+    "saved": "Identité enregistrée.",
+    "invalid": "Vérifiez les numéros : l’ICE compte 15 chiffres.",
+    "short": {
+      "ice": "ICE",
+      "fiscalId": "IF",
+      "rc": "RC",
+      "cnss": "CNSS"
+    }
   },
   "Chart": {
     "open": "Plan de comptes",

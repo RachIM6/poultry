@@ -1,10 +1,11 @@
 import { cache } from "react";
+import { audit } from "@/lib/audit";
 import { db, type Tx } from "@/lib/db";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { addOwner, lockForOnboarding } from "@/modules/identity";
-import { accountingProfileOf, type AccountingChoices, type AccountingProfile, type AllocationKey, type Books, type HensMethod, type LegalForm, type OnboardingInput } from "@/modules/farm-registry/schema";
+import { accountingProfileOf, LegalIdsInput, type AccountingChoices, type AccountingProfile, type AllocationKey, type Books, type HensMethod, type LegalForm, type LegalIds, type OnboardingInput } from "@/modules/farm-registry/schema";
 
 /**
  * `fiscalYearStartMonth`: 1–12, the month the fiscal year starts (ADR-010 §1, default January). `vatRegistered`:
@@ -58,6 +59,31 @@ export async function saveAccountingChoices(tx: Tx, ctx: TenantContext, id: stri
   await tx.legalEntity.update({ where: { id }, data: choices });
   await tx.auditEvent.create({
     data: { organizationId: ctx.organizationId, userId: ctx.userId, entity: "LegalEntity", entityId: id, action: "update", before, after: choices },
+  });
+}
+
+const IDS = { ice: true, fiscalId: true, rcNumber: true, rcCourt: true, cnssNumber: true } as const;
+
+/**
+ * F-Profile: the entity's registration numbers, for those who read the books and statements (money.read); not workers
+ * or vets. Null without an entity. One legal entity per organisation (see finance's postPending).
+ */
+export async function legalIds(ctx: TenantContext): Promise<LegalIds | null> {
+  if (!can(ctx, "money.read")) return null;
+  return db.legalEntity.findFirst({ where: { organizationId: ctx.organizationId }, orderBy: { createdAt: "asc" }, select: IDS });
+}
+
+/** F-Profile: the owner sets them (finance.manage), whatever the fiscal year holds: they aren't accounting choices. */
+export async function saveLegalIds(ctx: TenantContext, legalEntityId: string, input: unknown): Promise<Result<void, "FORBIDDEN" | "NOT_FOUND" | "INVALID_INPUT">> {
+  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  const parsed = LegalIdsInput.safeParse(input);
+  if (!parsed.success) return fail("INVALID_INPUT");
+  return db.$transaction(async (tx) => {
+    const before = await tx.legalEntity.findFirst({ where: { id: legalEntityId, organizationId: ctx.organizationId }, select: IDS });
+    if (!before) return fail("NOT_FOUND");
+    await tx.legalEntity.update({ where: { id: legalEntityId }, data: parsed.data });
+    await audit(tx, ctx, { entity: "LegalEntity", entityId: legalEntityId, action: "update", before, after: parsed.data });
+    return ok(undefined);
   });
 }
 

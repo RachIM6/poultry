@@ -3,6 +3,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Fragment, Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
+import { EntityHeader } from "@/components/entity-header";
 import { Num, Scroll } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -157,6 +158,7 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
       )}
       <h1 className="text-2xl font-semibold">{t("title")}</h1>
       {nav}
+      <EntityHeader {...s.entity} />
       <p className="font-semibold">{s.closedOn ? t("closed", { day: day(s.closedOn) }) : t("draftCaption")}</p>
       <p className="text-sm text-ink-2">
         {t("period", { from: day(s.from), to: day(s.to) })} · {t(s.pca ? "modelPca" : "modelCgnc")}

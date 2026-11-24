@@ -37,8 +37,8 @@ import {
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { useInline } from "@/components/focus";
-import { field, primary, secondary } from "@/components/ui";
+import { useFieldError, useInline } from "@/components/focus";
+import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC S1–S3 on the static /stock shell: everything from and to the phone's database (ADR-003). Workers get no money
 // from the server at all (I5), so the money parts only render for those allowed to manage stock.
@@ -290,7 +290,7 @@ function Suppliers({ suppliers, purchases, payments, debits, write }: { supplier
                   ))}
               </ul>
             )}
-            {error && <p role="alert">{tAll(error)}</p>}
+            {error && <p role="alert" className={danger}>{tAll(error)}</p>}
             {paying === s.id ? (
               <SupplierPaymentForm supplier={s} balance={balances.get(s.id) ?? 0n} write={write} onDone={close} />
             ) : (
@@ -344,15 +344,15 @@ const today = () => farmDayOf(new Date());
 /** S2, SPEC-finance FN6: paying a supplier later, up to what is owed, as the server checks it. */
 function SupplierPaymentForm({ supplier, balance, write, onDone }: { supplier: SupplierDto; balance: bigint; write: Write; onDone: () => void }) {
   const t = useTranslations();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [method, setMethod] = useState<SupplierPaymentDto["method"]>("cash");
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const get = read(e.currentTarget);
     const amount = parseCentimes(get("amount"));
-    if (amount === null) return setError("errors.INVALID_INPUT");
+    if (amount === null) return setError("errors.INVALID_INPUT", e.currentTarget, "amount");
     const checked = checkSupplierPayment(amount, balance);
-    if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (!checked.ok) return setError(`errors.${checked.error}`, e.currentTarget, "amount");
     const method = get("method") as SupplierPaymentDto["method"];
     const day = get("day") || today();
     // FN11: an issued cheque's or bill's number and agreed date (a cheque is payable on sight: its date is a reminder)
@@ -362,7 +362,7 @@ function SupplierPaymentForm({ supplier, balance, write, onDone }: { supplier: S
   };
   return (
     <form onSubmit={submit} aria-label={t("Stock.pay", { supplier: supplier.name })} className="flex flex-col gap-3">
-      <Field name="amount" label={t("Stock.payAmount")} inputMode="decimal" required dir="ltr" autoFocus />
+      <Field name="amount" label={t("Stock.payAmount")} inputMode="decimal" required dir="ltr" autoFocus {...bad("amount")} />
       <Select name="method" label={t("Stock.payMethod")} value={method} onChange={(v) => setMethod(v as SupplierPaymentDto["method"])}>
         {SUPPLIER_PAYMENT_METHODS.map((m) => <option key={m} value={m}>{t(`Stock.payMethods.${m}`)}</option>)}
       </Select>
@@ -373,7 +373,7 @@ function SupplierPaymentForm({ supplier, balance, write, onDone }: { supplier: S
           <Field name="dueOn" label={t("Stock.instrumentDueOn")} type="date" defaultValue={today()} />
         </>
       )}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <Buttons onCancel={onDone} />
     </form>
   );
@@ -428,7 +428,7 @@ function ItemForm({ farmId, products, write, onCancel }: { farmId: string; produ
           <Field name="expiresOn" label={t("expiresOn")} type="date" required />
         </>
       )}
-      {invalid && <p role="alert">{t("invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("invalid")}</p>}
       <Buttons onCancel={onCancel} />
     </form>
   );
@@ -503,7 +503,7 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
       </Select>
       <Field name="vat" label={t("Stock.vat")} inputMode="decimal" dir="ltr" />
       <Field name="dueOn" label={t("Stock.dueOn")} type="date" />
-      {invalid && <p role="alert">{t("Stock.invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("Stock.invalid")}</p>}
       <Buttons onCancel={onCancel} />
     </form>
   );
@@ -539,7 +539,7 @@ function AdjustForm({ items, write, onCancel }: { items: StockItemDto[]; write: 
       <Field name="day" label={t("Stock.day")} type="date" defaultValue={today()} required />
       <Field name="quantity" label={t("Stock.adjustQuantity", { unit: t(`Stock.units.${item.unit}`) })} inputMode="decimal" required dir="ltr" />
       <Field name="reason" label={t("Stock.reason")} required maxLength={200} />
-      {invalid && <p role="alert">{t("Stock.invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("Stock.invalid")}</p>}
       <Buttons onCancel={onCancel} />
     </form>
   );

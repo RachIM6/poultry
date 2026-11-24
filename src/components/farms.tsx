@@ -13,7 +13,7 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useInline } from "@/components/focus";
-import { field, primary, secondary } from "@/components/ui";
+import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC F2–F4. Runs on the static /farms shell: everything comes from and goes to the phone's database (ADR-003).
 
@@ -326,7 +326,7 @@ function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSub
         ))}
         <button type="button" onClick={() => setKeepers((ks) => [...ks, { key: uuidv7() }])} className={`${secondary} self-start`}>{t("addKeeper")}</button>
       </fieldset>
-      {invalid && <p role="alert">{t("invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("invalid")}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("cancel")}</button>
@@ -357,7 +357,7 @@ function HouseForm({ initial, onSubmit, onCancel }: { initial?: HouseFields; onS
           {HOUSE_TYPES.map((type) => <option key={type} value={type}>{t(`types.${type}`)}</option>)}
         </select>
       </div>
-      {invalid && <p role="alert">{t("invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("invalid")}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("cancel")}</button>

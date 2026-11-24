@@ -15,8 +15,8 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { FileUpload, useOnline } from "@/components/local-screen";
-import { useInline } from "@/components/focus";
-import { card, field, primary, secondary } from "@/components/ui";
+import { useFieldError, useInline } from "@/components/focus";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
 // crew, bank fees) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts
@@ -82,7 +82,7 @@ function Expenses(scope: Scope) {
       <ExpenseForm key={prefill.toString()} prefill={prefill} accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
 
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.recent")}</h2>
-      {uploadError && <p role="alert" className="text-brick-fg">{t(uploadError)}</p>}
+      {uploadError && <p role="alert" className={danger}>{t(uploadError)}</p>}
       {recent.length === 0 ? (
         <p>{t("Expenses.none")}</p>
       ) : (
@@ -133,7 +133,7 @@ function Field({ label, children }: { label: string; children: (id: string) => R
 
 function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URLSearchParams, "get">; accounts: TreasuryAccountDto[]; batches: { id: string; label: string }[]; onSave: (e: ExpenseDto) => Promise<boolean> }) {
   const t = useTranslations();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [key, setKey] = useState(0); // a new key empties the form after a save
   const pre = (name: string) => (key === 0 ? (prefill.get(name) ?? undefined) : undefined); // the first form only
   const [bank, setBank] = useState(() => bankOnly(pre("category") ?? "")); // FC9 (T119): bank fees are paid from a bank account only
@@ -144,11 +144,11 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
     const data = new FormData(e.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const amount = parseCentimes(get("amount"));
-    if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY");
+    if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY", e.currentTarget, "amount");
     const vat = parseCentimes(get("vat") || "0"); // SPEC-finance FN9: part of the total
-    if (vat === null) return setError("errors.INVALID_INPUT");
-    if (vat > amount) return setError("errors.VAT_MORE_THAN_AMOUNT");
-    if (get("day") > today()) return setError("errors.DAY_IN_FUTURE");
+    if (vat === null) return setError("errors.INVALID_INPUT", e.currentTarget, "vat");
+    if (vat > amount) return setError("errors.VAT_MORE_THAN_AMOUNT", e.currentTarget, "vat");
+    if (get("day") > today()) return setError("errors.DAY_IN_FUTURE", e.currentTarget, "day");
     // "from" is "credit", "cash", "bank", or a treasury account's id
     const from = get("from");
     const account = accounts.find((a) => a.id === from);
@@ -156,7 +156,7 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
     const to = get("allocation");
     const day = get("day") || today();
     const paidFrom = (account ? account.kind : from) as ExpenseDto["paidFrom"];
-    if (bank && account?.kind !== "bank") return setError("Expenses.bankFeesAccount");
+    if (bank && account?.kind !== "bank") return setError("Expenses.bankFeesAccount", e.currentTarget, "from");
     setError(undefined);
     const saved = await onSave({
       id: uuidv7(),
@@ -185,11 +185,11 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
           </select>
         )}
       </Field>
-      <Field label={t("Expenses.amount")}>{(id) => <input id={id} name="amount" defaultValue={pre("amount")} inputMode="decimal" required dir="ltr" className={field} />}</Field>
-      <Field label={t("Sale.vat")}>{(id) => <input id={id} name="vat" inputMode="decimal" dir="ltr" className={field} />}</Field>
+      <Field label={t("Expenses.amount")}>{(id) => <input id={id} name="amount" defaultValue={pre("amount")} inputMode="decimal" required dir="ltr" {...bad("amount")} className={field} />}</Field>
+      <Field label={t("Sale.vat")}>{(id) => <input id={id} name="vat" inputMode="decimal" dir="ltr" {...bad("vat")} className={field} />}</Field>
       <Field label={t("Expenses.from")}>
         {(id) => (
-          <select id={id} name="from" defaultValue={pre("from")} className={field}>
+          <select id={id} name="from" defaultValue={pre("from")} {...bad("from")} className={field}>
             {!bank && accounts.length === 0 && <option value="cash">{t("Expenses.kinds.cash")}</option>}
             {sources.map((a) => <option key={a.id} value={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</option>)}
             {!bank && accounts.length === 0 && <option value="bank">{t("Expenses.kinds.bank")}</option>}
@@ -207,9 +207,9 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
         )}
       </Field>
       <Field label={t("Expenses.month")}>{(id) => <input id={id} name="month" type="month" defaultValue={(pre("day") ?? today()).slice(0, 7)} max={today().slice(0, 7)} className={field} />}</Field>
-      <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={pre("day") ?? today()} max={today()} required className={field} />}</Field>
+      <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={pre("day") ?? today()} max={today()} required {...bad("day")} className={field} />}</Field>
       <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <button type="submit" className={primary}>{t("Expenses.save")}</button>
     </form>
   );

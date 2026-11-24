@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-// SPEC X4, WCAG 2.2 AA: where focus goes when a form opens in place of its button, or closes.
+// SPEC X4, WCAG 2.2 AA: where focus goes when a form opens in place of its button, closes, or fails.
 
 /**
  * An inline form that takes the place of the button that opened it (2.4.3). The form's first field takes the focus
@@ -19,3 +19,20 @@ export function useInline<T extends string>() {
   return { open, opener, close: () => setOpen(undefined) };
 }
 
+/**
+ * A form's error (3.3.1). When it names one field (by its `name`), that field is marked invalid, described by the
+ * message, and focused.
+ */
+export function useFieldError() {
+  const id = useId();
+  const [state, setState] = useState<{ key: string; name?: string }>();
+  return {
+    id,
+    error: state?.key,
+    set: (key?: string, form?: HTMLFormElement, name?: string) => {
+      setState(key ? { key, name } : undefined);
+      if (form && name) (form.elements.namedItem(name) as HTMLElement | null)?.focus?.();
+    },
+    field: (name: string) => (state?.name === name ? { "aria-invalid": true, "aria-describedby": id } : {}),
+  };
+}

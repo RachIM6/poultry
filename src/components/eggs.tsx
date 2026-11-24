@@ -5,7 +5,7 @@ import { useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
 import { useInline } from "@/components/focus";
-import { card, field, primary, secondary } from "@/components/ui";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 import { formatCount, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { EGG_CATEGORIES, EGG_MUTATIONS as M, EMPTY_COUNTS, checkCollection, downgradedIn, eggsIn, type EggCategory, type EggCollectionDto, type EggCounts } from "@/modules/eggs/shared";
@@ -111,7 +111,7 @@ export function EggCollections({ batch, collections, write }: { batch: BatchDto;
             {t("Eggs.total", { eggs: formatCount(total) })}
             {total > 0 && ` · ${t("Eggs.downgraded", { percent: formatPercent((downgradedIn(counts) / total) * 100) })}`}
           </p>
-          {error && <p role="alert">{t(error)}</p>}
+          {error && <p role="alert" className={danger}>{t(error)}</p>}
           <div className="flex gap-3">
             <button type="submit" className={primary}>{editing ? t("Eggs.saveCorrection") : t("Eggs.save")}</button>
             {editing && <button type="button" className={secondary} onClick={reset}>{t("Closing.cancel")}</button>}

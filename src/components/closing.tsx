@@ -6,11 +6,11 @@ import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { useBatchResults } from "@/components/batch-results";
 import type { Write } from "@/components/daily-entry";
-import { useInline } from "@/components/focus";
+import { useFieldError, useInline } from "@/components/focus";
 import { formatDay, formatKg, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, FLOCK_MUTATIONS as M, TRANSFER_REASON, ageOfBatch, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
-import { field, primary, secondary } from "@/components/ui";
+import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC B6 on the batch screen: its other costs (read-only, FN13), closing by hand with a reason, and the figures once
 // closed. The last sale closes the batch by itself (sales); until the next sync after closing, the phone shows the batch
@@ -86,7 +86,7 @@ export function BatchCosts({ batch, costs, manage }: { batch: BatchDto; costs: B
 export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write }) {
   const t = useTranslations();
   const { open, opener, close } = useInline<"close">();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   if (!open) return <button type="button" {...opener("close")} className={secondary}>{t("Closing.close")}</button>;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -94,9 +94,9 @@ export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write
     const data = new FormData(e.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const day = get("day") || today();
-    if (!get("reason")) return setError("errors.INVALID_INPUT");
+    if (!get("reason")) return setError("errors.INVALID_INPUT", e.currentTarget, "reason");
     const checked = aggregate(batch).close(day as FarmDay, today()); // as the server
-    if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (!checked.ok) return setError(`errors.${checked.error}`, e.currentTarget, checked.error === "BATCH_CLOSED" ? undefined : "day");
     setError(undefined);
     const payload = { batchId: batch.id, day, reason: get("reason") };
     await write({ type: M.closeBatch, payload }, [{ entity: "batch", id: batch.id, data: closedLocally(batch, day, payload.reason) }]);
@@ -105,9 +105,9 @@ export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
       <p>{t("Closing.warning")}</p>
-      <Field label={t("Closing.reason")}>{(id) => <input id={id} name="reason" required maxLength={200} autoFocus className={field} />}</Field>
-      <Field label={t("Closing.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required className={field} />}</Field>
-      {error && <p role="alert">{t(error)}</p>}
+      <Field label={t("Closing.reason")}>{(id) => <input id={id} name="reason" required maxLength={200} autoFocus {...bad("reason")} className={field} />}</Field>
+      <Field label={t("Closing.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required {...bad("day")} className={field} />}</Field>
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Closing.confirm")}</button>
         <button type="button" onClick={close} className={secondary}>{t("Closing.cancel")}</button>
@@ -121,7 +121,7 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
   const t = useTranslations();
   const { open, opener, close } = useInline<"transfer">();
   const [hens, setHens] = useState(String(onHand));
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const free = houses.filter((h) => h.free);
   if (!open) return <button type="button" {...opener("transfer")} className={secondary}>{t("Transfer.title")}</button>;
 
@@ -132,7 +132,10 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
     const day = (get("day") || today()) as FarmDay;
     const count = /^\d+$/.test(hens) ? Number(hens) : NaN;
     const checked = aggregate(batch).checkTransfer(day, count, onHand, today()); // as the server
-    if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (!checked.ok) {
+      const name = checked.error.startsWith("DAY_") ? "day" : checked.error === "INVALID_QUANTITY" || checked.error === "MORE_BIRDS_THAN_ON_HAND" ? "hens" : undefined;
+      return setError(`errors.${checked.error}`, e.currentTarget, name);
+    }
     const house = free.find((h) => h.id === get("houseId"));
     if (!house) return setError("Transfer.noHouse");
     setError(undefined);
@@ -177,12 +180,12 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
               </select>
             )}
           </Field>
-          <Field label={t("Transfer.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required className={field} />}</Field>
+          <Field label={t("Transfer.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required {...bad("day")} className={field} />}</Field>
           <Field label={t("Transfer.hens")}>
-            {(id) => <input id={id} value={hens} onChange={(e) => setHens(e.target.value)} inputMode="numeric" pattern="\d+" required dir="ltr" className={field} />}
+            {(id) => <input id={id} name="hens" {...bad("hens")} value={hens} onChange={(e) => setHens(e.target.value)} inputMode="numeric" pattern="\d+" required dir="ltr" className={field} />}
           </Field>
           {/^\d+$/.test(hens) && Number(hens) < onHand && <p>{t("Transfer.left", { birds: String(onHand - Number(hens)) })}</p>}
-          {error && <p role="alert">{t(error)}</p>}
+          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
           <div className="flex gap-3">
             <button type="submit" className={primary}>{t("Transfer.save")}</button>
             <button type="button" onClick={close} className={secondary}>{t("Closing.cancel")}</button>

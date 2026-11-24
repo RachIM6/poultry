@@ -4,9 +4,9 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { useInline } from "@/components/focus";
+import { useFieldError, useInline } from "@/components/focus";
 import { Scoped } from "@/components/scoped";
-import { card, done, field, primary, secondary } from "@/components/ui";
+import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay } from "@/lib/format";
 import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
@@ -189,7 +189,7 @@ function PlaceForm({ plan, today, protocols, onSave, onCancel }: { plan: PlanDto
           </select>
         </>
       )}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Planning.placeSave")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Batches.cancel")}</button>
@@ -245,7 +245,7 @@ function PlanForm({ plan, houses, strains, today, onSave, onCancel }: { plan?: P
       <input id={id.price} name="price" inputMode="decimal" dir="ltr" defaultValue={priceText(plan?.chickPriceCentimes)} className={field} />
       <label htmlFor={id.age}>{t("Planning.saleAge")}</label>
       <input id={id.age} name="age" inputMode="numeric" dir="ltr" defaultValue={plan?.saleAge ?? ""} className={field} />
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       {onCancel ? (
         <div className="flex gap-3">
           <button type="submit" className={primary}>{t("Planning.save")}</button>
@@ -261,7 +261,7 @@ function PlanForm({ plan, houses, strains, today, onSave, onCancel }: { plan?: P
 function DowntimeForm({ farms, today, onSave }: { farms: FarmDto[]; today: string; onSave: (r: DowntimeRule) => Promise<void> }) {
   const t = useTranslations();
   const { open, opener, close } = useInline<"downtime">();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const id = { farm: useId(), days: useId(), source: useId(), from: useId() };
   if (!open) return <button type="button" {...opener("downtime")} className={secondary}>{t("Planning.enterDowntime")}</button>;
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
@@ -269,7 +269,7 @@ function DowntimeForm({ farms, today, onSave }: { farms: FarmDto[]; today: strin
     const data = new FormData(ev.currentTarget);
     const rule = { id: uuidv7(), farmId: String(data.get("farm")), validFrom: String(data.get("from")), minDays: Number(data.get("days")), source: String(data.get("source")).trim() };
     const checked = checkDowntimeRule(rule); // the server refuses it too
-    if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (!checked.ok) return setError(`errors.${checked.error}`, ev.currentTarget, "days");
     setError(undefined);
     await onSave(rule);
     close();
@@ -287,12 +287,12 @@ function DowntimeForm({ farms, today, onSave }: { farms: FarmDto[]; today: strin
       )}
       {farms.length === 1 && <input type="hidden" name="farm" value={farms[0].id} />}
       <label htmlFor={id.days}>{t("Planning.minDays")}</label>
-      <input id={id.days} name="days" type="number" min={OFFICIAL_DOWNTIME.minDays} max={365} required autoFocus={farms.length === 1} className={field} />
+      <input id={id.days} name="days" type="number" min={OFFICIAL_DOWNTIME.minDays} max={365} required autoFocus={farms.length === 1} {...bad("days")} className={field} />
       <label htmlFor={id.source}>{t("Pay.source")}</label>
       <input id={id.source} name="source" required minLength={3} maxLength={300} className={field} />
       <label htmlFor={id.from}>{t("Pay.validFrom")}</label>
       <input id={id.from} name="from" type="date" required defaultValue={today} className={field} />
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Planning.saveDowntime")}</button>
         <button type="button" onClick={close} className={secondary}>{t("Receivables.cancel")}</button>

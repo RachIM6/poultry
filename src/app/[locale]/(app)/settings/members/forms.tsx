@@ -3,12 +3,12 @@
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { cancel, invite, remove, updateRole, type ActionState } from "./actions";
-import { card, field, primary, secondary } from "@/components/ui";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 
 
 const ErrorText = ({ state }: { state: ActionState }) => {
   const t = useTranslations();
-  return state.messageKey ? <p role="alert">{t(state.messageKey)}</p> : null;
+  return state.messageKey ? <p role="alert" className={danger}>{t(state.messageKey)}</p> : null;
 };
 
 export function InviteForm({ roles, partners }: { roles: readonly string[]; partners: readonly string[] }) {

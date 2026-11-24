@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { card, field, primary, secondary } from "@/components/ui";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
@@ -228,7 +228,7 @@ export function EggSaleForm({
       </>
       )}
       {seller && amount !== null && <p className="text-xl font-semibold">{t(takenBy ? "Sale.value" : "EggSale.amount", { amount: formatMoney(amount) })}</p>}
-      {error && <p role="alert">{t(error, { days })}</p>}
+      {error && <p role="alert" className={danger}>{t(error, { days })}</p>}
       <span className="flex gap-2">
         <button type="submit" className={primary}>{t(takenBy ? "Sale.saveConsumption" : "EggSale.save")}</button>
         <button type="button" className={secondary} onClick={onCancel}>{t("Closing.cancel")}</button>

@@ -27,8 +27,8 @@ import {
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { useInline } from "@/components/focus";
-import { card, field, primary, secondary } from "@/components/ui";
+import { useFieldError, useInline } from "@/components/focus";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC V4 on the static /receivables shell, offline: what each buyer owes, their cheques and bills with due dates, and
 // later payments, checked with the same rule as the server. Owners and managers only: workers get no sale money (I5).
@@ -229,7 +229,7 @@ function Receivables(scope: Scope) {
 function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint | null) => Promise<void> }) {
   const t = useTranslations();
   const { open: editing, opener, close } = useInline<"limit">();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const limit = buyer.creditLimitCentimes ? BigInt(buyer.creditLimitCentimes) : null;
   // The current limit in the input as the farmer types it ("10000,50"), centimes kept.
   const shown = limit === null ? "" : `${limit / 100n},${String(limit % 100n).padStart(2, "0")}`;
@@ -237,7 +237,7 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
     e.preventDefault();
     const text = String(new FormData(e.currentTarget).get("limit") ?? "").trim();
     const value = text === "" ? null : parseCentimes(text);
-    if (text !== "" && value === null) return setError("errors.INVALID_INPUT");
+    if (text !== "" && value === null) return setError("errors.INVALID_INPUT", e.currentTarget, "limit");
     await onSave(value);
     close();
   };
@@ -246,8 +246,8 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
       <span>{buyer.name} · {limit === null ? t("Receivables.noLimit") : t("Receivables.limit", { amount: formatMoney(limit) })}</span>
       {editing ? (
         <form onSubmit={submit} className="flex flex-col gap-2">
-          <Field label={t("Receivables.limitLabel")}>{(id) => <input id={id} name="limit" inputMode="decimal" dir="ltr" defaultValue={shown} autoFocus className={field} />}</Field>
-          {error && <p role="alert">{t(error)}</p>}
+          <Field label={t("Receivables.limitLabel")}>{(id) => <input id={id} name="limit" inputMode="decimal" dir="ltr" defaultValue={shown} autoFocus {...bad("limit")} className={field} />}</Field>
+          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
           <div className="flex gap-3">
             <button type="submit" className={primary}>{t("Receivables.saveLimit")}</button>
             <button type="button" onClick={close} className={secondary}>{t("Receivables.cancel")}</button>
@@ -272,7 +272,7 @@ function Field({ label, children }: { label: string; children: (id: string) => R
 
 function PaymentForm({ buyerId, balance, onSave, onCancel }: { buyerId: string; balance: bigint; onSave: (p: PaymentDto) => Promise<void>; onCancel: () => void }) {
   const t = useTranslations();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [method, setMethod] = useState<PaymentDto["method"]>(METHODS[0]);
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -280,10 +280,10 @@ function PaymentForm({ buyerId, balance, onSave, onCancel }: { buyerId: string; 
     const data = new FormData(e.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const amount = parseCentimes(get("amount"));
-    if (amount === null) return setError("errors.INVALID_INPUT");
+    if (amount === null) return setError("errors.INVALID_INPUT", e.currentTarget, "amount");
     const checked = checkPayment(amount, balance); // as the server
-    if (!checked.ok) return setError(`errors.${checked.error}`);
-    if (get("day") > today()) return setError("errors.DAY_IN_FUTURE");
+    if (!checked.ok) return setError(`errors.${checked.error}`, e.currentTarget, "amount");
+    if (get("day") > today()) return setError("errors.DAY_IN_FUTURE", e.currentTarget, "day");
     setError(undefined);
     // FN11: a cheque's or bill's number and agreed date, as for a sale; reminded on that day
     const instrument = method === "cheque" || method === "bill" ? { number: get("instrumentNumber"), dueOn: get("instrumentDueOn") } : null;
@@ -292,8 +292,8 @@ function PaymentForm({ buyerId, balance, onSave, onCancel }: { buyerId: string; 
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <Field label={t("Receivables.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} max={today()} required autoFocus className={field} />}</Field>
-      <Field label={t("Receivables.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" required dir="ltr" className={field} />}</Field>
+      <Field label={t("Receivables.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} max={today()} required autoFocus {...bad("day")} className={field} />}</Field>
+      <Field label={t("Receivables.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" required dir="ltr" {...bad("amount")} className={field} />}</Field>
       <Field label={t("Receivables.method")}>
         {(id) => (
           <select id={id} name="method" value={method} onChange={(e) => setMethod(e.target.value as PaymentDto["method"])} className={field}>
@@ -307,7 +307,7 @@ function PaymentForm({ buyerId, balance, onSave, onCancel }: { buyerId: string; 
           <Field label={t("Sale.instrumentDueOn")}>{(id) => <input id={id} name="instrumentDueOn" type="date" required defaultValue={today()} className={field} />}</Field>
         </>
       )}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Receivables.save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>

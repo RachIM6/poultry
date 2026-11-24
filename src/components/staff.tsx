@@ -5,8 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
-import { useInline } from "@/components/focus";
-import { card, done, field, primary, secondary } from "@/components/ui";
+import { useFieldError, useInline } from "@/components/focus";
+import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
@@ -108,16 +108,16 @@ type FormProps = { employee: EmployeeDto | null; farms: FarmDto[]; houses: House
 function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) {
   const t = useTranslations();
   const [farmId, setFarmId] = useState(employee?.farmId ?? farms[0].id);
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
 
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const wage = parseCentimes(get("wage"));
-    if (wage === null) return setError("errors.INVALID_QUANTITY");
+    if (wage === null) return setError("errors.INVALID_QUANTITY", ev.currentTarget, "wage");
     const leftOn = get("leftOn") || null;
-    if (leftOn && leftOn < get("startedOn")) return setError("errors.LEFT_BEFORE_START");
+    if (leftOn && leftOn < get("startedOn")) return setError("errors.LEFT_BEFORE_START", ev.currentTarget, "leftOn");
     setError(undefined);
     await onSave(
       {
@@ -160,7 +160,7 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
       </Field>
       <Field label={t("Staff.phone")}>{(id) => <input id={id} name="phone" type="tel" inputMode="tel" dir="ltr" maxLength={20} defaultValue={employee?.phone ?? ""} className={field} />}</Field>
       <p className="text-sm text-ink-2">{t("Staff.phoneHint")}</p>
-      <Field label={t("Staff.wage")}>{(id) => <input id={id} name="wage" inputMode="decimal" dir="ltr" required defaultValue={wage ? `${BigInt(wage) / 100n},${String(BigInt(wage) % 100n).padStart(2, "0")}` : ""} className={field} />}</Field>
+      <Field label={t("Staff.wage")}>{(id) => <input id={id} name="wage" inputMode="decimal" dir="ltr" required {...bad("wage")} defaultValue={wage ? `${BigInt(wage) / 100n},${String(BigInt(wage) % 100n).padStart(2, "0")}` : ""} className={field} />}</Field>
       <Field label={t("Staff.startedOn")}>{(id) => <input id={id} name="startedOn" type="date" required defaultValue={employee?.startedOn ?? farmDayOf(new Date())} className={field} />}</Field>
       <Field label={t("Staff.cnss")}>{(id) => <input id={id} name="cnss" dir="ltr" maxLength={20} defaultValue={employee?.cnssNumber ?? ""} className={field} />}</Field>
       <label className="flex min-h-11 items-center gap-3">
@@ -176,8 +176,8 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
           </label>
         ))}
       </fieldset>
-      {employee && <Field label={t("Staff.leftOnLabel")}>{(id) => <input id={id} name="leftOn" type="date" defaultValue={employee.leftOn ?? ""} className={field} />}</Field>}
-      {error && <p role="alert">{t(error)}</p>}
+      {employee && <Field label={t("Staff.leftOnLabel")}>{(id) => <input id={id} name="leftOn" type="date" defaultValue={employee.leftOn ?? ""} {...bad("leftOn")} className={field} />}</Field>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Staff.save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
@@ -264,7 +264,7 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
 function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; advances: AdvanceDto[]; onSave: (a: AdvanceDto) => Promise<void> }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [key, setKey] = useState(0); // a new key empties the form after a save
   const today = farmDayOf(new Date());
   const active = employees.filter((e) => !e.leftOn);
@@ -276,10 +276,10 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);
     const amount = parseCentimes(String(data.get("amount") ?? ""));
-    if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY");
+    if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY", ev.currentTarget, "amount");
     const day = String(data.get("day"));
     const deductMonth = String(data.get("deductMonth"));
-    if (deductMonth < day.slice(0, 7)) return setError("errors.DEDUCT_BEFORE_ADVANCE");
+    if (deductMonth < day.slice(0, 7)) return setError("errors.DEDUCT_BEFORE_ADVANCE", ev.currentTarget, "deductMonth");
     setError(undefined);
     const employee = active.find((e) => e.id === data.get("employee"))!;
     await onSave({ id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day, amountCentimes: String(amount), deductMonth, note: String(data.get("note") ?? "").trim() || null });
@@ -306,11 +306,11 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
             </select>
           )}
         </Field>
-        <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required className={field} />}</Field>
+        <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required {...bad("amount")} className={field} />}</Field>
         <Field label={t("Advances.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
-        <Field label={t("Advances.deductMonth")}>{(id) => <input id={id} name="deductMonth" type="month" required defaultValue={today.slice(0, 7)} className={field} />}</Field>
+        <Field label={t("Advances.deductMonth")}>{(id) => <input id={id} name="deductMonth" type="month" required defaultValue={today.slice(0, 7)} {...bad("deductMonth")} className={field} />}</Field>
         <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
-        {error && <p role="alert">{t(error)}</p>}
+        {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
         <button type="submit" className={primary}>{t("Advances.save")}</button>
       </form>
     </section>
@@ -322,7 +322,7 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
   const t = useTranslations();
   const locale = useLocale();
   const [kind, setKind] = useState<StaffRecordDto["kind"]>("training");
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [key, setKey] = useState(0); // a new key empties the form after a save
   const today = farmDayOf(new Date());
   if (employees.length === 0) return null;
@@ -334,8 +334,8 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
     const data = new FormData(ev.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const daysOff = get("daysOff") === "" ? null : Number(get("daysOff"));
-    if (daysOff !== null && !(Number.isInteger(daysOff) && daysOff >= 0 && daysOff <= 365)) return setError("errors.INVALID_QUANTITY");
-    if (kind === "accident" && get("note") === "") return setError("errors.INVALID_INPUT"); // only spaces passes "required"
+    if (daysOff !== null && !(Number.isInteger(daysOff) && daysOff >= 0 && daysOff <= 365)) return setError("errors.INVALID_QUANTITY", ev.currentTarget, "daysOff");
+    if (kind === "accident" && get("note") === "") return setError("errors.INVALID_INPUT", ev.currentTarget, "note"); // only spaces passes "required"
     setError(undefined);
     const employee = employees.find((e) => e.id === data.get("employee"))!;
     const base = { id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day: get("day"), kind };
@@ -390,11 +390,11 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
           </>
         ) : (
           <>
-            <Field label={t("Records.what")}>{(id) => <textarea id={id} name="note" required maxLength={500} rows={3} className={field} />}</Field>
-            <Field label={t("Records.daysOff")}>{(id) => <input id={id} name="daysOff" inputMode="numeric" dir="ltr" className={field} />}</Field>
+            <Field label={t("Records.what")}>{(id) => <textarea id={id} name="note" required maxLength={500} rows={3} {...bad("note")} className={field} />}</Field>
+            <Field label={t("Records.daysOff")}>{(id) => <input id={id} name="daysOff" inputMode="numeric" dir="ltr" {...bad("daysOff")} className={field} />}</Field>
           </>
         )}
-        {error && <p role="alert">{t(error)}</p>}
+        {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
         <button type="submit" className={primary}>{t("Records.save")}</button>
       </form>
     </section>
@@ -545,7 +545,7 @@ function WagesPaid({ farmId, month, net, paid, today, write }: { farmId: string;
 /** §2, MQ2: the owner types the figures their source gives, and names the source. Empty fields stay unknown. */
 function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<void>; onCancel: () => void }) {
   const t = useTranslations();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError } = useFieldError();
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);
@@ -570,7 +570,7 @@ function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<v
       {pctField("employerCapped", t("Pay.employerCapped"))}
       {pctField("employerUncapped", t("Pay.employerUncapped"))}
       <Field label={t("Pay.cap")}>{(id) => <input id={id} name="cap" inputMode="decimal" dir="ltr" className={field} />}</Field>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Pay.saveRules")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>

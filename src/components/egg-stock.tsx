@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import dynamic from "next/dynamic";
-import { card, field, primary, secondary } from "@/components/ui";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 import { can } from "@/lib/permissions";
 import { eggWithdrawalWindows, type TreatmentDto } from "@/modules/health/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
@@ -208,7 +208,7 @@ function GradeForm({ lot, grades, lots, onSave, onCancel }: { lot: Lot; grades: 
           <input name={g.id} inputMode="numeric" pattern="\d*" dir="ltr" className={`${field} w-28`} />
         </label>
       ))}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <span className="flex gap-2">
         <button type="submit" className={primary}>{t("EggStock.saveGrading")}</button>
         <button type="button" className={secondary} onClick={onCancel}>{t("Closing.cancel")}</button>
@@ -240,7 +240,7 @@ function DiscardForm({ lot, lots, onSave, onCancel }: { lot: Lot; lots: Lot[]; o
         {t("EggStock.reason")}
         <input name="reason" required maxLength={200} className={field} />
       </label>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <span className="flex gap-2">
         <button type="submit" className={primary}>{t("EggStock.saveDiscard")}</button>
         <button type="button" className={secondary} onClick={onCancel}>{t("Closing.cancel")}</button>

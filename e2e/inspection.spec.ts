@@ -21,7 +21,7 @@ test("the inspection pack opens offline, lists the missing pieces and prints", a
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await referenceCached(page);
   const pack = page.getByRole("article").first();
-  await expect(pack.getByRole("heading", { level: 1 }).first()).toHaveText("Dossier d’inspection · Ferme Atlas");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Dossier d’inspection · Ferme Atlas"); // one h1: the registers inside are h2
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -33,7 +33,7 @@ test("the inspection pack opens offline, lists the missing pieces and prints", a
   await expect(pack).toContainText("Arrêté n° 2127-05, art. 4"); // each checklist line prints its source
   await expect(pack).toContainText("Dr Naïma R.");
   await expect(pack).toContainText("Appâts posés");
-  await expect(page.getByRole("heading", { level: 1, name: "Registre de suivi sanitaire" })).toHaveCount(1); // the open batch's register
+  await expect(page.getByRole("heading", { level: 2, name: "Registre de suivi sanitaire" })).toHaveCount(1); // the open batch's register
 
   await page.emulateMedia({ media: "print" });
   await page.setViewportSize({ width: 794, height: 1123 });

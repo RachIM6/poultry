@@ -201,7 +201,7 @@ function Pack(scope: Scope) {
         const register = registerOf(b.id, records, reference?.data ?? null, locale);
         return register && (
           <section key={b.id} className="break-before-page">
-            <RegisterDocument register={register} printButton={false} />
+            <RegisterDocument register={register} embedded />
           </section>
         );
       })}

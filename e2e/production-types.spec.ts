@@ -48,7 +48,7 @@ test("hens placed at 18 weeks show their age in weeks, and beldi bands share a r
   await expect(page.getByText("Parcours · 2 bandes · 270 sujets")).toBeVisible();
   for (const age of ["22 sem.", "3 sem."]) {
     await page.getByRole("listitem").filter({ hasText: age }).getByRole("link", { name: "Saisir le jour" }).click();
-    await page.getByLabel("Morts").fill("1");
+    await page.getByLabel("Morts", { exact: true }).fill("1");
     await page.getByRole("button", { name: "Enregistrer la journée" }).click();
     await page.getByRole("link", { name: "Toutes les bandes" }).click();
   }

@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
-import { card, field, primary, secondary } from "@/components/ui";
+import { useInline } from "@/components/focus";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 import { formatCount, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { EGG_CATEGORIES, EGG_MUTATIONS as M, EMPTY_COUNTS, checkCollection, downgradedIn, eggsIn, type EggCategory, type EggCollectionDto, type EggCounts } from "@/modules/eggs/shared";
@@ -20,17 +21,18 @@ export function EggCollections({ batch, collections, write }: { batch: BatchDto;
   const [day, setDay] = useState<string>(today());
   const [counts, setCounts] = useState<EggCounts>(EMPTY_COUNTS);
   const [sample, setSample] = useState({ count: "", grams: "" });
-  const [editing, setEditing] = useState<EggCollectionDto | null>(null);
+  const edit = useInline<string>(); // the collection being corrected; the form is always there: its first count takes the focus
   const [error, setError] = useState<string>();
-  const ids = { day: useId(), sampleCount: useId(), sampleGrams: useId() };
+  const ids = { day: useId(), first: useId(), sampleCount: useId(), sampleGrams: useId() };
   const ofDay = collections.filter((c) => c.day === day).sort((a, b) => a.id.localeCompare(b.id)); // UUIDv7: in order
+  const editing = ofDay.find((c) => c.id === edit.open) ?? null;
   const total = eggsIn(counts);
   const set = (k: EggCategory, n: number) => setCounts((c) => ({ ...c, [k]: Math.max(0, Number.isFinite(n) ? Math.floor(n) : 0) }));
 
   const reset = () => {
     setCounts(EMPTY_COUNTS);
     setSample({ count: "", grams: "" });
-    setEditing(null);
+    edit.close();
   };
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -60,7 +62,11 @@ export function EggCollections({ batch, collections, write }: { batch: BatchDto;
             <li key={c.id} className="flex items-center justify-between gap-3">
               <span>{t("Eggs.line", { n: String(i + 1), eggs: formatCount(eggsIn(c.counts)), down: formatCount(downgradedIn(c.counts)) })}</span>
               {batch.status === "open" && (
-                <button type="button" className={secondary} onClick={() => (setEditing(c), setCounts(c.counts), setSample({ count: String(c.sample?.count ?? ""), grams: String(c.sample?.grams ?? "") }))}>
+                <button
+                  type="button"
+                  className={secondary}
+                  {...edit.opener(c.id, () => (setCounts(c.counts), setSample({ count: String(c.sample?.count ?? ""), grams: String(c.sample?.grams ?? "") }), document.getElementById(ids.first)?.focus()))}
+                >
                   {t("Eggs.correct")}
                 </button>
               )}
@@ -79,6 +85,7 @@ export function EggCollections({ batch, collections, write }: { batch: BatchDto;
               </span>
               <button type="button" className={`${secondary} size-11 shrink-0 px-0 text-xl`} aria-label={t("Eggs.remove", { step: String(STEP[k]), label: t(`Eggs.categories.${k}`) })} onClick={() => set(k, counts[k] - STEP[k])}>−</button>
               <input
+                id={k === EGG_CATEGORIES[0] ? ids.first : undefined}
                 aria-label={t(`Eggs.categories.${k}`)}
                 value={String(counts[k])}
                 onChange={(e) => set(k, Number(e.target.value))}
@@ -104,7 +111,7 @@ export function EggCollections({ batch, collections, write }: { batch: BatchDto;
             {t("Eggs.total", { eggs: formatCount(total) })}
             {total > 0 && ` · ${t("Eggs.downgraded", { percent: formatPercent((downgradedIn(counts) / total) * 100) })}`}
           </p>
-          {error && <p role="alert">{t(error)}</p>}
+          {error && <p role="alert" className={danger}>{t(error)}</p>}
           <div className="flex gap-3">
             <button type="submit" className={primary}>{editing ? t("Eggs.saveCorrection") : t("Eggs.save")}</button>
             {editing && <button type="button" className={secondary} onClick={reset}>{t("Closing.cancel")}</button>}

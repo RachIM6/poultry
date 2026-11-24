@@ -21,7 +21,7 @@ import {
   type VetVisitDto,
 } from "@/modules/health/shared";
 import { parseQuantity, type MovementDto, type StockItemDto } from "@/modules/inventory/shared";
-import { field, primary, secondary } from "@/components/ui";
+import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC H3–H5 on the batch screen, offline: the withdrawal banner, treatments with the lot they came from, vet visits.
 // The phone runs the same checks and the same withdrawal rule as the server.
@@ -127,7 +127,7 @@ function TreatmentForm({
   const [route, setRoute] = useState<TreatmentRoute | "">("");
   const [error, setError] = useState<string>();
   const item = medicines.find((m) => m.id === itemId);
-  if (!item) return <p role="alert">{t("Treatment.noMedicine")}</p>;
+  if (!item) return <p role="alert" className={danger}>{t("Treatment.noMedicine")}</p>;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -206,7 +206,7 @@ function TreatmentForm({
           {(id) => <input id={id} name="eggWithdrawalDays" inputMode="numeric" pattern="\d{1,3}" required dir="ltr" className={field} />}
         </Labelled>
       )}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Treatment.save")}</button>
         <button type="button" onClick={onDone} className={secondary}>{t("Treatment.cancel")}</button>
@@ -255,7 +255,7 @@ export function VetVisits({ batch, visits, userId, write }: { batch: BatchDto; v
           <Labelled label={t("VetVisit.on")}>{(id) => <input id={id} name="on" type="date" defaultValue={today()} required className={field} />}</Labelled>
           <Labelled label={t("VetVisit.vet")}>{(id) => <input id={id} name="vetName" required maxLength={120} className={field} />}</Labelled>
           <Labelled label={t("VetVisit.notes")}>{(id) => <textarea id={id} name="notes" rows={3} maxLength={2000} className={field} />}</Labelled>
-          {error && <p role="alert">{t(error)}</p>}
+          {error && <p role="alert" className={danger}>{t(error)}</p>}
           <div className="flex gap-3">
             <button type="submit" className={primary}>{t("VetVisit.save")}</button>
             <button type="button" onClick={() => setAdding(false)} className={secondary}>{t("VetVisit.cancel")}</button>

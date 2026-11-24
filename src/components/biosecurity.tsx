@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { useFieldError, useInline } from "@/components/focus";
 import { Field, FileUpload, Shell, of, useOnline, type Save, type Screen } from "@/components/local-screen";
 import { card, danger, field, primary, secondary, warn } from "@/components/ui";
 import { formatCount, formatDateTime, formatDay, formatKg } from "@/lib/format";
@@ -71,15 +72,15 @@ function correct<T extends { id: string }>(save: Save, type: string, entity: str
   return Object.keys(changes).length === 0 ? Promise.resolve(true) : save({ type, payload: { id: before.id, changes } }, entity, local);
 }
 
-/** A record of the log, and its "Modifier" button that opens `form` in its place. Records are never deleted (D6). */
+/** A record of the log, and its "Modifier" button that opens `form` in its place (its first field autoFocus). Records are never deleted (D6). */
 function Editable({ name, form, children }: { name: string; form: (close: () => void) => ReactNode; children: ReactNode }) {
   const t = useTranslations("Biosecurity");
-  const [open, setOpen] = useState(false);
-  if (open) return form(() => setOpen(false));
+  const { open, opener, close } = useInline<"edit">();
+  if (open) return form(close);
   return (
     <>
       {children}
-      <button type="button" onClick={() => setOpen(true)} className={`${secondary} self-start`} aria-label={t("editNamed", { record: name })}>
+      <button type="button" {...opener("edit")} className={`${secondary} self-start`} aria-label={t("editNamed", { record: name })}>
         {t("edit")}
       </button>
     </>
@@ -170,7 +171,7 @@ function VisitForm({ farmId, visit, onSave, onCancel }: { farmId: string; visit?
 
   return (
     <form key={key} onSubmit={submit} className="flex flex-col gap-3" aria-label={visit && t("Biosecurity.editNamed", { record: visit.visitor })}>
-      <Field label={t("Visitors.visitor")}>{(id) => <input id={id} name="visitor" required maxLength={120} defaultValue={visit?.visitor} className={field} />}</Field>
+      <Field label={t("Visitors.visitor")}>{(id) => <input id={id} name="visitor" required maxLength={120} defaultValue={visit?.visitor} autoFocus={!!visit} className={field} />}</Field>
       <Field label={t("Visitors.vehicle")}>{(id) => <input id={id} name="vehicle" maxLength={20} dir="ltr" defaultValue={visit?.vehicle ?? ""} className={field} />}</Field>
       <Field label={t("Visitors.purpose")}>
         {(id) => (
@@ -202,13 +203,13 @@ function VisitForm({ farmId, visit, onSave, onCancel }: { farmId: string; visit?
           </label>
         ))}
       </fieldset>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <Submit label={t("Visitors.save")} onCancel={onCancel} />
     </form>
   );
 }
 
-// BS6–BS7: what leaves the farm. Tabs, one log each.
+// BS6–BS7: what leaves the farm. One log at a time, chosen with toggle buttons (aria-pressed, not a half tablist).
 const TABS = ["dead", "manure", "rodents"] as const;
 const GAP_DAYS = 14; // how far back the dead/disposed comparison looks on the phone: a screen choice, not a rule
 
@@ -220,9 +221,9 @@ type Tab = (typeof TABS)[number];
 function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const t = useTranslations("Disposal");
   return (
-    <div role="tablist" aria-label={t("tabs")} className="grid grid-cols-3 gap-1 rounded-2xl bg-line/60 p-1">
+    <div role="group" aria-label={t("tabs")} className="grid grid-cols-3 gap-1 rounded-2xl bg-line/60 p-1">
       {TABS.map((k) => (
-        <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`min-h-11 rounded-xl ${tab === k ? "bg-card font-semibold" : ""}`}>
+        <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={`min-h-11 rounded-xl ${tab === k ? "bg-card font-semibold" : ""}`}>
           {t(`tab.${k}`)}
         </button>
       ))}
@@ -338,7 +339,7 @@ type FormProps<T> = { farmId: string; onSave: (r: T) => Promise<boolean>; onCanc
 function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps<DisposalDto> & { batches: Choice[]; disposal?: DisposalDto }) {
   const t = useTranslations();
   const [method, setMethod] = useState<DisposalDto["method"]>(disposal?.method ?? "incineration");
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [key, setKey] = useState(0);
   const today = farmDayOf(new Date());
 
@@ -348,11 +349,11 @@ function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const birds = parseQuantity(get("birds"), "unit");
     const weightGrams = get("weight") ? parseQuantity(get("weight"), "kg") : null;
-    if (birds === null || (get("weight") && weightGrams === null)) return setError("errors.INVALID_QUANTITY");
+    if (birds === null || (get("weight") && weightGrams === null)) return setError("errors.INVALID_QUANTITY", e.currentTarget, birds === null ? "birds" : "weight");
     const methodNote = method === "other" ? get("methodNote") || null : null;
     const checked = checkDisposal({ method, methodNote });
-    if (!checked.ok) return setError(`errors.${checked.error}`);
-    if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
+    if (!checked.ok) return setError(`errors.${checked.error}`, e.currentTarget, "methodNote");
+    if (get("day") > today) return setError("errors.DAY_IN_FUTURE", e.currentTarget, "day");
     setError(undefined);
     const d: DisposalDto = { id: disposal?.id ?? uuidv7(), farmId, day: get("day") || today, batchId: get("batch") || null, birds, weightGrams, method, methodNote };
     if ((await onSave(d)) && !disposal) {
@@ -363,7 +364,7 @@ function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps
 
   return (
     <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={disposal?.day ?? today} max={today} required className={field} />}</Field>
+      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={disposal?.day ?? today} max={today} required autoFocus={!!disposal} {...bad("day")} className={field} />}</Field>
       <Field label={t("Disposal.batchField")}>
         {(id) => (
           <select id={id} name="batch" defaultValue={disposal ? (disposal.batchId ?? "") : undefined} className={field}>
@@ -372,9 +373,9 @@ function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps
           </select>
         )}
       </Field>
-      <Field label={t("Disposal.birds")}>{(id) => <input id={id} name="birds" inputMode="numeric" required dir="ltr" defaultValue={disposal?.birds} className={field} />}</Field>
+      <Field label={t("Disposal.birds")}>{(id) => <input id={id} name="birds" inputMode="numeric" required dir="ltr" defaultValue={disposal?.birds} {...bad("birds")} className={field} />}</Field>
       <Field label={t("Disposal.weight")}>
-        {(id) => <input id={id} name="weight" inputMode="decimal" dir="ltr" defaultValue={disposal?.weightGrams != null ? String(disposal.weightGrams / 1000) : ""} className={field} />}
+        {(id) => <input id={id} name="weight" inputMode="decimal" dir="ltr" defaultValue={disposal?.weightGrams != null ? String(disposal.weightGrams / 1000) : ""} {...bad("weight")} className={field} />}
       </Field>
       <Field label={t("Disposal.method")}>
         {(id) => (
@@ -383,9 +384,9 @@ function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps
           </select>
         )}
       </Field>
-      {method === "other" && <Field label={t("Disposal.methodNote")}>{(id) => <input id={id} name="methodNote" required maxLength={200} defaultValue={disposal?.methodNote ?? ""} className={field} />}</Field>}
+      {method === "other" && <Field label={t("Disposal.methodNote")}>{(id) => <input id={id} name="methodNote" required maxLength={200} defaultValue={disposal?.methodNote ?? ""} {...bad("methodNote")} className={field} />}</Field>}
       <p className="text-sm text-muted">{t("Disposal.sources")}</p>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <Submit label={t("Disposal.save")} onCancel={onCancel} />
     </form>
   );
@@ -426,7 +427,7 @@ function Manure({ farmId, records, houses, batches, batchLabel, day, save }: Log
 /** BS7: records a manure removal, or corrects `removal`. */
 function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: FormProps<ManureRemovalDto> & { houses: HouseDto[]; batches: Choice[]; removal?: ManureRemovalDto }) {
   const t = useTranslations();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [key, setKey] = useState(0);
   const [destination, setDestination] = useState<ManureRemovalDto["destination"]>(removal?.destination ?? "stored");
   const today = farmDayOf(new Date());
@@ -436,11 +437,11 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
     const data = new FormData(e.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const quantityKg = parseQuantity(get("quantity"), "unit");
-    if (quantityKg === null) return setError("errors.INVALID_QUANTITY");
-    if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
+    if (quantityKg === null) return setError("errors.INVALID_QUANTITY", e.currentTarget, "quantity");
+    if (get("day") > today) return setError("errors.DAY_IN_FUTURE", e.currentTarget, "day");
     const spreadDeclared = destination === "spread" && data.get("spreadDeclared") === "on";
     const checked = checkManure({ destination, spreadDeclared }); // CQ4, the server's rule too
-    if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (!checked.ok) return setError(`errors.${checked.error}`, e.currentTarget, "spreadDeclared");
     setError(undefined);
     const r: ManureRemovalDto = {
       id: removal?.id ?? uuidv7(),
@@ -461,7 +462,7 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
 
   return (
     <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={removal?.day ?? today} max={today} required className={field} />}</Field>
+      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={removal?.day ?? today} max={today} required autoFocus={!!removal} {...bad("day")} className={field} />}</Field>
       <Field label={t("Disposal.house")}>
         {(id) => (
           <select id={id} name="house" defaultValue={removal ? (removal.houseId ?? "") : undefined} className={field}>
@@ -478,7 +479,7 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
           </select>
         )}
       </Field>
-      <Field label={t("Disposal.quantity")}>{(id) => <input id={id} name="quantity" inputMode="numeric" required dir="ltr" defaultValue={removal?.quantityKg} className={field} />}</Field>
+      <Field label={t("Disposal.quantity")}>{(id) => <input id={id} name="quantity" inputMode="numeric" required dir="ltr" defaultValue={removal?.quantityKg} {...bad("quantity")} className={field} />}</Field>
       <Field label={t("Disposal.destination")}>
         {(id) => (
           <select id={id} value={destination} onChange={(e) => setDestination(e.target.value as ManureRemovalDto["destination"])} className={field}>
@@ -488,12 +489,12 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
       </Field>
       {destination === "spread" && (
         <label className={check}>
-          <input type="checkbox" name="spreadDeclared" required defaultChecked={removal?.spreadDeclared} className="size-6" />
+          <input type="checkbox" name="spreadDeclared" required defaultChecked={removal?.spreadDeclared} {...bad("spreadDeclared")} className="size-6" />
           {t("Disposal.spreadDeclared")}
         </label>
       )}
       <Field label={t("Disposal.recipient")}>{(id) => <input id={id} name="recipient" maxLength={120} defaultValue={removal?.recipient ?? ""} className={field} />}</Field>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <Submit label={t("Disposal.saveManure")} onCancel={onCancel} />
     </form>
   );
@@ -563,8 +564,8 @@ function Cleanouts(props: Parameters<Screen>[0]) {
 
 function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string) => string; save: Save }) {
   const t = useTranslations();
-  const [open, setOpen] = useState<CleanoutStepKey>();
-  const [error, setError] = useState<string>();
+  const { open, opener, close } = useInline<CleanoutStepKey>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const today = farmDayOf(new Date());
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
@@ -575,14 +576,14 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
     const done = cleanout.steps.find((s) => s.step === open); // marked already: this is a correction (D6)
     const step = { id: done?.id ?? uuidv7(), step: open, day: get("day") ?? today, product: get("product"), dose: get("dose"), productLot: get("productLot"), note: get("note") };
     const checked = checkStep(done ? [] : cleanout.steps, step);
-    if (!checked.ok) return setError(`errors.${checked.error}`);
-    if (step.day > today) return setError("errors.DAY_IN_FUTURE");
+    if (!checked.ok) return setError(`errors.${checked.error}`, e.currentTarget, checked.error === "DISINFECTANT_REQUIRED" ? "product" : undefined);
+    if (step.day > today) return setError("errors.DAY_IN_FUTURE", e.currentTarget, "day");
     setError(undefined);
     const next: CleanoutDto = { ...cleanout, steps: done ? cleanout.steps.map((s) => (s.id === done.id ? step : s)) : [...cleanout.steps, step] };
     const saved = done
       ? await correct(save, B.editCleanoutStep, "cleanout", done, step, next)
       : await save({ type: B.recordCleanoutStep, payload: { ...step, cleanoutId: cleanout.id } }, "cleanout", next);
-    if (saved) setOpen(undefined);
+    if (saved) close();
   };
 
   return (
@@ -600,7 +601,7 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
               {open !== key && (
                 <button
                   type="button"
-                  onClick={() => (setOpen(key), setError(undefined))}
+                  {...opener(key, () => setError(undefined))}
                   className={secondary}
                   aria-label={done ? t("Biosecurity.editNamed", { record: t(`Cleanout.steps.${key}`) }) : t("Cleanout.markNamed", { step: t(`Cleanout.steps.${key}`) })}
                 >
@@ -610,17 +611,17 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
             </div>
             {open === key && (
               <form onSubmit={submit} className="flex flex-col gap-3">
-                <Field label={t("Cleanout.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={done?.day ?? today} max={today} required className={field} />}</Field>
+                <Field label={t("Cleanout.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={done?.day ?? today} max={today} required autoFocus {...bad("day")} className={field} />}</Field>
                 {key === "disinfection" && (
                   <>
-                    <Field label={t("Cleanout.product")}>{(id) => <input id={id} name="product" required maxLength={120} defaultValue={done?.product ?? ""} className={field} />}</Field>
+                    <Field label={t("Cleanout.product")}>{(id) => <input id={id} name="product" required maxLength={120} defaultValue={done?.product ?? ""} {...bad("product")} className={field} />}</Field>
                     <Field label={t("Cleanout.dose")}>{(id) => <input id={id} name="dose" maxLength={60} defaultValue={done?.dose ?? ""} className={field} />}</Field>
                     <Field label={t("Cleanout.productLot")}>{(id) => <input id={id} name="productLot" maxLength={60} dir="ltr" defaultValue={done?.productLot ?? ""} className={field} />}</Field>
                   </>
                 )}
                 <Field label={t("Cleanout.note")}>{(id) => <input id={id} name="note" maxLength={200} defaultValue={done?.note ?? ""} className={field} />}</Field>
-                {error && <p role="alert">{t(error)}</p>}
-                <Submit label={t("Cleanout.save")} onCancel={done ? () => setOpen(undefined) : undefined} />
+                {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+                <Submit label={t("Cleanout.save")} onCancel={done ? close : undefined} />
               </form>
             )}
           </li>
@@ -706,7 +707,7 @@ function RodentForm({ farmId, houses, check, onSave, onCancel, onError }: FormPr
 
   return (
     <form key={key} onSubmit={submit} className="flex flex-col gap-3">
-      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={check?.day ?? today} max={today} required className={field} />}</Field>
+      <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={check?.day ?? today} max={today} required autoFocus={!!check} className={field} />}</Field>
       <Field label={t("Disposal.house")}>
         {(id) => (
           <select id={id} name="house" defaultValue={check ? (check.houseId ?? "") : undefined} className={field}>

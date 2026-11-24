@@ -12,7 +12,7 @@ test("a rodent check is recorded offline, then gets its proof photo online", asy
   await farmWithBatch(page);
   await page.goto("/fr/disposal");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
-  await page.getByRole("tab", { name: "Nuisibles" }).click();
+  await page.getByRole("button", { name: "Nuisibles", exact: true }).click();
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));

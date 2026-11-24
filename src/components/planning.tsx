@@ -4,8 +4,9 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { useFieldError, useInline } from "@/components/focus";
 import { Scoped } from "@/components/scoped";
-import { card, done, field, primary, secondary } from "@/components/ui";
+import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay } from "@/lib/format";
 import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
@@ -31,8 +32,7 @@ function Planning(scope: Scope) {
   const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "plannedBatch", "downtimeRule", "protocol").toArray(), [scope.userId, scope.organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [message, setMessage] = useState<string>();
-  const [placing, setPlacing] = useState<string | null>(null); // the plan being placed (PL3)
-  const [editing, setEditing] = useState<string | null>(null); // the plan being edited (PL1)
+  const { open, opener, close } = useInline<string>(); // "place:<id>" (PL3) or "edit:<id>" (PL1), the plan's form
   if (!records) return null;
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const farms = of<FarmDto>("farm");
@@ -69,7 +69,7 @@ function Planning(scope: Scope) {
         await writeLocal(db, { type: H.planVaccinations, payload: { batchId: batch.id, protocolId: protocol.id, items: protocol.items } }, vaccinations.map((v) => ({ entity: "vaccination", id: v.id, data: v })));
       }
       setMessage("Farms.saved");
-      setPlacing(null);
+      close();
     } catch {
       setMessage("Farms.saveFailed");
     }
@@ -110,18 +110,18 @@ function Planning(scope: Scope) {
                             <span className="block text-sm text-ink-2">{line.saleDay ? t("Planning.sale", { date: day(line.saleDay) }) : t("Planning.saleUnknown")}</span>
                             {line.overlaps && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.overlaps")}</span>}
                             {line.shortDowntime && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.short", { days: String(min.minDays) })}</span>}
-                            {plan && manage && placing === plan.id && (
-                              <PlaceForm plan={plan} today={today} protocols={of<ProtocolDto>("protocol")} onSave={(batch, sent, protocol) => place(plan, batch, sent, protocol)} onCancel={() => setPlacing(null)} />
+                            {plan && manage && open === `place:${plan.id}` && (
+                              <PlaceForm plan={plan} today={today} protocols={of<ProtocolDto>("protocol")} onSave={(batch, sent, protocol) => place(plan, batch, sent, protocol)} onCancel={close} />
                             )}
-                            {plan && manage && editing === plan.id && (
-                              <PlanForm plan={plan} houses={houses} strains={strains} today={today} onSave={(p) => savePlan(p).then(() => setEditing(null))} onCancel={() => setEditing(null)} />
+                            {plan && manage && open === `edit:${plan.id}` && (
+                              <PlanForm plan={plan} houses={houses} strains={strains} today={today} onSave={(p) => savePlan(p).then(close)} onCancel={close} />
                             )}
-                            {plan && manage && placing !== plan.id && editing !== plan.id && (
+                            {plan && manage && !open?.endsWith(plan.id) && (
                               <span className="mt-2 flex flex-wrap gap-2">
                                 {plan.placeOn <= nextFarmDay(today) && (
-                                  <button type="button" onClick={() => setPlacing(plan.id)} className={primary}>{t("Planning.place", { date: day(plan.placeOn) })}</button>
+                                  <button type="button" {...opener(`place:${plan.id}`)} className={primary}>{t("Planning.place", { date: day(plan.placeOn) })}</button>
                                 )}
-                                <button type="button" onClick={() => setEditing(plan.id)} className={secondary}>{t("Planning.edit", { date: day(plan.placeOn) })}</button>
+                                <button type="button" {...opener(`edit:${plan.id}`)} className={secondary}>{t("Planning.edit", { date: day(plan.placeOn) })}</button>
                                 <button type="button" onClick={() => write(P.cancelPlan, "plannedBatch", { ...plan, status: "cancelled" }, { id: plan.id })} className={secondary}>
                                   {t("Planning.cancel", { date: day(plan.placeOn) })}
                                 </button>
@@ -169,7 +169,7 @@ function PlaceForm({ plan, today, protocols, onSave, onCancel }: { plan: PlanDto
   return (
     <form onSubmit={submit} className="mt-2 flex flex-col gap-2 rounded-2xl border border-line p-3" aria-label={t("Planning.place", { date: formatDay(plan.placeOn as FarmDay, locale) })}>
       <label htmlFor={id.day}>{t("Batches.placedOn")}</label>
-      <input id={id.day} name="day" type="date" required max={nextFarmDay(today as FarmDay)} defaultValue={plan.placeOn <= today ? today : plan.placeOn} className={field} />
+      <input id={id.day} name="day" type="date" required max={nextFarmDay(today as FarmDay)} defaultValue={plan.placeOn <= today ? today : plan.placeOn} autoFocus className={field} />
       <label htmlFor={id.chicks}>{t("Batches.chicksPlaced")}</label>
       <input id={id.chicks} name="chicks" inputMode="numeric" dir="ltr" required defaultValue={String(plan.chicks)} className={field} />
       <label htmlFor={id.dead}>{t("Batches.deadOnArrival")}</label>
@@ -189,7 +189,7 @@ function PlaceForm({ plan, today, protocols, onSave, onCancel }: { plan: PlanDto
           </select>
         </>
       )}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Planning.placeSave")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Batches.cancel")}</button>
@@ -227,7 +227,7 @@ function PlanForm({ plan, houses, strains, today, onSave, onCancel }: { plan?: P
       aria-label={plan ? t("Planning.edit", { date: formatDay(plan.placeOn as FarmDay, locale) }) : t("Planning.add")}
     >
       <label htmlFor={id.house}>{t("Planning.house")}</label>
-      <select id={id.house} name="house" defaultValue={plan?.houseId} className={field}>
+      <select id={id.house} name="house" defaultValue={plan?.houseId} autoFocus={!!plan} className={field}>
         {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
       </select>
       <label htmlFor={id.day}>{t("Planning.placeOn")}</label>
@@ -245,7 +245,7 @@ function PlanForm({ plan, houses, strains, today, onSave, onCancel }: { plan?: P
       <input id={id.price} name="price" inputMode="decimal" dir="ltr" defaultValue={priceText(plan?.chickPriceCentimes)} className={field} />
       <label htmlFor={id.age}>{t("Planning.saleAge")}</label>
       <input id={id.age} name="age" inputMode="numeric" dir="ltr" defaultValue={plan?.saleAge ?? ""} className={field} />
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       {onCancel ? (
         <div className="flex gap-3">
           <button type="submit" className={primary}>{t("Planning.save")}</button>
@@ -260,19 +260,19 @@ function PlanForm({ plan, houses, strains, today, onSave, onCancel }: { plan?: P
 
 function DowntimeForm({ farms, today, onSave }: { farms: FarmDto[]; today: string; onSave: (r: DowntimeRule) => Promise<void> }) {
   const t = useTranslations();
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string>();
+  const { open, opener, close } = useInline<"downtime">();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const id = { farm: useId(), days: useId(), source: useId(), from: useId() };
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className={secondary}>{t("Planning.enterDowntime")}</button>;
+  if (!open) return <button type="button" {...opener("downtime")} className={secondary}>{t("Planning.enterDowntime")}</button>;
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);
     const rule = { id: uuidv7(), farmId: String(data.get("farm")), validFrom: String(data.get("from")), minDays: Number(data.get("days")), source: String(data.get("source")).trim() };
     const checked = checkDowntimeRule(rule); // the server refuses it too
-    if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (!checked.ok) return setError(`errors.${checked.error}`, ev.currentTarget, "days");
     setError(undefined);
     await onSave(rule);
-    setOpen(false);
+    close();
   };
   return (
     <form onSubmit={submit} className={card} aria-label={t("Planning.enterDowntime")}>
@@ -280,22 +280,22 @@ function DowntimeForm({ farms, today, onSave }: { farms: FarmDto[]; today: strin
       {farms.length > 1 && (
         <>
           <label htmlFor={id.farm}>{t("Staff.farm")}</label>
-          <select id={id.farm} name="farm" className={field}>
+          <select id={id.farm} name="farm" autoFocus className={field}>
             {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
         </>
       )}
       {farms.length === 1 && <input type="hidden" name="farm" value={farms[0].id} />}
       <label htmlFor={id.days}>{t("Planning.minDays")}</label>
-      <input id={id.days} name="days" type="number" min={OFFICIAL_DOWNTIME.minDays} max={365} required className={field} />
+      <input id={id.days} name="days" type="number" min={OFFICIAL_DOWNTIME.minDays} max={365} required autoFocus={farms.length === 1} {...bad("days")} className={field} />
       <label htmlFor={id.source}>{t("Pay.source")}</label>
       <input id={id.source} name="source" required minLength={3} maxLength={300} className={field} />
       <label htmlFor={id.from}>{t("Pay.validFrom")}</label>
       <input id={id.from} name="from" type="date" required defaultValue={today} className={field} />
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Planning.saveDowntime")}</button>
-        <button type="button" onClick={() => setOpen(false)} className={secondary}>{t("Receivables.cancel")}</button>
+        <button type="button" onClick={close} className={secondary}>{t("Receivables.cancel")}</button>
       </div>
     </form>
   );

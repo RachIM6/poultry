@@ -52,7 +52,7 @@ async function Content() {
                   <bdi dir="ltr">{i.phone}</bdi> · {t(`roles.${i.role}`)}
                   {i.accessUntil && ` · ${t("accessUntil", { date: formatDay(i.accessUntil as FarmDay, lang) })}`}
                 </span>
-                <CancelInvitationButton invitationId={i.id} />
+                <CancelInvitationButton invitationId={i.id} phone={i.phone} />
               </li>
             ))}
           </ul>

@@ -25,8 +25,8 @@ test("the batch dashboard works offline and follows each entry", async ({ page, 
 
     const enter = async (daysAgo: number, dead: string, feedKg: string) => {
       await page.getByLabel("Jour", { exact: true }).fill(farmDaysAgo(daysAgo));
-      await page.getByLabel("Morts").fill(dead);
-      await page.getByLabel("Aliment consommé (kg)").fill(feedKg);
+      await page.getByLabel("Morts", { exact: true }).fill(dead);
+      await page.getByLabel("Aliment consommé (kg)", { exact: true }).fill(feedKg);
       await page.getByRole("button", { name: "Enregistrer la journée" }).click();
     };
     await enter(2, "10", "20");

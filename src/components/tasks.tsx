@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
-import { card, done, field, primary, secondary } from "@/components/ui";
+import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { farmDayOf, farmMinutesOf } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
@@ -368,7 +368,7 @@ function RoutineForm({ routine, today, place, onSave, onCancel }: { routine: Rou
       )}
       <PlaceFields {...place} value={routine ?? undefined} />
       {from === "age" && <p className="text-sm text-ink-2">{t("Tasks.needsHouse")}</p>}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Tasks.saveRoutine")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>

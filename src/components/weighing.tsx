@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
+import { useFieldError } from "@/components/focus";
 import { formatCount, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, FLOCK_MUTATIONS as M, ageOfBatch, sampleStats, uniformityPercent, versusStandard, type BatchDto, type Sample, type WeighingDto } from "@/modules/flock/shared";
@@ -12,7 +13,7 @@ import type { ReferenceData } from "@/modules/reference-data/schema";
 import { curveFor, standardAt } from "@/modules/reference-data/shared";
 
 type StrainCurves = ReferenceData["strains"][number]["curves"];
-import { field, primary } from "@/components/ui";
+import { danger, field, primary } from "@/components/ui";
 
 // SPEC B3 on the phone: type the sample, see the average, uniformity (CV%) and the gap to the strain standard at once.
 // Without a published curve for the strain (OQ5) the gap is not shown: a standard is never guessed.
@@ -39,7 +40,7 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
   const [weights, setWeights] = useState("");
   const [total, setTotal] = useState("");
   const [count, setCount] = useState("");
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const ids = { day: useId(), weights: useId(), total: useId(), count: useId() };
   const sample = readSample(group, weights, total, count);
 
@@ -57,12 +58,13 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
     ].filter(Boolean).join(" · ");
   };
 
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!sample) return setError("errors.INVALID_SAMPLE");
+    const sampleField = !group ? "weights" : parseQuantity(total, "kg") === null ? "total" : "count";
+    if (!sample) return setError("errors.INVALID_SAMPLE", e.currentTarget, sampleField);
     const aggregate = Batch.rehydrate({ ...batch, placedOn: batch.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, batch.status);
     const checked = aggregate.checkWeighing(day as FarmDay, sample, today());
-    if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (!checked.ok) return setError(`errors.${checked.error}`, e.currentTarget, checked.error === "INVALID_SAMPLE" ? sampleField : checked.error.startsWith("DAY_") ? "day" : undefined);
     setError(undefined);
     const id = uuidv7();
     const dto: WeighingDto =
@@ -83,32 +85,32 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
       <form onSubmit={submit} className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor={ids.day}>{t("Weighing.day")}</label>
-          <input id={ids.day} type="date" value={day} max={today()} min={batch.placedOn} onChange={(e) => setDay(e.target.value)} className={field} />
+          <input id={ids.day} name="day" {...bad("day")} type="date" value={day} max={today()} min={batch.placedOn} onChange={(e) => setDay(e.target.value)} className={field} />
         </div>
         <fieldset className="flex flex-wrap gap-4">
           <legend className="sr-only">{t("Weighing.mode")}</legend>
-          <label className="flex items-center gap-2"><input type="radio" name="mode" checked={!group} onChange={() => setGroup(false)} />{t("Weighing.individual")}</label>
-          <label className="flex items-center gap-2"><input type="radio" name="mode" checked={group} onChange={() => setGroup(true)} />{t("Weighing.group")}</label>
+          <label className="flex min-h-11 items-center gap-2"><input type="radio" name="mode" checked={!group} onChange={() => setGroup(false)} />{t("Weighing.individual")}</label>
+          <label className="flex min-h-11 items-center gap-2"><input type="radio" name="mode" checked={group} onChange={() => setGroup(true)} />{t("Weighing.group")}</label>
         </fieldset>
         {group ? (
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
               <label htmlFor={ids.total}>{t("Weighing.totalKg")}</label>
-              <input id={ids.total} value={total} onChange={(e) => setTotal(e.target.value)} inputMode="decimal" dir="ltr" className={field} />
+              <input id={ids.total} name="total" {...bad("total")} value={total} onChange={(e) => setTotal(e.target.value)} inputMode="decimal" dir="ltr" className={field} />
             </div>
             <div className="flex flex-col gap-1">
               <label htmlFor={ids.count}>{t("Weighing.count")}</label>
-              <input id={ids.count} value={count} onChange={(e) => setCount(e.target.value)} inputMode="numeric" pattern="\d*" dir="ltr" className={field} />
+              <input id={ids.count} name="count" {...bad("count")} value={count} onChange={(e) => setCount(e.target.value)} inputMode="numeric" pattern="\d*" dir="ltr" className={field} />
             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-1">
             <label htmlFor={ids.weights}>{t("Weighing.weights")}</label>
-            <textarea id={ids.weights} value={weights} onChange={(e) => setWeights(e.target.value)} rows={3} inputMode="decimal" dir="ltr" className={field} />
+            <textarea id={ids.weights} name="weights" {...bad("weights")} value={weights} onChange={(e) => setWeights(e.target.value)} rows={3} inputMode="decimal" dir="ltr" className={field} />
           </div>
         )}
         <p aria-live="polite">{sample ? describe(sample, day) : ""}</p>
-        {error && <p role="alert">{t(error)}</p>}
+        {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
         <button type="submit" className={primary}>{t("Weighing.save")}</button>
       </form>
       {past.length > 0 && (

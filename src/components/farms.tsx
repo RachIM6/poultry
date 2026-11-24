@@ -12,7 +12,8 @@ import { FARM_MUTATIONS as M, FarmFields, HOUSE_TYPES, HouseFields, type FarmDto
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
-import { field, primary, secondary } from "@/components/ui";
+import { useInline } from "@/components/focus";
+import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC F2–F4. Runs on the static /farms shell: everything comes from and goes to the phone's database (ADR-003).
 
@@ -99,7 +100,7 @@ function Farms(scope: Scope) {
 
 function FarmList({ farms, houses, manage, save }: { farms: FarmDto[]; houses: HouseDto[]; manage: boolean; save: Save }) {
   const t = useTranslations("Farms");
-  const [adding, setAdding] = useState(false);
+  const { open: adding, opener, close } = useInline<"farm">();
   return (
     <>
       {farms.length === 0 ? (
@@ -121,17 +122,17 @@ function FarmList({ farms, houses, manage, save }: { farms: FarmDto[]; houses: H
       {manage &&
         (adding ? (
           <FarmForm
-            onCancel={() => setAdding(false)}
+            onCancel={close}
             onSubmit={async (fields) => {
               const id = uuidv7();
               if (await save({ type: M.createFarm, payload: { id, ...fields } }, { entity: "farm", id, data: { id, ...fields } })) {
-                setAdding(false);
+                close();
                 window.location.hash = id;
               }
             }}
           />
         ) : (
-          <button type="button" onClick={() => setAdding(true)} className={primary}>{t("add")}</button>
+          <button type="button" {...opener("farm")} className={primary}>{t("add")}</button>
         ))}
     </>
   );
@@ -144,8 +145,7 @@ const changed = <T extends object>(before: T, after: T) =>
 function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: HouseDto[]; manage: boolean; save: Save }) {
   const t = useTranslations("Farms");
   const locale = useLocale();
-  const [editing, setEditing] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const { open, opener, close } = useInline<"farm" | "house">();
   const { id, ...stored } = farm;
   // A farm stored before the register's fields has none: not a change to send.
   const current: FarmFields = { holder: null, vet: null, technicianName: null, chickImportApproval: null, registerKeepers: [], ...stored };
@@ -153,14 +153,14 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
   return (
     <>
       <a href="#" className="underline underline-offset-4">{t("back")}</a>
-      {editing ? (
+      {open === "farm" ? (
         <FarmForm
           initial={current}
-          onCancel={() => setEditing(false)}
+          onCancel={close}
           onSubmit={async (fields) => {
             const changes = changed(current, fields);
-            if (Object.keys(changes).length === 0) return setEditing(false);
-            if (await save({ type: M.updateFarm, payload: { id, changes } }, { entity: "farm", id, data: { ...farm, ...changes } })) setEditing(false);
+            if (Object.keys(changes).length === 0) return close();
+            if (await save({ type: M.updateFarm, payload: { id, changes } }, { entity: "farm", id, data: { ...farm, ...changes } })) close();
           }}
         />
       ) : (
@@ -171,7 +171,7 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
           {farm.onssa && (
             <p className="text-sm">{t("onssaUntil", { number: farm.onssa.number, date: formatDay(farm.onssa.expiresOn as FarmDay, locale) })}</p>
           )}
-          {manage && <button type="button" onClick={() => setEditing(true)} className={`${secondary} mt-2 self-start`}>{t("edit")}</button>}
+          {manage && <button type="button" {...opener("farm")} aria-label={t("editNamed", { name: farm.name })} className={`${secondary} mt-2 self-start`}>{t("edit")}</button>}
         </div>
       )}
 
@@ -184,17 +184,17 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
         </ul>
       )}
       {manage &&
-        (adding ? (
+        (open === "house" ? (
           <HouseForm
-            onCancel={() => setAdding(false)}
+            onCancel={close}
             onSubmit={async (fields) => {
               const houseId = uuidv7();
               const data = { id: houseId, farmId: id, ...fields };
-              if (await save({ type: M.createHouse, payload: data }, { entity: "house", id: houseId, data })) setAdding(false);
+              if (await save({ type: M.createHouse, payload: data }, { entity: "house", id: houseId, data })) close();
             }}
           />
         ) : (
-          <button type="button" onClick={() => setAdding(true)} className={primary}>{t("addHouse")}</button>
+          <button type="button" {...opener("house")} className={primary}>{t("addHouse")}</button>
         ))}
     </>
   );
@@ -202,18 +202,18 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
 
 function HouseRow({ house, manage, save }: { house: HouseDto; manage: boolean; save: Save }) {
   const t = useTranslations("Farms");
-  const [editing, setEditing] = useState(false);
+  const { open: editing, opener, close } = useInline<"house">();
   const { id, farmId, ...current } = house;
   if (editing) {
     return (
       <li>
         <HouseForm
           initial={current}
-          onCancel={() => setEditing(false)}
+          onCancel={close}
           onSubmit={async (fields) => {
             const changes = changed(current, fields);
-            if (Object.keys(changes).length === 0) return setEditing(false);
-            if (await save({ type: M.updateHouse, payload: { id, changes } }, { entity: "house", id, data: { id, farmId, ...current, ...changes } })) setEditing(false);
+            if (Object.keys(changes).length === 0) return close();
+            if (await save({ type: M.updateHouse, payload: { id, changes } }, { entity: "house", id, data: { id, farmId, ...current, ...changes } })) close();
           }}
         />
       </li>
@@ -225,7 +225,7 @@ function HouseRow({ house, manage, save }: { house: HouseDto; manage: boolean; s
       <span className="text-sm text-muted">
         {t("houseSummary", { area: formatCount(house.areaM2), capacity: formatCount(house.capacity), type: t(`types.${house.type}`) })}
       </span>
-      {manage && <button type="button" onClick={() => setEditing(true)} className={`${secondary} mt-1 self-start py-2`}>{t("edit")}</button>}
+      {manage && <button type="button" {...opener("house")} aria-label={t("editNamed", { name: house.name })} className={`${secondary} mt-1 self-start py-2`}>{t("edit")}</button>}
     </li>
   );
 }
@@ -280,7 +280,7 @@ function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSub
   };
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      <Field name="name" label={t("name")} defaultValue={initial?.name} required maxLength={120} />
+      <Field name="name" label={t("name")} defaultValue={initial?.name} required maxLength={120} autoFocus />
       <Field name="region" label={t("region")} defaultValue={initial?.region} required maxLength={80} />
       <Field name="province" label={t("province")} defaultValue={initial?.province} required maxLength={80} />
       <Field name="commune" label={t("commune")} defaultValue={initial?.commune} required maxLength={80} />
@@ -326,7 +326,7 @@ function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSub
         ))}
         <button type="button" onClick={() => setKeepers((ks) => [...ks, { key: uuidv7() }])} className={`${secondary} self-start`}>{t("addKeeper")}</button>
       </fieldset>
-      {invalid && <p role="alert">{t("invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("invalid")}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("cancel")}</button>
@@ -348,7 +348,7 @@ function HouseForm({ initial, onSubmit, onCancel }: { initial?: HouseFields; onS
   };
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
-      <Field name="houseName" label={t("houseName")} defaultValue={initial?.name} required maxLength={80} />
+      <Field name="houseName" label={t("houseName")} defaultValue={initial?.name} required maxLength={80} autoFocus />
       <Field name="areaM2" label={t("areaM2")} defaultValue={initial?.areaM2} required inputMode="numeric" pattern="\d+" dir="ltr" />
       <Field name="capacity" label={t("capacity")} defaultValue={initial?.capacity} required inputMode="numeric" pattern="\d+" dir="ltr" />
       <div className="flex flex-col gap-1">
@@ -357,7 +357,7 @@ function HouseForm({ initial, onSubmit, onCancel }: { initial?: HouseFields; onS
           {HOUSE_TYPES.map((type) => <option key={type} value={type}>{t(`types.${type}`)}</option>)}
         </select>
       </div>
-      {invalid && <p role="alert">{t("invalid")}</p>}
+      {invalid && <p role="alert" className={danger}>{t("invalid")}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("cancel")}</button>

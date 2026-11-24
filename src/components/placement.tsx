@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { field, primary, secondary, warn } from "@/components/ui";
+import { danger, field, primary, secondary, warn } from "@/components/ui";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import type { CleanoutDto } from "@/modules/biosecurity/shared";
@@ -207,7 +207,7 @@ export function PlacementForm({
             : t("Batches.downtimeOccupied", { house: farmHouses.find((h) => h.id === warning.houseId)?.name ?? "" })}
         </p>
       )}
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <div className="flex gap-3">
         <button type="submit" className={primary}>{t("Batches.save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Batches.cancel")}</button>

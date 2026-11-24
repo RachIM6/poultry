@@ -15,7 +15,8 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { FileUpload, useOnline } from "@/components/local-screen";
-import { card, field, primary, secondary } from "@/components/ui";
+import { useFieldError, useInline } from "@/components/focus";
+import { card, danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
 // crew, bank fees) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts
@@ -46,7 +47,7 @@ function Expenses(scope: Scope) {
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf("treasuryAccount", "expense", "batch", "house").toArray(), [userId, organizationId]);
   const [message, setMessage] = useState<string>();
-  const [adding, setAdding] = useState(false);
+  const { open: adding, opener, close } = useInline<"account">();
   const [uploadError, setUploadError] = useState<string>();
   const online = useOnline();
   const queued = useLiveQuery(() => db.outbox.toArray(), [userId, organizationId]);
@@ -62,6 +63,7 @@ function Expenses(scope: Scope) {
   const batches = of<{ id: string; houseId: string; placedOn: string; status: string }>("batch")
     .filter((b) => b.status === "open")
     .map((b) => ({ id: b.id, label: t("Expenses.batch", { house: houses.find((h) => h.id === b.houseId)?.name ?? "—", date: formatDay(b.placedOn as FarmDay, locale) }) }));
+  const line = (e: ExpenseDto) => t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) });
   const recent = of<ExpenseDto>("expense").sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 20);
 
   const write = async (mutation: { type: string; payload: unknown }, entity: string, data: { id: string }) => {
@@ -81,17 +83,17 @@ function Expenses(scope: Scope) {
       <ExpenseForm key={prefill.toString()} prefill={prefill} accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
 
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.recent")}</h2>
-      {uploadError && <p role="alert" className="text-brick-fg">{t(uploadError)}</p>}
+      {uploadError && <p role="alert" className={danger}>{t(uploadError)}</p>}
       {recent.length === 0 ? (
         <p>{t("Expenses.none")}</p>
       ) : (
         <ul className="flex flex-col gap-2" aria-label={t("Expenses.recent")}>
           {recent.map((e) => (
             <li key={e.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
-              <span>{t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) })}</span>
+              <span>{line(e)}</span>
               {/* FN10: the receipt photo goes up once the expense is on the server and the phone is online (ADR-011) */}
               {e.receiptFileId ? (
-                <a href={`/api/files/${e.receiptFileId}`} className="underline underline-offset-4">{t("Expenses.receipt")}</a>
+                <a href={`/api/files/${e.receiptFileId}`} aria-label={t("Expenses.receiptOf", { expense: line(e) })} className="underline underline-offset-4">{t("Expenses.receipt")}</a>
               ) : unsent.has(`expense:${e.id}`) || !online ? (
                 <span className="text-sm text-ink-2">{t("Expenses.receiptMissing")}</span>
               ) : (
@@ -109,12 +111,12 @@ function Expenses(scope: Scope) {
       {adding ? (
         <AccountForm
           onSave={async (a) => {
-            if (await write({ type: F.createTreasuryAccount, payload: a }, "treasuryAccount", a)) setAdding(false);
+            if (await write({ type: F.createTreasuryAccount, payload: a }, "treasuryAccount", a)) close();
           }}
-          onCancel={() => setAdding(false)}
+          onCancel={close}
         />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t("Expenses.addAccount")}</button>
+        <button type="button" {...opener("account")} className={secondary}>{t("Expenses.addAccount")}</button>
       )}
     </>
   );
@@ -132,7 +134,7 @@ function Field({ label, children }: { label: string; children: (id: string) => R
 
 function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URLSearchParams, "get">; accounts: TreasuryAccountDto[]; batches: { id: string; label: string }[]; onSave: (e: ExpenseDto) => Promise<boolean> }) {
   const t = useTranslations();
-  const [error, setError] = useState<string>();
+  const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [key, setKey] = useState(0); // a new key empties the form after a save
   const pre = (name: string) => (key === 0 ? (prefill.get(name) ?? undefined) : undefined); // the first form only
   const [bank, setBank] = useState(() => bankOnly(pre("category") ?? "")); // FC9 (T119): bank fees are paid from a bank account only
@@ -143,11 +145,11 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
     const data = new FormData(e.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const amount = parseCentimes(get("amount"));
-    if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY");
+    if (amount === null || amount <= 0n) return setError("errors.INVALID_QUANTITY", e.currentTarget, "amount");
     const vat = parseCentimes(get("vat") || "0"); // SPEC-finance FN9: part of the total
-    if (vat === null) return setError("errors.INVALID_INPUT");
-    if (vat > amount) return setError("errors.VAT_MORE_THAN_AMOUNT");
-    if (get("day") > today()) return setError("errors.DAY_IN_FUTURE");
+    if (vat === null) return setError("errors.INVALID_INPUT", e.currentTarget, "vat");
+    if (vat > amount) return setError("errors.VAT_MORE_THAN_AMOUNT", e.currentTarget, "vat");
+    if (get("day") > today()) return setError("errors.DAY_IN_FUTURE", e.currentTarget, "day");
     // "from" is "credit", "cash", "bank", or a treasury account's id
     const from = get("from");
     const account = accounts.find((a) => a.id === from);
@@ -155,7 +157,7 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
     const to = get("allocation");
     const day = get("day") || today();
     const paidFrom = (account ? account.kind : from) as ExpenseDto["paidFrom"];
-    if (bank && account?.kind !== "bank") return setError("Expenses.bankFeesAccount");
+    if (bank && account?.kind !== "bank") return setError("Expenses.bankFeesAccount", e.currentTarget, "from");
     setError(undefined);
     const saved = await onSave({
       id: uuidv7(),
@@ -184,11 +186,11 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
           </select>
         )}
       </Field>
-      <Field label={t("Expenses.amount")}>{(id) => <input id={id} name="amount" defaultValue={pre("amount")} inputMode="decimal" required dir="ltr" className={field} />}</Field>
-      <Field label={t("Sale.vat")}>{(id) => <input id={id} name="vat" inputMode="decimal" dir="ltr" className={field} />}</Field>
+      <Field label={t("Expenses.amount")}>{(id) => <input id={id} name="amount" defaultValue={pre("amount")} inputMode="decimal" required dir="ltr" {...bad("amount")} className={field} />}</Field>
+      <Field label={t("Sale.vat")}>{(id) => <input id={id} name="vat" inputMode="decimal" dir="ltr" {...bad("vat")} className={field} />}</Field>
       <Field label={t("Expenses.from")}>
         {(id) => (
-          <select id={id} name="from" defaultValue={pre("from")} className={field}>
+          <select id={id} name="from" defaultValue={pre("from")} {...bad("from")} className={field}>
             {!bank && accounts.length === 0 && <option value="cash">{t("Expenses.kinds.cash")}</option>}
             {sources.map((a) => <option key={a.id} value={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</option>)}
             {!bank && accounts.length === 0 && <option value="bank">{t("Expenses.kinds.bank")}</option>}
@@ -206,9 +208,9 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
         )}
       </Field>
       <Field label={t("Expenses.month")}>{(id) => <input id={id} name="month" type="month" defaultValue={(pre("day") ?? today()).slice(0, 7)} max={today().slice(0, 7)} className={field} />}</Field>
-      <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={pre("day") ?? today()} max={today()} required className={field} />}</Field>
+      <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={pre("day") ?? today()} max={today()} required {...bad("day")} className={field} />}</Field>
       <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
-      {error && <p role="alert">{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
       <button type="submit" className={primary}>{t("Expenses.save")}</button>
     </form>
   );
@@ -225,7 +227,7 @@ function AccountForm({ onSave, onCancel }: { onSave: (a: TreasuryAccountDto) => 
     <form onSubmit={submit} className={card}>
       <Field label={t("Expenses.kind")}>
         {(id) => (
-          <select id={id} name="kind" className={field}>
+          <select id={id} name="kind" autoFocus className={field}>
             {TREASURY_KINDS.map((k) => <option key={k} value={k}>{t(`Expenses.kinds.${k}`)}</option>)}
           </select>
         )}

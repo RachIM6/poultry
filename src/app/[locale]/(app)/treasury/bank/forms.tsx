@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent } from "react";
 import { addStatementAction, importAction, matchAction, type ImportState } from "./actions";
+import { OfflineHint, unsent, useOnline } from "@/components/online";
 import { danger, field, primary, secondary, table } from "@/components/ui";
 import { Num } from "@/components/num";
 import { Link } from "@/i18n/navigation";
@@ -28,12 +29,13 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
   const [signed, setSigned] = useState(false);
   const [state, setState] = useState<ImportState>({});
   const [pending, startTransition] = useTransition();
+  const online = useOnline();
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
     const file = data.get("file");
     if (file instanceof File && file.size > maxBytes) return setState({ messageKey: "errors.IMPORT_TOO_LARGE" }); // not sent at all
-    startTransition(async () => setState(await importAction({}, data)));
+    startTransition(async () => setState(await unsent(importAction({}, data))));
   };
   const number = (name: string, label: string, value: number) => (
     <label className="flex flex-col gap-1">
@@ -148,9 +150,10 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
           ))}
         </section>
       )}
+      <OfflineHint online={online} />
       <div className="flex flex-wrap gap-2">
-        <button type="submit" name="intent" value="preview" disabled={pending} className={secondary}>{t("preview")}</button>
-        <button type="submit" name="intent" value="import" disabled={pending || !preview} className={primary}>{t("confirmImport")}</button>
+        <button type="submit" name="intent" value="preview" disabled={pending || !online} className={secondary}>{t("preview")}</button>
+        <button type="submit" name="intent" value="import" disabled={pending || !preview || !online} className={primary}>{t("confirmImport")}</button>
       </div>
     </form>
   );
@@ -166,10 +169,12 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
   const t = useTranslations("Bank");
   const tAll = useTranslations();
   const [state, action, pending] = useActionState(matchAction, {});
+  const online = useOnline();
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="statementId" value={statementId} />
       {state.messageKey && <p role="alert" className={danger}>{tAll(state.messageKey)}</p>}
+      {canWrite && <OfflineHint online={online} />}
       <table className={table}>
         <thead>
           <tr>
@@ -193,7 +198,7 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
                     {t("importedTicked")}
                   </span>
                 ) : l.lineId && canWrite ? (
-                  <button type="submit" name="tick" value={l.lineId} disabled={pending} aria-label={t("tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>{t("tick")}</button>
+                  <button type="submit" name="tick" value={l.lineId} disabled={pending || !online} aria-label={t("tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>{t("tick")}</button>
                 ) : (
                   <span className="flex flex-col gap-1">
                     <span className="text-ink-2">{t(l.lineId ? "importedToTick" : "importedMissing")}</span>
@@ -217,6 +222,7 @@ export function StatementForm({ treasuryId, today }: { treasuryId: string; today
   const tAll = useTranslations();
   const locale = useLocale();
   const [state, action, pending] = useActionState(addStatementAction, {});
+  const online = useOnline();
   const badClosing = state.messageKey === "errors.INVALID_INPUT"; // the server reads only the closing balance itself
   return (
     <form action={action} className="flex flex-col gap-3">
@@ -232,7 +238,8 @@ export function StatementForm({ treasuryId, today }: { treasuryId: string; today
         <span id="closing-hint" className="text-sm text-ink-2">{t("closingHint")}</span>
       </div>
       {state.messageKey && <p id="closing-error" role="alert" className={danger}>{tAll(state.messageKey)}</p>}
-      <button type="submit" disabled={pending} className={primary}>{t("save")}</button>
+      <OfflineHint online={online} />
+      <button type="submit" disabled={pending || !online} className={primary}>{t("save")}</button>
     </form>
   );
 }
@@ -244,10 +251,12 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
   const t = useTranslations("Bank");
   const tAll = useTranslations();
   const [state, action, pending] = useActionState(matchAction, {});
+  const online = useOnline();
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="statementId" value={statementId} />
       {state.messageKey && <p role="alert" className={danger}>{tAll(state.messageKey)}</p>}
+      {canWrite && <OfflineHint online={online} />}
       <table className={table}>
         <thead>
           <tr>
@@ -271,7 +280,7 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
                   <span className="flex items-center gap-2">
                     {l.ticked && <span><span aria-hidden="true">✓</span><span className="sr-only">{t("ticked")}</span></span>}
                     {canWrite && (
-                      <button type="submit" name={l.ticked ? "untick" : "tick"} value={l.id} disabled={pending} aria-label={t(l.ticked ? "untickOf" : "tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>
+                      <button type="submit" name={l.ticked ? "untick" : "tick"} value={l.id} disabled={pending || !online} aria-label={t(l.ticked ? "untickOf" : "tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>
                         {t(l.ticked ? "untick" : "tick")}
                       </button>
                     )}

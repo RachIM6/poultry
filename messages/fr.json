@@ -13,7 +13,10 @@
   "Offline": {
     "title": "Pas de connexion",
     "body": "Cette page n'est pas encore enregistrée sur ce téléphone. Les pages déjà ouvertes restent disponibles.",
-    "home": "Accueil"
+    "home": "Accueil",
+    "online": "Hors ligne : à faire une fois connecté.",
+    "failed": "Pas de réseau ou erreur du serveur : rien n’a été enregistré. Réessayez.",
+    "retry": "Réessayer"
   },
   "Install": {
     "title": "Installer l'application",

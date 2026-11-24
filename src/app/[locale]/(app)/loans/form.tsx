@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { OfflineHint, unsent, useOnline } from "@/components/online";
 import { danger, field, primary, secondary } from "@/components/ui";
 import { createLoanAction, createSubsidyAction, discardLoanAction, payInstallmentAction, scheduleAction, type LoanState } from "./actions";
 
@@ -19,13 +20,14 @@ export function LoanForm({ today, banks }: { today: string; banks: { id: string;
   const [opening, setOpening] = useState(false);
   const [state, setState] = useState<LoanState>({});
   const [pending, startTransition] = useTransition();
+  const online = useOnline();
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const data = new FormData(form);
     startTransition(async () => {
-      const created = await createLoanAction(data);
+      const created = await unsent(createLoanAction(data));
       setState(created);
       if (!created.ok) return;
       form.reset();
@@ -89,7 +91,8 @@ export function LoanForm({ today, banks }: { today: string; banks: { id: string;
           </label>
         </div>
         {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
-        <button type="submit" disabled={pending} className={primary}>{t("Loans.save")}</button>
+        <OfflineHint online={online} />
+        <button type="submit" disabled={pending || !online} className={primary}>{t("Loans.save")}</button>
       </fieldset>
     </form>
   );
@@ -104,13 +107,14 @@ export function SubsidyForm({ today, banks, assets }: { today: string; banks: { 
   const [id, setId] = useState(() => uuidv7());
   const [state, setState] = useState<LoanState>({});
   const [pending, startTransition] = useTransition();
+  const online = useOnline();
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const data = new FormData(form);
     startTransition(async () => {
-      const created = await createSubsidyAction(data);
+      const created = await unsent(createSubsidyAction(data));
       setState(created);
       if (!created.ok) return;
       form.reset();
@@ -157,7 +161,8 @@ export function SubsidyForm({ today, banks, assets }: { today: string; banks: { 
           ))}
         </fieldset>
         {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
-        <button type="submit" disabled={pending} className={primary}>{t("Subsidies.save")}</button>
+        <OfflineHint online={online} />
+        <button type="submit" disabled={pending || !online} className={primary}>{t("Subsidies.save")}</button>
       </fieldset>
     </form>
   );
@@ -168,19 +173,21 @@ export function ScheduleForm({ loanId, children }: { loanId: string; children: R
   const t = useTranslations();
   const [state, setState] = useState<LoanState>({});
   const [pending, startTransition] = useTransition();
+  const online = useOnline();
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter);
-    startTransition(async () => setState(await scheduleAction(data)));
+    startTransition(async () => setState(await unsent(scheduleAction(data))));
   };
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
       <input type="hidden" name="loanId" value={loanId} />
       {children}
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
+      <OfflineHint online={online} />
       <div className="flex flex-wrap gap-2">
-        <button type="submit" name="intent" value="save" disabled={pending} className={secondary}>{t("Loans.saveRows")}</button>
-        <button type="submit" name="intent" value="confirm" disabled={pending} className={primary}>{t("Loans.confirm")}</button>
+        <button type="submit" name="intent" value="save" disabled={pending || !online} className={secondary}>{t("Loans.saveRows")}</button>
+        <button type="submit" name="intent" value="confirm" disabled={pending || !online} className={primary}>{t("Loans.confirm")}</button>
       </div>
     </form>
   );
@@ -192,10 +199,11 @@ const ACTIONS = { pay: payInstallmentAction, discard: discardLoanAction };
 export function LoanActionForm({ kind, submit, children }: { kind: keyof typeof ACTIONS; submit: string; children: ReactNode }) {
   const t = useTranslations();
   const [state, action, pending] = useActionState(ACTIONS[kind], {});
+  const online = useOnline();
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
       {children}
-      <button type="submit" disabled={pending} className={secondary}>{submit}</button>
+      <button type="submit" disabled={pending || !online} className={secondary}>{submit}</button>
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={`basis-full ${state.ok ? "" : danger}`}>{t(state.messageKey)}</p>}
     </form>
   );

@@ -16,10 +16,8 @@ const live = (clock: Clock) => ({ OR: [{ accessUntil: null }, { accessUntil: { g
 const liveMemberships = (userId: string, clock: Clock) =>
   db.membership.findMany({ where: { userId, ...live(clock) }, orderBy: { createdAt: "asc" }, include: { organization: { select: { name: true } } } });
 /** The membership a request opens: the chosen organisation when it is a live membership, else the oldest. */
-const openedMembership = async (userId: string, headers: Headers, clock: Clock) => {
-  const memberships = await liveMemberships(userId, clock);
-  return memberships.find((m) => m.organizationId === chosenOrganization(headers)) ?? memberships[0];
-};
+const opened = <M extends { organizationId: string }>(memberships: M[], headers: Headers) => memberships.find((m) => m.organizationId === chosenOrganization(headers)) ?? memberships[0];
+const openedMembership = async (userId: string, headers: Headers, clock: Clock) => opened(await liveMemberships(userId, clock), headers);
 
 /**
  * ADR-006 choke point: session cookie → membership → tenant context. A signed-in user with no membership onboards.
@@ -43,13 +41,12 @@ export type MyOrganizations = {
 export async function myOrganizations(headers: Headers, clock: Clock = systemClock): Promise<Result<MyOrganizations, "UNAUTHENTICATED">> {
   const session = await getSession(headers);
   if (!session) return fail("UNAUTHENTICATED");
-  const [memberships, invitations, ctx] = await Promise.all([
+  const [memberships, invitations] = await Promise.all([
     liveMemberships(session.userId, clock),
     session.phone ? db.invitation.findMany({ where: { phoneNumber: session.phone, expiresAt: { gt: clock.now() } }, include: { organization: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
-    getTenantContext(headers, clock),
   ]);
   return ok({
-    current: ctx.ok ? ctx.value.organizationId : null,
+    current: opened(memberships, headers)?.organizationId ?? null, // the one getTenantContext opens
     memberships: memberships.map((m) => ({ organizationId: m.organizationId, name: m.organization.name, role: m.role, accessUntil: m.accessUntil && m.accessUntil.toISOString().slice(0, 10) })),
     invitations: invitations
       .filter((i) => !memberships.some((m) => m.organizationId === i.organizationId))

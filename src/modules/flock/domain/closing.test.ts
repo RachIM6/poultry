@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { batchCost, checkPaidOnDelivery } from "./closing";
+import { batchCost, checkPaidOnDelivery, liveCostPerKg } from "./closing";
 
 // Reference batch (as kpi.test.ts), computed by hand. 10 050 chicks placed at 4,50 DH = 45 225 DH. Consumptions valued
 // at weighted average cost: feed 139 650 DH + vaccines 1 200 DH + medicines 1 150 DH = 142 000 DH. Other costs:
@@ -28,5 +28,21 @@ describe("paid on delivery (SPEC-finance §9)", () => {
     expect(check(1n).ok).toBe(true);
     expect(check(600_001n)).toEqual({ ok: false, error: "PAID_MORE_THAN_OWED" });
     expect(check(0n)).toEqual({ ok: false, error: "INVALID_INPUT" });
+  });
+});
+
+// Batch.dc.html: 60 000 DH spent so far on 9 800 birds weighing 1 450 g on average = 14 210 kg live.
+// 6 000 000 centimes ÷ 14 210 kg = 422,238 centimes → 4,22 DH per kg.
+describe("live cost per kg of an open batch", () => {
+  it("divides the costs so far by birds on hand × the latest average weight, half up", () => {
+    expect(liveCostPerKg(6_000_000n, 9_800, 1_450)).toBe(422n);
+    expect(liveCostPerKg(1n, 1, 2_000)).toBe(1n); // 0,5 → 1
+    expect(liveCostPerKg(1n, 1, 2_001)).toBe(0n); // 0,4998 → 0
+  });
+
+  it("has none without a cost, a bird or a weighing", () => {
+    expect(liveCostPerKg(0n, 9_800, 1_450)).toBeNull();
+    expect(liveCostPerKg(6_000_000n, 0, 1_450)).toBeNull();
+    expect(liveCostPerKg(6_000_000n, 9_800, 0)).toBeNull();
   });
 });

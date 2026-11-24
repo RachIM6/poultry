@@ -36,6 +36,14 @@ import { card, danger, field, primary, secondary } from "@/components/ui";
 
 const today = () => farmDayOf(new Date());
 
+// WebSales.dc.html: on wide screens each list reads as a table, one row per buyer or cheque, its parts in columns that
+// every row shares (subgrid), under a header row hidden from screen readers (each cell says what it is); on the phone,
+// cards (`contents` leaves a card's parts as they were).
+const table = "flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)_auto] lg:gap-0 lg:overflow-hidden lg:rounded-[18px] lg:bg-card lg:shadow-[0_1px_2px_rgba(36,33,28,.06),0_6px_18px_rgba(36,33,28,.05)]";
+const head = "hidden px-4 py-2.5 text-sm font-medium text-ink-2 lg:col-span-full lg:grid lg:grid-cols-subgrid lg:gap-x-6 lg:bg-shell";
+const row = `${card} lg:col-span-full lg:grid lg:grid-cols-subgrid lg:items-center lg:gap-x-6 lg:rounded-none lg:border-t lg:border-line lg:shadow-none`;
+const cell = "contents lg:flex lg:flex-col lg:gap-1";
+
 export function ReceivablesScreen() {
   const t = useTranslations("Sync");
   const scope = useLiveQuery(() => currentScope().then((s) => s ?? null), [], undefined);
@@ -143,14 +151,18 @@ function Receivables(scope: Scope) {
       {pending.length === 0 ? (
         <p>{t("Receivables.portfolioNone")}</p>
       ) : (
-        <ul className="flex flex-col gap-3" aria-label={t("Receivables.portfolio")}>
+        <ul className={table} aria-label={t("Receivables.portfolio")}>
+          <li aria-hidden="true" className={head}>
+            <span>{t("Receivables.colInstrument")}</span>
+            <span>{t("Receivables.colState")}</span>
+          </li>
           {pending.map((i) => (
-            <li key={i.id} className={card}>
+            <li key={i.id} className={row}>
               <span>
                 {t("Receivables.instrument", { kind: i.kind, number: i.number ?? "none", buyer: nameOf(i.buyerId), amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
               </span>
               <span className="text-muted">{t(`Receivables.states.${i.state}`)}</span>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 lg:justify-end">
                 {(["remitted", "cashed", "unpaid"] as const).filter((to) => seller && checkTransition(i.state, to).ok).map((to) => (
                   <button key={to} type="button" onClick={() => move(i, to)} className={secondary}>
                     {t(to === "remitted" ? "Receivables.remit" : to === "cashed" ? "Receivables.cash" : "Receivables.unpaid")}
@@ -181,32 +193,40 @@ function Receivables(scope: Scope) {
       {owing.length === 0 ? (
         <p>{t("Receivables.none")}</p>
       ) : (
-        <ul className="flex flex-col gap-3" aria-label={t("Receivables.title")}>
+        <ul className={table} aria-label={t("Receivables.title")}>
+          <li aria-hidden="true" className={head}>
+            <span>{t("Receivables.colBuyer")}</span>
+            <span>{t("Receivables.colDetail")}</span>
+          </li>
           {owing.map((b) => {
             const balance = balances.get(b.id)!;
             const instruments = sales.filter((s) => s.buyerId === b.id && s.instrument).sort((x, y) => x.instrument!.dueOn.localeCompare(y.instrument!.dueOn));
             return (
-              <li key={b.id} className={card}>
+              <li key={b.id} className={row}>
                 <span className="font-semibold">{t("Receivables.owes", { buyer: b.name, amount: formatMoney(balance) })}</span>
-                <span className="text-sm text-muted">
-                  {AGEING_BUCKETS.flatMap((bucket) => {
-                    const amount = ageOf(b.id)[bucket];
-                    return amount > 0n ? [t(`Receivables.ageing.${bucket}`, { amount: formatMoney(amount) })] : [];
-                  }).join(" · ")}
-                </span>
-                {b.creditLimitCentimes && <span className="text-sm">{t("Receivables.limit", { amount: formatMoney(BigInt(b.creditLimitCentimes)) })}</span>}
-                {instruments.map((s) => (
-                  <span key={s.id}>
-                    {t("Receivables.due", {
-                      method: s.paymentMethod ?? "",
-                      number: s.instrument!.number,
-                      amount: formatMoney(BigInt(s.amountCentimes ?? 0)),
-                      date: formatDay(s.instrument!.dueOn as FarmDay, locale),
-                    })}
+                <span className={cell}>
+                  <span className="text-sm text-muted">
+                    {AGEING_BUCKETS.flatMap((bucket) => {
+                      const amount = ageOf(b.id)[bucket];
+                      return amount > 0n ? [t(`Receivables.ageing.${bucket}`, { amount: formatMoney(amount) })] : [];
+                    }).join(" · ")}
                   </span>
-                ))}
+                  {b.creditLimitCentimes && <span className="text-sm">{t("Receivables.limit", { amount: formatMoney(BigInt(b.creditLimitCentimes)) })}</span>}
+                  {instruments.map((s) => (
+                    <span key={s.id}>
+                      {t("Receivables.due", {
+                        method: s.paymentMethod ?? "",
+                        number: s.instrument!.number,
+                        amount: formatMoney(BigInt(s.amountCentimes ?? 0)),
+                        date: formatDay(s.instrument!.dueOn as FarmDay, locale),
+                      })}
+                    </span>
+                  ))}
+                </span>
                 {!seller ? null : paying === b.id ? (
-                  <PaymentForm buyerId={b.id} balance={balance} onSave={save} onCancel={close} />
+                  <div className="contents lg:col-span-full lg:block lg:max-w-xl">
+                    <PaymentForm buyerId={b.id} balance={balance} onSave={save} onCancel={close} />
+                  </div>
                 ) : (
                   <button type="button" {...opener(b.id)} aria-label={t("Receivables.payNamed", { buyer: b.name, amount: formatMoney(balance) })} className={secondary}>{t("Receivables.pay")}</button>
                 )}
@@ -218,7 +238,7 @@ function Receivables(scope: Scope) {
       {owner && buyers.length > 0 && (
         <>
           <h2 className="text-[17px] font-semibold text-ink-2">{t("Receivables.limits")}</h2>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
             {[...buyers].sort((x, y) => x.name.localeCompare(y.name)).map((b) => <LimitRow key={b.id} buyer={b} onSave={(limit) => setLimit(b, limit)} />)}
           </ul>
         </>

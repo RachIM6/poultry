@@ -762,7 +762,13 @@
     "day": "ي{age}",
     "chartLabel": "متوسط الوزن حسب العمر: {points}",
     "waterFeed": "الماء / العلف",
-    "waterFeedOn": "لتر لكل كغ، اليوم {day}"
+    "waterFeedOn": "لتر لكل كغ، اليوم {day}",
+    "costPerKg": "التكلفة / كغ حي",
+    "costPerKgValue": "{cost} / كغ",
+    "costPerKgNote": "{cost} مصروفة · {kg} حي تقديرًا",
+    "costOffline": "متاح عبر الإنترنت فقط",
+    "costNoWeighing": "بعد الوزن",
+    "costNone": "لا توجد تكاليف بعد"
   },
   "Vaccination": {
     "title": "التلقيحات",
@@ -967,7 +973,11 @@
     "awaitingLine": "بيع بالأجل بمبلغ {amount} إلى {buyer} بتاريخ {date}: يتجاوز السقف وينتظر موافقة المالك",
     "approve": "موافقة",
     "saveLimit": "حفظ السقف",
-    "totalLabel": "{count, plural, one {للتحصيل · مشترٍ واحد} other {للتحصيل · {n} مشترين}}"
+    "totalLabel": "{count, plural, one {للتحصيل · مشترٍ واحد} other {للتحصيل · {n} مشترين}}",
+    "colInstrument": "الشيك أو الكمبيالة",
+    "colState": "الحالة",
+    "colBuyer": "المشتري والرصيد",
+    "colDetail": "الأقدمية والسقف والآجال"
   },
   "Origin": {
     "title": "وثيقة مصدر الدواجن",

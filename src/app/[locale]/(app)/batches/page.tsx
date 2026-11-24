@@ -6,7 +6,7 @@ export default function Batches() {
   const t = useTranslations();
   return (
     <>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4 lg:max-w-6xl">
         <h1 className="text-2xl font-semibold">{t("Batches.title")}</h1>
         <BatchesScreen />
       </main>

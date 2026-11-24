@@ -762,7 +762,13 @@
     "day": "J{age}",
     "chartLabel": "Poids moyen par âge : {points}",
     "waterFeed": "Eau / aliment",
-    "waterFeedOn": "L par kg, jour {day}"
+    "waterFeedOn": "L par kg, jour {day}",
+    "costPerKg": "Coût / kg vif",
+    "costPerKgValue": "{cost} / kg",
+    "costPerKgNote": "{cost} engagés · {kg} vifs estimés",
+    "costOffline": "En ligne seulement",
+    "costNoWeighing": "Après une pesée",
+    "costNone": "Aucun coût encore"
   },
   "Vaccination": {
     "title": "Vaccinations",
@@ -967,7 +973,11 @@
     "awaitingLine": "Vente à crédit de {amount} à {buyer} le {date} : dépasse le plafond, attend l’accord du propriétaire",
     "approve": "Approuver",
     "saveLimit": "Enregistrer le plafond",
-    "totalLabel": "{count, plural, one {À encaisser · 1 acheteur} other {À encaisser · {n} acheteurs}}"
+    "totalLabel": "{count, plural, one {À encaisser · 1 acheteur} other {À encaisser · {n} acheteurs}}",
+    "colInstrument": "Chèque ou effet",
+    "colState": "État",
+    "colBuyer": "Acheteur et solde",
+    "colDetail": "Ancienneté, plafond et échéances"
   },
   "Origin": {
     "title": "Document d’origine des volailles",

@@ -11,7 +11,7 @@ export { PRODUCTION_TYPES, type ProductionType } from "@/modules/reference-data/
 // SPEC B1: placement, age, closing.
 export { Batch, ageOfBatch, ageOn, birdsPlaced, birdsStarted, canJoinHouse, doaClaim } from "@/modules/flock/domain/batch";
 export type { BatchStatus, PlacementError } from "@/modules/flock/domain/batch";
-export { batchCost, checkPaidOnDelivery, chicksCost } from "@/modules/flock/domain/closing";
+export { batchCost, checkPaidOnDelivery, chicksCost, liveCostPerKg } from "@/modules/flock/domain/closing";
 export { birdsOnHand } from "@/modules/flock/domain/birds";
 export { correctPlacement, houseFreeFrom, recordedOf } from "@/modules/flock/domain/correction"; // B1, the correction form's chunk
 export type { CorrectionError, PlacementCorrection } from "@/modules/flock/domain/correction";

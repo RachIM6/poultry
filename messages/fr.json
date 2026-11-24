@@ -1429,7 +1429,7 @@
     "lender": "Prêteur",
     "bank": "Compte bancaire du déblocage et des échéances",
     "noBank": "Ajoutez d’abord un compte bancaire :",
-    "opening": "Emprunt antérieur à Dawra, repris dans les soldes d’ouverture : aucun déblocage n’est comptabilisé",
+    "opening": "Emprunt antérieur à l’application, repris dans les soldes d’ouverture : aucun déblocage n’est comptabilisé",
     "principal": "Capital emprunté",
     "principalOpening": "Capital restant dû à l’ouverture",
     "rate": "Taux annuel du contrat, en %",

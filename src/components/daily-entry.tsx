@@ -151,7 +151,7 @@ function Stepper({ name, label, defaultValue, step, decimal = false, big = false
     <div className="flex items-center justify-between gap-3">
       <label htmlFor={id} className={big ? "text-lg font-semibold" : "text-base text-ink-2"}>{label}</label>
       <div className="inline-flex items-center rounded-2xl bg-shell">
-        <button type="button" aria-label={t("minus", { step: String(step) })} onClick={() => bump(-step)} className={button}>−</button>
+        <button type="button" aria-label={t("minus", { step: String(step), label })} onClick={() => bump(-step)} className={button}>−</button>
         <input
           id={id}
           name={name}
@@ -163,7 +163,7 @@ function Stepper({ name, label, defaultValue, step, decimal = false, big = false
           placeholder="0"
           className={`${big ? "w-24 text-[28px]" : "w-20 text-xl"} min-w-0 bg-transparent text-center font-semibold placeholder:text-muted`}
         />
-        <button type="button" aria-label={t("plus", { step: String(step) })} onClick={() => bump(step)} className={button}>+</button>
+        <button type="button" aria-label={t("plus", { step: String(step), label })} onClick={() => bump(step)} className={button}>+</button>
       </div>
     </div>
   );

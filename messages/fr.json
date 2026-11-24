@@ -439,8 +439,8 @@
     "save": "Enregistrer la journée",
     "nothing": "Rien n’a changé.",
     "onHand": "Oiseaux présents : {birds}",
-    "minus": "Moins {step}",
-    "plus": "Plus {step}",
+    "minus": "Moins {step} · {label}",
+    "plus": "Plus {step} · {label}",
     "feedHint": "Déduit du stock à l’enregistrement.",
     "offline": "Marche sans réseau · envoi automatique"
   },

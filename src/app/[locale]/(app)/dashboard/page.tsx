@@ -94,7 +94,7 @@ async function Money({ ctx }: { ctx: TenantContext }) {
       {cash !== null && (
         <Link href="/treasury" className={row}>
           <span className="text-sm">{t("Today.cash")}</span>
-          <b className="text-lg font-semibold">{formatMoney(cash)}</b>
+          <b dir="ltr" className="text-lg font-semibold">{formatMoney(cash)}</b>
         </Link>
       )}
       {last && last.costPerKgCentimes !== null && (
@@ -103,7 +103,7 @@ async function Money({ ctx }: { ctx: TenantContext }) {
             <span className="text-sm">{t("Today.lastBatch", { house: last.houseName })}</span>
             <span className="text-xs text-sand">{t("Today.margin", { margin: formatMoney(last.marginCentimes) })}</span>
           </span>
-          <b className="text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
+          <b className="whitespace-nowrap text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
         </Link>
       )}
     </MoneyCard>

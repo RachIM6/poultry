@@ -100,7 +100,8 @@ export function FileUpload({ url, accept, label, camera = false, onError }: { ur
     }
   };
   return (
-    <label className={secondary}>
+    // The input is sr-only, so the label shows its focus ring (WCAG 2.4.7).
+    <label className={`${secondary} has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink`}>
       {sending ? t("Files.sending") : label}
       <input type="file" accept={accept} capture={camera ? "environment" : undefined} className="sr-only" disabled={sending} onChange={(e) => upload(e.target.files?.[0])} />
     </label>

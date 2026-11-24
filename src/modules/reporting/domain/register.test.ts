@@ -46,7 +46,8 @@ describe("buildRegister", () => {
       hatchery: "Couvoir Chaouia",
       deliveryNote: "CC-26-0974",
       placedOn: "2026-09-21",
-      chicksPlaced: 10000,
+      placed: 10000,
+      freeChicks: 0,
       deadOnArrival: 0,
       closedOn: "2026-11-03",
       // a farm stored before the register's fields: lines left to fill by hand
@@ -95,6 +96,29 @@ describe("buildRegister", () => {
     expect(days[2]).toMatchObject({ treatments: [], withdrawal: false, out: 4000 });
   });
 
+  it("daily rows: birds on hand start from the birds started, free chicks included (SPEC-m3 B10)", () => {
+    const r = buildRegister(input({ batch: { ...input().batch, freeChicks: 200, deadOnArrival: 50 } }));
+    expect(r.days.map((d) => d.onHand)).toEqual([9774, 9770, 5770]); // 10 000 + 200 free − 50 on arrival − 376 …
+    expect(r.cover).toMatchObject({ placed: 10200, freeChicks: 200, deadOnArrival: 50 }); // art. 3: all the birds placed
+  });
+
+  it("daily rows: a sale on a day nobody entered still takes its birds off the birds on hand", () => {
+    const soldBirds = [{ id: "sale-0", batchId, day: "2026-10-28", birds: 1000, liveWeightGrams: 2_300_000 }, ...input().soldBirds];
+    const days = buildRegister(input({ soldBirds })).days;
+    expect(days.map((d) => [d.day, d.age, d.onHand, d.dead, d.culled, d.out, d.cumulativeDead])).toEqual([
+      ["2026-10-25", 34, 9624, 370, 6, 0, 376],
+      ["2026-10-26", 35, 9620, 4, 0, 0, 380],
+      ["2026-10-28", 37, 8620, 0, 0, 1000, 380], // no daily entry that day
+      ["2026-11-01", 41, 4620, 0, 0, 4000, 380],
+    ]);
+    expect(days[2]).toMatchObject({ cause: null, feedGrams: [null], waterMl: null, note: null });
+  });
+
+  it("daily rows: the birds' age for a batch placed older than a day (SPEC-m3 B7)", () => {
+    const batch = { ...input().batch, species: "layer" as const, ageAtPlacementDays: 126 }; // point-of-lay hens
+    expect(buildRegister(input({ batch })).days.map((d) => d.age)).toEqual([160, 161, 167]);
+  });
+
   it("daily rows: one feed column per feed type, the observations, the day's vet visit and lab report", () => {
     const r = buildRegister(
       input({
@@ -107,7 +131,7 @@ describe("buildRegister", () => {
       }),
     );
     expect(r.feedTypes).toEqual(["Aliment croissance", "Aliment finition"]);
-    expect(r.days.map((d) => d.feedGrams)).toEqual([[900_000, null], [null, 1_400_000], [null, null]]);
+    expect(r.days.map((d) => d.feedGrams)).toEqual([[900_000, null], [null, 1_400_000], [null, null], [null, null]]); // + the sale's day
     expect(r.days[0]).toMatchObject({ note: "plumes ébouriffées", labReports: ["Sérologie Gumboro"], vetVisits: [] });
     expect(r.days[1]).toMatchObject({ vetVisits: ["Dr Naïma R."], labReports: [] });
     expect(buildRegister(input()).feedTypes).toEqual(["—"]); // one feed, unknown item: one column

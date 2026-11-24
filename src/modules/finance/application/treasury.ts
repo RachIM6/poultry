@@ -19,6 +19,7 @@ import { loanInstallmentsDue } from "@/modules/finance/application/loans";
 import { assetDues } from "@/modules/finance/application/assets";
 import { creditExpenseDues } from "@/modules/finance/application/expense-debts";
 import { placementDues } from "@/modules/finance/application/placements";
+import { overridesFor } from "@/modules/finance/application/overrides";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { OPENING_PREFIX } from "@/modules/finance/domain/close";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
@@ -59,7 +60,9 @@ async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string
   const all = await ledgerAccounts(tx);
   const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
   const leaves = new Set(leafAccounts(chart).map((a) => a.number));
-  const mapped = build(entity).map((p) => inChart(p, chartOf(all, "cgnc", ["pca"]), chart));
+  const override = await overridesFor(tx, ctx, entity, chart);
+  // As the posting pipeline: FN8's overrides first (posted once, today's), then the lines in the entity's chart (FN2).
+  const mapped = build(entity).map((p) => inChart(override ? override(p, null) : p, chartOf(all, "cgnc", ["pca"]), chart));
   // ponytail: no expense or transfer account lacks a CGNC leaf today; list such a record on /books (as FC7) if one does.
   if (!mapped.every((p) => p?.lines.every((l) => leaves.has(l.account)))) return ok(undefined);
   const postings = mapped as Posting[];

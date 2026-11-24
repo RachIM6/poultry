@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import type { BatchDto, DailyEntryDto, SoldBirdsDto } from "@/modules/flock/shared";
+import type { BatchDto, DailyEntryDto, SoldBirdsDto, WeighingDto } from "@/modules/flock/shared";
 import { buildBatchReport, type ResultRow } from "./report";
 
 // SPEC-m2-compliance RP3, §8: the closing report of a batch and its comparison with the farm's previous batches.
@@ -31,12 +31,13 @@ const input = {
   ],
   treatments: [{ id: "t", batchId: "b13", stockItemId: "s", quantity: 1, dose: "d", startOn: "2026-10-22", endOn: "2026-10-26", reason: "r", prescriber: "p", withdrawalDays: 5, withdrawalEndsOn: "2026-10-31", byUserId: "u" }],
   results: [result("b13", 31501, 27080, 2370), result("b11", 28000, 26000, 2200)],
+  standardAt: null,
 };
 
 describe("buildBatchReport", () => {
   it("final figures of a closed batch: mortality, feed conversion on the kg sold, health summary", () => {
     const r = buildBatchReport(input);
-    expect(r.kpis).toMatchObject({ placed: 1000, dead: 40, sold: 960, soldGrams: 2_370_000, feedGrams: 4_000_000, mortalityPercent: 4, fcr: 4000 / 2370 });
+    expect(r.kpis).toMatchObject({ placed: 1000, freeChicks: 0, dead: 40, sold: 960, soldGrams: 2_370_000, feedGrams: 4_000_000, mortalityPercent: 4, fcr: 4000 / 2370 });
     expect(r.health).toEqual({ vaccinesDone: 1, vaccinesPlanned: 2, treatments: 1, lastWithdrawalEnd: "2026-10-31" });
   });
 
@@ -50,5 +51,29 @@ describe("buildBatchReport", () => {
       { id: "b13", placedOn: "2026-09-21", mortalityPercent: 4, fcr: 4000 / 2370, costPerKgCentimes: "1143", marginPerKgCentimes: "187" },
       { id: "b11", placedOn: "2026-07-01", mortalityPercent: 6, fcr: 4200 / 2200, costPerKgCentimes: "1182", marginPerKgCentimes: "91" },
     ]);
+  });
+
+  it("counts free chicks in the birds started and the age at placement, as the batch screen (SPEC-m3 B7, B10)", () => {
+    const b = { ...b13, freeChicks: 20, deadOnArrival: 20, ageAtPlacementDays: 10 }; // 1 000 + 20 free − 20 on arrival
+    const k = buildBatchReport({ ...input, batch: b, batches: [b, b11] }).kpis;
+    expect(k.mortalityPercent).toBe(4); // 40 of 1 000, not of 980
+    expect(k).toMatchObject({ placed: 1020, freeChicks: 20 }); // placed: billed + free
+    expect(k.ageDays).toBe(53); // 43 days in the house + 10 at placement
+  });
+
+  it("compares only with batches of the same production type (as D2)", () => {
+    const turkeys = batch("t", "2026-06-01", { species: "turkey", closedOn: "2026-08-30" });
+    expect(buildBatchReport({ ...input, batches: [...input.batches, turkeys] }).comparison.map((c) => c.id)).toEqual(["b13", "b11"]);
+  });
+
+  it("the latest weighing against the strain's standard at its age, nothing without a curve (OQ5)", () => {
+    const open = batch("b14", "2026-10-01", { status: "open" });
+    const weighings: WeighingDto[] = [{ id: "w", batchId: "b14", day: "2026-11-05", count: 100, totalGrams: 200_000, weightsGrams: [] }]; // day 35, 2 kg
+    const curve = new Map([[35, 2500]]); // fixture: grams at a day of age
+    const standardAt = (age: number) => (curve.has(age) ? { bodyWeightGrams: curve.get(age)! } : null);
+    const of = (over: Partial<Parameters<typeof buildBatchReport>[0]>) => buildBatchReport({ ...input, batch: open, batches: [open], weighings, ...over }).standard;
+    expect(of({ standardAt })).toEqual({ bodyWeightGrams: 2500, gapPercent: -20 });
+    expect(of({ standardAt: null })).toBeNull(); // no curve loaded
+    expect(of({ standardAt, weighings: [] })).toBeNull(); // not weighed yet
   });
 });

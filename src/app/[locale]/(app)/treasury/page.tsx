@@ -40,9 +40,9 @@ async function Treasury() {
   const month = today.slice(0, 7);
   const [overview, forecast, toPay] = await Promise.all([treasuryOverview(ctx.value, month), cashForecast(ctx.value), placementsToPay(ctx.value)]);
   if (!overview.ok || !forecast.ok) return <p>{t("Expenses.forbidden")}</p>;
-  const { accounts, movements } = overview.value;
+  const { accounts, unassignedCentimes, movements } = overview.value;
   const nameOf = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? t(id === null ? "Treasury.untagged" : "Treasury.unknown");
-  const total = accounts.reduce((s, a) => s + a.balanceCentimes, 0n);
+  const total = accounts.reduce((s, a) => s + a.balanceCentimes, unassignedCentimes); // the forecast's start
   const label = (text: string, input: ReactNode) => (
     <label className="flex flex-col gap-1">
       {text}
@@ -59,6 +59,12 @@ async function Treasury() {
             <span dir="ltr" className="font-semibold tabular-nums">{formatMoney(a.balanceCentimes)}</span>
           </li>
         ))}
+        {unassignedCentimes !== 0n && (
+          <li className="flex justify-between gap-4 rounded-2xl border border-line bg-card p-3">
+            <span>{t("Treasury.unassigned")}</span>
+            <span dir="ltr" className="font-semibold tabular-nums">{formatMoney(unassignedCentimes)}</span>
+          </li>
+        )}
         <li className="flex justify-between gap-4 p-3 font-semibold">
           <span>{t("Treasury.total")}</span>
           <span dir="ltr" className="tabular-nums">{formatMoney(total)}</span>

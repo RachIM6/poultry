@@ -36,11 +36,16 @@ test("a visitor is recorded offline, kept to the dirty zone, and synced once", a
 
   await context.unroute("**");
   await context.setOffline(false);
+  // The sync screen renders once it has read the outbox: "all sent" means the server applied the visit (a refusal
+  // would show under "À vérifier"). Waiting for it first keeps the server check from racing the push.
+  await page.getByRole("link", { name: "Synchronisation" }).click();
+  await expect(page.getByText("Tout est envoyé.")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "À vérifier" })).toHaveCount(0);
   const server = async () =>
     await query<{ visitor: string; zone: string; footbath: boolean }>(
       `SELECT v.visitor, v.zone, v.footbath FROM "Visit" v JOIN "Membership" m ON m."organizationId" = v."organizationId"
        JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
       [e164],
     );
-  await expect.poll(server).toEqual([{ visitor: "Livreur · Provende Atlas", zone: "dirty", footbath: true }]);
+  await expect.poll(server, { timeout: 15_000 }).toEqual([{ visitor: "Livreur · Provende Atlas", zone: "dirty", footbath: true }]);
 });

@@ -33,7 +33,7 @@ async function Content() {
   let money: React.ReactNode = null;
   if (can(ctx.value, "money.read")) {
     const [treasury, results] = await Promise.all([treasuryOverview(ctx.value, farmDayOf(new Date()).slice(0, 7)), batchResults(ctx.value)]);
-    const cash = treasury.ok ? treasury.value.accounts.reduce((sum, a) => sum + a.balanceCentimes, 0n) : null;
+    const cash = treasury.ok ? treasury.value.accounts.reduce((sum, a) => sum + a.balanceCentimes, treasury.value.unassignedCentimes) : null;
     const last = results.ok ? results.value.filter((r) => r.closedOn).sort((a, b) => b.closedOn!.localeCompare(a.closedOn!))[0] : undefined;
     const row = "flex items-baseline justify-between gap-3 border-t border-shell/15 py-2.5 first:border-t-0";
     money = (

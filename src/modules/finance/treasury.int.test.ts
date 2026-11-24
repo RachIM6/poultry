@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { pull, push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { readFile, storeFile } from "@/modules/documents";
-import { attachExpenseReceipt, exportBooks, treasuryOverview } from "@/modules/finance";
+import { attachExpenseReceipt, cashForecast, exportBooks, treasuryOverview } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { twoTenants } from "@/test/tenant";
 
@@ -101,5 +101,20 @@ describe("treasury and quick expenses (SPEC-finance FN3, FN6, FX2, FX4, T32)", (
     expect(pulled.filter((e) => ["expense", "transfer", "treasuryAccount"].includes(e))).toEqual([]);
     expect(await treasuryOverview(worker, "2026-03")).toEqual({ ok: false, error: "FORBIDDEN" });
     expect((await pull(a, 0, registry)).changes.some((c) => c.entity === "expense")).toBe(true);
+  });
+
+  it("shows the cash posted on no account on its own row, so the total is the forecast's start", async () => {
+    const before = await treasuryOverview(a, "2026-04");
+    if (!before.ok) throw new Error(before.error);
+    expect(before.value.unassignedCentimes).toBe(0n);
+    const e = expense({ day: "2026-04-02", amountCentimes: "25000", treasuryId: null }); // cash, no cash box named
+    expect(await statuses(a, e)).toEqual(["applied"]);
+    expect(await linesOf(e.payload.id)).toEqual([["612512", 25_000n, 0n, null], ["5161", 0n, 25_000n, null]]);
+    const overview = await treasuryOverview(a, "2026-04");
+    const forecast = await cashForecast(a);
+    if (!overview.ok || !forecast.ok) throw new Error("forbidden");
+    expect(overview.value.unassignedCentimes).toBe(-25_000n);
+    expect(overview.value.accounts.map((x) => x.balanceCentimes)).toEqual(before.value.accounts.map((x) => x.balanceCentimes)); // no account moved
+    expect(overview.value.accounts.reduce((s, x) => s + x.balanceCentimes, overview.value.unassignedCentimes)).toBe(forecast.value.startCentimes);
   });
 });

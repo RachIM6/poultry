@@ -23,6 +23,7 @@ export type BatchMoneyFacts = {
   soldGrams: number; // farm weight of every bird sold
   sold: number; // birds sold (SPEC-finance FC4's split by head)
   lost: number; // dead and culled, from the daily entries (FN13's mortality)
+  feedGrams: number; // feed eaten, from the daily entries (FN13's FCR, as the batch screen's)
   out: { day: string; birds: number }[]; // deaths, culls and sales, by day (for bird-days)
   soldOut: { day: string; birds: number; grams: number }[]; // the sales alone, by day (SPEC-finance FC6: a laying flock's culls; FN14: kg sold)
   fromBatchId: string | null; // SPEC-m3 B13: a layer batch transferred from this pullet batch (SPEC-finance FC6)
@@ -37,7 +38,7 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext, asOf?: strin
   const dated = asOf ? { ...org, day: { lte: new Date(`${asOf}T00:00:00Z`) } } : org;
   const [batches, entries, sold, costs] = await Promise.all([
     tx.batch.findMany({ where: asOf ? { ...org, placedOn: { lte: new Date(`${asOf}T00:00:00Z`) } } : org, orderBy: { placedOn: "asc" } }),
-    tx.dailyEntry.findMany({ where: dated, select: { batchId: true, day: true, dead: true, culled: true } }),
+    tx.dailyEntry.findMany({ where: dated, select: { batchId: true, day: true, dead: true, culled: true, feedGrams: true } }),
     tx.soldBirds.findMany({ where: dated, select: { batchId: true, day: true, birds: true, liveWeightGrams: true } }),
     tx.batchCost.groupBy({ by: ["batchId"], where: dated, _sum: { amountCentimes: true } }),
   ]);
@@ -62,6 +63,7 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext, asOf?: strin
     soldGrams: sold.filter((s) => s.batchId === b.id).reduce((s, x) => s + x.liveWeightGrams, 0),
     sold: sold.filter((s) => s.batchId === b.id).reduce((s, x) => s + x.birds, 0),
     lost: entries.filter((e) => e.batchId === b.id).reduce((s, e) => s + e.dead + e.culled, 0),
+    feedGrams: entries.filter((e) => e.batchId === b.id).reduce((s, e) => s + (e.feedGrams ?? 0), 0),
     out: [
       ...entries.filter((e) => e.batchId === b.id).map((e) => ({ day: day(e.day), birds: e.dead + e.culled })),
       ...sold.filter((s) => s.batchId === b.id).map((s) => ({ day: day(s.day), birds: s.birds })),

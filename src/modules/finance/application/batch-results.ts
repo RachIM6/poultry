@@ -135,7 +135,7 @@ export async function batchResultsIn(tx: Tx, ctx: TenantContext, asOf?: FarmDay)
       byBirdDays: !frozen.has(b.id) && [...live.values()].some((s) => s.byBirdDays && (s.parts.get(b.id) ?? 0n) > 0n),
       costCentimes,
       ...batchResult({ salesCentimes, costCentimes, soldGrams: BigInt(b.soldGrams) }),
-      comparison: batchComparison({ started: b.started, lost: b.lost, feedGrams: feed.quantity, feedCentimes: feed.centimes, soldGrams: BigInt(b.soldGrams), salesCentimes }),
+      comparison: batchComparison({ started: b.started, lost: b.lost, eatenGrams: b.feedGrams, feedGrams: feed.quantity, feedCentimes: feed.centimes, soldGrams: BigInt(b.soldGrams), salesCentimes }),
     });
   }
   return rows;

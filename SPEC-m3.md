@@ -75,10 +75,10 @@ Growth and laying curves, egg grade limits, vaccination protocols per species, f
 
 | # | Question | Default taken (safe) | Blocks |
 |---|---|---|---|
-| MQ1 | Source documents for the curves (turkey per sex, pullet growth, laying) and their licence (OQ5) | Import format only, no values | Standard comparisons for T51, T57, T61 |
+| MQ1 | Source documents for the curves (turkey per sex, pullet growth, laying) and their licence (OQ5) | Import format only, no values. **Decided 2026-11-24:** every breeder table needs written permission, none committed (SPEC OQ5, `prisma/seed/reference/curves/README.md`) | Standard comparisons for T51, T57, T61 |
 | MQ2 | Moroccan egg grade limits and marking rules (law 49-99 art. 3-2°, 16) | Classes S/M/L/XL, limits null | Grade limits on P-EggStock |
-| MQ3 | Vaccination protocols per species, reviewed by a vet (OQ4) | Empty templates, "not reviewed" | Default plans for new types |
-| MQ4 | Egg withdrawal days per medicine and the egg-sale block rule (vet) | Required on each treatment of a layer batch; FIFO block | V6, H7 |
+| MQ3 | Vaccination protocols per species, reviewed by a vet (OQ4) | Empty templates, "not reviewed". **Decided 2026-11-24:** Newcastle is required for every type (arrêté n° 3308-17, art. 13): a warning, not a block, when a protocol or a batch’s plan has no Newcastle line; ONSSA publishes no programme (SPEC OQ4) | Default plans for new types |
+| MQ4 | Egg withdrawal days per medicine and the egg-sale block rule (vet) | Required on each treatment of a layer batch; FIFO block. **Decided 2026-11-24:** no official withdrawal list (the ONSSA positive list of 6 May 2025 has no withdrawal column): typed from the notice (AMM) or the prescription (loi n° 49-99, art. 9; SPEC OQ4) | V6, H7 |
 | MQ5 | Feed phases and transition ages per species | Farms name their own feed stock items | Feed-phase hints |
 | MQ6 | Hatchery claim threshold for dead on arrival | Per farm, empty: no alert until set | B10 alert |
 | MQ7 | Turkey: two batches per sex vs one batch with two pens | Two linked batches | — |

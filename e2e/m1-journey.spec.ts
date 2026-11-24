@@ -79,7 +79,7 @@ for (const locale of ["fr", "ar"] as const) {
     await expect(weighings).toHaveCount(1);
 
     const vaccine = page.getByRole("list", { name: t("Vaccination", "title"), exact: true }).getByRole("listitem");
-    await vaccine.getByRole("button", { name: t("Vaccination", "markDone"), exact: true }).click();
+    await vaccine.getByRole("button", { name: t("Vaccination", "markDone") }).click(); // named "…: vaccine, day" (WCAG 2.4.6)
     await expect(label(page, "Vaccination", "doses")).toHaveValue("996"); // the birds on hand
     await page.getByRole("button", { name: t("Vaccination", "save"), exact: true }).click();
     // The open form's lot list also says NDV-26: wait for it to close (saved) before reloading.

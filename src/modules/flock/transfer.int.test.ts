@@ -55,6 +55,20 @@ describe("pullets to layers (SPEC-m3 B13)", () => {
     expect(await db.auditEvent.count({ where: { entityId: newBatchId, action: "create" } })).toBe(1);
   });
 
+  it("moves the pullets to laying in their own house: it frees as they close", async () => {
+    const [pullets, hens] = [uuidv7(), uuidv7()];
+    const own = uuidv7();
+    await push(a, [m(FARM_MUTATIONS.createHouse, { id: own, farmId: ids.farm, name: "PL", areaM2: 1000, capacity: 6000, type: "closed" })], farmRegistrySync);
+    expect(
+      await statuses(a, [
+        m(M.placeBatch, { id: pullets, houseId: own, species: "pullet", strainId: "lohmann-brown", placedOn, chicksPlaced: 500, deadOnArrival: 0, hatchery: "C", deliveryNote: "BL", chickUnitPriceCentimes: "700", dayOldWeightGrams: null }),
+        m(M.transferToLaying, { batchId: pullets, day, newBatchId: hens, houseId: own, hens: 500 }),
+      ]),
+    ).toEqual(["applied", "applied"]);
+    expect(await db.batch.findUniqueOrThrow({ where: { id: pullets } })).toMatchObject({ status: "closed", closeReason: TRANSFER_REASON });
+    expect(await db.batch.findUniqueOrThrow({ where: { id: hens } })).toMatchObject({ status: "open", houseId: own, species: "layer", fromBatchId: pullets }); // FC6's transfer to lay reads it
+  });
+
   it("refuses a transfer into a house that already has a batch", async () => {
     const pullets = uuidv7();
     const placed = await statuses(a, [m(M.placeBatch, { id: pullets, houseId: ids.rearing, species: "pullet", strainId: "lohmann-brown", placedOn: day, chicksPlaced: 100, deadOnArrival: 0, hatchery: "C", deliveryNote: "BL", chickUnitPriceCentimes: "0", dayOldWeightGrams: null })]);

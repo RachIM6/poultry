@@ -85,11 +85,34 @@ docker run -d --name poultry --restart unless-stopped --env-file /etc/poultry/ap
   gives it 30 s before Docker kills it; exit code 137 means it had to.
 - **Logs** go to stdout/stderr (`docker logs poultry`). A server error is one JSON line with the path, method, error
   name and digest, never the body, cookies or query (`src/instrumentation.ts`).
-- **Service worker:** its precache revision is the git commit, read with `git` at server start. The image has no git,
-  so the revision is a random id per start: after each restart, phones download the 52 precached page shells again
-  (about 13 KB each). Harmless; give the route a build-time revision if that traffic matters.
+- **Service worker:** the revision of the 52 precached page shells is Next's build id (`.next/BUILD_ID`). A restart
+  keeps it, so phones download nothing again; a new image changes it, so every phone refreshes its shells once.
 - **Refused start:** an unsafe env exits with code 1 and `--restart unless-stopped` keeps retrying; `docker logs poultry`
   names the variables to fix.
+
+### Operator scripts in the container
+
+The image has no pnpm, and the `pnpm org:*` / `pnpm db:seed:demo` scripts bundle with esbuild into
+`node_modules/.cache`, which only root can write. Run the same two commands as root in a one-shot container:
+
+For example `org:export`, writing the zip to a host directory mounted at `/out`:
+
+```sh
+docker run --rm --user root --env-file /etc/poultry/app.env -v /srv/poultry/exports:/out poultry:<git sha> sh -c \
+  "esbuild scripts/export-organization.ts --bundle --platform=node --format=esm --packages=external --log-level=warning \
+   --outfile=node_modules/.cache/org-export.mjs && node node_modules/.cache/org-export.mjs <organizationId> /out/<name>.zip"
+```
+
+| Script | Source file | Output file |
+|---|---|---|
+| `org:export` | `scripts/export-organization.ts` | `node_modules/.cache/org-export.mjs` |
+| `org:left` | `scripts/mark-organization-left.ts` | `node_modules/.cache/org-left.mjs` |
+| `org:delete` | `scripts/delete-organization.ts` | `node_modules/.cache/org-delete.mjs` |
+| `db:seed:demo` | `prisma/demo.ts` (refused unless `-e ALLOW_DEMO_SEED=1`; never on the pilot's database) | `node_modules/.cache/demo-seed.mjs` |
+
+The arguments are those of the pnpm script (usage at the top of each file, and `docs/data-requests.md`):
+`org:left <organizationId> [--undo]`, `org:delete <organizationId> --confirm "<organisation name>"`. Without the
+`/out` mount, the export's zip is gone with the container.
 
 ### Upgrade
 

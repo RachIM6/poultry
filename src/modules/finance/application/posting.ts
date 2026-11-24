@@ -1,5 +1,6 @@
 import { v7 as uuidv7 } from "uuid";
 import { db, SYNC_TX, type Tx } from "@/lib/db";
+import { can } from "@/lib/permissions";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
@@ -222,8 +223,12 @@ export async function postAllPending(limit = 10): Promise<number> {
   return posted;
 }
 
-/** §9 "Postings catch up": a read of the books posts what is pending first. On failure it logs and reads what is posted. */
-export async function catchUp(ctx: TenantContext): Promise<void> {
+/**
+ * §9 "Postings catch up": a read of the books posts what is pending first; a page running several reads at once calls
+ * it once before them. Never throws: on failure it logs, and the reads show what is posted.
+ */
+export async function catchUpBooks(ctx: TenantContext): Promise<void> {
+  if (!can(ctx, "money.read")) return; // the reads refuse anyway
   try {
     if ((await pendingOrganizations(db, SOURCES, 1, ctx.organizationId)).length > 0) await postPending(ctx);
   } catch (error) {

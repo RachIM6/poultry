@@ -8,7 +8,7 @@ import { batchesForFinance, type BatchMoneyFacts } from "@/modules/flock";
 import { batchConsumption } from "@/modules/inventory";
 import { salesByBatch } from "@/modules/sales";
 import { payCosts } from "@/modules/workforce";
-import { catchUp } from "@/modules/finance/application/posting";
+import { catchUpBooks } from "@/modules/finance/application/posting";
 import { batchComparison, batchResult, monthPeriod, splitShared, type AllocationKey, type BatchComparison, type BatchResult } from "@/modules/finance/domain/batch";
 import type { BatchResultDto } from "@/modules/finance/shared";
 
@@ -95,7 +95,7 @@ export type BatchResultRow = BatchResult & {
  */
 export async function batchResults(ctx: TenantContext, asOf?: FarmDay): Promise<Result<BatchResultRow[], "FORBIDDEN">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
-  await catchUp(ctx); // §9: a batch that closed gets its shares frozen too
+  await catchUpBooks(ctx); // §9: a batch that closed gets its shares frozen too
   return ok(await db.$transaction((tx) => batchResultsIn(tx, ctx, asOf)));
 }
 

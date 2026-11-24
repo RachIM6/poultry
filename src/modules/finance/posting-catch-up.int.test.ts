@@ -5,7 +5,7 @@ import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { batchResults, officialStatements, postAllPending, postPending, readBooks, treasuryOverview } from "@/modules/finance";
+import { batchResults, catchUpBooks, officialStatements, postAllPending, postPending, readBooks, treasuryOverview } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant, twoTenants } from "@/test/tenant";
 
@@ -96,6 +96,13 @@ describe("postings catch up without a new push (SPEC-finance FN7, §9 \"Postings
       expect((await read()).ok).toBe(true);
       expect(await entriesOf(next)).toHaveLength(1);
     }
+
+    // a page with several reads at once (/treasury, the dashboard) catches up once before them; a worker's posts nothing
+    const later = await purchase(a);
+    await catchUpBooks({ ...a, role: "worker" });
+    expect(await entriesOf(later)).toHaveLength(0);
+    await catchUpBooks(a);
+    expect(await entriesOf(later)).toHaveLength(1);
   });
 
   it("still shows the books when the posting fails, with what is posted, and logs it", async () => {

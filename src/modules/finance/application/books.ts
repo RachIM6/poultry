@@ -5,7 +5,7 @@ import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { consumptionsBetween, type Consumption } from "@/modules/sales";
-import { catchUp } from "@/modules/finance/application/posting";
+import { catchUpBooks } from "@/modules/finance/application/posting";
 import { cashBookOf, trialBalance } from "@/modules/finance/domain/books";
 import { balanceSheet, incomeStatement } from "@/modules/finance/domain/statements";
 import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
@@ -69,7 +69,7 @@ async function entriesBetween(ctx: TenantContext, legalEntityId: string, from: s
 export async function readBooks(ctx: TenantContext, month: string): Promise<Result<Books, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("INVALID_INPUT");
-  await catchUp(ctx); // §9: the books as of now, the export too
+  await catchUpBooks(ctx); // §9: the books as of now, the export too
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
   const period = monthPeriod(month);

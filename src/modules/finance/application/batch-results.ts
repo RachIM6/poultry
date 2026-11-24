@@ -77,7 +77,8 @@ export type BatchResultRow = BatchResult & {
 };
 
 /**
- * FN13: each batch's result, newest first: sales − (chicks + valued consumptions + other costs + its direct expenses +
+ * FN13: each batch's result, newest first: sales − (chicks + valued consumptions + T24's other costs, recorded before
+ * FN13 and still counted (§9 "M1 other costs") + its direct expenses +
  * its share of the shared ones). A purchase is never a batch cost, only what was consumed (no double count).
  * `asOf` (FC4, T109): as on that day, from the facts dated on or before it only. A batch closed by then keeps its
  * frozen shares; one still open then is given its share of what was left, by the bird-days known on that day.

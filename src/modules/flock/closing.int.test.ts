@@ -52,11 +52,13 @@ describe("closing a batch and its cost per kg (SPEC B6)", () => {
     ).toEqual(Array(5).fill("applied"));
   });
 
-  it("takes other costs only from owners and managers, while the batch is open", async () => {
-    const cost = (payload: object = {}) => m(F.recordBatchCost, { id: uuidv7(), batchId: batch, day: "2026-10-20", label: "Électricité", amountCentimes: "20000", ...payload });
+  it("refuses a new other cost (SPEC-finance FN13: a quick expense charged to the batch replaces it); one recorded before still counts", async () => {
+    const cost = () => m(F.recordBatchCost, { id: uuidv7(), batchId: batch, day: "2026-10-20", label: "Électricité", amountCentimes: "20000" });
     expect(await statuses({ ...a, role: "worker" }, [cost()])).toEqual(["FORBIDDEN"]);
-    expect(await statuses(a, [cost({ amountCentimes: "0" }), cost({ day: "2026-09-30" })])).toEqual(["INVALID_QUANTITY", "DAY_BEFORE_PLACEMENT"]);
-    expect(await statuses(a, [cost()])).toEqual(["applied"]); // 200 DH
+    expect(await statuses(a, [cost()])).toEqual(["USE_EXPENSES"]);
+    expect(await db.batchCost.count({ where: { batchId: batch } })).toBe(0);
+    // A cost an owner recorded before FN13 (200 DH): kept, and counted when the batch closes.
+    await db.batchCost.create({ data: { id: uuidv7(), organizationId: a.organizationId, batchId: batch, day: new Date("2026-10-20T00:00:00Z"), label: "Électricité", amountCentimes: 20_000n } });
   });
 
   it("the sale of the last birds closes the batch and locks its cost per kg; then nothing changes and the house is free", async () => {
@@ -78,7 +80,7 @@ describe("closing a batch and its cost per kg (SPEC B6)", () => {
         m(F.recordBatchCost, { id: uuidv7(), batchId: batch, day: "2026-11-05", label: "Gaz", amountCentimes: "100" }),
         m(F.closeBatch, { batchId: batch, day: "2026-11-05", reason: "Again" }),
       ]),
-    ).toEqual(["BATCH_CLOSED", "BATCH_CLOSED", "BATCH_CLOSED"]);
+    ).toEqual(["BATCH_CLOSED", "USE_EXPENSES", "BATCH_CLOSED"]);
     expect((await sell(1, 2000)).ok).toBe(false);
     expect(await statuses(a, [place(next)])).toEqual(["applied"]); // the house is free
   });

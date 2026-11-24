@@ -30,7 +30,7 @@ export const flockSync: SyncRegistry = {
     [M.recordWeighing]: defineMutation({ schema: RecordWeighing, action: "flock.record", apply: (tx, ctx, cmd, meta) => recordWeighing(tx, ctx, cmd, meta) }),
     [M.closeBatch]: defineMutation({ schema: CloseBatch, action: "flock.manage", apply: (tx, ctx, cmd, meta) => closeBatch(tx, ctx, cmd, meta) }),
     [M.transferToLaying]: defineMutation({ schema: TransferToLaying, action: "flock.manage", apply: (tx, ctx, cmd, meta) => transferToLaying(tx, ctx, cmd, meta) }),
-    [M.recordBatchCost]: defineMutation({ schema: RecordBatchCost, action: "flock.manage", apply: (tx, ctx, cmd, meta) => recordBatchCost(tx, ctx, cmd, meta) }),
+    [M.recordBatchCost]: defineMutation({ schema: RecordBatchCost, action: "flock.manage", apply: () => recordBatchCost() }),
   },
   entities: {
     batch: (ctx, data: BatchDto) => withoutMoney(ctx, data, BATCH_MONEY),

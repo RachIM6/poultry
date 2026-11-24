@@ -164,7 +164,7 @@ function Batches(scope: Scope) {
         ) : (
           <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curves={curves} />
         )}
-        <BatchCosts batch={shown} costs={costsOf(shown.id)} manage={can(scope, "flock.manage")} write={write} />
+        <BatchCosts batch={shown} costs={costsOf(shown.id)} manage={can(scope, "flock.manage")} />
         {can(scope, "sales.manage") && <Sales batch={shown} sales={of<SaleDto>("sale")} buyers={of<BuyerDto>("buyer")} treatments={[]} birdsOnHand={0} write={write} />}
       </>
     );
@@ -243,7 +243,7 @@ function Batches(scope: Scope) {
             write={write}
           />
         )}
-        <BatchCosts batch={open} costs={costsOf(open.id)} manage={can(scope, "flock.manage")} write={write} />
+        <BatchCosts batch={open} costs={costsOf(open.id)} manage={can(scope, "flock.manage")} />
         {can(scope, "flock.manage") && open.species === "pullet" && (
           <TransferForm
             batch={open}

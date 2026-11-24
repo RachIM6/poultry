@@ -3,7 +3,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { houseOf } from "@/modules/farm-registry";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, ageOfBatch, type BatchStatus } from "@/modules/flock/domain/batch";
-import type { BatchCostDto, BatchDto } from "@/modules/flock/schema";
+import type { BatchDto } from "@/modules/flock/schema";
 import type { BirdSex, ProductionType } from "@/modules/reference-data/shared";
 
 // Batch repository (Prisma). Scoped to the caller's organisation.
@@ -146,12 +146,6 @@ export async function saveClosing(
     costCentimes: String(c.costCentimes),
     costPerKgCentimes: c.costPerKgCentimes === null ? null : String(c.costPerKgCentimes),
   };
-}
-
-export const batchCostIdTaken = async (tx: Tx, id: string) => (await tx.batchCost.count({ where: { id } })) > 0;
-
-export async function saveBatchCost(tx: Tx, ctx: TenantContext, c: Required<BatchCostDto>) {
-  await tx.batchCost.create({ data: { ...c, organizationId: ctx.organizationId, day: date(c.day), amountCentimes: BigInt(c.amountCentimes) } });
 }
 
 /** For climate (CL3, CL4): the batch in this house on that farm day, its production type and the birds' age then, or null. */

@@ -138,6 +138,14 @@ describe("VAT (SPEC-finance FN9)", () => {
     ]);
   });
 
+  it("posts point-of-lay hens under the simplified method as chicks: their VAT recovered on the charges (34552)", () => {
+    expect(postingOf({ ...chicks, layers: true }, true, false)?.lines.map((l) => [l.account, l.debit, l.credit])).toEqual([
+      ["612121", 4_500_000n, 0n],
+      ["34552", 900_000n, 0n],
+      ["4411", 0n, 5_400_000n],
+    ]);
+  });
+
   it("keeps a placement's VAT in the cost when the entity is not registered, and posts none when there is none", () => {
     expect(postingOf(chicks)?.lines).toEqual([{ account: "612121", debit: 5_400_000n, credit: 0n }, { account: "4411", debit: 0n, credit: 5_400_000n }]);
     expect(postingOf({ ...chicks, layers: true }, false, true)?.lines.map((l) => [l.account, l.debit + l.credit])).toEqual([["23711", 5_400_000n], ["4481", 5_400_000n]]);

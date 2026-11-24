@@ -11,6 +11,7 @@ import { legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules
 import { batchesForFinance, type PlacementChange } from "@/modules/flock";
 import { batchResultsIn } from "@/modules/finance/application/batch-results";
 import { closePosted } from "@/modules/finance/application/count";
+import { assetCost } from "@/modules/finance/domain/assets";
 import { closeSource } from "@/modules/finance/domain/close";
 import { countDay, countYearOf } from "@/modules/finance/domain/count";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
@@ -83,7 +84,9 @@ export async function hensAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntit
   if (method === "simplified") {
     const lines = open.map((b): HensAtClose => {
       const base = lineOf(b);
-      const entry = b.species === "pullet" ? (costs.get(b.id) ?? 0n) : b.fromBatchId ? (costs.get(b.fromBatchId) ?? 0n) : b.chicksCentimes;
+      // Hens bought: their value as posted (FN9), without the VAT a registered entity recovered, with it otherwise.
+      const bought = assetCost(b.chicksCentimes, b.chickVatCentimes, entity.vatRegistered);
+      const entry = b.species === "pullet" ? (costs.get(b.id) ?? 0n) : b.fromBatchId ? (costs.get(b.fromBatchId) ?? 0n) : bought;
       const value = simplifiedValue(base.species, entry, b.started, base.onHand, b.sold);
       const perBird = perBirdOf.get(b.id) ?? null;
       return { ...base, ...none, entry, value, perBird, provision: perBird === null ? 0n : simplifiedProvision(value, perBird, base.onHand), missing: value > 0n && perBird === null };

@@ -4,12 +4,14 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
 import { pull, push } from "@/lib/sync/server";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { changeAccountingChoices, placementsToPay, postPending } from "@/modules/finance";
+import { batchResults, changeAccountingChoices, placementsToPay, postPending } from "@/modules/finance";
+import { hensAtClose } from "@/modules/finance/application/hens";
 import { AccountsFile } from "@/modules/finance/schema";
 import type { BatchDto } from "@/modules/flock/schema";
-import { twoTenants } from "@/test/tenant";
+import { tenant, twoTenants } from "@/test/tenant";
 
 // SPEC-finance FN9, FC6: a placement's VAT, on top of the chicks' price. "D 23711 (+ D 34551 for the VAT, FN9)".
 const m = <P,>(type: string, payload: P) => ({ id: uuidv7(), type, payload, createdAt: "2026-03-10T08:00:00+01:00" });
@@ -59,20 +61,25 @@ async function placed(ctx: TenantContext, prefix: string) {
 }
 
 describe("placement VAT (SPEC-finance FN9, FC6)", () => {
-  let registered: TenantContext, notRegistered: TenantContext;
-  let r: Awaited<ReturnType<typeof placed>>, n: typeof r;
+  let registered: TenantContext, notRegistered: TenantContext, simpleRegistered: TenantContext, simpleNot: TenantContext;
+  let r: Awaited<ReturnType<typeof placed>>, n: typeof r, sr: typeof r, sn: typeof r;
 
   beforeAll(async () => {
     const { accounts } = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
     await db.ledgerAccount.createMany({ data: accounts.map((a) => ({ chart: a.chart, number: a.number, label: a.label, parentNumber: a.parent, fallback: a.fallback })) });
     await db.strain.createMany({ data: [{ id: "ross-308", name: "Ross 308" }, { id: "isa-brown", name: "ISA Brown", productionTypes: ["pullet", "layer"] }] });
     [registered, notRegistered] = await twoTenants();
-    for (const [ctx, vatRegistered] of [[registered, true], [notRegistered, false]] as const) {
-      const choices = { books: "ledger", pcaOverlay: null, fiscalYearStartMonth: 1, vatRegistered }; // classic hens (FQ7a)
+    simpleRegistered = await tenant("+212600000003", "Ferme C");
+    simpleNot = await tenant("+212600000004", "Ferme D");
+    const setups = [[registered, true, "classic"], [notRegistered, false, "classic"], [simpleRegistered, true, "simplified"], [simpleNot, false, "simplified"]] as const;
+    for (const [ctx, vatRegistered, hensMethod] of setups) {
+      const choices = { books: "ledger", pcaOverlay: null, fiscalYearStartMonth: 1, vatRegistered, hensMethod };
       expect(await changeAccountingChoices(ctx, (await listLegalEntities(ctx))[0].id, choices)).toMatchObject({ ok: true });
     }
     r = await placed(registered, "A");
     n = await placed(notRegistered, "B");
+    sr = await placed(simpleRegistered, "C");
+    sn = await placed(simpleNot, "D");
   });
 
   it("a registered entity recovers it: 34552 on chicks, 34551 on point-of-lay hens, the debt on top of the price", async () => {
@@ -110,6 +117,31 @@ describe("placement VAT (SPEC-finance FN9, FC6)", () => {
   it("the debt to pay includes the VAT", async () => {
     const owed = await placementsToPay(registered);
     expect(owed.ok && Object.fromEntries(owed.value.map((p) => [p.batchId, p.owed]))).toEqual({ [r.chicks]: 540_000n, [r.hens]: 3_600_000n, [r.old]: 450_000n });
+  });
+
+  it("counts it in the batch's chick cost (FN13, FQ30: amounts with VAT), registered or not", async () => {
+    for (const ctx of [registered, notRegistered]) {
+      const rows = await batchResults(ctx);
+      if (!rows.ok) throw new Error(rows.error);
+      const chicksOf = (id: string) => rows.value.find((x) => x.id === id)?.costs.chicks;
+      expect([chicksOf(ctx === registered ? r.chicks : n.chicks), chicksOf(ctx === registered ? r.old : n.old)]).toEqual([540_000n, 450_000n]);
+    }
+  });
+
+  it("values point-of-lay hens under the simplified method as posted: without the VAT a registered entity recovered (FC6)", async () => {
+    const year = { from: "2026-01-01" as FarmDay, to: "2026-12-31" as FarmDay };
+    const entryOf = async (ctx: TenantContext, hens: string) => {
+      const entity = (await listLegalEntities(ctx))[0];
+      const close = await db.$transaction((tx) => hensAtClose(tx, ctx, entity, year));
+      return [close.method, close.lines.find((l) => l.id === hens)?.entry];
+    };
+    expect(await entryOf(simpleRegistered, sr.hens)).toEqual(["simplified", 3_000_000n]);
+    expect(await entryOf(simpleNot, sn.hens)).toEqual(["simplified", 3_600_000n]);
+    expect(await placementLines(sr.hens)).toEqual([
+      ["612121", 3_000_000n, 0n],
+      ["34552", 600_000n, 0n],
+      ["4411", 0n, 3_600_000n],
+    ]); // not an asset under the simplified method: the VAT is recovered on the charges
   });
 
   it("closing the batch keeps it: the closing's version posts nothing new (FN7)", async () => {

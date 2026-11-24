@@ -3,6 +3,7 @@ import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
 import type { Journal, Posting } from "@/modules/finance/domain/posting";
+import { PAID_WITH } from "@/modules/finance/domain/treasury";
 
 // SPEC-finance FC1 (T102), pure: the fixed-asset register's rules and the straight-line schedule.
 
@@ -53,12 +54,7 @@ export const ASSET_DEBTS = "4481"; // Dettes sur acquisition d'immobilisations (
 /** How an asset was paid (FC1). An issued cheque leaves the bank on its issue day, the acquisition's. */
 export const ASSET_PAID_WITH = ["cash", "transfer", "cheque", "credit"] as const;
 export type AssetPaidWith = (typeof ASSET_PAID_WITH)[number];
-const PAID: Record<AssetPaidWith, { account: string; journal: Journal }> = {
-  cash: { account: "5161", journal: "CA" },
-  transfer: { account: "5141", journal: "BQ" },
-  cheque: { account: "5141", journal: "BQ" },
-  credit: { account: ASSET_DEBTS, journal: "OD" },
-};
+const PAID: Record<AssetPaidWith, { account: string; journal: Journal }> = { ...PAID_WITH, credit: { account: ASSET_DEBTS, journal: "OD" } };
 /** The treasury account kind each method moves money through: a cash box for cash, a bank account otherwise. */
 export const treasuryKindOf = (method: Exclude<AssetPaidWith, "credit"> | "bank"): "cash" | "bank" => (method === "cash" ? "cash" : "bank");
 

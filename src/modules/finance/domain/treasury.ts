@@ -25,9 +25,20 @@ export const bankOnly = (category: string) => category === "bank_fees";
 export const PAID_FROM = ["cash", "bank", "credit"] as const;
 export type PaidFrom = (typeof PAID_FROM)[number];
 
-const SOURCE: Record<PaidFrom, { account: string; journal: Posting["journal"] }> = {
+/**
+ * FN6: where money paid out leaves from, by payment method, and in which journal: the cash box, or the bank (an issued
+ * cheque leaves the bank on its issue day). Each payment adds its own credit method (a supplier, a bill, an asset debt).
+ * Here, not in posting.ts: prisma/seed.ts loads this file under plain Node (VAT_RECOVERABLE below).
+ */
+export const PAID_WITH = {
   cash: { account: "5161", journal: "CA" },
-  bank: { account: "5141", journal: "BQ" },
+  transfer: { account: "5141", journal: "BQ" },
+  cheque: { account: "5141", journal: "BQ" },
+} as const satisfies Record<string, { account: string; journal: Posting["journal"] }>;
+
+const SOURCE: Record<PaidFrom, { account: string; journal: Posting["journal"] }> = {
+  cash: PAID_WITH.cash,
+  bank: PAID_WITH.transfer,
   credit: { account: "4411", journal: "AC" },
 };
 

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, pulled, pushAs, referenceCached, scopeRemembered } from "./auth";
 
 // T49 acceptance: a farm's inspection pack opens offline, lists what is missing, holds the logs and each batch's
 // register, and prints within an A4 width (SPEC-m2-compliance RP4). The checklist rules: reporting/domain/inspection.test.ts.
@@ -8,18 +8,20 @@ test("the inspection pack opens offline, lists the missing pieces and prints", a
   await ownerWithFarm(page, "Élevage de l’Inspection");
   await scopeRemembered(page);
   const ids = await farmWithBatch(page, "ross-308", farmDaysAgo(20)); // a farm without ONSSA authorization
+  const logged = { rodentCheck: crypto.randomUUID(), visit: crypto.randomUUID(), document: crypto.randomUUID() };
   await pushAs(page, [
-    { type: "biosecurity.recordRodentCheck", payload: { id: crypto.randomUUID(), farmId: ids.farm, houseId: null, day: farmDaysAgo(2), action: "baitPlaced", product: "Brodifacoum" } },
+    { type: "biosecurity.recordRodentCheck", payload: { id: logged.rodentCheck, farmId: ids.farm, houseId: null, day: farmDaysAgo(2), action: "baitPlaced", product: "Brodifacoum" } },
     {
       type: "biosecurity.recordVisit",
-      payload: { id: crypto.randomUUID(), farmId: ids.farm, enteredAt: new Date().toISOString(), visitor: "Dr Naïma R.", vehicle: null, purpose: "vet", recentFarm: false, wheelsDisinfected: true, footbath: true, farmClothing: true, zone: "clean" },
+      payload: { id: logged.visit, farmId: ids.farm, enteredAt: new Date().toISOString(), visitor: "Dr Naïma R.", vehicle: null, purpose: "vet", recentFarm: false, wheelsDisinfected: true, footbath: true, farmClothing: true, zone: "clean" },
     },
-    { type: "documents.createDocument", payload: { id: crypto.randomUUID(), title: "Contrat du vétérinaire", category: "vetContract", farmId: null, issuedOn: null, expiresOn: farmDaysAgo(5), notes: null } },
+    { type: "documents.createDocument", payload: { id: logged.document, title: "Contrat du vétérinaire", category: "vetContract", farmId: null, issuedOn: null, expiresOn: farmDaysAgo(5), notes: null } },
   ]);
   await page.goto("/fr/more");
   await page.getByRole("link", { name: "Dossier d’inspection" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
+  await pulled(page, Object.entries(logged).map(([entity, id]) => `${entity}:${id}`)); // the h1 below only proves the first push
   const pack = page.getByRole("article").first();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Dossier d’inspection · Ferme Atlas"); // one h1: the registers inside are h2
 

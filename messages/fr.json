@@ -398,7 +398,7 @@
       "female": "femelles",
       "male": "mâles"
     },
-    "otherSex": "Même lot, {sex} : {birds} sujets",
+    "sexPair": "Même lot, par sexe",
     "freeChicks": "Supplément gratuit (facultatif)",
     "arrival": "Qualité à l’arrivée (facultatif)",
     "parentFlock": "Lot reproducteur",
@@ -1498,6 +1498,7 @@
     "margin": "Marge : {margin}",
     "costPerKg": "{cost} / kg",
     "laying": "Ponte {rate} % · {eggs} œufs le dernier jour ramassé",
+    "fcr": "IC {fcr}",
     "eggsYesterday": "Œufs ramassés hier"
   },
   "Staff": {

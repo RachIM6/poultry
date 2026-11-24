@@ -75,6 +75,10 @@ export async function saveLine(tx: Tx, ctx: TenantContext, v: VaccinationDto) {
   });
 }
 
+/** The batch's lines not yet done. */
+export const undoneLines = async (tx: Tx, ctx: TenantContext, batchId: string) =>
+  (await tx.vaccination.findMany({ where: { organizationId: ctx.organizationId, batchId, doneOn: null } })).map(toDto);
+
 /** The line on its new day; its reminders go out again when `remindAgain`. Null when it was done meanwhile. */
 export async function saveMove(tx: Tx, ctx: TenantContext, id: string, move: { dayOfAge: number; dueOn: FarmDay; remindAgain: boolean }) {
   const reminders = move.remindAgain ? { remindedBeforeAt: null, remindedDueAt: null } : {};

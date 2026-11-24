@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { field, primary, secondary } from "@/components/ui";
+import { danger, field, primary, secondary } from "@/components/ui";
 import { createAssetAction, disposeAssetAction, payAssetAction, updateAssetAction, type AssetState } from "./actions";
 
 type Farm = { id: string; name: string; houses: { id: string; name: string }[] };
@@ -161,7 +161,7 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
           {t("Assets.receipt")}
           <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf" />
         </label>
-        {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+        {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
         <button type="submit" disabled={pending} className={primary}>{t("Assets.save")}</button>
       </fieldset>
     </form>
@@ -177,7 +177,7 @@ export function AssetActionForm({ kind, submit, children }: { kind: keyof typeof
   return (
     <form action={action} className="flex flex-col gap-3">
       {children}
-      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
       <button type="submit" disabled={pending} className={secondary}>{submit}</button>
     </form>
   );

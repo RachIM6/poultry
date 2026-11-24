@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent } from "react";
 import { addStatementAction, importAction, matchAction, type ImportState } from "./actions";
-import { field, primary, secondary, table } from "@/components/ui";
+import { danger, field, primary, secondary, table } from "@/components/ui";
 import { Num } from "@/components/num";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -42,6 +42,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
     </label>
   );
   const preview = state.preview;
+  const badFile = state.messageKey === "errors.IMPORT_TOO_LARGE" || state.messageKey === "errors.IMPORT_FILE_TYPE";
   return (
     <form onSubmit={submit} onChange={() => preview && setState({})} className="flex flex-col gap-3">
       <input type="hidden" name="treasuryId" value={treasuryId} />
@@ -58,7 +59,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
       </fieldset>
       <label className="flex flex-col gap-1">
         <span className="font-semibold">{t("file")}</span>
-        <input type="file" name="file" required accept={format === "mt940" ? ".sta,.mt940,.940,.fin,.txt" : ".csv,.txt,text/csv"} className={field} />
+        <input type="file" name="file" required accept={format === "mt940" ? ".sta,.mt940,.940,.fin,.txt" : ".csv,.txt,text/csv"} aria-invalid={badFile || undefined} aria-describedby={badFile ? "import-error" : undefined} className={`${field} aria-invalid:border-alert`} />
       </label>
       {format === "csv" && (
         <fieldset className="flex flex-col gap-3">
@@ -116,7 +117,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
           </div>
         </fieldset>
       )}
-      {state.messageKey && <p role="alert">{tAll(state.messageKey, state.values)}</p>}
+      {state.messageKey && <p id="import-error" role="alert" className={danger}>{tAll(state.messageKey, state.values)}</p>}
       {preview && (
         <section role="status" className="flex flex-col gap-3">
           <h3 className="font-semibold">{t("previewTitle")}</h3>
@@ -168,7 +169,7 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="statementId" value={statementId} />
-      {state.messageKey && <p role="alert">{tAll(state.messageKey)}</p>}
+      {state.messageKey && <p role="alert" className={danger}>{tAll(state.messageKey)}</p>}
       <table className={table}>
         <thead>
           <tr>
@@ -216,6 +217,7 @@ export function StatementForm({ treasuryId, today }: { treasuryId: string; today
   const tAll = useTranslations();
   const locale = useLocale();
   const [state, action, pending] = useActionState(addStatementAction, {});
+  const badClosing = state.messageKey === "errors.INVALID_INPUT"; // the server reads only the closing balance itself
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="treasuryId" value={treasuryId} />
@@ -226,10 +228,10 @@ export function StatementForm({ treasuryId, today }: { treasuryId: string; today
       </label>
       <div className="flex flex-col gap-1">
         <label htmlFor="closing" className="font-semibold">{t("closing")}</label>
-        <input id="closing" name="closing" required dir="ltr" autoComplete="off" className={field} aria-describedby="closing-hint" />
+        <input id="closing" name="closing" required dir="ltr" autoComplete="off" className={`${field} aria-invalid:border-alert`} aria-invalid={badClosing || undefined} aria-describedby={badClosing ? "closing-hint closing-error" : "closing-hint"} />
         <span id="closing-hint" className="text-sm text-ink-2">{t("closingHint")}</span>
       </div>
-      {state.messageKey && <p role="alert">{tAll(state.messageKey)}</p>}
+      {state.messageKey && <p id="closing-error" role="alert" className={danger}>{tAll(state.messageKey)}</p>}
       <button type="submit" disabled={pending} className={primary}>{t("save")}</button>
     </form>
   );
@@ -245,7 +247,7 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
   return (
     <form action={action} className="flex flex-col gap-2">
       <input type="hidden" name="statementId" value={statementId} />
-      {state.messageKey && <p role="alert">{tAll(state.messageKey)}</p>}
+      {state.messageKey && <p role="alert" className={danger}>{tAll(state.messageKey)}</p>}
       <table className={table}>
         <thead>
           <tr>

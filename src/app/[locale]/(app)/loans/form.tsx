@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { field, primary, secondary } from "@/components/ui";
+import { danger, field, primary, secondary } from "@/components/ui";
 import { createLoanAction, createSubsidyAction, discardLoanAction, payInstallmentAction, scheduleAction, type LoanState } from "./actions";
 
 const row = "flex min-w-0 flex-col gap-1";
@@ -88,7 +88,7 @@ export function LoanForm({ today, banks }: { today: string; banks: { id: string;
             <input type="date" name="firstDueOn" required className={wide} />
           </label>
         </div>
-        {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+        {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
         <button type="submit" disabled={pending} className={primary}>{t("Loans.save")}</button>
       </fieldset>
     </form>
@@ -156,7 +156,7 @@ export function SubsidyForm({ today, banks, assets }: { today: string; banks: { 
             </label>
           ))}
         </fieldset>
-        {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+        {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
         <button type="submit" disabled={pending} className={primary}>{t("Subsidies.save")}</button>
       </fieldset>
     </form>
@@ -177,7 +177,7 @@ export function ScheduleForm({ loanId, children }: { loanId: string; children: R
     <form onSubmit={submit} className="flex flex-col gap-3">
       <input type="hidden" name="loanId" value={loanId} />
       {children}
-      {state.messageKey && <p role={state.ok ? "status" : "alert"}>{t(state.messageKey)}</p>}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="submit" name="intent" value="save" disabled={pending} className={secondary}>{t("Loans.saveRows")}</button>
         <button type="submit" name="intent" value="confirm" disabled={pending} className={primary}>{t("Loans.confirm")}</button>
@@ -196,7 +196,7 @@ export function LoanActionForm({ kind, submit, children }: { kind: keyof typeof 
     <form action={action} className="flex flex-wrap items-end gap-2">
       {children}
       <button type="submit" disabled={pending} className={secondary}>{submit}</button>
-      {state.messageKey && <p role={state.ok ? "status" : "alert"} className="basis-full">{t(state.messageKey)}</p>}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={`basis-full ${state.ok ? "" : danger}`}>{t(state.messageKey)}</p>}
     </form>
   );
 }

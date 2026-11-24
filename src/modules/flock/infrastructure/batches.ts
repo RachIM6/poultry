@@ -3,7 +3,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { houseOf } from "@/modules/farm-registry";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, ageOfBatch, type BatchStatus } from "@/modules/flock/domain/batch";
-import type { BatchDto } from "@/modules/flock/schema";
+import type { BatchDto, PaidOnDelivery } from "@/modules/flock/schema";
 import type { BirdSex, ProductionType } from "@/modules/reference-data/shared";
 
 // Batch repository (Prisma). Scoped to the caller's organisation.
@@ -22,13 +22,21 @@ export const openInHouse = async (tx: Tx, ctx: TenantContext, houseId: string, e
 
 export const batchIdTaken = async (tx: Tx, id: string) => (await tx.batch.count({ where: { id } })) > 0;
 
-/** `chickVatCentimes`: SPEC-finance FN9, the delivery's VAT, kept for finance (no flock rule reads it). */
-export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch, chickVatCentimes: bigint | null = null): Promise<BatchDto> {
+// SPEC-finance §9 "Chicks paid on delivery", as stored: both columns set, or neither.
+const paidOf = (r: { paidOnDeliveryCentimes: bigint | null; paidOnDeliveryCashAccountId: string | null }): PaidOnDelivery | null =>
+  r.paidOnDeliveryCentimes === null ? null : { cashAccountId: r.paidOnDeliveryCashAccountId!, amountCentimes: String(r.paidOnDeliveryCentimes) };
+
+/**
+ * `chickVatCentimes`: SPEC-finance FN9, the delivery's VAT; `paid`: what was paid at delivery (§9). Both kept for
+ * finance: no flock rule reads them.
+ */
+export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch, chickVatCentimes: bigint | null = null, paid: PaidOnDelivery | null = null): Promise<BatchDto> {
   const p = batch.placement;
+  const paidColumns = { paidOnDeliveryCentimes: paid && BigInt(paid.amountCentimes), paidOnDeliveryCashAccountId: paid?.cashAccountId ?? null };
   await tx.batch.create({
-    data: { ...p, chickVatCentimes, organizationId: ctx.organizationId, placedOn: date(p.placedOn), status: batch.status },
+    data: { ...p, chickVatCentimes, ...paidColumns, organizationId: ctx.organizationId, placedOn: date(p.placedOn), status: batch.status },
   });
-  return dtoOf(batch, chickVatCentimes);
+  return dtoOf(batch, chickVatCentimes, paid);
 }
 
 /** B1: the open batch's placement as corrected (the fields a correction may change), with its VAT. */
@@ -36,8 +44,8 @@ export async function saveCorrection(tx: Tx, batch: Batch, chickVatCentimes: big
   const p = batch.placement;
   const { houseId, strainId, chicksPlaced, freeChicks, deadOnArrival, hatchery, deliveryNote, chickUnitPriceCentimes } = p;
   const data = { houseId, strainId, chicksPlaced, freeChicks, deadOnArrival, hatchery, deliveryNote, chickUnitPriceCentimes, chickVatCentimes, placedOn: date(p.placedOn) };
-  await tx.batch.update({ where: { id: p.id }, data });
-  return dtoOf(batch, chickVatCentimes);
+  const r = await tx.batch.update({ where: { id: p.id }, data });
+  return dtoOf(batch, chickVatCentimes, paidOf(r)); // not corrected: finance posts the payment once (SPEC-finance §9)
 }
 
 /** The placement's VAT as stored (SPEC-finance FN9), null when none was typed. */
@@ -62,7 +70,7 @@ export async function recordedFor(tx: Tx, ctx: TenantContext, batchId: string, h
   };
 }
 
-const dtoOf = (batch: Batch, chickVatCentimes: bigint | null): BatchDto => {
+const dtoOf = (batch: Batch, chickVatCentimes: bigint | null, paidOnDelivery: PaidOnDelivery | null): BatchDto => {
   const p = batch.placement;
   return {
     id: p.id,
@@ -86,6 +94,7 @@ const dtoOf = (batch: Batch, chickVatCentimes: bigint | null): BatchDto => {
     status: batch.status,
     chickUnitPriceCentimes: String(p.chickUnitPriceCentimes),
     chickVatCentimes: chickVatCentimes === null ? null : String(chickVatCentimes),
+    paidOnDelivery,
   };
 };
 
@@ -180,6 +189,7 @@ export async function saveClosing(
     status: batch.status,
     chickUnitPriceCentimes: String(r.chickUnitPriceCentimes),
     chickVatCentimes: r.chickVatCentimes === null ? null : String(r.chickVatCentimes), // the closing's version keeps it (FN7)
+    paidOnDelivery: paidOf(r),
     closedOn: c.closedOn,
     closeReason: c.closeReason,
     soldGrams: c.soldGrams,
@@ -197,6 +207,16 @@ export async function batchInHouseOn(tx: Tx, ctx: TenantContext, houseId: string
     select: { placedOn: true, species: true, ageAtPlacementDays: true },
   });
   return r && { productionType: r.species, age: ageOfBatch({ placedOn: r.placedOn.toISOString().slice(0, 10), ageAtPlacementDays: r.ageAtPlacementDays }, day as FarmDay) };
+}
+
+/** For finance (SPEC-finance §9 "Chicks paid on delivery"): the batches placed between two farm days and paid at delivery. */
+export async function paidOnDeliveryBetween(tx: Tx, ctx: TenantContext, from: string, to: string) {
+  const rows = await tx.batch.findMany({
+    where: { organizationId: ctx.organizationId, placedOn: { gte: date(from), lte: date(to) }, paidOnDeliveryCentimes: { not: null } },
+    select: { id: true, placedOn: true, hatchery: true, paidOnDeliveryCentimes: true },
+    orderBy: { placedOn: "asc" },
+  });
+  return rows.map((r) => ({ batchId: r.id, placedOn: r.placedOn.toISOString().slice(0, 10), hatchery: r.hatchery, amountCentimes: r.paidOnDeliveryCentimes! }));
 }
 
 /** For finance's export (SPEC-finance FN18): each batch's farm, house, placement day, type (FC6) and hatchery (§9 placement debts), by id. */

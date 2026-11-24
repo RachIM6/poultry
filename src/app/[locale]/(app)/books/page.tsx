@@ -131,6 +131,17 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           </ul>
         </section>
       )}
+      {books.unpostedDeliveries.length > 0 && (
+        <section className={card} aria-labelledby="unposted-deliveries-title">
+          <h2 id="unposted-deliveries-title" className="font-semibold">{t("Books.unpostedDeliveries")}</h2>
+          <p className="text-sm text-ink-2">{t("Books.unpostedDeliveriesHint")}</p>
+          <ul className="flex flex-col gap-1">
+            {books.unpostedDeliveries.map((u) => (
+              <li key={u.batchId}>{t("Books.unpostedDeliveryLine", { date: day(u.placedOn), hatchery: u.hatchery, amount: formatMoney(u.amountCentimes) })}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       {views.length > 1 && (
         <nav className="flex flex-wrap gap-3" aria-label={t("Books.views")}>
           {views.map((v) => (

@@ -513,7 +513,11 @@
     "deliveryNote": "N° de bon de livraison",
     "chickPrice": "Prix d’un poussin (DH)",
     "chickVat": "TVA de la livraison, en plus du prix (DH, facultatif)",
-    "paidOnDelivery": "Payé à la livraison ? Enregistrez le paiement dans Trésorerie une fois connecté.",
+    "paidOnDelivery": "Payé à la livraison",
+    "paidCashBox": "Caisse",
+    "paidAmount": "Montant payé (DH)",
+    "paidHint": "Comptabilisé à la prochaine synchronisation, sorti de cette caisse. Un reste à payer se règle dans Trésorerie.",
+    "paidNoCashBox": "Payé à la livraison ? Ajoutez une caisse dans Dépense rapide pour le noter ici, ou enregistrez le paiement dans Trésorerie une fois connecté.",
     "dayOldWeight": "Poids moyen à 1 jour (g, facultatif)",
     "save": "Enregistrer",
     "cancel": "Annuler",
@@ -1357,7 +1361,10 @@
     "unpostedReason": {
       "FQ25": "non comptabilisé (FQ25)",
       "noValue": "non comptabilisé (aucune vente du produit, valeur 0)"
-    }
+    },
+    "unpostedDeliveries": "Payés à la livraison, non comptabilisés",
+    "unpostedDeliveriesHint": "La caisse envoyée avec la mise en place n’est pas une caisse de l’organisation. Si les poussins ont été payés, enregistrez le paiement dans Trésorerie.",
+    "unpostedDeliveryLine": "{date} · {hatchery} · {amount}"
   },
   "Threshold": {
     "forbidden": "Le seuil d’exonération est réservé au propriétaire, au gérant et au comptable.",

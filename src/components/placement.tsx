@@ -5,10 +5,11 @@ import { useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNo
 import { v7 as uuidv7 } from "uuid";
 import { danger, field, primary, secondary, warn } from "@/components/ui";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { parseCentimes } from "@/lib/kernel/money";
+import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import type { CleanoutDto } from "@/modules/biosecurity/shared";
 import type { HouseDto } from "@/modules/farm-registry/schema";
-import { Batch, FLOCK_MUTATIONS as M, canJoinHouse, type BatchDto } from "@/modules/flock/shared";
+import type { TreasuryAccountDto } from "@/modules/finance/shared";
+import { Batch, FLOCK_MUTATIONS as M, canJoinHouse, checkPaidOnDelivery, chicksCost, type BatchDto } from "@/modules/flock/shared";
 import { HEALTH_MUTATIONS as H, planFor } from "@/modules/health/shared";
 import type { LocalDb } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
@@ -47,6 +48,7 @@ export function PlacementForm({
   protocols,
   downtime,
   db,
+  cashBoxes,
   onPlaced,
   onCancel,
 }: {
@@ -55,6 +57,7 @@ export function PlacementForm({
   strains: { id: string; name: string; productionTypes: readonly ProductionType[] }[];
   protocols: ProtocolDto[];
   db: LocalDb;
+  cashBoxes?: TreasuryAccountDto[]; // SPEC-finance §9 "Chicks paid on delivery": finance.record's roles only, as on the phone
   onPlaced: (ok: boolean) => void;
   onCancel: () => void;
 }) {
@@ -64,7 +67,8 @@ export function PlacementForm({
   const typeStrains = strains.filter((s) => s.productionTypes.includes(type));
   const [bySex, setBySex] = useState(false); // SPEC-m3 B9: turkeys only
   const sexed = type === "turkey" && bySex;
-  const [draft, setDraft] = useState<{ houseId?: string; placedOn: string }>({ houseId: houses[0]?.id, placedOn: today() });
+  const [draft, setDraft] = useState<{ houseId?: string; placedOn: string; total: bigint }>({ houseId: houses[0]?.id, placedOn: today(), total: 0n });
+  const [paidOn, setPaidOn] = useState(false); // §9: paid in cash at delivery
   const chosen = houses.find((h) => h.id === draft.houseId);
   // SPEC-m2-compliance BS5, CQ3: planning's one figure, from the disinfection day else the removal; a warning, never a block.
   const min = chosen && downtimeOn(downtime.rules, chosen.farmId, draft.placedOn);
@@ -72,19 +76,27 @@ export function PlacementForm({
   const farmHouses = houses.filter((h) => h.farmId === chosen?.farmId);
   const warning = chosen && min && placementDowntime(min.minDays, downtimeByHouse(type), houseCycles(farmHouses.map((h) => h.id), downtime.batches, disinfected), chosen.id, draft.placedOn);
 
+  const groups: { sex: BirdSex; birds: string; doa: string }[] = sexed
+    ? [{ sex: "female", birds: "females", doa: "femaleDoa" }, { sex: "male", birds: "males", doa: "maleDoa" }]
+    : [{ sex: "mixed", birds: "chicksPlaced", doa: "deadOnArrival" }];
+  const read = (data: FormData) => {
+    const get = (k: string) => String(data.get(k) ?? "").trim();
+    const int = (k: string) => (/^\d+$/.test(get(k)) ? Number(get(k)) : NaN);
+    const price = parseCentimes(get("price") || "0");
+    const vat = get("vat") ? parseCentimes(get("vat")) : 0n; // SPEC-finance FN9: on top of the price, for the delivery
+    const birds = groups.reduce((n, g) => n + int(g.birds), 0);
+    // §9: the delivery's total, what "paid on delivery" is prefilled with
+    const total = price !== null && vat !== null && Number.isSafeInteger(birds) ? chicksCost(birds, price) + vat : 0n;
+    return { get, int, price, vat, birds, total };
+  };
+
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
-    const get = (k: string) => String(data.get(k) ?? "").trim();
+    const { get, int, price, vat, birds } = read(data);
     const house = houses.find((h) => h.id === get("houseId"));
-    const price = parseCentimes(get("price") || "0");
-    const vat = get("vat") ? parseCentimes(get("vat")) : 0n; // SPEC-finance FN9: on top of the price, for the delivery
-    const int = (k: string) => (/^\d+$/.test(get(k)) ? Number(get(k)) : NaN);
     const tenths = (v: string) => (/^\d+([.,]\d)?$/.test(v) ? Math.round(Number(v.replace(",", ".")) * 10) : NaN);
     if (!house || price === null || vat === null || !get("hatchery") || !get("deliveryNote")) return setError("Batches.invalid");
-    const groups: { sex: BirdSex; birds: string; doa: string }[] = sexed
-      ? [{ sex: "female", birds: "females", doa: "femaleDoa" }, { sex: "male", birds: "males", doa: "maleDoa" }]
-      : [{ sex: "mixed", birds: "chicksPlaced", doa: "deadOnArrival" }];
     const open = [...house.open];
     for (const g of groups) {
       if (!canJoinHouse(type, open, g.sex).ok) return setError("errors.HOUSE_HAS_OPEN_BATCH"); // the server enforces it too (B8)
@@ -116,10 +128,22 @@ export function PlacementForm({
       const batch = Batch.place(placement, today()); // the same rules as the server
       if (!batch.ok) return setError(batch.error === "INVALID_QUANTITY" ? "Batches.invalid" : `errors.${batch.error}`);
     }
+    const paid = paidOn && cashBoxes?.length ? { cashAccountId: get("paidCashBox"), amount: parseCentimes(get("paidAmount")) ?? 0n } : null;
+    const fits = paid && checkPaidOnDelivery(paid.amount, birds, price, vat); // §9, as the server
+    if (fits && !fits.ok) return setError(fits.error === "INVALID_INPUT" ? "Batches.invalid" : `errors.${fits.error}`);
     setError(undefined);
 
-    // farmId is dropped by the schema: the server derives it. One delivery's VAT goes on its first batch (a sexed placement).
-    const sent = placements.map((p, i) => ({ ...p, chickUnitPriceCentimes: String(price), chickVatCentimes: i === 0 && vat > 0n ? String(vat) : null }));
+    // farmId is dropped by the schema: the server derives it. One delivery's VAT goes on its first batch (a sexed placement),
+    // and what was paid at delivery on the batches in turn, each up to its own total (§9).
+    let left = paid?.amount ?? 0n;
+    const sent = placements.map((p, i) => {
+      const its = i === 0 ? vat : 0n;
+      const own = chicksCost(p.chicksPlaced, price) + its;
+      const pay = left < own ? left : own;
+      left -= pay;
+      const paidOnDelivery = paid && pay > 0n ? { cashAccountId: paid.cashAccountId, amountCentimes: String(pay) } : null;
+      return { ...p, chickUnitPriceCentimes: String(price), chickVatCentimes: its > 0n ? String(its) : null, paidOnDelivery };
+    });
     const protocol = protocols.find((p) => p.id === get("protocolId"));
     try {
       for (const p of sent) {
@@ -143,7 +167,7 @@ export function PlacementForm({
       onSubmit={submit}
       onChange={(e) => {
         const data = new FormData(e.currentTarget);
-        setDraft({ houseId: String(data.get("houseId")), placedOn: String(data.get("placedOn") || today()) });
+        setDraft({ houseId: String(data.get("houseId")), placedOn: String(data.get("placedOn") || today()), total: read(data).total });
       }}
       className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3"
     >
@@ -193,7 +217,24 @@ export function PlacementForm({
       <Field name="deliveryNote" label={t("Batches.deliveryNote")} required maxLength={60} dir="ltr" />
       <Field name="price" label={t("Batches.chickPrice")} inputMode="decimal" required dir="ltr" />
       <Field name="vat" label={t("Batches.chickVat")} inputMode="decimal" dir="ltr" />
-      <p className="text-sm text-ink-2">{t("Batches.paidOnDelivery")}</p>
+      {cashBoxes && cashBoxes.length === 0 && <p className="text-sm text-ink-2">{t("Batches.paidNoCashBox")}</p>}
+      {cashBoxes && cashBoxes.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <label className="flex min-h-11 items-center gap-3">
+            <input type="checkbox" checked={paidOn} onChange={(e) => setPaidOn(e.target.checked)} className="size-5" />
+            {t("Batches.paidOnDelivery")}
+          </label>
+          {paidOn && (
+            <>
+              <Select label={t("Batches.paidCashBox")} name="paidCashBox">
+                {cashBoxes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </Select>
+              <Field key={String(draft.total)} name="paidAmount" label={t("Batches.paidAmount")} inputMode="decimal" required defaultValue={typedCentimes(draft.total)} dir="ltr" />
+              <p className="text-sm text-ink-2">{t("Batches.paidHint")}</p>
+            </>
+          )}
+        </div>
+      )}
       <Field name="dayOldWeight" label={t("Batches.dayOldWeight")} inputMode="numeric" pattern="\d+" dir="ltr" />
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-1 font-semibold">{t("Batches.arrival")}</legend>

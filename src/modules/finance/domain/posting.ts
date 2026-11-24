@@ -4,6 +4,7 @@ import type { Line } from "@/modules/finance/domain/entry";
 import { ASSET_DEBTS, ASSET_VAT_RECOVERABLE } from "@/modules/finance/domain/assets";
 import { ASSOCIATES, EXPLOITANT, ownerAccountOf } from "@/modules/finance/domain/contribution";
 import { HENS_ADULTS, HENS_CULL_SALE, layPosting } from "@/modules/finance/domain/hens";
+import { placementPaymentPosting } from "@/modules/finance/domain/placement-debt";
 import { PAID_WITH, VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 
 /** A farm event finance posts (SPEC-finance FN6), read from a module's change log (FN7). Amounts in centimes. */
@@ -12,6 +13,7 @@ export type FarmEvent =
   | { type: "chicks"; id: string; day: FarmDay; amount: bigint; vat?: bigint; layers?: boolean } // the chicks bought at placement (SPEC B1); vat: on top of amount (FN9); layers: point-of-lay hens (FC6)
   | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead"; vat?: bigint; layers?: boolean } // SPEC V2, SPEC-m3 V6, V7; layers: from a laying flock (FC6)
   | { type: "lay"; id: string; day: FarmDay; amount: bigint; capitalised: bigint } // FC6: a pullet batch's FN13 cost at its transfer to lay, and at the last year end
+  | { type: "placementPaid"; id: string; day: FarmDay; amount: bigint; account: string; treasuryId: string; hatchery: string } // §9 "Chicks paid on delivery": account, the debt's
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
   | { type: "consumption"; id: string; day: FarmDay; amount: bigint; takenBy: "exploitant" | "associate" | "employee"; individual: boolean } // FC7, at its value; individual: the entity's legal form (FQ11)
   | { type: "supplierPayment"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment to a supplier (S2)
@@ -175,6 +177,8 @@ export function postingOf(e: FarmEvent, vatRegistered = false, classicHens = fal
     return { journal: "AC", label: hens ? "Achat de poules" : "Achat de poussins", lines };
   }
   if (e.type === "lay") return classicHens ? layPosting(e.amount, e.capitalised) : null;
+  // §9 "Chicks paid on delivery": as a payment from /treasury, in cash (D the debt's 4411 or 4481 / C 5161, the cash box)
+  if (e.type === "placementPaid") return placementPaymentPosting({ account: e.account, owed: e.amount }, e.amount, "cash", e.treasuryId, e.hatchery);
   const lines: Line[] = [{ account: CHARGE_BY_ITEM[e.itemKind] ?? CHARGE_BY_ITEM.other, debit: e.amount - vat, credit: 0n }];
   if (vat > 0n) lines.push(line(VAT_RECOVERABLE, vat, 0n));
   if (e.amount > e.paid) lines.push({ account: SUPPLIERS, debit: 0n, credit: e.amount - e.paid });

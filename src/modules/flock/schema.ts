@@ -28,6 +28,11 @@ export const PlaceBatch = z.object({
   parentFlock: z.string().trim().max(60).transform((s) => s || null).nullable().default(null),
   weakChicks: z.int32().min(0).nullable().default(null),
   litterTempTenths: z.int32().min(0).max(600).nullable().default(null),
+  // SPEC-finance §9 "Chicks paid on delivery": paid in cash at delivery, from a cash box of finance's; an older phone sends none
+  paidOnDelivery: z
+    .object({ cashAccountId: z.uuid(), amountCentimes: z.string().regex(/^[1-9]\d{0,11}$/) })
+    .nullable()
+    .default(null),
 });
 
 /** B1: corrects an open batch's placement; only the fields that changed are sent (the server merges them). */

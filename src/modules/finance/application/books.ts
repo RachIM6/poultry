@@ -6,6 +6,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { consumptionsBetween, type Consumption } from "@/modules/sales";
 import { catchUpBooks } from "@/modules/finance/application/posting";
+import { unpostedDeliveryPayments } from "@/modules/finance/application/placements";
 import { cashBookOf, trialBalance } from "@/modules/finance/domain/books";
 import { balanceSheet, incomeStatement } from "@/modules/finance/domain/statements";
 import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
@@ -30,6 +31,7 @@ export type Books = {
   cashBook: ReturnType<typeof cashBookOf>;
   tags: EntryTags; // FN16, FN18: each entry's party, farm, house and batch, from the record it posts
   unposted: (Consumption & { reason: NonNullable<ReturnType<typeof unpostedConsumption>> })[]; // FC7: the month's home consumptions that post nothing, and why
+  unpostedDeliveries: Awaited<ReturnType<typeof unpostedDeliveryPayments>>; // §9 "Chicks paid on delivery": the month's that didn't post
   // `ledger` entities only:
   journals?: { journal: string; entries: Entry[] }[];
   generalLedger?: { account: string; lines: { day: string; journal: string; label: string; debit: bigint; credit: bigint; running: bigint }[] }[];
@@ -94,6 +96,7 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
     cashBook: cashBookOf(inMonth),
     tags: await entryTags(ctx, month),
     unposted,
+    unpostedDeliveries: await unpostedDeliveryPayments(ctx, period.from, period.to),
     ...(can(ctx, "finance.manage") && {
       postingAccounts: leafAccounts(chart)
         .filter((a) => ledger || cashBookAccount(a.number, entity.form === "individual"))

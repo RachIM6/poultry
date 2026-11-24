@@ -9,8 +9,9 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto, DailyEntryDto, SoldBirdsDto, WeighingDto } from "@/modules/flock/shared";
 import type { TreatmentDto, VaccinationDto } from "@/modules/health/shared";
+import { curveFor, standardAt } from "@/modules/reference-data/shared";
 import { buildBatchReport, type BatchReport, type ResultRow } from "@/modules/reporting/shared";
-import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
+import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
 
 // SPEC-m2-compliance RP3: the batch report (SCOPE §13), from the phone's records and finance's result.
@@ -29,11 +30,14 @@ function Report({ scope, batchId, results }: { scope: Scope; batchId: string; re
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf(ENTITIES).toArray(), [userId, organizationId]);
-  if (!records) return null;
+  const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
+  if (!records || reference === undefined) return null;
   const all = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const batches = all<BatchDto>("batch");
   const batch = batches.find((b) => b.id === batchId);
   if (!batch) return <p>{t("notFound")}</p>;
+  // The batch screen's curve (SPEC-m3 R6): its sex's, else mixed; none loaded, no standard (OQ5).
+  const curve = curveFor(reference?.data.strains.find((s) => s.id === batch.strainId)?.curves ?? [], batch.sex ?? "mixed")?.points ?? null;
   const report = buildBatchReport({
     batch,
     today: farmDayOf(new Date()),
@@ -44,6 +48,7 @@ function Report({ scope, batchId, results }: { scope: Scope; batchId: string; re
     vaccinations: all<VaccinationDto>("vaccination"),
     treatments: all<TreatmentDto>("treatment"),
     results,
+    standardAt: curve && ((age) => standardAt(curve, age)),
   });
   return <ReportDocument batch={batch} house={all<HouseDto>("house").find((h) => h.id === batch.houseId)} report={report} />;
 }
@@ -59,6 +64,7 @@ function Figure({ label, children }: { label: string; children: ReactNode }) {
 
 function ReportDocument({ batch, house, report: r }: { batch: BatchDto; house: HouseDto | undefined; report: BatchReport }) {
   const t = useTranslations("Report");
+  const tw = useTranslations("Weighing");
   const locale = useLocale();
   const day = (d: string) => formatDay(d as FarmDay, locale);
   const money = (c: string | null) => (c === null ? "—" : formatMoney(BigInt(c)));
@@ -83,7 +89,10 @@ function ReportDocument({ batch, house, report: r }: { batch: BatchDto; house: H
           <Figure label={t("sold")}>{formatCount(k.sold)} · {formatKg(k.soldGrams)}</Figure>
           <Figure label={t("feed")}>{formatKg(k.feedGrams)}</Figure>
           <Figure label={t("fcr")}>{fcr(k.fcr)}</Figure>
-          <Figure label={t("weight")}>{k.weighed ? formatKg(k.weighed.averageGrams) : "—"}</Figure>
+          <Figure label={t("weight")}>
+            {k.weighed ? formatKg(k.weighed.averageGrams) : "—"}
+            {r.standard && <span className="block text-sm font-normal">{tw("versusStandard", { gap: formatPercent(r.standard.gapPercent, true), standard: formatKg(r.standard.bodyWeightGrams) })}</span>}
+          </Figure>
           <Figure label={t("epef")}>{k.weighed?.epef == null ? "—" : formatCount(Math.round(k.weighed.epef))}</Figure>
         </dl>
       </section>

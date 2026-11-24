@@ -1,5 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { batchKpis, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { batchKpis, birdsStarted, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { TreatmentDto, VaccinationDto } from "@/modules/health/shared";
 
 // SPEC-m2-compliance RP3 (SCOPE §13): the batch report. KPIs and health from the phone's records with flock's own
@@ -27,12 +27,16 @@ type Input = {
   vaccinations: VaccinationDto[];
   treatments: TreatmentDto[];
   results: ResultRow[] | null; // null: the viewer may not see money
+  /** The strain's standard body weight at an age (reference-data's standardAt on the batch's curve); null: no curve. */
+  standardAt: ((ageDays: number) => { bodyWeightGrams: number } | null) | null;
 };
 
 function figures(b: BatchDto, i: Pick<Input, "entries" | "weighings" | "sold" | "today">) {
   const entries = i.entries.filter((e) => e.batchId === b.id);
   const sold = i.sold.filter((s) => s.batchId === b.id);
-  const k = batchKpis({ placedOn: b.placedOn as FarmDay, birdsStarted: b.chicksPlaced - b.deadOnArrival, dayOldWeightGrams: b.dayOldWeightGrams }, entries, i.weighings.filter((w) => w.batchId === b.id), (b.closedOn ?? i.today) as FarmDay, sold);
+  // The batch screen's inputs (SPEC-m3 B7, B10), so mortality, EPEF and age read the same here.
+  const started = { placedOn: b.placedOn as FarmDay, birdsStarted: birdsStarted(b), dayOldWeightGrams: b.dayOldWeightGrams, ageAtPlacementDays: b.ageAtPlacementDays };
+  const k = batchKpis(started, entries, i.weighings.filter((w) => w.batchId === b.id), (b.closedOn ?? i.today) as FarmDay, sold);
   const feedGrams = entries.reduce((n, e) => n + (e.feed?.grams ?? 0), 0);
   const soldGrams = sold.reduce((n, s) => n + s.liveWeightGrams, 0);
   return {
@@ -52,8 +56,13 @@ export function buildBatchReport(i: Input) {
   const result = (id: string) => i.results?.find((r) => r.id === id) ?? null;
   const vaccinations = i.vaccinations.filter((v) => v.batchId === batch.id);
   const treatments = i.treatments.filter((t) => t.batchId === batch.id);
+  const kpis = figures(batch, i);
+  const w = kpis.weighed;
+  const standard = w && i.standardAt?.(w.ageDays);
   return {
-    kpis: figures(batch, i),
+    kpis,
+    // RP3: the latest weighing against the strain's standard at its age; nothing without a curve (OQ5), never invented.
+    standard: w && standard ? { bodyWeightGrams: standard.bodyWeightGrams, gapPercent: versusStandard(w.averageGrams, standard.bodyWeightGrams) } : null,
     health: {
       vaccinesDone: vaccinations.filter((v) => v.done).length,
       vaccinesPlanned: vaccinations.length,
@@ -61,9 +70,9 @@ export function buildBatchReport(i: Input) {
       lastWithdrawalEnd: treatments.map((t) => t.withdrawalEndsOn).sort().at(-1) ?? null,
     },
     money: result(batch.id),
-    // FN13's comparison: this batch and the same farm's earlier closed ones, newest first.
+    // FN13's comparison: this batch and the same farm's earlier closed ones of its production type (as D2), newest first.
     comparison: i.batches
-      .filter((b) => b.farmId === batch.farmId && b.placedOn <= batch.placedOn && (b.id === batch.id || b.status === "closed"))
+      .filter((b) => b.farmId === batch.farmId && b.species === batch.species && b.placedOn <= batch.placedOn && (b.id === batch.id || b.status === "closed"))
       .sort((x, y) => y.placedOn.localeCompare(x.placedOn))
       .map((b) => {
         const f = figures(b, i);

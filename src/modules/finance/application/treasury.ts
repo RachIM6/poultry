@@ -16,6 +16,7 @@ import { wagesDue } from "@/modules/workforce";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
 import { entryTags } from "@/modules/finance/application/tags";
 import { loanInstallmentsDue } from "@/modules/finance/application/loans";
+import { overridesFor } from "@/modules/finance/application/overrides";
 import { monthPeriod } from "@/modules/finance/domain/batch";
 import { OPENING_PREFIX } from "@/modules/finance/domain/close";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
@@ -48,7 +49,8 @@ const treasuryOf = (tx: Tx, ctx: TenantContext, id: string) =>
 async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string, build: (entity: { vatRegistered: boolean }) => Posting[]): Promise<Result<void, PostError>> {
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
-  const postings = build(entity);
+  const override = await overridesFor(tx, ctx, entity);
+  const postings = build(entity).map((p) => (override ? override(p, null) : p)); // FN8: posted once, today's overrides
   const locked = await lockedMonths(tx, ctx, entity.id);
   const onDay = (locked.has(monthOf(day as FarmDay)) ? `${firstOpenMonth(monthOf(day as FarmDay), locked)}-01` : day) as FarmDay;
   for (const [i, p] of postings.entries()) {

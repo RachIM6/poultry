@@ -68,7 +68,7 @@ Done 2026-11-14 (branch `feat/t30-posting-pipeline`):
 
 Not yet:
 - **Supplier payment rules:** M1 records no supplier payment, only the part paid at the purchase. That part goes to 5161 (cash), because M1 doesn't record how it was paid. ⚠️ until purchases carry a payment method (T32).
-- **`PostingRule` table and FN8 overrides:** the rules are code until an owner needs to override one.
+- **`PostingRule` table:** the rules are code. ~~FN8 overrides~~ built 2026-11-24 (branch `feat/posting-overrides`): `PostingOverride`, an append-only history per entity; `/settings/posting`, owner only, audited; applied by the pipeline and quick expenses before mapping to the chart (SPEC-finance FN8, §9 "Posting overrides").
 - **The "other" item kind:** it goes to 61221; FN6 has no rule for it (for the accountant).
 - **One legal entity per organisation,** as onboarding creates.
 

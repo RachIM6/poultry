@@ -181,6 +181,9 @@
     "yours": "Vos programmes",
     "none": "Aucun programme pour l’instant.",
     "noItems": "Aucun vaccin prévu.",
+    "required": {
+      "newcastle": "Aucune vaccination contre la maladie de Newcastle dans ce programme. Elle est obligatoire pour toutes les volailles ({source}) et suit le programme validé par l’ONSSA pour votre élevage. Les poussins peuvent avoir été vaccinés au couvoir."
+    },
     "item": "Jour {day} · {vaccine} · {method}",
     "addItem": "Ajouter un vaccin",
     "day": "Âge (jours)",
@@ -624,7 +627,10 @@
     "moveSave": "Enregistrer le jour",
     "remove": "Retirer du plan",
     "removeConfirm": "Retirer ce vaccin du plan de la bande ? Il ne sera plus rappelé.",
-    "removeYes": "Oui, retirer"
+    "removeYes": "Oui, retirer",
+    "required": {
+      "newcastle": "Aucune vaccination contre la maladie de Newcastle dans le plan de cette bande. Elle est obligatoire pour toutes les volailles ({source}) et suit le programme validé par l’ONSSA pour votre élevage. Les poussins peuvent avoir été vaccinés au couvoir."
+    }
   },
   "Treatment": {
     "withdrawal": "Délai d’attente en cours jusqu’au {date} inclus : pas de vente de cette bande avant.",

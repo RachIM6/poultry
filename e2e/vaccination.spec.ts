@@ -45,6 +45,7 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
   await expect(plan.nth(0)).toContainText("Aujourd’hui");
   await expect(plan.nth(1)).toContainText("Jour 7 · Vaccin Gumboro · Eau de boisson");
   await expect(plan.nth(1)).toContainText("Prévu le");
+  await expect(page.getByText(/maladie de Newcastle dans le plan/)).toHaveCount(0); // OQ4: the plan has its Newcastle line
 
   await plan.nth(0).getByRole("button", { name: "Marquer comme fait" }).click();
   await expect(page.getByLabel("Doses")).toHaveValue("990"); // the birds on hand

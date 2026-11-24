@@ -10,6 +10,7 @@ export { checkDone, remindedDueOn, statusOn } from "@/modules/health/domain/vacc
 export type { DoneError, Reminder, VaccinationStatus } from "@/modules/health/domain/vaccination";
 export { checkAdd, checkEdit, lineDueOn, moveLine } from "@/modules/health/domain/plan-edit";
 export type { PlanEditError } from "@/modules/health/domain/plan-edit";
+export { missingRequiredVaccines, REQUIRED_VACCINES } from "@/modules/health/domain/required";
 export { checkBatchDay, checkTreatment, eggWithdrawalEnd, eggWithdrawalUntil, eggWithdrawalWindows, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";
 
 export type VaccinationMethod = (typeof VACCINATION_METHODS)[number];

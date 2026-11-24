@@ -6,6 +6,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { can } from "@/lib/permissions";
+import { missingRequiredVaccines } from "@/modules/health/shared";
 import {
   ProtocolItem,
   REFERENCE_MUTATIONS as M,
@@ -150,6 +151,10 @@ function Editor({ protocol, vaccines, nameOf, manage, save }: { protocol: Protoc
   return (
     <div className={card}>
       <span className="font-semibold">{protocol.name}</span>
+      {/* OQ4: a warning, never a block (arrêté 3308-17 art. 13) */}
+      {missingRequiredVaccines(protocol.items).map((r) => (
+        <p key={r.disease} className="rounded-xl bg-chick-soft p-2 text-sm text-chick-fg">{t(`required.${r.disease}`, { source: r.source })}</p>
+      ))}
       {protocol.items.length === 0 ? (
         <p className="text-sm text-muted">{t("noItems")}</p>
       ) : (

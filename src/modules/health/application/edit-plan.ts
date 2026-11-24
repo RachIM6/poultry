@@ -5,8 +5,8 @@ import { fail, ok } from "@/lib/kernel/result";
 import { recordChange } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { batchFacts } from "@/modules/flock";
-import { checkAdd, checkEdit, moveLine, movedWithPlacement } from "@/modules/health/domain/plan-edit";
-import { deleteLine, findVaccination, saveLine, saveMove, undoneLines, vaccinationIdTaken } from "@/modules/health/infrastructure/vaccinations";
+import { checkAdd, checkEdit, checkPlacementBeforeRecords, moveLine, movedWithPlacement } from "@/modules/health/domain/plan-edit";
+import { deleteLine, findVaccination, recordedDays, saveLine, saveMove, undoneLines, vaccinationIdTaken } from "@/modules/health/infrastructure/vaccinations";
 import type { AddVaccination, CancelVaccination, MoveVaccination, VaccinationDto } from "@/modules/health/schema";
 import { areVaccines } from "@/modules/reference-data";
 
@@ -63,12 +63,14 @@ export async function cancelVaccination(tx: Tx, ctx: TenantContext, cmd: z.infer
 
 /**
  * SPEC B1, right after flock corrected the batch's placement day, in the same transaction (flock may not call health,
- * so the sync registry chains the two). Each line not yet done moves with the placement and is announced again for its
- * new day (H2); a line given keeps its day.
+ * so the sync registry chains the two). Refused after the first day health recorded on the batch, before any line moves.
+ * Each line not yet done moves with the placement and is announced again for its new day (H2); a line given keeps its day.
  */
 export async function moveWithPlacement(tx: Tx, ctx: TenantContext, batchId: string, meta: Meta) {
   const batch = await batchFacts(tx, ctx, batchId);
   if (!batch) throw new Error(`batch ${batchId} not found right after its correction`); // a programming error: roll back
+  const checked = checkPlacementBeforeRecords(batch.placedOn, await recordedDays(tx, ctx, batchId));
+  if (!checked.ok) return checked;
   const lines = await undoneLines(tx, ctx, batchId);
   for (const line of movedWithPlacement(lines, batch)) {
     const dto = await saveMove(tx, ctx, line.id, { dayOfAge: line.dayOfAge, dueOn: line.dueOn, remindAgain: true });

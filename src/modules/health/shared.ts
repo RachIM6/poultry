@@ -8,7 +8,7 @@ import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 // phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
 export { checkDone, remindedDueOn, statusOn } from "@/modules/health/domain/vaccination";
 export type { DoneError, Reminder, VaccinationStatus } from "@/modules/health/domain/vaccination";
-export { checkAdd, checkEdit, lineDueOn, moveLine, movedWithPlacement } from "@/modules/health/domain/plan-edit";
+export { checkAdd, checkEdit, checkPlacementBeforeRecords, lineDueOn, moveLine, movedWithPlacement } from "@/modules/health/domain/plan-edit";
 export type { PlanEditError } from "@/modules/health/domain/plan-edit";
 export { missingRequiredVaccines, REQUIRED_VACCINES } from "@/modules/health/domain/required";
 export { checkBatchDay, checkTreatment, eggWithdrawalEnd, eggWithdrawalUntil, eggWithdrawalWindows, withdrawalEnd, withdrawalUntil } from "@/modules/health/domain/withdrawal";

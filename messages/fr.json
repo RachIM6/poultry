@@ -711,6 +711,7 @@
     "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge.",
     "BATCH_HAS_DATA": "Le bâtiment ne peut plus changer : cette bande a déjà des saisies.",
     "PLACEMENT_AFTER_DATA": "La mise en place ne peut pas suivre le premier jour saisi (saisie du jour, pesée ou vente).",
+    "PLACEMENT_AFTER_HEALTH_RECORD": "La mise en place ne peut pas suivre le premier soin saisi (vaccin donné, traitement ou visite du vétérinaire).",
     "PLACEMENT_OVERLAPS_PREVIOUS": "Le bâtiment était encore occupé par la bande précédente à cette date.",
     "FEWER_BIRDS_THAN_RECORDED": "Moins de sujets que les morts, réformes et ventes déjà saisis.",
     "SALE_HAS_PAYMENT": "Un paiement couvre déjà cette vente, ou son chèque ou sa traite a déjà circulé : elle ne peut plus être annulée ni réduite.",

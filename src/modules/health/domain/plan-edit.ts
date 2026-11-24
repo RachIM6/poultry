@@ -53,3 +53,11 @@ export function movedWithPlacement<L extends { done: unknown; dayOfAge: number; 
     return dueOn?.ok && dueOn.value !== line.dueOn ? [{ ...line, dueOn: dueOn.value }] : [];
   });
 }
+
+/**
+ * SPEC B1: the placement day stays on or before the first day health recorded on the batch (a vaccine given, a treatment
+ * started, a vet visit), or that record would come before the birds arrived.
+ */
+export function checkPlacementBeforeRecords(placedOn: FarmDay, recorded: readonly string[]): Result<void, "PLACEMENT_AFTER_HEALTH_RECORD"> {
+  return recorded.some((day) => day < placedOn) ? fail("PLACEMENT_AFTER_HEALTH_RECORD") : ok(undefined);
+}

@@ -119,4 +119,38 @@ describe("a corrected placement day moves the batch's vaccination plan (SPEC B1,
     expect(await dueDays(b)).toEqual([[14, on(-6), null], [21, on(1), null], [25, on(5), null], [30, on(10), null]]);
     expect(await sent(b)).toEqual(["vaccineTomorrow 21", "vaccineToday 21"]);
   });
+
+  it("B1: not after a vaccination already given: refused, nothing written, and a replay gives the same answer", async () => {
+    const fix = correct({ placedOn: on(-4) }); // the day-14 line was given on day -5
+    const changes = await db.change.count({ where: { organizationId: a.organizationId } });
+    expect(await statuses(a, [fix, fix])).toEqual(["PLACEMENT_AFTER_HEALTH_RECORD", "PLACEMENT_AFTER_HEALTH_RECORD"]);
+    expect(await statuses(a, [fix])).toEqual(["PLACEMENT_AFTER_HEALTH_RECORD"]);
+    expect(await db.mutation.findUniqueOrThrow({ where: { id: fix.id }, select: { result: true } })).toEqual({ result: { status: "rejected", messageKey: "errors.PLACEMENT_AFTER_HEALTH_RECORD" } });
+    // flock had corrected the batch before health refused: all of it rolled back
+    expect((await db.batch.findUniqueOrThrow({ where: { id: ids.a.batch } })).placedOn.toISOString().slice(0, 10)).toBe(addFarmDays(PLACED_ON, 1));
+    expect(await dueDays(a)).toEqual([[14, on(-6), on(-5)], [21, on(2), null], [25, on(6), null], [28, on(9), null]]);
+    expect(await db.auditEvent.count({ where: { mutationId: fix.id } })).toBe(0);
+    expect(await db.change.count({ where: { organizationId: a.organizationId } })).toBe(changes);
+  });
+
+  it("B1: on the day it was given, or before, the correction goes through", async () => {
+    expect(await statuses(a, [correct({ placedOn: on(-5) })])).toEqual(["applied"]);
+    expect(await dueDays(a)).toEqual([[14, on(-6), on(-5)], [21, on(16), null], [25, on(20), null], [28, on(23), null]]);
+    expect(await statuses(a, [correct({ placedOn: on(-19) })])).toEqual(["applied"]);
+  });
+
+  it("B1: nor after a treatment started or a vet visit", async () => {
+    const medicine = uuidv7();
+    expect(
+      await statuses(a, [
+        m(I.createStockItem, { id: medicine, farmId: ids.a.farm, productId: null, kind: "medicine", name: "Antibiotique", unit: "ml", lot: "M1", expiresOn: "2099-06-30" }),
+        m(I.recordPurchase, { id: uuidv7(), movementId: uuidv7(), supplierId: supplier, stockItemId: medicine, day: PLACED_ON, quantity: 2000, unitPriceCentimes: "10", paidCentimes: "0", dueOn: null }),
+        m(H.recordTreatment, { id: uuidv7(), batchId: ids.a.batch, stockItemId: medicine, quantity: 100, dose: "1 ml par litre", startOn: on(-12), endOn: on(-10), reason: "Toux", prescriber: "Dr Alaoui", withdrawalDays: 5 }),
+      ]),
+    ).toEqual(Array(3).fill("applied"));
+    expect(await statuses(a, [correct({ placedOn: on(-11) })])).toEqual(["PLACEMENT_AFTER_HEALTH_RECORD"]);
+    expect(await statuses(a, [m(H.recordVetVisit, { id: uuidv7(), batchId: ids.a.batch, on: on(-14), vetName: "Dr Alaoui", notes: "" })])).toEqual(["applied"]);
+    expect(await statuses(a, [correct({ placedOn: on(-13) })])).toEqual(["PLACEMENT_AFTER_HEALTH_RECORD"]);
+    expect(await statuses(a, [correct({ placedOn: on(-14) })])).toEqual(["applied"]);
+  });
 });

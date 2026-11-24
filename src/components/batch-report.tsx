@@ -93,7 +93,7 @@ function ReportDocument({ batch, house, report: r }: { batch: BatchDto; house: H
             {k.weighed ? formatKg(k.weighed.averageGrams) : "—"}
             {r.standard && <span className="block text-sm font-normal">{tw("versusStandard", { gap: formatPercent(r.standard.gapPercent, true), standard: formatKg(r.standard.bodyWeightGrams) })}</span>}
           </Figure>
-          <Figure label={t("epef")}>{k.weighed?.epef == null ? "—" : formatCount(Math.round(k.weighed.epef))}</Figure>
+          <Figure label={t("epef")}>{k.epef === null ? "—" : formatCount(Math.round(k.epef))}</Figure>
         </dl>
       </section>
 

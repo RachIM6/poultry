@@ -41,6 +41,15 @@ describe("buildBatchReport", () => {
     expect(r.health).toEqual({ vaccinesDone: 1, vaccinesPlanned: 2, treatments: 1, lastWithdrawalEnd: "2026-10-31" });
   });
 
+  it("a closed batch's FCR and EPEF are both its final ones (feed ÷ kg sold), not the last weighing's estimate", () => {
+    const weighings: WeighingDto[] = [{ id: "w", batchId: "b13", day: "2026-10-26", count: 100, totalGrams: 200_000, weightsGrams: [] }]; // day 35, 2 kg
+    const k = buildBatchReport({ ...input, weighings }).kpis;
+    expect(k.fcr).toBeCloseTo(4000 / 2370, 9);
+    // Livability 96 % × 2,46875 kg sold per bird / (43 days × 4 000 / 2 370) × 100 = 326,56
+    expect(k.epef).toBeCloseTo(326.5639, 3);
+    expect(k.weighed?.epef).not.toBeCloseTo(k.epef!, 0); // the estimate at day 35 is another figure
+  });
+
   it("takes the money from finance's own result for the batch, untouched", () => {
     expect(buildBatchReport(input).money).toEqual(input.results[0]);
     expect(buildBatchReport({ ...input, results: null }).money).toBeNull(); // no money on the page without the right

@@ -12,9 +12,10 @@ export type Voided = { version: bigint; voided: string };
 
 /**
  * For finance (SPEC-finance FN7): purchases recorded, changed or cancelled after `after` (this organisation's
- * change-log version), oldest first, with the kind of item bought (it picks the charge account).
+ * change-log version), oldest first, with the kind of item bought (it picks the charge account). Each of these reads
+ * also returns `readTo`, the last version it read (dropped changes included), where finance's cursor moves (§9).
  */
-export async function purchasesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<(PurchaseChange | Voided)[]> {
+export async function purchasesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: (PurchaseChange | Voided)[]; readTo: bigint }> {
   const changes = await tx.change.findMany({
     where: { organizationId: ctx.organizationId, entity: "purchase", version: { gt: after } },
     orderBy: { version: "asc" },
@@ -23,7 +24,7 @@ export async function purchasesChangedSince(tx: Tx, ctx: TenantContext, after: b
   const purchases = changes.filter((c) => c.data !== null).map((c) => c.data as unknown as PurchaseDto & Required<Omit<PurchaseDto, "vatCentimes" | "paidMethod">>);
   const items = await tx.stockItem.findMany({ where: { organizationId: ctx.organizationId, id: { in: purchases.map((p) => p.stockItemId) } } });
   const kindOf = new Map(items.map((i) => [i.id, i.kind]));
-  return changes.map(({ version, entityId, data }) => {
+  const out = changes.map(({ version, entityId, data }): PurchaseChange | Voided => {
     if (data === null) return { version, voided: entityId };
     const p = data as unknown as (typeof purchases)[number];
     return {
@@ -38,6 +39,7 @@ export async function purchasesChangedSince(tx: Tx, ctx: TenantContext, after: b
       paidMethod: p.paidMethod ?? "cash", // absent before purchases had one: cash, as they were posted
     };
   });
+  return { items: out, readTo: changes.at(-1)?.version ?? after };
 }
 
 /** For finance (SPEC-finance FN6, FN7): later supplier payments recorded after `after`, oldest first. */
@@ -47,7 +49,8 @@ export async function supplierPaymentsChangedSince(tx: Tx, ctx: TenantContext, a
     orderBy: { version: "asc" },
     take: limit,
   });
-  return changes.filter((c) => c.data !== null).map((c) => ({ version: c.version, ...(c.data as unknown as SupplierPaymentDto) }));
+  const items = changes.filter((c) => c.data !== null).map((c) => ({ version: c.version, ...(c.data as unknown as SupplierPaymentDto) }));
+  return { items, readTo: changes.at(-1)?.version ?? after };
 }
 
 /** For finance's cash schedule (FN12, F-Effects): what is still due to the suppliers, by due date. */
@@ -91,10 +94,11 @@ export async function issuedDebitsChangedSince(tx: Tx, ctx: TenantContext, after
   });
   const debits = changes.filter((c) => c.data !== null).map((c) => ({ version: c.version, d: c.data as unknown as IssuedDebitDto }));
   const issued = new Map((await issuedOfOrg(tx, ctx, debits.map((x) => x.d.instrumentId))).map((i) => [i.id, i]));
-  return debits.flatMap(({ version, d }) => {
+  const items = debits.flatMap(({ version, d }) => {
     const i = issued.get(d.instrumentId);
     return i ? [{ version, id: d.id, day: d.day as FarmDay, kind: i.kind, amountCentimes: i.amountCentimes }] : [];
   });
+  return { items, readTo: changes.at(-1)?.version ?? after };
 }
 
 /** For finance's cash schedule (F-Effects): the issued bills the bank hasn't debited yet, by agreed date. */

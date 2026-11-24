@@ -656,6 +656,7 @@
     "CLEANOUT_ALREADY_STARTED": "Le nettoyage après cette bande est déjà commencé.",
     "FILE_TOO_LARGE": "Fichier trop lourd : 5 Mo au maximum.",
     "FILE_TYPE_NOT_ALLOWED": "Type de fichier refusé : PDF, JPEG, PNG ou WebP seulement.",
+    "STORAGE_FULL": "Espace de stockage plein : ce fichier ne peut pas être enregistré.",
     "PROOF_ALREADY_ATTACHED": "Cette vérification a déjà sa photo.",
     "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier.",
     "VAT_MORE_THAN_AMOUNT": "La TVA dépasse le montant total.",

@@ -656,6 +656,7 @@
     "CLEANOUT_ALREADY_STARTED": "التنظيف بعد هذه الدفعة بدأ من قبل.",
     "FILE_TOO_LARGE": "الملف كبير جداً: 5 ميغابايت كحد أقصى.",
     "FILE_TYPE_NOT_ALLOWED": "نوع الملف مرفوض: PDF أو JPEG أو PNG أو WebP فقط.",
+    "STORAGE_FULL": "مساحة التخزين ممتلئة: لا يمكن حفظ هذا الملف.",
     "PROOF_ALREADY_ATTACHED": "لهذه المراقبة صورتها من قبل.",
     "FILE_ALREADY_ATTACHED": "لهذه الوثيقة ملفها من قبل.",
     "VAT_MORE_THAN_AMOUNT": "مبلغ الضريبة على القيمة المضافة يتجاوز المبلغ الإجمالي.",

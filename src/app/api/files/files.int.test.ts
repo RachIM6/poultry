@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { pull, push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { attachRodentProof } from "@/modules/biosecurity";
-import { readFile, storeFile } from "@/modules/documents";
+import { MAX_ORG_STORAGE_BYTES, readFile, storeFile } from "@/modules/documents";
 import { MAX_FILE_BYTES } from "@/modules/documents/shared";
 import { twoTenants } from "@/test/tenant";
 
@@ -64,6 +64,22 @@ describe("stored files and rodent proof (SPEC-m2-compliance DC2, BS8, ADR-011, C
     const pulled = (await pull(worker(), 0, registry)).changes.filter((c) => c.entity === "rodentCheck").at(-1);
     expect(pulled?.data).toEqual({ ...check, proofFileId: proof.value.id });
     expect((await pull(b, 0, registry)).changes.filter((c) => c.entity === "rodentCheck")).toEqual([]);
+  });
+
+  it("refuses a file past the organisation's storage cap and keeps no bytes; another organisation still uploads", async () => {
+    // Sizes faked on rows with tiny bytes: no large file. Two rows, so the total crosses 2^31 bytes as a real one would.
+    const used = Number((await db.storedFile.aggregate({ where: { organizationId: a.organizationId }, _sum: { sizeBytes: true } }))._sum.sizeBytes);
+    const room = MAX_ORG_STORAGE_BYTES - used - pdf.length; // exactly one more pdf fits
+    const fake = (sizeBytes: number) => ({ id: uuidv7(), organizationId: a.organizationId, purpose: "document", contentType: "application/pdf", sizeBytes, sha256: "0".repeat(64), bytes: Buffer.from(pdf), uploadedBy: a.userId });
+    await db.storedFile.createMany({ data: [fake(Math.floor(room / 2)), fake(Math.ceil(room / 2))] });
+
+    expect((await storeFile(a, "document", pdf)).ok).toBe(true); // up to the cap
+    const [files, audits] = await Promise.all([db.storedFile.count(), db.auditEvent.count()]);
+    expect(await storeFile(a, "document", pdf)).toEqual({ ok: false, error: "STORAGE_FULL" });
+    expect(await storeFile(worker(), "proof", png)).toEqual({ ok: false, error: "STORAGE_FULL" });
+    expect([await db.storedFile.count(), await db.auditEvent.count()]).toEqual([files, audits]);
+
+    expect((await storeFile(b, "document", pdf)).ok).toBe(true);
   });
 
   it("the upload route refuses a cross-site request before anything else (poultry-auth §4)", async () => {

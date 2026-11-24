@@ -4,6 +4,8 @@ export { bankOnly, EXPENSE_ACCOUNTS, EXPENSE_CATEGORIES, PAID_FROM, TREASURY_KIN
 export type { ExpenseCategory, PaidFrom, TreasuryKind } from "./domain/treasury.ts";
 export { breakEvenPrice, budgetOf } from "./domain/budget.ts";
 export type { Budget, BudgetInputs } from "./domain/budget.ts";
+export { budgetCash, plainTiming } from "./domain/budget-cash.ts";
+export type { BudgetCash, CashTiming, CashWeek } from "./domain/budget-cash.ts";
 export { CSV_DATE_FORMATS, CSV_SEPARATORS } from "./domain/bank-import.ts";
 export type { CsvMapping } from "./domain/bank-import.ts";
 

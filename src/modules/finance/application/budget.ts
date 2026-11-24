@@ -2,18 +2,46 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { batchesForFinance, batchFacts } from "@/modules/flock";
+import { batchesForFinance, batchFacts, type BatchMoneyFacts } from "@/modules/flock";
 import { batchConsumption } from "@/modules/inventory";
-import { batchResults } from "@/modules/finance/application/batch-results";
+import { batchResults, type BatchResultRow } from "@/modules/finance/application/batch-results";
 import type { BudgetInputs } from "@/modules/finance/domain/budget";
+import type { CashTiming } from "@/modules/finance/domain/budget-cash";
 
-/** FN15: a closed batch as a budget's starting point: its figures as what-if inputs. */
-export type BudgetBase = { batchId: string; label: string; inputs: BudgetInputs };
+/** FN15: a closed batch as a budget's starting point: its figures as what-if inputs, and when its money moved. */
+export type BudgetBase = { batchId: string; label: string; inputs: BudgetInputs; timing: CashTiming };
+
+type Consumed = Awaited<ReturnType<typeof batchConsumption>>;
 
 const perKg = (centimes: bigint, grams: bigint) => (grams > 0n ? (centimes * 2000n + grams) / (2n * grams) : 0n);
+
+/**
+ * FN15, §9 "Budget cash need": when a closed batch's money moved, by day since placement: the feed by its consumption
+ * days, the other costs by the days of its other consumptions, of its expenses and of the placement's VAT, plus its
+ * undated part (shared costs, M1 other costs) in equal shares each day; the sales by the kg sold each day.
+ */
+function timingOf(r: BatchResultRow, f: BatchMoneyFacts, consumed: Consumed, expenses: { day: Date; amountCentimes: bigint }[]): CashTiming {
+  const placed = f.placedOn as FarmDay;
+  const at = (day: string) => daysBetween(placed, day as FarmDay);
+  const lastDay = at(r.closedOn!);
+  const days = BigInt(lastDay + 1); // the dated weights × days, so the undated part can go 1/days a day in whole numbers
+  const dated: CashTiming["other"] = [
+    [0, f.chickVatCentimes * days],
+    ...[...consumed].filter(([kind]) => kind !== "feed").flatMap(([, k]) => [...k.byDay].map(([d, c]): [number, bigint] => [at(d), c * days])),
+    ...expenses.map((e): [number, bigint] => [at(e.day.toISOString().slice(0, 10)), e.amountCentimes * days]),
+  ];
+  const undated = r.costs.other + r.costs.allocated;
+  return {
+    lastDay,
+    feed: [...(consumed.get("feed")?.byDay ?? [])].map(([d, c]) => [at(d), c]),
+    other: [...dated, ...Array.from({ length: lastDay + 1 }, (_, d): [number, bigint] => [d, undated])],
+    sales: f.soldOut.map((s) => [at(s.day), BigInt(s.grams)]),
+  };
+}
 
 /** FN15: every closed batch, newest first, turned into budget inputs (feed apart, so its price can be changed). */
 export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase[], "FORBIDDEN">> {
@@ -27,7 +55,9 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
       const bases: BudgetBase[] = [];
       for (const r of closed) {
         const f = facts.get(r.id)!;
-        const feed = (await batchConsumption(tx, ctx, r.id)).get("feed") ?? { quantity: 0n, centimes: 0n };
+        const consumed = await batchConsumption(tx, ctx, r.id);
+        const feed = consumed.get("feed") ?? { quantity: 0n, centimes: 0n };
+        const expenses = await tx.expense.findMany({ where: { organizationId: ctx.organizationId, batchId: r.id }, select: { day: true, amountCentimes: true } });
         const grams = BigInt(r.soldGrams);
         bases.push({
           batchId: r.id,
@@ -41,6 +71,7 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
             plannedGrams: grams,
             salePricePerKgCentimes: perKg(r.salesCentimes, grams),
           },
+          timing: timingOf(r, f, consumed, expenses),
         });
       }
       return bases;
@@ -68,9 +99,10 @@ export const SaveBudget = z.object({
   otherCostCentimes: amount,
   plannedGrams: amount,
   salePricePerKgCentimes: amount,
+  saleDay: z.string().trim().regex(/^\d{1,3}$/).transform(Number).nullable().default(null), // §9 "Budget cash need": kept without a base only
 });
 
-export type SavedBudget = { id: string; name: string; basedOn: string | null; batchId: string | null; inputs: BudgetInputs; createdAt: string };
+export type SavedBudget = { id: string; name: string; basedOn: string | null; batchId: string | null; saleDay: number | null; inputs: BudgetInputs; createdAt: string };
 
 /**
  * FN15: saves a planned batch's budget (owner, manager), audited. `basedOn` must be a batch of the organisation,
@@ -80,7 +112,7 @@ export async function saveBudget(ctx: TenantContext, input: unknown): Promise<Re
   if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
   const parsed = SaveBudget.safeParse(input);
   if (!parsed.success || parsed.data.chicks > 2_147_483_647n) return fail("INVALID_INPUT");
-  const { id, chicks, ...rest } = parsed.data;
+  const { id, chicks, saleDay, ...rest } = parsed.data;
   const retry = (prior: { organizationId: string } | null) => (prior?.organizationId === ctx.organizationId ? ok(id) : fail("ALREADY_EXISTS"));
   return db
     .$transaction(async (tx) => {
@@ -88,8 +120,9 @@ export async function saveBudget(ctx: TenantContext, input: unknown): Promise<Re
       if (prior) return retry(prior); // a retry
       if (rest.basedOn && !(await batchFacts(tx, ctx, rest.basedOn))) return fail("INVALID_INPUT");
       if (rest.batchId && (await batchFacts(tx, ctx, rest.batchId))?.status !== "open") return fail("INVALID_INPUT");
-      await tx.budget.create({ data: { id, organizationId: ctx.organizationId, ...rest, chicks: Number(chicks), createdBy: ctx.userId } });
-      await audit(tx, ctx, { entity: "Budget", entityId: id, action: "create", after: { name: rest.name, basedOn: rest.basedOn, batchId: rest.batchId } }); // a web action, not a sync mutation: no mutation id
+      const kept = rest.basedOn ? null : saleDay; // a copied budget takes its base batch's timing
+      await tx.budget.create({ data: { id, organizationId: ctx.organizationId, ...rest, saleDay: kept, chicks: Number(chicks), createdBy: ctx.userId } });
+      await audit(tx, ctx, { entity: "Budget", entityId: id, action: "create", after: { name: rest.name, basedOn: rest.basedOn, batchId: rest.batchId, saleDay: kept } }); // a web action, not a sync mutation: no mutation id
       return ok(id);
     })
     .catch(async (err) => {
@@ -108,6 +141,7 @@ export async function listBudgets(ctx: TenantContext): Promise<Result<SavedBudge
       name: b.name,
       basedOn: b.basedOn,
       batchId: b.batchId,
+      saleDay: b.saleDay,
       createdAt: b.createdAt.toISOString(),
       inputs: {
         chicks: BigInt(b.chicks),

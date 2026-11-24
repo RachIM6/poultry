@@ -28,6 +28,12 @@ test("a budget copied from a closed batch recomputes its break-even and margin a
   await expect(page.getByLabel("Prix de l’aliment (DH/kg)")).toHaveValue("4,60");
   await expect(figures.nth(1)).toHaveText(/^9,65\sDH \/ kg$/);
   await expect(figures.nth(3)).toHaveText(/^8.700,00\sDH$/);
+  // SPEC-finance §9 "Budget cash need": the copied batch's timing. Its chicks and all its feed go out in week 1 and
+  // nothing more until its one sale on day 44, so the need peaks in week 1 already (the first week it is reached).
+  await expect(page.getByRole("table", { name: "Besoin de trésorerie par semaine" }).getByRole("row")).toHaveCount(8); // the header and 7 weeks
+  await expect(page.locator("p", { hasText: "Besoin de trésorerie maximal" })).toContainText(/semaine 1 · 19\s300,00\sDH/);
+  // the weeks' table scrolls on a phone, never the page (a wider page shifts every tap below it)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
 
   await page.getByLabel("Prix de l’aliment (DH/kg)").fill("5,00"); // +1 200,00 of feed
   await expect(figures.nth(1)).toHaveText(/^10,25\sDH \/ kg$/);
@@ -51,5 +57,21 @@ test("a budget copied from a closed batch recomputes its break-even and margin a
 
   await page.getByLabel("Nom du budget").fill("Bande de janvier");
   await page.getByRole("button", { name: "Enregistrer le budget" }).click();
-  await expect(page.getByRole("list", { name: "Budgets enregistrés" }).getByRole("listitem")).toHaveText([/^Bande de janvier · seuil 10,25\sDH \/ kg, marge 3.500,00\sDH$/]);
+  const saved = page.getByRole("list", { name: "Budgets enregistrés" }).getByRole("listitem");
+  await expect(saved.locator("p").first()).toHaveText(/^Bande de janvier · seuil 10,25\sDH \/ kg, marge 3.500,00\sDH$/);
+  // §9 "Budget cash need": a saved budget's weeks, collapsed until asked for, from its base batch's timing
+  const janvier = page.getByRole("table", { name: "Besoin de trésorerie par semaine · Bande de janvier" });
+  await expect(janvier).toBeHidden();
+  await saved.getByText("Besoin de trésorerie par semaine").click();
+  await expect(janvier.getByRole("row")).toHaveCount(8);
+
+  // Without a base batch: the sale day typed, saved, and the plain rule (feed daily, the rest on placement day)
+  await page.getByLabel("Copié de la bande").selectOption({ label: "Partir de zéro" });
+  await page.getByLabel("Jour de la vente (jours après la mise en place)").fill("41");
+  await page.getByLabel("Nom du budget").fill("Sans base");
+  await page.getByRole("button", { name: "Enregistrer le budget" }).click();
+  const plain = saved.filter({ hasText: "Sans base" });
+  await plain.getByText("Besoin de trésorerie par semaine").click();
+  await expect(page.getByRole("table", { name: "Besoin de trésorerie par semaine · Sans base" }).getByRole("row")).toHaveCount(7); // the header and 6 weeks
+  await expect(plain.locator("p", { hasText: "Besoin de trésorerie maximal" })).toContainText(/semaine 6 · 20\s500,00\sDH/); // 5 500,00 + 15 000,00 before the sale
 });

@@ -5,16 +5,18 @@ import { useActionState, useId, useState, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { formatKg, formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
-import { budgetOf, type BudgetInputs } from "@/modules/finance/shared";
+import { budgetCash, budgetOf, plainTiming, type BudgetInputs, type CashTiming } from "@/modules/finance/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
 import { danger, field, primary } from "@/components/ui";
+import { BudgetCashView } from "@/components/budget-cash";
 
 // SPEC-finance FN15: a planned batch's budget, copied from a closed batch, with its feed and sale prices as what-if
 // inputs. The figures recompute on every keystroke with the same pure function the server uses; a screen reader hears
 // them, and the fields to check, when the user leaves a field (WCAG 4.1.3), not on each keystroke.
 
 
-type Base = { batchId: string; label: string; inputs: Record<keyof BudgetInputs, string> }; // centimes and grams as strings
+type TimingText = { lastDay: number; feed: [number, string][]; other: [number, string][]; sales: [number, string][] };
+type Base = { batchId: string; label: string; inputs: Record<keyof BudgetInputs, string>; timing: TimingText }; // centimes and grams as strings
 type Text = Record<keyof BudgetInputs, string>;
 export type SaveState = { ok?: boolean; messageKey?: string };
 
@@ -58,6 +60,9 @@ const KEYS = Object.keys(LABEL) as (keyof Text)[];
 /** The fields that don't parse. */
 const unread = (t: Text) => KEYS.filter((k) => PARSE[k](t[k]) === null);
 
+const weights = (w: [number, string][]): CashTiming["feed"] => w.map(([d, x]) => [d, BigInt(x)]);
+const timingOf = (t: TimingText): CashTiming => ({ lastDay: t.lastDay, feed: weights(t.feed), other: weights(t.other), sales: weights(t.sales) });
+
 /** The typed values, or null while one of them doesn't parse. */
 function parse(t: Text): BudgetInputs | null {
   return unread(t).length > 0 ? null : (Object.fromEntries(KEYS.map((k) => [k, PARSE[k](t[k])])) as BudgetInputs);
@@ -74,8 +79,14 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
     if (saved.ok) setId(uuidv7()); // the next budget is a new one
     return saved;
   }, {});
+  const [saleDay, setSaleDay] = useState(""); // without a base batch: when the sale is planned (§9 "Budget cash need")
   const inputs = parse(text);
   const b = inputs && budgetOf(inputs);
+  const base = bases.find((x) => x.batchId === basedOn);
+  const saleDayOk = /^\d{1,3}$/.test(saleDay.trim());
+  const timing = base ? timingOf(base.timing) : saleDayOk ? plainTiming(Number(saleDay.trim())) : null;
+  const saleDayHint = useId();
+  const cash = inputs && timing && budgetCash(inputs, timing);
   const errorId = useId();
   const list = new Intl.ListFormat(useLocale() === "ar" ? "ar" : "fr"); // "a, b et c" in French
   // Set when the user leaves a field: the fields to check, else the result to say.
@@ -146,6 +157,17 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
           <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedMarginCentimes)}</bdi></dd>
         </dl>
       )}
+
+      {/* SPEC-finance FN15, §9 "Budget cash need": the batch's cash week by week, from the base batch's timing or the plain rule */}
+      <section className="flex flex-col gap-2" aria-labelledby="budget-cash">
+        <h2 id="budget-cash" className="text-[17px] font-semibold text-ink-2">{t("cash")}</h2>
+        {!base && <Field label={t("saleDay")}>{(id) => <input id={id} name="saleDay" value={saleDay} onChange={(e) => setSaleDay(e.target.value)} inputMode="numeric" dir="ltr" aria-invalid={(saleDay.trim() !== "" && !saleDayOk) || undefined} aria-describedby={cash ? undefined : saleDayHint} className={`${field} aria-invalid:border-alert`} />}</Field>}
+        {cash ? (
+          <BudgetCashView cash={cash} label={t("cash")} fromBase={!!base} />
+        ) : (
+          inputs && <p id={saleDayHint} className="text-sm text-ink-2">{t("saleDayMissing")}</p>
+        )}
+      </section>
 
       {/* What the server saves: the parsed inputs, in centimes and grams. */}
       {inputs && Object.entries(inputs).map(([k, v]) => <input key={k} type="hidden" name={k} value={String(v)} />)}

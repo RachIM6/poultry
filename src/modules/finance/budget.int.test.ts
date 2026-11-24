@@ -4,7 +4,7 @@ import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { budgetBases, budgetOf, listBudgets, saveBudget } from "@/modules/finance";
+import { budgetBases, budgetCash, budgetOf, listBudgets, saveBudget } from "@/modules/finance";
 import { twoTenants } from "@/test/tenant";
 
 const m = <P,>(type: string, payload: P) => ({ id: uuidv7(), type, payload, createdAt: "2026-11-05T08:00:00+01:00" });
@@ -57,6 +57,23 @@ describe("budget from a closed batch (SPEC-finance FN15, T35)", () => {
     expect(budgetOf(bases.value[0].inputs)).toMatchObject({ plannedCostCentimes: 1_980_000n, breakEvenPerKgCentimes: 990n, plannedMarginCentimes: 820_000n });
   });
 
+  it("gives the weekly cash need the base batch's timing (SPEC-finance §9 \"Budget cash need\")", async () => {
+    const bases = await budgetBases(a);
+    if (!bases.ok) throw new Error(bases.error);
+    const { inputs, timing } = bases.value[0];
+    // placed 1 Sep, the feed eaten on day 1, the one sale on day 44 (it closed the batch)
+    expect(timing.lastDay).toBe(44);
+    expect(timing.feed).toEqual([[1, 1_380_000n]]);
+    expect(timing.sales).toEqual([[44, 2_000_000n]]);
+    // T24's electricity has no day in the batch: an equal share each of its 45 days
+    expect(timing.other.filter(([, w]) => w > 0n)).toEqual(Array.from({ length: 45 }, (_, d) => [d, 50_000n]));
+    const cash = budgetCash(inputs, timing);
+    expect(cash.weeks).toHaveLength(7);
+    expect(cash.weeks[0].outCentimes).toBe(550_000n + 1_380_000n + 7_778n); // chicks, all the feed, 7/45 of 500,00
+    expect([cash.peakNeedCentimes, cash.peakWeek]).toEqual([1_980_000n, 7]);
+    expect(cash.weeks.at(-1)!.cumulativeCentimes).toBe(820_000n);
+  });
+
   it("saves a budget for the owner and the manager only, each organisation its own", async () => {
     const form = { id: uuidv7(), name: "Bande de janvier", basedOn: ids.batch, chicks: "1200", chickPriceCentimes: "600", feedGrams: "3600000", feedPricePerKgCentimes: "480", otherCostCentimes: "60000", plannedGrams: "2400000", salePricePerKgCentimes: "1450" };
     expect(await saveBudget({ ...a, role: "worker" }, form)).toEqual({ ok: false, error: "FORBIDDEN" });
@@ -67,6 +84,20 @@ describe("budget from a closed batch (SPEC-finance FN15, T35)", () => {
     const other = await listBudgets(b);
     expect(other.ok && other.value).toEqual([]);
     expect(await budgetBases({ ...a, role: "worker" })).toEqual({ ok: false, error: "FORBIDDEN" });
+  });
+
+  it("keeps the sale day of a budget without a base batch only (SPEC-finance §9 \"Budget cash need\")", async () => {
+    const form = { id: uuidv7(), name: "Sans base", basedOn: null, chicks: "1000", chickPriceCentimes: "550", feedGrams: "3000000", feedPricePerKgCentimes: "460", otherCostCentimes: "0", plannedGrams: "2000000", salePricePerKgCentimes: "1400", saleDay: " 41 " };
+    expect(await saveBudget(a, { ...form, id: uuidv7(), saleDay: "4 1" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await saveBudget(a, { ...form, id: uuidv7(), saleDay: "1000" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await saveBudget(a, form)).toEqual({ ok: true, value: form.id });
+    const copied = { ...form, id: uuidv7(), name: "Copié", basedOn: ids.batch }; // its base batch's timing: the day isn't kept
+    expect(await saveBudget(a, copied)).toEqual({ ok: true, value: copied.id });
+    const saved = await listBudgets(a);
+    if (!saved.ok) throw new Error(saved.error);
+    expect(saved.value.filter((s) => s.id === form.id || s.id === copied.id).map((s) => [s.name, s.saleDay])).toEqual([["Copié", null], ["Sans base", 41]]);
+    const audit = await db.auditEvent.findFirst({ where: { entityId: form.id } });
+    expect(audit?.after).toMatchObject({ saleDay: 41 });
   });
 
   it("saves the same id once (SPEC §7: a double submit, a retry), and copies only a batch of the organisation", async () => {

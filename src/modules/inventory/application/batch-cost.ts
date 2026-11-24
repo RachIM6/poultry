@@ -15,11 +15,12 @@ export async function batchConsumptionCost(tx: Tx, ctx: TenantContext, batchId: 
 /**
  * For finance (SPEC-finance FN15): what the batch consumed, by item kind (feed, vaccine, …): the quantity in base units
  * (grams for kg) and its cost at each item's weighted average cost. `asOf` (FC4): the consumptions dated on or before
- * that day only; the running average makes their cost independent of later movements.
+ * that day only; the running average makes their cost independent of later movements. `byDay`: that cost by farm day
+ * (FN15's weekly cash need of a budget copied from the batch).
  */
-export async function batchConsumption(tx: Tx, ctx: TenantContext, batchId: string, asOf?: string): Promise<Map<string, { quantity: bigint; centimes: bigint }>> {
+export async function batchConsumption(tx: Tx, ctx: TenantContext, batchId: string, asOf?: string): Promise<Map<string, { quantity: bigint; centimes: bigint; byDay: Map<string, bigint> }>> {
   const org = ctx.organizationId;
-  const mine = await tx.stockMovement.findMany({ where: { organizationId: org, batchId, ...(asOf && { day: { lte: new Date(`${asOf}T00:00:00Z`) } }) }, select: { id: true, stockItemId: true, quantity: true } });
+  const mine = await tx.stockMovement.findMany({ where: { organizationId: org, batchId, ...(asOf && { day: { lte: new Date(`${asOf}T00:00:00Z`) } }) }, select: { id: true, stockItemId: true, quantity: true, day: true } });
   const items = [...new Set(mine.map((m) => m.stockItemId))];
   const [ledger, kinds] = await Promise.all([
     tx.stockMovement.findMany({ where: { organizationId: org, stockItemId: { in: items } } }),
@@ -29,7 +30,7 @@ export async function batchConsumption(tx: Tx, ctx: TenantContext, batchId: stri
   const purchaseIds = ledger.flatMap((m) => (m.purchaseId ? [m.purchaseId] : []));
   const paid = new Map((await tx.purchase.findMany({ where: { id: { in: purchaseIds } }, select: { id: true, amountCentimes: true } })).map((p) => [p.id, p.amountCentimes]));
 
-  const byKind = new Map<string, { quantity: bigint; centimes: bigint }>();
+  const byKind = new Map<string, { quantity: bigint; centimes: bigint; byDay: Map<string, bigint> }>();
   for (const item of items) {
     const { costs } = valuate(
       ledger
@@ -37,11 +38,13 @@ export async function batchConsumption(tx: Tx, ctx: TenantContext, batchId: stri
         .map((m) => ({ id: m.id, day: dayOf(m.day), quantity: m.quantity, createdAt: m.createdAt, purchaseAmountCentimes: m.purchaseId ? paid.get(m.purchaseId) : undefined })),
     );
     const kind = kindOf.get(item) ?? "other";
-    const k = byKind.get(kind) ?? { quantity: 0n, centimes: 0n };
+    const k = byKind.get(kind) ?? { quantity: 0n, centimes: 0n, byDay: new Map<string, bigint>() };
     for (const m of mine) {
       if (m.stockItemId !== item) continue;
+      const cost = costs.get(m.id) ?? 0n;
       k.quantity += BigInt(-m.quantity); // a consumption is a negative movement
-      k.centimes += costs.get(m.id) ?? 0n;
+      k.centimes += cost;
+      k.byDay.set(dayOf(m.day), (k.byDay.get(dayOf(m.day)) ?? 0n) + cost);
     }
     byKind.set(kind, k);
   }

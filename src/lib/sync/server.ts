@@ -121,13 +121,30 @@ const rejected = (code: string, values: Record<string, string | number> = {}): M
   ...(Object.keys(values).length > 0 && { messageValues: values }),
 });
 
-/** ADR-003 pull: the caller's organisation only, after the cursor, in version order, a page at a time. */
-export async function pull(ctx: TenantContext, since: number, registry: SyncRegistry): Promise<PullResponse> {
-  const rows = await db.change.findMany({
-    where: { organizationId: ctx.organizationId, version: { gt: since } },
-    orderBy: { version: "asc" },
-    take: PULL_PAGE,
-  });
+/**
+ * ADR-003 pull, compacted (ADR-014): the caller's organisation only, the latest change of each record changed after the
+ * cursor, in version order, a page at a time. `snapshot` from 0 (a phone that replaces its copy) leaves deleted records
+ * out. `records` (a refused write's) narrows it to those, deletions included, whatever the cursor.
+ */
+export async function pull(
+  ctx: TenantContext,
+  since: number,
+  registry: SyncRegistry,
+  { snapshot = false, records }: { snapshot?: boolean; records?: { entity: string; id: string }[] } = {},
+): Promise<PullResponse> {
+  const only = records
+    ? Prisma.sql`AND (entity, "entityId") IN (SELECT * FROM unnest(${records.map((r) => r.entity)}::text[], ${records.map((r) => r.id)}::uuid[]))`
+    : Prisma.empty;
+  const live = snapshot && since === 0 && !records ? Prisma.sql`AND data IS NOT NULL` : Prisma.empty;
+  // A later version of the same record makes this one superseded: (organizationId, entity, entityId, version) answers it.
+  const rows = await db.$queryRaw<{ entity: string; entityId: string; version: bigint; data: unknown }[]>`
+    SELECT entity, "entityId", version, data FROM "Change" c
+    WHERE "organizationId" = ${ctx.organizationId}::uuid AND version > ${records ? 0n : BigInt(since)} ${live} ${only}
+      AND NOT EXISTS (
+        SELECT 1 FROM "Change" l
+        WHERE l."organizationId" = c."organizationId" AND l.entity = c.entity AND l."entityId" = c."entityId" AND l.version > c.version)
+    ORDER BY version
+    LIMIT ${PULL_PAGE}`;
   const view = registry.views?.[ctx.role];
   const changes = rows.flatMap((row) => {
     const serialize = Object.hasOwn(registry.entities, row.entity) ? registry.entities[row.entity] : undefined;

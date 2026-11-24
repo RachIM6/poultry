@@ -3,7 +3,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Fragment, Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
-import { Num } from "@/components/num";
+import { Num, Scroll } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
@@ -122,23 +122,25 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
 
   const etic = (key: "s1" | "s1bis" | "s1_1" | "s1ter", rows: Ledger["etic"]["s1"] | undefined) =>
     rows && (
-      <table key={key} className={sheet}>
-        <caption className="pb-1 text-start font-semibold">{t(`etic.${key}`)}</caption>
-        <thead>
-          <tr>
-            <th />
-            {(["start", "increase", "decrease", "end"] as const).map((c) => <th key={c} className="text-end!">{t(`etic.${key === "s1bis" ? "amort" : key === "s1ter" ? "stock" : "gross"}.${c}`)}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((x) => (
-            <tr key={x.key}>
-              <td>{label(x)}</td>
-              {[x.start, x.increase, x.decrease, x.end].map((v, i) => <Num key={i}>{money(v)}</Num>)}
+      <Scroll key={key} label={t(`etic.${key}`)}>
+        <table className={sheet}>
+          <caption className="pb-1 text-start font-semibold">{t(`etic.${key}`)}</caption>
+          <thead>
+            <tr>
+              <th />
+              {(["start", "increase", "decrease", "end"] as const).map((c) => <th key={c} className="text-end!">{t(`etic.${key === "s1bis" ? "amort" : key === "s1ter" ? "stock" : "gross"}.${c}`)}</th>)}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((x) => (
+              <tr key={x.key}>
+                <td>{label(x)}</td>
+                {[x.start, x.increase, x.decrease, x.end].map((v, i) => <Num key={i}>{money(v)}</Num>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Scroll>
     );
 
   return (

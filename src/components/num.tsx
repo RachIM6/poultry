@@ -10,3 +10,12 @@ export function Num({ children, className = "" }: { children?: ReactNode; classN
     </td>
   );
 }
+
+/** A wide table's horizontal scroll at 200 % zoom: a named region the keyboard can focus and scroll. */
+export function Scroll({ label, className = "", children }: { label: string; className?: string; children: ReactNode }) {
+  return (
+    <div role="region" aria-label={label} tabIndex={0} className={`relative overflow-x-auto ${className}`}>
+      {children}
+    </div>
+  );
+}

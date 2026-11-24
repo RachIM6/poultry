@@ -1,6 +1,7 @@
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Line } from "@/modules/finance/domain/entry";
-import type { Journal, Posting } from "@/modules/finance/domain/posting";
+import type { Posting } from "@/modules/finance/domain/posting";
+import { PAID_WITH } from "@/modules/finance/domain/treasury";
 
 // SPEC-finance FN6, FC6, §9 "Placement debts": paying the chicks or point-of-lay hens of a placement, pure.
 
@@ -24,14 +25,8 @@ export function checkPlacementPayment(debt: PlacementDebt | null, amount: bigint
   return amount > debt.owed ? fail("PAID_MORE_THAN_OWED") : ok(debt);
 }
 
-const PAID: Record<"cash" | "transfer" | "cheque", { account: string; journal: Journal }> = {
-  cash: { account: "5161", journal: "CA" },
-  transfer: { account: "5141", journal: "BQ" },
-  cheque: { account: "5141", journal: "BQ" }, // an issued cheque leaves the bank on its issue day (FN6)
-};
-
 /** D the debt's account / C 5161 or 5141, tagged with the cash box or bank account (FN3). */
-export function placementPaymentPosting(debt: PlacementDebt, amount: bigint, paidWith: keyof typeof PAID, treasuryId: string | null, hatchery: string): Posting {
-  const paid = PAID[paidWith];
+export function placementPaymentPosting(debt: PlacementDebt, amount: bigint, paidWith: keyof typeof PAID_WITH, treasuryId: string | null, hatchery: string): Posting {
+  const paid = PAID_WITH[paidWith];
   return { journal: paid.journal, label: `Paiement fournisseur : ${hatchery}`, lines: [{ account: debt.account, debit: amount, credit: 0n }, { account: paid.account, debit: 0n, credit: amount, treasuryId }] };
 }

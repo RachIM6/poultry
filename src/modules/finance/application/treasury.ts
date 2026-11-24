@@ -13,6 +13,7 @@ import { batchFacts } from "@/modules/flock";
 import { issuedBillsDue, supplierDuesOf } from "@/modules/inventory";
 import { instrumentsToCollect } from "@/modules/sales";
 import { wagesDue } from "@/modules/workforce";
+import { catchUpBooks } from "@/modules/finance/application/posting";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
 import { entryTags } from "@/modules/finance/application/tags";
 import { loanInstallmentsDue } from "@/modules/finance/application/loans";
@@ -294,6 +295,7 @@ async function treasuryBalances(ctx: TenantContext): Promise<Map<string | null, 
 export async function treasuryOverview(ctx: TenantContext, month: string): Promise<Result<TreasuryOverview, "FORBIDDEN" | "INVALID_INPUT">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("INVALID_INPUT");
+  await catchUpBooks(ctx); // §9
   const org = { organizationId: ctx.organizationId };
   const [accounts, balance, tags, lines] = await Promise.all([
     db.treasuryAccount.findMany({ where: org, orderBy: { name: "asc" } }),

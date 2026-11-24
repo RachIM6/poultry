@@ -1,5 +1,5 @@
 // SPEC-finance FN15, §9 "Budget cash need". Pure and Zod-free: /budget recomputes it on every keystroke.
-import { budgetOf, type BudgetInputs } from "./budget.ts";
+import { budgetOf, mulDiv, type BudgetInputs } from "./budget.ts";
 
 type Weights = [day: number, weight: bigint][]; // day: days since placement (0 = placement day); weights are relative
 
@@ -42,7 +42,7 @@ function spread(total: bigint, weights: Weights, fallback: Weights, lastDay: num
   let done = 0n;
   for (const [d, w] of days) {
     run += w;
-    const upTo = (total * run * 2n + sum) / (2n * sum);
+    const upTo = mulDiv(total, run, sum);
     into[d] += upTo - done;
     done = upTo;
   }

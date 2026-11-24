@@ -1,4 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
+import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Posting } from "@/modules/finance/domain/posting";
 
@@ -16,8 +17,6 @@ const MONTHS: Record<LoanFrequency, number> = { monthly: 1, quarterly: 3 };
 export type LoanTerms = { principal: bigint; rate: number; frequency: LoanFrequency; installments: number; deferral: number; firstDueOn: FarmDay };
 export type ScheduleRow = { number: number; dueOn: FarmDay; capital: bigint; interest: bigint };
 
-/** n ÷ d rounded half up, for n ≥ 0 and d > 0 (§7.1). */
-const halfUp = (n: bigint, d: bigint) => (2n * n + d) / (2n * d);
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** FC2: `months` after `first`, on the same day of the month, clamped to the month's end (31 Mar + 3 → 30 Jun). */
@@ -35,13 +34,13 @@ export function dueDay(first: FarmDay, months: number): FarmDay {
  */
 export function loanSchedule(t: LoanTerms): ScheduleRow[] {
   const months = MONTHS[t.frequency];
-  const capital = halfUp(t.principal, BigInt(t.installments));
+  const capital = divHalfUp(t.principal, BigInt(t.installments));
   const rows: ScheduleRow[] = [];
   let outstanding = t.principal;
   for (let k = 0; k < t.deferral + t.installments; k++) {
     // capped at what is owed: on a tiny principal over many rows, rounded rows could pass it and leave the last one negative
     const c = k < t.deferral ? 0n : k === t.deferral + t.installments - 1 ? outstanding : capital < outstanding ? capital : outstanding;
-    rows.push({ number: k + 1, dueOn: dueDay(t.firstDueOn, k * months), capital: c, interest: halfUp(outstanding * BigInt(t.rate), 100_000n * BigInt(12 / months)) });
+    rows.push({ number: k + 1, dueOn: dueDay(t.firstDueOn, k * months), capital: c, interest: divHalfUp(outstanding * BigInt(t.rate), 100_000n * BigInt(12 / months)) });
     outstanding -= c;
   }
   return rows;

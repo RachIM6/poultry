@@ -85,7 +85,7 @@ export async function hensAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntit
     houseName: b.houseName,
     species: b.species as "layer" | "pullet",
     placedOn: b.placedOn,
-    onHand: b.closedOn ? 0 : (count.get(b.id) ?? b.started - b.out.reduce((n, o) => n + o.birds, 0)),
+    onHand: b.closedOn ? 0 : (count.get(b.id) ?? b.onHand),
   });
   const open = batches.filter((b) => b.closedOn === null);
 

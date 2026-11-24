@@ -1,3 +1,5 @@
+import { divHalfUp } from "@/lib/kernel/money";
+
 // SPEC S5: weighted average cost per item (an item is already per farm), as a running valuation over the ledger.
 // Pure and exact: values are integer centimes; each outgoing movement takes its share of the current value, rounded
 // half up, and that share leaves the stock. So costs taken + value left = what was paid, to the centime.
@@ -17,7 +19,7 @@ export type Valuation = {
   costs: Map<string, bigint>;
 };
 
-const share = (value: bigint, part: number, whole: number) => (value * BigInt(part) * 2n + BigInt(whole)) / (2n * BigInt(whole));
+const share = (value: bigint, part: number, whole: number) => divHalfUp(value * BigInt(part), BigInt(whole));
 
 /**
  * Movements in ledger order: by farm day, then by when they were recorded, then by id. Not by id alone: a consumption's

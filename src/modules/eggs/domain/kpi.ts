@@ -1,5 +1,6 @@
 import { addFarmDays, daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
 import { downgradedIn, eggsIn, type EggCounts, type EggSample } from "@/modules/eggs/domain/collection";
+import { birdsOnHand } from "@/modules/flock/shared";
 
 // SPEC-m3 E5 (P-Layers). Pure and isomorphic: the phone computes a layer batch's figures from its local records, offline.
 // Integers in (birds, eggs, grams, millilitres), numbers out; rounding is for display.
@@ -44,8 +45,7 @@ export function layerKpis(
   collections: readonly Collection[],
   today: FarmDay,
 ): LayerKpis {
-  const outBefore = (day: string) => sum(entries.filter((e) => e.day < day), (e) => e.dead + e.culled) + sum(sold.filter((s) => s.day < day), (s) => s.birds);
-  const hensOn = (day: string) => batch.hensHoused - outBefore(day); // at the start of the day
+  const hensOn = (day: string) => birdsOnHand(batch.hensHoused, entries.filter((e) => e.day < day), sold.filter((s) => s.day < day)); // at the start of the day
   const eggsOn = new Map<string, number>();
   for (const c of collections) eggsOn.set(c.day, (eggsOn.get(c.day) ?? 0) + eggsIn(c.counts));
   const days = [...eggsOn.keys()].sort();

@@ -7,7 +7,7 @@ import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { daysBetween, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { parseCentimes } from "@/lib/kernel/money";
+import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import {
   LATER_PAYMENT_METHODS as METHODS,
@@ -232,7 +232,7 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
   const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const limit = buyer.creditLimitCentimes ? BigInt(buyer.creditLimitCentimes) : null;
   // The current limit in the input as the farmer types it ("10000,50"), centimes kept.
-  const shown = limit === null ? "" : `${limit / 100n},${String(limit % 100n).padStart(2, "0")}`;
+  const shown = limit === null ? "" : typedCentimes(limit);
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const text = String(new FormData(e.currentTarget).get("limit") ?? "").trim();

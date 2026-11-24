@@ -1,4 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
+import { divHalfUp } from "@/lib/kernel/money";
 import { assetCost } from "@/modules/finance/domain/assets";
 import type { Line } from "@/modules/finance/domain/entry";
 import type { Posting } from "@/modules/finance/domain/posting";
@@ -46,7 +47,6 @@ export function layPosting(total: bigint, capitalised: bigint): Posting | null {
 }
 
 const monthIndex = (day: string) => Number(day.slice(0, 4)) * 12 + Number(day.slice(5, 7)) - 1;
-const halfUp = (n: bigint, d: bigint) => (2n * n + d) / (2n * d); // n ≥ 0, d > 0
 const birds = (xs: readonly { birds: number }[]) => xs.reduce((n, x) => n + x.birds, 0);
 
 /**
@@ -88,7 +88,7 @@ export function flockYear(f: LayingFlock, from: FarmDay, to: FarmDay): FlockYear
     const months = Math.min(until, end) - cur;
     const base = gross - residual - accumulated;
     if (months > 0 && base > 0n) {
-      const charge = halfUp(base * BigInt(months), BigInt(end - cur));
+      const charge = divHalfUp(base * BigInt(months), BigInt(end - cur));
       accumulated += charge;
       if (cur >= yearStart) y.charge += charge;
     }
@@ -104,7 +104,7 @@ export function flockYear(f: LayingFlock, from: FarmDay, to: FarmDay): FlockYear
     const sold = birds(f.sold.filter((s) => s.day === day));
     const last = day === f.closedOn;
     if (!last && (alive <= 0 || sold <= 0)) continue;
-    const part = (x: bigint) => (last ? x : halfUp(x * BigInt(Math.min(sold, alive)), BigInt(alive)));
+    const part = (x: bigint) => (last ? x : divHalfUp(x * BigInt(Math.min(sold, alive)), BigInt(alive)));
     const [g, a, r] = [part(gross), part(accumulated), part(residual)];
     gross -= g;
     accumulated -= a;
@@ -149,7 +149,7 @@ export function classicYearEnd(capitalised: bigint, flocks: readonly FlockYear[]
  * batch's is its FN13 cost to date split by head as FC4 does (p. 52).
  */
 export const simplifiedValue = (species: "layer" | "pullet", entry: bigint, entered: number, onHand: number, sold: number): bigint =>
-  species === "pullet" ? batchInProgressValue(entry, onHand, sold, null).cost : entry > 0n && entered > 0 && onHand > 0 ? halfUp(entry * BigInt(onHand), BigInt(entered)) : 0n;
+  species === "pullet" ? batchInProgressValue(entry, onHand, sold, null).cost : entry > 0n && entered > 0 && onHand > 0 ? divHalfUp(entry * BigInt(onHand), BigInt(entered)) : 0n;
 
 /** The provision for a flock below its entry value: max(0, value − current value per bird × birds counted). */
 export const simplifiedProvision = (value: bigint, perBird: bigint, onHand: number): bigint => {

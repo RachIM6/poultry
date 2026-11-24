@@ -1,4 +1,4 @@
-import type { FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { monthOf } from "@/modules/finance/domain/entry";
 
@@ -54,7 +54,7 @@ export function checkUntick(line: BankLine, statement: Statement, locked: Readon
  */
 export function pairImported(statement: Statement, imported: readonly { id: string; day: FarmDay; amount: bigint }[], lines: readonly BankLine[]) {
   const pairs = new Map<string, { lineId: string; ticked: boolean }>();
-  const distance = (a: FarmDay, b: FarmDay) => Math.abs(Date.parse(a) - Date.parse(b));
+  const distance = (a: FarmDay, b: FarmDay) => Math.abs(daysBetween(a, b));
   for (const ticked of [true, false]) {
     const pool = lines.filter((l) => (ticked ? l.match?.statementId === statement.id : !l.match && l.day <= statement.endDay));
     const taken = new Set([...pairs.values()].map((p) => p.lineId));

@@ -1,3 +1,5 @@
+import { divHalfUp } from "@/lib/kernel/money";
+
 // SPEC-m4 WF11, §2: one employee's pay for a month. No labour-law figure is built in: the SMAG, the contribution rates
 // and the cap come from a dated `LabourRules` version the owner entered with its source (MQ2). Without one, the pay is
 // days, gross and advances only. Money in integer centimes; rates in basis points (1 % = 100).
@@ -36,7 +38,7 @@ export type PayLine = {
 };
 
 // ⚠️ MQ2: rounding to the centime, half up, per contribution.
-const pct = (base: bigint, bp: number) => (base * BigInt(bp) + 5_000n) / 10_000n;
+const pct = (base: bigint, bp: number) => divHalfUp(base * BigInt(bp), 10_000n);
 
 export function payFor(
   month: Month,

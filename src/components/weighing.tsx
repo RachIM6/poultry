@@ -32,7 +32,8 @@ function readSample(group: boolean, weights: string, total: string, count: strin
 
 const asSample = (w: WeighingDto): Sample => (w.weightsGrams.length ? { weightsGrams: w.weightsGrams } : { totalGrams: w.totalGrams, count: w.count });
 
-export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto; weighings: WeighingDto[]; curves: StrainCurves; write: Write }) {
+/** Without `write` (a role that can't weigh: the vet, SPEC-m5 PA4), the past weighings only. */
+export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto; weighings: WeighingDto[]; curves: StrainCurves; write?: Write }) {
   const curve = curveFor(curves, batch.sex ?? "mixed")?.points ?? null; // R6: its sex's, else mixed
   const t = useTranslations();
   const [day, setDay] = useState<string>(today());
@@ -71,7 +72,7 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
       "weightsGrams" in sample
         ? { id, batchId: batch.id, day, count: sample.weightsGrams.length, totalGrams: sample.weightsGrams.reduce((a, g) => a + g, 0), weightsGrams: sample.weightsGrams }
         : { id, batchId: batch.id, day, count: sample.count, totalGrams: sample.totalGrams, weightsGrams: [] };
-    if (await write({ type: M.recordWeighing, payload: { id, batchId: batch.id, day, sample } }, [{ entity: "weighing", id, data: dto }])) {
+    if (await write?.({ type: M.recordWeighing, payload: { id, batchId: batch.id, day, sample } }, [{ entity: "weighing", id, data: dto }])) {
       setWeights("");
       setTotal("");
       setCount("");
@@ -82,37 +83,39 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
   return (
     <section className="flex flex-col gap-3 border-t border-line pt-4">
       <h3 className="text-[17px] font-semibold text-ink-2">{t("Weighing.title")}</h3>
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <label htmlFor={ids.day}>{t("Weighing.day")}</label>
-          <input id={ids.day} name="day" {...bad("day")} type="date" value={day} max={today()} min={batch.placedOn} onChange={(e) => setDay(e.target.value)} className={field} />
-        </div>
-        <fieldset className="flex flex-wrap gap-4">
-          <legend className="sr-only">{t("Weighing.mode")}</legend>
-          <label className="flex min-h-11 items-center gap-2"><input type="radio" name="mode" checked={!group} onChange={() => setGroup(false)} />{t("Weighing.individual")}</label>
-          <label className="flex min-h-11 items-center gap-2"><input type="radio" name="mode" checked={group} onChange={() => setGroup(true)} />{t("Weighing.group")}</label>
-        </fieldset>
-        {group ? (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label htmlFor={ids.total}>{t("Weighing.totalKg")}</label>
-              <input id={ids.total} name="total" {...bad("total")} value={total} onChange={(e) => setTotal(e.target.value)} inputMode="decimal" dir="ltr" className={field} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor={ids.count}>{t("Weighing.count")}</label>
-              <input id={ids.count} name="count" {...bad("count")} value={count} onChange={(e) => setCount(e.target.value)} inputMode="numeric" pattern="\d*" dir="ltr" className={field} />
-            </div>
-          </div>
-        ) : (
+      {write && (
+        <form onSubmit={submit} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label htmlFor={ids.weights}>{t("Weighing.weights")}</label>
-            <textarea id={ids.weights} name="weights" {...bad("weights")} value={weights} onChange={(e) => setWeights(e.target.value)} rows={3} inputMode="decimal" dir="ltr" className={field} />
+            <label htmlFor={ids.day}>{t("Weighing.day")}</label>
+            <input id={ids.day} name="day" {...bad("day")} type="date" value={day} max={today()} min={batch.placedOn} onChange={(e) => setDay(e.target.value)} className={field} />
           </div>
-        )}
-        <p aria-live="polite">{sample ? describe(sample, day) : ""}</p>
-        {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-        <button type="submit" className={primary}>{t("Weighing.save")}</button>
-      </form>
+          <fieldset className="flex flex-wrap gap-4">
+            <legend className="sr-only">{t("Weighing.mode")}</legend>
+            <label className="flex min-h-11 items-center gap-2"><input type="radio" name="mode" checked={!group} onChange={() => setGroup(false)} />{t("Weighing.individual")}</label>
+            <label className="flex min-h-11 items-center gap-2"><input type="radio" name="mode" checked={group} onChange={() => setGroup(true)} />{t("Weighing.group")}</label>
+          </fieldset>
+          {group ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label htmlFor={ids.total}>{t("Weighing.totalKg")}</label>
+                <input id={ids.total} name="total" {...bad("total")} value={total} onChange={(e) => setTotal(e.target.value)} inputMode="decimal" dir="ltr" className={field} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor={ids.count}>{t("Weighing.count")}</label>
+                <input id={ids.count} name="count" {...bad("count")} value={count} onChange={(e) => setCount(e.target.value)} inputMode="numeric" pattern="\d*" dir="ltr" className={field} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <label htmlFor={ids.weights}>{t("Weighing.weights")}</label>
+              <textarea id={ids.weights} name="weights" {...bad("weights")} value={weights} onChange={(e) => setWeights(e.target.value)} rows={3} inputMode="decimal" dir="ltr" className={field} />
+            </div>
+          )}
+          <p aria-live="polite">{sample ? describe(sample, day) : ""}</p>
+          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+          <button type="submit" className={primary}>{t("Weighing.save")}</button>
+        </form>
+      )}
       {past.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label={t("Weighing.past")}>
           {past.map((w) => (

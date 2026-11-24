@@ -48,7 +48,7 @@ async function Treasury() {
     creditExpensesToPay(ctx.value),
     associateAccount(ctx.value), // the owner only
   ]);
-  if (!overview.ok || !forecast.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!overview.ok || !forecast.ok) return <p>{t("Treasury.forbidden")}</p>;
   const { accounts, unassignedCentimes, movements } = overview.value;
   const nameOf = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? t(id === null ? "Treasury.untagged" : "Treasury.unknown");
   const total = accounts.reduce((s, a) => s + a.balanceCentimes, unassignedCentimes); // the forecast's start

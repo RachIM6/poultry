@@ -106,6 +106,7 @@ function Compare({ userId, organizationId, role }: Scope) {
             </tbody>
           </table>
           <p className="mt-2 text-sm text-muted">{t("Compare.epef")}</p>
+          {can({ userId, organizationId, role }, "money.read") && !results && <p className="text-sm text-muted">{t("Compare.costOnline")}</p>}
         </div>
       )}
       {hatcheries.length > 0 && (

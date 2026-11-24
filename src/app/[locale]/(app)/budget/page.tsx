@@ -6,6 +6,7 @@ import { BudgetPlanner } from "@/components/budget";
 import { BudgetCashView } from "@/components/budget-cash";
 import { redirect } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
+import { can } from "@/lib/permissions";
 import { budgetBases, budgetBatches, budgetCash, budgetOf, listBudgets, plainTiming, type CashTiming } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { saveBudgetAction } from "./actions";
@@ -35,12 +36,12 @@ async function Budget() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const [bases, batches, saved] = await Promise.all([budgetBases(ctx.value), budgetBatches(ctx.value), listBudgets(ctx.value)]);
-  if (!bases.ok || !batches.ok || !saved.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!bases.ok || !batches.ok || !saved.ok) return <p>{t("Budget.forbidden")}</p>;
   const timingOf = new Map(bases.value.map((b) => [b.batchId, b.timing]));
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Budget.title")}</h1>
-      <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs), timing: timingText(b.timing) }))} batches={batches.value} save={saveBudgetAction} />
+      <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs), timing: timingText(b.timing) }))} batches={batches.value} save={can(ctx.value, "finance.record") ? saveBudgetAction : undefined} />
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Budget.saved")}</h2>
       {saved.value.length === 0 ? (
         <p>{t("Budget.none")}</p>

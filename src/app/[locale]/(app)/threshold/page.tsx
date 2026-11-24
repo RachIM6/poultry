@@ -50,11 +50,11 @@ async function Tracker() {
         </div>
         <dl className="grid grid-cols-2 gap-2">
           <dt>{t("Threshold.booked")}</dt>
-          <dd dir="ltr" className="text-end tabular-nums">{formatMoney(bookedCentimes)}</dd>
+          <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(bookedCentimes)}</bdi></dd>
           <dt>{t("Threshold.planned")}</dt>
-          <dd dir="ltr" className="text-end tabular-nums">{formatMoney(plannedCentimes)}</dd>
+          <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(plannedCentimes)}</bdi></dd>
           <dt className="font-semibold">{t("Threshold.total")}</dt>
-          <dd dir="ltr" className="text-end font-semibold tabular-nums">{formatMoney(usage.totalCentimes)} · {String(usage.percent)} %</dd>
+          <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{formatMoney(usage.totalCentimes)} · {String(usage.percent)} %</bdi></dd>
         </dl>
       </section>
       <section className="flex flex-col gap-2">
@@ -63,8 +63,8 @@ async function Tracker() {
           {history.map((h) => (
             <li key={h.from} className="flex justify-between gap-4">
               <span>{day(h.from)} – {day(h.to)}</span>
-              <span dir="ltr" className={`tabular-nums ${h.over ? "font-semibold text-alert" : ""}`}>
-                {formatMoney(h.bookedCentimes)}{h.over ? ` · ${t("Threshold.overShort")}` : ""}
+              <span className={`tabular-nums ${h.over ? "font-semibold text-alert" : ""}`}>
+                <bdi dir="ltr">{formatMoney(h.bookedCentimes)}</bdi>{h.over ? ` · ${t("Threshold.overShort")}` : ""}
               </span>
             </li>
           ))}

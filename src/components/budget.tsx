@@ -112,13 +112,13 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
       {b && inputs ? (
         <dl className="grid grid-cols-2 gap-2 rounded-2xl border border-line bg-card p-3" aria-label={t("figures")} aria-live="polite">
           <dt>{t("plannedCost")}</dt>
-          <dd dir="ltr" className="text-end tabular-nums">{formatMoney(b.plannedCostCentimes)}</dd>
+          <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedCostCentimes)}</bdi></dd>
           <dt>{t("breakEven")}</dt>
-          <dd dir="ltr" className="text-end font-semibold tabular-nums">{b.breakEvenPerKgCentimes === null ? "—" : `${formatMoney(b.breakEvenPerKgCentimes)} / kg`}</dd>
+          <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{b.breakEvenPerKgCentimes === null ? "—" : `${formatMoney(b.breakEvenPerKgCentimes)} / kg`}</bdi></dd>
           <dt>{t("plannedSales")}</dt>
-          <dd dir="ltr" className="text-end tabular-nums">{formatMoney(b.plannedSalesCentimes)} ({formatKg(Number(inputs.plannedGrams))})</dd>
+          <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedSalesCentimes)} ({formatKg(Number(inputs.plannedGrams))})</bdi></dd>
           <dt>{t("plannedMargin")}</dt>
-          <dd dir="ltr" className="text-end font-semibold tabular-nums">{formatMoney(b.plannedMarginCentimes)}</dd>
+          <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedMarginCentimes)}</bdi></dd>
         </dl>
       ) : (
         <p role="alert">{tr("errors.INVALID_INPUT")}</p>

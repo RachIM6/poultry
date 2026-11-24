@@ -5,6 +5,7 @@ import { Suspense, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { BackLink } from "@/components/app-nav";
 import { card, field, table, warn } from "@/components/ui";
+import { Num } from "@/components/num";
 import { redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -118,10 +119,10 @@ async function AssetsView() {
                       <bdi dir="ltr">{y.from.slice(0, 4) === y.to.slice(0, 4) ? y.from.slice(0, 4) : `${y.from.slice(0, 4)}–${y.to.slice(0, 4)}`}</bdi>
                       {y.toDisposal && <span className="text-muted"> · {t("Assets.byDisposal")}</span>}
                     </td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{y.months}</td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(y.charge)}</td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(y.accumulated)}</td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(y.netBookValue)}</td>
+                    <Num>{y.months}</Num>
+                    <Num>{formatMoney(y.charge)}</Num>
+                    <Num>{formatMoney(y.accumulated)}</Num>
+                    <Num>{formatMoney(y.netBookValue)}</Num>
                   </tr>
                 ))}
               </tbody>

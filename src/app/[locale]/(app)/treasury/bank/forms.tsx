@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent } from "react";
 import { addStatementAction, importAction, matchAction, type ImportState } from "./actions";
 import { field, primary, secondary, table } from "@/components/ui";
+import { Num } from "@/components/num";
 import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
 import { CSV_DATE_FORMATS } from "@/modules/finance/shared";
@@ -135,7 +136,7 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
                         <span className="block">{l.label}</span>
                         <span className="block text-ink-2" dir="ltr">{l.day}</span>
                       </td>
-                      <td dir="ltr" className="whitespace-nowrap p-2 text-end tabular-nums">{formatMoney(BigInt(l.amountCentimes))}</td>
+                      <Num className="whitespace-nowrap">{formatMoney(BigInt(l.amountCentimes))}</Num>
                     </tr>
                   ))}
                 </tbody>
@@ -182,7 +183,7 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
                 <span className="block">{l.label}</span>
                 <span className="block text-ink-2">{l.day}</span>
               </td>
-              <td dir="ltr" className="whitespace-nowrap p-2 text-end tabular-nums">{l.amount}</td>
+              <Num className="whitespace-nowrap">{l.amount}</Num>
               <td className="p-2">
                 {l.ticked ? (
                   <span>
@@ -259,7 +260,7 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
                 <span className="block">{l.label}</span>
                 <span className="block text-ink-2">{l.day} · {l.journal}</span>
               </td>
-              <td dir="ltr" className="whitespace-nowrap p-2 text-end tabular-nums">{l.amount}</td>
+              <Num className="whitespace-nowrap">{l.amount}</Num>
               <td className="p-2">
                 {l.tickedOn ? (
                   <span className="text-ink-2">{t("tickedOn", { day: l.tickedOn })}</span>

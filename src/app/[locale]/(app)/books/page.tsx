@@ -10,6 +10,7 @@ import { batchOf, readBooks, type IncomeStatement } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, table } from "@/components/ui";
+import { Num } from "@/components/num";
 import { ManualEntryForm, PeriodLockForm, ReverseEntryForm } from "./form";
 
 // SPEC-finance FN16: the books the entity's profile keeps, for a month. Online, owner and manager; read from the ledger.
@@ -157,14 +158,14 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
                 <td className="p-2">{r.label}{r.counterAccounts.length > 0 && <span className="text-muted"> · {r.counterAccounts.map((a) => books.labels[a] ?? a).join(", ")}</span>}</td>
                 <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
                 <td className="p-2">{batchOf(books.tags, r.entryId)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.receipt)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.expense)}</td>
+                <Num>{money(r.receipt)}</Num>
+                <Num>{money(r.expense)}</Num>
               </tr>
             ))}
             <tr className="border-t-2 border-line font-semibold">
               <td className="p-2" colSpan={4}>{t("Books.total")}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.receipts)}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.cashBook.expenses)}</td>
+              <Num>{formatMoney(books.cashBook.receipts)}</Num>
+              <Num>{formatMoney(books.cashBook.expenses)}</Num>
             </tr>
           </tbody>
         </table>
@@ -187,8 +188,8 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
                     {e.lines.map((l, i) => (
                       <tr key={i} className="border-t border-line">
                         <td className="p-2"><bdi dir="ltr">{account(l.account)}</bdi></td>
-                        <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
-                        <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
+                        <Num>{money(l.debit)}</Num>
+                        <Num>{money(l.credit)}</Num>
                       </tr>
                     ))}
                   </tbody>
@@ -208,9 +209,9 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
                 <tr key={i} className="border-t border-line">
                   <td className="p-2">{day(l.day)}</td>
                   <td className="p-2">{l.journal} · {l.label}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.debit)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{money(l.credit)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.running)}</td>
+                  <Num>{money(l.debit)}</Num>
+                  <Num>{money(l.credit)}</Num>
+                  <Num>{formatMoney(l.running)}</Num>
                 </tr>
               ))}
             </tbody>
@@ -232,15 +233,15 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
             {books.trialBalance.rows.map((r) => (
               <tr key={r.account} className="border-t border-line">
                 <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.debit)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{money(r.credit)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.balance)}</td>
+                <Num>{money(r.debit)}</Num>
+                <Num>{money(r.credit)}</Num>
+                <Num>{formatMoney(r.balance)}</Num>
               </tr>
             ))}
             <tr className="border-t-2 border-line font-semibold">
               <td className="p-2">{t(books.trialBalance.balanced ? "Books.balanced" : "Books.unbalanced")}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.debit)}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(books.trialBalance.credit)}</td>
+              <Num>{formatMoney(books.trialBalance.debit)}</Num>
+              <Num>{formatMoney(books.trialBalance.credit)}</Num>
               <td />
             </tr>
           </tbody>
@@ -253,7 +254,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
             {cpcRows(books.incomeStatement).map((r) => (
               <tr key={r.key} className={`border-t border-line ${r.kind === "line" ? "" : "font-semibold"} ${r.kind === "head" ? "bg-shell" : ""} ${r.kind === "total" ? "border-t-2" : ""}`}>
                 <td className={`p-2 ${r.kind === "line" ? "ps-6" : ""}`}>{r.kind === "line" ? <bdi dir="ltr">{account(r.label)}</bdi> : t(r.label)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(r.amount)}</td>
+                <Num>{formatMoney(r.amount)}</Num>
               </tr>
             ))}
           </tbody>
@@ -267,19 +268,19 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
               <Fragment key={side}>
                 <tr className="border-t-2 border-line bg-shell font-semibold">
                   <td className="p-2">{t(`Books.bilanSides.${side}`)}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(total)}</td>
+                  <Num>{formatMoney(total)}</Num>
                 </tr>
                 {bilan[side].map((l) => (
                   <tr key={l.account} className="border-t border-line">
                     <td className="p-2 ps-6"><bdi dir="ltr">{account(l.account)}</bdi></td>
-                    <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(l.amount)}</td>
+                    <Num>{formatMoney(l.amount)}</Num>
                   </tr>
                 ))}
               </Fragment>
             ))}
             <tr className="border-t border-line">
               <td className="p-2 ps-6">{t("Books.cpcNet")}</td>
-              <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(bilan.result)}</td>
+              <Num>{formatMoney(bilan.result)}</Num>
             </tr>
           </tbody>
         </table>

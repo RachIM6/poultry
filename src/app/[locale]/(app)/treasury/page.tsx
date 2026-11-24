@@ -10,6 +10,7 @@ import { associateAccount, cashForecast, creditExpensesToPay, placementsToPay, t
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, field, table } from "@/components/ui";
+import { Num } from "@/components/num";
 import { payCreditExpenseAction, payPlacementAction, recordAssociateAction } from "./actions";
 import { TreasuryForm } from "./pay-form";
 
@@ -122,9 +123,9 @@ async function Treasury() {
             {forecast.value.weeks.map((w) => (
               <tr key={w.from} className={`border-t border-line ${w.afterCentimes < 0n ? "font-semibold text-brick-fg" : ""}`}>
                 <td className="whitespace-nowrap p-2">{dayMonth(w.from, lang)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</td>
-                <td dir="ltr" className="p-2 text-end tabular-nums">{formatMoney(w.afterCentimes)}</td>
+                <Num>{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</Num>
+                <Num>{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</Num>
+                <Num>{formatMoney(w.afterCentimes)}</Num>
               </tr>
             ))}
           </tbody>
@@ -222,8 +223,8 @@ async function Treasury() {
                   {/* FN10, as the cash book shows them (FN16): the account's label, its number when the chart has none */}
                   <td className="p-2">{m.counterAccounts.map((c) => c.label || c.number).join(", ")}</td>
                   <td className="p-2">{m.batch}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{m.debitCentimes > 0n ? formatMoney(m.debitCentimes) : ""}</td>
-                  <td dir="ltr" className="p-2 text-end tabular-nums">{m.creditCentimes > 0n ? formatMoney(m.creditCentimes) : ""}</td>
+                  <Num>{m.debitCentimes > 0n ? formatMoney(m.debitCentimes) : ""}</Num>
+                  <Num>{m.creditCentimes > 0n ? formatMoney(m.creditCentimes) : ""}</Num>
                   {/* FN10: an expense's receipt; other movements have none to attach */}
                   <td className="p-2">
                     {m.receipt ? (

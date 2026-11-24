@@ -1,7 +1,9 @@
 # ADR-005: Phone number + one-time code, database sessions
 
 ## Status
-Accepted (2026-10-28, task T5): **Better Auth 1.7.14** behind our own route handlers. The SMS / WhatsApp provider is still open (SPEC OQ2). The captcha, deferred in T5, was added on 2026-11-20 (see "Not done in T5").
+Accepted (2026-10-28, task T5). **Login part superseded on 2026-11-24 by [ADR-015](ADR-015-password-login.md)**: sign-in is now a phone number or an email plus a password, and the SMS code login below is off unless `AUTH_SMS_ENABLED=true`. The sessions, the cookie, the offline rules, Better Auth as the engine, the rate limiting and the captcha below still apply.
+
+Original status: **Better Auth 1.7.14** behind our own route handlers. The SMS / WhatsApp provider is still open (SPEC OQ2). The captcha, deferred in T5, was added on 2026-11-20 (see "Not done in T5").
 
 ## Date
 2026-10-27

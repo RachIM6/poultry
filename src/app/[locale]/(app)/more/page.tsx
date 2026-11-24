@@ -7,6 +7,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { card } from "@/components/ui";
 import { Link, redirect } from "@/i18n/navigation";
 import { can } from "@/lib/permissions";
+import { pulls } from "@/lib/sync/views";
 import { getTenantContext, myOrganizations } from "@/modules/identity";
 
 // The "Plus" tab (tasks/plan-ui.md U2): every screen that isn't a tab, by role. Online, like the dashboard.
@@ -26,18 +27,20 @@ async function Content() {
   const [ctx, lang, t, mine] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), myOrganizations(await headers())]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const money = can(ctx.value, "money.read"); // reads: the accountant too (SPEC-m5 PA5)
+  // Offline screens built on records a partner's phone never receives (SPEC-m5 §5) aren't offered to them.
+  const holds = (entity: string) => pulls(ctx.value.role, entity);
   const groups = [
     {
       title: t("More.farm"),
       links: [
         { href: "/farms", label: t("Farms.title") },
-        { href: "/eggs", label: t("EggStock.title") }, // SPEC-m3 E4
-        { href: "/compare", label: t("Compare.title") }, // SPEC-m3 D2
-        { href: "/protocol", label: t("Protocol.open") },
-        { href: "/tasks", label: t("Tasks.open") },
-        { href: "/climate", label: t("Climate.open") },
-        { href: "/planning", label: t("Planning.open") },
-        can(ctx.value, "workforce.manage") && { href: "/staff", label: t("Staff.open") },
+        holds("eggCollection") && { href: "/eggs", label: t("EggStock.title") }, // SPEC-m3 E4
+        holds("dailyEntry") && { href: "/compare", label: t("Compare.title") }, // SPEC-m3 D2
+        holds("protocol") && { href: "/protocol", label: t("Protocol.open") },
+        holds("routine") && { href: "/tasks", label: t("Tasks.open") },
+        holds("climateReading") && { href: "/climate", label: t("Climate.open") },
+        holds("plannedBatch") && { href: "/planning", label: t("Planning.open") },
+        money && { href: "/staff", label: t("Staff.open") }, // the accountant reads (SPEC-m5 PA5)
         { href: "/inbox", label: t("Inbox.open") },
         { href: "/sync", label: t("More.sync") },
       ].filter((l) => l !== false),
@@ -45,7 +48,7 @@ async function Content() {
     {
       title: t("More.money"),
       links: [
-        can(ctx.value, "sales.manage") && { href: "/receivables", label: t("Receivables.open") },
+        money && { href: "/receivables", label: t("Receivables.open") }, // the accountant reads (SPEC-m5 PA5)
         can(ctx.value, "finance.record") && { href: "/expenses", label: t("Expenses.open") },
         money && { href: "/treasury", label: t("Treasury.open") },
         money && { href: "/treasury/bank", label: t("Bank.open") }, // SPEC-finance FC9, FCX2
@@ -64,7 +67,7 @@ async function Content() {
       ].filter((l) => l !== false),
     },
     // SPEC-m2-compliance: the logs and documents an inspection asks for.
-    { title: t("More.compliance"), links: [{ href: "/visitors", label: t("Visitors.open") }, { href: "/disposal", label: t("Disposal.open") }, { href: "/cleanout", label: t("Cleanout.open") }, can(ctx.value, "documents.manage") && { href: "/documents", label: t("Documents.open") }, can(ctx.value, "documents.manage") && { href: "/inspection", label: t("Inspection.open") }].filter((l) => l !== false) },
+    { title: t("More.compliance"), links: [holds("visit") && { href: "/visitors", label: t("Visitors.open") }, holds("disposal") && { href: "/disposal", label: t("Disposal.open") }, holds("cleanout") && { href: "/cleanout", label: t("Cleanout.open") }, can(ctx.value, "documents.manage") && { href: "/documents", label: t("Documents.open") }, can(ctx.value, "documents.manage") && { href: "/inspection", label: t("Inspection.open") }].filter((l) => l !== false) },
     {
       title: t("More.account"),
       links: [

@@ -9,6 +9,7 @@ import { Scoped } from "@/components/scoped";
 import { card, danger, done, field, primary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDay } from "@/lib/format";
+import { can } from "@/lib/permissions";
 import { farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { CLIMATE_MUTATIONS as C, outOfRange, targetFor, verdicts, type Band, type PowerCutDto, type ReadingDto, type TargetSet, type Verdict } from "@/modules/climate/shared";
 import type { HouseDto } from "@/modules/farm-registry/schema";
@@ -85,31 +86,35 @@ function Climate(scope: Scope) {
       {savedVerdicts && outOfRange(savedVerdicts) && (
         <p role="alert" className={danger}>{t("Climate.outOfRange", { values: off.map((k) => t(`Climate.offValue.${k}.${savedVerdicts[k]}`)).join(", ") })}</p>
       )}
-      <form onSubmit={submit} className={`${card} grid grid-cols-2 gap-3`} aria-label={t("Climate.reading")}>
-        <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
-          {t("Climate.temperature")}
-          <input inputMode="decimal" dir="ltr" required value={values.temperature} onChange={(e) => setValues({ ...values, temperature: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
-          {hint("temperature", values.temperature.trim() !== "")}
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
-          {t("Climate.humidity")}
-          <input inputMode="numeric" dir="ltr" required value={values.humidity} onChange={(e) => setValues({ ...values, humidity: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
-          {hint("humidity", values.humidity.trim() !== "")}
-        </label>
-        <label className="col-span-2 flex flex-col gap-1 text-sm font-medium text-ink-2">
-          {t("Climate.ammonia")}
-          <input inputMode="numeric" dir="ltr" value={values.ammonia} onChange={(e) => setValues({ ...values, ammonia: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
-          {hint("ammonia", values.ammonia.trim() !== "")}
-        </label>
-        <label className="flex flex-col gap-1 text-sm">{t("Climate.day")}<input name="day" type="date" required max={today} defaultValue={today} className={field} /></label>
-        <label className="flex flex-col gap-1 text-sm">{t("Climate.time")}<input name="time" type="time" required defaultValue={now()} className={field} /></label>
-        <button type="submit" className={`${primary} col-span-2`}>{t("Climate.save")}</button>
-      </form>
-      <PowerCuts
-        farmId={house.farmId}
-        cuts={of<PowerCutDto>("powerCut")}
-        save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
-      />
+      {can(scope, "climate.record") && (
+        <>
+          <form onSubmit={submit} className={`${card} grid grid-cols-2 gap-3`} aria-label={t("Climate.reading")}>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
+              {t("Climate.temperature")}
+              <input inputMode="decimal" dir="ltr" required value={values.temperature} onChange={(e) => setValues({ ...values, temperature: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
+              {hint("temperature", values.temperature.trim() !== "")}
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
+              {t("Climate.humidity")}
+              <input inputMode="numeric" dir="ltr" required value={values.humidity} onChange={(e) => setValues({ ...values, humidity: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
+              {hint("humidity", values.humidity.trim() !== "")}
+            </label>
+            <label className="col-span-2 flex flex-col gap-1 text-sm font-medium text-ink-2">
+              {t("Climate.ammonia")}
+              <input inputMode="numeric" dir="ltr" value={values.ammonia} onChange={(e) => setValues({ ...values, ammonia: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
+              {hint("ammonia", values.ammonia.trim() !== "")}
+            </label>
+            <label className="flex flex-col gap-1 text-sm">{t("Climate.day")}<input name="day" type="date" required max={today} defaultValue={today} className={field} /></label>
+            <label className="flex flex-col gap-1 text-sm">{t("Climate.time")}<input name="time" type="time" required defaultValue={now()} className={field} /></label>
+            <button type="submit" className={`${primary} col-span-2`}>{t("Climate.save")}</button>
+          </form>
+          <PowerCuts
+            farmId={house.farmId}
+            cuts={of<PowerCutDto>("powerCut")}
+            save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
+          />
+        </>
+      )}
       <History house={house} readings={of<ReadingDto>("climateReading")} cuts={of<PowerCutDto>("powerCut")} batches={of<BatchDto>("batch")} sets={sets} />
       <Link href="/climate/targets" className="text-sm underline underline-offset-4">{t("Climate.targetsOpen")}</Link>
     </>

@@ -5,7 +5,7 @@ import { POST } from "@/app/api/auth/request-code/route";
 import { POST as verifyRoute } from "@/app/api/auth/verify-code/route";
 import { GET as challengeRoute } from "@/app/api/captcha/challenge/route";
 import { db } from "@/lib/db";
-import { assertCaptchaConfig, createCaptchaChallenge, verifyCaptcha } from "@/lib/security/captcha";
+import { createCaptchaChallenge, verifyCaptcha } from "@/lib/security/captcha";
 
 // vitest.config.ts disables the captcha for the int suite's login helpers: switch it back on here.
 beforeEach(() => {
@@ -103,13 +103,6 @@ it("CAPTCHA_DISABLED=true accepts anything outside production only", async () =>
   expect(await verifyCaptcha(undefined)).toBe(true);
   vi.stubEnv("NODE_ENV", "production");
   expect(await verifyCaptcha(undefined)).toBe(false);
-});
-
-it("refuses to start in production with the captcha disabled or without a key", () => {
-  expect(() => assertCaptchaConfig({ NODE_ENV: "production", CAPTCHA_HMAC_KEY: "k", CAPTCHA_DISABLED: "true" })).toThrow(/CAPTCHA_DISABLED/);
-  expect(() => assertCaptchaConfig({ NODE_ENV: "production" })).toThrow(/CAPTCHA_HMAC_KEY/);
-  expect(() => assertCaptchaConfig({ NODE_ENV: "production", CAPTCHA_HMAC_KEY: "k" })).not.toThrow();
-  expect(() => assertCaptchaConfig({ NODE_ENV: "test", CAPTCHA_DISABLED: "true" })).not.toThrow();
 });
 
 // Adaptive captcha on verify-code (references/rate-limiting.md §4): from the 3rd consecutive failure per number or IP.

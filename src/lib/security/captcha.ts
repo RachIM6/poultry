@@ -15,13 +15,6 @@ const TTL_MS = 5 * 60_000;
 const disabled = () => process.env.CAPTCHA_DISABLED === "true";
 const hmacKey = () => process.env.CAPTCHA_HMAC_KEY ?? "";
 
-/** Startup guard (src/instrumentation.ts): production never runs without a working captcha. */
-export function assertCaptchaConfig(env: NodeJS.ProcessEnv = process.env) {
-  if (env.NODE_ENV !== "production") return;
-  if (env.CAPTCHA_DISABLED === "true") throw new Error("CAPTCHA_DISABLED=true is refused in production.");
-  if (!env.CAPTCHA_HMAC_KEY) throw new Error("CAPTCHA_HMAC_KEY is required in production.");
-}
-
 /** A signed challenge for GET /api/captcha/challenge, valid 5 minutes. The phone tries counters from 0 upwards. */
 export async function createCaptchaChallenge(): Promise<Challenge> {
   const max = Math.max(1, Math.floor(Number(process.env.CAPTCHA_MAX_NUMBER)) || 50);

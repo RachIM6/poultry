@@ -27,7 +27,18 @@ export default defineConfig({
     // The real captcha runs (CAPTCHA_DISABLED is refused in production; CAPTCHA_HMAC_KEY comes from .env or CI),
     // made easy so ~100 logins stay fast.
     // STRICT_MESSAGES: a message a page didn't pick throws (src/i18n/strict-messages.tsx).
-    env: { APP_ORIGIN: origin, OTP_CONSOLE_SINK: "1", CAPTCHA_MAX_NUMBER: "4", STRICT_MESSAGES: "1" },
+    // The production env check (src/lib/env.ts) refuses OTP_CONSOLE_SINK and an http:// origin unless this is a test
+    // server: ALLOW_TEST_SERVER_IN_CI plus CI, set for the server only (the runner's own CI behaviour is unchanged), so
+    // a laptop run works too. TRUSTED_PROXY_HOPS must be explicit in production: no proxy here.
+    env: {
+      APP_ORIGIN: origin,
+      OTP_CONSOLE_SINK: "1",
+      ALLOW_TEST_SERVER_IN_CI: "1",
+      CI: "1",
+      TRUSTED_PROXY_HOPS: "0",
+      CAPTCHA_MAX_NUMBER: "4",
+      STRICT_MESSAGES: "1",
+    },
     url: origin,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

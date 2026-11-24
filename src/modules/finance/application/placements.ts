@@ -59,7 +59,7 @@ async function debtsOf(tx: Tx, ctx: TenantContext, batchIds?: string[]): Promise
 
 // A refused step rolls back what the transaction already wrote (as assets.ts).
 const REFUSED = Symbol("refused");
-async function atomically<T, E extends string>(work: (tx: Tx) => Promise<Result<T, E>>): Promise<Result<T, E>> {
+export async function atomically<T, E extends string>(work: (tx: Tx) => Promise<Result<T, E>>): Promise<Result<T, E>> {
   const outcome: { refused?: Result<T, E> } = {};
   try {
     return await db.$transaction(async (tx) => {

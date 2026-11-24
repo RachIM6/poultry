@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { farmDaysAgo, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
 
 // T47 acceptance: a batch's ONSSA register prints offline in French and in Arabic, with its cover, daily rows, birds
 // out and disposals, the vet visa grid and the legal reference (arrêté n° 2126-05), and nothing wider than an A4 page. PDFs are kept in test-results/.
@@ -38,7 +38,7 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
   ]);
 
   await page.goto(`/fr/batches#${ids.batch}`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByRole("link", { name: "Registre de suivi sanitaire (Français)" })).toBeVisible();
   await expect(page.getByText("Abattoir Doukkala")).toBeVisible(); // the sale is on the phone

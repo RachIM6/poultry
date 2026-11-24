@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
 
 // T24 acceptance, the whole lifecycle: a batch placed, fed, then all its birds sold offline. The last sale closes it on
 // the phone at once; after the sync its cost per kg arrives, FN13's, read online as /results shows it (SPEC-finance §9
@@ -13,7 +13,7 @@ test("selling the last birds offline closes the batch; its cost per kg arrives w
   await pushAs(page, [{ type: "flock.recordDay", payload: { batchId: ids.batch, day: farmDaysAgo(39), changes: { feed: { stockItemId: ids.feed, grams: 100_000 } } } }]); // 450 DH
 
   await page.goto(`/fr/batches#${ids.batch}`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByText("Oiseaux présents : 1 000")).toBeVisible();
   await context.setOffline(true);

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T70 (SPEC-m4 WF1): an employee added offline on /staff survives a reload and reaches the server once.
 // Workers' view without wages is covered by src/modules/workforce/employees.int.test.ts.
@@ -12,7 +12,7 @@ test("an employee added offline survives a reload and syncs once", async ({ page
 
   await page.getByRole("link", { name: "Plus", exact: true }).click();
   await page.getByRole("link", { name: "Personnel" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByRole("button", { name: "Ajouter un ouvrier" })).toBeVisible(); // the farm reached the phone
 
   await context.setOffline(true);

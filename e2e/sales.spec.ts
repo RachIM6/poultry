@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T21 acceptance (browser part): offline, a sale on a day under withdrawal is refused with the explanation; the same
 // sale dated before the treatment began is recorded, with its amount and weighing gap, and lowers birds on hand while
@@ -21,7 +21,7 @@ test("an offline sale is refused during a withdrawal, then recorded for a day be
   ]);
 
   await page.goto(`/fr/batches#${ids.batch}`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByText("Délai d’attente en cours")).toBeVisible();
   await expect(page.getByText("Oiseaux présents : 1 000")).toBeVisible();

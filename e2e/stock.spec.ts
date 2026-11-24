@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T13 acceptance: a purchase made offline increases stock and, after sync, the unpaid part is supplier credit.
 test("an offline feed purchase shows in stock and in the supplier's balance, then syncs exactly", async ({ page, context }) => {
@@ -18,7 +18,7 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
   // Leaving the page before the local write commits would abort it (flaky in CI).
   await expect(page.getByRole("status").filter({ hasText: "Enregistré sur ce téléphone." })).toBeVisible();
   await page.goto("/fr/stock");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByText("Aucun article dans cette ferme.")).toBeVisible();
   await referenceCached(page); // the catalogue list below needs it, and it can't come once offline
 

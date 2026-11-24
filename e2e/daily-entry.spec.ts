@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, outboxEmpty, ownerWithFarm, query, queuedWrites, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, queuedWrites, scopeRemembered } from "./auth";
 
 // T16 acceptance (browser part): the daily entry offline, its feed as one consumption movement, edited not duplicated.
 // The two-phones merge is tested on the server (src/modules/flock/daily-entries.int.test.ts). "Under 60 s" is timed
@@ -13,7 +13,7 @@ test("the day's entry works offline; its feed lowers stock once, and editing the
   await page.goto("/fr/stock");
   await expect(page.getByText(/En stock : 1.000.kg/)).toBeVisible(); // pulled: the phone has the stock, then precache
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByRole("link", { name: "Saisir le jour" })).toBeVisible();
 
   await context.setOffline(true);

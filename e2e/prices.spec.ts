@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T94, T95 (SPEC-m5 MP1, MP2): two prices noted offline on /prices; the latest shows with its change, survives a
 // reload and syncs once. Made-up prices.
@@ -10,7 +10,7 @@ test("prices noted offline show the latest with its change, survive a reload and
   await page.goto("/fr/more");
   await page.getByRole("link", { name: "Prix du marché" }).click();
   await expect(page.getByText("Aucun prix noté pour l’instant.")).toBeVisible();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));

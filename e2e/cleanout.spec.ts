@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T42 acceptance (browser part): the clean-out of a house after its closed batch, marked offline step by step; the
 // downtime counts from the disinfection against the official 20 days (arrêté n° 2127-05, art. 4, CQ3); placing the next
@@ -12,7 +12,7 @@ test("clean-out steps are marked offline, the downtime counts, and an early plac
   await pushAs(page, [{ type: "flock.closeBatch", payload: { batchId: ids.batch, day: farmDaysAgo(3), reason: "Fin de lot" } }]);
   await page.goto("/fr/more");
   await page.getByRole("link", { name: "Nettoyage et vide sanitaire" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   const house = page.getByRole("region", { name: "Bâtiment 1" });
   await expect(house.getByRole("button", { name: "Commencer le nettoyage" })).toBeVisible();

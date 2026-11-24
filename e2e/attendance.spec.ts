@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, login, ownerWithFarm, pushAs, randomMobile, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, login, ownerWithFarm, pushAs, randomMobile, scopeRemembered } from "./auth";
 
 // T75 (SPEC-m4 WF9): the worker checks in offline on /tasks; after sync the owner sees "P" today in the /staff grid.
 test("a worker checks in offline and the owner sees them present after sync", async ({ page, browser }) => {
@@ -25,7 +25,7 @@ test("a worker checks in offline and the owner sees them present after sync", as
   ]);
 
   await worker.goto("/fr/tasks");
-  await worker.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(worker);
   await expect(worker.getByText("Bonjour Said A.")).toBeVisible();
   await workerContext.setOffline(true);
   await workerContext.route("**", (route) => route.abort("internetdisconnected"));

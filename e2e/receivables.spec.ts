@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T22 acceptance (browser part): what a buyer owes, their cheque with its due date, and later payments recorded offline,
 // no more than what is owed. The balance rule is unit-tested; the due-date reminder is checked on the server
@@ -23,7 +23,7 @@ test("a buyer's balance and cheque show offline, and later payments bring it to 
 
   await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Créances des acheteurs" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   const owes = page.getByText(/^Abattoir Atlas doit/);
   await expect(owes).toHaveText(/doit 5.500,00\sDH$/); // pulled
   await expect(page.getByText(/^Chèque n° 0012345 : 3.000,00\sDH, échéance le/)).toBeVisible();
@@ -78,7 +78,7 @@ test("a cheque marked unpaid offline is owed again and blocks the buyer, until t
 
   await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Créances des acheteurs" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   const cheque = page.getByRole("list", { name: "Chèques et traites reçus" }).getByRole("listitem");
   await expect(cheque).toContainText(/Chèque n° 0099 de Hamid Volailles : 3.000,00\sDH/); // pulled
   await expect(page.getByText("Aucun acheteur ne doit d’argent.")).toBeVisible();
@@ -135,7 +135,7 @@ test("the owner sees what a buyer owes by age, approves a credit past the limit 
 
   await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
   await page.getByRole("link", { name: "Créances des acheteurs" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByText(/^1–30 j : 3.000,00\sDH$/)).toBeVisible(); // pulled: 20 days past due
   const awaiting = page.getByRole("list", { name: "Crédits à approuver" }).getByRole("listitem");
   await expect(awaiting).toContainText(/Vente à crédit de 3.000,00\sDH à Karim Volailles/);

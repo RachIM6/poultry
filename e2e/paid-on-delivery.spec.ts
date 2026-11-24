@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // SPEC-finance §9 "Chicks paid on delivery": chicks paid in cash at delivery, recorded offline with the placement, leave
 // nothing owed on /treasury once synced; the cash box shows the payment.
@@ -15,7 +15,7 @@ test("a batch placed offline and paid on delivery leaves nothing to pay on /trea
   ]);
 
   await page.goto("/fr/batches");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   // the cash box reaches the phone with the pull: the form offers the payment once it is there
   await page.getByRole("button", { name: "Mettre en place une bande" }).click();

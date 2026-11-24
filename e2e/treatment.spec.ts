@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T20 acceptance (browser part): the withdrawal banner shows while a withdrawal runs and is gone once it has ended; a
 // treatment and a vet visit recorded offline. The dates themselves are unit-tested (src/modules/health/domain).
@@ -22,7 +22,7 @@ test("a treatment recorded offline shows the withdrawal banner; an ended withdra
   ]);
 
   await page.goto(`/fr/batches#${ids.batch}`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   const treatments = page.getByRole("list", { name: "Traitements" }).getByRole("listitem");
   await expect(treatments).toHaveCount(1); // pulled

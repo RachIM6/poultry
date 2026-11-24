@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // Checkpoint G (SPEC §9.2): the M1 offline journey, in each language on a phone: create a batch → 3 daily entries →
 // weighing → vaccine done → reload → online → synced → visible on a second device. Every label comes from the app's
@@ -42,7 +42,7 @@ for (const locale of ["fr", "ar"] as const) {
     ]);
 
     await page.goto(`/${locale}/batches`);
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await controlled(page);
     await referenceCached(page);
     await expect(label(page, "Batches", "protocol")).toHaveCount(0); // the form isn't open yet
     await page.getByRole("button", { name: t("Batches", "place"), exact: true }).click();

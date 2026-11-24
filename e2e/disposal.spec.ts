@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T41 acceptance (browser part): dead birds disposed of and manure taken out, recorded offline, synced once; the
 // day's mortality shows next to the birds disposed (SPEC-m2-compliance BS6, BS7, CX1); spreading is declared (CQ4).
@@ -12,7 +12,7 @@ test("disposal and manure are recorded offline, synced once, with the day's mort
   await page.goto("/fr/more");
 
   await page.getByRole("link", { name: "Cadavres et fumier" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   const gaps = page.getByRole("table", { name: "Morts et éliminés, 14 derniers jours" });
   await expect(gaps.getByRole("row").nth(1)).toContainText(/6\s*0\s*6$/); // 5 dead + 1 culled, nothing disposed yet
 

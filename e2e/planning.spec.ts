@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T96, T97 (SPEC-m5 PL1, PL2, PL5): batches planned offline on /planning, with the overlap and short-downtime
 // warnings; they survive a reload and sync once. Without a rule the official 20 days apply (CQ3); the 30-day rule is a
@@ -10,7 +10,7 @@ test("batches planned offline show overlaps and a short downtime, survive a relo
   await scopeRemembered(page);
   await farmWithBatch(page); // the open batch: its sale day is unknown, so nothing is claimed after it
   await page.goto("/fr/planning");
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByText("Lot en place depuis le", { exact: false })).toBeVisible();
 

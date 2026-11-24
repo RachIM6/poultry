@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-import { farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 
 // T86 (SPEC-m4 WF13): a training and a work accident recorded offline on /staff survive a reload and sync once.
 // Labels come from the app's messages, so the Arabic run checks the Arabic screen; the owner signs up in French.
@@ -20,7 +20,7 @@ for (const locale of ["fr", "ar"] as const) {
     ]);
 
     await page.goto(`/${locale}/staff`);
-    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    await controlled(page);
     const form = page.getByRole("form", { name: t("Records.add") });
     await expect(form).toBeVisible();
 

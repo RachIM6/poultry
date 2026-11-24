@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T72 (SPEC-m4 WF4, WF5): the day's tasks computed on the phone, and a routine and a one-off task added offline.
 test("a routine and a one-off task added offline join today's tasks, survive a reload and sync once", async ({ page, context }) => {
@@ -12,7 +12,7 @@ test("a routine and a one-off task added offline join today's tasks, survive a r
 
   await page.getByRole("link", { name: "Plus", exact: true }).click();
   await page.getByRole("link", { name: "Tâches du jour" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   const today = page.getByRole("list", { name: "Tâches d’aujourd’hui" }).getByRole("listitem");
   await expect(today).toHaveText([/Saisie du jour · Bâtiment 1\s*J0/]); // the batch placed today
 

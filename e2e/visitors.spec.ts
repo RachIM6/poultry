@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
+import { controlled, farmWithBatch, ownerWithFarm, query, scopeRemembered } from "./auth";
 
 // T40 acceptance (browser part): a visitor recorded offline on the phone survives a reload and reaches the server
 // once after sync (SPEC-m2-compliance BS1–BS3, CX1). The zone rule and isolation: src/modules/biosecurity/*.test.ts.
@@ -11,7 +11,7 @@ test("a visitor is recorded offline, kept to the dirty zone, and synced once", a
   await page.goto("/fr/more");
 
   await page.getByRole("link", { name: "Registre des visiteurs" }).click();
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await expect(page.getByText("Aucun visiteur aujourd’hui.")).toBeVisible();
 
   await context.setOffline(true);

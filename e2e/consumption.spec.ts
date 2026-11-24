@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // T112 acceptance (browser part, SPEC-finance FC7): offline, a home consumption on the sale form is prefilled with the
 // last sale's price, refused during a withdrawal, then recorded for a day before it, lowering birds on hand; it syncs
@@ -25,7 +25,7 @@ test("an offline home consumption is refused during a withdrawal, then recorded 
   ]);
 
   await page.goto(`/fr/batches#${ids.batch}`);
-  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+  await controlled(page);
   await referenceCached(page);
   await expect(page.getByText("Oiseaux présents : 900")).toBeVisible();
   await context.setOffline(true);

@@ -35,7 +35,7 @@ export function AppNav() {
   return (
     <nav
       aria-label={t("label")}
-      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-card print:hidden lg:sticky lg:top-0 lg:h-dvh lg:w-60 lg:shrink-0 lg:border-0 lg:bg-ink lg:p-4 lg:text-shell"
+      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-card print:hidden lg:sticky lg:top-0 lg:order-first lg:h-dvh lg:w-60 lg:shrink-0 lg:border-0 lg:bg-ink lg:p-4 lg:text-shell"
     >
       <div className="hidden px-2 pb-6 pt-2 lg:block [&_span]:text-shell">
         <BrandLockup />

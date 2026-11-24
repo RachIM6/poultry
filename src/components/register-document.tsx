@@ -3,7 +3,8 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
-import { primary } from "@/components/ui";
+import { REGISTER_ENTITIES, wholeRegister } from "@/components/register-access";
+import { primary, warn } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKgValue } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -24,8 +25,6 @@ import { startSync } from "@/offline/sync";
 // (/register#<batch id>), built on the phone so it prints offline, in the page's language. Print CSS only, no PDF
 // library (D1). Sections in the order of arrêté n° 2126-05 art. 2, on paper and paginated (art. 8); what the app
 // doesn't record is a blank line to fill by hand (CQ1).
-
-export const REGISTER_ENTITIES = ["farm", "house", "batch", "dailyEntry", "vaccination", "treatment", "vetVisit", "soldBirds", "sale", "buyer", "disposal", "document", "stockItem", "eggCollection"];
 
 const onHashChange = (notify: () => void) => (window.addEventListener("hashchange", notify), () => window.removeEventListener("hashchange", notify));
 const useHash = () => useSyncExternalStore(onHashChange, () => decodeURIComponent(window.location.hash.slice(1)), () => "");
@@ -55,7 +54,14 @@ function RegisterOf({ userId, organizationId, role }: Scope) {
   if (!records || reference === undefined) return null;
 
   const register = registerOf(batchId, records, reference?.data ?? null, locale);
-  return register ? <RegisterDocument register={register} /> : <p>{t("notFound")}</p>;
+  if (!register) return <p>{t("notFound")}</p>;
+  return (
+    <>
+      {/* A role whose phone lacks some of the register's records (the link isn't offered; a typed address still opens it) */}
+      {!wholeRegister({ userId, organizationId, role }) && <p role="note" className={`${warn} print:hidden`}>{t("incomplete")}</p>}
+      <RegisterDocument register={register} />
+    </>
+  );
 }
 
 /** The register of one batch from the phone's records (REGISTER_ENTITIES), or null when the batch isn't there. */

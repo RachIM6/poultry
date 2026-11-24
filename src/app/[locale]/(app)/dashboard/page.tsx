@@ -63,6 +63,7 @@ async function Content() {
       title={entity?.name ?? t("App.name")}
       userId={userId}
       organizationId={organizationId}
+      role={role}
       sync={<SyncBadge userId={userId} organizationId={organizationId} role={role} />}
       money={money}
       alert={

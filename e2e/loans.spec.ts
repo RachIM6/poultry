@@ -76,5 +76,5 @@ test("the owner creates a loan, confirms its schedule, marks the first installme
   await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);
   await page.reload();
   await expect(page.getByRole("region", { name: "Crédit Agricole du Maroc" })).toHaveCount(0);
-  await expect(page.getByText("Les dépenses et la trésorerie sont réservées au propriétaire et au gérant.")).toBeVisible();
+  await expect(page.getByText("Les emprunts et subventions sont réservés au propriétaire, au gérant et au comptable.")).toBeVisible();
 });

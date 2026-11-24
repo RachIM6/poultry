@@ -156,7 +156,8 @@ export function ImportForm({ treasuryId, today, maxBytes }: { treasuryId: string
   );
 }
 
-type Imported = { id: string; day: string; label: string; amount: string; lineId: string | null; ticked: boolean; book: { pathname: string; query: Record<string, string> } | null };
+// byOwner: an incoming line only the owner's manual entry books (FCX3); the manager passes it on.
+type Imported = { id: string; day: string; label: string; amount: string; lineId: string | null; ticked: boolean; book: { pathname: string; query: Record<string, string> } | null; byOwner: boolean };
 
 /**
  * T117: the imported statement's lines, each with its book line: ticked, to tick here (T111's tick), or missing, with
@@ -200,6 +201,7 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
                     {l.book && (
                       <Link href={l.book} className="underline underline-offset-4">{t(l.book.pathname === "/expenses" ? "bookFees" : "bookManual")}</Link>
                     )}
+                    {l.byOwner && <span className="text-sm">{t("byOwner")}</span>}
                   </span>
                 )}
               </td>

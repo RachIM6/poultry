@@ -46,11 +46,13 @@ export function ClosedSummary({ batch, money }: { batch: BatchDto; money: boolea
       ) : (
         <>
           <span>{t("sold", { kg: formatKg(batch.soldGrams) })}</span>
-          {result && (
+          {result ? (
             <>
               <span>{t("cost", { amount: formatMoney(BigInt(result.costCentimes)) })}</span>
               <span className="font-semibold">{result.costPerKgCentimes === null ? t("noCostPerKg") : t("costPerKg", { amount: formatMoney(BigInt(result.costPerKgCentimes)) })}</span>
             </>
+          ) : (
+            money && <span className="text-muted">{t("costOnline")}</span> // offline, or still loading: read from the server
           )}
         </>
       )}

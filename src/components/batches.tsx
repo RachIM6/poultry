@@ -7,6 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { formatCount } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
+import { pulls } from "@/lib/sync/views";
 import type { CleanoutDto } from "@/modules/biosecurity/shared";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { ageOn, birdsOnHand, birdsStarted, canJoinHouse, type BatchCostDto, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
@@ -103,6 +104,8 @@ function Batches(scope: Scope) {
   const entriesOf = (batchId: string) => entries.filter((e) => e.batchId === batchId);
   const soldOf = (batchId: string) => of<SoldBirdsDto>("soldBirds").filter((s) => s.batchId === batchId);
   const onHand = (b: BatchDto) => birdsOnHand(birdsStarted(b), entriesOf(b.id), soldOf(b.id)); // B5: sold count too
+  // SPEC-m5 §5: the accountant's phone holds no daily entry, so no bird count, strip or batch figure is shown to them.
+  const farming = pulls(role, "dailyEntry");
 
   // tasks/plan-ui.md U4: the 42-day strip on each card and on the batch page (Batch.dc.html).
   const vaccinationsOf = (batchId: string) => of<VaccinationDto>("vaccination").filter((v) => v.batchId === batchId);
@@ -157,10 +160,12 @@ function Batches(scope: Scope) {
     return (
       <>
         <BatchHeader title={title(shown)} />
-        <RegisterLinks batchId={shown.id} report={can(scope, "money.read")} />
+        <RegisterLinks batchId={shown.id} scope={scope} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <ClosedSummary batch={shown} money={can(scope, "money.read")} />
-        {shown.species === "layer" ? (
+        {!farming ? (
+          <p className="text-sm text-ink-2">{t("Batches.noFarming")}</p>
+        ) : shown.species === "layer" ? (
           <LayerDashboard batch={shown} entries={entriesOf(shown.id)} sold={soldOf(shown.id)} collections={collectionsOf(shown.id)} curve={layingCurve(shown)} />
         ) : (
           <BatchDashboard batch={shown} entries={entriesOf(shown.id)} weighings={of<WeighingDto>("weighing").filter((w) => w.batchId === shown.id)} sold={soldOf(shown.id)} curves={curves} />
@@ -172,6 +177,15 @@ function Batches(scope: Scope) {
   }
 
   const open = shown;
+  if (open && !farming) {
+    return (
+      <>
+        <BatchHeader title={title(open)} />
+        <RegisterLinks batchId={open.id} scope={scope} />
+        <p className="text-sm text-ink-2">{t("Batches.noFarming")}</p>
+      </>
+    );
+  }
   if (open) {
     const weighings = of<WeighingDto>("weighing").filter((w) => w.batchId === open.id);
     const curves = strains.find((s) => s.id === open.strainId)?.curves ?? []; // its sex's is picked where shown (OQ5, R6)
@@ -179,7 +193,7 @@ function Batches(scope: Scope) {
     return (
       <>
         <BatchHeader title={title(open)} />
-        <RegisterLinks batchId={open.id} report={can(scope, "money.read")} />
+        <RegisterLinks batchId={open.id} scope={scope} />
         <OpenBatchCard
           strip={stripOf(open)}
           ageLabel={open.species === "broiler" ? undefined : ageText(open)} // SPEC-m3: weeks for the long cycles
@@ -199,20 +213,26 @@ function Batches(scope: Scope) {
         ) : (
           <BatchDashboard batch={open} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} curves={curves} />
         )}
-        <DayForm
-          batch={open}
-          entries={entriesOf(open.id)}
-          sold={soldOf(open.id)}
-          feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
-          write={write}
-        />
-        {open.species === "layer" && <Link href="/eggs" className="underline underline-offset-4">{t("EggStock.title")}</Link>}
-        {open.species === "layer" && <EggCollections batch={open} collections={collectionsOf(open.id)} write={write} />}
+        {can(scope, "flock.record") && (
+          <DayForm
+            batch={open}
+            entries={entriesOf(open.id)}
+            sold={soldOf(open.id)}
+            feedItems={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "feed")}
+            write={write}
+          />
+        )}
+        {open.species === "layer" && can(scope, "eggs.record") && (
+          <>
+            <Link href="/eggs" className="underline underline-offset-4">{t("EggStock.title")}</Link>
+            <EggCollections batch={open} collections={collectionsOf(open.id)} write={write} />
+          </>
+        )}
         <Weighings
           batch={open}
           weighings={weighings}
           curves={curves}
-          write={write}
+          write={can(scope, "flock.record") ? write : undefined} // the vet reads them (SPEC-m5 PA4)
         />
         <Vaccinations
           batch={open}
@@ -225,14 +245,18 @@ function Batches(scope: Scope) {
           manage={can(scope, "health.manage")}
           write={write}
         />
-        <Treatments
-          batch={open}
-          treatments={treatments}
-          medicines={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "medicine")}
-          userId={userId}
-          write={write}
-        />
-        <VetVisits batch={open} visits={of<VetVisitDto>("vetVisit").filter((v) => v.batchId === open.id)} userId={userId} write={write} />
+        {can(scope, "health.record") && (
+          <>
+            <Treatments
+              batch={open}
+              treatments={treatments}
+              medicines={of<StockItemDto>("stockItem").filter((i) => i.farmId === open.farmId && i.kind === "medicine")}
+              userId={userId}
+              write={write}
+            />
+            <VetVisits batch={open} visits={of<VetVisitDto>("vetVisit").filter((v) => v.batchId === open.id)} userId={userId} write={write} />
+          </>
+        )}
         {can(scope, "flock.record") && (
           <Sales
             batch={open}
@@ -274,13 +298,14 @@ function Batches(scope: Scope) {
   return (
     <>
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
+      {!farming && batches.length > 0 && <p className="text-sm text-ink-2">{t("Batches.noFarming")}</p>}
       {batches.length === 0 ? (
         <p>{t("Batches.none")}</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {batches.map((b, i) => (
             <Fragment key={b.id}>
-            {band(b) && (i === 0 || band(batches[i - 1]) !== band(b)) ? (
+            {farming && band(b) && (i === 0 || band(batches[i - 1]) !== band(b)) ? (
               <li className="pt-2 font-semibold">
                 {(() => {
                   const run = batches.filter((x) => band(x) === band(b));
@@ -292,10 +317,10 @@ function Batches(scope: Scope) {
               <span className="font-semibold">
                 {b.status === "open" ? ageText(b) : t("Batches.status.closed")}
               </span>
-              {b.status === "open" && <BatchStrip {...stripOf(b)} />}
+              {farming && b.status === "open" && <BatchStrip {...stripOf(b)} />}
               <span>{title(b)}</span>
               <span className="text-sm text-muted">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
-              <span>{t("Day.onHand", { birds: formatCount(onHand(b)) })}</span>
+              {farming && <span>{t("Day.onHand", { birds: formatCount(onHand(b)) })}</span>}
               {b.status === "open" ? (
                 <a href={`#${b.id}`} className={`${primary} mt-2`}>{t("Day.open")}</a>
               ) : (

@@ -44,7 +44,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await closePreview(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
-  if (!result.ok) return <p>{t("Expenses.forbidden")}</p>;
+  if (!result.ok) return <p>{t("Close.forbidden")}</p>;
   const { year, day, books, locked, closedOn, frozen, opening, entries, stocks, batches, eggs, hens } = result.value;
   const todo = entries.some((e) => e.action === "post" || e.action === "repost" || e.action === "reverse");
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));

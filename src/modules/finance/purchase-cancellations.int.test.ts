@@ -7,7 +7,7 @@ import { farmDayOf } from "@/lib/kernel/farm-day";
 import type { PushedMutation } from "@/lib/sync/protocol";
 import { pull, push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { postPending } from "@/modules/finance";
+import { catchUpBooks, postPending } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { INVENTORY_MUTATIONS as M } from "@/modules/inventory/schema";
 import { twoTenants } from "@/test/tenant";
@@ -56,7 +56,7 @@ describe("cancelled purchases (SPEC-finance §9)", () => {
     expect(changes.filter((c) => c.id === movementId).at(-1)).toMatchObject({ entity: "movement", data: null });
     expect(changes.filter((c) => c.id === idOf(bought)).at(-1)).toMatchObject({ entity: "purchase", data: null });
 
-    expect(await postPending(a)).toBe(1);
+    await catchUpBooks(a); // the cancellation alone makes the books pending (§9 "Postings catch up")
     const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceModule: "inventory", sourceId: idOf(bought) } });
     const reversal = await db.journalEntry.findFirstOrThrow({ where: { reversesId: entry.id }, include: { lines: true } });
     expect(reversal.lines.map((l) => [l.account, l.debitCentimes, l.creditCentimes]).sort()).toEqual([["4411", 9_000_000n, 0n], ["612122", 0n, 9_000_000n]]);

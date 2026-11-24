@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { parseCentimes } from "@/lib/kernel/money";
 import { confirmLoan, createLoan, createSubsidy, discardLoan, payLoanInstallment, saveLoanSchedule } from "@/modules/finance";
-import { getTenantContext } from "@/modules/identity";
+import { getWriteContext } from "@/modules/identity";
 
 export type LoanState = { ok?: boolean; messageKey?: string };
 
@@ -29,8 +29,8 @@ const centimes = (form: FormData, key: string) => {
 
 type Ctx = Parameters<typeof createLoan>[0];
 async function run(write: (ctx: Ctx) => Promise<{ ok: boolean; error?: string }>, done: string): Promise<LoanState> {
-  const ctx = await getTenantContext(await headers());
-  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const ctx = await getWriteContext(await headers());
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
   const result = await write(ctx.value);
   if (!result.ok) return { messageKey: `errors.${result.error}` };
   refresh();

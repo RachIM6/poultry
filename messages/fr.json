@@ -594,6 +594,7 @@
     "TOO_LARGE": "La requête est trop volumineuse.",
     "CAPTCHA_REQUIRED": "La vérification de sécurité a échoué. Réessayez.",
     "FORBIDDEN": "Action refusée.",
+    "ORGANIZATION_LEFT": "Cette exploitation a quitté la plateforme : elle est en lecture seule, plus rien ne peut y être enregistré.",
     "NETWORK": "Pas de connexion. Réessayez.",
     "UNAUTHENTICATED": "Session expirée. Reconnectez-vous.",
     "INVALID_INPUT": "Vérifiez les champs du formulaire.",
@@ -1766,7 +1767,8 @@
     "layingStandard": "{gap} pt par rapport au standard ({standard} %)",
     "weight": "Poids moyen {weight}",
     "fcr": "IC {fcr}",
-    "eggsYesterday": "Œufs ramassés hier"
+    "eggsYesterday": "Œufs ramassés hier",
+    "left": "Cette exploitation a quitté la plateforme le {day}. Elle est en lecture seule : vous pouvez consulter ses données, mais plus rien ne peut y être enregistré. Ses données seront supprimées 30 jours après son départ, sauf la comptabilité, conservée dix ans. Pour recevoir l’export complet de ses données, le propriétaire le demande à l’équipe de la plateforme."
   },
   "Staff": {
     "title": "Personnel",

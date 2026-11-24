@@ -5,14 +5,14 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { parseCentimes } from "@/lib/kernel/money";
 import { addBankStatement, IMPORT_MAX_BYTES, importBankFile, matchBankLine, type BankImport } from "@/modules/finance";
-import { getTenantContext, limitSignedIn } from "@/modules/identity";
+import { getWriteContext, limitSignedIn } from "@/modules/identity";
 
 export type BankState = { messageKey?: string };
 
 // Server actions get Next's Origin check; finance still runs can() and Zod (poultry-auth §2).
 export async function addStatementAction(_: BankState, form: FormData): Promise<BankState> {
-  const ctx = await getTenantContext(await headers());
-  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const ctx = await getWriteContext(await headers());
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
   const text = String(form.get("closing") ?? "").trim();
   const closing = parseCentimes(text.replace(/^-/, "")); // as printed; a leading "-" when overdrawn
   if (closing === null) return { messageKey: "errors.INVALID_INPUT" };
@@ -25,8 +25,8 @@ export async function addStatementAction(_: BankState, form: FormData): Promise<
 
 /** One form for the statement's lines: the pressed button names the line ("tick" or "untick"). */
 export async function matchAction(_: BankState, form: FormData): Promise<BankState> {
-  const ctx = await getTenantContext(await headers());
-  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const ctx = await getWriteContext(await headers());
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
   const tick = form.get("tick");
   const matched = await matchBankLine(ctx.value, { statementId: form.get("statementId"), lineId: tick ?? form.get("untick"), ticked: tick !== null });
   if (!matched.ok) return { messageKey: `errors.${matched.error}` };
@@ -42,8 +42,8 @@ export type ImportState = { messageKey?: string; values?: { line: number }; prev
  */
 export async function importAction(_: ImportState, form: FormData): Promise<ImportState> {
   const h = await headers();
-  const ctx = await getTenantContext(h);
-  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const ctx = await getWriteContext(h);
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
   if (await limitSignedIn("authenticated", h, ctx.value.userId)) return { messageKey: "errors.TOO_MANY_REQUESTS" }; // rate-limiting.md §3 default
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) return { messageKey: "errors.INVALID_INPUT" };

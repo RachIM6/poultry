@@ -42,6 +42,17 @@ body {
   outline-offset: 2px;
 }
 
+/* WCAG 2.4.7: an ink ring vanishes on the dark surfaces (home header, "Argent", update banner, wide sidebar);
+   chick on ink is 9.6:1. */
+.bg-ink :focus-visible {
+  outline-color: var(--color-chick);
+}
+.lg\:bg-ink :focus-visible {
+  @variant lg {
+    outline-color: var(--color-chick);
+  }
+}
+
 /* T23: documents print black on white on A4, whatever the screen theme. */
 @page {
   size: A4;

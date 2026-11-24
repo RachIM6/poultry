@@ -10,11 +10,11 @@ export function BudgetCashView({ cash, label, fromBase, live = false }: { cash: 
   return (
     <>
       <p className="flex flex-wrap items-baseline justify-between gap-2 rounded-2xl border border-line bg-card p-3" aria-live={live ? "polite" : undefined}>
+        <span>{t("peakNeed")}</span>{" "}
         <span>
-          {t("peakNeed")}
-          {cash.peakWeek !== null && <span className="text-sm text-ink-2"> · {t("peakWeek", { week: cash.peakWeek })}</span>}
+          {cash.peakWeek !== null && <span className="text-sm text-ink-2">{t("peakWeek", { week: cash.peakWeek })} · </span>}
+          <bdi dir="ltr" className="text-xl font-semibold tabular-nums">{formatMoney(cash.peakNeedCentimes)}</bdi>
         </span>
-        <bdi dir="ltr" className="text-xl font-semibold tabular-nums">{formatMoney(cash.peakNeedCentimes)}</bdi>
       </p>
       <table className={table} aria-label={label}>
         <thead>

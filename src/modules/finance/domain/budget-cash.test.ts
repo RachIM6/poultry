@@ -75,6 +75,12 @@ describe("a budget's weekly cash need (SPEC-finance FN15, §9 \"Budget cash need
     ]);
   });
 
+  it("a need that stays flat until the sale peaks in the first week it is reached", () => {
+    // chicks and all the feed in week 1, nothing more until the sale on day 44
+    const cash = budgetCash(inputs, { lastDay: 44, feed: [[1, 1n]], other: [[0, 1n]], sales: [[44, 1n]] });
+    expect([cash.peakNeedCentimes, cash.peakWeek]).toEqual([1_980_000n, 1]);
+  });
+
   it("an early sale shows the need peaking before it, and none when nothing is out of pocket", () => {
     const cash = budgetCash(inputs, { lastDay: 20, feed: [[15, 1n]], other: [], sales: [[2, 1n]] });
     expect(cash.peakNeedCentimes).toBe(600_000n); // chicks and other costs on day 0, the sale on day 2

@@ -11,7 +11,7 @@ export type CashWeek = { week: number; outCentimes: bigint; inCentimes: bigint; 
 export type BudgetCash = {
   weeks: CashWeek[];
   peakNeedCentimes: bigint; // the most the batch is out of pocket, at any day (outflows of a day before its inflows)
-  peakWeek: number | null; // null when it never is
+  peakWeek: number | null; // the first week it is reached (the money is needed from then); null when it never is
 };
 
 /**

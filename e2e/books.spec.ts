@@ -24,10 +24,6 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Livre des recettes et dépenses");
   await expect(page.getByRole("link", { name: "Balance" })).toHaveCount(0); // a cash_book entity has no ledger views
   await expect(page.getByRole("link", { name: "Bilan (projet)" })).toHaveCount(0); // nor a balance sheet (T110)
-  // T101 (FCX3): no manual entry either, while its opening balances' counter-account waits for FQ11.
-  await page.getByText("Écriture manuelle", { exact: true }).click();
-  await expect(page.getByText(/^Pas d’écriture manuelle dans le livre des recettes et dépenses/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Passer l’écriture" })).toBeDisabled();
   const book = page.getByRole("table", { name: "Recettes et dépenses" });
   await expect(book.getByRole("row").nth(1)).toContainText(/Dépense · Consommation d’Eau.*5161 Caisses.*450,00\sDH/);
   await expect(book.getByRole("row").last()).toContainText(/Total du mois\s*0,00\sDH\s*450,00\sDH/);
@@ -39,6 +35,22 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   const files = unzip(await readFile(await download.path()));
   expect([...files.keys()]).toEqual([`recettes-depenses-${month}.csv`, `livres-${month}.xlsx`]);
   expect(files.get(`recettes-depenses-${month}.csv`)).toMatch(/;5161;Caisses;[^;]+;;0,00;450,00\r\nTotal;;;;;;0,00;450,00\r\n$/); // no batch: a general expense
+
+  // FN3, FCX3, FQ11: its manual entry carries the opening cash and bank balances, against 1117 Capital personnel.
+  await page.getByText("Écriture manuelle", { exact: true }).click();
+  const form = page.locator("details");
+  await expect(form.getByText(/^Soldes d’ouverture de la banque \(5141\) et de la caisse \(5161\)/)).toBeVisible();
+  await form.getByLabel("Date").fill(`${month.slice(0, 4)}-01-01`);
+  await form.getByLabel("Libellé").fill("Soldes d’ouverture");
+  await form.getByLabel("Compte, ligne 1").fill("5161");
+  await form.getByLabel("Débit, ligne 1").fill("1000");
+  await form.getByLabel("Compte bancaire ou caisse, ligne 1").selectOption({ label: "Caisse" });
+  await form.getByLabel("Compte, ligne 2").fill("1117");
+  await form.getByLabel("Crédit, ligne 2").fill("1000");
+  await form.getByRole("button", { name: "Passer l’écriture" }).click();
+  await expect(form.getByText("Écriture enregistrée.")).toBeVisible();
+  await page.goto("/fr/treasury");
+  await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").filter({ hasText: "Caisse" })).toContainText(/550,00\sDH/); // 1 000,00 − 450,00
 });
 
 // U16 (mockup F-Statements), T110 (FC8): a full-books entity's draft income statement and balance sheet, from its

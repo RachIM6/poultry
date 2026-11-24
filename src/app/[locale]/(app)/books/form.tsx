@@ -20,7 +20,7 @@ type Prefill = { day: string; label: string; debit: string; bank: string };
  * FC9: a bank statement's line not in the books comes prefilled as the first line, 5141 on its bank account; the user
  * types the other side. The first entry only.
  */
-export function ManualEntryForm({ today, accounts, treasuries, blocked, prefill }: { today: string; accounts: string; treasuries: TreasuryAccountDto[]; blocked: boolean; prefill?: Prefill }) {
+export function ManualEntryForm({ today, accounts, treasuries, prefill }: { today: string; accounts: string; treasuries: TreasuryAccountDto[]; prefill?: Prefill }) {
   const t = useTranslations();
   const router = useRouter();
   const [id, setId] = useState(() => uuidv7());
@@ -69,7 +69,7 @@ export function ManualEntryForm({ today, accounts, treasuries, blocked, prefill 
   return (
     <form onSubmit={submit} onInput={(e) => sum(e.currentTarget)} className="flex flex-col gap-3">
       <input type="hidden" name="id" value={id} />
-      <fieldset key={id} disabled={blocked} className="flex flex-col gap-3">
+      <fieldset key={id} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           {t("Books.day")}
           <input type="date" name="day" defaultValue={pre?.day ?? today} max={today} required className={field} />

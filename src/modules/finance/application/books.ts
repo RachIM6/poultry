@@ -13,6 +13,7 @@ import { monthPeriod } from "@/modules/finance/domain/batch";
 import { ledgerAccounts, lockedMonths, yearClose } from "@/modules/finance/infrastructure/ledger";
 import { entryTags } from "@/modules/finance/application/tags";
 import type { EntryTags } from "@/modules/finance/domain/export";
+import { cashBookAccount } from "@/modules/finance/domain/contribution";
 import { unpostedConsumption } from "@/modules/finance/domain/posting";
 import type { TreasuryKind } from "@/modules/finance/domain/treasury";
 
@@ -35,7 +36,8 @@ export type Books = {
   incomeStatement?: ReturnType<typeof incomeStatement>; // F-Statements: a draft CPC over the same period
   balanceSheet?: ReturnType<typeof balanceSheet>; // FC8: the draft bilan on the month's last day, its result the CPC's net
   closedOn?: FarmDay | null; // FCX6: the day the fiscal year was closed; until then the statements are a "Projet"
-  postingAccounts?: { number: string; label: string }[]; // FCX3: the owner's manual entry form, `ledger` entities only
+  // FCX3: the owner's manual entry form; a `cash_book` entity's offers 5141, 5161 and the owner's account only (FN3, FQ11)
+  postingAccounts?: { number: string; label: string }[];
   treasuryAccounts?: { id: string; kind: TreasuryKind; name: string }[]; // FN3: what its 5141 / 5161 lines name, same form
 };
 
@@ -76,12 +78,29 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
   const chart = chartOf(accounts, entity.accountingProfile.base, entity.accountingProfile.overlays);
   const everything = chartOf(accounts, "cgnc", ["pca"]);
   const unposted = (await consumptionsBetween(db, ctx, period.from, period.to)).flatMap((c) => {
-    const reason = unpostedConsumption({ type: "consumption", id: c.id, day: c.day as FarmDay, amount: c.amountCentimes, takenBy: c.takenBy }, everything, chart);
+    const reason = unpostedConsumption({ type: "consumption", id: c.id, day: c.day as FarmDay, amount: c.amountCentimes, takenBy: c.takenBy, individual: entity.form === "individual" }, everything, chart);
     return reason ? [{ ...c, reason }] : [];
   });
   const locked = [...(await lockedMonths(db, ctx, entity.id))].sort();
-  const books: Books = { books: entity.accountingProfile.books, month, lockedMonths: locked, fiscalYear: year, labels, cashBook: cashBookOf(inMonth), tags: await entryTags(ctx, month), unposted };
-  if (entity.accountingProfile.books !== "ledger") return ok(books);
+  const ledger = entity.accountingProfile.books === "ledger";
+  const books: Books = {
+    books: entity.accountingProfile.books,
+    month,
+    lockedMonths: locked,
+    fiscalYear: year,
+    labels,
+    cashBook: cashBookOf(inMonth),
+    tags: await entryTags(ctx, month),
+    unposted,
+    ...(can(ctx, "finance.manage") && {
+      postingAccounts: leafAccounts(chart)
+        .filter((a) => ledger || cashBookAccount(a.number, entity.form === "individual"))
+        .map((a) => ({ number: a.number, label: a.label }))
+        .sort((a, b) => a.number.localeCompare(b.number)),
+      treasuryAccounts: (await db.treasuryAccount.findMany({ where: { organizationId: ctx.organizationId }, select: { id: true, kind: true, name: true }, orderBy: { name: "asc" } })).map((a) => ({ ...a, kind: a.kind as TreasuryKind })),
+    }),
+  };
+  if (!ledger) return ok(books);
 
   const manual = new Map((await db.manualEntry.findMany({ where: { organizationId: ctx.organizationId, id: { in: inMonth.map((e) => e.id) } } })).map((m) => [m.id, m]));
   const reversed = new Set((await db.journalEntry.findMany({ where: { organizationId: ctx.organizationId, reversesId: { in: [...manual.keys()] } }, select: { reversesId: true } })).map((r) => r.reversesId));
@@ -110,11 +129,5 @@ export async function readBooks(ctx: TenantContext, month: string): Promise<Resu
     incomeStatement: incomeStatement(balance.rows),
     balanceSheet: balanceSheet(balance.rows),
     closedOn: closed && farmDayOf(closed.closedAt),
-    ...(can(ctx, "finance.manage") && {
-      postingAccounts: leafAccounts(chart)
-        .map((a) => ({ number: a.number, label: a.label }))
-        .sort((a, b) => a.number.localeCompare(b.number)),
-      treasuryAccounts: (await db.treasuryAccount.findMany({ where: { organizationId: ctx.organizationId }, select: { id: true, kind: true, name: true }, orderBy: { name: "asc" } })).map((a) => ({ ...a, kind: a.kind as TreasuryKind })),
-    }),
   });
 }

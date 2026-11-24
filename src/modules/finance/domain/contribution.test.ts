@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { associatePosting } from "@/modules/finance/domain/contribution";
+import { associatePosting, cashBookAccount } from "@/modules/finance/domain/contribution";
 
 describe("associatePosting (SPEC-finance FN6, FQ11, §9 associate contributions)", () => {
   const bank = { id: "b", kind: "bank" as const };
@@ -25,5 +25,14 @@ describe("associatePosting (SPEC-finance FN6, FQ11, §9 associate contributions)
         { account: "5161", debit: 0n, credit: 200_000n, treasuryId: "c" },
       ],
     });
+  });
+});
+
+describe("cashBookAccount (SPEC-finance FN3, FCX3, FQ11)", () => {
+  it("lets a cash_book entity's manual entry use only 5141, 5161 and the owner's account", () => {
+    expect(["5141", "5161", "1117"].every((a) => cashBookAccount(a, true))).toBe(true);
+    expect(["5141", "5161", "4463"].every((a) => cashBookAccount(a, false))).toBe(true);
+    expect(["4463", "1111", "7140"].some((a) => cashBookAccount(a, true))).toBe(false);
+    expect(cashBookAccount("1117", false)).toBe(false);
   });
 });

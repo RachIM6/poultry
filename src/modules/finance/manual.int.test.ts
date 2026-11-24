@@ -110,10 +110,18 @@ describe("manual entries (SPEC-finance FCX3, FN3, T101)", () => {
     expect(await db.manualEntry.count({ where: { id: e.id } })).toBe(0);
   });
 
-  it("refuses a cash_book entity: its opening counter-account waits for FQ11", async () => {
-    const e = entry({ lines: [line("5161", "50000", "0"), line("1111", "0", "50000")] });
-    expect(await postManualEntry(cashBook, e, clock)).toEqual({ ok: false, error: "CASH_BOOK_NO_MANUAL_ENTRY" });
-    expect(await posted(e.id)).toBe(0);
+  it("takes a cash_book individual's opening bank and cash balances against 1117 Capital personnel, nothing else (FN3, FQ11)", async () => {
+    const ownBox = uuidv7();
+    await db.treasuryAccount.create({ data: { id: ownBox, organizationId: cashBook.organizationId, kind: "cash", name: "Caisse" } });
+    const refused = entry({ lines: [line("5161", "50000", "0", ownBox), line("1111", "0", "50000")] });
+    expect(await postManualEntry(cashBook, refused, clock)).toEqual({ ok: false, error: "CASH_BOOK_NO_MANUAL_ENTRY" });
+    expect(await posted(refused.id)).toBe(0);
+    const e = entry({ lines: [line("5161", "50000", "0", ownBox), line("1117", "0", "50000")] });
+    expect(await postManualEntry(cashBook, e, clock)).toEqual({ ok: true, value: undefined });
+    const lines = await db.journalLine.findMany({ where: { entryId: e.id }, orderBy: { debitCentimes: "desc" } });
+    expect(lines.map((l) => [l.account, l.debitCentimes, l.creditCentimes, l.treasuryId])).toEqual([["5161", 50_000n, 0n, ownBox], ["1117", 0n, 50_000n, null]]);
+    const books = await readBooks(cashBook, "2026-01");
+    expect(books.ok && books.value.postingAccounts?.map((a) => a.number)).toEqual(["1117", "5141", "5161"]); // the form offers only these
   });
 
   it("attaches a receipt once, to the organisation's own manual entry, for the owner (ADR-011)", async () => {

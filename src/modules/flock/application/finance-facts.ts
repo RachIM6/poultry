@@ -1,6 +1,9 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
 import { houseOf } from "@/modules/farm-registry";
+import { birdsStarted } from "@/modules/flock/domain/batch";
+import { birdsOnHand } from "@/modules/flock/domain/birds";
+import { chicksCost } from "@/modules/flock/domain/closing";
 import type { ProductionType } from "@/modules/reference-data/shared";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -16,6 +19,7 @@ export type BatchMoneyFacts = {
   closedOn: string | null;
   status: string;
   started: number; // chicks placed − dead on arrival
+  onHand: number; // birds on hand (B4, B5): started − dead − culled − sold, as of `asOf`
   chicksPlaced: number;
   chickUnitPriceCentimes: bigint;
   chicksCentimes: bigint; // every chick placed, dead on arrival included (as the B6 cost), + the placement's VAT (FQ30)
@@ -56,10 +60,11 @@ export async function batchesForFinance(tx: Tx, ctx: TenantContext, asOf?: strin
     placedOn: day(b.placedOn),
     closedOn: b.closedOn && !(asOf && day(b.closedOn) > asOf) ? day(b.closedOn) : null,
     status: b.status,
-    started: b.chicksPlaced + b.freeChicks - b.deadOnArrival, // SPEC-m3 B10
+    started: birdsStarted(b), // SPEC-m3 B10
+    onHand: birdsOnHand(birdsStarted(b), entries.filter((e) => e.batchId === b.id), sold.filter((s) => s.batchId === b.id)),
     chicksPlaced: b.chicksPlaced,
     chickUnitPriceCentimes: b.chickUnitPriceCentimes,
-    chicksCentimes: BigInt(b.chicksPlaced) * b.chickUnitPriceCentimes + (b.chickVatCentimes ?? 0n),
+    chicksCentimes: chicksCost(b.chicksPlaced, b.chickUnitPriceCentimes) + (b.chickVatCentimes ?? 0n),
     chickVatCentimes: b.chickVatCentimes ?? 0n,
     otherCentimes: other.get(b.id) ?? 0n,
     soldGrams: sold.filter((s) => s.batchId === b.id).reduce((s, x) => s + x.liveWeightGrams, 0),

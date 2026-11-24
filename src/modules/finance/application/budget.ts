@@ -8,6 +8,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { batchesForFinance, batchFacts, type BatchMoneyFacts } from "@/modules/flock";
+import { chicksCost } from "@/modules/flock/shared";
 import { batchConsumption } from "@/modules/inventory";
 import { batchResults, type BatchResultRow } from "@/modules/finance/application/batch-results";
 import type { BudgetInputs } from "@/modules/finance/domain/budget";
@@ -68,7 +69,7 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
             chickPriceCentimes: f.chickUnitPriceCentimes,
             feedGrams: feed.quantity,
             feedPricePerKgCentimes: perKg(feed.centimes, feed.quantity),
-            otherCostCentimes: r.costCentimes - BigInt(f.chicksPlaced) * f.chickUnitPriceCentimes - feed.centimes, // the placement's VAT (FQ30) lands here
+            otherCostCentimes: r.costCentimes - chicksCost(f.chicksPlaced, f.chickUnitPriceCentimes) - feed.centimes, // the placement's VAT (FQ30) lands here
             plannedGrams: grams,
             salePricePerKgCentimes: perKg(r.salesCentimes, grams),
           },

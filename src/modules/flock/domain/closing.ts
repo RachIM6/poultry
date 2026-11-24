@@ -2,6 +2,9 @@ import { divHalfUp } from "@/lib/kernel/money";
 
 // SPEC B6. Pure: the server locks these figures when the batch closes; the phone shows them with the same code.
 
+/** B6: what a placement's chicks cost before their VAT: every chick billed, dead on arrival included; the free ones are free. */
+export const chicksCost = (chicksPlaced: number, unitPriceCentimes: bigint) => BigInt(chicksPlaced) * unitPriceCentimes;
+
 /**
  * Cost per kg sold = (chicks + valued consumptions + other costs) ÷ kg sold at the farm's weight, in centimes per kg,
  * rounded half up. Every chick placed is paid for, dead on arrival included. Null before any kg is sold.

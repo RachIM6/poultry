@@ -63,7 +63,7 @@ export async function batchLinesAtClose(tx: Tx, ctx: TenantContext, entity: Lega
   }
   const open = batches.filter((b) => b.closedOn === null); // as of the day: placed by then, not closed by then
   return batchesAtClose(
-    open.map((b) => ({ id: b.id, farmId: b.farmId, houseName: b.houseName, species: b.species, onHand: count.get(b.id) ?? b.started - b.out.reduce((n, o) => n + o.birds, 0), sold: b.sold, engaged: engaged.get(b.id) ?? 0n })),
+    open.map((b) => ({ id: b.id, farmId: b.farmId, houseName: b.houseName, species: b.species, onHand: count.get(b.id) ?? b.onHand, sold: b.sold, engaged: engaged.get(b.id) ?? 0n })),
     weighings,
     last,
     new Map(current.map((c) => [c.subjectId, c.valueCentimes])),

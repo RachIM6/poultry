@@ -95,20 +95,22 @@ export function Section({ title, children }: { title: string; children: ReactNod
   );
 }
 
-/** A table that says "none" rather than print an empty grid. */
+/** A table that says "none" rather than print an empty grid. On screen a wide one scrolls (zoom, phone); on paper it fits the page. */
 export function Table({ head, rows, none }: { head: string[]; rows: ReactNode[][]; none: string }) {
   if (rows.length === 0) return <p className="text-sm">{none}</p>;
   return (
-    <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:px-1.5 [&_td]:py-1 [&_td]:align-top [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:px-1.5 [&_th]:py-1 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black">
-      <thead>
-        <tr>{head.map((h) => <th key={h} scope="col">{h}</th>)}</tr>
-      </thead>
-      <tbody>
-        {rows.map((r, i) => (
-          <tr key={i} className="break-inside-avoid">{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto print:overflow-visible">
+      <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:px-1.5 [&_td]:py-1 [&_td]:align-top [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:px-1.5 [&_th]:py-1 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black">
+        <thead>
+          <tr>{head.map((h) => <th key={h} scope="col">{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="break-inside-avoid">{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

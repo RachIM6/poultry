@@ -7,7 +7,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { z } from "zod";
-import { BOOKS, booksAllowed, HENS_METHODS, legalEntityIn, listLegalEntities, saveAccountingChoices, type LegalEntityDto } from "@/modules/farm-registry";
+import { ALLOCATION_KEYS, BOOKS, booksAllowed, HENS_METHODS, legalEntityIn, listLegalEntities, saveAccountingChoices, type LegalEntityDto } from "@/modules/farm-registry";
 import { chartOf } from "@/modules/finance/domain/chart";
 import { CLOSE_KINDS, REVERSED_AT_OPENING, closeAction, closeSource, openingReversalOf, openingSource, reversalSource } from "@/modules/finance/domain/close";
 import { checkEntry, firstOpenMonth, fiscalYearOf, monthOf, openingLines, reversalOf, type EntryError } from "@/modules/finance/domain/entry";
@@ -170,7 +170,7 @@ export async function postOpening(tx: Tx, ctx: TenantContext, entity: LegalEntit
 
 /**
  * FN1, FN9: the owner's accounting choices; null keeps the legal form's default, an absent vatRegistered keeps it.
- * FC6 (FQ7a): the laying hens' method, one for the laying flock and its pullets; absent keeps it.
+ * FC6 (FQ7a): the laying hens' method, one for the laying flock and its pullets; FN14: the shared costs' key; absent keeps them.
  */
 const AccountingChoicesInput = z.object({
   books: z.enum(BOOKS).nullable(),
@@ -178,11 +178,12 @@ const AccountingChoicesInput = z.object({
   fiscalYearStartMonth: z.int32().min(1).max(12),
   vatRegistered: z.boolean().optional(),
   hensMethod: z.enum(HENS_METHODS).optional(),
+  allocationKey: z.enum(ALLOCATION_KEYS).optional(),
 });
 
 /**
- * FN1 (from T27): the owner changes the books, the PCA overlay, the fiscal-year start, VAT registration (FN9) or the
- * laying hens' method (FC6) only while the current fiscal year has no entry (CGNC "permanence des méthodes"). Saved and
+ * FN1 (from T27): the owner changes the books, the PCA overlay, the fiscal-year start, VAT registration (FN9), the
+ * laying hens' method (FC6) or the shared costs' key (FN14) only while the current fiscal year has no entry (CGNC "permanence des méthodes"). Saved and
  * audited by farm-registry.
  */
 export async function changeAccountingChoices(

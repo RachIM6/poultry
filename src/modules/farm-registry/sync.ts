@@ -160,7 +160,7 @@ export const farmBelongsTo = async (tx: Tx, ctx: TenantContext, farmId: string) 
 /** For other modules: the caller's organisation's house and its farm, or null. Inside their transaction. */
 export const houseOf = async (tx: Tx, ctx: TenantContext, houseId: string) => {
   const house = await ownHouse(tx, ctx, houseId);
-  return house && { id: house.id, farmId: house.farmId, name: house.name };
+  return house && { id: house.id, farmId: house.farmId, name: house.name, areaM2: house.areaM2 };
 };
 
 /** For finance's export (SPEC-finance FN18): the names of the caller's organisation's farms and houses, by id. */

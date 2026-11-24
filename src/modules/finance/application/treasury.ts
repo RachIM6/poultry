@@ -158,6 +158,9 @@ export async function recordTransfer(tx: Tx, ctx: TenantContext, cmd: z.output<t
 
 export type TreasuryOverview = {
   accounts: { id: string; kind: TreasuryKind; name: string; balanceCentimes: bigint }[];
+  // The cash and bank the farm-event rules post on no account (sale receipts, wages, supplier payments…, FN6): with
+  // the accounts' balances, the forecast's start.
+  unassignedCentimes: bigint;
   // counterAccounts: the entry's other lines' accounts, as the cash book shows them (FN16); batch: its house and
   // placement day, as the books show it, or "". receipt: an expense's photo id, null when it has none yet; undefined
   // for a movement that isn't an expense.
@@ -219,6 +222,7 @@ export async function treasuryOverview(ctx: TenantContext, month: string): Promi
   const labels = new Map((await db.ledgerAccount.findMany({ where: { number: { in: numbers } }, select: { number: true, label: true } })).map((a) => [a.number, a.label]));
   return ok({
     accounts: accounts.map((x) => ({ id: x.id, kind: x.kind as TreasuryKind, name: x.name, balanceCentimes: balance.get(x.id) ?? 0n })),
+    unassignedCentimes: balance.get(null) ?? 0n,
     movements: lines.map((l) => ({
       day: l.entry.day.toISOString().slice(0, 10),
       journal: l.entry.journal,

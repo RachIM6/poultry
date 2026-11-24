@@ -1,4 +1,5 @@
 import { addFarmDays, type FarmDay } from "@/lib/kernel/farm-day";
+import { ageOn } from "@/modules/flock/shared";
 
 // The design's signature (Today.dc.html, WebOverview.dc.html): one bar per day of the batch. Done days stay neutral;
 // colour only for what needs action: a missing day, today, a vaccine due, the withdrawal period.
@@ -27,6 +28,30 @@ export function stripDays(input: {
     const withdrawal = input.withdrawal !== null && day >= input.withdrawal.from && day <= input.withdrawal.to;
     return { age, day, state, vaccine: input.vaccineDays.includes(day), withdrawal };
   });
+}
+
+/** A /batches card's strip (tasks/plan-ui.md U4), from the batch's own rows. */
+export function batchStrip(
+  b: { placedOn: string; species: string },
+  today: FarmDay,
+  own: { entries: readonly { day: string }[]; vaccinations: readonly { done: unknown; dueOn: string }[]; treatments: readonly { startOn: string; withdrawalEndsOn: string }[] },
+) {
+  // H4's rule (health's withdrawalUntil) read from each treatment's withdrawalEndsOn, which the same rule computed when
+  // it was recorded: importing health here would push the page over its 200 KB budget (SPEC §9.3).
+  const running = own.treatments.filter((x) => x.startOn <= today && today <= x.withdrawalEndsOn).map((x) => x.withdrawalEndsOn).sort();
+  const until = (running.at(-1) ?? null) as FarmDay | null;
+  const from = own.treatments.filter((x) => x.withdrawalEndsOn >= today).map((x) => x.startOn).sort()[0];
+  const age = ageOn(b.placedOn as FarmDay, today);
+  const days = stripDays({
+    placedOn: b.placedOn as FarmDay,
+    today,
+    age,
+    entered: new Set(own.entries.map((e) => e.day)),
+    vaccineDays: own.vaccinations.filter((v) => !v.done).map((v) => v.dueOn),
+    withdrawal: until && from ? { from: from as FarmDay, to: until } : null,
+    rolling: b.species !== "broiler", // SPEC-m3: long cycles show a rolling window
+  });
+  return { age, days };
 }
 
 // On the dark header (`onDark`) done days are Sable, on a white card they are the darker "saisi".

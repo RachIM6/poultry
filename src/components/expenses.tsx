@@ -63,6 +63,7 @@ function Expenses(scope: Scope) {
   const batches = of<{ id: string; houseId: string; placedOn: string; status: string }>("batch")
     .filter((b) => b.status === "open")
     .map((b) => ({ id: b.id, label: t("Expenses.batch", { house: houses.find((h) => h.id === b.houseId)?.name ?? "—", date: formatDay(b.placedOn as FarmDay, locale) }) }));
+  const line = (e: ExpenseDto) => t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) });
   const recent = of<ExpenseDto>("expense").sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 20);
 
   const write = async (mutation: { type: string; payload: unknown }, entity: string, data: { id: string }) => {
@@ -89,10 +90,10 @@ function Expenses(scope: Scope) {
         <ul className="flex flex-col gap-2" aria-label={t("Expenses.recent")}>
           {recent.map((e) => (
             <li key={e.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
-              <span>{t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) })}</span>
+              <span>{line(e)}</span>
               {/* FN10: the receipt photo goes up once the expense is on the server and the phone is online (ADR-011) */}
               {e.receiptFileId ? (
-                <a href={`/api/files/${e.receiptFileId}`} className="underline underline-offset-4">{t("Expenses.receipt")}</a>
+                <a href={`/api/files/${e.receiptFileId}`} aria-label={t("Expenses.receiptOf", { expense: line(e) })} className="underline underline-offset-4">{t("Expenses.receipt")}</a>
               ) : unsent.has(`expense:${e.id}`) || !online ? (
                 <span className="text-sm text-ink-2">{t("Expenses.receiptMissing")}</span>
               ) : (

@@ -171,7 +171,7 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
           {farm.onssa && (
             <p className="text-sm">{t("onssaUntil", { number: farm.onssa.number, date: formatDay(farm.onssa.expiresOn as FarmDay, locale) })}</p>
           )}
-          {manage && <button type="button" {...opener("farm")} className={`${secondary} mt-2 self-start`}>{t("edit")}</button>}
+          {manage && <button type="button" {...opener("farm")} aria-label={t("editNamed", { name: farm.name })} className={`${secondary} mt-2 self-start`}>{t("edit")}</button>}
         </div>
       )}
 
@@ -225,7 +225,7 @@ function HouseRow({ house, manage, save }: { house: HouseDto; manage: boolean; s
       <span className="text-sm text-muted">
         {t("houseSummary", { area: formatCount(house.areaM2), capacity: formatCount(house.capacity), type: t(`types.${house.type}`) })}
       </span>
-      {manage && <button type="button" {...opener("house")} className={`${secondary} mt-1 self-start py-2`}>{t("edit")}</button>}
+      {manage && <button type="button" {...opener("house")} aria-label={t("editNamed", { name: house.name })} className={`${secondary} mt-1 self-start py-2`}>{t("edit")}</button>}
     </li>
   );
 }

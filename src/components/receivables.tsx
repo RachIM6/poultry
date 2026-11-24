@@ -206,7 +206,7 @@ function Receivables(scope: Scope) {
                 {paying === b.id ? (
                   <PaymentForm buyerId={b.id} balance={balance} onSave={save} onCancel={close} />
                 ) : (
-                  <button type="button" {...opener(b.id)} className={secondary}>{t("Receivables.pay")}</button>
+                  <button type="button" {...opener(b.id)} aria-label={t("Receivables.payNamed", { buyer: b.name, amount: formatMoney(balance) })} className={secondary}>{t("Receivables.pay")}</button>
                 )}
               </li>
             );
@@ -254,7 +254,7 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
           </div>
         </form>
       ) : (
-        <button type="button" {...opener("limit")} className={secondary}>{t("Receivables.editLimit")}</button>
+        <button type="button" {...opener("limit")} aria-label={t("Receivables.editLimitNamed", { buyer: buyer.name })} className={secondary}>{t("Receivables.editLimit")}</button>
       )}
     </li>
   );

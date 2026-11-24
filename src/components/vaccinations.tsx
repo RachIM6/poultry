@@ -75,6 +75,7 @@ export function Vaccinations({
           {plan.map((v) => {
             const status = statusOn({ dueOn: v.dueOn as FarmDay, done: v.done }, today());
             const lot = v.done && lots.find((l) => l.id === v.done!.stockItemId);
+            const named = { vaccine: vaccine(v.productId), age: String(v.dayOfAge) }; // SPEC X4: each button says which line
             return (
               <li key={v.id} className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-3">
                 <span className="font-semibold">{t("Vaccination.line", { age: String(v.dayOfAge), vaccine: vaccine(v.productId), method: t(`Protocol.methods.${v.method}`) })}</span>
@@ -114,9 +115,9 @@ export function Vaccinations({
                     </div>
                   ) : (
                     <div className="mt-1 flex flex-wrap gap-3">
-                      <button type="button" {...opener(`done:${v.id}`)} className={secondary}>{t("Vaccination.markDone")}</button>
-                      {manage && <button type="button" {...opener(`move:${v.id}`)} className={secondary}>{t("Vaccination.move")}</button>}
-                      {manage && <button type="button" {...opener(`remove:${v.id}`)} className={secondary}>{t("Vaccination.remove")}</button>}
+                      <button type="button" {...opener(`done:${v.id}`)} aria-label={t("Vaccination.markDoneNamed", named)} className={secondary}>{t("Vaccination.markDone")}</button>
+                      {manage && <button type="button" {...opener(`move:${v.id}`)} aria-label={t("Vaccination.moveNamed", named)} className={secondary}>{t("Vaccination.move")}</button>}
+                      {manage && <button type="button" {...opener(`remove:${v.id}`)} aria-label={t("Vaccination.removeNamed", named)} className={secondary}>{t("Vaccination.remove")}</button>}
                     </div>
                   ))}
               </li>

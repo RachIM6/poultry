@@ -6,7 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import { formatCount, formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { BatchDto } from "@/modules/flock/shared";
-import { HEALTH_MUTATIONS as H, checkAdd, checkDone, moveLine, planFor, statusOn, type VaccinationDto, type VaccinationMethod } from "@/modules/health/shared";
+import { HEALTH_MUTATIONS as H, checkAdd, checkDone, missingRequiredVaccines, moveLine, planFor, statusOn, type VaccinationDto, type VaccinationMethod } from "@/modules/health/shared";
 import type { MovementDto, StockItemDto } from "@/modules/inventory/shared";
 import type { Product, ProtocolDto } from "@/modules/reference-data/schema";
 import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
@@ -60,6 +60,11 @@ export function Vaccinations({
   return (
     <section className="flex flex-col gap-3" aria-labelledby="vaccination-title">
       <h3 id="vaccination-title" className="text-[17px] font-semibold text-ink-2">{t("Vaccination.title")}</h3>
+      {/* OQ4: a warning, never a block (arrêté 3308-17 art. 13) */}
+      {batch.status === "open" &&
+        missingRequiredVaccines(plan).map((r) => (
+          <p key={r.disease} className="rounded-xl bg-chick-soft p-2 text-sm text-chick-fg">{t(`Vaccination.required.${r.disease}`, { source: r.source })}</p>
+        ))}
       {plan.length === 0 ? (
         <>
           <p>{t("Vaccination.none")}</p>

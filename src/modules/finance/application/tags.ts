@@ -10,6 +10,7 @@ import type { EntryTags } from "@/modules/finance/domain/export";
 
 type Tag = { party: string | null; farmId: string | null; batchId: string | null; houseId?: string | null }; // houseId: without a batch (a fixed asset)
 const dmy = (day: string) => day.split("-").reverse().join("/");
+const expenseOf = (source: string) => (source.startsWith("expense:") ? source.split(":")[1] : source);
 
 /**
  * FN18's analytic columns, read from the record each of the month's entries posts (its source), so entries posted
@@ -31,7 +32,8 @@ export async function entryTags(ctx: TenantContext, month: string): Promise<Entr
     salesTags(db, ctx, idsOf("sales")),
     workforceTags(db, ctx, idsOf("workforce")),
     // A finance source is a record's id (an expense, a transfer) or a rule's key (asset:<id>:acq, FC1): uuids only here.
-    db.expense.findMany({ where: { organizationId: ctx.organizationId, id: { in: idsOf("finance").filter((id) => UUID.test(id)) } }, select: { id: true, batchId: true } }),
+    // A credit expense's payment (expense:<id>:pay:<id>, §9) takes its expense's batch.
+    db.expense.findMany({ where: { organizationId: ctx.organizationId, id: { in: idsOf("finance").map(expenseOf).filter((id) => UUID.test(id)) } }, select: { id: true, batchId: true } }),
     db.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, id: { in: assetSources.map(([, id]) => id).filter((id) => UUID.test(id)) } }, select: { id: true, farmId: true, houseId: true } }),
   ]);
   const assetOf = new Map(assets.map((a) => [a.id, a]));
@@ -40,6 +42,10 @@ export async function entryTags(ctx: TenantContext, month: string): Promise<Entr
     ...sales,
     ...workforce,
     ...expenses.map((x) => [x.id, { party: null, farmId: null, batchId: x.batchId }] as const),
+    ...idsOf("finance").flatMap((source) => {
+      const x = source.startsWith("expense:") && expenses.find((e) => e.id === expenseOf(source));
+      return x ? [[source, { party: null, farmId: null, batchId: x.batchId }] as const] : [];
+    }),
     ...idsOf("flock").map((id) => [id, { party: null, farmId: null, batchId: id }] as const), // the chicks of a placement
     ...idsOf("finance").flatMap((source) => (source.startsWith("placement:") ? [[source, { party: null, farmId: null, batchId: source.split(":")[1] }] as const] : [])), // their payment (§9)
     ...assetSources.flatMap(([source, id]) => {

@@ -161,7 +161,7 @@ export function RegisterDocument({ register: r, printButton = true }: { register
           <Line label={t("houses")}>{c.house ? `${c.house}${c.areaM2 ? ` · ${formatCount(c.areaM2)} m²` : ""}` : undefined}</Line>
           <Line label={t("speciesStrain")}>{species} · {c.strain}</Line>
           <Line label={t("placedOn")}>{day(c.placedOn)}</Line>
-          <Line label={t("placed")}>{t("placedValue", { birds: formatCount(c.chicksPlaced), dead: formatCount(c.deadOnArrival) })}</Line>
+          <Line label={t("placed")}>{t(c.freeChicks > 0 ? "placedFreeValue" : "placedValue", { birds: formatCount(c.placed), free: formatCount(c.freeChicks), dead: formatCount(c.deadOnArrival) })}</Line>
           <Line label={t("removedOn")}>{c.closedOn ? day(c.closedOn) : t("open")}</Line>
         </dl>
       </Section>

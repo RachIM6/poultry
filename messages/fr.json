@@ -181,6 +181,9 @@
     "yours": "Vos programmes",
     "none": "Aucun programme pour l’instant.",
     "noItems": "Aucun vaccin prévu.",
+    "required": {
+      "newcastle": "Aucune vaccination contre la maladie de Newcastle dans ce programme. Elle est obligatoire pour toutes les volailles ({source}) et suit le programme validé par l’ONSSA pour votre élevage. Les poussins peuvent avoir été vaccinés au couvoir."
+    },
     "item": "Jour {day} · {vaccine} · {method}",
     "addItem": "Ajouter un vaccin",
     "day": "Âge (jours)",
@@ -516,7 +519,7 @@
     "FILE_ALREADY_ATTACHED": "Ce document a déjà son fichier.",
     "VAT_MORE_THAN_AMOUNT": "La TVA dépasse le montant total.",
     "PAID_MORE_THAN_OWED": "Ce paiement dépasse ce qui est dû au fournisseur.",
-    "NOTHING_OWED": "Il ne reste rien à payer pour cette mise en place.",
+    "NOTHING_OWED": "Il ne reste rien à payer.",
     "USE_EXPENSES": "Les charges d’une bande s’enregistrent maintenant dans Dépense rapide.",
     "PAY_MONTH_NOT_VALIDATED": "Validez d’abord la paie de ce mois.",
     "LINE_AFTER_STATEMENT": "Cette opération est datée après la fin du relevé.",
@@ -562,7 +565,9 @@
     "IMPORT_AFTER_END": "Une opération est datée après la fin du relevé (ligne {line}).",
     "IMPORT_TOO_LARGE": "Fichier trop volumineux : 512 Ko au plus.",
     "IMPORT_FILE_TYPE": "Type de fichier refusé : un fichier texte .sta, .940, .mt940, .fin ou .txt pour le MT940, .csv ou .txt pour le CSV.",
-    "IMPORT_CONFLICT": "Un relevé de cette date existe déjà avec un autre solde ou d’autres opérations : rien n’a été importé."
+    "IMPORT_CONFLICT": "Un relevé de cette date existe déjà avec un autre solde ou d’autres opérations : rien n’a été importé.",
+    "NOT_OVERRIDABLE": "Ce compte ne peut pas être remplacé : seuls les comptes de charges et de produits le peuvent.",
+    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge."
   },
   "Weighing": {
     "title": "Pesée",
@@ -626,7 +631,10 @@
     "moveSave": "Enregistrer le jour",
     "remove": "Retirer du plan",
     "removeConfirm": "Retirer ce vaccin du plan de la bande ? Il ne sera plus rappelé.",
-    "removeYes": "Oui, retirer"
+    "removeYes": "Oui, retirer",
+    "required": {
+      "newcastle": "Aucune vaccination contre la maladie de Newcastle dans le plan de cette bande. Elle est obligatoire pour toutes les volailles ({source}) et suit le programme validé par l’ONSSA pour votre élevage. Les poussins peuvent avoir été vaccinés au couvoir."
+    }
   },
   "Treatment": {
     "withdrawal": "Délai d’attente en cours jusqu’au {date} inclus : pas de vente de cette bande avant.",
@@ -643,7 +651,7 @@
     "reason": "Motif",
     "prescriber": "Prescrit par",
     "withdrawalDays": "Délai d’attente viande (jours)",
-    "withdrawalHint": "Indiqué sur l’étiquette ou l’ordonnance.",
+    "withdrawalHint": "Délai d’attente : voir la notice (AMM) ou l’ordonnance du vétérinaire (loi 49-99, art. 9).",
     "save": "Enregistrer le traitement",
     "cancel": "Annuler",
     "line": "{medicine} · du {start} au {end}",
@@ -907,7 +915,7 @@
     "inflow": "À encaisser",
     "outflow": "À payer",
     "cashAfter": "Trésorerie prévue",
-    "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur (les retards comptent cette semaine). Ventes et achats à venir non compris.",
+    "scheduleNote": "Chèques et effets reçus à leur échéance, dettes fournisseurs à la leur ; poussins et poulettes, immobilisations et dépenses à crédit encore dus, au jour de leur achat (les retards comptent cette semaine). Ventes et achats à venir non compris.",
     "receipt": "Reçu",
     "receiptView": "Voir",
     "receiptMissing": "Manquant",
@@ -916,7 +924,24 @@
     "placedOn": "Mise en place du {day}",
     "owed": "Reste dû : {amount}",
     "pay": "Payer",
-    "paid": "Paiement enregistré."
+    "paid": "Paiement enregistré.",
+    "creditExpenses": "Dépenses à crédit à payer",
+    "creditExpensesHint": "Les dépenses rapides enregistrées « à payer plus tard », avec ce qui reste dû pour chacune.",
+    "associate": "Apport ou retrait de l’associé",
+    "exploitant": "Apport ou retrait de l’exploitant",
+    "associateHint": "L’argent qu’un associé apporte à la ferme ou en retire, au compte {account}.",
+    "exploitantHint": "L’argent que vous apportez à la ferme ou en retirez pour vous, au compte {account} (capital personnel).",
+    "associateNoAccount": "Ajoutez d’abord une caisse ou un compte bancaire depuis « Dépense rapide ».",
+    "direction": "Opération",
+    "directions": {
+      "contribution": "Apport",
+      "withdrawal": "Retrait"
+    },
+    "amount": "Montant (DH)",
+    "into": "Caisse ou compte bancaire",
+    "associateName": "Associé (facultatif)",
+    "associateSave": "Enregistrer",
+    "associateSaved": "Opération enregistrée."
   },
   "Bank": {
     "open": "Rapprochement bancaire",
@@ -1505,6 +1530,8 @@
     "margin": "Marge : {margin}",
     "costPerKg": "{cost} / kg",
     "laying": "Ponte {rate} % · {eggs} œufs le dernier jour ramassé",
+    "layingStandard": "{gap} pt par rapport au standard ({standard} %)",
+    "weight": "Poids moyen {weight}",
     "fcr": "IC {fcr}",
     "eggsYesterday": "Œufs ramassés hier"
   },
@@ -2199,6 +2226,7 @@
     "placedOn": "Date de mise en place des volailles",
     "placed": "Nombre de volailles mises en place",
     "placedValue": "{birds} (dont {dead} morts à l’arrivée)",
+    "placedFreeValue": "{birds} (dont {free} gratuits et {dead} morts à l’arrivée)",
     "removedOn": "Date d’enlèvement",
     "supervision": "Encadrement technique, sanitaire et médical (art. 2)",
     "vetContract": "Contrat d’encadrement sanitaire",
@@ -2258,6 +2286,7 @@
     "age": "Âge",
     "days": "{days} jours",
     "placed": "Poussins placés",
+    "placedFree": "{birds} dont {free} gratuits",
     "dead": "Morts et éliminés",
     "sold": "Vendus",
     "feed": "Aliment consommé",
@@ -2410,6 +2439,7 @@
     "activeCgnc": "Votre entité utilise le PCGE sans le plan agricole (en gras).",
     "pca": "PCA",
     "cgnc": "PCGE",
+    "override": "Remplacé",
     "review": "Ces imputations sont celles proposées à l’expert-comptable, à valider avant la clôture.",
     "ops": {
       "chicks": "Achat de poussins",
@@ -2435,7 +2465,22 @@
       "socialCharges": "Charges sociales (CNSS employeur)",
       "staffAdvances": "Avances sur salaire",
       "wagesDue": "Salaires à payer",
-      "cnss": "CNSS à payer"
+      "cnss": "CNSS à payer",
+      "associates": "Apports et retraits des associés",
+      "exploitant": "Apports et retraits de l’exploitant"
     }
+  },
+  "Overrides": {
+    "open": "Remplacer un compte",
+    "title": "Remplacer un compte",
+    "intro": "Chaque opération est imputée à un compte par défaut. Vous pouvez choisir un autre compte de détail de la même classe, par exemple pour une catégorie de dépense. Le changement vaut pour les nouvelles écritures seulement : les écritures déjà passées, et leurs corrections, gardent leur compte.",
+    "rule": "Opération",
+    "account": "Nouveau compte",
+    "default": "Par défaut",
+    "override": "Remplacé par",
+    "notApplied": "Ce compte n’est plus un compte de détail de votre plan : le compte par défaut s’applique.",
+    "reset": "Revenir au compte par défaut",
+    "save": "Enregistrer",
+    "saved": "Compte enregistré pour les nouvelles écritures."
   }
 }

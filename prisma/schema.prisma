@@ -955,6 +955,22 @@ model LockedPeriod {
   @@index([organizationId])
 }
 
+// Owner: finance. SPEC-finance FN8: the owner's account for a default posting rule of a legal entity, append-only: the
+// override in force for a source is the latest row saved before the source's first entry (§9 "Posting overrides").
+// `ruleAccount`: the rule's default account as the rules hold it (PCA number); `account` null: back to the default.
+model PostingOverride {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  ruleAccount    String
+  account        String?
+  savedBy        String   @db.Uuid
+  savedAt        DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([legalEntityId, savedAt])
+}
+
 // Owner: finance. SPEC-finance FCX6 (T104): a fiscal year the owner closed, who and when. Reopening deletes it (audited).
 model FiscalYearClose {
   organizationId String   @db.Uuid

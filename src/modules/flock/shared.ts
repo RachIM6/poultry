@@ -9,7 +9,7 @@ export { PRODUCTION_TYPES, type ProductionType } from "@/modules/reference-data/
 // rules the phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
 
 // SPEC B1: placement, age, closing.
-export { Batch, ageOfBatch, ageOn, birdsStarted, canJoinHouse, doaClaim } from "@/modules/flock/domain/batch";
+export { Batch, ageOfBatch, ageOn, birdsPlaced, birdsStarted, canJoinHouse, doaClaim } from "@/modules/flock/domain/batch";
 export type { BatchStatus, PlacementError } from "@/modules/flock/domain/batch";
 export { batchCost } from "@/modules/flock/domain/closing";
 export { birdsOnHand } from "@/modules/flock/domain/birds";
@@ -83,5 +83,5 @@ export type WeighingDto = { id: string; batchId: string; day: string; count: num
 // SPEC B4: live KPIs, computed on the phone from its local data.
 export { batchKpis, closedBatchFigures, waterPerFeed } from "@/modules/flock/domain/kpi";
 export { hatcheryFigures } from "@/modules/flock/domain/hatcheries";
-export { houseFigure } from "@/modules/flock/domain/house-figures"; // SPEC-m3 D1, B9
+export { houseFigure, houseWeight, layingVersusStandard } from "@/modules/flock/domain/house-figures"; // SPEC-m3 D1, B9
 export type { BatchKpis } from "@/modules/flock/domain/kpi";

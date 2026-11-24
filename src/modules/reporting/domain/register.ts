@@ -1,7 +1,7 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { DisposalDto } from "@/modules/biosecurity/shared";
 import type { DocumentDto } from "@/modules/documents/shared";
-import { ageOn, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
+import { ageOfBatch, birdsOnHand, birdsStarted, EMPTY_DAY, type BatchDto, type DailyEntryDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import type { TreatmentDto, VaccinationDto, VetVisitDto } from "@/modules/health/shared";
 import { originNumber, type SaleDto } from "@/modules/sales/shared";
 
@@ -65,7 +65,7 @@ export const batchMonths = (batch: Pick<BatchDto, "placedOn" | "closedOn">, toda
 export function buildRegister(i: RegisterInput) {
   const { batch } = i;
   const of = (b: { batchId: string }) => b.batchId === batch.id;
-  const age = (day: string) => ageOn(batch.placedOn as FarmDay, day as FarmDay);
+  const age = (day: string) => ageOfBatch(batch, day as FarmDay); // SPEC-m3 B7: birds placed older than a day
   const item = (id: string) => i.stockItems.find((s) => s.id === id);
   const product = (id: string) => i.products.find((p) => p.id === id)?.name ?? id;
   const treatments = i.treatments.filter(of).sort((x, y) => x.startOn.localeCompare(y.startOn));
@@ -85,17 +85,19 @@ export function buildRegister(i: RegisterInput) {
   const feedTypes = [...new Set(entries.flatMap((e) => (e.feed ? [feedName(e.feed.stockItemId)] : [])))];
   const laying = batch.species === "layer";
 
-  let onHand = batch.chicksPlaced - batch.deadOnArrival;
+  // One row per day with an entry or birds out: a sale on a day nobody entered still leaves the birds on hand (B5).
+  const started = birdsStarted(batch); // SPEC-m3 B10: free chicks included
+  const dayList = [...new Set([...entries, ...sold].map((x) => x.day))].sort();
   let cumulativeDead = 0;
-  const days = entries.map((e) => {
-    const out = sold.filter((s) => s.day === e.day).reduce((n, s) => n + s.birds, 0);
-    onHand -= e.dead + e.culled + out;
+  const days = dayList.map((d) => {
+    const e = entries.find((x) => x.day === d) ?? { ...EMPTY_DAY, day: d };
+    const out = sold.filter((s) => s.day === d).reduce((n, s) => n + s.birds, 0);
     cumulativeDead += e.dead + e.culled;
     const eggs = i.eggsLaid.filter((x) => of(x) && x.day === e.day);
     return {
       day: e.day,
       age: age(e.day),
-      onHand,
+      onHand: birdsOnHand(started, entries.filter((x) => x.day <= d), sold.filter((s) => s.day <= d)),
       dead: e.dead,
       culled: e.culled,
       cumulativeDead,

@@ -85,9 +85,19 @@ export function buildRegister(i: RegisterInput) {
   const feedTypes = [...new Set(entries.flatMap((e) => (e.feed ? [feedName(e.feed.stockItemId)] : [])))];
   const laying = batch.species === "layer";
 
-  // One row per day with an entry or birds out: a sale on a day nobody entered still leaves the birds on hand (B5).
+  // Art. 4, chronological: one row per day with anything to record (entry, birds out, eggs, vaccination done, treatment
+  // started, vet visit, lab report); birds on hand as of that day (B5), even when nobody entered the day.
   const started = birdsStarted(batch); // SPEC-m3 B10: free chicks included
-  const dayList = [...new Set([...entries, ...sold].map((x) => x.day))].sort();
+  const dayList = [
+    ...new Set([
+      ...[...entries, ...sold].map((x) => x.day),
+      ...(laying ? i.eggsLaid.filter(of).map((x) => x.day) : []),
+      ...vaccinations.flatMap((v) => (v.done ? [v.done.on] : [])),
+      ...treatments.map((t) => t.startOn),
+      ...vetVisits.map((v) => v.on),
+      ...labReports.map((l) => l.issuedOn),
+    ]),
+  ].sort();
   let cumulativeDead = 0;
   const days = dayList.map((d) => {
     const e = entries.find((x) => x.day === d) ?? { ...EMPTY_DAY, day: d };

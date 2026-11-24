@@ -88,35 +88,48 @@ describe("buildRegister", () => {
   it("daily rows (art. 4): birds on hand, daily and cumulative mortality, the treatment running that day", () => {
     const days = buildRegister(input()).days;
     expect(days.map((d) => [d.day, d.age, d.onHand, d.dead, d.cumulativeDead])).toEqual([
+      ["2026-10-05", 14, 10000, 0, 0], // the Gumboro vaccination, no daily entry
+      ["2026-10-12", 21, 10000, 0, 0], // the lab report
+      ["2026-10-22", 31, 10000, 0, 0], // the vet visit and the treatment's start
       ["2026-10-25", 34, 9624, 370, 376], // dead and culled
       ["2026-10-26", 35, 9620, 4, 380], // canvas row "9 620 · 4"
       ["2026-11-01", 41, 5620, 0, 380], // 4 000 birds left that day
     ]);
-    expect(days[1]).toMatchObject({ cause: "leg", culled: 0, waterMl: 2_890_000, treatments: ["Enrofloxacine 10 %"], withdrawal: true });
-    expect(days[2]).toMatchObject({ treatments: [], withdrawal: false, out: 4000 });
+    expect(days[4]).toMatchObject({ cause: "leg", culled: 0, waterMl: 2_890_000, treatments: ["Enrofloxacine 10 %"], withdrawal: true });
+    expect(days[5]).toMatchObject({ treatments: [], withdrawal: false, out: 4000 });
+  });
+
+  it("daily rows (art. 4): a day with only a vaccination done, or only eggs laid, has its row", () => {
+    const vaccinations = [{ ...input().vaccinations[1], done: { on: "2026-10-09", stockItemId: "s-gum", doses: 10000, method: "drinkingWater" as const, byUserId: "u" } }];
+    const only = (over: Partial<RegisterInput>) => buildRegister(input({ dailyEntries: [], soldBirds: [], treatments: [], vetVisits: [], documents: [], vaccinations: [], ...over })).days;
+    expect(only({ vaccinations })).toMatchObject([{ day: "2026-10-09", age: 18, onHand: 10000, dead: 0, vaccinations: ["Gumboro Nobilis"], eggs: null }]);
+    const layer = { ...input().batch, species: "layer" as const };
+    const eggsLaid = [{ batchId, day: "2026-10-30", eggs: 8120 }];
+    expect(only({ batch: layer, eggsLaid })).toMatchObject([{ day: "2026-10-30", onHand: 10000, dead: 0, eggs: 8120, feedGrams: [], waterMl: null }]);
+    expect(only({ eggsLaid })).toEqual([]); // eggs only print for a laying batch
   });
 
   it("daily rows: birds on hand start from the birds started, free chicks included (SPEC-m3 B10)", () => {
     const r = buildRegister(input({ batch: { ...input().batch, freeChicks: 200, deadOnArrival: 50 } }));
-    expect(r.days.map((d) => d.onHand)).toEqual([9774, 9770, 5770]); // 10 000 + 200 free − 50 on arrival − 376 …
+    expect(r.days.map((d) => d.onHand)).toEqual([10150, 10150, 10150, 9774, 9770, 5770]); // 10 000 + 200 free − 50 on arrival − 376 …
     expect(r.cover).toMatchObject({ placed: 10200, freeChicks: 200, deadOnArrival: 50 }); // art. 3: all the birds placed
   });
 
   it("daily rows: a sale on a day nobody entered still takes its birds off the birds on hand", () => {
     const soldBirds = [{ id: "sale-0", batchId, day: "2026-10-28", birds: 1000, liveWeightGrams: 2_300_000 }, ...input().soldBirds];
     const days = buildRegister(input({ soldBirds })).days;
-    expect(days.map((d) => [d.day, d.age, d.onHand, d.dead, d.culled, d.out, d.cumulativeDead])).toEqual([
+    expect(days.map((d) => [d.day, d.age, d.onHand, d.dead, d.culled, d.out, d.cumulativeDead]).slice(3)).toEqual([
       ["2026-10-25", 34, 9624, 370, 6, 0, 376],
       ["2026-10-26", 35, 9620, 4, 0, 0, 380],
       ["2026-10-28", 37, 8620, 0, 0, 1000, 380], // no daily entry that day
       ["2026-11-01", 41, 4620, 0, 0, 4000, 380],
     ]);
-    expect(days[2]).toMatchObject({ cause: null, feedGrams: [null], waterMl: null, note: null });
+    expect(days[5]).toMatchObject({ cause: null, feedGrams: [null], waterMl: null, note: null });
   });
 
   it("daily rows: the birds' age for a batch placed older than a day (SPEC-m3 B7)", () => {
     const batch = { ...input().batch, species: "layer" as const, ageAtPlacementDays: 126 }; // point-of-lay hens
-    expect(buildRegister(input({ batch })).days.map((d) => d.age)).toEqual([160, 161, 167]);
+    expect(buildRegister(input({ batch })).days.map((d) => d.age)).toEqual([140, 147, 157, 160, 161, 167]);
   });
 
   it("daily rows: one feed column per feed type, the observations, the day's vet visit and lab report", () => {
@@ -131,16 +144,17 @@ describe("buildRegister", () => {
       }),
     );
     expect(r.feedTypes).toEqual(["Aliment croissance", "Aliment finition"]);
-    expect(r.days.map((d) => d.feedGrams)).toEqual([[900_000, null], [null, 1_400_000], [null, null], [null, null]]); // + the sale's day
-    expect(r.days[0]).toMatchObject({ note: "plumes ébouriffées", labReports: ["Sérologie Gumboro"], vetVisits: [] });
-    expect(r.days[1]).toMatchObject({ vetVisits: ["Dr Naïma R."], labReports: [] });
+    // + the vaccination's day first and the sale's day last
+    expect(r.days.map((d) => d.feedGrams)).toEqual([[null, null], [900_000, null], [null, 1_400_000], [null, null], [null, null]]);
+    expect(r.days[1]).toMatchObject({ note: "plumes ébouriffées", labReports: ["Sérologie Gumboro"], vetVisits: [] });
+    expect(r.days[2]).toMatchObject({ vetVisits: ["Dr Naïma R."], labReports: [] });
     expect(buildRegister(input()).feedTypes).toEqual(["—"]); // one feed, unknown item: one column
   });
 
   it("daily eggs for a laying batch only", () => {
     const eggsLaid = [{ batchId, day: "2026-10-26", eggs: 8000 }, { batchId, day: "2026-10-26", eggs: 120 }, { batchId: "other", day: "2026-10-26", eggs: 5 }];
-    expect(buildRegister(input({ eggsLaid, batch: { ...input().batch, species: "layer" } })).days.map((d) => d.eggs)).toEqual([null, 8120, null]);
-    expect(buildRegister(input({ eggsLaid })).days.map((d) => d.eggs)).toEqual([null, null, null]);
+    expect(buildRegister(input({ eggsLaid, batch: { ...input().batch, species: "layer" } })).days.map((d) => d.eggs)).toEqual([null, null, null, null, 8120, null]);
+    expect(buildRegister(input({ eggsLaid })).days.map((d) => d.eggs)).toEqual([null, null, null, null, null, null]);
   });
 
   it("vaccinations (arrêté n° 3308-17 art. 14): vaccine, commercial name, lot, date, number of birds", () => {

@@ -1,3 +1,4 @@
+import { divHalfUp } from "@/lib/kernel/money";
 import type { Line } from "@/modules/finance/domain/entry";
 import type { Posting } from "@/modules/finance/domain/posting";
 import type { ItemKind, Unit } from "@/modules/inventory/shared";
@@ -47,7 +48,7 @@ export function stocksAtClose(items: readonly ItemIn[], values: ReadonlyMap<stri
   return items.map((i) => {
     const quantity = counted.get(i.id) ?? i.onHand;
     const worth = values.get(i.id) ?? 0n;
-    const cost = quantity > 0 && i.onHand > 0 && worth > 0n ? (worth * BigInt(quantity) * 2n + BigInt(i.onHand)) / (2n * BigInt(i.onHand)) : null;
+    const cost = quantity > 0 && i.onHand > 0 && worth > 0n ? divHalfUp(worth * BigInt(quantity), BigInt(i.onHand)) : null;
     const typed = current.get(i.id) ?? null;
     return { ...i, quantity, cost, current: typed, ...(cost === null ? { value: 0n, provision: 0n } : stockAtCloseValue(cost, typed)) };
   });
@@ -123,14 +124,12 @@ export const IN_PROGRESS_PROVISION = "3913"; // Provisions pour dépréciation d
 /** FC4's scope: the types sold as meat. Pullets and layers are FC6, not valued until FQ7 (T114, T115). */
 export const MEAT_TYPES: readonly string[] = ["broiler", "turkey", "beldi", "duck", "quail"];
 
-const half = (a: bigint, b: bigint) => (a * 2n + b) / (2n * b); // a ÷ b half up, a ≥ 0, b > 0
-
 /**
  * §7 `batchInProgressValue`: cost engaged × on hand ÷ (on hand + sold), half up (the dead are carried by the
  * survivors); the provision is cost − current value when positive. No current value: at cost.
  */
 export function batchInProgressValue(engaged: bigint, onHand: number, sold: number, current: bigint | null): { cost: bigint; provision: bigint } {
-  const cost = onHand > 0 && engaged > 0n ? half(engaged * BigInt(onHand), BigInt(onHand + sold)) : 0n;
+  const cost = onHand > 0 && engaged > 0n ? divHalfUp(engaged * BigInt(onHand), BigInt(onHand + sold)) : 0n;
   return { cost, provision: stockAtCloseValue(cost, current).provision };
 }
 
@@ -143,9 +142,9 @@ type Sale = { kind: "live" | "perHead"; pricePerKgCentimes: bigint; amountCentim
  */
 export function suggestedValue(onHand: number, weighing: Weighing | null, sale: Sale | null): bigint | null {
   if (!sale) return null;
-  if (sale.kind === "perHead") return sale.birds > 0 ? half(BigInt(onHand) * sale.amountCentimes, BigInt(sale.birds)) : null;
+  if (sale.kind === "perHead") return sale.birds > 0 ? divHalfUp(BigInt(onHand) * sale.amountCentimes, BigInt(sale.birds)) : null;
   if (!weighing || weighing.count <= 0) return null;
-  return half(BigInt(onHand) * BigInt(weighing.totalGrams) * sale.pricePerKgCentimes, BigInt(weighing.count) * 1000n);
+  return divHalfUp(BigInt(onHand) * BigInt(weighing.totalGrams) * sale.pricePerKgCentimes, BigInt(weighing.count) * 1000n);
 }
 
 type BatchIn = { id: string; farmId: string; houseName: string; species: string; onHand: number; sold: number; engaged: bigint };

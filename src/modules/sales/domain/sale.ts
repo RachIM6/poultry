@@ -1,4 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
+import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 
 // SPEC V1–V3. Pure: the phone shows the amount and the gap, and refuses a sale during a withdrawal, with the same code
@@ -9,7 +10,7 @@ export const PAYMENT_METHODS = ["cash", "cheque", "bill", "transfer", "credit"] 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 /** V2: amount = farm weight × price per kg, rounded half up to the centime, exactly. */
-export const saleAmount = (weightGrams: number, pricePerKgCentimes: bigint) => (BigInt(weightGrams) * pricePerKgCentimes * 2n + 1000n) / 2000n;
+export const saleAmount = (weightGrams: number, pricePerKgCentimes: bigint) => divHalfUp(BigInt(weightGrams) * pricePerKgCentimes, 1000n);
 
 /** V2: weighing gap = farm weight − buyer weight, in grams and as a % of the farm weight. Null without a buyer weight. */
 export function weighingGap(farmWeightGrams: number, buyerWeightGrams: number | null) {
@@ -59,7 +60,7 @@ export type EggLine = { item: string; eggs: number; eggsPerTray: number; unitPri
 
 /** V6: a line's amount = eggs × price per tray ÷ eggs per tray, rounded half up to the centime. */
 export const eggLineAmount = (l: Pick<EggLine, "eggs" | "eggsPerTray" | "unitPriceCentimes">) =>
-  (BigInt(l.eggs) * l.unitPriceCentimes * 2n + BigInt(l.eggsPerTray)) / (2n * BigInt(l.eggsPerTray));
+  divHalfUp(BigInt(l.eggs) * l.unitPriceCentimes, BigInt(l.eggsPerTray));
 
 /** V6: may this egg sale be recorded? The amount is the sum of its lines; payment rules as V2. Returns the amount. */
 export function checkEggSale(s: {

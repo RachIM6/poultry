@@ -4,7 +4,7 @@ import type { Line } from "@/modules/finance/domain/entry";
 import { ASSET_DEBTS, ASSET_VAT_RECOVERABLE } from "@/modules/finance/domain/assets";
 import { ASSOCIATES, EXPLOITANT, ownerAccountOf } from "@/modules/finance/domain/contribution";
 import { HENS_ADULTS, HENS_CULL_SALE, layPosting } from "@/modules/finance/domain/hens";
-import { VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
+import { PAID_WITH, VAT_RECOVERABLE } from "@/modules/finance/domain/treasury";
 
 /** A farm event finance posts (SPEC-finance FN6), read from a module's change log (FN7). Amounts in centimes. */
 export type FarmEvent =
@@ -58,12 +58,7 @@ const CNSS = "4441"; // Caisse Nationale de la Sécurité Sociale
 const SELF_CONSUMED = "7140";
 const TAKEN_BY = { associate: ASSOCIATES, employee: "61713" }; // 4463 Comptes courants des associés créditeurs
 // FN6: where a later payment to a supplier comes from; an issued cheque leaves the bank on its issue date.
-const PAID_OUT: Record<string, { account: string; journal: Journal }> = {
-  cash: { account: "5161", journal: "CA" },
-  transfer: { account: BANK, journal: "BQ" },
-  cheque: { account: BANK, journal: "BQ" },
-  bill: { account: BILLS_PAYABLE, journal: "OD" },
-};
+const PAID_OUT: Record<string, { account: string; journal: Journal }> = { ...PAID_WITH, bill: { account: BILLS_PAYABLE, journal: "OD" } };
 const VAT_COLLECTED = "4455"; // Etat, TVA facturée
 // FN6: where money received from a buyer lands, and in which journal.
 const RECEIVED: Record<string, { account: string; journal: Journal }> = {

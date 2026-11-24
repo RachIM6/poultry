@@ -1,3 +1,5 @@
+import { typedCentimes } from "@/lib/kernel/money";
+
 // SPEC-finance FC7: birds or eggs taken home by the exploitant, an associate or an employee instead of being sold. Pure:
 // the phone prefills the price with the same rule the server applies to a worker's entry, which carries none (I5).
 
@@ -21,4 +23,4 @@ export function lastPrices(sales: readonly PricedSale[], kind: "live" | "eggs" |
 }
 
 /** A price as the forms' inputs take it ("14,50"), empty when there is none. */
-export const typedPrice = (c: bigint | undefined) => (c === undefined ? "" : `${c / 100n},${String(c % 100n).padStart(2, "0")}`);
+export const typedPrice = (c: bigint | undefined) => (c === undefined ? "" : typedCentimes(c));

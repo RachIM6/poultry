@@ -31,7 +31,11 @@ export function checkItem(item: { kind: ItemKind; lot: string | null; expiresOn:
   return (item.kind === "vaccine" || item.kind === "medicine") && (!item.lot || !item.expiresOn) ? fail("LOT_REQUIRED") : ok(undefined);
 }
 
-/** Quantity (base units) × price per displayed unit, rounded half up to the centime, exactly. */
+/**
+ * Quantity (base units) × price per displayed unit, rounded half up to the centime, exactly. divHalfUp
+ * (@/lib/kernel/money) written out: this file ships with /batches, which has no room for that module (SPEC §9.3);
+ * stock.test.ts holds the two together.
+ */
 export function purchaseAmount(quantity: number, unit: Unit, unitPriceCentimes: bigint): bigint {
   const base = BigInt(BASE[unit]);
   return (BigInt(quantity) * unitPriceCentimes * 2n + base) / (2n * base);

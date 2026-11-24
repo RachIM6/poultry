@@ -2556,6 +2556,22 @@
     "mortality": "Mortalité",
     "print": "Imprimer ou enregistrer en PDF"
   },
+  "Notifiable": {
+    "title": "Maladies à déclaration obligatoire",
+    "diseases": {
+      "hpai": "Peste aviaire (influenza aviaire hautement pathogène)",
+      "newcastle": "Maladie de Newcastle",
+      "gumboro": "Maladie de Gumboro",
+      "marek": "Maladie de Marek",
+      "pullorum": "Pullorose (S.P.G.)",
+      "salmonella": "Salmonellose aviaire (Salmonella enteritidis et Salmonella typhimurium)",
+      "bronchitis": "Bronchite infectieuse",
+      "tuberculosis": "Tuberculose chez les oiseaux",
+      "psittacosis": "Psittacose-ornithose, chez toutes les espèces d’oiseaux"
+    },
+    "duty": "Un cas suspect se déclare immédiatement à l’autorité administrative locale, par le propriétaire, la personne qui soigne ou garde les volailles et tout vétérinaire qui les visite. Newcastle, peste aviaire et pullorose : déclaration immédiate au service vétérinaire de l’ONSSA du lieu où se trouvent les volailles.",
+    "source": "Dahir n° 1-75-292, art. 1 et 3 ; arrêtés n° 3308-17, 2466-17 et 2836-17, art. 1"
+  },
   "Inspection": {
     "open": "Dossier d’inspection",
     "forbidden": "Le dossier d’inspection est réservé au propriétaire et au gérant.",

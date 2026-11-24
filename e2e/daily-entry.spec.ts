@@ -62,6 +62,8 @@ test("the day's entry in Arabic, right to left", async ({ page }) => {
   await page.getByLabel("العلف", { exact: true }).selectOption({ label: "بدون علف هذا اليوم" });
   await page.getByRole("button", { name: "حفظ اليوم" }).click();
   await expect(page.getByText(/الطيور الموجودة: 998/)).toBeVisible();
+  await page.getByText("الأمراض الواجب التصريح بها", { exact: true }).click(); // V1, in Arabic
+  await expect(page.getByText("مرض الجمبورو", { exact: true })).toBeVisible();
   await outboxEmpty(page);
   const dead = async () =>
     (await query<{ dead: number }>(`SELECT d.dead FROM "DailyEntry" d JOIN "Membership" m ON m."organizationId" = d."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`, [e164]))[0]?.dead;

@@ -114,7 +114,127 @@
     "dismiss": "فهمت",
     "signedOut": "سجّل الدخول لمزامنة هذا الهاتف.",
     "login": "تسجيل الدخول",
-    "open": "المزامنة"
+    "open": "المزامنة",
+    "refused": "{count, plural, one {كتابة مرفوضة واحدة للمراجعة} other {{n} كتابات مرفوضة للمراجعة}}",
+    "unknownType": "عملية غير معروفة",
+    "redo": "أدخلها من جديد",
+    "values": "ما كنت قد أدخلته",
+    "value": "{label}: {value}",
+    "dismissConfirm": "حذف هذه الكتابة المرفوضة؟ سيُمحى ما كنت قد أدخلته من هذا الهاتف.",
+    "types": {
+      "farm-registry": {
+        "createFarm": "ضيعة جديدة",
+        "updateFarm": "تعديل ضيعة",
+        "createHouse": "مبنى جديد",
+        "updateHouse": "تعديل مبنى"
+      },
+      "reference-data": {
+        "copyProtocol": "نسخ برنامج تلقيح",
+        "updateProtocol": "تعديل برنامج تلقيح"
+      },
+      "notifications": {
+        "markRead": "إشعار مقروء"
+      },
+      "inventory": {
+        "createSupplier": "مورّد جديد",
+        "createStockItem": "مادة مخزون جديدة",
+        "recordPurchase": "شراء",
+        "adjustStock": "تسوية المخزون",
+        "setThreshold": "حد تنبيه المخزون",
+        "recordSupplierPayment": "أداء لمورّد",
+        "debitIssued": "خصم شيك أو كمبيالة صادرة"
+      },
+      "flock": {
+        "placeBatch": "وضع دفعة",
+        "recordDay": "تسجيل اليوم",
+        "recordWeighing": "وزن",
+        "closeBatch": "إغلاق دفعة",
+        "transferToLaying": "نقل إلى مرحلة البيض",
+        "recordBatchCost": "تكلفة دفعة"
+      },
+      "eggs": {
+        "recordCollection": "جمع البيض",
+        "correctCollection": "تصحيح جمع البيض",
+        "gradeEggs": "فرز البيض",
+        "discardEggs": "بيض مستبعد"
+      },
+      "health": {
+        "planVaccinations": "برنامج التلقيح",
+        "addVaccination": "إضافة تلقيح",
+        "moveVaccination": "تأجيل تلقيح",
+        "cancelVaccination": "إلغاء تلقيح",
+        "recordVaccination": "تلقيح منجز",
+        "recordTreatment": "علاج",
+        "recordVetVisit": "زيارة البيطري"
+      },
+      "sales": {
+        "createBuyer": "مشترٍ جديد",
+        "setBuyerAddress": "عنوان مشترٍ",
+        "recordSale": "بيع الدجاج",
+        "recordHeadSale": "بيع بالرأس",
+        "recordConsumption": "اقتطاع",
+        "recordEggSale": "بيع البيض",
+        "recordPayment": "تحصيل",
+        "setInstrumentState": "تتبع شيك أو كمبيالة",
+        "unblockBuyer": "رفع الحظر عن مشترٍ",
+        "setCreditLimit": "سقف الائتمان",
+        "approveCredit": "الموافقة على ائتمان"
+      },
+      "finance": {
+        "createTreasuryAccount": "حساب خزينة جديد",
+        "recordExpense": "مصروف",
+        "recordTransfer": "تحويل بين الحسابات"
+      },
+      "workforce": {
+        "createEmployee": "عامل جديد",
+        "updateEmployee": "تعديل عامل",
+        "saveRoutine": "المهام المعتادة",
+        "addTask": "مهمة جديدة",
+        "cancelTask": "إلغاء مهمة",
+        "assignTask": "إسناد مهمة",
+        "tickTask": "مهمة منجزة",
+        "untickTask": "مهمة غير منجزة",
+        "checkIn": "تسجيل الحضور",
+        "setAttendance": "الحضور",
+        "recordAdvance": "تسبيق على الأجر",
+        "addStaffRecord": "ملاحظة في ملف عامل",
+        "saveLabourRules": "قواعد الأجور",
+        "validatePay": "المصادقة على الأجور",
+        "payWages": "أداء الأجور"
+      },
+      "climate": {
+        "saveTargets": "قيم المناخ المستهدفة",
+        "recordReading": "قراءة المناخ",
+        "startPowerCut": "بداية انقطاع الكهرباء",
+        "endPowerCut": "نهاية انقطاع الكهرباء"
+      },
+      "market-prices": {
+        "recordPrice": "ثمن السوق"
+      },
+      "planning": {
+        "savePlan": "دفعة مبرمجة",
+        "cancelPlan": "إلغاء دفعة مبرمجة",
+        "placeFromPlan": "وضع دفعة مبرمجة",
+        "saveDowntime": "فراغ صحي مبرمج"
+      },
+      "biosecurity": {
+        "recordVisit": "دخول زائر",
+        "recordDisposal": "التخلص من الطيور النافقة",
+        "recordManure": "إخراج السماد",
+        "startCleanout": "بداية التنظيف",
+        "recordCleanoutStep": "مرحلة التنظيف",
+        "recordRodentCheck": "مراقبة القوارض",
+        "editVisit": "تصحيح زيارة",
+        "editDisposal": "تصحيح التخلص",
+        "editManure": "تصحيح إخراج السماد",
+        "editRodentCheck": "تصحيح مراقبة القوارض",
+        "editCleanoutStep": "تصحيح مرحلة التنظيف"
+      },
+      "documents": {
+        "createDocument": "وثيقة جديدة",
+        "updateDocument": "تعديل وثيقة"
+      }
+    }
   },
   "Pwa": {
     "updateAvailable": "نسخة جديدة من التطبيق جاهزة.",

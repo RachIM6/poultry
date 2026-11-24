@@ -19,6 +19,7 @@ export const PlaceBatch = z.object({
   hatchery: text(120),
   deliveryNote: text(60),
   chickUnitPriceCentimes: z.string().regex(/^\d{1,12}$/), // JSON has no bigint
+  chickVatCentimes: z.string().regex(/^\d{1,12}$/).nullable().default(null), // SPEC-finance FN9, optional; an older phone sends none
   dayOldWeightGrams: z.int32().positive().nullable(),
   ageAtPlacementDays: z.int32().min(0).default(0), // SPEC-m3 B7; the domain caps it
   sex: z.enum(BIRD_SEXES).default("mixed"), // SPEC-m3 B9
@@ -35,7 +36,7 @@ export const TransferToLaying = z.object({ batchId: z.uuid(), day: z.iso.date(),
 /** B6: by hand, with a reason (the last sale closes it by itself). */
 export const CloseBatch = z.object({ batchId: z.uuid(), day: z.iso.date(), reason: text(200) });
 
-/** B6: another cost of the batch (electricity, labour…), until finance arrives in M2. */
+/** B6: another cost of the batch, refused since SPEC-finance FN13 (an old phone may still send one). */
 export const RecordBatchCost = z.object({ id: z.uuid(), batchId: z.uuid(), day: z.iso.date(), label: text(120), amountCentimes: z.string().regex(/^\d{1,15}$/) });
 
 export const RecordDay = z.object({

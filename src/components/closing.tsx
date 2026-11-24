@@ -3,14 +3,14 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { Link } from "@/i18n/navigation";
 import type { Write } from "@/components/daily-entry";
 import { formatDay, formatKg, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { parseCentimes } from "@/lib/kernel/money";
 import { Batch, FLOCK_MUTATIONS as M, TRANSFER_REASON, ageOfBatch, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
 import { field, primary, secondary } from "@/components/ui";
 
-// SPEC B6 on the batch screen: other costs while it runs, closing by hand with a reason, and the locked figures once
+// SPEC B6 on the batch screen: its other costs (read-only, FN13), closing by hand with a reason, and the locked figures once
 // closed. The last sale closes the batch by itself (sales). The cost per kg comes from the server, which values the
 // consumptions; until the next sync after closing, the phone shows the batch closed without it.
 
@@ -52,53 +52,27 @@ export function ClosedSummary({ batch }: { batch: BatchDto }) {
   );
 }
 
-export function BatchCosts({ batch, costs, manage, write }: { batch: BatchDto; costs: BatchCostDto[]; manage: boolean; write: Write }) {
+/**
+ * B6's other costs, read-only since SPEC-finance FN13: a cost of the batch is now a quick expense charged to it, which
+ * posts (§9 "M1 other costs"). The ones recorded before still count in the batch's cost.
+ */
+export function BatchCosts({ batch, costs, manage }: { batch: BatchDto; costs: BatchCostDto[]; manage: boolean }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [adding, setAdding] = useState(false);
-  const [error, setError] = useState<string>();
-  if (!manage) return null; // amounts are money (I5)
-
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const get = (k: string) => String(data.get(k) ?? "").trim();
-    const amount = parseCentimes(get("amount"));
-    if (amount === null || !get("label")) return setError("errors.INVALID_INPUT");
-    const cost = { id: uuidv7(), batchId: batch.id, day: get("day") || today(), label: get("label"), amountCentimes: String(amount) };
-    const checked = aggregate(batch).checkCost(cost.day as FarmDay, amount, today()); // as the server
-    if (!checked.ok) return setError(`errors.${checked.error}`);
-    setError(undefined);
-    if (await write({ type: M.recordBatchCost, payload: cost }, [{ entity: "batchCost", id: cost.id, data: cost }])) setAdding(false);
-  };
-
+  if (!manage || (costs.length === 0 && batch.status !== "open")) return null; // amounts are money (I5)
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="cost-title">
-      <h3 id="cost-title" className="text-[17px] font-semibold text-ink-2">{t("Closing.costs")}</h3>
-      {costs.length === 0 ? (
-        <p>{t("Closing.noCost")}</p>
-      ) : (
-        <ul className="flex flex-col gap-1" aria-labelledby="cost-title">
-          {[...costs].sort((a, b) => a.day.localeCompare(b.day)).map((c) => (
-            <li key={c.id}>{t("Closing.costLine", { date: formatDay(c.day as FarmDay, locale), label: c.label, amount: formatMoney(BigInt(c.amountCentimes ?? 0)) })}</li>
-          ))}
-        </ul>
+    <section className="flex flex-col gap-3" aria-labelledby={costs.length > 0 ? "cost-title" : undefined}>
+      {costs.length > 0 && (
+        <>
+          <h3 id="cost-title" className="text-[17px] font-semibold text-ink-2">{t("Closing.costs")}</h3>
+          <ul className="flex flex-col gap-1" aria-labelledby="cost-title">
+            {[...costs].sort((a, b) => a.day.localeCompare(b.day)).map((c) => (
+              <li key={c.id}>{t("Closing.costLine", { date: formatDay(c.day as FarmDay, locale), label: c.label, amount: formatMoney(BigInt(c.amountCentimes ?? 0)) })}</li>
+            ))}
+          </ul>
+        </>
       )}
-      {batch.status === "open" &&
-        (adding ? (
-          <form onSubmit={submit} className="flex flex-col gap-3">
-            <Field label={t("Closing.label")}>{(id) => <input id={id} name="label" required maxLength={120} className={field} />}</Field>
-            <Field label={t("Closing.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" required dir="ltr" className={field} />}</Field>
-            <Field label={t("Closing.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required className={field} />}</Field>
-            {error && <p role="alert">{t(error)}</p>}
-            <div className="flex gap-3">
-              <button type="submit" className={primary}>{t("Closing.saveCost")}</button>
-              <button type="button" onClick={() => setAdding(false)} className={secondary}>{t("Closing.cancel")}</button>
-            </div>
-          </form>
-        ) : (
-          <button type="button" onClick={() => setAdding(true)} className={secondary}>{t("Closing.addCost")}</button>
-        ))}
+      {batch.status === "open" && <Link href="/expenses" className="underline underline-offset-4">{t("Closing.addCost")}</Link>}
     </section>
   );
 }
@@ -172,6 +146,7 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
       fromBatchId: batch.id,
       status: "open",
       chickUnitPriceCentimes: batch.chickUnitPriceCentimes === undefined ? undefined : "0",
+      chickVatCentimes: null, // the pullets' VAT stays on their placement
     };
     await write({ type: M.transferToLaying, payload }, [
       { entity: "batch", id: batch.id, data: closedLocally(batch, day, TRANSFER_REASON) },

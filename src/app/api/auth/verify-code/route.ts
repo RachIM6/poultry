@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as { phone?: unknown; code?: unknown; locale?: unknown; captcha?: unknown } | null;
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const locale = body?.locale === "fr" ? "fr" : "ar";
-  const result = await verifyCode(str(body?.phone), str(body?.code), locale, clientOf(req.headers), body?.captcha);
+  const result = await verifyCode(str(body?.phone), str(body?.code), locale, clientOf(req.headers), body?.captcha, req.headers);
 
   if (result.ok) return Response.json({ ok: true }, { headers: result.value }); // carries the Set-Cookie
   if (result.error === "CAPTCHA_REQUIRED") return Response.json({ ok: false, messageKey: "errors.CAPTCHA_REQUIRED" }, { status: 400 });

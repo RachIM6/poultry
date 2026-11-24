@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { classicYearEnd, flockYear, hensMethodOf, layPosting, simplifiedProvision, simplifiedValue, simplifiedYearEnd, type LayingFlock } from "@/modules/finance/domain/hens";
+import { classicYearEnd, flockYear, hensMethodOf, layPosting, productionCosts, simplifiedProvision, simplifiedValue, simplifiedYearEnd, type LayingFlock } from "@/modules/finance/domain/hens";
 import { postingOf } from "@/modules/finance/domain/posting";
 
 // SPEC-finance FC6 (T114, T115): the laying hens' rules, pure.
@@ -137,5 +137,18 @@ describe("laying hens' books (FC6)", () => {
     expect(hensMethodOf({ books: "ledger", overlays: ["pca"] }, "simplified")).toBe("simplified");
     expect(hensMethodOf({ books: "ledger", overlays: [] }, "classic")).toBeNull();
     expect(hensMethodOf({ books: "cash_book", overlays: ["pca"] }, "classic")).toBeNull();
+  });
+});
+
+describe("production cost (FC6: 23962, the transfer to lay)", () => {
+  const costs = [{ id: "pullets", costCentimes: 5_400_000n }, { id: "other", costCentimes: 100_000n }];
+  const vat = new Map([["pullets", 900_000n]]); // the placement's and the batch's expenses' VAT
+
+  it("takes out the VAT a registered entity recovered (CGNC: production cost without recoverable taxes)", () => {
+    expect(productionCosts(costs, vat, true)).toEqual(new Map([["pullets", 4_500_000n], ["other", 100_000n]]));
+  });
+
+  it("keeps FN13's cost, VAT included, for an entity not registered (FQ30)", () => {
+    expect(productionCosts(costs, vat, false)).toEqual(new Map([["pullets", 5_400_000n], ["other", 100_000n]]));
   });
 });

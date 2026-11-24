@@ -13,7 +13,10 @@
   "Offline": {
     "title": "Pas de connexion",
     "body": "Cette page n'est pas encore enregistrée sur ce téléphone. Les pages déjà ouvertes restent disponibles.",
-    "home": "Accueil"
+    "home": "Accueil",
+    "online": "Hors ligne : à faire une fois connecté.",
+    "failed": "Pas de réseau ou erreur du serveur : rien n’a été enregistré. Réessayez.",
+    "retry": "Réessayer"
   },
   "Install": {
     "title": "Installer l'application",
@@ -499,6 +502,7 @@
     "deliveryNote": "N° de bon de livraison",
     "chickPrice": "Prix d’un poussin (DH)",
     "chickVat": "TVA de la livraison, en plus du prix (DH, facultatif)",
+    "paidOnDelivery": "Payé à la livraison ? Enregistrez le paiement dans Trésorerie une fois connecté.",
     "dayOldWeight": "Poids moyen à 1 jour (g, facultatif)",
     "save": "Enregistrer",
     "cancel": "Annuler",
@@ -2605,7 +2609,10 @@
       }
     },
     "save": "Enregistrer",
-    "saved": "Paramètres enregistrés."
+    "saved": "Paramètres enregistrés.",
+    "choicesFirst": "Choisissez la tenue des comptes, la TVA, le début d’exercice… avant la première écriture. Une mise en place, un achat ou une dépense en passent une dès leur synchronisation ; ces choix ne changent ensuite qu’au prochain exercice.",
+    "later": "Plus tard",
+    "lockedHow": "Pour les changer : le {day}, premier jour du prochain exercice, revenez ici avant toute écriture de ce nouvel exercice."
   },
   "Chart": {
     "open": "Plan de comptes",

@@ -24,9 +24,10 @@ import { OPENING_PREFIX } from "@/modules/finance/domain/close";
 import { firstOpenMonth, monthOf } from "@/modules/finance/domain/entry";
 import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
 import { batchOf } from "@/modules/finance/domain/export";
-import type { Posting } from "@/modules/finance/domain/posting";
+import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
+import { inChart, type Posting } from "@/modules/finance/domain/posting";
 import { bankOnly, expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
-import { lockedMonths } from "@/modules/finance/infrastructure/ledger";
+import { ledgerAccounts, lockedMonths } from "@/modules/finance/infrastructure/ledger";
 import type { CreateTreasuryAccount, ExpenseDto, RecordExpense, RecordTransfer, TransferDto, TreasuryAccountDto } from "@/modules/finance/schema";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
@@ -47,11 +48,21 @@ export async function createTreasuryAccount(tx: Tx, ctx: TenantContext, cmd: z.o
 const treasuryOf = (tx: Tx, ctx: TenantContext, id: string) =>
   tx.treasuryAccount.findFirst({ where: { id, organizationId: ctx.organizationId } }).then((a) => a && { id: a.id, kind: a.kind as TreasuryKind });
 
-/** Posts a farm-side record's entries in the same transaction, into the first open month when its month is locked. */
+/**
+ * Posts a farm-side record's entries in the same transaction, into the first open month when its month is locked. The
+ * rules' PCA accounts land in the entity's chart as the posting pipeline's do (FN2: PCA off → the CGNC fallback). As
+ * FC7 (FQ25), a line with no leaf to go on posts nothing and invents no account (FN4): the record is kept, unposted.
+ */
 async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string, build: (entity: { vatRegistered: boolean }) => Posting[]): Promise<Result<void, PostError>> {
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
-  const postings = build(entity);
+  const all = await ledgerAccounts(tx);
+  const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
+  const leaves = new Set(leafAccounts(chart).map((a) => a.number));
+  const mapped = build(entity).map((p) => inChart(p, chartOf(all, "cgnc", ["pca"]), chart));
+  // ponytail: no expense or transfer account lacks a CGNC leaf today; list such a record on /books (as FC7) if one does.
+  if (!mapped.every((p) => p?.lines.every((l) => leaves.has(l.account)))) return ok(undefined);
+  const postings = mapped as Posting[];
   const locked = await lockedMonths(tx, ctx, entity.id);
   const onDay = (locked.has(monthOf(day as FarmDay)) ? `${firstOpenMonth(monthOf(day as FarmDay), locked)}-01` : day) as FarmDay;
   for (const [i, p] of postings.entries()) {

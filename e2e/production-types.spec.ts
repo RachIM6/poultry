@@ -147,6 +147,8 @@ test("chick arrival: supplement, density and the hatchery claim above the farm's
   await page.goto("/fr/batches");
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   await referenceCached(page);
+  // The house pushed above must be on the phone before going offline: without a free house there is nothing to place.
+  await expect(page.getByRole("button", { name: "Mettre en place une bande" })).toBeVisible({ timeout: 30_000 });
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
 

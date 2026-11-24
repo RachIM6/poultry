@@ -11,18 +11,23 @@ import { field, primary, secondary } from "@/components/ui";
 import { treasuryKindOfAccount, type TreasuryAccountDto } from "@/modules/finance/shared";
 import { periodLockAction, postManualEntryAction, reverseEntryAction, type PostState } from "./actions";
 
+type Prefill = { day: string; label: string; debit: string; bank: string };
+
 /**
  * SPEC-finance FCX3: the owner's manual entry, with a live Σdebit − Σcredit. The accounts come from the server-rendered
  * <datalist id={accounts}>, not from this bundle. The id is made once per entry, so sending it again posts nothing twice.
  * FN3: a line on 5141 or 5161 names the bank account or cash box it moves.
+ * FC9: a bank statement's line not in the books comes prefilled as the first line, 5141 on its bank account; the user
+ * types the other side. The first entry only.
  */
-export function ManualEntryForm({ today, accounts, treasuries }: { today: string; accounts: string; treasuries: TreasuryAccountDto[] }) {
+export function ManualEntryForm({ today, accounts, treasuries, prefill }: { today: string; accounts: string; treasuries: TreasuryAccountDto[]; prefill?: Prefill }) {
   const t = useTranslations();
   const router = useRouter();
   const [id, setId] = useState(() => uuidv7());
   const [rows, setRows] = useState(2);
-  const [diff, setDiff] = useState(0n);
-  const [typed, setTyped] = useState<string[]>([]); // each row's account, for its bank account or cash box
+  const [diff, setDiff] = useState(() => (prefill && parseCentimes(prefill.debit)) || 0n);
+  const [pre, setPre] = useState(prefill);
+  const [typed, setTyped] = useState<string[]>(prefill ? ["5141"] : []); // each row's account, for its bank account or cash box
   const [state, setState] = useState<PostState>({});
   const [pending, startTransition] = useTransition();
 
@@ -57,20 +62,21 @@ export function ManualEntryForm({ today, accounts, treasuries }: { today: string
       setRows(2);
       setDiff(0n);
       setTyped([]);
+      setPre(undefined);
     });
   };
 
   return (
     <form onSubmit={submit} onInput={(e) => sum(e.currentTarget)} className="flex flex-col gap-3">
       <input type="hidden" name="id" value={id} />
-      <fieldset className="flex flex-col gap-3">
+      <fieldset key={id} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           {t("Books.day")}
-          <input type="date" name="day" defaultValue={today} max={today} required className={field} />
+          <input type="date" name="day" defaultValue={pre?.day ?? today} max={today} required className={field} />
         </label>
         <label className="flex flex-col gap-1">
           {t("Books.label")}
-          <input name="label" maxLength={200} required className={field} />
+          <input name="label" defaultValue={pre?.label} maxLength={200} required className={field} />
         </label>
         <label className="flex flex-col gap-1">
           {t("Books.piece")}
@@ -83,10 +89,10 @@ export function ManualEntryForm({ today, accounts, treasuries }: { today: string
         </div>
         {Array.from({ length: rows }, (_, i) => (
           <div key={i} className="grid grid-cols-[2fr_1fr_1fr] gap-2">
-            <input name="account" list={accounts} aria-label={t("Books.lineAccount", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
-            <input name="debit" inputMode="decimal" aria-label={t("Books.lineDebit", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
+            <input name="account" defaultValue={i === 0 && pre ? "5141" : undefined} list={accounts} aria-label={t("Books.lineAccount", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
+            <input name="debit" defaultValue={i === 0 ? pre?.debit : undefined} inputMode="decimal" aria-label={t("Books.lineDebit", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
             <input name="credit" inputMode="decimal" aria-label={t("Books.lineCredit", { n: i + 1 })} dir="ltr" className={`${field} w-full min-w-0`} />
-            <TreasurySelect kind={treasuryKindOfAccount(typed[i] ?? "")} row={i} treasuries={treasuries} />
+            <TreasurySelect kind={treasuryKindOfAccount(typed[i] ?? "")} row={i} treasuries={treasuries} selected={i === 0 ? pre?.bank : undefined} />
           </div>
         ))}
         <button type="button" onClick={() => setRows((r) => r + 1)} className={secondary}>{t("Books.addLine")}</button>
@@ -110,13 +116,13 @@ export function ManualEntryForm({ today, accounts, treasuries }: { today: string
 }
 
 /** FN3: the bank account (5141) or cash box (5161) of one line, sent as `treasury-<row>`; none for other accounts. */
-function TreasurySelect({ kind, row, treasuries }: { kind: TreasuryAccountDto["kind"] | null; row: number; treasuries: TreasuryAccountDto[] }) {
+function TreasurySelect({ kind, row, treasuries, selected }: { kind: TreasuryAccountDto["kind"] | null; row: number; treasuries: TreasuryAccountDto[]; selected?: string }) {
   const t = useTranslations();
   if (!kind) return null;
   const options = treasuries.filter((a) => a.kind === kind);
   if (options.length === 0) return <p className="col-span-3 text-sm text-brick-fg">{t("Books.treasuryNone")}</p>;
   return (
-    <select name={`treasury-${row}`} required defaultValue="" aria-label={t("Books.lineTreasury", { n: row + 1 })} className={`${field} col-span-3`}>
+    <select name={`treasury-${row}`} required defaultValue={selected ?? ""} aria-label={t("Books.lineTreasury", { n: row + 1 })} className={`${field} col-span-3`}>
       <option value="" disabled>{t(kind === "bank" ? "Books.treasuryBank" : "Books.treasuryCash")}</option>
       {options.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
     </select>

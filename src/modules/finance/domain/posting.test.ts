@@ -133,6 +133,36 @@ describe("VAT (SPEC-finance FN9)", () => {
   it("posts no VAT line when the invoice has none", () => {
     expect(postingOf({ ...sale, vat: 0n }, true)?.lines.map((l) => l.account)).toEqual(["3421", "712121"]);
   });
+
+  // FC6: "D 23711 (+ D 34551 for the VAT, FN9)". A placement's VAT comes on top of the chicks' price: the debt is both.
+  const chicks = { type: "chicks", id: "b", day, amount: 4_500_000n, vat: 900_000n } as const;
+
+  it("puts a placement's VAT on 34552 (chicks, a charge) or 34551 (point-of-lay hens, an asset), the debt on top", () => {
+    expect(postingOf(chicks, true)?.lines).toEqual([
+      { account: "612121", debit: 4_500_000n, credit: 0n },
+      { account: "34552", debit: 900_000n, credit: 0n },
+      { account: "4411", debit: 0n, credit: 5_400_000n },
+    ]);
+    expect(postingOf({ ...chicks, layers: true }, true, true)?.lines).toEqual([
+      { account: "23711", debit: 4_500_000n, credit: 0n },
+      { account: "34551", debit: 900_000n, credit: 0n },
+      { account: "4481", debit: 0n, credit: 5_400_000n },
+    ]);
+  });
+
+  it("posts point-of-lay hens under the simplified method as chicks: their VAT recovered on the charges (34552)", () => {
+    expect(postingOf({ ...chicks, layers: true }, true, false)?.lines.map((l) => [l.account, l.debit, l.credit])).toEqual([
+      ["612121", 4_500_000n, 0n],
+      ["34552", 900_000n, 0n],
+      ["4411", 0n, 5_400_000n],
+    ]);
+  });
+
+  it("keeps a placement's VAT in the cost when the entity is not registered, and posts none when there is none", () => {
+    expect(postingOf(chicks)?.lines).toEqual([{ account: "612121", debit: 5_400_000n, credit: 0n }, { account: "4411", debit: 0n, credit: 5_400_000n }]);
+    expect(postingOf({ ...chicks, layers: true }, false, true)?.lines.map((l) => [l.account, l.debit + l.credit])).toEqual([["23711", 5_400_000n], ["4481", 5_400_000n]]);
+    expect(postingOf({ ...chicks, vat: undefined }, true)?.lines.map((l) => l.account)).toEqual(["612121", "4411"]);
+  });
 });
 
 describe("supplier payments (SPEC-finance FN6)", () => {

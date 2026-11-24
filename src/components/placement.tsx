@@ -78,9 +78,10 @@ export function PlacementForm({
     const get = (k: string) => String(data.get(k) ?? "").trim();
     const house = houses.find((h) => h.id === get("houseId"));
     const price = parseCentimes(get("price") || "0");
+    const vat = get("vat") ? parseCentimes(get("vat")) : 0n; // SPEC-finance FN9: on top of the price, for the delivery
     const int = (k: string) => (/^\d+$/.test(get(k)) ? Number(get(k)) : NaN);
     const tenths = (v: string) => (/^\d+([.,]\d)?$/.test(v) ? Math.round(Number(v.replace(",", ".")) * 10) : NaN);
-    if (!house || price === null || !get("hatchery") || !get("deliveryNote")) return setError("Batches.invalid");
+    if (!house || price === null || vat === null || !get("hatchery") || !get("deliveryNote")) return setError("Batches.invalid");
     const groups: { sex: BirdSex; birds: string; doa: string }[] = sexed
       ? [{ sex: "female", birds: "females", doa: "femaleDoa" }, { sex: "male", birds: "males", doa: "maleDoa" }]
       : [{ sex: "mixed", birds: "chicksPlaced", doa: "deadOnArrival" }];
@@ -117,7 +118,8 @@ export function PlacementForm({
     }
     setError(undefined);
 
-    const sent = placements.map((p) => ({ ...p, chickUnitPriceCentimes: String(price) })); // farmId is dropped by the schema: the server derives it
+    // farmId is dropped by the schema: the server derives it. One delivery's VAT goes on its first batch (a sexed placement).
+    const sent = placements.map((p, i) => ({ ...p, chickUnitPriceCentimes: String(price), chickVatCentimes: i === 0 && vat > 0n ? String(vat) : null }));
     const protocol = protocols.find((p) => p.id === get("protocolId"));
     try {
       for (const p of sent) {
@@ -190,6 +192,7 @@ export function PlacementForm({
       <Field name="hatchery" label={t("Batches.hatchery")} required maxLength={120} />
       <Field name="deliveryNote" label={t("Batches.deliveryNote")} required maxLength={60} dir="ltr" />
       <Field name="price" label={t("Batches.chickPrice")} inputMode="decimal" required dir="ltr" />
+      <Field name="vat" label={t("Batches.chickVat")} inputMode="decimal" dir="ltr" />
       <Field name="dayOldWeight" label={t("Batches.dayOldWeight")} inputMode="numeric" pattern="\d+" dir="ltr" />
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-1 font-semibold">{t("Batches.arrival")}</legend>

@@ -15,6 +15,9 @@ import { primary } from "@/components/ui";
 
 // SPEC V5 on the static /origin shell: the origin document of one sale (/origin#<sale id>), built from the phone's own
 // records so it prints offline, in the page's language (law 49-99 art. 10). Print CSS only, no PDF library (T23).
+// The buyer's address and where the birds went when not to the buyer (arrêté 2126-05 art. 4), when recorded: one line
+// each in the buyer's part. Printed tighter than on screen (rows, gaps, signature boxes), the text the same size, so the
+// document stays on one A4 page in both languages (e2e/origin.spec.ts).
 
 const onHashChange = (notify: () => void) => (window.addEventListener("hashchange", notify), () => window.removeEventListener("hashchange", notify));
 const useHash = () => useSyncExternalStore(onHashChange, () => decodeURIComponent(window.location.hash.slice(1)), () => "");
@@ -35,7 +38,7 @@ export function OriginDocumentScreen() {
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2 border-b border-line py-1">
+    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2 border-b border-line py-1 print:py-0.5">
       <dt className="text-muted">{label}</dt>
       <dd className="font-semibold">{children}</dd>
     </div>
@@ -73,7 +76,7 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
   const day = (d: string) => formatDay(d as FarmDay, locale);
 
   return (
-    <article className="flex flex-col gap-4">
+    <article className="flex flex-col gap-4 print:gap-3">
       <header className="flex flex-col gap-1 text-center">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-muted">{t("law")}</p>
@@ -102,10 +105,12 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
         <Row label={t("buyerName")}>{buyer?.name ?? "—"}</Row>
         <Row label={t("buyerType")}>{buyer ? tr(`Sale.types.${buyer.type}`) : "—"}</Row>
         <Row label={t("buyerPhone")}>{buyer?.phone ? <span dir="ltr">{buyer.phone}</span> : "—"}</Row>
+        {buyer?.address && <Row label={t("address")}>{buyer.address}</Row>}
+        {sale.destination && <Row label={t("destination")}>{[sale.destination.name, sale.destination.address].filter(Boolean).join(" — ")}</Row>}
       </Part>
       <div className="grid break-inside-avoid grid-cols-2 gap-4">
         {[t("signFarm"), t("signBuyer")].map((label) => (
-          <div key={label} className="flex h-36 flex-col rounded border border-current p-2">
+          <div key={label} className="flex h-36 flex-col rounded border border-current p-2 print:h-28">
             <span>{label}</span>
           </div>
         ))}

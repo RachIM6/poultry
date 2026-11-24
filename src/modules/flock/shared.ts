@@ -36,6 +36,7 @@ export type BatchDto = {
   fromBatchId?: string | null; // SPEC-m3 B13: the pullet batch of a transferred layer batch
   status: "open" | "closed";
   chickUnitPriceCentimes?: string; // money (SPEC I5): absent for workers
+  chickVatCentimes?: string | null; // money: SPEC-finance FN9, the delivery's VAT on top of the price; absent before it
   // B6, once closed: the locked figures (the cost ones are money).
   closedOn?: string;
   closeReason?: string | null; // null: closed by the sale of its last birds
@@ -45,7 +46,7 @@ export type BatchDto = {
 };
 /** SPEC-m3 B13: the close reason of a pullet batch moved to laying (a code, shown translated). */
 export const TRANSFER_REASON = "transferToLaying";
-export const BATCH_MONEY = ["chickUnitPriceCentimes", "costCentimes", "costPerKgCentimes"] as const;
+export const BATCH_MONEY = ["chickUnitPriceCentimes", "chickVatCentimes", "costCentimes", "costPerKgCentimes"] as const;
 
 /** B6: another cost of the batch. Money: the amount is absent for workers. */
 export type BatchCostDto = { id: string; batchId: string; day: string; label: string; amountCentimes?: string };

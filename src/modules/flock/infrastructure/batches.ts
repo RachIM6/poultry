@@ -3,7 +3,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { houseOf } from "@/modules/farm-registry";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, ageOfBatch, type BatchStatus } from "@/modules/flock/domain/batch";
-import type { BatchCostDto, BatchDto } from "@/modules/flock/schema";
+import type { BatchDto } from "@/modules/flock/schema";
 import type { BirdSex, ProductionType } from "@/modules/reference-data/shared";
 
 // Batch repository (Prisma). Scoped to the caller's organisation.
@@ -22,10 +22,11 @@ export const openInHouse = async (tx: Tx, ctx: TenantContext, houseId: string) =
 
 export const batchIdTaken = async (tx: Tx, id: string) => (await tx.batch.count({ where: { id } })) > 0;
 
-export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Promise<BatchDto> {
+/** `chickVatCentimes`: SPEC-finance FN9, the delivery's VAT, kept for finance (no flock rule reads it). */
+export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch, chickVatCentimes: bigint | null = null): Promise<BatchDto> {
   const p = batch.placement;
   await tx.batch.create({
-    data: { ...p, organizationId: ctx.organizationId, placedOn: date(p.placedOn), status: batch.status },
+    data: { ...p, chickVatCentimes, organizationId: ctx.organizationId, placedOn: date(p.placedOn), status: batch.status },
   });
   return {
     id: p.id,
@@ -48,6 +49,7 @@ export async function saveNewBatch(tx: Tx, ctx: TenantContext, batch: Batch): Pr
     fromBatchId: p.fromBatchId ?? null,
     status: batch.status,
     chickUnitPriceCentimes: String(p.chickUnitPriceCentimes),
+    chickVatCentimes: chickVatCentimes === null ? null : String(chickVatCentimes),
   };
 }
 
@@ -102,14 +104,15 @@ export async function batchFacts(tx: Tx, ctx: TenantContext, id: string) {
   };
 }
 
-/** B6: what the closing needs: other costs and the farm weight of every bird sold. */
+/** B6: what the closing needs: other costs, the farm weight of every bird sold and the placement's VAT (SPEC-finance FN9). */
 export async function closingTotals(tx: Tx, ctx: TenantContext, batchId: string) {
   const where = { batchId, organizationId: ctx.organizationId };
-  const [other, sold] = await Promise.all([
+  const [other, sold, placed] = await Promise.all([
     tx.batchCost.aggregate({ where, _sum: { amountCentimes: true } }),
     tx.soldBirds.aggregate({ where, _sum: { liveWeightGrams: true } }),
+    tx.batch.findFirst({ where: { id: batchId, organizationId: ctx.organizationId }, select: { chickVatCentimes: true } }),
   ]);
-  return { otherCentimes: other._sum.amountCentimes ?? 0n, soldGrams: sold._sum.liveWeightGrams ?? 0 };
+  return { otherCentimes: other._sum.amountCentimes ?? 0n, soldGrams: sold._sum.liveWeightGrams ?? 0, chickVatCentimes: placed?.chickVatCentimes ?? 0n };
 }
 
 /** B6: the batch closed, with its locked figures. Returns what pull sends (money stripped there for workers). */
@@ -140,18 +143,13 @@ export async function saveClosing(
     fromBatchId: r.fromBatchId,
     status: batch.status,
     chickUnitPriceCentimes: String(r.chickUnitPriceCentimes),
+    chickVatCentimes: r.chickVatCentimes === null ? null : String(r.chickVatCentimes), // the closing's version keeps it (FN7)
     closedOn: c.closedOn,
     closeReason: c.closeReason,
     soldGrams: c.soldGrams,
     costCentimes: String(c.costCentimes),
     costPerKgCentimes: c.costPerKgCentimes === null ? null : String(c.costPerKgCentimes),
   };
-}
-
-export const batchCostIdTaken = async (tx: Tx, id: string) => (await tx.batchCost.count({ where: { id } })) > 0;
-
-export async function saveBatchCost(tx: Tx, ctx: TenantContext, c: Required<BatchCostDto>) {
-  await tx.batchCost.create({ data: { ...c, organizationId: ctx.organizationId, day: date(c.day), amountCentimes: BigInt(c.amountCentimes) } });
 }
 
 /** For climate (CL3, CL4): the batch in this house on that farm day, its production type and the birds' age then, or null. */

@@ -1,13 +1,14 @@
 import { db } from "@/lib/db";
-import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { verifyCaptcha } from "@/lib/security/captcha";
 import { clientNet, consume, reset } from "@/lib/security/rate-limit";
 import type { PolicyName } from "@/lib/security/policies";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
 import { acceptInvitations } from "@/modules/identity/application/members";
+import { auditPartnerSignIn } from "@/modules/identity/application/membership";
+import { getSession } from "@/modules/identity/application/session";
 import { recordAuthEvent, type AuthAction, type Client } from "@/modules/identity/infrastructure/auth-events";
-import { auth, AUTH_CONFIG } from "@/modules/identity/infrastructure/better-auth";
+import { auth } from "@/modules/identity/infrastructure/better-auth";
 
 type LoginError = "INVALID_OR_EXPIRED_CODE" | "TOO_MANY_REQUESTS" | "CAPTCHA_REQUIRED";
 
@@ -60,6 +61,7 @@ export async function requestCode(
  * Checks the code and opens a session. Every failure is the same INVALID_OR_EXPIRED_CODE.
  * After 3 consecutive failures for the number or the IP (rate-limiting.md §4) a solved captcha is required, checked
  * before the number's budget: so wrong codes alone can't use up a farmer's 10 tries an hour. The account never locks.
+ * `request`: the login request's headers, for the organisation the browser last chose (SPEC-m5 PA6, a partner's sign-in).
  */
 export async function verifyCode(
   rawPhone: string,
@@ -67,6 +69,7 @@ export async function verifyCode(
   locale: "ar" | "fr",
   client: Client,
   captcha?: unknown,
+  request: Headers = new Headers(),
 ): Promise<Result<Headers, LoginError>> {
   const phone = PhoneNumber.create(rawPhone);
   const event = eventFor(client, phone);
@@ -106,23 +109,12 @@ export async function verifyCode(
     await db.user.update({ where: { id: response.user.id }, data: { locale } });
     await acceptInvitations(response.user.id, phone.value.e164);
     await recordAuthEvent("login", client, { userId: response.user.id, phone: phone.value.masked });
+    await auditPartnerSignIn(response.user.id, request);
     return ok(headers);
   } catch (e) {
     await event("verify_failed", verifyFailure(e));
     return fail("INVALID_OR_EXPIRED_CODE");
   }
-}
-
-/** The signed-in user, or null. Enforces the 90-day absolute cap on top of Better Auth's 30-day sliding expiry. */
-export async function getSession(headers: Headers, clock: Clock = systemClock) {
-  const current = await auth.api.getSession({ headers });
-  if (!current) return null;
-  const ageSec = (clock.now().getTime() - current.session.createdAt.getTime()) / 1000;
-  if (ageSec > AUTH_CONFIG.session.absoluteMaxSec) {
-    await db.session.deleteMany({ where: { id: current.session.id } });
-    return null;
-  }
-  return { userId: current.user.id, phone: current.user.phoneNumber, locale: current.user.locale };
 }
 
 /** Deletes the server session; the returned headers clear the cookie. */

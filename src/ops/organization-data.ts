@@ -1,5 +1,5 @@
 import { closeSync, openSync, unlinkSync, writeSync } from "node:fs";
-import { db } from "@/lib/db";
+import { db, type Tx } from "@/lib/db";
 import { toCsv } from "@/lib/kernel/sheet";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { zipEnd, zipEntry } from "@/lib/zip";
@@ -59,10 +59,10 @@ const NOT_ORGANIZATION_DATA = [
   "_prisma_migrations",
 ];
 
-type Column = { name: string; type: string };
+export type Column = { name: string; type: string };
 
 /** Every public table and its columns, from the catalogue, checked against the lists above. */
-async function tables(): Promise<Map<string, Column[]>> {
+export async function tables(): Promise<Map<string, Column[]>> {
   const rows = await db.$queryRaw<{ table: string; name: string; type: string }[]>`
     SELECT table_name AS "table", column_name AS name, data_type AS type FROM information_schema.columns
     WHERE table_schema = 'public' ORDER BY table_name, ordinal_position`;
@@ -78,27 +78,24 @@ async function tables(): Promise<Map<string, Column[]>> {
   return all;
 }
 
-const operator = () => process.env.OPERATOR ?? process.env.USER ?? process.env.USERNAME ?? null;
+export const operator = () => process.env.OPERATOR ?? process.env.USER ?? process.env.USERNAME ?? null;
 const auditOperator = (organizationId: string, action: string, after: object) =>
   db.auditEvent.create({ data: { organizationId, entity: "Organization", entityId: organizationId, action, after: { ...after, operator: operator() } } });
 
-export type ExportSummary = { tables: number; rows: number; files: number; bytes: number };
+export type AddEntry = (name: string, data: string | Uint8Array) => void;
 
 /**
- * One .zip of everything the organisation has: `tables/<Table>.json` and `.csv` for every table with its rows (bytes
- * columns left out), `files/<id>.<ext>` for every StoredFile, and `manifest.json`. Written to `out` entry by entry.
+ * A .zip written to `out` entry by entry, never over an existing file; `fill` adds the entries. Removed again when
+ * anything fails, so no half-written export is left behind. Returns the entries' size.
  */
 // ponytail: one table's rows and one file in memory at a time, so memory is the largest table (Change or AuditEvent)
 // plus 5 MB; the zip has no zip64, so at most 4 GB and 65,535 entries (files at the 2 GB storage cap fit). Page the
 // big tables, or add zip64, when an organisation gets near that.
-export async function exportOrganization(organizationId: string, out: string): Promise<ExportSummary> {
-  const org = await db.organization.findUnique({ where: { id: organizationId } });
-  if (!org) throw new Error(`no organisation ${organizationId}`);
-  const all = await tables();
+export async function writeZip(out: string, fill: (add: AddEntry) => Promise<void>): Promise<number> {
   const fd = openSync(out, "wx"); // never overwrite an earlier export
   const centrals: Buffer[] = [];
   let offset = 0;
-  const add = (name: string, data: string | Uint8Array) => {
+  const add: AddEntry = (name, data) => {
     const { local, central } = zipEntry(name, data, offset);
     writeSync(fd, local);
     centrals.push(central);
@@ -106,38 +103,63 @@ export async function exportOrganization(organizationId: string, out: string): P
     if (offset > 0xffffffff || centrals.length > 0xffff) throw new Error("the export is past the zip limits (4 GB, 65,535 entries)");
   };
   try {
-    const counts: Record<string, number> = {};
+    await fill(add);
+    for (const b of zipEnd(centrals, offset)) writeSync(fd, b);
+  } catch (e) {
+    closeSync(fd);
+    unlinkSync(out);
+    throw e;
+  }
+  closeSync(fd);
+  return offset;
+}
+
+/** The rows of `table` matching `where` ($1… = `params`), as `tables/<Table>.json` and `.csv`, bytes columns left out. */
+export async function addTable(add: AddEntry, table: string, columns: Column[], where: string, params: unknown[]): Promise<number> {
+  const binary = columns.filter((c) => c.type === "bytea").map((c) => `'${c.name}'`);
+  const text = columns.filter((c) => c.type !== "bytea");
+  // Postgres writes both: exact bigints and dates, nothing goes through a JS number. Names come from the catalogue.
+  const json = binary.length ? `to_jsonb(t) - ARRAY[${binary.join(", ")}]` : "to_jsonb(t)";
+  const rows = await db.$queryRawUnsafe<{ json: string; cells: (string | null)[] }[]>(
+    `SELECT (${json})::text AS json, ARRAY[${text.map((c) => `t."${c.name}"::text`).join(", ")}] AS cells FROM "${table}" t WHERE ${where}`,
+    ...params,
+  );
+  add(`tables/${table}.json`, `[\n${rows.map((r) => r.json).join(",\n")}\n]\n`);
+  add(`tables/${table}.csv`, toCsv({ name: table, header: text.map((c) => c.name), rows: rows.map((r) => r.cells.map((c) => c ?? "")) }));
+  return rows.length;
+}
+
+export type ExportSummary = { tables: number; rows: number; files: number; bytes: number };
+
+/**
+ * One .zip of everything the organisation has: `tables/<Table>.json` and `.csv` for every table with its rows (bytes
+ * columns left out), `files/<id>.<ext>` for every StoredFile, and `manifest.json`. Written to `out` entry by entry.
+ */
+export async function exportOrganization(organizationId: string, out: string): Promise<ExportSummary> {
+  const org = await db.organization.findUnique({ where: { id: organizationId } });
+  if (!org) throw new Error(`no organisation ${organizationId}`);
+  const all = await tables();
+  const counts: Record<string, number> = {};
+  let files = 0;
+  const bytes = await writeZip(out, async (add) => {
     for (const [table, columns] of all) {
       const where = THROUGH_PARENT[table] ?? (columns.some((c) => c.name === "organizationId") ? `"organizationId" = $1::uuid` : null);
-      if (!where) continue;
-      const binary = columns.filter((c) => c.type === "bytea").map((c) => `'${c.name}'`);
-      const text = columns.filter((c) => c.type !== "bytea");
-      // Postgres writes both: exact bigints and dates, nothing goes through a JS number. Names come from the catalogue.
-      const json = binary.length ? `to_jsonb(t) - ARRAY[${binary.join(", ")}]` : "to_jsonb(t)";
-      const rows = await db.$queryRawUnsafe<{ json: string; cells: (string | null)[] }[]>(
-        `SELECT (${json})::text AS json, ARRAY[${text.map((c) => `t."${c.name}"::text`).join(", ")}] AS cells FROM "${table}" t WHERE ${where}`,
-        organizationId,
-      );
-      counts[table] = rows.length;
-      add(`tables/${table}.json`, `[\n${rows.map((r) => r.json).join(",\n")}\n]\n`);
-      add(`tables/${table}.csv`, toCsv({ name: table, header: text.map((c) => c.name), rows: rows.map((r) => r.cells.map((c) => c ?? "")) }));
+      if (where) counts[table] = await addTable(add, table, columns, where, [organizationId]);
     }
-    const files = await db.storedFile.findMany({ where: { organizationId }, select: { id: true, contentType: true }, orderBy: { id: "asc" } });
-    for (const f of files) {
+    const stored = await db.storedFile.findMany({ where: { organizationId }, select: { id: true, contentType: true }, orderBy: { id: "asc" } });
+    for (const f of stored) {
       const { bytes } = await db.storedFile.findUniqueOrThrow({ where: { id: f.id }, select: { bytes: true } });
       add(`files/${f.id}.${f.contentType.split("/")[1]}`, bytes);
     }
-    add("manifest.json", JSON.stringify({ organizationId, name: org.name, exportedAt: new Date().toISOString(), rows: counts, files: files.length }, null, 2));
-    for (const b of zipEnd(centrals, offset)) writeSync(fd, b);
-    closeSync(fd);
-    const summary = { tables: Object.keys(counts).length, rows: Object.values(counts).reduce((a, b) => a + b, 0), files: files.length, bytes: offset };
-    await auditOperator(organizationId, "export", summary);
-    return summary;
-  } catch (e) {
-    closeSync(fd);
-    unlinkSync(out); // no half-written export left behind
+    files = stored.length;
+    add("manifest.json", JSON.stringify({ organizationId, name: org.name, exportedAt: new Date().toISOString(), rows: counts, files }, null, 2));
+  });
+  const summary = { tables: Object.keys(counts).length, rows: Object.values(counts).reduce((a, b) => a + b, 0), files, bytes };
+  await auditOperator(organizationId, "export", summary).catch((e) => {
+    unlinkSync(out); // every export handed over is audited
     throw e;
-  }
+  });
+  return summary;
 }
 
 /** Marks the organisation as left now (or `at`), or, with null, as back. Its deletion may run 30 days after `leftAt`. */
@@ -151,6 +173,21 @@ export async function markOrganizationLeft(organizationId: string, at: Date | nu
 }
 
 export const DELETION_GRACE_DAYS = 30;
+
+/**
+ * Deletes these users with what is theirs alone: pending codes (Better Auth keys them `phone-number-otp-<phone>`, so by
+ * suffix), login log, push subscriptions, quiet hours. Their sessions and accounts cascade. Returns their ids.
+ */
+export async function deleteUsers(tx: Tx, users: { id: string; phoneNumber: string | null }[]): Promise<string[]> {
+  const ids = users.map((u) => u.id);
+  const phones = users.flatMap((u) => (u.phoneNumber ? [u.phoneNumber] : []));
+  if (phones.length) await tx.verification.deleteMany({ where: { OR: phones.map((p) => ({ identifier: { endsWith: p } })) } });
+  await tx.authEvent.deleteMany({ where: { userId: { in: ids } } });
+  await tx.pushSubscription.deleteMany({ where: { userId: { in: ids } } });
+  await tx.notificationPreference.deleteMany({ where: { userId: { in: ids } } });
+  await tx.user.deleteMany({ where: { id: { in: ids } } });
+  return ids;
+}
 
 export type DeletionSummary = { deleted: Record<string, number>; scrubbed: Record<string, number>; users: number; kept: Record<string, number> };
 
@@ -189,13 +226,7 @@ export async function deleteOrganization(
 
       // Members of no other organisation: the person goes, with what is theirs alone. Sessions and accounts cascade.
       const gone = await tx.user.findMany({ where: { id: { in: members }, memberships: { none: {} } }, select: { id: true, phoneNumber: true } });
-      const ids = gone.map((u) => u.id);
-      const phones = gone.flatMap((u) => (u.phoneNumber ? [u.phoneNumber] : []));
-      await tx.verification.deleteMany({ where: { identifier: { in: phones } } });
-      await tx.authEvent.deleteMany({ where: { userId: { in: ids } } });
-      await tx.pushSubscription.deleteMany({ where: { userId: { in: ids } } });
-      await tx.notificationPreference.deleteMany({ where: { userId: { in: ids } } });
-      await tx.user.deleteMany({ where: { id: { in: ids } } });
+      const ids = await deleteUsers(tx, gone);
 
       const kept: Record<string, number> = {};
       for (const table of KEPT) {

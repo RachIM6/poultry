@@ -132,7 +132,7 @@ export async function cancelInvitation(ctx: TenantContext, raw: unknown): Promis
 export async function acceptInvitations(userId: string, phoneNumber: string, clock: Clock = systemClock) {
   await db.$transaction(async (tx) => {
     if ((await tx.membership.count({ where: { userId } })) > 0) return;
-    const pending = await tx.invitation.findMany({ where: { phoneNumber, expiresAt: { gt: clock.now() } } });
+    const pending = await tx.invitation.findMany({ where: { phoneNumber, expiresAt: { gt: clock.now() }, organization: { leftAt: null } } }); // a left organisation takes no one new
     for (const inv of pending) {
       const membership = await tx.membership.upsert({
         where: { organizationId_userId: { organizationId: inv.organizationId, userId } },

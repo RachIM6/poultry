@@ -10,7 +10,7 @@ import type { MessagePath } from "@/i18n/pick";
 import { can } from "@/lib/permissions";
 import { listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
 import { accountingChoicesOpen, batchResults, catchUpBooks, thresholdTracker, treasuryOverview } from "@/modules/finance";
-import { formatMoney } from "@/lib/format";
+import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { getTenantContext } from "@/modules/identity";
@@ -57,9 +57,17 @@ async function Content() {
         )
       }
       alert={
-        <Suspense>
-          <Alerts ctx={ctx.value} entity={entity} />
-        </Suspense>
+        <>
+          {/* docs/data-requests.md: a left organisation is read-only until its deletion; the export goes through the operator */}
+          {ctx.value.leftAt && (
+            <p role="status" className="rounded-2xl bg-alert-soft p-4 font-semibold text-alert-fg">
+              {t("Today.left", { day: formatDay(farmDayOf(new Date(ctx.value.leftAt)), lang) })}
+            </p>
+          )}
+          <Suspense>
+            <Alerts ctx={ctx.value} entity={entity} />
+          </Suspense>
+        </>
       }
     />
   );

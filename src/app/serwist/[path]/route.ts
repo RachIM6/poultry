@@ -1,8 +1,17 @@
-import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createSerwistRoute } from "@serwist/turbopack";
 
-// Revision for the precached HTML: a new commit refreshes the shell on every phone.
-const revision = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" }).stdout?.trim() || crypto.randomUUID();
+// Revision for the precached HTML: Next's id for this build, so a new build refreshes the shells on every phone and a
+// restart doesn't. `next start` refuses to run without .next/BUILD_ID, so the fallback is only seen while `next build`
+// runs (the file is written at its end; this route is dynamic, nothing built then is served) and in `next dev`, where
+// Serwist drops these entries. Never random: a random id would re-download every shell after each restart.
+const revision = (() => {
+  try {
+    return readFileSync(".next/BUILD_ID", "utf8").trim();
+  } catch {
+    return "unbuilt";
+  }
+})();
 
 const { generateStaticParams, GET } = createSerwistRoute({
   swSrc: "src/sw.ts",

@@ -1,4 +1,5 @@
 import type { FarmDay } from "@/lib/kernel/farm-day";
+import { typedCentimes } from "@/lib/kernel/money";
 
 // Display formatting (ADR-004): Western digits in both locales, French number style (1 234,50) for
 // money and weights, which are written the same way in Arabic and French screens in Morocco.
@@ -8,10 +9,8 @@ const money = new Intl.NumberFormat("fr", { numberingSystem: "latn", minimumFrac
 const kg = new Intl.NumberFormat("fr", { numberingSystem: "latn", maximumFractionDigits: 3 });
 
 export function formatMoney(centimes: bigint): string {
-  const abs = centimes < 0n ? -centimes : centimes;
   // Intl formats decimal strings exactly, so bigint amounts never pass through a float.
-  const decimal = `${centimes < 0n ? "-" : ""}${abs / 100n}.${String(abs % 100n).padStart(2, "0")}`;
-  return `${money.format(decimal as Intl.StringNumericLiteral)} DH`;
+  return `${money.format(typedCentimes(centimes, ".") as Intl.StringNumericLiteral)} DH`;
 }
 
 const count = new Intl.NumberFormat("fr", { numberingSystem: "latn" });

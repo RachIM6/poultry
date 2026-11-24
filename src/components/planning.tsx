@@ -9,7 +9,7 @@ import { Scoped } from "@/components/scoped";
 import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay } from "@/lib/format";
 import { farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
-import { parseCentimes } from "@/lib/kernel/money";
+import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto } from "@/modules/flock/schema";
@@ -145,7 +145,7 @@ function Planning(scope: Scope) {
 }
 
 type Strain = { id: string; name: string };
-const priceText = (centimes: string | null | undefined) => (centimes ? `${BigInt(centimes) / 100n},${String(BigInt(centimes) % 100n).padStart(2, "0")}` : "");
+const priceText = (centimes: string | null | undefined) => (centimes ? typedCentimes(BigInt(centimes)) : "");
 
 /** PL3: the placement, filled from the plan; what only the delivery says (dead on arrival, delivery note) is asked here. */
 function PlaceForm({ plan, today, protocols, onSave, onCancel }: { plan: PlanDto; today: string; protocols: ProtocolDto[]; onSave: (batch: BatchDto, sent: object, protocol: ProtocolDto | undefined) => Promise<void>; onCancel: () => void }) {

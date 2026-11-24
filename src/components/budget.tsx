@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useId, useState, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { formatKg, formatMoney } from "@/lib/format";
-import { parseCentimes } from "@/lib/kernel/money";
+import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { budgetCash, budgetOf, plainTiming, type BudgetInputs, type CashTiming } from "@/modules/finance/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
 import { danger, field, primary } from "@/components/ui";
@@ -21,10 +21,7 @@ type Text = Record<keyof BudgetInputs, string>;
 export type SaveState = { ok?: boolean; messageKey?: string };
 
 // What the farmer types: DH with centimes, kg with grams, whole chicks.
-const dh = (c: string) => {
-  const v = BigInt(c);
-  return `${v / 100n},${String(v % 100n).padStart(2, "0")}`;
-};
+const dh = (c: string) => typedCentimes(BigInt(c));
 const kg = (g: string) => {
   const v = BigInt(g);
   return v % 1000n === 0n ? String(v / 1000n) : `${v / 1000n},${String(v % 1000n).padStart(3, "0")}`;

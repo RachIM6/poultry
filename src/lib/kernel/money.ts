@@ -16,3 +16,12 @@ export function divHalfUp(n: bigint, d: bigint): bigint {
   const q = (2n * a + b) / (2n * b);
   return n < 0n !== d < 0n ? -q : q;
 }
+
+/**
+ * 123450n → "1234,50": an amount as typed into a field, and as French Excel reads a number (no thousands separator).
+ * `point` "." for the fields and files that take one. A negative amount keeps its sign: −5n → "-0,05".
+ */
+export function typedCentimes(centimes: bigint, point = ","): string {
+  const abs = centimes < 0n ? -centimes : centimes;
+  return `${centimes < 0n ? "-" : ""}${abs / 100n}${point}${String(abs % 100n).padStart(2, "0")}`;
+}

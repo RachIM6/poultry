@@ -6,6 +6,7 @@ import { BackLink } from "@/components/app-nav";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import { bankReconciliation, IMPORT_MAX_BYTES } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
@@ -33,10 +34,7 @@ export default function BankPage({ searchParams }: { searchParams: Search }) {
 
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
 /** Centimes as the forms take them: 45.00, without its sign. */
-const typed = (c: bigint) => {
-  const a = c < 0n ? -c : c;
-  return `${a / 100n}.${String(a % 100n).padStart(2, "0")}`;
-};
+const typed = (c: bigint) => typedCentimes(c < 0n ? -c : c, ".");
 
 async function Bank({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);

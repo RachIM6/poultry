@@ -520,7 +520,7 @@
     "LINE_AFTER_STATEMENT": "Cette opération est datée après la fin du relevé.",
     "LINE_ALREADY_TICKED": "Cette opération est déjà pointée sur un relevé.",
     "TREASURY_ACCOUNT_REQUIRED": "Une ligne sur 5141 ou 5161 indique son compte bancaire ou sa caisse.",
-    "TREASURY_ACCOUNT_MISMATCH": "Le 5141 va avec un compte bancaire, le 5161 avec une caisse.",
+    "TREASURY_ACCOUNT_MISMATCH": "Choisissez un compte bancaire pour un paiement par banque (virement, chèque), une caisse pour un paiement en espèces.",
     "CASH_BOOK_NO_MANUAL_ENTRY": "Pas d’écriture manuelle dans le livre des recettes et dépenses : le compte de contrepartie attend la réponse de l’expert-comptable.",
     "LIFE_REQUIRED": "Saisissez la durée d’utilisation en mois (plus de 0), selon l’expert-comptable ou les règles fiscales.",
     "LAND_NOT_DEPRECIATED": "Un terrain ne s’amortit pas : il n’a pas de durée.",

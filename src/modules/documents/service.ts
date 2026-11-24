@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { v7 as uuidv7 } from "uuid";
 import { audit } from "@/lib/audit";
-import { db, type Tx } from "@/lib/db";
+import { db, SYNC_TX, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
@@ -46,7 +46,7 @@ export async function storeFile<E extends string = never>(
       await audit(tx, ctx, { entity: "StoredFile", entityId: id, action: "create", after: { purpose, contentType: type.value, sizeBytes: bytes.length, sha256 } });
       const attached = await attach?.(tx, id);
       if (attached && !attached.ok) throw new Refused(attached.error);
-    });
+    }, SYNC_TX); // the bytes and the attach in one transaction: under load the default 2 s wait isn't enough (P2028)
   } catch (e) {
     if (e instanceof Refused) return fail(e.error as E);
     throw e;

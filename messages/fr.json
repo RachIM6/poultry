@@ -595,6 +595,7 @@
     "dailyGain": "GMQ (gain moyen quotidien)",
     "gramsPerDay": "{grams} g/jour",
     "atWeighing": "IC, EPEF et GMQ au jour {age}, celui de la dernière pesée.",
+    "atClosing": "IC et EPEF à la clôture (jour {age}) : aliment consommé ÷ kg vendus. Poids et GMQ : dernière pesée.",
     "weighFirst": "Pesez un échantillon pour voir le poids, l’IC, l’EPEF et le GMQ.",
     "chart": "Croissance",
     "flock": "Bande",

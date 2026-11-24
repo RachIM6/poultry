@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { formatDecimal, formatKg, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { ageOfBatch, batchKpis, birdsStarted, doaClaim, waterPerFeed, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
+import { ageOfBatch, batchKpis, birdsStarted, doaClaim, shownFcrEpef, waterPerFeed, versusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import type { CurvePoint, ReferenceData } from "@/modules/reference-data/schema";
 import { curveFor, standardAt } from "@/modules/reference-data/shared";
 
@@ -32,8 +32,10 @@ export function BatchDashboard({
   const curve = curveFor(curves, batch.sex ?? "mixed")?.points ?? null;
   const t = useTranslations();
   const placedOn = batch.placedOn as FarmDay;
-  const k = batchKpis({ placedOn, birdsStarted: birdsStarted(batch), dayOldWeightGrams: batch.dayOldWeightGrams, ageAtPlacementDays: batch.ageAtPlacementDays }, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
+  const started = { placedOn, birdsStarted: birdsStarted(batch), dayOldWeightGrams: batch.dayOldWeightGrams, ageAtPlacementDays: batch.ageAtPlacementDays };
+  const k = batchKpis(started, entries, weighings, (batch.closedOn as FarmDay | undefined) ?? today(), sold); // a closed batch: as it ended
   const w = k.weighed;
+  const { fcr, epef } = shownFcrEpef({ ...started, status: batch.status, closedOn: batch.closedOn }, w, entries, sold); // closed: feed ÷ kg sold, as /compare
   const standard = w && curve ? standardAt(curve, w.ageDays) : null;
   const none = "—";
   const water = waterPerFeed(entries);
@@ -46,8 +48,8 @@ export function BatchDashboard({
       w ? formatKg(w.averageGrams) : none,
       w ? (standard ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(w.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) }) : t("Weighing.noStandard")) : undefined,
     ],
-    [t("Kpi.fcr"), w?.fcr == null ? none : formatDecimal(w.fcr, 2)],
-    [t("Kpi.epef"), w?.epef == null ? none : formatDecimal(w.epef, 0)],
+    [t("Kpi.fcr"), fcr === null ? none : formatDecimal(fcr, 2)],
+    [t("Kpi.epef"), epef === null ? none : formatDecimal(epef, 0)],
     [t("Kpi.dailyGain"), w?.dailyGainGrams == null ? none : t("Kpi.gramsPerDay", { grams: formatDecimal(w.dailyGainGrams, 1) })],
   ];
 
@@ -68,7 +70,7 @@ export function BatchDashboard({
           </div>
         ))}
       </dl>
-      <p className="text-sm text-muted">{w ? t("Kpi.atWeighing", { age: String(w.ageDays) }) : t("Kpi.weighFirst")}</p>
+      <p className="text-sm text-muted">{batch.status === "closed" ? t("Kpi.atClosing", { age: String(k.ageDays) }) : w ? t("Kpi.atWeighing", { age: String(w.ageDays) }) : t("Kpi.weighFirst")}</p>
     </section>
   );
 }

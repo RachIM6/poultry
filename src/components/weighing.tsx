@@ -89,8 +89,8 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
         </div>
         <fieldset className="flex flex-wrap gap-4">
           <legend className="sr-only">{t("Weighing.mode")}</legend>
-          <label className="flex items-center gap-2"><input type="radio" name="mode" checked={!group} onChange={() => setGroup(false)} />{t("Weighing.individual")}</label>
-          <label className="flex items-center gap-2"><input type="radio" name="mode" checked={group} onChange={() => setGroup(true)} />{t("Weighing.group")}</label>
+          <label className="flex min-h-11 items-center gap-2"><input type="radio" name="mode" checked={!group} onChange={() => setGroup(false)} />{t("Weighing.individual")}</label>
+          <label className="flex min-h-11 items-center gap-2"><input type="radio" name="mode" checked={group} onChange={() => setGroup(true)} />{t("Weighing.group")}</label>
         </fieldset>
         {group ? (
           <div className="grid grid-cols-2 gap-3">

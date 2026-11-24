@@ -379,7 +379,7 @@ function SaleForm({
             <Input key={buyerId} label={t("Sale.buyerAddress")} name="buyerAddress" defaultValue={buyer?.address ?? ""} maxLength={200} />
           </div>
           <details className="col-span-2">
-            <summary>{t("Sale.destination")}</summary>
+            <summary className="min-h-11 py-2.5">{t("Sale.destination")}</summary>
             <div className="mt-2 flex flex-col gap-2.5">
               <Input label={t("Sale.destinationName")} name="destinationName" maxLength={120} />
               <Input label={t("Sale.destinationAddress")} name="destinationAddress" maxLength={200} />

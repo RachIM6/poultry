@@ -1,3 +1,4 @@
+import { daysBetween, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { divHalfUp } from "@/lib/kernel/money";
 import { feedConversionRatio } from "@/modules/flock/shared";
 
@@ -77,7 +78,7 @@ export function birdDays(b: {
   if (first > last) return 0n;
   const outBefore = (day: string) => b.out.reduce((s, o) => (o.day < day ? s + o.birds : s), 0);
   let total = 0n;
-  for (let d = first; d <= last; d = nextDay(d)) total += BigInt(Math.max(0, b.started - outBefore(d)));
+  for (let d = first; d <= last; d = nextFarmDay(d as FarmDay)) total += BigInt(Math.max(0, b.started - outBefore(d)));
   return total;
 }
 
@@ -97,7 +98,7 @@ export function keyWeight(key: AllocationKey, b: KeyFacts): bigint {
   if (key === "kgSold") return b.soldOut.reduce((s, o) => (o.day >= b.from && o.day <= b.to ? s + BigInt(o.grams) : s), 0n);
   const first = b.placedOn > b.from ? b.placedOn : b.from;
   const last = b.lastDay !== null && b.lastDay < b.to ? b.lastDay : b.to;
-  return first > last ? 0n : BigInt(b.areaM2) * BigInt((Date.parse(last) - Date.parse(first)) / 86_400_000 + 1);
+  return first > last ? 0n : BigInt(b.areaM2) * BigInt(daysBetween(first as FarmDay, last as FarmDay) + 1);
 }
 
 /**
@@ -111,8 +112,6 @@ export function splitShared(total: bigint, key: AllocationKey, batches: readonly
   if (key === "birdDays" || keyed.some((k) => k.weight > 0n)) return { parts: allocate(total, keyed), byBirdDays: false };
   return { parts: allocate(total, by("birdDays")), byBirdDays: true };
 }
-
-const nextDay = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
 /** FN14: a shared line's service period from a month ("2026-10" → 1–31 Oct). */
 export function monthPeriod(month: string): { from: string; to: string } {

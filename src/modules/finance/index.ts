@@ -12,7 +12,7 @@ export { creditExpensesToPay, payCreditExpense, type CreditExpense } from "./app
 export { associateAccount, recordAssociateMovement, type AssociateMovementError } from "./application/contributions";
 export { addBankStatement, bankReconciliation, matchBankLine, type BankReconciliation } from "./application/bank";
 export { IMPORT_MAX_BYTES, importBankFile, type BankImport, type ImportFailure } from "./application/bank-import";
-export { batchResults, freezeClosedBatches, type BatchResultRow } from "./application/batch-results";
+export { batchResultDtos, batchResults, freezeClosedBatches, type BatchResultRow } from "./application/batch-results";
 export { budgetBases, budgetBatches, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";
 export { readBooks, type Books } from "./application/books";

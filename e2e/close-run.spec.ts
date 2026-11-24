@@ -66,5 +66,5 @@ test("the owner previews and posts the year's depreciation, finds it in the jour
   await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);
   await page.reload();
   await expect(page.getByRole("region", { name: "Dotations aux amortissements" })).toHaveCount(0);
-  await expect(page.getByText("Les dépenses et la trésorerie sont réservées au propriétaire et au gérant.")).toBeVisible();
+  await expect(page.getByText("La clôture est réservée au propriétaire, au gérant et au comptable.")).toBeVisible();
 });

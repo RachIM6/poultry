@@ -52,7 +52,7 @@ async function creditExpenses(tx: Tx, ctx: TenantContext, ids?: string[]): Promi
     paid.set(id, (paid.get(id) ?? 0n) + l.debitCentimes);
   }
   const byExpense = Map.groupBy(entries, (e) => e.sourceId!);
-  // An expense's entry is never reversed (no edit, FN5 reverses manual entries only).
+  // A corrected expense (§9 "Cancelled records") is unpaid: its latest version is its debt, its earlier ones reversed.
   return expenses.flatMap((e) => {
     const es = (byExpense.get(e.id) ?? []).map((x) => ({ id: x.id, version: x.sourceVersion ?? 0, lines: x.lines.map((l) => ({ account: l.account, debit: l.debitCentimes, credit: l.creditCentimes })) }));
     const debt = placementDebt(es, new Set(), paid.get(e.id) ?? 0n);
@@ -96,6 +96,10 @@ export async function payCreditExpense(ctx: TenantContext, input: unknown, clock
     return ok(undefined);
   });
 }
+
+/** SPEC-finance §9 "Cancelled records": a payment was posted for this credit expense; it can no longer change. */
+export const expensePaid = async (tx: Tx, ctx: TenantContext, expenseId: string) =>
+  (await tx.journalEntry.count({ where: { organizationId: ctx.organizationId, sourceModule: "finance", sourceId: { startsWith: paymentsOf(expenseId) } } })) > 0;
 
 /** The credit expenses still owed, oldest first (the payer's list). */
 export async function creditExpensesToPay(ctx: TenantContext): Promise<Result<CreditExpense[], "FORBIDDEN">> {

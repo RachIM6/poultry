@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { OfflineHint, unsent, useOnline } from "@/components/online";
 import { danger, field, primary, secondary } from "@/components/ui";
 import { createAssetAction, disposeAssetAction, payAssetAction, updateAssetAction, type AssetState } from "./actions";
 
@@ -39,6 +40,7 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
   const [opening, setOpening] = useState(false);
   const [state, setState] = useState<AssetState>({});
   const [pending, startTransition] = useTransition();
+  const online = useOnline();
   const landCategories = props.groups.find((g) => g.group === "land")?.categories ?? [];
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -48,7 +50,7 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
     const receipt = data.get("receipt");
     data.delete("receipt");
     startTransition(async () => {
-      const created = await createAssetAction(data);
+      const created = await unsent(createAssetAction(data));
       if (created.ok && receipt instanceof File && receipt.size > 0) {
         const res = await fetch(`/api/files?purpose=receipt&fixedAsset=${id}`, { method: "POST", body: receipt, headers: { "x-requested-with": "poultry" } }).catch(() => null);
         if (!res?.ok) {
@@ -162,7 +164,8 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
           <input type="file" name="receipt" accept="image/jpeg,image/png,image/webp,application/pdf" />
         </label>
         {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
-        <button type="submit" disabled={pending} className={primary}>{t("Assets.save")}</button>
+        <OfflineHint online={online} />
+        <button type="submit" disabled={pending || !online} className={primary}>{t("Assets.save")}</button>
       </fieldset>
     </form>
   );
@@ -174,11 +177,13 @@ const ACTIONS = { update: updateAssetAction, pay: payAssetAction, dispose: dispo
 export function AssetActionForm({ kind, submit, children }: { kind: keyof typeof ACTIONS; submit: string; children: ReactNode }) {
   const t = useTranslations();
   const [state, action, pending] = useActionState(ACTIONS[kind], {});
+  const online = useOnline();
   return (
     <form action={action} className="flex flex-col gap-3">
       {children}
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
-      <button type="submit" disabled={pending} className={secondary}>{submit}</button>
+      <OfflineHint online={online} />
+      <button type="submit" disabled={pending || !online} className={secondary}>{submit}</button>
     </form>
   );
 }

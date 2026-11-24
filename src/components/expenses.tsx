@@ -8,7 +8,7 @@ import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { parseCentimes } from "@/lib/kernel/money";
+import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import { bankOnly, EXPENSE_CATEGORIES, FINANCE_MUTATIONS as F, TREASURY_KINDS, type ExpenseDto, type TreasuryAccountDto } from "@/modules/finance/shared";
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
@@ -22,8 +22,25 @@ import { card, danger, field, primary, secondary } from "@/components/ui";
 // crew, bank fees) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts
 // (FN3). Bank fees: from a bank account only (FC9). Posted by the server once it syncs. Owners and managers only (FX2).
 // FC9: /treasury/bank opens it prefilled with a statement's bank debit (?category=bank_fees&amount=&day=&from=<bank id>).
+// SPEC-finance §9 "Cancelled records": a recent expense is corrected in the same form, or cancelled after a confirmation.
 
 const today = () => farmDayOf(new Date());
+const typed = (centimes: string) => typedCentimes(BigInt(centimes));
+
+/** An expense as the form's fields, to correct it. */
+const fieldsOf = (e: ExpenseDto): Pick<URLSearchParams, "get"> => {
+  const f: Record<string, string> = {
+    category: e.category,
+    amount: typed(e.amountCentimes),
+    vat: e.vatCentimes && e.vatCentimes !== "0" ? typed(e.vatCentimes) : "",
+    from: e.treasuryId ?? e.paidFrom,
+    allocation: e.batchId ?? (e.serviceMonth ? "shared" : "general"),
+    month: e.serviceMonth ?? e.day.slice(0, 7),
+    day: e.day,
+    note: e.note ?? "",
+  };
+  return { get: (k: string) => f[k] ?? null };
+};
 
 export function ExpensesScreen() {
   const t = useTranslations("Sync");
@@ -48,6 +65,7 @@ function Expenses(scope: Scope) {
   const records = useLiveQuery(() => db.records.where("entity").anyOf("treasuryAccount", "expense", "batch", "house").toArray(), [userId, organizationId]);
   const [message, setMessage] = useState<string>();
   const { open: adding, opener, close } = useInline<"account">();
+  const { open: correcting, opener: corrector, close: stopCorrecting } = useInline<string>();
   const [uploadError, setUploadError] = useState<string>();
   const online = useOnline();
   const queued = useLiveQuery(() => db.outbox.toArray(), [userId, organizationId]);
@@ -66,9 +84,10 @@ function Expenses(scope: Scope) {
   const line = (e: ExpenseDto) => t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) });
   const recent = of<ExpenseDto>("expense").sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 20);
 
-  const write = async (mutation: { type: string; payload: unknown }, entity: string, data: { id: string }) => {
+  // `local`: what the phone keeps (null: drops it)
+  const write = async (mutation: { type: string; payload: unknown }, entity: string, data: { id: string }, local: unknown = data) => {
     try {
-      await writeLocal(db, mutation, [{ entity, id: data.id, data }]);
+      await writeLocal(db, mutation, [{ entity, id: data.id, data: local }]);
       setMessage("Farms.saved");
       return true;
     } catch {
@@ -91,6 +110,31 @@ function Expenses(scope: Scope) {
           {recent.map((e) => (
             <li key={e.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
               <span>{line(e)}</span>
+              {correcting === e.id ? (
+                <ExpenseForm
+                  prefill={fieldsOf(e)}
+                  accounts={accounts}
+                  batches={batches}
+                  editing={{ id: e.id, title: t("Expenses.correcting", { expense: line(e) }), onCancel: stopCorrecting }}
+                  onSave={async (x) => {
+                    const saved = await write({ type: F.correctExpense, payload: x }, "expense", x, { ...e, ...x }); // the receipt stays
+                    if (saved) stopCorrecting();
+                    return saved;
+                  }}
+                />
+              ) : (
+                <span className="flex flex-wrap gap-2">
+                  <button type="button" {...corrector(e.id)} aria-label={t("Expenses.correctOf", { expense: line(e) })} className={`${secondary} text-sm`}>{t("Expenses.correct")}</button>
+                  <button
+                    type="button"
+                    onClick={() => confirm(t("Expenses.voidConfirm", { expense: line(e) })) && write({ type: F.cancelExpense, payload: { expenseId: e.id } }, "expense", e, null)}
+                    aria-label={t("Expenses.voidOf", { expense: line(e) })}
+                    className={`${secondary} text-sm`}
+                  >
+                    {t("Expenses.void")}
+                  </button>
+                </span>
+              )}
               {/* FN10: the receipt photo goes up once the expense is on the server and the phone is online (ADR-011) */}
               {e.receiptFileId ? (
                 <a href={`/api/files/${e.receiptFileId}`} aria-label={t("Expenses.receiptOf", { expense: line(e) })} className="underline underline-offset-4">{t("Expenses.receipt")}</a>
@@ -132,7 +176,20 @@ function Field({ label, children }: { label: string; children: (id: string) => R
   );
 }
 
-function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URLSearchParams, "get">; accounts: TreasuryAccountDto[]; batches: { id: string; label: string }[]; onSave: (e: ExpenseDto) => Promise<boolean> }) {
+/** `editing`: correcting the expense with this id (§9 "Cancelled records"); its fields are the prefill. */
+function ExpenseForm({
+  prefill,
+  accounts,
+  batches,
+  editing,
+  onSave,
+}: {
+  prefill: Pick<URLSearchParams, "get">;
+  accounts: TreasuryAccountDto[];
+  batches: { id: string; label: string }[];
+  editing?: { id: string; title: string; onCancel: () => void };
+  onSave: (e: ExpenseDto) => Promise<boolean>;
+}) {
   const t = useTranslations();
   const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const [key, setKey] = useState(0); // a new key empties the form after a save
@@ -160,7 +217,7 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
     if (bank && account?.kind !== "bank") return setError("Expenses.bankFeesAccount", e.currentTarget, "from");
     setError(undefined);
     const saved = await onSave({
-      id: uuidv7(),
+      id: editing?.id ?? uuidv7(),
       day,
       category: get("category") as ExpenseDto["category"],
       amountCentimes: String(amount),
@@ -178,7 +235,7 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
   };
 
   return (
-    <form key={key} onSubmit={submit} className={card}>
+    <form key={key} onSubmit={submit} aria-label={editing?.title} className={card}>
       <Field label={t("Expenses.category")}>
         {(id) => (
           <select id={id} name="category" defaultValue={pre("category")} onChange={(e) => setBank(bankOnly(e.target.value))} className={field}>
@@ -187,7 +244,7 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
         )}
       </Field>
       <Field label={t("Expenses.amount")}>{(id) => <input id={id} name="amount" defaultValue={pre("amount")} inputMode="decimal" required dir="ltr" {...bad("amount")} className={field} />}</Field>
-      <Field label={t("Sale.vat")}>{(id) => <input id={id} name="vat" inputMode="decimal" dir="ltr" {...bad("vat")} className={field} />}</Field>
+      <Field label={t("Sale.vat")}>{(id) => <input id={id} name="vat" defaultValue={pre("vat")} inputMode="decimal" dir="ltr" {...bad("vat")} className={field} />}</Field>
       <Field label={t("Expenses.from")}>
         {(id) => (
           <select id={id} name="from" defaultValue={pre("from")} {...bad("from")} className={field}>
@@ -200,18 +257,25 @@ function ExpenseForm({ prefill, accounts, batches, onSave }: { prefill: Pick<URL
       </Field>
       <Field label={t("Expenses.allocation")}>
         {(id) => (
-          <select id={id} name="allocation" className={field}>
+          <select id={id} name="allocation" defaultValue={pre("allocation")} className={field}>
             <option value="shared">{t("Expenses.shared")}</option>
             {batches.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
             <option value="general">{t("Expenses.general")}</option>
           </select>
         )}
       </Field>
-      <Field label={t("Expenses.month")}>{(id) => <input id={id} name="month" type="month" defaultValue={(pre("day") ?? today()).slice(0, 7)} max={today().slice(0, 7)} className={field} />}</Field>
+      <Field label={t("Expenses.month")}>{(id) => <input id={id} name="month" type="month" defaultValue={pre("month") ?? (pre("day") ?? today()).slice(0, 7)} max={today().slice(0, 7)} className={field} />}</Field>
       <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={pre("day") ?? today()} max={today()} required {...bad("day")} className={field} />}</Field>
-      <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
+      <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" defaultValue={pre("note")} maxLength={200} className={field} />}</Field>
       {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-      <button type="submit" className={primary}>{t("Expenses.save")}</button>
+      {editing ? (
+        <div className="flex gap-3">
+          <button type="submit" className={primary}>{t("Expenses.saveCorrection")}</button>
+          <button type="button" onClick={editing.onCancel} className={secondary}>{t("Expenses.keep")}</button>
+        </div>
+      ) : (
+        <button type="submit" className={primary}>{t("Expenses.save")}</button>
+      )}
     </form>
   );
 }

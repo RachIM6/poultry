@@ -20,13 +20,17 @@ const changes = async (tx: Tx, ctx: TenantContext, entity: string, after: bigint
   return { rows: all.filter((c) => c.data !== null), readTo: all.at(-1)?.version ?? after };
 };
 
-export async function salesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: SaleChange[]; readTo: bigint }> {
-  const { rows, readTo } = await changes(tx, ctx, "sale", after, limit);
-  const items = rows.map((c) => {
+/** FN7, SPEC-finance §9 "Cancelled records": a sale cancelled since; finance reverses its standing entry. */
+export type Voided = { version: bigint; voided: string };
+
+export async function salesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: (SaleChange | Voided)[]; readTo: bigint }> {
+  const rows = await tx.change.findMany({ where: { organizationId: ctx.organizationId, entity: "sale", version: { gt: after } }, orderBy: { version: "asc" }, take: limit });
+  const items = rows.map((c): SaleChange | Voided => {
+    if (c.data === null) return { version: c.version, voided: c.entityId };
     const s = c.data as unknown as SaleDto & Required<Omit<SaleDto, "vatCentimes">>; // vatCentimes: absent before T39
     return { version: c.version, id: s.id, batchId: s.batchId, day: s.day as FarmDay, amountCentimes: BigInt(s.amountCentimes), paidCentimes: BigInt(s.paidCentimes), vatCentimes: BigInt(s.vatCentimes ?? 0), method: s.paymentMethod, kind: s.kind ?? "live", takenBy: s.takenBy ?? null };
   });
-  return { items, readTo };
+  return { items, readTo: rows.at(-1)?.version ?? after };
 }
 
 export async function paymentsChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: PaymentChange[]; readTo: bigint }> {

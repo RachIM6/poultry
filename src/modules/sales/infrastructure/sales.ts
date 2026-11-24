@@ -1,7 +1,7 @@
 import type { Tx } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
 import { instrumentsOf, type Instrument } from "@/modules/sales/domain/instruments";
-import type { BuyerDto, InstrumentStatusDto, PaymentDto, SaleDto } from "@/modules/sales/schema";
+import type { BuyerDto, InstrumentStatusDto, PaymentDto, SaleDto, Taker } from "@/modules/sales/schema";
 
 // Buyer and sale repository (Prisma). Scoped to the caller's organisation.
 
@@ -25,7 +25,7 @@ export async function buyerLedger(tx: Tx, ctx: TenantContext, buyerId: string) {
   const instruments = await instrumentsWhere(tx, ctx, { buyerId });
   const where = { organizationId: ctx.organizationId, buyerId };
   const [sales, payments] = await Promise.all([
-    tx.sale.findMany({ where, select: { buyerId: true, amountCentimes: true, paidCentimes: true } }),
+    tx.sale.findMany({ where, select: { id: true, buyerId: true, amountCentimes: true, paidCentimes: true } }),
     tx.buyerPayment.findMany({ where, select: { buyerId: true, amountCentimes: true } }),
   ]);
   return { sales, payments, unpaid: instruments.filter((i) => i.state === "unpaid") };
@@ -94,30 +94,49 @@ export async function setCreditLimit(tx: Tx, ctx: TenantContext, buyerId: string
 /** FN12: marks a sale approved; returns it as the phone stores it, or null if it isn't this organisation's or isn't pending. */
 export async function approveSaleCredit(tx: Tx, ctx: TenantContext, saleId: string): Promise<Required<SaleDto> | null> {
   const { count } = await tx.sale.updateMany({ where: { id: saleId, organizationId: ctx.organizationId, creditApproval: "pending" }, data: { creditApproval: "approved" } });
-  if (count === 0) return null;
-  const s = await tx.sale.findUniqueOrThrow({ where: { id: saleId } });
+  return count === 0 ? null : findSale(tx, ctx, saleId);
+}
+
+/** A sale of this organisation as the phone stores it, or null. */
+export async function findSale(tx: Tx, ctx: TenantContext, saleId: string): Promise<Required<SaleDto> | null> {
+  const s = await tx.sale.findFirst({ where: { id: saleId, organizationId: ctx.organizationId } });
+  if (!s) return null;
   const lines = await tx.saleLine.findMany({ where: { saleId }, orderBy: { n: "asc" } });
-  const day = (d: Date) => d.toISOString().slice(0, 10);
   return {
     id: s.id,
     batchId: s.batchId,
     buyerId: s.buyerId,
-    day: day(s.day),
+    day: dayOf(s.day),
     birds: s.birds,
     farmWeightGrams: s.farmWeightGrams,
     buyerWeightGrams: s.buyerWeightGrams,
     pricePerKgCentimes: String(s.pricePerKgCentimes),
     amountCentimes: String(s.amountCentimes),
-    paymentMethod: s.paymentMethod as SaleDto["paymentMethod"] & string,
+    paymentMethod: s.paymentMethod as NonNullable<SaleDto["paymentMethod"]>,
     paidCentimes: String(s.paidCentimes),
     vatCentimes: String(s.vatCentimes),
-    instrument: s.instrumentNumber && s.instrumentDueOn ? { number: s.instrumentNumber, dueOn: day(s.instrumentDueOn) } : null,
-    creditApproval: "approved",
+    instrument: s.instrumentNumber && s.instrumentDueOn ? { number: s.instrumentNumber, dueOn: dayOf(s.instrumentDueOn) } : null,
+    creditApproval: s.creditApproval as SaleDto["creditApproval"] & string,
     kind: s.kind as "live" | "eggs" | "perHead",
-    takenBy: null, // a consumption has no credit to approve
+    takenBy: s.takenBy as Taker | null,
     destination: s.destinationName ? { name: s.destinationName, address: s.destinationAddress } : null,
     lines: lines.map((l) => ({ item: l.item, eggs: l.eggs, eggsPerTray: l.eggsPerTray, unitPriceCentimes: String(l.unitPriceCentimes), amountCentimes: String(l.amountCentimes) })),
   };
+}
+
+/** SPEC-finance §9 "Cancelled records": a cancelled sale and its lines go (its full record is in the audit log). */
+export async function deleteSale(tx: Tx, ctx: TenantContext, saleId: string) {
+  await tx.saleLine.deleteMany({ where: { saleId, organizationId: ctx.organizationId } });
+  await tx.sale.delete({ where: { id: saleId, organizationId: ctx.organizationId } });
+}
+
+/** SPEC-finance §9 "Cancelled records": a sale's corrected prices, VAT, amount and credit approval, and its lines'. */
+export async function savePrices(tx: Tx, ctx: TenantContext, s: Required<SaleDto>) {
+  const where = { id: s.id, organizationId: ctx.organizationId };
+  await tx.sale.update({ where, data: { pricePerKgCentimes: BigInt(s.pricePerKgCentimes), amountCentimes: BigInt(s.amountCentimes), vatCentimes: BigInt(s.vatCentimes), creditApproval: s.creditApproval } });
+  for (const [n, l] of s.lines.entries()) {
+    await tx.saleLine.update({ where: { saleId_n: { saleId: s.id, n }, organizationId: ctx.organizationId }, data: { unitPriceCentimes: BigInt(l.unitPriceCentimes), amountCentimes: BigInt(l.amountCentimes) } });
+  }
 }
 
 export const creditBlocked = async (tx: Tx, ctx: TenantContext, buyerId: string) =>

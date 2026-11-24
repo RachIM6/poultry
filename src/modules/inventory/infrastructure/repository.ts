@@ -103,6 +103,39 @@ export const updateMovementQuantity = (tx: Tx, ctx: TenantContext, id: string, q
 
 export const deleteMovement = (tx: Tx, ctx: TenantContext, id: string) => tx.stockMovement.delete({ where: { id, organizationId: ctx.organizationId } });
 
+/** A purchase of this organisation as the phone stores it, with its stock movements, or null. */
+export async function findPurchase(tx: Tx, ctx: TenantContext, id: string): Promise<{ purchase: Required<PurchaseDto>; movements: MovementDto[] } | null> {
+  const p = await tx.purchase.findFirst({ where: { id, organizationId: ctx.organizationId } });
+  if (!p) return null;
+  const movements = await tx.stockMovement.findMany({ where: { purchaseId: id, organizationId: ctx.organizationId } });
+  return {
+    purchase: {
+      id: p.id,
+      farmId: p.farmId,
+      supplierId: p.supplierId,
+      stockItemId: p.stockItemId,
+      day: dayOf(p.day),
+      quantity: p.quantity,
+      unitPriceCentimes: String(p.unitPriceCentimes),
+      amountCentimes: String(p.amountCentimes),
+      paidCentimes: String(p.paidCentimes),
+      vatCentimes: String(p.vatCentimes),
+      paidMethod: p.paidMethod as NonNullable<PurchaseDto["paidMethod"]>,
+      dueOn: p.dueOn && dayOf(p.dueOn),
+    },
+    movements: movements.map((m) => ({ id: m.id, farmId: m.farmId, stockItemId: m.stockItemId, kind: m.kind as MovementDto["kind"], quantity: m.quantity, day: dayOf(m.day), reason: m.reason, purchaseId: m.purchaseId })),
+  };
+}
+
+/** SPEC-finance §9 "Cancelled records": a cancelled purchase and its movements go (the full record is in the audit log). */
+export async function deletePurchase(tx: Tx, ctx: TenantContext, id: string) {
+  await tx.stockMovement.deleteMany({ where: { purchaseId: id, organizationId: ctx.organizationId } });
+  await tx.purchase.delete({ where: { id, organizationId: ctx.organizationId } });
+}
+
+/** FN11: the bank already debited the cheque or bill this purchase was paid with. */
+export const issuedDebited = async (tx: Tx, ctx: TenantContext, instrumentId: string) => (await tx.issuedDebit.count({ where: { instrumentId, organizationId: ctx.organizationId } })) > 0;
+
 export async function insertPurchase(
   tx: Tx,
   ctx: TenantContext,

@@ -7,6 +7,7 @@ import { formatKg, formatMoney } from "@/lib/format";
 import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { budgetCash, budgetOf, plainTiming, type BudgetInputs, type CashTiming } from "@/modules/finance/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
+import { OfflineHint, unsent, useOnline } from "@/components/online";
 import { danger, field, primary } from "@/components/ui";
 import { BudgetCashView } from "@/components/budget-cash";
 
@@ -65,17 +66,19 @@ function parse(t: Text): BudgetInputs | null {
   return unread(t).length > 0 ? null : (Object.fromEntries(KEYS.map((k) => [k, PARSE[k](t[k])])) as BudgetInputs);
 }
 
-export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches: { batchId: string; label: string }[]; save: (state: SaveState, form: FormData) => Promise<SaveState> }) {
+/** Without `save` (the accountant reads, SPEC-m5 PA5), the same what-if without the name and the button. */
+export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches: { batchId: string; label: string }[]; save?: (state: SaveState, form: FormData) => Promise<SaveState> }) {
   const t = useTranslations("Budget");
   const tr = useTranslations();
   const [id, setId] = useState(() => uuidv7()); // SPEC §7: a double submit sends the same id, saved once
   const [basedOn, setBasedOn] = useState(bases[0]?.batchId ?? "");
   const [text, setText] = useState<Text>(bases[0] ? toText(bases[0].inputs) : EMPTY);
   const [state, action, pending] = useActionState(async (s: SaveState, form: FormData) => {
-    const saved = await save(s, form);
+    const saved = save ? await unsent(save(s, form)) : s; // failed, the typed figures stay
     if (saved.ok) setId(uuidv7()); // the next budget is a new one
     return saved;
   }, {});
+  const online = useOnline();
   const [saleDay, setSaleDay] = useState(""); // without a base batch: when the sale is planned (§9 "Budget cash need")
   const inputs = parse(text);
   const b = inputs && budgetOf(inputs);
@@ -168,9 +171,14 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
 
       {/* What the server saves: the parsed inputs, in centimes and grams. */}
       {inputs && Object.entries(inputs).map(([k, v]) => <input key={k} type="hidden" name={k} value={String(v)} />)}
-      <Field label={t("name")}>{(id) => <input id={id} name="name" required maxLength={80} className={field} />}</Field>
-      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{tr(state.messageKey)}</p>}
-      <button type="submit" disabled={!inputs || pending} className={primary}>{t("save")}</button>
+      {save && (
+        <>
+          <Field label={t("name")}>{(id) => <input id={id} name="name" required maxLength={80} className={field} />}</Field>
+          {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{tr(state.messageKey)}</p>}
+          <OfflineHint online={online} />
+          <button type="submit" disabled={!inputs || pending || !online} className={primary}>{t("save")}</button>
+        </>
+      )}
     </form>
   );
 }

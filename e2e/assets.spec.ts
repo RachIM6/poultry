@@ -82,7 +82,7 @@ test("the owner registers an asset, reads its schedule by year and disposes of i
   await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);
   await page.reload();
   await expect(page.getByRole("region", { name: "Groupe électrogène" })).toHaveCount(0);
-  await expect(page.getByText("Les dépenses et la trésorerie sont réservées au propriétaire et au gérant.")).toBeVisible();
+  await expect(page.getByText("Les immobilisations sont réservées au propriétaire, au gérant et au comptable.")).toBeVisible();
 
   // Arabic, right to left, for the accountant.
   await query(`UPDATE "Membership" SET role = 'accountant' WHERE "organizationId" = ${orgOf}`, [e164]);

@@ -13,7 +13,10 @@
   "Offline": {
     "title": "Pas de connexion",
     "body": "Cette page n'est pas encore enregistrée sur ce téléphone. Les pages déjà ouvertes restent disponibles.",
-    "home": "Accueil"
+    "home": "Accueil",
+    "online": "Hors ligne : à faire une fois connecté.",
+    "failed": "Pas de réseau ou erreur du serveur : rien n’a été enregistré. Réessayez.",
+    "retry": "Réessayer"
   },
   "Install": {
     "title": "Installer l'application",
@@ -114,7 +117,132 @@
     "dismiss": "J’ai compris",
     "signedOut": "Connectez-vous pour synchroniser ce téléphone.",
     "login": "Se connecter",
-    "open": "Synchronisation"
+    "open": "Synchronisation",
+    "refused": "{count, plural, one {1 écriture refusée à vérifier} other {{n} écritures refusées à vérifier}}",
+    "unknownType": "Action inconnue",
+    "redo": "Saisir à nouveau",
+    "values": "Ce que vous aviez saisi",
+    "value": "{label} : {value}",
+    "dismissConfirm": "Retirer cette écriture refusée ? Ce que vous aviez saisi sera effacé de ce téléphone.",
+    "types": {
+      "farm-registry": {
+        "createFarm": "Nouvelle ferme",
+        "updateFarm": "Modification d’une ferme",
+        "createHouse": "Nouveau bâtiment",
+        "updateHouse": "Modification d’un bâtiment"
+      },
+      "reference-data": {
+        "copyProtocol": "Copie d’un programme de vaccination",
+        "updateProtocol": "Modification d’un programme de vaccination"
+      },
+      "notifications": {
+        "markRead": "Notification lue"
+      },
+      "inventory": {
+        "createSupplier": "Nouveau fournisseur",
+        "createStockItem": "Nouvel article de stock",
+        "recordPurchase": "Achat",
+        "adjustStock": "Ajustement de stock",
+        "setThreshold": "Seuil d’alerte de stock",
+        "recordSupplierPayment": "Paiement d’un fournisseur",
+        "debitIssued": "Débit d’un chèque ou effet émis",
+        "cancelPurchase": "Annulation d’un achat"
+      },
+      "flock": {
+        "placeBatch": "Mise en place d’un lot",
+        "recordDay": "Saisie du jour",
+        "recordWeighing": "Pesée",
+        "closeBatch": "Clôture d’un lot",
+        "transferToLaying": "Transfert en ponte",
+        "recordBatchCost": "Charge d’un lot"
+      },
+      "eggs": {
+        "recordCollection": "Ramassage des œufs",
+        "correctCollection": "Correction d’un ramassage",
+        "gradeEggs": "Calibrage des œufs",
+        "discardEggs": "Œufs écartés"
+      },
+      "health": {
+        "planVaccinations": "Plan de vaccination",
+        "addVaccination": "Ajout d’une vaccination",
+        "moveVaccination": "Report d’une vaccination",
+        "cancelVaccination": "Annulation d’une vaccination",
+        "recordVaccination": "Vaccination faite",
+        "recordTreatment": "Traitement",
+        "recordVetVisit": "Visite du vétérinaire"
+      },
+      "sales": {
+        "createBuyer": "Nouvel acheteur",
+        "setBuyerAddress": "Adresse d’un acheteur",
+        "recordSale": "Vente de poulets",
+        "recordHeadSale": "Vente à la tête",
+        "recordConsumption": "Prélèvement",
+        "recordEggSale": "Vente d’œufs",
+        "recordPayment": "Encaissement",
+        "setInstrumentState": "Suivi d’un chèque ou effet",
+        "unblockBuyer": "Déblocage d’un acheteur",
+        "setCreditLimit": "Plafond de crédit",
+        "approveCredit": "Accord de crédit",
+        "cancelSale": "Annulation d’une vente",
+        "correctSale": "Correction du prix d’une vente"
+      },
+      "finance": {
+        "createTreasuryAccount": "Nouveau compte de trésorerie",
+        "recordExpense": "Dépense",
+        "recordTransfer": "Virement entre comptes",
+        "correctExpense": "Correction d’une dépense",
+        "cancelExpense": "Annulation d’une dépense"
+      },
+      "workforce": {
+        "createEmployee": "Nouvel employé",
+        "updateEmployee": "Modification d’un employé",
+        "saveRoutine": "Tâches habituelles",
+        "addTask": "Nouvelle tâche",
+        "cancelTask": "Annulation d’une tâche",
+        "assignTask": "Attribution d’une tâche",
+        "tickTask": "Tâche faite",
+        "untickTask": "Tâche décochée",
+        "checkIn": "Pointage",
+        "setAttendance": "Présence",
+        "recordAdvance": "Avance sur salaire",
+        "addStaffRecord": "Note au dossier d’un employé",
+        "saveLabourRules": "Règles de paie",
+        "validatePay": "Validation de la paie",
+        "payWages": "Paiement des salaires"
+      },
+      "climate": {
+        "saveTargets": "Consignes de climat",
+        "recordReading": "Relevé de climat",
+        "startPowerCut": "Début d’une coupure de courant",
+        "endPowerCut": "Fin d’une coupure de courant"
+      },
+      "market-prices": {
+        "recordPrice": "Prix du marché"
+      },
+      "planning": {
+        "savePlan": "Lot prévu",
+        "cancelPlan": "Annulation d’un lot prévu",
+        "placeFromPlan": "Mise en place d’un lot prévu",
+        "saveDowntime": "Vide sanitaire prévu"
+      },
+      "biosecurity": {
+        "recordVisit": "Entrée d’un visiteur",
+        "recordDisposal": "Élimination de cadavres",
+        "recordManure": "Sortie de fumier",
+        "startCleanout": "Début du nettoyage",
+        "recordCleanoutStep": "Étape du nettoyage",
+        "recordRodentCheck": "Contrôle des rongeurs",
+        "editVisit": "Correction d’une visite",
+        "editDisposal": "Correction d’une élimination",
+        "editManure": "Correction d’une sortie de fumier",
+        "editRodentCheck": "Correction d’un contrôle des rongeurs",
+        "editCleanoutStep": "Correction d’une étape du nettoyage"
+      },
+      "documents": {
+        "createDocument": "Nouveau document",
+        "updateDocument": "Modification d’un document"
+      }
+    }
   },
   "Pwa": {
     "updateAvailable": "Une nouvelle version de l’application est prête.",
@@ -360,9 +488,15 @@
     "issuedLine": "{kind} n° {number} : {amount}, échéance le {date}",
     "debited": "Débité",
     "instrumentNumber": "N° du chèque ou de l’effet (facultatif)",
-    "instrumentDueOn": "Date convenue"
+    "instrumentDueOn": "Date convenue",
+    "purchases": "Achats récents",
+    "purchaseLine": "{date} · {item} · {quantity} · {amount}",
+    "void": "Annuler l’achat",
+    "voidOf": "Annuler l’achat : {purchase}",
+    "voidConfirm": "Annuler l’achat {purchase} ? Le stock reprend sa quantité d’avant et son écriture est contre-passée."
   },
   "Batches": {
+    "noFarming": "Effectifs, saisies du jour et chiffres d’élevage : non transmis à votre rôle.",
     "title": "Bandes",
     "open": "Bandes",
     "none": "Aucune bande pour l’instant.",
@@ -378,6 +512,7 @@
     "deliveryNote": "N° de bon de livraison",
     "chickPrice": "Prix d’un poussin (DH)",
     "chickVat": "TVA de la livraison, en plus du prix (DH, facultatif)",
+    "paidOnDelivery": "Payé à la livraison ? Enregistrez le paiement dans Trésorerie une fois connecté.",
     "dayOldWeight": "Poids moyen à 1 jour (g, facultatif)",
     "save": "Enregistrer",
     "cancel": "Annuler",
@@ -571,7 +706,12 @@
     "IMPORT_FILE_TYPE": "Type de fichier refusé : un fichier texte .sta, .940, .mt940, .fin ou .txt pour le MT940, .csv ou .txt pour le CSV.",
     "IMPORT_CONFLICT": "Un relevé de cette date existe déjà avec un autre solde ou d’autres opérations : rien n’a été importé.",
     "NOT_OVERRIDABLE": "Ce compte ne peut pas être remplacé : seuls les comptes de charges et de produits le peuvent.",
-    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge."
+    "WRONG_ACCOUNT_CLASS": "Le nouveau compte doit être de la même classe que le compte par défaut : une charge reste une charge.",
+    "SALE_HAS_PAYMENT": "Un paiement couvre déjà cette vente, ou son chèque ou sa traite a déjà circulé : elle ne peut plus être annulée ni réduite.",
+    "PURCHASE_HAS_PAYMENT": "Un paiement au fournisseur couvre déjà cet achat, ou la banque a débité son chèque ou sa traite : il ne peut plus être annulé.",
+    "STOCK_ALREADY_USED": "Une partie de ce stock a déjà été utilisée : l’achat ne peut plus être annulé. Corrigez plutôt le stock par un ajustement.",
+    "EXPENSE_PAID": "Un paiement a déjà été enregistré pour cette dépense : elle ne peut plus être corrigée ni annulée.",
+    "EXPENSE_IN_CLOSED_BATCH": "Cette dépense compte dans le résultat d’une bande clôturée : elle ne peut plus changer."
   },
   "Weighing": {
     "title": "Pesée",
@@ -759,7 +899,16 @@
     },
     "consumptionLine": "{date} · Consommation · {who} · {birds} oiseaux",
     "value": "Valeur : {amount}",
-    "saveConsumption": "Enregistrer la consommation"
+    "saveConsumption": "Enregistrer la consommation",
+    "eggLine": "{date} · {buyer} · {eggs} œufs",
+    "correct": "Corriger le prix",
+    "correctOf": "Corriger le prix : {sale}",
+    "correctHint": "Seuls les prix et la TVA changent ici. Pour une quantité, un acheteur ou une date, annulez la vente puis ressaisissez-la.",
+    "linePrice": "Prix · {what} (DH)",
+    "saveCorrection": "Enregistrer le prix",
+    "void": "Annuler la vente",
+    "voidOf": "Annuler la vente : {sale}",
+    "voidConfirm": "Annuler {sale} ? Les oiseaux ou les œufs reviennent et son écriture est contre-passée. Vous pourrez la ressaisir."
   },
   "Receivables": {
     "title": "Créances",
@@ -774,7 +923,7 @@
     "method": "Mode de paiement",
     "save": "Enregistrer le paiement",
     "cancel": "Annuler",
-    "forbidden": "Les créances sont réservées au propriétaire et au gérant.",
+    "forbidden": "Les créances sont réservées au propriétaire, au gérant et au comptable.",
     "portfolio": "Chèques et traites reçus",
     "portfolioNone": "Aucun chèque ni traite en attente.",
     "instrument": "{kind, select, cheque {Chèque} other {Traite}}{number, select, none {} other { n° {number}}} de {buyer} : {amount}, au {date}",
@@ -841,6 +990,7 @@
     "editedWith": "Édité avec {app}"
   },
   "Closing": {
+    "costOnline": "Coût et coût au kg visibles en ligne.",
     "open": "Voir le bilan",
     "summary": "Bilan de la bande",
     "closedOn": "Bande clôturée le {date}",
@@ -865,7 +1015,7 @@
   "Expenses": {
     "title": "Dépense rapide",
     "open": "Dépense rapide",
-    "forbidden": "Les dépenses et la trésorerie sont réservées au propriétaire et au gérant.",
+    "forbidden": "Les dépenses sont réservées au propriétaire et au gérant.",
     "category": "Nature",
     "categories": {
       "electricity": "Électricité",
@@ -902,9 +1052,18 @@
     "receiptOf": "Voir le reçu : {expense}",
     "receiptMissing": "Reçu à ajouter (après envoi, avec du réseau)",
     "receiptAdd": "Ajouter le reçu",
-    "bankFeesAccount": "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord."
+    "bankFeesAccount": "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord.",
+    "correct": "Corriger",
+    "correctOf": "Corriger la dépense : {expense}",
+    "correcting": "Correction : {expense}",
+    "saveCorrection": "Enregistrer la correction",
+    "keep": "Ne pas corriger",
+    "void": "Annuler",
+    "voidOf": "Annuler la dépense : {expense}",
+    "voidConfirm": "Annuler la dépense {expense} ? Son écriture est contre-passée."
   },
   "Treasury": {
+    "forbidden": "La trésorerie est réservée au propriétaire, au gérant et au comptable.",
     "title": "Trésorerie",
     "open": "Trésorerie",
     "balances": "Soldes",
@@ -959,6 +1118,8 @@
     "associateSaved": "Opération enregistrée."
   },
   "Bank": {
+    "forbidden": "Le rapprochement bancaire est réservé au propriétaire, au gérant et au comptable.",
+    "byOwner": "À faire passer par le propriétaire.",
     "open": "Rapprochement bancaire",
     "title": "Rapprochement bancaire",
     "accounts": "Comptes bancaires",
@@ -1027,6 +1188,7 @@
     "bookManual": "Passer une écriture manuelle"
   },
   "Results": {
+    "forbidden": "Les résultats des bandes sont réservés au propriétaire, au gérant et au comptable.",
     "title": "Résultats des bandes",
     "open": "Résultats des bandes",
     "none": "Aucune bande pour l’instant.",
@@ -1044,6 +1206,7 @@
     "byBirdDays": "Une partie des charges communes est répartie selon les sujets présents par jour : aucune bande n’avait de poids selon la clé choisie sur la période."
   },
   "Budget": {
+    "forbidden": "Le budget d’une bande est réservé au propriétaire, au gérant et au comptable.",
     "title": "Budget d’une bande",
     "open": "Budget et seuil de rentabilité",
     "basedOn": "Copié de la bande",
@@ -1083,6 +1246,7 @@
     "cashNote": "Chaque dépense est payée le jour où elle a lieu : les délais de paiement des fournisseurs ne sont pas enregistrés. Semaine 1 : le jour de la mise en place et les 6 jours suivants."
   },
   "Books": {
+    "forbidden": "La comptabilité est réservée au propriétaire, au gérant et au comptable.",
     "open": "Comptabilité",
     "titleLedger": "Comptabilité",
     "titleCashBook": "Livre des recettes et dépenses",
@@ -1188,6 +1352,7 @@
     }
   },
   "Threshold": {
+    "forbidden": "Le seuil d’exonération est réservé au propriétaire, au gérant et au comptable.",
     "open": "Seuil des 5 M DH",
     "title": "Seuil d’exonération : {amount}",
     "none": "Aucun seuil configuré pour cette date.",
@@ -1201,6 +1366,7 @@
     "overShort": "au-dessus du seuil"
   },
   "Count": {
+    "forbidden": "L’inventaire de fin d’exercice est réservé au propriétaire, au gérant et au comptable.",
     "open": "Inventaire de fin d’exercice",
     "title": "Inventaire de fin d’exercice",
     "year": "Exercice",
@@ -1288,6 +1454,7 @@
     }
   },
   "Close": {
+    "forbidden": "La clôture est réservée au propriétaire, au gérant et au comptable.",
     "open": "Préparer la clôture",
     "title": "Préparer la clôture",
     "hint": "Les écritures de fin d’exercice, en opérations diverses (OD) au {day}. Vérifiez-les avant de les comptabiliser : une nouvelle exécution ne passe que ce qui a changé, en annulant la version précédente.",
@@ -1367,6 +1534,7 @@
     "opened": "Exercice ouvert. Écritures d’ouverture passées : {count}."
   },
   "Assets": {
+    "forbidden": "Les immobilisations sont réservées au propriétaire, au gérant et au comptable.",
     "open": "Immobilisations",
     "title": "Immobilisations",
     "hint": "Amortissement linéaire par mois entiers : le mois de mise en service compte en entier, celui de la cession non. La durée et la valeur résiduelle sont les vôtres, selon l’expert-comptable ou les règles fiscales. Les dotations de l’exercice sont passées à la clôture.",
@@ -1457,6 +1625,7 @@
     "cashBook": "Livre des recettes et dépenses : le registre et les plans d’amortissement seulement. Rien n’est comptabilisé, et la sortie de caisse ou de banque de l’achat n’apparaît pas dans le livre (question posée à l’expert-comptable)."
   },
   "Loans": {
+    "forbidden": "Les emprunts et subventions sont réservés au propriétaire, au gérant et au comptable.",
     "open": "Emprunts et subventions",
     "title": "Emprunts et subventions",
     "hint": "Saisissez l’emprunt depuis le contrat : l’échéancier est calculé, les intérêts d’une période étant le taux annuel divisé par le nombre de périodes de l’année, sans compter les jours. Ajustez chaque ligne au tableau de la banque, au centime, puis confirmez : les lignes ne changent plus. Pas d’intérêts courus à la clôture : une écriture manuelle si l’expert-comptable le demande.",
@@ -1577,7 +1746,7 @@
   "Staff": {
     "title": "Personnel",
     "open": "Personnel",
-    "forbidden": "Le personnel est réservé au propriétaire et au gérant.",
+    "forbidden": "Le personnel est réservé au propriétaire, au gérant et au comptable.",
     "list": "Ouvriers",
     "add": "Ajouter un ouvrier",
     "edit": "Modifier {name}",
@@ -1691,6 +1860,7 @@
     "save": "Enregistrer l’avance"
   },
   "Pay": {
+    "notValidated": "Mois pas encore validé par le propriétaire.",
     "title": "Paie",
     "table": "Paie du mois",
     "days": "Jours",
@@ -2012,6 +2182,7 @@
     "discardFirst": "Des œufs en délai d’attente seraient vendus : écartez d’abord ceux pondus le {days}."
   },
   "Compare": {
+    "costOnline": "Coût au kg visible en ligne.",
     "title": "Comparer les lots",
     "none": "Aucun lot clôturé de ce type.",
     "caption": "Indicateurs par lot clôturé",
@@ -2213,6 +2384,7 @@
     "edit": "Modifier « {title} »"
   },
   "Register": {
+    "incomplete": "Registre incomplet sur ce téléphone : votre rôle ne reçoit pas toutes ses données.",
     "link": "Registre de suivi sanitaire ({language})",
     "title": "Registre de suivi sanitaire",
     "law": "Arrêté n° 2126-05 du 15 décembre 2005 (décret n° 2-04-684, art. 8)",
@@ -2315,7 +2487,7 @@
   },
   "Report": {
     "link": "Rapport de bande",
-    "forbidden": "Le rapport de bande est réservé au propriétaire et au gérant.",
+    "forbidden": "Le rapport de bande est réservé au propriétaire, au gérant et au comptable.",
     "notFound": "Bande introuvable sur ce téléphone.",
     "title": "Rapport de bande",
     "subtitle": "{house} · mise en place le {date}",
@@ -2469,7 +2641,10 @@
       }
     },
     "save": "Enregistrer",
-    "saved": "Paramètres enregistrés."
+    "saved": "Paramètres enregistrés.",
+    "choicesFirst": "Choisissez la tenue des comptes, la TVA, le début d’exercice… avant la première écriture. Une mise en place, un achat ou une dépense en passent une dès leur synchronisation ; ces choix ne changent ensuite qu’au prochain exercice.",
+    "later": "Plus tard",
+    "lockedHow": "Pour les changer : le {day}, premier jour du prochain exercice, revenez ici avant toute écriture de ce nouvel exercice."
   },
   "Chart": {
     "open": "Plan de comptes",

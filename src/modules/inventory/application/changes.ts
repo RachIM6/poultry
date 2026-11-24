@@ -7,33 +7,39 @@ import type { IssuedDebitDto, PurchaseDto, SupplierPaymentDto } from "@/modules/
 
 export type PurchaseChange = { version: bigint; id: string; farmId: string; day: FarmDay; itemKind: string; amountCentimes: bigint; paidCentimes: bigint; vatCentimes: bigint; paidMethod: string };
 
+/** FN7, SPEC-finance §9 "Cancelled records": a purchase cancelled since; finance reverses its standing entry. */
+export type Voided = { version: bigint; voided: string };
+
 /**
- * For finance (SPEC-finance FN7): purchases recorded or changed after `after` (this organisation's change-log
- * version), oldest first, with the kind of item bought (it picks the charge account). Each of these reads also returns
- * `readTo`, the last version it read (deletions and dropped changes included), where finance's cursor moves (§9).
+ * For finance (SPEC-finance FN7): purchases recorded, changed or cancelled after `after` (this organisation's
+ * change-log version), oldest first, with the kind of item bought (it picks the charge account). Each of these reads
+ * also returns `readTo`, the last version it read (dropped changes included), where finance's cursor moves (§9).
  */
-export async function purchasesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: PurchaseChange[]; readTo: bigint }> {
+export async function purchasesChangedSince(tx: Tx, ctx: TenantContext, after: bigint, limit = 500): Promise<{ items: (PurchaseChange | Voided)[]; readTo: bigint }> {
   const changes = await tx.change.findMany({
     where: { organizationId: ctx.organizationId, entity: "purchase", version: { gt: after } },
     orderBy: { version: "asc" },
     take: limit,
   });
-  const purchases = changes.filter((c) => c.data !== null).map((c) => ({ version: c.version, p: c.data as unknown as PurchaseDto & Required<Omit<PurchaseDto, "vatCentimes" | "paidMethod">> }));
-  const items = await tx.stockItem.findMany({ where: { organizationId: ctx.organizationId, id: { in: purchases.map((x) => x.p.stockItemId) } } });
+  const purchases = changes.filter((c) => c.data !== null).map((c) => c.data as unknown as PurchaseDto & Required<Omit<PurchaseDto, "vatCentimes" | "paidMethod">>);
+  const items = await tx.stockItem.findMany({ where: { organizationId: ctx.organizationId, id: { in: purchases.map((p) => p.stockItemId) } } });
   const kindOf = new Map(items.map((i) => [i.id, i.kind]));
-  const readTo = changes.at(-1)?.version ?? after;
-  const out = purchases.map(({ version, p }) => ({
-    version,
-    id: p.id,
-    farmId: p.farmId,
-    day: p.day as FarmDay,
-    itemKind: kindOf.get(p.stockItemId) ?? "other",
-    amountCentimes: BigInt(p.amountCentimes),
-    paidCentimes: BigInt(p.paidCentimes),
-    vatCentimes: BigInt(p.vatCentimes ?? 0), // absent before T39
-    paidMethod: p.paidMethod ?? "cash", // absent before purchases had one: cash, as they were posted
-  }));
-  return { items: out, readTo };
+  const out = changes.map(({ version, entityId, data }): PurchaseChange | Voided => {
+    if (data === null) return { version, voided: entityId };
+    const p = data as unknown as (typeof purchases)[number];
+    return {
+      version,
+      id: p.id,
+      farmId: p.farmId,
+      day: p.day as FarmDay,
+      itemKind: kindOf.get(p.stockItemId) ?? "other",
+      amountCentimes: BigInt(p.amountCentimes),
+      paidCentimes: BigInt(p.paidCentimes),
+      vatCentimes: BigInt(p.vatCentimes ?? 0), // absent before T39
+      paidMethod: p.paidMethod ?? "cash", // absent before purchases had one: cash, as they were posted
+    };
+  });
+  return { items: out, readTo: changes.at(-1)?.version ?? after };
 }
 
 /** For finance (SPEC-finance FN6, FN7): later supplier payments recorded after `after`, oldest first. */

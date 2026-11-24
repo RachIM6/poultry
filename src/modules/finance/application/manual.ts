@@ -2,7 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { daysBetween, farmDayOf, nextFarmDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
@@ -25,7 +25,7 @@ export async function postManualEntry(ctx: TenantContext, input: unknown, clock:
   if (!parsed.success) return fail("INVALID_INPUT");
   const e = parsed.data;
   const day = e.day as FarmDay;
-  if (daysBetween(day, nextFarmDay(farmDayOf(clock.now()))) < 0) return fail("DAY_IN_FUTURE");
+  if (daysBetween(day, latestRecordableDay(clock)) < 0) return fail("DAY_IN_FUTURE");
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
   if (!entity) return fail("NOT_FOUND");
   if (entity.accountingProfile.books !== "ledger") return fail("CASH_BOOK_NO_MANUAL_ENTRY");

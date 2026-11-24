@@ -35,8 +35,8 @@ describe("attendance (SPEC-m4 WF9)", () => {
     expect(await statuses(said, [m(M.checkIn, checkIn(khalidId))])).toEqual(["errors.NOT_FOUND"]);
     expect(await statuses(said, [m(M.checkIn, checkIn(saidId)), m(M.checkIn, checkIn(saidId, "07:10"))])).toEqual(["applied", "applied"]);
     expect(await db.attendance.findUniqueOrThrow({ where: { id: attendanceId(saidId, today) } })).toMatchObject({ status: "present", arrivedAt: "06:30" });
-    const tomorrow = farmDayOf(new Date(Date.now() + 86_400_000));
-    expect(await statuses(said, [m(M.checkIn, checkIn(saidId, "06:30", tomorrow))])).toEqual(["errors.DAY_IN_FUTURE"]);
+    const afterTomorrow = farmDayOf(new Date(Date.now() + 2 * 86_400_000)); // tomorrow passes: a phone may run ahead
+    expect(await statuses(said, [m(M.checkIn, checkIn(saidId, "06:30", afterTomorrow))])).toEqual(["errors.DAY_IN_FUTURE"]);
     const yesterday = farmDayOf(new Date(Date.now() - 86_400_000));
     expect(await statuses(said, [m(M.checkIn, checkIn(saidId, "06:30", yesterday))])).toEqual(["errors.INVALID_INPUT"]); // not the day the phone recorded it
   });

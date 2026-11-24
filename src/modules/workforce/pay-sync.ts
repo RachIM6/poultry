@@ -1,7 +1,7 @@
 import { audit } from "@/lib/audit";
 import type { Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
-import { farmDayOf } from "@/lib/kernel/farm-day";
+import { farmDayOf, latestRecordableDay } from "@/lib/kernel/farm-day";
 import { fail, ok } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import { defineMutation, recordChange, type SyncRegistry } from "@/lib/sync/server";
@@ -54,7 +54,7 @@ export const paySync: SyncRegistry = {
       async apply(tx, ctx, r, meta) {
         const employee = await tx.employee.findFirst({ where: { id: r.employeeId, organizationId: ctx.organizationId }, select: { farmId: true } });
         if (!employee) return fail("NOT_FOUND");
-        if (r.day > farmDayOf(clock.now())) return fail("DAY_IN_FUTURE");
+        if (r.day > latestRecordableDay(clock)) return fail("DAY_IN_FUTURE");
         if (await tx.staffRecord.findUnique({ where: { id: r.id }, select: { id: true } })) return fail("ALREADY_EXISTS");
         const dto: StaffRecordDto = { topic: null, daysOff: null, ...r, farmId: employee.farmId };
         await tx.staffRecord.create({ data: { ...dto, day: date(dto.day), organizationId: ctx.organizationId, recordedBy: ctx.userId } });

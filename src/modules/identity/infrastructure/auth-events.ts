@@ -15,7 +15,10 @@ export type AuthAction =
   | "reset_failed"
   | "invite_issued"
   | "invite_accepted"
-  | "invite_failed";
+  | "invite_failed"
+  // member_export, member_delete: written by the operator tools (src/ops/member-data.ts), not here.
+  | "member_export"
+  | "member_delete";
 
 /** Who made the request, as far as the server can tell. Coarse on purpose (law 09-08). */
 export type Client = { ip?: string; subnet?: string; userAgent?: string };

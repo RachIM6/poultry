@@ -12,6 +12,7 @@ export {
   addOwner,
   chooseOrganization,
   getTenantContext,
+  getWriteContext,
   liveRoles,
   localesOf,
   lockForOnboarding,

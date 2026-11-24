@@ -74,7 +74,9 @@ export async function claimInvitation(tx: Tx, userId: string, rawCode: unknown, 
   const code = normalizeCode(rawCode);
   if (!code) return fail("INVALID_INVITE_CODE");
   const [inv] = await tx.$queryRaw<{ id: string; organizationId: string; role: Role; accessUntil: Date | null; expiresAt: Date }[]>`
-    SELECT id, "organizationId", role, "accessUntil", "expiresAt" FROM "Invitation" WHERE "codeHash" = ${codeHash("invite", code)} FOR UPDATE`;
+    SELECT i.id, i."organizationId", i.role, i."accessUntil", i."expiresAt" FROM "Invitation" i
+    JOIN "Organization" o ON o.id = i."organizationId" AND o."leftAt" IS NULL -- a left organisation takes no one new
+    WHERE i."codeHash" = ${codeHash("invite", code)} FOR UPDATE OF i`;
   if (!inv || inv.expiresAt <= clock.now()) return fail("INVALID_INVITE_CODE");
   const membership = await tx.membership.upsert({
     where: { organizationId_userId: { organizationId: inv.organizationId, userId } },
@@ -208,7 +210,7 @@ export async function cancelInvitation(ctx: TenantContext, raw: unknown): Promis
 export async function acceptInvitations(userId: string, phoneNumber: string, clock: Clock = systemClock) {
   await db.$transaction(async (tx) => {
     if ((await tx.membership.count({ where: { userId } })) > 0) return;
-    const pending = await tx.invitation.findMany({ where: { phoneNumber, expiresAt: { gt: clock.now() } } });
+    const pending = await tx.invitation.findMany({ where: { phoneNumber, expiresAt: { gt: clock.now() }, organization: { leftAt: null } } }); // a left organisation takes no one new
     for (const inv of pending) {
       const membership = await tx.membership.upsert({
         where: { organizationId_userId: { organizationId: inv.organizationId, userId } },

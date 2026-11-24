@@ -14,7 +14,7 @@ const chosenOrganization = (headers: Headers) =>
 // SPEC-m5 PA3: a partner's membership opens the organisation up to its end day, included.
 const live = (clock: Clock) => ({ OR: [{ accessUntil: null }, { accessUntil: { gte: new Date(`${farmDayOf(clock.now())}T00:00:00Z`) } }] });
 const liveMemberships = (userId: string, clock: Clock) =>
-  db.membership.findMany({ where: { userId, ...live(clock) }, orderBy: { createdAt: "asc" }, include: { organization: { select: { name: true } } } });
+  db.membership.findMany({ where: { userId, ...live(clock) }, orderBy: { createdAt: "asc" }, include: { organization: { select: { name: true, leftAt: true } } } });
 /** The membership a request opens: the chosen organisation when it is a live membership, else the oldest. */
 const opened = <M extends { organizationId: string }>(memberships: M[], headers: Headers) => memberships.find((m) => m.organizationId === chosenOrganization(headers)) ?? memberships[0];
 const openedMembership = async (userId: string, headers: Headers, clock: Clock) => opened(await liveMemberships(userId, clock), headers);
@@ -28,7 +28,19 @@ export async function getTenantContext(headers: Headers, clock: Clock = systemCl
   if (!session) return fail("UNAUTHENTICATED");
   const membership = await openedMembership(session.userId, headers, clock);
   if (!membership) return fail("NO_MEMBERSHIP");
-  return ok({ userId: session.userId, organizationId: membership.organizationId, role: membership.role });
+  const { leftAt } = membership.organization; // docs/data-requests.md: read-only once it left the platform
+  return ok({ userId: session.userId, organizationId: membership.organizationId, role: membership.role, ...(leftAt && { leftAt: leftAt.toISOString() }) });
+}
+
+/**
+ * The tenant context of a server action or a write route handler: refused once the organisation left the platform, so
+ * its 30 days before deletion are read-only (docs/data-requests.md). Sync pushes refuse each mutation instead
+ * (lib/sync/server.ts), so the phone lists what was refused.
+ */
+export async function getWriteContext(headers: Headers, clock: Clock = systemClock): Promise<Result<TenantContext, "UNAUTHENTICATED" | "ORGANIZATION_LEFT">> {
+  const ctx = await getTenantContext(headers, clock);
+  if (!ctx.ok) return fail("UNAUTHENTICATED");
+  return ctx.value.leftAt ? fail("ORGANIZATION_LEFT") : ctx;
 }
 
 export type MyOrganizations = {
@@ -44,7 +56,7 @@ export async function myOrganizations(headers: Headers, clock: Clock = systemClo
   const [memberships, invitations] = await Promise.all([
     liveMemberships(session.userId, clock),
     // ADR-015: only a phone an SMS code verified lists that number's invitations; otherwise joining needs the code.
-    session.phone && session.phoneVerified ? db.invitation.findMany({ where: { phoneNumber: session.phone, expiresAt: { gt: clock.now() } }, include: { organization: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
+    session.phone && session.phoneVerified ? db.invitation.findMany({ where: { phoneNumber: session.phone, expiresAt: { gt: clock.now() }, organization: { leftAt: null } }, include: { organization: { select: { name: true } } }, orderBy: { createdAt: "asc" } }) : [],
   ]);
   return ok({
     current: opened(memberships, headers)?.organizationId ?? null, // the one getTenantContext opens
@@ -85,7 +97,7 @@ export async function acceptInvitation(headers: Headers, invitationId: string, c
   if (!session?.phone || !session.phoneVerified) return fail("UNAUTHENTICATED");
   const phone = session.phone;
   return db.$transaction(async (tx) => {
-    const inv = await tx.invitation.findFirst({ where: { id: invitationId, phoneNumber: phone, expiresAt: { gt: clock.now() } } });
+    const inv = await tx.invitation.findFirst({ where: { id: invitationId, phoneNumber: phone, expiresAt: { gt: clock.now() }, organization: { leftAt: null } } });
     if (!inv) return fail("NOT_FOUND");
     const membership = await tx.membership.upsert({
       where: { organizationId_userId: { organizationId: inv.organizationId, userId: session.userId } },

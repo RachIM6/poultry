@@ -250,6 +250,15 @@ describe("invite codes (ADR-015)", () => {
     expect((await events("invite_failed")).length).toBeGreaterThanOrEqual(3);
   });
 
+  it("a left organisation takes no one new: its codes are refused (docs/data-requests.md)", async () => {
+    const left = await tenant("+212600000013", "Ferme Partie");
+    const code = await invite(left, "0643000008");
+    await db.organization.update({ where: { id: left.organizationId }, data: { leftAt: new Date() } });
+    expect(await answer(await signUp({ phone: "0643000008", inviteCode: code }))).toMatchObject({ status: 400, messageKey: "errors.INVALID_INVITE_CODE" });
+    const signedIn = cookieOf(await signUp({ phone: "0643000008" }));
+    expect(await redeemInvite(signedIn, code)).toEqual({ ok: false, error: "INVALID_INVITE_CODE" });
+  });
+
   it("a partner joins with a code: role and end day from the invitation", async () => {
     const until = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
     const code = await invite(a, "0643000006", "vet", until);

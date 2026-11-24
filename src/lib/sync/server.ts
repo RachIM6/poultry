@@ -104,6 +104,7 @@ function claimed(ctx: TenantContext, m: PushedMutation, decide: (tx: Tx) => Prom
 
 async function decide(tx: Tx, ctx: TenantContext, m: PushedMutation, registry: SyncRegistry): Promise<MutationResult> {
   const handler = Object.hasOwn(registry.mutations, m.type) ? registry.mutations[m.type] : undefined;
+  if (ctx.leftAt) return rejected("ORGANIZATION_LEFT"); // read-only once it left (docs/data-requests.md)
   if (!handler) return rejected("UNKNOWN_MUTATION");
   if (!can(ctx, handler.action)) return rejected("FORBIDDEN"); // re-checked against today's role (poultry-auth §0.5)
   const payload = handler.schema.safeParse(m.payload);

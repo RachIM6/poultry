@@ -4,15 +4,17 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
+import { useBatchResults } from "@/components/batch-results";
 import type { Write } from "@/components/daily-entry";
 import { formatDay, formatKg, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, FLOCK_MUTATIONS as M, TRANSFER_REASON, ageOfBatch, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
 import { field, primary, secondary } from "@/components/ui";
 
-// SPEC B6 on the batch screen: its other costs (read-only, FN13), closing by hand with a reason, and the locked figures once
-// closed. The last sale closes the batch by itself (sales). The cost per kg comes from the server, which values the
-// consumptions; until the next sync after closing, the phone shows the batch closed without it.
+// SPEC B6 on the batch screen: its other costs (read-only, FN13), closing by hand with a reason, and the figures once
+// closed. The last sale closes the batch by itself (sales); until the next sync after closing, the phone shows the batch
+// closed without its kg sold. Its cost and cost per kg are FN13's, read from the server when online, the same as
+// /results (SPEC-finance §9 "One cost per kg"), not B6's figure locked on the batch.
 
 const today = () => farmDayOf(new Date());
 const aggregate = (b: BatchDto) => Batch.rehydrate({ ...b, placedOn: b.placedOn as FarmDay, chickUnitPriceCentimes: 0n }, b.status);
@@ -30,9 +32,10 @@ function Field({ label, children }: { label: string; children: (id: string) => R
 /** The batch closed locally, as the server will close it (its figures arrive with the next sync). */
 export const closedLocally = (batch: BatchDto, day: string, reason: string | null): BatchDto => ({ ...batch, status: "closed", closedOn: day, closeReason: reason });
 
-export function ClosedSummary({ batch }: { batch: BatchDto }) {
+export function ClosedSummary({ batch, money }: { batch: BatchDto; money: boolean }) {
   const t = useTranslations("Closing");
   const locale = useLocale();
+  const result = useBatchResults(money, `${batch.id}:${batch.soldGrams}`)?.find((r) => r.id === batch.id);
   return (
     <section className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-3" aria-label={t("summary")}>
       <span className="font-semibold">{t("closedOn", { date: formatDay((batch.closedOn ?? batch.placedOn) as FarmDay, locale) })}</span>
@@ -42,9 +45,11 @@ export function ClosedSummary({ batch }: { batch: BatchDto }) {
       ) : (
         <>
           <span>{t("sold", { kg: formatKg(batch.soldGrams) })}</span>
-          {batch.costCentimes && <span>{t("cost", { amount: formatMoney(BigInt(batch.costCentimes)) })}</span>}
-          {batch.costPerKgCentimes !== undefined && (
-            <span className="font-semibold">{batch.costPerKgCentimes === null ? t("noCostPerKg") : t("costPerKg", { amount: formatMoney(BigInt(batch.costPerKgCentimes)) })}</span>
+          {result && (
+            <>
+              <span>{t("cost", { amount: formatMoney(BigInt(result.costCentimes)) })}</span>
+              <span className="font-semibold">{result.costPerKgCentimes === null ? t("noCostPerKg") : t("costPerKg", { amount: formatMoney(BigInt(result.costPerKgCentimes)) })}</span>
+            </>
           )}
         </>
       )}

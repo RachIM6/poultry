@@ -1505,6 +1505,8 @@
     "margin": "الهامش: {margin}",
     "costPerKg": "{cost} / كغ",
     "laying": "الوضع {rate} % · {eggs} بيضة في آخر يوم جمع",
+    "layingStandard": "{gap} نقطة مقارنة بالمعيار ({standard} %)",
+    "weight": "متوسط الوزن {weight}",
     "fcr": "معامل التحويل الغذائي {fcr}",
     "eggsYesterday": "البيض المجموع أمس"
   },

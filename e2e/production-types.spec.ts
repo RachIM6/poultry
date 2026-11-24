@@ -319,6 +319,9 @@ test("the home shows a broiler batch, a layer batch with yesterday's eggs and a 
   await page.goto("/fr/dashboard");
   await expect(page.getByText("IC 0,50", { exact: true })).toBeVisible();
   await expect(page.getByText("Homogénéité 83,3 %", { exact: true })).toBeVisible();
+  // D1: the latest weighing's average; no curve is seeded (OQ5), so no gap to the standard.
+  await expect(page.getByText("Poids moyen 0,1 kg", { exact: true })).toBeVisible(); // broilers: 10 kg ÷ 100 birds
+  await expect(page.getByText("Poids moyen 1 kg", { exact: true })).toBeVisible(); // pullets: 6 000 g ÷ 6
   await expect(page.getByText(/Œufs ramassés hier/).locator("..")).toContainText(/1.713/);
   await expect(page.getByText(/Ponte 28,5 % · 1.713 œufs le dernier jour ramassé/)).toBeVisible(); // 1 713 ÷ 6 000 = 28,549…
   await expect(page.getByText("Jour 3 sur 42")).toBeVisible();

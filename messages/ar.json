@@ -142,7 +142,8 @@
         "adjustStock": "تسوية المخزون",
         "setThreshold": "حد تنبيه المخزون",
         "recordSupplierPayment": "أداء لمورّد",
-        "debitIssued": "خصم شيك أو كمبيالة صادرة"
+        "debitIssued": "خصم شيك أو كمبيالة صادرة",
+        "cancelPurchase": "إلغاء شراء"
       },
       "flock": {
         "placeBatch": "وضع دفعة",
@@ -178,12 +179,16 @@
         "setInstrumentState": "تتبع شيك أو كمبيالة",
         "unblockBuyer": "رفع الحظر عن مشترٍ",
         "setCreditLimit": "سقف الائتمان",
-        "approveCredit": "الموافقة على ائتمان"
+        "approveCredit": "الموافقة على ائتمان",
+        "cancelSale": "إلغاء بيع",
+        "correctSale": "تصحيح ثمن بيع"
       },
       "finance": {
         "createTreasuryAccount": "حساب خزينة جديد",
         "recordExpense": "مصروف",
-        "recordTransfer": "تحويل بين الحسابات"
+        "recordTransfer": "تحويل بين الحسابات",
+        "correctExpense": "تصحيح مصروف",
+        "cancelExpense": "إلغاء مصروف"
       },
       "workforce": {
         "createEmployee": "عامل جديد",

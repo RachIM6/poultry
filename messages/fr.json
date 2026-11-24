@@ -142,7 +142,8 @@
         "adjustStock": "Ajustement de stock",
         "setThreshold": "Seuil d’alerte de stock",
         "recordSupplierPayment": "Paiement d’un fournisseur",
-        "debitIssued": "Débit d’un chèque ou effet émis"
+        "debitIssued": "Débit d’un chèque ou effet émis",
+        "cancelPurchase": "Annulation d’un achat"
       },
       "flock": {
         "placeBatch": "Mise en place d’un lot",
@@ -178,12 +179,16 @@
         "setInstrumentState": "Suivi d’un chèque ou effet",
         "unblockBuyer": "Déblocage d’un acheteur",
         "setCreditLimit": "Plafond de crédit",
-        "approveCredit": "Accord de crédit"
+        "approveCredit": "Accord de crédit",
+        "cancelSale": "Annulation d’une vente",
+        "correctSale": "Correction du prix d’une vente"
       },
       "finance": {
         "createTreasuryAccount": "Nouveau compte de trésorerie",
         "recordExpense": "Dépense",
-        "recordTransfer": "Virement entre comptes"
+        "recordTransfer": "Virement entre comptes",
+        "correctExpense": "Correction d’une dépense",
+        "cancelExpense": "Annulation d’une dépense"
       },
       "workforce": {
         "createEmployee": "Nouvel employé",

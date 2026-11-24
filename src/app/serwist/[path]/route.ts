@@ -1,19 +1,13 @@
-import { readFileSync } from "node:fs";
+import { cacheLife } from "next/cache";
 import { createSerwistRoute } from "@serwist/turbopack";
 
-// Revision for the precached HTML: Next's id for this build, so a new build refreshes the shells on every phone and a
-// restart doesn't. `next start` refuses to run without .next/BUILD_ID, so the fallback is only seen while `next build`
-// runs (the file is written at its end; this route is dynamic, nothing built then is served) and in `next dev`, where
-// Serwist drops these entries. Never random: a random id would re-download every shell after each restart.
-const revision = (() => {
-  try {
-    return readFileSync(".next/BUILD_ID", "utf8").trim();
-  } catch {
-    return "unbuilt";
-  }
-})();
+// Revision for the precached HTML: one id per build (next.config.ts: SW_REVISION, Vercel's deployment id or a random
+// one, inlined at build time), so a new build refreshes the shells on every phone and a restart or a cold start doesn't.
+// Not .next/BUILD_ID: Next writes it after the build workers have loaded this module, so they read a missing file or the
+// previous build's. The fallback is for `next dev`, where Serwist drops these entries.
+const revision = process.env.SW_REVISION || "unbuilt";
 
-const { generateStaticParams, GET } = createSerwistRoute({
+const serwist = createSerwistRoute({
   swSrc: "src/sw.ts",
   useNativeEsbuild: true,
   // Serwist's defaults, plus the font files next/font preloads (the ".p." ones), so the first offline launch has fonts.
@@ -23,7 +17,22 @@ const { generateStaticParams, GET } = createSerwistRoute({
 });
 
 // The helper also returns `dynamic`, `dynamicParams` and `revalidate` segment configs, which cacheComponents
-// rejects (Serwist 9 targets apps without it).
-// ponytail: so the route is dynamic: esbuild bundles the worker on the first request after each server start and
-// keeps it in memory. Fine on a long-running server; revisit with the hosting choice (OQ1) or Serwist 10.
-export { generateStaticParams, GET };
+// rejects (Serwist 9 targets apps without it). Its GET bundles the worker with esbuild on a cold call: I/O that stops a
+// cacheComponents prerender, so whether `next build` made sw.js static depended on which build worker served it. Cached,
+// the bundle is always part of the prerender, and the worker is served as a static file: a Vercel function couldn't
+// bundle it (no src/, no esbuild, no .next/static in it).
+// ponytail: "max" regenerates after 30 days without a deploy, which fails on Vercel and keeps serving the built file;
+// only devtools' sw.js.map is ever asked of the function. Revisit with Serwist 10.
+async function bundled(path: string) {
+  "use cache";
+  cacheLife("max");
+  const res = await serwist.GET(new Request("http://localhost/"), { params: Promise.resolve({ path }) });
+  return { body: await res.text(), type: res.headers.get("content-type") ?? "text/plain" };
+}
+
+export const { generateStaticParams } = serwist;
+
+export async function GET(_: Request, { params }: { params: Promise<{ path: string }> }) {
+  const { body, type } = await bundled((await params).path);
+  return new Response(body, { headers: { "Content-Type": type, "Service-Worker-Allowed": "/" } });
+}

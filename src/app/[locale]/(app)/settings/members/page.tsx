@@ -37,7 +37,7 @@ async function Content() {
     <Page width="wide" back="/more" title={t("title")}>
       <div className={splitNarrow}>
         <div className="flex flex-col gap-5">
-          <ul className={`${rowTable} lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)]`} aria-label={t("title")}>
+          <ul className={`${rowTable} lg:grid-cols-[auto_minmax(0,1fr)]`} aria-label={t("title")}>
             <li aria-hidden="true" className={rowHead}>
               <span>{t("phoneLabel")}</span>
               <span>{t("roleLabel")}</span>

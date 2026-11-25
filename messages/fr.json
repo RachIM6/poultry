@@ -5,6 +5,191 @@
     "description": "Gestion des élevages avicoles",
     "tagline": "L’élevage avicole, jour après jour."
   },
+  "Landing": {
+    "headline": "Le carnet de bord de votre élevage.",
+    "subline": "Saisie du jour, santé, stock, ventes, paie et comptabilité dans une seule application, en arabe et en français, qui marche aussi sans réseau à la ferme.",
+    "species": "Poulet de chair, dinde, poulette, pondeuse, beldi, canard et caille.",
+    "signup": "Créer un compte",
+    "login": "Se connecter",
+    "install": "Installer l’application",
+    "strip": {
+      "house": "Exemple · Bâtiment 1 · Poulet de chair",
+      "label": "Exemple de bande au jour {day} sur {total}, avec un jour non saisi",
+      "dayOf": "Jour {day} sur {total}",
+      "missing": "Jour {day} non saisi",
+      "caption": "Une barre par jour de la bande : un jour oublié se voit tout de suite.",
+      "legendLabel": "Légende",
+      "legend": {
+        "done": "Saisi",
+        "missing": "Manquant",
+        "today": "Aujourd’hui",
+        "vaccine": "Vaccin prévu",
+        "upcoming": "À venir"
+      }
+    },
+    "daily": {
+      "title": "La saisie du jour, même sans réseau",
+      "intro": "L’ouvrier saisit sa journée sur son téléphone, dans le bâtiment. Ce qu’il saisit est gardé sur le téléphone, puis envoyé dès que le réseau revient.",
+      "items": {
+        "dead": {
+          "title": "Morts et causes",
+          "body": "Le nombre de morts du jour et leur cause."
+        },
+        "feed": {
+          "title": "Aliment et eau",
+          "body": "L’aliment consommé est déduit du stock à l’enregistrement."
+        },
+        "eggs": {
+          "title": "Œufs",
+          "body": "Les ramassages du jour et les œufs déclassés, pour les pondeuses."
+        },
+        "weighing": {
+          "title": "Pesées",
+          "body": "Oiseau par oiseau ou en groupe, pour suivre le poids moyen."
+        }
+      }
+    },
+    "health": {
+      "title": "Santé et conformité",
+      "intro": "Le suivi sanitaire se tient au fil des jours, pas la veille d’un contrôle.",
+      "items": {
+        "vaccination": {
+          "title": "Vaccinations",
+          "body": "Le plan de vaccination de la bande, chaque vaccin marqué fait avec son lot."
+        },
+        "treatment": {
+          "title": "Traitements et délais d’attente",
+          "body": "Pendant un délai d’attente, la vente de la bande est refusée."
+        },
+        "register": {
+          "title": "Registre de suivi sanitaire",
+          "body": "Le registre demandé par l’ONSSA, prêt à imprimer en arabe ou en français."
+        },
+        "vet": {
+          "title": "Visites vétérinaires",
+          "body": "Le vétérinaire invité note ses visites, les traitements et les vaccins."
+        },
+        "biosecurity": {
+          "title": "Biosécurité",
+          "body": "Les visiteurs, le nettoyage et le vide sanitaire, la dératisation et ce qui sort de la ferme."
+        },
+        "notifiable": {
+          "title": "Maladies à déclaration obligatoire",
+          "body": "Lesquelles déclarer, à qui, et les textes qui l’imposent."
+        }
+      }
+    },
+    "trade": {
+      "title": "Stock, ventes et acheteurs",
+      "items": {
+        "stock": {
+          "title": "Stock et achats",
+          "body": "Aliment, médicaments et fournitures, ferme par ferme, avec les achats aux fournisseurs."
+        },
+        "sales": {
+          "title": "Ventes",
+          "body": "Chaque vente avec son acheteur et son document d’origine des volailles."
+        },
+        "receivables": {
+          "title": "Créances",
+          "body": "Ce que chaque acheteur doit encore, avec les chèques et les traites à échéance."
+        }
+      }
+    },
+    "staff": {
+      "title": "Personnel et paie",
+      "items": {
+        "workers": {
+          "title": "Ouvriers",
+          "body": "Les fiches du personnel, les formations et les accidents du travail."
+        },
+        "attendance": {
+          "title": "Présence",
+          "body": "Le pointage par l’ouvrier sur son téléphone, ou par le responsable."
+        },
+        "pay": {
+          "title": "Paie",
+          "body": "Le mois avec les avances retenues et les cotisations CNSS et AMO, validé par le propriétaire."
+        }
+      }
+    },
+    "finance": {
+      "title": "La comptabilité de l’exploitation",
+      "intro": "Chaque achat, vente ou dépense est imputé selon le plan comptable de votre entité : vous ne choisissez jamais un numéro de compte.",
+      "items": {
+        "books": {
+          "title": "Livres comptables",
+          "body": "Le plan de comptes du CGNC et le plan comptable agricole, ou un simple livre des recettes et dépenses."
+        },
+        "treasury": {
+          "title": "Trésorerie",
+          "body": "Les soldes de la caisse et des banques, et le rapprochement bancaire."
+        },
+        "budget": {
+          "title": "Budget et seuil de rentabilité",
+          "body": "Le budget d’une bande et le prix de vente à partir duquel elle gagne de l’argent."
+        },
+        "close": {
+          "title": "Clôture de l’exercice",
+          "body": "Les écritures de fin d’année, avec les immobilisations, les emprunts et les subventions."
+        }
+      }
+    },
+    "roles": {
+      "title": "Chacun voit ce qui le concerne",
+      "intro": "Le propriétaire invite chaque membre avec un code à usage unique, à donner en main propre ou par WhatsApp.",
+      "partners": "Le vétérinaire et le comptable peuvent recevoir un accès qui s’arrête à la date que vous choisissez.",
+      "items": {
+        "owner": {
+          "title": "Propriétaire",
+          "body": "Gère l’exploitation et ses membres, valide la paie."
+        },
+        "manager": {
+          "title": "Gérant",
+          "body": "Mène l’élevage au quotidien, sauf les réglages de l’exploitation et les membres."
+        },
+        "worker": {
+          "title": "Ouvrier",
+          "body": "Saisit la journée, les œufs, les soins et sa présence. Il ne voit ni les prix ni les salaires."
+        },
+        "vet": {
+          "title": "Vétérinaire",
+          "body": "Tient le plan de vaccination, les traitements et ses visites."
+        },
+        "accountant": {
+          "title": "Comptable",
+          "body": "Consulte la comptabilité, la trésorerie et la paie."
+        }
+      }
+    },
+    "app": {
+      "title": "En arabe ou en français, sur le téléphone",
+      "items": {
+        "languages": {
+          "title": "Arabe et français",
+          "body": "Chacun choisit sa langue ; en arabe, tout l’écran se lit de droite à gauche."
+        },
+        "install": {
+          "title": "Installable",
+          "body": "L’application s’ajoute à l’écran d’accueil du téléphone, sans passer par une boutique d’applications."
+        },
+        "offline": {
+          "title": "Sans réseau",
+          "body": "Les pages déjà ouvertes restent disponibles et la saisie part au retour du réseau."
+        }
+      }
+    },
+    "closing": {
+      "title": "Commencez par votre première bande",
+      "body": "Créez votre compte, ajoutez votre ferme et ses bâtiments, puis mettez votre bande en place."
+    },
+    "panel": {
+      "daily": "La saisie du jour sur le téléphone, même sans réseau.",
+      "all": "Santé, stock, ventes, paie et comptabilité au même endroit.",
+      "languages": "En arabe et en français."
+    },
+    "footerNav": "Accès au compte"
+  },
   "Demo": {
     "banner": "Démonstration — données fictives uniquement"
   },

@@ -286,8 +286,8 @@ test("the signed-out screens: 44 px targets, named fields, contrast, reflow at 3
   const zoom = await context.newPage();
   await zoom.setViewportSize({ width: ZOOM_WIDTH, height: 640 });
   const failures = empty();
-  // ADR-015: sign in, sign up, join with an invite code, a new password with a reset code.
-  for (const locale of ["fr", "ar"]) for (const path of ["login", "signup", "join", "reset"]) await check(page, `/${locale}/${path}`, failures, zoom);
+  // The landing page, then ADR-015: sign in, sign up, join with an invite code, a new password with a reset code.
+  for (const locale of ["fr", "ar"]) for (const path of ["", "/login", "/signup", "/join", "/reset"]) await check(page, `/${locale}${path}`, failures, zoom);
   report(failures);
 });
 

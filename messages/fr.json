@@ -21,6 +21,11 @@
     "failed": "Pas de réseau ou erreur du serveur : rien n’a été enregistré. Réessayez.",
     "retry": "Réessayer"
   },
+  "NotFound": {
+    "title": "Page introuvable",
+    "body": "Cette adresse ne mène à aucune page. Le lien est peut-être incomplet ou ancien.",
+    "home": "Retour à l’accueil"
+  },
   "Install": {
     "title": "Installer l'application",
     "back": "Retour",
@@ -2680,6 +2685,8 @@
     "yearStart": "Début d’exercice",
     "vat": "TVA",
     "vatRegistered": "Assujetti à la TVA",
+    "vatNotRegistered": "Non assujetti à la TVA",
+    "readOnly": "Lecture seule : seul le propriétaire modifie ces paramètres.",
     "vatHint": "La TVA saisie sur les achats et les ventes est alors comptée à part (34552, 4455). Régime à confirmer avec votre expert-comptable.",
     "hens": "Poules pondeuses et poulettes",
     "hensMethods": {

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { controlled, outboxEmpty, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { v7 as uuidv7 } from "uuid";
+import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T15 acceptance: a batch placed offline counts its age from the placement day; a second open batch in the same house
 // is refused with a clear message (the two-phones case is tested on the server: src/modules/flock/batches.int.test.ts).
@@ -67,4 +68,56 @@ test("a batch placed offline starts at day 0, and a second one in the same house
       [e164],
     );
   await expect.poll(batches).toEqual([{ status: "open", price: "450", chicks: 12_000 }]);
+});
+
+// SPEC B1: the phone refuses, offline, a placement day after the batch's first health record, as the server does: a
+// vet visit, then a treatment started (a vaccine given is the same rule, src/modules/health/domain/plan-edit.ts).
+test("the placement correction is refused offline after a vet visit or a treatment", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const e164 = await ownerWithFarm(page, "Élevage des Corrections");
+  await scopeRemembered(page);
+  const ids = await farmWithBatch(page, "ross-308", farmDaysAgo(10));
+  const medicine = crypto.randomUUID();
+  await pushAs(page, [{ type: "health.recordVetVisit", payload: { id: crypto.randomUUID(), batchId: ids.batch, on: farmDaysAgo(3), vetName: "Dr Alaoui", notes: "" } }]);
+
+  const refused = async (placedOn: string) => {
+    await controlled(page);
+    await referenceCached(page);
+    const open = page.getByRole("button", { name: /^Corriger la mise en place/ });
+    await expect(open).toBeVisible(); // its own chunk, loaded online
+    await context.setOffline(true);
+    await context.route("**", (route) => route.abort("internetdisconnected"));
+    await open.click();
+    const form = page.getByRole("form", { name: "Corriger la mise en place" });
+    await form.getByLabel("Date de mise en place").fill(placedOn);
+    await form.getByRole("button", { name: "Enregistrer la correction" }).click();
+    await expect(form.getByRole("alert")).toHaveText("La mise en place ne peut pas suivre le premier soin saisi (vaccin donné, traitement ou visite du vétérinaire).");
+    await form.getByRole("button", { name: "Annuler" }).click();
+    await context.unroute("**");
+    await context.setOffline(false);
+  };
+  await page.goto(`/fr/batches#${ids.batch}`);
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByRole("list", { name: "Visites vétérinaires" }).getByRole("listitem")).toHaveCount(1, { timeout: 2_000 }); // pulled
+  }).toPass();
+  await refused(farmDaysAgo(2)); // after the visit
+
+  await pushAs(page, [
+    { type: "inventory.createStockItem", payload: { id: medicine, farmId: ids.farm, productId: null, kind: "medicine", name: "Amoxicilline", unit: "ml", lot: "AMX-1", expiresOn: farmDaysAgo(-365) } },
+    { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId: medicine, day: farmDaysAgo(10), quantity: 1000, unitPriceCentimes: "50", paidCentimes: "0", dueOn: null } },
+    { type: "health.recordTreatment", payload: { id: uuidv7(), batchId: ids.batch, stockItemId: medicine, quantity: 100, dose: "1 ml/L", startOn: farmDaysAgo(6), endOn: farmDaysAgo(5), reason: "Toux", prescriber: "Dr Alaoui", withdrawalDays: 0 } },
+  ]);
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByRole("list", { name: "Traitements" }).getByRole("listitem")).toHaveCount(1, { timeout: 2_000 }); // pulled
+  }).toPass();
+  await refused(farmDaysAgo(5)); // before the visit, after the treatment's start
+
+  await outboxEmpty(page); // nothing was queued
+  const placed = await query<{ day: string }>(
+    `SELECT b."placedOn"::text AS day FROM "Batch" b JOIN "Membership" m ON m."organizationId" = b."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`,
+    [e164],
+  );
+  expect(placed).toEqual([{ day: farmDaysAgo(10) }]);
 });

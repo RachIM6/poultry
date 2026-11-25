@@ -39,10 +39,14 @@ import { groupRecords } from "@/offline/group";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useFieldError, useInline } from "@/components/focus";
+import { cell, rowTable, split, splitAside, splitNarrow } from "@/components/layout";
+import { cardRow, tightHead } from "@/components/layout-tight";
 import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC S1–S3 on the static /stock shell: everything from and to the phone's database (ADR-003). Workers get no money
 // from the server at all (I5), so the money parts only render for those allowed to manage stock.
+// Wide screens (tasks/plan-ui.md "Desktop rules"): the items as a table with the forms beside it, then the purchases and
+// the suppliers side by side. The phone keeps its cards, in the same order.
 
 const card = "flex flex-col gap-1 rounded-2xl border border-line bg-card p-3";
 const DEFAULT_UNIT: Record<ItemKind, Unit> = { feed: "kg", vaccine: "dose", medicine: "ml", litter: "kg", gas: "unit", other: "unit" };
@@ -124,53 +128,73 @@ function Stock(scope: Scope) {
     }
   };
 
+  const list = (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-[17px] font-semibold text-ink-2">{t("Stock.items")}</h2>
+      {items.length === 0 ? <p>{t("Stock.noItems")}</p> : (
+        <ul className={`${rowTable} ${manage ? "lg:grid-cols-[minmax(0,1fr)_repeat(5,auto)]" : "lg:grid-cols-[minmax(0,1fr)_repeat(3,auto)]"}`} aria-label={t("Stock.items")}>
+          <li aria-hidden="true" className={tightHead}>
+            <span>{t("Stock.item")}</span>
+            <span>{t("Stock.colOnHand")}</span>
+            {manage && <span>{t("Stock.colValue")}</span>}
+            <span>{t("Stock.editThreshold")}</span>
+            <span>{t("Stock.colState")}</span>
+          </li>
+          {items.map((item) => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              quantity={onHand.get(item.id) ?? 0}
+              value={manage ? valueOf(item.id) : undefined}
+              write={manage ? write : undefined}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+
   return (
     <>
       {farms.length > 1 && (
-        <Select label={t("Stock.farm")} value={farm.id} onChange={setFarmId}>
-          {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-        </Select>
+        <div className="lg:max-w-sm">
+          <Select label={t("Stock.farm")} value={farm.id} onChange={setFarmId}>
+            {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </Select>
+        </div>
       )}
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
       {manage && items.length > 0 && (
         <p className="text-ink-2">{t("Stock.total", { amount: formatMoney(items.reduce((sum, i) => sum + valueOf(i.id), 0n)) })}</p>
       )}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[17px] font-semibold text-ink-2">{t("Stock.items")}</h2>
-        {items.length === 0 ? <p>{t("Stock.noItems")}</p> : (
-          <ul className="flex flex-col gap-3">
-            {items.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                quantity={onHand.get(item.id) ?? 0}
-                value={manage ? valueOf(item.id) : undefined}
-                write={manage ? write : undefined}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-      {manage && (
-        <section className="flex flex-col gap-3">
-          {open === "item" ? (
-            <ItemForm farmId={farm.id} products={reference?.data.products ?? []} write={write} onCancel={close} />
-          ) : open === "purchase" ? (
-            <PurchaseForm items={items} suppliers={suppliers} write={write} onCancel={close} />
-          ) : open === "adjust" ? (
-            <AdjustForm items={items} write={write} onCancel={close} />
-          ) : (
-            <>
-              {items.length > 0 && <button type="button" {...opener("purchase")} className={primary}>{t("Stock.purchase")}</button>}
-              <div className="flex flex-wrap gap-2">
-                {items.length > 0 && <button type="button" {...opener("adjust")} className={secondary}>{t("Stock.adjust")}</button>}
-                <button type="button" {...opener("item")} className={secondary}>{t("Stock.addItem")}</button>
-              </div>
-            </>
-          )}
-          <Purchases items={items} purchases={of<PurchaseDto>("purchase")} movements={movements} onHand={onHand} write={write} />
-          <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} payments={of<SupplierPaymentDto>("supplierPayment")} debits={of<IssuedDebitDto>("issuedDebit")} write={write} />
-        </section>
+      {!manage ? list : (
+        <>
+          {/* Wide screens: the forms open beside the items, not below them. */}
+          <div className={splitNarrow}>
+            {list}
+            <section className={`flex flex-col gap-3 ${splitAside}`}>
+              {open === "item" ? (
+                <ItemForm farmId={farm.id} products={reference?.data.products ?? []} write={write} onCancel={close} />
+              ) : open === "purchase" ? (
+                <PurchaseForm items={items} suppliers={suppliers} write={write} onCancel={close} />
+              ) : open === "adjust" ? (
+                <AdjustForm items={items} write={write} onCancel={close} />
+              ) : (
+                <>
+                  {items.length > 0 && <button type="button" {...opener("purchase")} className={primary}>{t("Stock.purchase")}</button>}
+                  <div className="flex flex-wrap gap-2">
+                    {items.length > 0 && <button type="button" {...opener("adjust")} className={secondary}>{t("Stock.adjust")}</button>}
+                    <button type="button" {...opener("item")} className={secondary}>{t("Stock.addItem")}</button>
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
+          <div className={split}>
+            <Purchases items={items} purchases={of<PurchaseDto>("purchase")} movements={movements} onHand={onHand} write={write} />
+            <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} payments={of<SupplierPaymentDto>("supplierPayment")} debits={of<IssuedDebitDto>("issuedDebit")} write={write} />
+          </div>
+        </>
       )}
     </>
   );
@@ -201,27 +225,39 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
     close();
   };
 
+  // The cells come in the table's order. On the phone, `order` keeps the card as it was: the name and its badge on the
+  // first line, then the quantities, the lot, the button. A label the table's header already says is for screen
+  // readers only from lg (`<l>` in the message).
+  const label = (chunks: ReactNode) => <span className="lg:sr-only">{chunks}</span>;
+  const threshold = item.lowStockThreshold;
   return (
-    <li className={card}>
-      <span className="flex items-start justify-between gap-3">
-        <span className="font-semibold">{item.name}</span>
-        {item.lowStockThreshold !== null && (
-          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${low ? "bg-brick-soft text-brick-fg" : "bg-olive-soft text-olive"}`}>{t(low ? "low" : "enough")}</span>
+    <li className={`flex flex-wrap items-start gap-x-3 gap-y-1 rounded-2xl border border-line bg-card p-3 ${cardRow}`}>
+      <span className={cell}>
+        <span className="min-w-0 flex-1 font-semibold lg:flex-none">{item.name}</span>
+        {item.lot && item.expiresOn && (
+          <span className="order-2 basis-full text-sm text-muted">{t("lotUntil", { lot: item.lot, date: formatDay(item.expiresOn as FarmDay, locale) })}</span>
         )}
       </span>
-      <span className="text-xl font-semibold">{t("onHand", { quantity: show(quantity, item.unit) })}</span>
-      {value !== undefined && <span className="text-sm text-ink-2">{t("value", { amount: formatMoney(value) })}</span>}
-      {item.lowStockThreshold !== null && <span className="text-sm text-muted">{t("alertBelow", { quantity: show(item.lowStockThreshold, item.unit) })}</span>}
-      {item.lot && item.expiresOn && (
-        <span className="text-sm text-muted">{t("lotUntil", { lot: item.lot, date: formatDay(item.expiresOn as FarmDay, locale) })}</span>
+      <span className="order-1 basis-full text-xl font-semibold lg:order-none lg:text-base">{t.rich("onHand", { quantity: show(quantity, item.unit), l: label })}</span>
+      {value !== undefined && <span className="order-1 basis-full text-sm text-ink-2 lg:order-none">{t.rich("value", { amount: formatMoney(value), l: label })}</span>}
+      {threshold === null ? (
+        <>
+          <span className="hidden lg:block" />
+          <span className="hidden lg:block" />
+        </>
+      ) : (
+        <>
+          <span className="order-1 basis-full text-sm text-muted lg:order-none">{t.rich("alertBelow", { quantity: show(threshold, item.unit), l: label })}</span>
+          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium lg:justify-self-start ${low ? "bg-brick-soft text-brick-fg" : "bg-olive-soft text-olive"}`}>{t(low ? "low" : "enough")}</span>
+        </>
       )}
       {write &&
         (editing ? (
-          <form onSubmit={saveThreshold} className="mt-2 flex flex-col gap-2">
+          <form onSubmit={saveThreshold} className="order-3 mt-2 flex basis-full flex-col gap-2 lg:order-none lg:col-span-full lg:max-w-md">
             <Field
               name="threshold"
               label={`${t("editThreshold")} (${t(`units.${item.unit}`)})`}
-              defaultValue={item.lowStockThreshold === null ? "" : item.unit === "kg" ? String(item.lowStockThreshold / 1000) : String(item.lowStockThreshold)}
+              defaultValue={threshold === null ? "" : item.unit === "kg" ? String(threshold / 1000) : String(threshold)}
               inputMode="decimal"
               dir="ltr"
               autoFocus
@@ -230,7 +266,7 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
             <Buttons onCancel={close} />
           </form>
         ) : (
-          <button type="button" {...opener("threshold")} className={`${secondary} mt-1 self-start text-sm`}>
+          <button type="button" {...opener("threshold")} className={`${secondary} order-3 mt-1 self-start text-sm lg:order-none lg:mt-0 lg:self-center lg:justify-self-end`}>
             {t("editThreshold")}
           </button>
         ))}
@@ -262,18 +298,21 @@ function Purchases({ items, purchases, movements, onHand, write }: { items: Stoc
     await write({ type: M.cancelPurchase, payload: { purchaseId: p.id } }, [{ entity: "purchase", id: p.id, data: null }, ...own.map((m) => ({ entity: "movement", id: m.id, data: null }))]);
   };
   return (
-    <>
+    <section className="flex flex-col gap-3">
       <h2 id="purchases" className="text-[17px] font-semibold text-ink-2">{t("Stock.purchases")}</h2>
       {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <ul className="flex flex-col gap-2" aria-labelledby="purchases">
+      <ul className={`${rowTable} lg:grid-cols-[minmax(0,1fr)_auto]`} aria-labelledby="purchases">
+        <li aria-hidden="true" className={tightHead}>
+          <span>{t("Stock.colPurchase")}</span>
+        </li>
         {recent.map((p) => (
-          <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-card p-3">
+          <li key={p.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-card p-3 ${cardRow}`}>
             <span>{labelOf(p)}</span>
             <button type="button" onClick={() => cancel(p)} aria-label={t("Stock.voidOf", { purchase: labelOf(p) })} className={`${secondary} text-sm`}>{t("Stock.void")}</button>
           </li>
         ))}
       </ul>
-    </>
+    </section>
   );
 }
 
@@ -311,46 +350,59 @@ function Suppliers({ suppliers, purchases, payments, debits, write }: { supplier
     payments.map((p) => ({ supplierId: p.supplierId, amountCentimes: BigInt(p.amountCentimes) })),
   );
   return (
-    <>
+    <section className="flex flex-col gap-3">
       <h2 className="text-[17px] font-semibold text-ink-2">{t("suppliers")}</h2>
-      <ul className="flex flex-col gap-2">
+      <ul className={`${rowTable} lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]`} aria-label={t("suppliers")}>
+        <li aria-hidden="true" className={tightHead}>
+          <span>{t("supplier")}</span>
+          <span>{t("colDues")}</span>
+        </li>
         {suppliers.map((s) => (
-          <li key={s.id} className={card}>
-            <span className="font-semibold">{s.name}</span>
-            <span>{t("owed", { amount: formatMoney(balances.get(s.id) ?? 0n) })}</span>
-            {duesOf(s.id).length > 0 && (
-              <ul className="flex flex-col gap-1 text-sm" aria-label={t("dues", { supplier: s.name })}>
-                {duesOf(s.id).map((d) => (
-                  <li key={d.dueOn} className={d.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
-                    {t(d.dueOn < today() ? "dueLateLine" : "dueLine", { amount: formatMoney(d.amountCentimes), date: formatDay(d.dueOn as FarmDay, locale) })}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {issued.some((i) => i.supplierId === s.id) && (
-              <ul className="flex flex-col gap-2 text-sm" aria-label={t("issued", { supplier: s.name })}>
-                {issued
-                  .filter((i) => i.supplierId === s.id)
-                  .map((i) => (
-                    <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
-                      <span className={i.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
-                        {t("issuedLine", { kind: t(`payMethods.${i.kind}`), number: i.number ?? "—", amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
-                      </span>
-                      <button type="button" onClick={() => debit(i.id)} className={`${secondary} text-sm`}>{t("debited")}</button>
+          // Wide screens: the supplier, what is owed and the pay button, then the dues and the cheques beside them. On the
+          // phone, `order` keeps the button (or the form) last, as it was.
+          <li key={s.id} className={`${card} ${cardRow}`}>
+            <div className={cell}>
+              <span className="font-semibold">{s.name}</span>
+              <span>{t("owed", { amount: formatMoney(balances.get(s.id) ?? 0n) })}</span>
+              {paying !== s.id && (balances.get(s.id) ?? 0n) > 0n && (
+                <button type="button" {...opener(s.id)} className={`${secondary} order-2 lg:self-start`}>{t("pay", { supplier: s.name })}</button>
+              )}
+            </div>
+            <div className={cell}>
+              {duesOf(s.id).length > 0 && (
+                <ul className="flex flex-col gap-1 text-sm" aria-label={t("dues", { supplier: s.name })}>
+                  {duesOf(s.id).map((d) => (
+                    <li key={d.dueOn} className={d.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
+                      {t(d.dueOn < today() ? "dueLateLine" : "dueLine", { amount: formatMoney(d.amountCentimes), date: formatDay(d.dueOn as FarmDay, locale) })}
                     </li>
                   ))}
-              </ul>
-            )}
-            {error && <p role="alert" className={danger}>{tAll(error)}</p>}
-            {paying === s.id ? (
-              <SupplierPaymentForm supplier={s} balance={balances.get(s.id) ?? 0n} write={write} onDone={close} />
-            ) : (
-              (balances.get(s.id) ?? 0n) > 0n && <button type="button" {...opener(s.id)} className={secondary}>{t("pay", { supplier: s.name })}</button>
+                </ul>
+              )}
+              {issued.some((i) => i.supplierId === s.id) && (
+                <ul className="flex flex-col gap-2 text-sm" aria-label={t("issued", { supplier: s.name })}>
+                  {issued
+                    .filter((i) => i.supplierId === s.id)
+                    .map((i) => (
+                      <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
+                        <span className={i.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
+                          {t("issuedLine", { kind: t(`payMethods.${i.kind}`), number: i.number ?? "—", amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
+                        </span>
+                        <button type="button" onClick={() => debit(i.id)} className={`${secondary} text-sm`}>{t("debited")}</button>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
+            {error && <p role="alert" className={`${danger} order-1 lg:col-span-full`}>{tAll(error)}</p>}
+            {paying === s.id && (
+              <div className="order-2 lg:col-span-full lg:max-w-md">
+                <SupplierPaymentForm supplier={s} balance={balances.get(s.id) ?? 0n} write={write} onDone={close} />
+              </div>
             )}
           </li>
         ))}
       </ul>
-    </>
+    </section>
   );
 }
 

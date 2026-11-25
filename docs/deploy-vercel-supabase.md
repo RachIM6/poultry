@@ -67,6 +67,10 @@ pnpm exec prisma db seed          # strains, catalogues, chart of accounts; idem
 BETTER_AUTH_SECRET='<the value set in Vercel>' DEMO_PHONE=+2126XXXXXXXX DEMO_PASSWORD='<10+ characters>' pnpm db:seed:demo   # optional: the demo farms and their owner; the same secret as Vercel, or the printed invite codes never work
 ```
 
+- `pnpm db:seed:demo` pushes about 400 writes through the app's own sync rules: it took 2 to 3 minutes against a local
+  database, so expect several more over the network to Supabase. Wait for its last lines: the vet's and the
+  accountant's invite codes (one for the farm, one for the SARL), then `demo: sign in with …`. Keep the codes for the
+  demo (`docs/demo-script-fr.md`, step 9). Run it the day before: the open batch ages one day per day.
 - Two URLs because the tools read TLS settings differently: Prisma's engine only knows `sslmode=require` (encrypted;
   it accepts any certificate unless told otherwise), while node-postgres reads `require` as "verify the certificate",
   which fails without Supabase's CA, hence `verify-full` with `sslrootcert`. `sslrootcert` is a path from the current

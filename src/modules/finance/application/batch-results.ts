@@ -10,6 +10,7 @@ import { salesByBatch } from "@/modules/sales";
 import { payCosts } from "@/modules/workforce";
 import { catchUpBooks } from "@/modules/finance/application/posting";
 import { batchComparison, batchResult, monthPeriod, splitShared, type AllocationKey, type BatchComparison, type BatchResult } from "@/modules/finance/domain/batch";
+import { PRODUCTION_EXPENSE_CATEGORIES } from "@/modules/finance/domain/production-cost";
 import type { BatchResultDto } from "@/modules/finance/shared";
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -17,9 +18,14 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 // farmId: a cost of one farm only (a pay month), shared over that farm's batches; absent, over all of them.
 type SharedExpense = { id: string; amount: bigint; from: string; to: string; farmId?: string };
 
-/** `asOf` (FC4): an expense dated on or before it, a pay month ended by then. */
-const sharedExpenses = async (tx: Tx, ctx: TenantContext, asOf?: string): Promise<SharedExpense[]> => [
-  ...(await tx.expense.findMany({ where: { organizationId: ctx.organizationId, shared: true, ...(asOf && { day: { lte: new Date(`${asOf}T00:00:00Z`) } }) }, orderBy: { id: "asc" } })).map((e) => ({
+/** `asOf` (FC4): an expense dated on or before it, a pay month ended by then. `production` (FQ19): production categories only. */
+const sharedExpenses = async (tx: Tx, ctx: TenantContext, asOf?: string, production = false): Promise<SharedExpense[]> => [
+  ...(
+    await tx.expense.findMany({
+      where: { organizationId: ctx.organizationId, shared: true, ...(asOf && { day: { lte: new Date(`${asOf}T00:00:00Z`) } }), ...(production && { category: { in: PRODUCTION_EXPENSE_CATEGORIES } }) },
+      orderBy: { id: "asc" },
+    })
+  ).map((e) => ({
     id: e.id,
     amount: e.amountCentimes,
     from: day(e.serviceFrom!),
@@ -122,16 +128,21 @@ export async function batchResultDtos(ctx: TenantContext): Promise<Result<BatchR
   );
 }
 
-/** FN13 inside the caller's transaction (the close run, FC4), or on `db` for a read. */
-export async function batchResultsIn(tx: Tx, ctx: TenantContext, asOf?: FarmDay): Promise<BatchResultRow[]> {
+/**
+ * FN13 inside the caller's transaction (the close run, FC4), or on `db` for a read. `production` (FC4, FQ19): only the
+ * expenses of production categories count, directly or shared (PCA p. 43: no administration, financial or distribution
+ * costs); the pay months always do.
+ */
+export async function batchResultsIn(tx: Tx, ctx: TenantContext, asOf?: FarmDay, production = false): Promise<BatchResultRow[]> {
   const batches = await batchesForFinance(tx, ctx, asOf);
   const sales = await salesByBatch(tx, ctx, asOf);
   const org = { organizationId: ctx.organizationId };
   const dated = asOf ? { day: { lte: new Date(`${asOf}T00:00:00Z`) } } : {};
+  const categories = production ? { category: { in: PRODUCTION_EXPENSE_CATEGORIES } } : {};
   const direct = new Map(
-    (await tx.expense.groupBy({ by: ["batchId"], where: { ...org, ...dated, batchId: { not: null } }, _sum: { amountCentimes: true } })).map((d) => [d.batchId!, d._sum.amountCentimes ?? 0n]),
+    (await tx.expense.groupBy({ by: ["batchId"], where: { ...org, ...dated, ...categories, batchId: { not: null } }, _sum: { amountCentimes: true } })).map((d) => [d.batchId!, d._sum.amountCentimes ?? 0n]),
   );
-  const expenses = await sharedExpenses(tx, ctx, asOf);
+  const expenses = await sharedExpenses(tx, ctx, asOf, production);
   const counted = new Set(expenses.map((e) => e.id));
   const closedBy = new Set(batches.filter((b) => b.closedOn !== null).map((b) => b.id)); // as of the day, if any
   const frozen = new Set((await tx.frozenBatch.findMany({ where: org, select: { batchId: true } })).map((f) => f.batchId).filter((id) => closedBy.has(id)));

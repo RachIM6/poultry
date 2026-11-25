@@ -99,7 +99,8 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
       </div>
     </ValuesForm>
   );
-  // FC4 (T109): the meat batches open on the last day, at cost by head, against the suggested or typed current value.
+  // FC4 (T109): the meat batches open on the last day, at cost by head, against the suggested or typed current value;
+  // FQ19: the cost engaged split into direct costs, depreciation and indirect production costs.
   const batchLabel = (b: CloseBatchView) => `${b.houseName} · ${t(`Types.${b.species}`)}`;
   const batchTable = batches.length > 0 && (
     <ValuesForm year={year} write={batches.some((b) => b.valued && typeable(b))}>
@@ -119,7 +120,15 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
           <tbody>
             {batches.map((b) => (
               <tr key={b.id} className="border-t border-line">
-                <td className="p-2">{batchLabel(b)}<span className="block text-sm text-ink-2">{b.farm}</span></td>
+                <td className="p-2">
+                  {batchLabel(b)}
+                  <span className="block text-sm text-ink-2">{b.farm}</span>
+                  {b.valued && (
+                    <span className="block text-sm text-ink-2">
+                      {t("Close.engaged", { total: formatMoney(b.engaged), direct: formatMoney(b.costs.direct), depreciation: formatMoney(b.costs.depreciation), indirect: formatMoney(b.costs.indirect) })}
+                    </span>
+                  )}
+                </td>
                 <Num className="whitespace-nowrap">{formatCount(b.onHand)}</Num>
                 <Num className="whitespace-nowrap">{b.valued ? formatMoney(b.cost) : <span dir="auto">{t("Close.notValuedFq7")}</span>}</Num>
                 <td className="p-2 text-end tabular-nums whitespace-nowrap">

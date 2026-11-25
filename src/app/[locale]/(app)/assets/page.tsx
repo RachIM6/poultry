@@ -3,7 +3,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { BackLink } from "@/components/app-nav";
+import { Page } from "@/components/page";
 import { card, field, table, warn } from "@/components/ui";
 import { Num } from "@/components/num";
 import { redirect } from "@/i18n/navigation";
@@ -24,14 +24,9 @@ const MESSAGES: MessagePath[] = ["Assets", "Files", "Nav", "Offline", "Sync.refu
 export default function AssetsPage() {
   return (
     <ClientMessages paths={MESSAGES}>
-      <header className="px-4 pt-4">
-        <BackLink href="/more" />
-      </header>
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4">
-        <Suspense>
-          <AssetsView />
-        </Suspense>
-      </main>
+      <Suspense fallback={<Page width="wide" back="/more" />}>
+        <AssetsView />
+      </Suspense>
     </ClientMessages>
   );
 }
@@ -44,7 +39,7 @@ async function AssetsView() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await assetRegister(ctx.value);
-  if (!result.ok) return <p>{t("Assets.forbidden")}</p>;
+  if (!result.ok) return <Page width="wide" back="/more"><p>{t("Assets.forbidden")}</p></Page>;
   const register = result.value;
   const owner = can(ctx.value, "finance.manage") && register.farms !== undefined;
   const today = farmDayOf(new Date());
@@ -52,9 +47,7 @@ async function AssetsView() {
   const money = (c: bigint) => <bdi dir="ltr" className="tabular-nums">{formatMoney(c)}</bdi>;
 
   return (
-    <>
-      <h1 className="text-2xl font-semibold">{t("Assets.title")}</h1>
-      <p className="text-sm text-ink-2">{t("Assets.hint")}</p>
+    <Page width="wide" back="/more" title={t("Assets.title")} subtitle={<span className="block max-w-prose">{t("Assets.hint")}</span>}>
       {register.books !== "ledger" && <p className={warn}>{t("Assets.cashBook")}</p>}
       {owner && (
         <details className={card}>
@@ -67,7 +60,7 @@ async function AssetsView() {
       ) : (
         register.assets.map((a) => <Asset key={a.id} a={a} />)
       )}
-    </>
+    </Page>
   );
 
   function Asset({ a }: { a: AssetView }) {

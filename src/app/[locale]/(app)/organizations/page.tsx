@@ -2,8 +2,8 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { BackLink } from "@/components/app-nav";
 import { JoinCodeForm, OpenFarmForm } from "@/components/join-code-form";
+import { Page } from "@/components/page";
 import { card, primary, secondary } from "@/components/ui";
 import { ClientMessages } from "@/i18n/client-messages";
 import { redirect } from "@/i18n/navigation";
@@ -15,11 +15,9 @@ import { acceptAndOpen, openFarm } from "./actions";
 export default function Organizations() {
   return (
     <ClientMessages paths={["Account", "Nav", "Offline", "Sync.refused", "errors"]}>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
-        <Suspense>
-          <Content />
-        </Suspense>
-      </main>
+      <Suspense fallback={<Page width="form" back="/more" />}>
+        <Content />
+      </Suspense>
     </ClientMessages>
   );
 }
@@ -29,9 +27,7 @@ async function Content() {
   if (!mine.ok) return redirect({ href: "/login", locale: lang });
   const { current, memberships, invitations } = mine.value;
   return (
-    <>
-      <BackLink href="/more" />
-      <h1 className="text-2xl font-semibold">{t("Organizations.title")}</h1>
+    <Page width="form" back="/more" title={t("Organizations.title")}>
       <p className="text-sm text-muted">{t("Organizations.hint")}</p>
       <ul aria-label={t("Organizations.title")} className="flex flex-col gap-3">
         {memberships.map((m) => (
@@ -67,6 +63,6 @@ async function Content() {
         <h2 id="join-title" className="text-[17px] font-semibold text-ink-2">{t("Account.joinWithCode")}</h2>
         <JoinCodeForm />
       </section>
-    </>
+    </Page>
   );
 }

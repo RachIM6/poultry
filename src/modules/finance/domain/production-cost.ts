@@ -36,7 +36,7 @@ export const PRODUCTION_ASSETS: Record<AssetCategory, boolean> = {
 
 type PlacedAsset = DepreciableAsset & { category: AssetCategory; farmId: string | null; houseId: string | null };
 type HouseIn = { id: string; farmId: string; areaM2: number };
-type BatchIn = { id: string; houseId: string; placedOn: string };
+type BatchIn = { id: string; houseId: string; placedOn: string; closedOn?: string | null }; // closedOn: a laying flock gone before the close (FQ18)
 
 const monthOf = (day: string) => day.slice(0, 7);
 const plusMonths = (month: string, n: number) => {
@@ -47,7 +47,7 @@ const plusMonths = (month: string, n: number) => {
 /**
  * §7 `depreciationShare` (FQ19): each batch open at the close takes a share of the fiscal year's charge (FC1) of every
  * production asset of its house or farm: charge × its house's m² × its days in the months depreciated that year (up to
- * the close) ÷ (the m² of the houses the asset serves × those months' days), half up per asset. An asset on a house
+ * the close, or its closing day) ÷ (the m² of the houses the asset serves × those months' days), half up per asset. An asset on a house
  * serves that house; on a farm only, all the farm's houses; on neither, no batch. A share for empty days or other
  * batches stays in the year's charges (§7.1 F).
  */
@@ -68,8 +68,9 @@ export function depreciationShares(assets: readonly PlacedAsset[], houses: reado
     for (const b of batches) {
       const house = served.find((h) => h.id === b.houseId);
       const start = (b.placedOn > from ? b.placedOn : from) as FarmDay;
-      if (!house || start > to) continue;
-      const weight = BigInt(house.areaM2) * BigInt(daysBetween(start, to) + 1);
+      const end = (b.closedOn && b.closedOn < to ? b.closedOn : to) as FarmDay;
+      if (!house || start > end) continue;
+      const weight = BigInt(house.areaM2) * BigInt(daysBetween(start, end) + 1);
       shares.set(b.id, (shares.get(b.id) ?? 0n) + divHalfUp(row.charge * weight, capacity));
     }
   }

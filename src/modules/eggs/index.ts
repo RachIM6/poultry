@@ -3,3 +3,4 @@
 export { eggsSync } from "./sync";
 export { drawEggs, undrawEggs } from "./application/draws";
 export { eggStockOnDay } from "./application/stock";
+export { eggsLaidBetween } from "./infrastructure/collections";

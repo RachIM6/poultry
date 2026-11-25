@@ -53,6 +53,7 @@ describe("the production cost of a batch in progress (SPEC-finance FC4, FQ19: PC
       { id: "b", houseId: "B1", placedOn: "2025-01-01" }, // another house
     ];
     expect(depreciationShares([year1], houses, two, year, 1)).toEqual(new Map([["a", 30_000n]]));
+    expect(depreciationShares([year1], houses, [{ ...two[0], closedOn: "2025-12-11" }], year, 1)).toEqual(new Map([["a", 10_000n]])); // a laying flock gone on the 11th: 10 days (FQ18)
     // On the farm: 1 000 of its 3 000 m²; X1 is on another farm.
     const farm = asset({ cost: 365_000n, lifeMonths: 12 });
     expect(depreciationShares([farm], houses, [...two, { id: "x", houseId: "X1", placedOn: "2025-01-01" }], year, 1)).toEqual(new Map([["a", 10_000n], ["b", 121_667n]]));

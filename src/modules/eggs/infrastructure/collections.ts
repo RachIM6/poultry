@@ -99,3 +99,16 @@ export async function deleteDraws(tx: Tx, ctx: TenantContext, saleId: string) {
   await tx.eggDraw.deleteMany({ where });
   return ids;
 }
+
+/**
+ * For finance (SPEC-finance FC5, FQ18), read-only: each batch's eggs laid from `from` to `to` (farm days) that went into
+ * the stock (E2: every egg but the broken ones, lost at the collection).
+ */
+export async function eggsLaidBetween(tx: Tx, ctx: TenantContext, from: FarmDay, to: FarmDay): Promise<Map<string, number>> {
+  const rows = await tx.eggCollection.groupBy({
+    by: ["batchId"],
+    where: { organizationId: ctx.organizationId, day: { gte: date(from), lte: date(to) } },
+    _sum: { normal: true, doubleYolk: true, cracked: true, dirty: true, floor: true },
+  });
+  return new Map(rows.map(({ batchId, _sum: s }) => [batchId, (s.normal ?? 0) + (s.doubleYolk ?? 0) + (s.cracked ?? 0) + (s.dirty ?? 0) + (s.floor ?? 0)]));
+}

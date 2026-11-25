@@ -17,9 +17,11 @@ const TABS = [
 
 // What the nav reads from the phone's database (the refused writes' count, the role's wide links) comes in its own
 // chunk, once the page has loaded: Dexie stays off the first load of the online-only pages (books, treasury, closing…).
-// Neither moves the layout when it arrives: the count is absolutely placed, the links come last in the sidebar.
+// Neither moves the layout when it arrives: the count is absolutely placed, the links come last in the sidebar, and the
+// wide "Plus" button takes the "Plus" link's place, same size, once the role is known (the link stays until then).
 const Refused = dynamic(() => import("@/components/app-nav-live").then((m) => m.Refused), { ssr: false });
 const WideLinks = dynamic(() => import("@/components/app-nav-live").then((m) => m.WideLinks), { ssr: false });
+const WideMore = dynamic(() => import("@/components/app-nav-live").then((m) => m.WideMore), { ssr: false });
 const onLoad = (cb: () => void) => {
   window.addEventListener("load", cb);
   return () => window.removeEventListener("load", cb);
@@ -35,14 +37,14 @@ export function AppNav() {
   return (
     <nav
       aria-label={t("label")}
-      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-card print:hidden lg:sticky lg:top-0 lg:order-first lg:h-dvh lg:w-60 lg:shrink-0 lg:border-0 lg:bg-ink lg:p-4 lg:text-shell"
+      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-card print:hidden lg:sticky lg:top-0 lg:order-first lg:h-dvh lg:w-60 lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain lg:border-0 lg:bg-ink lg:p-4 lg:text-shell"
     >
       <div className="hidden px-2 pb-6 pt-2 lg:block [&_span]:text-shell">
         <BrandLockup />
       </div>
       <ul className="grid h-[76px] grid-cols-4 lg:flex lg:h-auto lg:flex-col lg:gap-1">
         {TABS.map((tab) => (
-          <li key={tab.key}>
+          <li key={tab.key} className="lg:[&:has(>[data-wide-more])>a]:hidden">
             <Link
               href={tab.href}
               aria-current={current === tab.key ? "page" : undefined}
@@ -57,6 +59,7 @@ export function AppNav() {
               {t(tab.key)}
               {tab.key === "more" && loaded && <Refused spoken />}
             </Link>
+            {tab.key === "more" && loaded && <WideMore icon={tab.icon} isIn={isIn} />}
           </li>
         ))}
       </ul>

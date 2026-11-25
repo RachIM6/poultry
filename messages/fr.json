@@ -2056,7 +2056,8 @@
     "money": "Argent",
     "account": "Compte",
     "sync": "Synchronisation",
-    "compliance": "Conformité"
+    "compliance": "Conformité",
+    "settings": "Langue et déconnexion"
   },
   "Today": {
     "birds": "{count} sujets",

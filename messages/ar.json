@@ -2056,7 +2056,8 @@
     "money": "المال",
     "account": "الحساب",
     "sync": "المزامنة",
-    "compliance": "المطابقة"
+    "compliance": "المطابقة",
+    "settings": "اللغة وتسجيل الخروج"
   },
   "Today": {
     "birds": "{count} طائر",

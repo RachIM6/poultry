@@ -12,12 +12,11 @@ import { eggStockOnDay } from "@/modules/eggs";
 import { batchesForFinance, lastWeighings } from "@/modules/flock";
 import { stockOnDay, stockValueOnDay } from "@/modules/inventory";
 import { lastSales } from "@/modules/sales";
-import { facts } from "@/modules/finance/application/assets";
+import { placedAssets } from "@/modules/finance/application/assets";
 import { batchResultsIn } from "@/modules/finance/application/batch-results";
 import { closePosted } from "@/modules/finance/application/count";
 import { hensAtClose } from "@/modules/finance/application/hens";
 import { countDay } from "@/modules/finance/domain/count";
-import type { AssetCategory } from "@/modules/finance/domain/assets";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
 import { depreciationShares } from "@/modules/finance/domain/production-cost";
 import { batchesAtClose, eggsAtClose, stocksAtClose, yearEndBatches, yearEndProvision, yearEndStock, type BatchAtClose, type EggsAtClose, type StockAtClose } from "@/modules/finance/domain/stocks";
@@ -55,7 +54,7 @@ export async function batchLinesAtClose(tx: Tx, ctx: TenantContext, entity: Lega
     lastSales(tx, ctx, day),
     tx.yearEndCount.findMany({ where, select: { subjectId: true, quantity: true } }),
     tx.yearEndValue.findMany({ where, select: { subjectId: true, valueCentimes: true } }),
-    tx.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, legalEntityId: entity.id } }),
+    placedAssets(tx, ctx, entity.id),
     houseAreas(tx, ctx),
   ]);
   const costs = new Map(results.map((r) => [r.id, r.costs]));
@@ -68,8 +67,7 @@ export async function batchLinesAtClose(tx: Tx, ctx: TenantContext, entity: Lega
     if (key && (!seen || sale.day > seen.day || (sale.day === seen.day && sale.id > seen.id))) last.set(key, sale);
   }
   const open = batches.filter((b) => b.closedOn === null); // as of the day: placed by then, not closed by then
-  const placed = assets.map((a) => ({ ...facts(a), category: a.category as AssetCategory, farmId: a.farmId, houseId: a.houseId }));
-  const depreciation = depreciationShares(placed, houses, open, fiscalYearOf(day, entity.fiscalYearStartMonth), entity.fiscalYearStartMonth);
+  const depreciation = depreciationShares(assets, houses, open, fiscalYearOf(day, entity.fiscalYearStartMonth), entity.fiscalYearStartMonth);
   const engaged = (id: string) => {
     const c = costs.get(id);
     return { direct: c ? c.chicks + c.consumption + c.other + c.direct : 0n, depreciation: depreciation.get(id) ?? 0n, indirect: c?.allocated ?? 0n };

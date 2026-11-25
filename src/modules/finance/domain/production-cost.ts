@@ -1,7 +1,8 @@
-import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
+import { addFarmDays, daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
 import { divHalfUp } from "@/lib/kernel/money";
 import { straightLine, type AssetCategory, type DepreciableAsset } from "@/modules/finance/domain/assets";
 import { monthPeriod } from "@/modules/finance/domain/batch";
+import { fiscalYearOf } from "@/modules/finance/domain/entry";
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/modules/finance/domain/treasury";
 
 // SPEC-finance FC4, FQ19 (PCA 2015 pp. 42–43, decided default to review): the production cost of a batch in progress
@@ -36,7 +37,8 @@ export const PRODUCTION_ASSETS: Record<AssetCategory, boolean> = {
 
 type PlacedAsset = DepreciableAsset & { category: AssetCategory; farmId: string | null; houseId: string | null };
 type HouseIn = { id: string; farmId: string; areaM2: number };
-type BatchIn = { id: string; houseId: string; placedOn: string };
+/** `until`: the batch's last day counted, when before the year's last depreciated day (a transfer to lay, FC6). */
+type BatchIn = { id: string; houseId: string; placedOn: string; until?: string };
 
 const monthOf = (day: string) => day.slice(0, 7);
 const plusMonths = (month: string, n: number) => {
@@ -68,10 +70,25 @@ export function depreciationShares(assets: readonly PlacedAsset[], houses: reado
     for (const b of batches) {
       const house = served.find((h) => h.id === b.houseId);
       const start = (b.placedOn > from ? b.placedOn : from) as FarmDay;
-      if (!house || start > to) continue;
-      const weight = BigInt(house.areaM2) * BigInt(daysBetween(start, to) + 1);
+      const end = (b.until && b.until < to ? b.until : to) as FarmDay;
+      if (!house || start > end) continue;
+      const weight = BigInt(house.areaM2) * BigInt(daysBetween(start, end) + 1);
       shares.set(b.id, (shares.get(b.id) ?? 0n) + divHalfUp(row.charge * weight, capacity));
     }
   }
   return shares;
+}
+
+/**
+ * FC6 classic (FQ19, PCA p. 34): a pullet batch's share of the production assets' depreciation from its placement to
+ * `until` (a year end, or its transfer to lay), summed over the fiscal years it spans: each year's `depreciationShares`
+ * at that year's daily rate, the last one counted up to `until`. Cumulative, so the close capitalises a year's part as
+ * this to its last day less this to the previous year end, and the transfer the rest (§7.1 G).
+ */
+export function depreciationToDay(assets: readonly PlacedAsset[], houses: readonly HouseIn[], batch: Omit<BatchIn, "until">, until: FarmDay, fiscalYearStartMonth: number): bigint {
+  let total = 0n;
+  for (let y = fiscalYearOf(batch.placedOn as FarmDay, fiscalYearStartMonth); y.from <= until; y = fiscalYearOf(addFarmDays(y.to, 1), fiscalYearStartMonth)) {
+    total += depreciationShares(assets, houses, [{ ...batch, until }], y, fiscalYearStartMonth).get(batch.id) ?? 0n;
+  }
+  return total;
 }

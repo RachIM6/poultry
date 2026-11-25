@@ -39,7 +39,8 @@ const pair = (debit: string, credit: string, amount: bigint): Line[] =>
 /**
  * Classic method, at the transfer to lay (SPEC-m3 B13): the pullets' cost not capitalised at a year end yet goes on
  * 23962 (D 23962 / C 71431), then the batch's whole cost moves to 23711 (D 23711 / C 23962, FQ7c). `total`: the pullet
- * batch's FN13 cost at the transfer; `capitalised`: its cost at the last year end it was open on. Null when nothing.
+ * batch's production cost at the transfer (FQ19); `capitalised`: its cost at the last year end it was open on. Null
+ * when nothing.
  */
 export function layPosting(total: bigint, capitalised: bigint): Posting | null {
   if (total <= 0n) return null;

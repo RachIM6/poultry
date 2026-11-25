@@ -144,9 +144,24 @@ journal entries and sends the pushes that are due. Cron jobs run on the producti
 
 ## 5. First owner sign-up
 
-Production can't send login codes by SMS until a provider is chosen (OQ2), so phone login doesn't work on the demo.
-Login with a password (ADR-015) is being built: the owner's first sign-up follows that ADR's steps once it is merged.
-Until then the demo can only be shown with the seeded demo farm on a local or Docker build.
+Login is by phone number or email and a password ([ADR-015](decisions/ADR-015-password-login.md)); no SMS provider is
+needed (SMS code login stays off, `AUTH_SMS_ENABLED` unset).
+
+- **The first owner** opens `https://<domain>/fr/signup` (or `/ar/signup`), types their phone (and/or an email) and a
+  password of at least 10 characters, then creates their organisation on the onboarding screen.
+- **Members and partners** join with the invite code the owner is shown once in Plus → Membres, on `/join`.
+- **A forgotten password:** the owner gives a member a reset code (Plus → Membres → « Réinitialiser le mot de passe »).
+  For an owner, or anyone else, the operator issues one from the laptop, with the shell of section 2 and the
+  **production** `BETTER_AUTH_SECRET` (the codes are HMAC-keyed with it; another value prints a code that never works):
+
+  ```sh
+  export BETTER_AUTH_SECRET='<the value set in Vercel>'
+  pnpm user:reset <phone|email>   # prints a one-time code, valid 7 days; audited (AuthEvent reset_issued)
+  ```
+
+  The person enters it on `/reset` with a new password; all their devices are signed out. Close the shell afterwards.
+- **The seeded demo owner** (`DEMO_PHONE`, section 2) has no password: set one the same way, `pnpm user:reset
+  <DEMO_PHONE>`, then `/reset`.
 
 ## 6. Backups
 

@@ -20,3 +20,6 @@ CREATE TABLE "PasswordReset" (
 CREATE UNIQUE INDEX "PasswordReset_codeHash_key" ON "PasswordReset"("codeHash");
 CREATE INDEX "PasswordReset_userId_idx" ON "PasswordReset"("userId");
 ALTER TABLE "PasswordReset" ADD CONSTRAINT "PasswordReset_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Like every table (migration *_row_level_security): no row for Supabase's public Data API roles.
+ALTER TABLE "PasswordReset" ENABLE ROW LEVEL SECURITY;

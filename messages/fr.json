@@ -21,6 +21,11 @@
     "failed": "Pas de réseau ou erreur du serveur : rien n’a été enregistré. Réessayez.",
     "retry": "Réessayer"
   },
+  "NotFound": {
+    "title": "Page introuvable",
+    "body": "Cette adresse ne mène à aucune page. Le lien est peut-être incomplet ou ancien.",
+    "home": "Retour à l’accueil"
+  },
   "Install": {
     "title": "Installer l'application",
     "back": "Retour",

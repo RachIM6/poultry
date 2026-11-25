@@ -5,6 +5,9 @@
     "description": "Gestion des élevages avicoles",
     "tagline": "L’élevage avicole, jour après jour."
   },
+  "Demo": {
+    "banner": "Démonstration — données fictives uniquement"
+  },
   "LocaleSwitcher": {
     "label": "Langue",
     "ar": "العربية",
@@ -594,6 +597,7 @@
     "TOO_LARGE": "La requête est trop volumineuse.",
     "CAPTCHA_REQUIRED": "La vérification de sécurité a échoué. Réessayez.",
     "FORBIDDEN": "Action refusée.",
+    "ORGANIZATION_LEFT": "Cette exploitation a quitté la plateforme : elle est en lecture seule, plus rien ne peut y être enregistré.",
     "NETWORK": "Pas de connexion. Réessayez.",
     "UNAUTHENTICATED": "Session expirée. Reconnectez-vous.",
     "INVALID_INPUT": "Vérifiez les champs du formulaire.",
@@ -658,7 +662,7 @@
     "DISINFECTANT_REQUIRED": "Indiquez le produit désinfectant.",
     "BATCH_NOT_CLOSED": "La bande de ce bâtiment n’est pas encore clôturée.",
     "CLEANOUT_ALREADY_STARTED": "Le nettoyage après cette bande est déjà commencé.",
-    "FILE_TOO_LARGE": "Fichier trop lourd : 5 Mo au maximum.",
+    "FILE_TOO_LARGE": "Fichier trop lourd : 4 Mo au maximum.",
     "FILE_TYPE_NOT_ALLOWED": "Type de fichier refusé : PDF, JPEG, PNG ou WebP seulement.",
     "STORAGE_FULL": "Espace de stockage plein : ce fichier ne peut pas être enregistré.",
     "PROOF_ALREADY_ATTACHED": "Cette vérification a déjà sa photo.",
@@ -1774,7 +1778,8 @@
     "layingStandard": "{gap} pt par rapport au standard ({standard} %)",
     "weight": "Poids moyen {weight}",
     "fcr": "IC {fcr}",
-    "eggsYesterday": "Œufs ramassés hier"
+    "eggsYesterday": "Œufs ramassés hier",
+    "left": "Cette exploitation a quitté la plateforme le {day}. Elle est en lecture seule : vous pouvez consulter ses données, mais plus rien ne peut y être enregistré. Ses données seront supprimées 30 jours après son départ, sauf la comptabilité, conservée dix ans. Pour recevoir l’export complet de ses données, le propriétaire le demande à l’équipe de la plateforme."
   },
   "Staff": {
     "title": "Personnel",
@@ -2564,6 +2569,22 @@
     "mortality": "Mortalité",
     "print": "Imprimer ou enregistrer en PDF"
   },
+  "Notifiable": {
+    "title": "Maladies à déclaration obligatoire",
+    "diseases": {
+      "hpai": "Peste aviaire (influenza aviaire hautement pathogène)",
+      "newcastle": "Maladie de Newcastle",
+      "gumboro": "Maladie de Gumboro",
+      "marek": "Maladie de Marek",
+      "pullorum": "Pullorose (S.P.G.)",
+      "salmonella": "Salmonellose aviaire (Salmonella enteritidis et Salmonella typhimurium)",
+      "bronchitis": "Bronchite infectieuse",
+      "tuberculosis": "Tuberculose chez les oiseaux",
+      "psittacosis": "Psittacose-ornithose, chez toutes les espèces d’oiseaux"
+    },
+    "duty": "Un cas suspect se déclare immédiatement à l’autorité administrative locale, par le propriétaire, la personne qui soigne ou garde les volailles et tout vétérinaire qui les visite. Newcastle, peste aviaire et pullorose : déclaration immédiate au service vétérinaire de l’ONSSA du lieu où se trouvent les volailles.",
+    "source": "Dahir n° 1-75-292, art. 1 et 3 ; arrêtés n° 3308-17, 2466-17 et 2836-17, art. 1"
+  },
   "Inspection": {
     "open": "Dossier d’inspection",
     "forbidden": "Le dossier d’inspection est réservé au propriétaire et au gérant.",
@@ -2619,9 +2640,13 @@
       "carcasses": "Système de destruction des cadavres : incinérateur, fosse bétonnée à fermeture étanche ou autre moyen agréé",
       "downtime": "Vide sanitaire d’au moins vingt jours entre deux bandes successives",
       "newcastle": "Vaccination contre la maladie de Newcastle enregistrée avec le numéro de lot",
-      "installations": "Clôture d’au moins 1,5 m avec portail, autoluve et pédiluves, sas sanitaire, aucun autre animal d’élevage sur la ferme"
+      "installations": "Clôture d’au moins 1,5 m avec portail, autoluve et pédiluves, sas sanitaire (deux vestiaires séparés par des douches), toilettes avec lavabo, logement du personnel isolé avec un accès propre de l’extérieur, aucun autre animal d’élevage sur la ferme",
+      "buildings": "Bâtiments : matériaux imputrescibles, sol bétonné, murs latéraux d’au moins 60 cm, pignons en dur, plafond conforme, sas de service, abords bétonnés d’au moins 50 cm, aires d’enlèvement dallées, évacuation des eaux de lavage, ouvertures munies de filets ou de grillage contre les oiseaux et les rongeurs",
+      "manure": "Dès l’enlèvement des volailles, fumier humidifié dans le bâtiment avant son évacuation, puis nettoyage, lavage et désinfection menés aussitôt",
+      "layerStores": "Pondeuses : local de stockage des œufs à l’extérieur des bâtiments d’élevage et aire de stockage des fientes, évacuées par camions étanches"
     },
     "threshold": "Loi n° 49-99, art. 1 : un élevage dont l’effectif par bande ne dépasse pas 500 volailles n’est pas soumis à autorisation.",
+    "declaration": "Maladies à déclaration obligatoire (dahir n° 1-75-292, art. 1 et 3 ; arrêtés n° 3308-17, 2466-17 et 2836-17, art. 1) : un cas suspect se déclare immédiatement à l’autorité administrative locale ; Newcastle, peste aviaire et pullorose au service vétérinaire de l’ONSSA du lieu.",
     "selfDeclared": "Points « à vérifier sur place » : déclaration du détenteur, à cocher et signer."
   },
   "Accounting": {

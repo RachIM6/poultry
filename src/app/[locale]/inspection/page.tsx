@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { DemoBanner } from "@/components/demo-banner";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { InspectionScreen } from "@/components/inspection";
 import { Link } from "@/i18n/navigation";
@@ -18,6 +19,7 @@ export default function InspectionPage() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
+      <DemoBanner />
       <header className="flex justify-between gap-4 p-4 print:hidden">
         <Link href="/more" className={link}>{t("Nav.more")}</Link>
         <LocaleSwitcher />

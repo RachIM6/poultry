@@ -46,6 +46,10 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
   await expect(plan.nth(1)).toContainText("Jour 7 · Vaccin Gumboro · Eau de boisson");
   await expect(plan.nth(1)).toContainText("Prévu le");
   await expect(page.getByText(/maladie de Newcastle dans le plan/)).toHaveCount(0); // OQ4: the plan has its Newcastle line
+  // V1: the notifiable diseases of dahir 1-75-292, with their sources, offline too
+  await page.getByText("Maladies à déclaration obligatoire", { exact: true }).click();
+  await expect(page.getByText("Maladie de Gumboro", { exact: true })).toBeVisible();
+  await expect(page.getByText("Dahir n° 1-75-292, art. 1 et 3 ; arrêtés n° 3308-17, 2466-17 et 2836-17, art. 1", { exact: true })).toBeVisible();
 
   await plan.nth(0).getByRole("button", { name: "Marquer comme fait" }).click();
   await expect(page.getByLabel("Doses")).toHaveValue("990"); // the birds on hand

@@ -3,6 +3,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BrandLockup } from "@/components/brand";
+import { DemoBanner } from "@/components/demo-banner";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LogoutButton } from "@/components/logout-button";
 import { OnboardingForm } from "@/components/onboarding-form";
@@ -18,6 +19,7 @@ const MESSAGES: MessagePath[] = ["Account", "LocaleSwitcher", "Onboarding", "err
 export default function Onboarding() {
   return (
     <ClientMessages paths={MESSAGES}>
+      <DemoBanner />
       <header className="flex items-center justify-between gap-4 p-4">
         <BrandLockup />
         <LocaleSwitcher />

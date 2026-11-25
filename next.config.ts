@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 import { withSerwist } from "@serwist/turbopack";
@@ -19,11 +20,16 @@ const CSP = [
   "frame-ancestors 'none'",
 ].join("; ");
 
+// The service worker's precache revision (src/app/serwist/[path]/route.ts): one per build, inlined below. Set on
+// process.env in the build's first process, so the workers it starts inherit it instead of drawing their own. On
+// Vercel the deployment's id, the same in the build and in its functions.
+process.env.SW_REVISION ||= process.env.VERCEL_DEPLOYMENT_ID || randomUUID();
+
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   // Always defined, so outside the e2e build "" === "1" folds and src/i18n/strict-messages.tsx ships as a pass-through.
-  env: { STRICT_MESSAGES: process.env.STRICT_MESSAGES ?? "" },
+  env: { STRICT_MESSAGES: process.env.STRICT_MESSAGES ?? "", SW_REVISION: process.env.SW_REVISION },
   poweredByHeader: false,
   // T25 security headers. HSTS only means something over HTTPS, which `next start` on localhost ignores.
   async headers() {

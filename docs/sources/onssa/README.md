@@ -2,7 +2,7 @@
 
 Text extracted from the official PDFs published by ONSSA, converted to UTF-8, nothing else changed. These are the
 texts the register (SPEC-m2-compliance RP1–RP2) and the inspection checklist (RP4) cite; see SPEC-m2-compliance §9.
-Accessed 2026-11-23 (S1–S7) and 2026-11-24 (S7’s URL, S8–S11).
+Accessed 2026-11-23 (S1–S7) and 2026-11-24 (S7’s URL, S8–S12).
 
 | Id | File | Text | BO | URL |
 |---|---|---|---|---|
@@ -17,6 +17,7 @@ Accessed 2026-11-23 (S1–S7) and 2026-11-24 (S7’s URL, S8–S11).
 | S9 | `ARR.2836-17.FR.txt` | Arrêté n° 2836-17 du 3 safar 1439 (23 octobre 2017) relatif aux mesures complémentaires et spéciales pour lutter contre la pullorose à Salmonella pullorum gallinarum (SPG) dans les exploitations avicoles des espèces poule (gallus) et dinde (meleagris) | BO n° 6670 du 3 mai 2018, p. 1152 | https://www.onssa.gov.ma/wp-content/uploads/2022/06/Reglementation/B.Reglementation-Sectorielle/1.%20Sant%C3%A9%20Animale/1.3.%20Maladies%20Animales/ARR.2836-17.FR.pdf |
 | S10 | `ARR.2125-05.FR.txt` | Arrêté n° 2125-05 du 13 kaada 1426 (15 décembre 2005) fixant les exigences sanitaires auxquelles doivent satisfaire les poussins d’un jour commercialisés | BO n° 5392 du 2 février 2006, p. 236 | https://www.onssa.gov.ma/wp-content/uploads/2022/06/Reglementation/B.Reglementation-Sectorielle/1.%20Sant%C3%A9%20Animale/1.5.%20Aviculture/ARR.2125-05.FR.pdf |
 | S11 | `LISTE-POSITIVE-2025-05-06.p1.txt` (page 1 of 565) | Liste positive des médicaments vétérinaires, ONSSA/DIL/DPIV, 6 mai 2025 | — | https://www.onssa.gov.ma/wp-content/uploads/2025/05/LISTE-POSITIVE-DES-MEDICAMENTS-VETERINAIRES-06-MAI-2025.pdf |
+| S12 | `DAH.1-75-292.FR.txt` | Dahir portant loi n° 1-75-292 du 5 chaoual 1397 (19 septembre 1977) édictant des mesures propres à garantir les animaux domestiques contre les maladies contagieuses, ONSSA's consolidated copy (last amended by loi n° 61-22) | BO n° 3388 du 5 octobre 1977, p. 1079; last amendment BO n° 7262 du 4 janvier 2024, p. 4 | https://www.onssa.gov.ma/wp-content/uploads/2024/01/DAH.1-75-292.FR_c5.pdf (consolidated copy also on adala.justice.gov.ma: https://adala.justice.gov.ma/api/uploads/2025/11/25/Dahir%20portant%20loi%20n%C2%B0%201-75-292%20%C3%A9dictant%20des%20me-1764082058086.pdf, not read) |
 
 ## What is cited where
 
@@ -24,6 +25,8 @@ Accessed 2026-11-23 (S1–S7) and 2026-11-24 (S7’s URL, S8–S11).
 - S2 art. 2, 4; S3 art. 1, 2, 7, 12, 15; S4 art. 8; S5 art. 1; S6 art. 13–14: the inspection checklist lines (`src/modules/reporting/domain/inspection.ts`, `CHECK_SOURCES`).
 - S6 art. 14 and S7 art. 13: the vaccination columns of the register (vaccine, commercial name, lot, date, number, species, age).
 - S6 art. 13: Newcastle vaccination is compulsory for every production type (`REQUIRED_VACCINES` in `src/modules/health/domain/required.ts`; the warning on the protocol editor and the batch’s vaccination plan). SPEC OQ4.
+- S12 art. 1 and 3; S6, S7 and S9 art. 1: the « Maladies à déclaration obligatoire » card on the batch screen (`src/components/notifiable-diseases.tsx`) and the checklist's declaration info line (`Inspection.declaration`). Art. 1 lists, for birds: « La peste aviaire, la maladie de Newcastle, la maladie de Gumboro, la maladie de Marek, la pullorose (S.P.G.), la salmonellose aviaire (…) et la bronchite infectieuse chez la volaille », « La psittacose-ornithose chez toutes les espèces d'oiseaux », and tuberculosis « chez les oiseaux ». Art. 3: the owner, whoever cares for or keeps the animal, and any vet who visits it declare a sick or suspect animal « immédiatement » to the local administrative authority. S6, S7 and S9 art. 1: for Newcastle, HPAI and pullorosis the declaration is « immédiatement déposée auprès du service vétérinaire de l'[ONSSA] du lieu ». No arrêté exists for Gumboro, infectious bronchitis or Marek: notifiable, with no compulsory vaccination.
+- S2 art. 2 and 4; S4 art. 12: the self-declared checklist lines `installations` (adds the toilets with a washbasin, the sas's two changing rooms separated by showers, the isolated staff housing), `buildings` (art. 4's building specifications, nets or mesh on openings against birds and rodents), `manure` (« dès l'enlèvement des animaux, le fumier doit être humidifié … ») and `layerStores` (« les fermes de poules pondeuses »: egg store outside the houses and a droppings area; shown only when the pack holds a layer batch).
 
 ## Vaccination programmes and withdrawal periods (read 2026-11-24)
 
@@ -32,4 +35,9 @@ Accessed 2026-11-23 (S1–S7) and 2026-11-24 (S7’s URL, S8–S11).
 - S8 art. 2 and 9: salmonelloses and mycoplasmoses of breeders and hatcheries; any vaccination against them follows a strategy of the direction de l’élevage. No schedule.
 - S9 art. 15: vaccinating breeding flocks against pullorosis (SPG) is prohibited. No schedule.
 - S10: day-old chicks sold must be free of pullorosis-typhoid. No vaccination requirement.
+- S11 is also the source of the catalogue's vaccine **types** (`prisma/seed/reference/products.json`): authorised vaccines exist for each. Examples, cited here and not stored as data (the catalogue uses generic names, no brand): Marek, « POULVAC MAREK CVI + HVT », AMM N° 0690.4/08/V6 (p. 41); H9N2, « ATLAVAC H9N2 », AMM N° 1913.1/17/V4 (p. 59), and « CEVAC FLU H9 K », AMM N° 1905.3/17/V2 (p. 150). H9N2 (low-pathogenic avian influenza) is not on S12's list and no text makes its vaccination compulsory. Read in full on 2026-11-24; only page 1 is committed.
 - S11: every page has the same columns (company, product, date of the AMM, active ingredient, target species, validity, presentation, AMM number). **There is no withdrawal-period column**: the only “retrait” on its pages is the footer’s “retrait officiel” of an AMM. Withdrawal days stay typed on each treatment from the product’s notice (AMM) or the vet’s prescription (loi n° 49-99, art. 9: the prescriptions of use, “notamment celles relatives au respect des délais d’attente”, are binding).
+
+## Licence
+
+Loi n° 2-00 relative aux droits d'auteur et droits voisins, art. 8: « La protection prévue par la présente loi ne s'étend pas : a. aux textes officiels de nature législative, administrative ou judiciaire, ni à leurs traductions officielles ». The dahir, the arrêtés, the décret and the positive list are official texts, so they are copied and quoted here. Product names in S11 are trademarks: the app uses generic vaccine types. A reading, not legal advice.

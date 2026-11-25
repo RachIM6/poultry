@@ -21,7 +21,7 @@ const ERRORS = `
 // What this page's client components read (src/i18n/client-messages.tsx).
 const MESSAGES: MessagePath[] = [
   "Batches", "Closing", "Correct", "Day", "EggStock", "Eggs", "Farms.saveFailed", "Farms.saved", "Farms.title", "Kpi",
-  "Layers", "LocaleSwitcher", "Protocol", "Register.link", "Report.link", "Sale", "Stock.invalid", "Stock.units",
+  "Layers", "LocaleSwitcher", "Notifiable", "Protocol", "Register.link", "Report.link", "Sale", "Stock.invalid", "Stock.units",
   "Sync.login", "Sync.signedOut", "Today", "Transfer", "Treatment", "Types", "Vaccination", "VetVisit", "Weighing",
   ...ERRORS,
 ];

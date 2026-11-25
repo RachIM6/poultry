@@ -98,8 +98,8 @@ function OriginDocument({ userId, organizationId, role }: Scope) {
       <Part title={t("sale")}>
         <Row label={t("day")}>{day(sale.day)}</Row>
         <Row label={t("birds")}>{formatCount(sale.birds)}</Row>
-        <Row label={t("weight")}>{formatKg(sale.farmWeightGrams)}</Row>
-        <Row label={t("average")}>{formatKg(Math.round(sale.farmWeightGrams / sale.birds))}</Row>
+        <Row label={t("weight")}><bdi dir="ltr">{formatKg(sale.farmWeightGrams)}</bdi></Row>
+        <Row label={t("average")}><bdi dir="ltr">{formatKg(Math.round(sale.farmWeightGrams / sale.birds))}</bdi></Row>
       </Part>
       <Part title={t("buyer")}>
         <Row label={t("buyerName")}>{buyer?.name ?? "—"}</Row>

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 
-export type AuthAction = "code_requested" | "verify_failed" | "login" | "logout" | "rate_limited" | "captcha_failed";
+// member_export, member_delete: written by the operator tools (src/ops/member-data.ts), not here.
+export type AuthAction = "code_requested" | "verify_failed" | "login" | "logout" | "rate_limited" | "captcha_failed" | "member_export" | "member_delete";
 
 /** Who made the request, as far as the server can tell. Coarse on purpose (law 09-08). */
 export type Client = { ip?: string; subnet?: string; userAgent?: string };

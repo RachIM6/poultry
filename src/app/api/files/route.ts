@@ -6,7 +6,7 @@ import { attachRodentProof } from "@/modules/biosecurity";
 import { attachDocumentFile, storeFile } from "@/modules/documents";
 import { FILE_PURPOSES, MAX_FILE_BYTES, type FilePurpose } from "@/modules/documents/shared";
 import { attachExpenseReceipt, attachFixedAssetReceipt, attachManualEntryReceipt } from "@/modules/finance";
-import { getTenantContext } from "@/modules/identity";
+import { getWriteContext } from "@/modules/identity";
 
 // STORAGE_FULL is 413, not 507: the organisation's quota refuses this content, the server isn't failing. A 5xx would
 // trip server-error alerts and invite retries; the message key tells it apart from one oversized file.
@@ -29,8 +29,8 @@ const OTHER_RECEIPTS = { manualEntry: attachManualEntryReceipt, fixedAsset: atta
 // it, so a record only ever points at a file this organisation has just uploaded, and a refused attach keeps no bytes.
 export async function POST(req: Request) {
   if (!isSameOriginRequest(req)) return error("errors.FORBIDDEN", 403);
-  const ctx = await getTenantContext(req.headers);
-  if (!ctx.ok) return error("errors.UNAUTHENTICATED", 401);
+  const ctx = await getWriteContext(req.headers); // read-only once the organisation left (docs/data-requests.md)
+  if (!ctx.ok) return error(`errors.${ctx.error}`, ctx.error === "ORGANIZATION_LEFT" ? 403 : 401);
   const query = new URL(req.url).searchParams;
   const purpose = query.get("purpose");
   if (!FILE_PURPOSES.includes(purpose as FilePurpose)) return error("errors.INVALID_INPUT", 400);

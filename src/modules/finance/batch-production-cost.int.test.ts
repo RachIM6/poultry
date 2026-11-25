@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
 import { fixedClock } from "@/lib/kernel/clock";
+import type { FarmDay } from "@/lib/kernel/farm-day";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
@@ -137,7 +138,7 @@ describe("the production cost of a batch in progress at the close (SPEC-finance 
       { account: "71311", label: "Variation des stocks de biens produits en cours", debit: 0n, credit: 14_914_168n },
     ]);
     // FN13, the management result, still counts every charge and no depreciation: 182 400 + 500 + 600 + 150.
-    const results = await batchResults(owner, "2025-12-31");
+    const results = await batchResults(owner, "2025-12-31" as FarmDay);
     expect(results.ok && results.value.find((r) => r.id === a.broiler)?.costCentimes).toBe(18_365_000n);
 
     expect(await runClose(owner, { year: 2025 }, clock)).toMatchObject({ ok: true });

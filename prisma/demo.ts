@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { v7 as uuidv7 } from "uuid";
 import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
@@ -6,13 +7,15 @@ import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { createOrganization } from "@/modules/farm-registry";
 import { postPending, recordAssociateMovement, saveBudget } from "@/modules/finance";
-import { addOwner, inviteMember } from "@/modules/identity";
+import { addOwner, inviteMember, setPassword } from "@/modules/identity";
 import { attendanceId, taskDoneId } from "@/modules/workforce/schema";
 
 // `pnpm db:seed:demo` (T26): two demo organisations to show the app, owned by DEMO_PHONE (default +212600000099): an
 // individual farm with the whole range (broilers, layers, stock, sales, money, team, compliance, climate) and a SARL
-// (full books and statements). Run `pnpm db:seed` first (strains, catalogue, charts). Everything goes through the same
-// sync mutations as a phone, so every rule and audit event applies. Idempotent: a second run finds the owner and stops.
+// (full books and statements). The owner signs in with that number and DEMO_PASSWORD, or, without it, a generated
+// password printed once (ADR-015). Run `pnpm db:seed` first (strains, catalogue, charts). Everything goes through the
+// same sync mutations as a phone, so every rule and audit event applies. Idempotent: a second run finds the owner and
+// adds nothing (with DEMO_PASSWORD, it changes the password).
 // The figures are made up to look plausible: DEMO ONLY, never a reference (no breeder curve, no vaccine schedule, no
 // SMAG or contribution rate, no climate target). The reference protocols have no lines yet, so no vaccination is seeded.
 
@@ -22,15 +25,29 @@ if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "1"
   process.exit(1);
 }
 
-// ── Accounts. Kept here and minimal: password login (ADR-015) adds the demo owner's credentials to these lines. ──
+// ── Accounts. Kept here and minimal (ADR-015: the demo owner's password). ──
 const phone = process.env.DEMO_PHONE ?? "+212600000099";
 const PHONES = { associate: "+212600000098", vet: "+212600000097", accountant: "+212600000096" }; // made up, never called
-if (await db.user.findUnique({ where: { phoneNumber: phone } })) {
-  console.log(`demo: ${phone} already exists, nothing to do`);
+
+// The demo owner's password (ADR-015): DEMO_PASSWORD, else a generated one, printed once.
+const demoPassword = async (userId: string) => {
+  const password = process.env.DEMO_PASSWORD || randomBytes(9).toString("base64url");
+  const set = await setPassword(userId, password);
+  if (!set.ok) throw new Error(`DEMO_PASSWORD refused: ${set.error}`);
+  const signIn = `demo: sign in with ${phone} and ${process.env.DEMO_PASSWORD ? "DEMO_PASSWORD" : `the password ${password}`}`;
+  console.log(signIn);
+  return signIn;
+};
+
+const existing = await db.user.findUnique({ where: { phoneNumber: phone } });
+if (existing) {
+  if (process.env.DEMO_PASSWORD) await demoPassword(existing.id);
+  console.log(`demo: ${phone} already exists, no farm added`);
   process.exit(0);
 }
 const newUser = (phoneNumber: string, name: string) => db.user.create({ data: { phoneNumber, name, email: `${phoneNumber.slice(1)}@phone.invalid`, locale: "fr" } });
 const user = await newUser(phone, "Démo");
+const signIn = await demoPassword(user.id);
 const associate = await newUser(PHONES.associate, "Associé démo");
 const farmOrg = await createOrganization(user.id, { name: "Ferme Démo Ben Ahmed", form: "individual", locale: "fr" });
 const sarlOrg = await createOrganization(associate.id, { name: "SARL Démo Avicole", form: "company", locale: "fr" });
@@ -98,8 +115,9 @@ async function apply(ctx: TenantContext, label: string, mutations: Mutation[]) {
   return results.length;
 }
 
-const must = <T extends { ok: boolean }>(what: string, r: T) => {
+const must = <T extends { ok: boolean }>(what: string, r: T): Extract<T, { ok: true }> => {
   if (!r.ok) throw new Error(`demo: ${what} ${JSON.stringify(r)}`);
+  return r as Extract<T, { ok: true }>;
 };
 
 // ══ Ferme Démo Ben Ahmed (individual: the receipts-and-expenses book) ══
@@ -291,8 +309,8 @@ const pushedA = await apply(A, "Ferme Démo Ben Ahmed", [
 ]);
 must("contribution", await recordAssociateMovement(A, { id: uuidv7(), day: ago(105), direction: "contribution", amountCentimes: dh(350_000), treasuryId: a.bank, associate: null }));
 must("budget", await saveBudget(A, { id: uuidv7(), name: "Bande en cours, bâtiment 1 (démo)", basedOn: null, batchId: a.open, chicks: "8000", chickPriceCentimes: "550", feedGrams: "35000000", feedPricePerKgCentimes: "535", otherCostCentimes: dh(18_000), plannedGrams: "18800000", salePricePerKgCentimes: "1500", saleDay: "42" }));
-must("vet invitation", await inviteMember(A, { phone: PHONES.vet, role: "vet", accessUntil: addFarmDays(today, 90) }));
-must("accountant invitation", await inviteMember(A, { phone: PHONES.accountant, role: "accountant", accessUntil: null }));
+const vetCode = must("vet invitation", await inviteMember(A, { phone: PHONES.vet, role: "vet", accessUntil: addFarmDays(today, 90) })).value.code;
+const accountantCode = must("accountant invitation", await inviteMember(A, { phone: PHONES.accountant, role: "accountant", accessUntil: null })).value.code;
 
 // ══ SARL Démo Avicole (company: full books and statements) ══
 const b = { farm: uuidv7(), house: uuidv7(), feedCo: uuidv7(), starter: uuidv7(), grower: uuidv7(), finisher: uuidv7(), closed: uuidv7(), open: uuidv7(), bank: uuidv7(), cash: uuidv7(), abattoir: uuidv7(), trader: uuidv7() };
@@ -332,12 +350,13 @@ const pushedB = await apply(B, "SARL Démo Avicole", [
   m("finance.recordExpense", { id: uuidv7(), day: bDay(42), category: "catching", amountCentimes: dh(1_800), paidFrom: "cash", treasuryId: b.cash, note: null, batchId: b.closed }),
 ]);
 must("SARL contribution", await recordAssociateMovement(B, { id: uuidv7(), day: ago(85), direction: "contribution", amountCentimes: dh(300_000), treasuryId: b.bank, associate: "Associé démo" }));
-must("SARL accountant invitation", await inviteMember(B, { phone: PHONES.accountant, role: "accountant", accessUntil: null }));
+const sarlAccountantCode = must("SARL accountant invitation", await inviteMember(B, { phone: PHONES.accountant, role: "accountant", accessUntil: null })).value.code;
 
 await postPending(A); // the books, as the push route does after a phone's push
 await postPending(B);
 
 console.log(`demo: ${pushedA + pushedB} writes applied, in two organisations: « Ferme Démo Ben Ahmed » (individual) and « SARL Démo Avicole » (company).`);
-console.log(`demo: sign in with the phone number ${phone}: the one-time code goes to the SMS sender (in development, OTP_CONSOLE_SINK=1 prints it in the server log).`);
-console.log(`demo: pending invitations (no SMS sent): vet ${PHONES.vet}, accountant ${PHONES.accountant}. DEMO ONLY: every name and figure is made up.`);
+console.log(`demo: pending invitations, joined at /fr/join with the number and the code: vet ${PHONES.vet} (${vetCode}), accountant ${PHONES.accountant} (${accountantCode} for the farm, ${sarlAccountantCode} for the SARL).`);
+console.log("demo: DEMO ONLY, every name and figure is made up.");
+console.log(signIn); // again, last, for whoever presents
 await db.$disconnect();

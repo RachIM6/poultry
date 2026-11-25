@@ -34,6 +34,7 @@ const common = { phone: "+2126•••••21", ip: SUBNET, userAgent: UA };
 let secrets: string[] = [];
 
 beforeEach(async () => {
+  vi.stubEnv("AUTH_SMS_ENABLED", "true"); // the code endpoints, dormant by default (ADR-015)
   vi.stubEnv("APP_ORIGIN", "http://localhost:3000");
   vi.stubEnv("TRUSTED_PROXY_HOPS", "1");
   await db.authEvent.deleteMany();

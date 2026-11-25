@@ -41,7 +41,7 @@ async function seed(ctx: TenantContext, n: number) {
   const receipt = await storeFile(ctx, "receipt", png(n + 100));
   if (!proof.ok || !receipt.ok) throw new Error("storeFile");
   await db.expense.create({ data: { id: ids.expense, ...org, day: new Date("2026-03-01"), category: "electricity", amountCentimes: 5_000n, paidFrom: "cash", receiptFileId: receipt.value.id, recordedBy: ctx.userId } });
-  await db.invitation.create({ data: { ...org, phoneNumber: `+21265000000${n}`, role: "worker", invitedById: ctx.userId, expiresAt: new Date(Date.now() + DAY) } });
+  await db.invitation.create({ data: { ...org, phoneNumber: `+21265000000${n}`, role: "worker", invitedById: ctx.userId, codeHash: `invite-hash-${n}`, expiresAt: new Date(Date.now() + DAY) } });
   await db.session.create({ data: { token: `token-${n}`, userId: ctx.userId, expiresAt: new Date(Date.now() + DAY) } });
   await db.pushSubscription.create({ data: { userId: ctx.userId, endpoint: `https://push.example/${n}`, p256dh: "k", auth: "a" } });
   await db.authEvent.create({ data: { action: "login", userId: ctx.userId } });
@@ -68,6 +68,9 @@ describe("organisation export and deletion (ADR-007, law 09-08)", () => {
     seedB = await seed(b, 2);
     both = (await db.user.create({ data: { phoneNumber: "+212600000003", name: "Deux", email: "212600000003@phone.invalid" } })).id;
     await db.membership.createMany({ data: [a, b].map((t) => ({ organizationId: t.organizationId, userId: both, role: "worker" as const })) });
+    // ADR-015: reset codes for the worker of both, one from each owner.
+    const expiresAt = new Date(Date.now() + DAY);
+    await db.passwordReset.createMany({ data: [a, b].map((t) => ({ userId: both, issuedById: t.userId, codeHash: `reset-hash-${t.organizationId}`, expiresAt })) });
   });
 
   it("exports every row of A as JSON and CSV, its files byte for byte, and nothing of B", async () => {
@@ -88,6 +91,8 @@ describe("organisation export and deletion (ADR-007, law 09-08)", () => {
     expect(json("StoredFile")[0]).not.toHaveProperty("bytes");
     expect(files.get("tables/Visit.csv")!.toString("utf8").split("\r\n").filter(Boolean)).toHaveLength(2); // header + 1 row
     expect(files.has("tables/Session.json")).toBe(false); // login secrets are never exported
+    expect(files.has("tables/PasswordReset.json")).toBe(false);
+    expect(json("Invitation")[0]).not.toHaveProperty("codeHash"); // an invite code's HMAC, ADR-015
 
     for (const id of [seedA.proof, seedA.receipt]) {
       const row = await db.storedFile.findUniqueOrThrow({ where: { id } });
@@ -97,6 +102,7 @@ describe("organisation export and deletion (ADR-007, law 09-08)", () => {
     const everything = [...files.values()].map((f) => f.toString("latin1")).join("\n");
     for (const id of [b.organizationId, b.userId, ...Object.values(seedB)]) expect(everything).not.toContain(id);
     expect(everything).not.toContain("Visiteur 2");
+    expect(everything).not.toMatch(/invite-hash|reset-hash/);
 
     expect(summary.files).toBe(2);
     expect(await db.auditEvent.count({ where: { organizationId: a.organizationId, entity: "Organization", action: "export" } })).toBe(1);
@@ -136,6 +142,7 @@ describe("organisation export and deletion (ADR-007, law 09-08)", () => {
     expect(await db.authEvent.count({ where: { userId: a.userId } })).toBe(0);
     expect(await db.verification.count({ where: { identifier: "+212600000001" } })).toBe(0);
     expect((await db.membership.findMany({ where: { userId: both } })).map((m) => m.organizationId)).toEqual([b.organizationId]);
+    expect((await db.passwordReset.findMany({ where: { userId: both } })).map((r) => r.issuedById)).toEqual([b.userId]); // A's code went
 
     // The books and their supporting documents stay, phones erased.
     expect(await ledger(a.organizationId)).toEqual(booksBefore);

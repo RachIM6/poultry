@@ -24,3 +24,17 @@ test("an unknown locale is a 404", async ({ page }) => {
   const response = await page.goto("/de");
   expect(response?.status()).toBe(404);
 });
+
+test("an unknown page says so in the page's language, with a way home", async ({ page }) => {
+  for (const [path, dir, title, home] of [
+    ["/fr/nulle-part", "ltr", "Page introuvable", "Retour à l’accueil"],
+    ["/ar/batches/nowhere", "rtl", "الصفحة غير موجودة", "العودة إلى الرئيسية"],
+  ] as const) {
+    const response = await page.goto(path);
+    expect(response?.status()).toBe(404);
+    await expect(page.locator("html")).toHaveAttribute("dir", dir);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+    await page.getByRole("link", { name: home }).click();
+    await expect(page).toHaveURL(new RegExp(`/${path.slice(1, 3)}$`));
+  }
+});

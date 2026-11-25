@@ -23,7 +23,12 @@ test("pay without labour figures shows gross only, says so, and is validated by 
   await expect(pay.getByRole("row", { name: /Said A\./ })).toContainText(/1\s*150,00\sDH\s*—\s*0,00\sDH\s*150,00\sDH/);
   await expect(pay.getByRole("note")).toContainText("aucune cotisation n’est calculée");
 
-  await pay.getByRole("button", { name: `Valider la paie de ${today.slice(0, 7)}` }).click();
+  // The month in words in both languages, not 2026-11.
+  const month = (locale: string) => new Intl.DateTimeFormat(locale, { numberingSystem: "latn", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${today.slice(0, 7)}-01T00:00:00Z`));
+  await page.goto("/ar/staff");
+  await expect(page.getByRole("button", { name: `المصادقة على أجور ${month("ar-MA")}` })).toBeVisible();
+  await page.goto("/fr/staff");
+  await pay.getByRole("button", { name: `Valider la paie de ${month("fr")}` }).click();
   await expect(pay).toContainText("Paie validée le"); // saved on the phone
   await outboxEmpty(page);
   const server = () =>

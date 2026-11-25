@@ -9,7 +9,7 @@ import { addTable, deleteUsers, operator, tables, writeZip, type Column } from "
 // organisation's, and often comes from someone who no longer belongs to any.
 
 /** Login secrets: never exported; they go with the user. */
-const SECRETS = ["Session", "Account", "Verification"];
+const SECRETS = ["Session", "Account", "Verification", "PasswordReset"]; // invitations' codeHash: SECRET_COLUMNS
 /** A column naming a user: userId, byUserId, recordedBy, invitedById… */
 const namesUser = (c: Column) => c.type === "uuid" && /(^u|U)serId$|By(Id)?$/.test(c.name);
 

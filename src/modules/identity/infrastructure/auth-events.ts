@@ -1,7 +1,24 @@
 import { db } from "@/lib/db";
 
-// member_export, member_delete: written by the operator tools (src/ops/member-data.ts), not here.
-export type AuthAction = "code_requested" | "verify_failed" | "login" | "logout" | "rate_limited" | "captcha_failed" | "member_export" | "member_delete";
+export type AuthAction =
+  | "code_requested"
+  | "verify_failed"
+  | "login"
+  | "logout"
+  | "rate_limited"
+  | "captcha_failed"
+  // ADR-015, password login
+  | "sign_in_failed"
+  | "sign_up"
+  | "reset_issued"
+  | "reset_used"
+  | "reset_failed"
+  | "invite_issued"
+  | "invite_accepted"
+  | "invite_failed"
+  // member_export, member_delete: written by the operator tools (src/ops/member-data.ts), not here.
+  | "member_export"
+  | "member_delete";
 
 /** Who made the request, as far as the server can tell. Coarse on purpose (law 09-08). */
 export type Client = { ip?: string; subnet?: string; userAgent?: string };
@@ -10,7 +27,8 @@ const USER_AGENT_MAX = 256;
 
 /**
  * poultry-auth §6: one AuthEvent row. Never throws: a failed write is logged and login goes on, with the same answer.
- * Callers pass only the masked phone and no code, session id or captcha payload; the row keeps the subnet, not the IP.
+ * Callers pass only the masked phone (or masked email, ADR-015) and no password, code, session id or captcha payload;
+ * the row keeps the subnet, not the IP.
  */
 export async function recordAuthEvent(
   action: AuthAction,

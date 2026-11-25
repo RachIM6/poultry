@@ -17,8 +17,9 @@ import { openScreen, orgOf, overflow, realisticOwner } from "./screens";
 
 const ZOOM_WIDTH = 320;
 const CONTROLS = 'a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=tab], [role=menuitem]';
-// Opening these only shows a confirmation, but they are left alone all the same.
-const DESTRUCTIVE = /Annuler la vente|Supprimer|Rouvrir|إلغاء البيع|حذف|إعادة فتح/;
+// Opening these only shows a confirmation, but they are left alone all the same; signing out or resetting a password
+// would end the session or change an account.
+const DESTRUCTIVE = /Annuler la vente|Supprimer|Rouvrir|Déconnecter|déconnecter|Réinitialiser|إلغاء البيع|حذف|إعادة فتح|تسجيل الخروج|إعادة تعيين/;
 type Failures = Record<"targets" | "names" | "files" | "contrast" | "zoom", string[]>;
 
 /** Visible controls smaller than 44 × 44 CSS px, as `tag "text" W×H`. */
@@ -280,11 +281,13 @@ function report(failures: Failures) {
 
 const empty = (): Failures => ({ targets: [], names: [], files: [], contrast: [], zoom: [] });
 
-test("the login screen: 44 px targets, named fields, contrast, reflow at 320 px, in French and in Arabic", async ({ page, context }) => {
+test("the signed-out screens: 44 px targets, named fields, contrast, reflow at 320 px, in French and in Arabic", async ({ page, context }) => {
+  test.setTimeout(120_000);
   const zoom = await context.newPage();
   await zoom.setViewportSize({ width: ZOOM_WIDTH, height: 640 });
   const failures = empty();
-  for (const locale of ["fr", "ar"]) await check(page, `/${locale}/login`, failures, zoom);
+  // ADR-015: sign in, sign up, join with an invite code, a new password with a reset code.
+  for (const locale of ["fr", "ar"]) for (const path of ["login", "signup", "join", "reset"]) await check(page, `/${locale}/${path}`, failures, zoom);
   report(failures);
 });
 

@@ -81,6 +81,16 @@ test("the owner records the registration numbers and they head the statements", 
   const ids = page.getByRole("definition");
   await expect(page.getByText("Élevage des Numéros · Exploitant individuel")).toBeVisible();
   await expect(ids).toHaveText(["001534290000057", "12345678", "98765 · Casablanca", "1234567"]);
+
+  // The accountant opens the settings from /more and reads the profile and the numbers: no form, nothing to edit.
+  await page.goto("/fr/more");
+  await page.getByRole("link", { name: "Paramètres comptables" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres comptables");
+  const main = page.getByRole("main");
+  await expect(main.getByRole("definition")).toContainText(["001534290000057", "12345678", "98765 · Casablanca", "1234567", "Comptabilité en partie double"]);
+  await expect(main.locator("form")).toHaveCount(0);
+  await expect(main.getByRole("textbox")).toHaveCount(0);
+  await expect(main.getByRole("button")).toHaveCount(0);
 });
 
 // U15 (mockup F-Chart, SPEC-finance FN2, FN6): what each operation is posted to, in both charts.

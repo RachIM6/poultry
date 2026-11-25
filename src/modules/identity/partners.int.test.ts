@@ -23,7 +23,7 @@ describe("partners: vet and accountant (SPEC-m5 PA1, PA3)", () => {
 
   it("the owner invites a vet until a day; the vet signs in with that role, and the members list shows the end", async () => {
     const until = day(30);
-    expect(await inviteMember(a, { phone: "0611000001", role: "vet", accessUntil: until })).toEqual({ ok: true, value: undefined });
+    expect(await inviteMember(a, { phone: "0611000001", role: "vet", accessUntil: until })).toMatchObject({ ok: true });
     const vet = await getTenantContext(await login("0611000001"));
     expect(vet).toMatchObject({ ok: true, value: { organizationId: a.organizationId, role: "vet" } });
     const list = await listMembers(a);
@@ -32,7 +32,7 @@ describe("partners: vet and accountant (SPEC-m5 PA1, PA3)", () => {
   });
 
   it("an accountant may have no end; an empty date from the form means none", async () => {
-    expect(await inviteMember(a, { phone: "0611000002", role: "accountant", accessUntil: "" })).toEqual({ ok: true, value: undefined });
+    expect(await inviteMember(a, { phone: "0611000002", role: "accountant", accessUntil: "" })).toMatchObject({ ok: true });
     expect(await getTenantContext(await login("0611000002"))).toMatchObject({ ok: true, value: { role: "accountant" } });
   });
 

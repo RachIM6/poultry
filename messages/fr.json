@@ -21,6 +21,11 @@
     "failed": "Pas de réseau ou erreur du serveur : rien n’a été enregistré. Réessayez.",
     "retry": "Réessayer"
   },
+  "NotFound": {
+    "title": "Page introuvable",
+    "body": "Cette adresse ne mène à aucune page. Le lien est peut-être incomplet ou ancien.",
+    "home": "Retour à l’accueil"
+  },
   "Install": {
     "title": "Installer l'application",
     "back": "Retour",
@@ -50,13 +55,43 @@
     "noPassword": "Pas de mot de passe. Un compte est créé à la première connexion.",
     "captchaChecking": "Vérification de sécurité…",
     "captchaDone": "Vérification de sécurité terminée.",
-    "captchaRetry": "Réessayer"
+    "captchaRetry": "Réessayer",
+    "identifierLabel": "Téléphone ou e-mail",
+    "identifierHint": "Le numéro (06… ou 07…) ou l’e-mail de votre compte.",
+    "passwordLabel": "Mot de passe",
+    "signIn": "Se connecter",
+    "otherWays": "Autres actions",
+    "signupLink": "Créer un compte",
+    "joinLink": "J’ai un code d’invitation",
+    "resetLink": "Mot de passe oublié : j’ai un code",
+    "smsLink": "Recevoir un code par SMS",
+    "backToSignIn": "Retour à la connexion"
   },
   "Account": {
     "logout": "Se déconnecter",
     "logoutEverywhere": "Déconnecter tous mes appareils",
     "everywhereConfirm": "Tous vos téléphones seront déconnectés, celui-ci aussi. Utile si un téléphone est perdu. Continuer ?",
-    "unsyncedConfirm": "Des modifications ne sont pas encore envoyées. Elles restent sur ce téléphone et partiront à votre prochaine connexion. Se déconnecter ?"
+    "unsyncedConfirm": "Des modifications ne sont pas encore envoyées. Elles restent sur ce téléphone et partiront à votre prochaine connexion. Se déconnecter ?",
+    "signupTitle": "Créer un compte",
+    "signupIntro": "Pour le propriétaire d’une exploitation. Un ouvrier, un vétérinaire ou un comptable reçoit un code d’invitation du propriétaire.",
+    "joinTitle": "Rejoindre une exploitation",
+    "joinIntro": "Saisissez le code que le propriétaire vous a donné, puis créez votre compte. Vous avez déjà un compte ? Connectez-vous et saisissez le code ensuite.",
+    "resetTitle": "Nouveau mot de passe",
+    "resetIntro": "Demandez un code de réinitialisation au propriétaire de l’exploitation, puis choisissez un nouveau mot de passe. Vos autres appareils seront déconnectés.",
+    "phoneLabel": "Numéro de téléphone",
+    "phoneHint": "Mobile marocain : 06… ou 07…. Conseillé : c’est lui que la ferme utilise.",
+    "emailLabel": "E-mail (facultatif)",
+    "emailHint": "Le téléphone, l’e-mail ou les deux.",
+    "passwordLabel": "Mot de passe",
+    "passwordHint": "Au moins 10 caractères. Une phrase facile à retenir convient très bien.",
+    "confirmLabel": "Confirmer le mot de passe",
+    "codeLabel": "Code",
+    "inviteCodeHint": "Le code à 8 caractères donné par le propriétaire, valable 7 jours.",
+    "resetCodeHint": "Le code de réinitialisation donné par le propriétaire.",
+    "create": "Créer le compte",
+    "join": "Rejoindre",
+    "setPassword": "Enregistrer le mot de passe",
+    "joinWithCode": "Rejoindre une exploitation avec un code"
   },
   "Onboarding": {
     "title": "Créer votre exploitation",
@@ -72,7 +107,9 @@
       "cooperative": "Coopérative",
       "association": "Association",
       "gie": "GIE (groupement d’intérêt économique)"
-    }
+    },
+    "joinTitle": "Vous avez un code d’invitation ?",
+    "joinIntro": "Si un propriétaire vous a invité, saisissez son code au lieu de créer une exploitation."
   },
   "Members": {
     "title": "Membres",
@@ -80,7 +117,7 @@
     "you": "vous",
     "pending": "Invitations en attente",
     "inviteTitle": "Inviter un membre",
-    "inviteHint": "La personne se connecte avec ce numéro dans les 7 jours. Aucun SMS d’invitation n’est envoyé : prévenez-la.",
+    "inviteHint": "Un code s’affiche une seule fois : donnez-le à la personne, en main propre ou par WhatsApp. Elle s’en sert pour créer son compte ou rejoindre l’exploitation dans les 7 jours.",
     "phoneLabel": "Numéro de téléphone",
     "roleLabel": "Rôle",
     "invite": "Inviter",
@@ -102,7 +139,14 @@
     },
     "accessUntilLabel": "Accès jusqu’au (facultatif)",
     "accessUntilHint": "Le vétérinaire ou le comptable ne voit plus l’exploitation après ce jour. Vous pouvez aussi le retirer à tout moment.",
-    "accessUntil": "jusqu’au {date}"
+    "accessUntil": "jusqu’au {date}",
+    "inviteCode": "Code d’invitation",
+    "inviteCodeHint": "Donnez ce code à la personne. Il ne sera plus affiché.",
+    "reset": "Réinitialiser le mot de passe",
+    "resetOf": "Réinitialiser le mot de passe de {phone}",
+    "resetConfirm": "Créer un code de réinitialisation pour {phone} ?",
+    "resetCode": "Code de réinitialisation",
+    "resetCodeHint": "Donnez ce code à la personne : elle choisit un nouveau mot de passe dans « Mot de passe oublié ». Il ne sera plus affiché."
   },
   "Sync": {
     "title": "Synchronisation",
@@ -726,7 +770,19 @@
     "PURCHASE_HAS_PAYMENT": "Un paiement au fournisseur couvre déjà cet achat, ou la banque a débité son chèque ou sa traite : il ne peut plus être annulé.",
     "STOCK_ALREADY_USED": "Une partie de ce stock a déjà été utilisée : l’achat ne peut plus être annulé. Corrigez plutôt le stock par un ajustement.",
     "EXPENSE_PAID": "Un paiement a déjà été enregistré pour cette dépense : elle ne peut plus être corrigée ni annulée.",
-    "EXPENSE_IN_CLOSED_BATCH": "Cette dépense compte dans le résultat d’une bande clôturée : elle ne peut plus changer."
+    "EXPENSE_IN_CLOSED_BATCH": "Cette dépense compte dans le résultat d’une bande clôturée : elle ne peut plus changer.",
+    "INVALID_CREDENTIALS": "Téléphone, e-mail ou mot de passe incorrect.",
+    "INVALID_IDENTIFIER": "Saisissez un mobile marocain (06… ou 07…) ou un e-mail.",
+    "IDENTIFIER_REQUIRED": "Saisissez un numéro de téléphone, un e-mail ou les deux.",
+    "INVALID_EMAIL": "Cet e-mail n’est pas valide.",
+    "ACCOUNT_EXISTS": "Un compte existe déjà avec ce numéro ou cet e-mail. Connectez-vous.",
+    "INVALID_INVITE_CODE": "Code d’invitation incorrect ou expiré.",
+    "INVALID_RESET_CODE": "Code de réinitialisation incorrect ou expiré, ou compte inconnu.",
+    "PASSWORD_TOO_SHORT": "Le mot de passe doit faire au moins 10 caractères.",
+    "PASSWORD_TOO_LONG": "Le mot de passe doit faire au plus 128 caractères.",
+    "WEAK_PASSWORD": "Ce mot de passe est trop facile à deviner. Choisissez-en un autre.",
+    "PASSWORDS_DIFFER": "Les deux mots de passe ne sont pas identiques.",
+    "RESET_NOT_ALLOWED": "Impossible ici : ce membre est propriétaire ou a accès à d’autres exploitations. Contactez le support."
   },
   "Weighing": {
     "title": "Pesée",
@@ -2680,6 +2736,8 @@
     "yearStart": "Début d’exercice",
     "vat": "TVA",
     "vatRegistered": "Assujetti à la TVA",
+    "vatNotRegistered": "Non assujetti à la TVA",
+    "readOnly": "Lecture seule : seul le propriétaire modifie ces paramètres.",
     "vatHint": "La TVA saisie sur les achats et les ventes est alors comptée à part (34552, 4455). Régime à confirmer avec votre expert-comptable.",
     "hens": "Poules pondeuses et poulettes",
     "hensMethods": {

@@ -28,6 +28,8 @@ const RULES: { table: string; where: string; params?: unknown[] }[] = [
   { table: "RateLimitHit", where: `"at" < $1::timestamptz - make_interval(secs => ${LONGEST_WINDOW_SEC})` },
   { table: "Session", where: `"expiresAt" < $1::timestamptz` },
   { table: "Verification", where: `"expiresAt" < $1::timestamptz` },
+  { table: "PasswordReset", where: `"expiresAt" < $1::timestamptz` }, // ADR-015: an expired reset code opens nothing
+  { table: "Invitation", where: `"expiresAt" < $1::timestamptz` }, // nor an expired invitation (its code, its phone)
   {
     table: "AuditEvent",
     where: `"serverReceivedAt" < $1::timestamptz - make_interval(years => ${AUDIT_YEARS}) AND "entity" = ANY($2::text[])`,

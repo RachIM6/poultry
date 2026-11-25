@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { controlled, farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered, inviteCode } from "./auth";
 
 // T73 (SPEC-m4 WF6, WF8): a worker linked to an employee sees only their tasks, ticks one offline, and it syncs once.
 test("a worker sees their own tasks, ticks one offline, and the tick reaches the server once", async ({ page, browser }) => {
@@ -15,9 +15,10 @@ test("a worker sees their own tasks, ticks one offline, and the tick reaches the
   await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
   await page.getByRole("button", { name: "Inviter" }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
+  const code = await inviteCode(page);
   const workerContext = await browser.newContext({ ...test.info().project.use });
   const worker = await workerContext.newPage();
-  const e164 = await login(worker, "fr", phone);
+  const e164 = await login(worker, "fr", phone, code);
   await expect(worker).toHaveURL(/\/fr\/dashboard$/);
   await scopeRemembered(worker);
 

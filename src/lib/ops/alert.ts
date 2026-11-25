@@ -2,6 +2,7 @@ type Alerts = {
   sms_cap_50: Record<string, number>;
   sms_cap_100: Record<string, number>;
   scheduler_failed: { step: string }; // a STEPS name in /api/push/dispatch, a fixed string
+  [globalCap: `${string}_cap`]: Record<string, number>; // a rate-limit policy's global cap reached (signIn_cap…)
 };
 
 /**

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { farmDaysAgo, login, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered } from "./auth";
+import { farmDaysAgo, login, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered, inviteCode } from "./auth";
 import { unzip } from "../src/test/unzip";
 
 // T36 (FN16): an individual farmer (cash_book) sees their receipts-and-expenses book; the ledger views are tested on
@@ -105,9 +105,10 @@ test("a full-books entity sees its draft income statement and balance sheet", as
   await page.getByLabel("Rôle", { exact: true }).selectOption("accountant");
   await page.getByRole("button", { name: "Inviter" }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
+  const code = await inviteCode(page);
   const accountantContext = await browser.newContext({ ...test.info().project.use });
   const accountant = await accountantContext.newPage();
-  await login(accountant, "fr", phone);
+  await login(accountant, "fr", phone, code);
   await expect(accountant).toHaveURL(/\/fr\/dashboard$/);
   await accountant.goto("/fr/books");
   await bilan(accountant);

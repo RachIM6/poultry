@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, queuedWrites, randomMobile, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, login, outboxEmpty, ownerWithFarm, pushAs, query, queuedWrites, randomMobile, scopeRemembered, inviteCode } from "./auth";
 
 // SPEC-m2-compliance §10.2 with a real worker: a visitor, a disposal and a clean-out step recorded offline on the
 // worker's phone reach the server once, and stay once after another sync; the worker never opens the vault (DC1).
@@ -31,11 +31,12 @@ for (const locale of ["fr", "ar"] as const) {
     await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
     await page.getByRole("button", { name: "Inviter" }).click();
     await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
+    const code = await inviteCode(page);
 
     // The worker's phone: the three logs are offered, the vault is not.
     const workerContext = await browser.newContext({ ...test.info().project.use });
     const worker = await workerContext.newPage();
-    const e164 = await login(worker, locale, phone);
+    const e164 = await login(worker, locale, phone, code);
     await expect(worker).toHaveURL(new RegExp(`/${locale}/dashboard$`));
     await scopeRemembered(worker);
     await worker.goto(`/${locale}/more`);

@@ -51,6 +51,14 @@ describe("retention purge (ADR-007, docs/data-requests.md)", () => {
     const code = (expiresAt: Date) => db.verification.create({ data: { identifier: "+212600000001", value: "x", expiresAt } }).then((r) => r.id);
     ids.codeOld = await code(ago(1 / 24));
     ids.codeNew = await code(ago(-1 / 24));
+    // ADR-015: reset codes and invitations (with their invite code), past their 7 days.
+    const reset = (expiresAt: Date) => db.passwordReset.create({ data: { userId: a.userId, codeHash: uuidv7(), expiresAt } }).then((r) => r.id);
+    ids.resetOld = await reset(ago(1));
+    ids.resetNew = await reset(ago(-6));
+    const invitation = (phoneNumber: string, expiresAt: Date) =>
+      db.invitation.create({ data: { organizationId: a.organizationId, phoneNumber, role: "worker", invitedById: a.userId, codeHash: uuidv7(), expiresAt } }).then((r) => r.id);
+    ids.invitationOld = await invitation("+212650000001", ago(1));
+    ids.invitationNew = await invitation("+212650000002", ago(-6));
 
     const notification = (ctx: TenantContext, createdAt: Date, readAt: Date | null) =>
       db.notification
@@ -80,7 +88,7 @@ describe("retention purge (ADR-007, docs/data-requests.md)", () => {
     const summary = await purgeExpired();
 
     expect(summary).toEqual({
-      deleted: { AuthEvent: 1, RateLimitHit: 1, Session: 1, Verification: 1, AuditEvent: 1, Notification: 2 },
+      deleted: { AuthEvent: 1, RateLimitHit: 1, Session: 1, Verification: 1, PasswordReset: 1, Invitation: 1, AuditEvent: 1, Notification: 2 },
       complete: true,
     });
     const left = async <T extends { id: string }>(find: Promise<T[]>) => (await find).map((r) => r.id).sort();
@@ -89,6 +97,8 @@ describe("retention purge (ADR-007, docs/data-requests.md)", () => {
     expect((await db.rateLimitHit.findMany()).map((h) => h.key)).toEqual(["requestCode:phone:86400:new"]);
     expect(await left(db.session.findMany())).toEqual([ids.sessionNew]);
     expect(await left(db.verification.findMany())).toEqual([ids.codeNew]);
+    expect(await left(db.passwordReset.findMany())).toEqual([ids.resetNew]);
+    expect(await left(db.invitation.findMany())).toEqual([ids.invitationNew]);
     expect(await left(db.notification.findMany())).toEqual(sorted(ids.readNew, ids.unreadNew, ids.otherOrgRecent));
     expect(await db.auditEvent.findUnique({ where: { id: ids.visitOld } })).toBeNull();
     for (const kept of [ids.visitNew, ids.visitOtherOrg, ids.saleOld, ids.unknownOld]) expect(await db.auditEvent.findUnique({ where: { id: kept } })).not.toBeNull();
@@ -106,7 +116,7 @@ describe("retention purge (ADR-007, docs/data-requests.md)", () => {
 
   it("is idempotent: a second run deletes nothing", async () => {
     expect(await purgeExpired()).toEqual({
-      deleted: { AuthEvent: 0, RateLimitHit: 0, Session: 0, Verification: 0, AuditEvent: 0, Notification: 0 },
+      deleted: { AuthEvent: 0, RateLimitHit: 0, Session: 0, Verification: 0, PasswordReset: 0, Invitation: 0, AuditEvent: 0, Notification: 0 },
       complete: true,
     });
   });
@@ -127,7 +137,7 @@ describe("retention purge (ADR-007, docs/data-requests.md)", () => {
     expect(await purgeExpiredDaily()).toBeNull();
 
     expect(log.mock.calls).toEqual([
-      [JSON.stringify({ level: "info", retention: { AuthEvent: 1, RateLimitHit: 0, Session: 0, Verification: 0, AuditEvent: 0, Notification: 0 }, complete: true })],
+      [JSON.stringify({ level: "info", retention: { AuthEvent: 1, RateLimitHit: 0, Session: 0, Verification: 0, PasswordReset: 0, Invitation: 0, AuditEvent: 0, Notification: 0 }, complete: true })],
     ]);
     log.mockRestore();
   });

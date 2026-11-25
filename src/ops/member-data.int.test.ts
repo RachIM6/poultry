@@ -24,6 +24,7 @@ async function member(phone: string, name: string, a: TenantContext, farm: strin
   await db.pushSubscription.create({ data: { userId: user.id, endpoint: `https://push.example/${phone}`, p256dh: "k", auth: "a" } });
   await db.notificationPreference.create({ data: { userId: user.id } });
   await db.verification.create({ data: { identifier: `phone-number-otp-${phone}`, value: "123456:0", expiresAt: new Date(Date.now() + DAY) } });
+  await db.passwordReset.create({ data: { userId: user.id, codeHash: `reset-hash-${phone}`, expiresAt: new Date(Date.now() + DAY) } }); // ADR-015
   const notification = await db.notification.create({ data: { ...org, userId: user.id, templateKey: "test", params: {}, deliverAfter: new Date() } });
   await db.change.create({ data: { ...org, version: BigInt(Date.now()) + BigInt(phone.slice(-1)), entity: "notification", entityId: notification.id, data: { userId: user.id } } });
   const employee = uuidv7();
@@ -47,6 +48,7 @@ const personalRows = async (id: string, phone: string) => ({
   NotificationPreference: await db.notificationPreference.count({ where: { userId: id } }),
   Notification: await db.notification.count({ where: { userId: id } }),
   Verification: await db.verification.count({ where: { identifier: { endsWith: phone } } }),
+  PasswordReset: await db.passwordReset.count({ where: { userId: id } }),
   Invitation: await db.invitation.count({ where: { phoneNumber: phone } }),
   Employee: await db.employee.count({ where: { OR: [{ userId: id }, { phone }] } }),
 });
@@ -61,7 +63,7 @@ describe("a member's export and deletion (docs/data-requests.md)", () => {
     await db.farm.create({ data: { id: farm, organizationId: a.organizationId, name: "Ferme", region: "Souss-Massa", province: "Agadir", commune: "Drarga" } });
     m = await member(M, "M", a, farm, b);
     n = await member(N, "N", a, farm);
-    await db.invitation.create({ data: { organizationId: b.organizationId, phoneNumber: M, role: "worker", invitedById: b.userId, expiresAt: new Date(Date.now() + DAY) } });
+    await db.invitation.create({ data: { organizationId: b.organizationId, phoneNumber: M, role: "worker", invitedById: b.userId, codeHash: "invite-hash-M", expiresAt: new Date(Date.now() + DAY) } });
   });
 
   it("exports only the member's own rows, never their sessions or codes", async () => {
@@ -79,10 +81,11 @@ describe("a member's export and deletion (docs/data-requests.md)", () => {
     expect(json("Visit").map((v) => v.id)).toEqual([m.visit]);
     expect(json("Employee").map((e) => e.id)).toEqual([m.employee]);
     expect(json("Invitation")).toHaveLength(1);
-    expect(["Session", "Account", "Verification"].filter((t) => files.has(`tables/${t}.json`))).toEqual([]);
+    expect(["Session", "Account", "Verification", "PasswordReset"].filter((t) => files.has(`tables/${t}.json`))).toEqual([]);
+    expect(Object.keys(json("Invitation")[0])).not.toContain("codeHash"); // ADR-015: a code's HMAC is a login secret
 
     const everything = [...files.values()].map((f) => f.toString("utf8")).join("\n");
-    for (const other of [n.id, N, n.visit, n.employee, "Visiteur N"]) expect(everything).not.toContain(other);
+    for (const other of [n.id, N, n.visit, n.employee, "Visiteur N", "invite-hash", "reset-hash"]) expect(everything).not.toContain(other);
     expect(await db.authEvent.count({ where: { action: "member_export", phone: "+2126•••••03", userId: null } })).toBe(1);
   });
 
@@ -101,7 +104,7 @@ describe("a member's export and deletion (docs/data-requests.md)", () => {
     const r = await deleteMember(M);
     expect(r).toEqual({ ok: true, value: { memberships: 2, invitations: 1, notifications: 1, employees: 1, auditEvents: 1 } });
 
-    expect(Object.values(await personalRows(m.id, M))).toEqual(Array(10).fill(0));
+    expect(Object.values(await personalRows(m.id, M))).toEqual(Array(11).fill(0));
     expect(await db.employee.findUniqueOrThrow({ where: { id: m.employee } })).toMatchObject({ name: "Ouvrier M", phone: null, userId: null });
     expect(await db.visit.findUniqueOrThrow({ where: { id: m.visit } })).toMatchObject({ recordedBy: m.id }); // the record stays
     const copies = await db.change.findMany({ where: { OR: [{ entityId: m.employee }, { entity: "notification", data: { path: ["userId"], equals: m.id } }] } });
@@ -112,7 +115,7 @@ describe("a member's export and deletion (docs/data-requests.md)", () => {
     expect(await db.authEvent.count({ where: { action: "member_delete", phone: "+2126•••••03", userId: null } })).toBe(1);
 
     expect(await personalRows(n.id, N)).toEqual(before);
-    expect(before).toMatchObject({ User: 1, Membership: 1, Session: 1, AuthEvent: 1, Notification: 1, Verification: 1, Employee: 1 });
+    expect(before).toMatchObject({ User: 1, Membership: 1, Session: 1, AuthEvent: 1, Notification: 1, Verification: 1, PasswordReset: 1, Employee: 1 });
     expect(await db.employee.findUniqueOrThrow({ where: { id: n.employee } })).toMatchObject({ phone: N, userId: n.id });
     expect((await db.membership.findMany({ where: { organizationId: b.organizationId } })).map((x) => x.userId)).toEqual([b.userId]);
   });

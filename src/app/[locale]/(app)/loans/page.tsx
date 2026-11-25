@@ -100,6 +100,7 @@ async function LoansView() {
         <h3 className="text-lg font-semibold">{s.label}</h3>
         <p className="text-sm text-ink-2">{t("Subsidies.terms", { grantor: s.grantor, amount: formatMoney(s.amount), day: day(s.receivedOn), bank: s.bank })}</p>
         <p>{t("Subsidies.financed", { assets: s.assets.join(", ") })}</p>
+        {s.inalienableYears !== null && <p>{t("Subsidies.inalienable", { years: s.inalienableYears })}</p>}
         <div className="relative overflow-x-auto">
           <table className={table} aria-label={name}>
             <caption className="p-2 text-start font-semibold">{name}</caption>

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
 import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
@@ -9,8 +10,9 @@ const WIDE = { width: 1280, height: 800 };
 const PHONE = { width: 412, height: 915 };
 const tile = (page: Page, label: string) => page.locator("dl > div").filter({ has: page.getByRole("term").filter({ hasText: label }) });
 const box = async (l: Locator) => (await l.boundingBox())!;
-/** b starts after a ends, on the reading side (French: left to right). */
-const beside = async (a: Locator, b: Locator) => expect((await box(b)).x).toBeGreaterThanOrEqual((await box(a)).x + (await box(a)).width - 1);
+/** b starts after a ends, on the reading side: left to right in French, right to left in Arabic. */
+const beside = async (a: Locator, b: Locator, rtl = false) =>
+  rtl ? expect((await box(b)).x + (await box(b)).width).toBeLessThanOrEqual((await box(a)).x + 1) : expect((await box(b)).x).toBeGreaterThanOrEqual((await box(a)).x + (await box(a)).width - 1);
 const below = async (a: Locator, b: Locator) => expect((await box(b)).y).toBeGreaterThanOrEqual((await box(a)).y + (await box(a)).height - 1);
 const noSideScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
@@ -99,5 +101,44 @@ test("WebSales: receivables and a batch's sales read as tables on a wide screen,
   await expect(sales).toHaveCount(2);
   const byCheque = sales.filter({ hasText: "Chèque" });
   await beside(byCheque.getByText(/Abattoir Atlas · 100 oiseaux · 200\skg/), byCheque.getByText(/^3.000,00\sDH · Chèque/));
+  expect(await noSideScroll(page)).toBe(true);
+});
+
+// The same wide layouts in Arabic: the columns mirrored, still no sideways scroll (ADR-004).
+const ar = JSON.parse(readFileSync("messages/ar.json", "utf8")) as Record<string, Record<string, string> & { methods: Record<string, string>; states: Record<string, string> }>;
+
+test("WebBatch and WebSales in Arabic: the same columns, right to left", async ({ page }) => {
+  test.setTimeout(120_000);
+  await ownerWithFarm(page, "Élevage Grand Écran Arabe");
+  await scopeRemembered(page);
+  const ids = await farmWithBatch(page, "ross-308", farmDaysAgo(30));
+  const buyer = crypto.randomUUID();
+  const sale = { id: crypto.randomUUID(), batchId: ids.batch, buyerId: buyer, day: farmDaysAgo(1), birds: 100, farmWeightGrams: 200_000, buyerWeightGrams: null, pricePerKgCentimes: "1500" };
+  await pushAs(page, [
+    { type: "flock.recordWeighing", payload: { id: uuidv7(), batchId: ids.batch, day: farmDaysAgo(2), sample: { totalGrams: 150_000, count: 100 } } },
+    { type: "sales.createBuyer", payload: { id: buyer, name: "Abattoir Atlas", phone: null, type: "abattoir" } },
+    { type: "sales.recordSale", payload: { ...sale, paymentMethod: "cheque", paidCentimes: "300000", instrument: { number: "0012345", dueOn: farmDaysAgo(-10) } } },
+    { type: "sales.recordSale", payload: { ...sale, id: crypto.randomUUID(), paymentMethod: "credit", paidCentimes: "50000", instrument: null } },
+  ]);
+
+  await page.setViewportSize(WIDE);
+  await page.goto(`/ar/batches#${ids.batch}`);
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  const tiles = page.locator("dl").filter({ has: page.getByRole("term").filter({ hasText: ar.Kpi.costPerKg }) });
+  await expect(tiles).toBeVisible({ timeout: 30_000 }); // the cost per kg is read from the server (FN13)
+  await beside(page.getByRole("figure"), tiles, true);
+  await beside(page.getByRole("button", { name: ar.Day.save }), page.getByRole("button", { name: ar.Weighing.save }), true);
+  const byCheque = page.getByRole("list", { name: ar.Sale.title }).getByRole("listitem").filter({ hasText: ar.Sale.methods.cheque });
+  await expect(byCheque).toHaveCount(1);
+  await beside(byCheque.locator(":scope > span").nth(0), byCheque.locator(":scope > span").nth(1), true);
+  expect(await noSideScroll(page)).toBe(true);
+
+  await page.goto("/ar/receivables");
+  const owing = page.getByRole("list", { name: ar.Receivables.title, exact: true });
+  await expect(owing.getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByText(ar.Receivables.colBuyer)).toBeVisible();
+  await beside(owing.getByText(/^على Abattoir Atlas/), owing.getByText(/0012345/), true);
+  const cheque = page.getByRole("list", { name: ar.Receivables.portfolio }).getByRole("listitem");
+  await beside(cheque.getByText(/0012345/), cheque.getByText(ar.Receivables.states.in_portfolio), true);
   expect(await noSideScroll(page)).toBe(true);
 });

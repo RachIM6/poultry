@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { checkLoan, checkSchedule, disbursementPosting, dueDay, installmentPosting, loanSchedule, type LoanTerms } from "@/modules/finance/domain/loans";
+import { accruedInterest, checkLoan, checkSchedule, disbursementPosting, dueDay, installmentPosting, loanSchedule, yearEndInterest, type LoanTerms } from "@/modules/finance/domain/loans";
 
 const day = (d: string) => d as FarmDay;
 const sum = (xs: bigint[]) => xs.reduce((s, x) => s + x, 0n);
@@ -126,5 +126,42 @@ describe("loan entries (FC2, §7.1 B step 5)", () => {
     expect(10_000_000n - sum(rows.slice(0, 4).map((r) => r.capital))).toBe(3_333_332n);
     expect(sum(rows.filter((r) => r.dueOn <= "2027-12-31").map((r) => r.interest))).toBe(416_250n);
     expect(sum(rows.filter((r) => r.dueOn > "2027-12-31").map((r) => r.interest))).toBe(69_375n);
+  });
+});
+
+describe("accrued interest at the close (FC2, FQ16, §7.1 D)", () => {
+  const accruing = (t: LoanTerms, disbursedOn: string | null) => ({ disbursedOn: disbursedOn as FarmDay | null, frequency: t.frequency, rows: loanSchedule(t) });
+  // §7.1 D: §7.1 B with its first due day on 15 Apr 2027.
+  const d = { ...b, firstDueOn: day("2027-04-15") };
+
+  it("§7.1 D: at 31 Dec 2027, 693,75 × 77 ÷ 92 days since 15 Oct → 580,64, D 63111 / C 4493", () => {
+    expect(accruedInterest(accruing(d, "2027-01-15"), day("2027-12-31"))).toBe(58_064n); // 5 341 875 ÷ 92 = 58 063,86
+    expect(yearEndInterest([accruing(d, "2027-01-15")], day("2027-12-31"))).toEqual({
+      journal: "OD",
+      label: "Intérêts courus et non échus",
+      lines: [{ account: "63111", debit: 58_064n, credit: 0n }, { account: "4493", debit: 0n, credit: 58_064n }],
+    });
+  });
+
+  it("§7.1 B: an installment due on the last day leaves no day to accrue, so nothing is posted", () => {
+    expect(accruedInterest(accruing(b, "2027-01-15"), day("2027-12-31"))).toBe(0n);
+    expect(yearEndInterest([accruing(b, "2027-01-15")], day("2027-12-31"))).toBeNull();
+  });
+
+  it("counts the first period from one period before the first due day, or from a later disbursement", () => {
+    expect(accruedInterest(accruing(d, "2027-01-15"), day("2027-03-31"))).toBe(115_625n); // 1 387,50 × 75 ÷ 90
+    expect(accruedInterest(accruing(b, "2027-01-15"), day("2027-02-28"))).toBe(81_400n); // from 15 Jan, not 31 Dec: × 44 ÷ 75
+    expect(accruedInterest(accruing(b, null), day("2027-02-28"))).toBe(90_958n); // in the opening balance: × 59 ÷ 90 from 31 Dec (90 958,33)
+  });
+
+  it("accrues nothing before the disbursement nor once the last installment is due; adds up the loans", () => {
+    expect(accruedInterest(accruing(d, "2027-01-15"), day("2027-01-10"))).toBe(0n);
+    expect(accruedInterest(accruing(d, "2027-01-15"), day("2028-07-15"))).toBe(0n);
+    expect(yearEndInterest([accruing(d, "2027-01-15"), accruing(b, "2027-01-15"), accruing(d, "2027-01-15")], day("2027-12-31"))?.lines[0].debit).toBe(116_128n);
+  });
+
+  it("follows the schedule as the owner matched it to the bank's table", () => {
+    const rows = loanSchedule(d).map((r) => (r.number === 4 ? { ...r, interest: 92_000n } : r));
+    expect(accruedInterest({ disbursedOn: day("2027-01-15"), frequency: "quarterly", rows }, day("2027-12-31"))).toBe(77_000n); // 920,00 × 77 ÷ 92
   });
 });

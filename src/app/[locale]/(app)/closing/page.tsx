@@ -290,6 +290,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
               </table>
             </div>
           )}
+          {e.kind === "interest" && e.lines.length > 0 && <p className="text-sm text-ink-2">{t("Close.interestHint")}</p>}
           {e.kind === "stock" && stockTable}
           {e.kind === "stock" && eggTable}
           {e.kind === "batch" && batchTable}

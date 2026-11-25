@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { acquisitionPosting, assetCost, assetPaymentPosting, checkAsset, disposalPostings, straightLine, yearEndDepreciation, type DepreciableAsset } from "@/modules/finance/domain/assets";
+import { acquisitionPosting, assetCost, assetDebtAccount, assetPaymentPosting, checkAsset, disposalPostings, straightLine, yearEndDepreciation, type DepreciableAsset } from "@/modules/finance/domain/assets";
 import type { Posting } from "@/modules/finance/domain/posting";
 
 const day = (d: string) => d as FarmDay;
@@ -163,6 +163,18 @@ describe("the asset postings (SPEC-finance FC1, FN9)", () => {
   it("posts a later payment of an asset bought on credit, D 4481 / C the cash box or the bank", () => {
     expect(lines(assetPaymentPosting("Groupe électrogène", 1_000_000n, "cheque", null))).toEqual([["4481", 1_000_000n, 0n], ["5141", 0n, 1_000_000n]]);
     expect(assetPaymentPosting("Groupe électrogène", 1n, "cash", null).journal).toBe("CA");
+  });
+
+  it("owes an asset bought on credit on 1486 when its last payment is more than 12 months away, else on 4481 (FQ23, PCA pp. 77, 107)", () => {
+    expect(assetDebtAccount(day("2027-03-15"), null)).toBe("4481"); // no term typed
+    expect(assetDebtAccount(day("2027-03-15"), day("2027-09-30"))).toBe("4481");
+    expect(assetDebtAccount(day("2027-03-15"), day("2028-03-15"))).toBe("4481"); // 12 months exactly
+    expect(assetDebtAccount(day("2027-03-15"), day("2028-03-16"))).toBe("1486");
+    expect(assetDebtAccount(day("2028-02-29"), day("2029-02-28"))).toBe("4481"); // 12 months on, clamped to the month's end
+    expect(assetDebtAccount(day("2028-02-29"), day("2029-03-01"))).toBe("1486");
+    expect(lines(acquisitionPosting({ ...registered, paidWith: "credit", treasuryId: null }, "1486"))).toEqual([["23321", 4_735_000n, 0n], ["1486", 0n, 4_735_000n]]);
+    expect(lines(acquisitionPosting({ ...registered, paidWith: "cash", treasuryId: null }, "1486"))).toEqual([["23321", 4_735_000n, 0n], ["5161", 0n, 4_735_000n]]); // paid: no debt
+    expect(lines(assetPaymentPosting("Groupe électrogène", 1_000_000n, "transfer", null, "1486"))).toEqual([["1486", 1_000_000n, 0n], ["5141", 0n, 1_000_000n]]);
   });
 
   it("disposes of land at its cost, without depreciation; scrapping posts no price", () => {

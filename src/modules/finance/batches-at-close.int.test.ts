@@ -95,7 +95,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
   it("§7.1 C: 144 400,00 at cost, current value 135 660,00, provision 8 740,00; pullets and layers listed, valued by FC6", async () => {
     const preview = await closePreview(owner, 2025, clock);
     if (!preview.ok) throw new Error(preview.error);
-    expect(preview.value.entries.slice(3)).toEqual([
+    expect(preview.value.entries.slice(3, 6)).toEqual([ // batch, hens, provision (the accrued interest comes after: FQ16)
       {
         kind: "batch",
         action: "post",
@@ -139,7 +139,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
 
   it("posts nothing when the close runs again with the same facts; the values are frozen with the count", async () => {
     expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 0 });
-    expect(await closePreview(owner, 2025, clock)).toMatchObject({ ok: true, value: { frozen: true, entries: [{}, {}, {}, { action: "unchanged" }, { action: "unchanged" }, { action: "unchanged" }] } });
+    expect(await closePreview(owner, 2025, clock)).toMatchObject({ ok: true, value: { frozen: true, entries: [{}, {}, {}, { action: "unchanged" }, { action: "unchanged" }, { action: "unchanged" }, { action: "none" }] } });
     expect(await saveYearEndValues(owner, { year: 2025, values: { [ids.broiler]: "140 000" } })).toEqual({ ok: false, error: "COUNT_FROZEN" });
   });
 

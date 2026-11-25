@@ -69,7 +69,7 @@ async function Content() {
         money && { href: "/closing/statements", label: t("Statements.open") }, // SPEC-finance FC8
         money && { href: "/assets", label: t("Assets.open") }, // SPEC-finance FC1, FCX2
         money && { href: "/loans", label: t("Loans.open") }, // SPEC-finance FC2, FCX2
-        can(ctx.value, "finance.manage") && { href: "/settings/accounting", label: t("Accounting.open") },
+        money && { href: "/settings/accounting", label: t("Accounting.open") }, // the accountant reads it, the owner changes it
         money && { href: "/settings/chart", label: t("Chart.open") }, // read-only; the accountant reads it (SPEC-m5 PA5)
       ].filter((l) => l !== false),
     },

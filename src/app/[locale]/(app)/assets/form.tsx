@@ -157,6 +157,11 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
               </select>
             </label>
             <TreasurySelect treasury={props.treasury} label={t("Assets.treasury")} />
+            <div className={row}>
+              <label htmlFor={`${id}-last-payment`}>{t("Assets.lastPaymentOn")}</label>
+              <input id={`${id}-last-payment`} type="date" name="lastPaymentOn" aria-describedby={`${id}-last-payment-hint`} className={wide} />
+              <span id={`${id}-last-payment-hint`} className="text-sm text-ink-2">{t("Assets.lastPaymentHint")}</span>
+            </div>
           </div>
         )}
         <label className={row}>

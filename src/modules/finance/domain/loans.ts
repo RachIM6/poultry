@@ -1,4 +1,4 @@
-import type { FarmDay } from "@/lib/kernel/farm-day";
+import { daysBetween, type FarmDay } from "@/lib/kernel/farm-day";
 import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import type { Posting } from "@/modules/finance/domain/posting";
@@ -7,6 +7,7 @@ import type { Posting } from "@/modules/finance/domain/posting";
 
 export const LOANS = "1481"; // Emprunts auprès des établissements de crédit
 export const LOAN_INTEREST = "63111"; // Intérêts des emprunts (6311 is subdivided, FN4; CGNC scan p. 298)
+export const ACCRUED_INTEREST = "4493"; // Intérêts courus et non échus à payer (FQ16: PCA pp. 78, 108)
 const BANK = "5141";
 
 export const LOAN_FREQUENCIES = ["monthly", "quarterly"] as const;
@@ -77,5 +78,36 @@ export function installmentPosting(lender: string, row: Pick<ScheduleRow, "numbe
       ...(row.interest > 0n ? [{ account: LOAN_INTEREST, debit: row.interest, credit: 0n }] : []),
       { account: BANK, debit: 0n, credit: total, treasuryId },
     ],
+  };
+}
+
+/** What the accrual reads: the confirmed schedule (as the owner matched it to the bank's table) and the disbursement. */
+export type AccruingLoan = { disbursedOn: FarmDay | null; frequency: LoanFrequency; rows: readonly Pick<ScheduleRow, "dueOn" | "interest">[] };
+
+/**
+ * FC2, FQ16 (PCA p. 78: accrued interest "doivent être débités" to 631 against 4493 at the close; p. 108): the
+ * interest accrued on `day` since the last due day, for the installment not yet due. The schedule charges interest per
+ * period (rate ÷ periods per year, not by days), so the accrual follows it: the next installment's interest × days
+ * elapsed in its period ÷ days in the period, half up. The period starts on the previous due day (the first row: one
+ * period before it), or on the disbursement when later. Nothing once the last installment is due.
+ */
+export function accruedInterest(loan: AccruingLoan, day: FarmDay): bigint {
+  const next = loan.rows.findIndex((r) => r.dueOn > day);
+  if (next < 0) return 0n;
+  const row = loan.rows[next];
+  const previous = next > 0 ? loan.rows[next - 1].dueOn : dueDay(row.dueOn, -MONTHS[loan.frequency]);
+  const start = loan.disbursedOn && loan.disbursedOn > previous ? loan.disbursedOn : previous;
+  if (start >= day) return 0n; // not borrowed yet, or no day elapsed
+  return divHalfUp(row.interest * BigInt(daysBetween(start, day)), BigInt(daysBetween(start, row.dueOn)));
+}
+
+/** FC2, FQ16 year-end posting (the close run): the interest accrued on every loan, D 63111 / C 4493, reversed at the opening (FCX5). */
+export function yearEndInterest(loans: readonly AccruingLoan[], day: FarmDay): Posting | null {
+  const total = loans.reduce((sum, l) => sum + accruedInterest(l, day), 0n);
+  if (total === 0n) return null;
+  return {
+    journal: "OD",
+    label: "Intérêts courus et non échus",
+    lines: [{ account: LOAN_INTEREST, debit: total, credit: 0n }, { account: ACCRUED_INTEREST, debit: 0n, credit: total }],
   };
 }

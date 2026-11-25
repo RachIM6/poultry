@@ -8,6 +8,7 @@ import { Scoped } from "@/components/scoped";
 import { useFieldError, useInline } from "@/components/focus";
 import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
+import { formatMonth } from "@/lib/format-month";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
@@ -294,7 +295,7 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
         <ul aria-label={t("Advances.pending")} className="flex flex-col gap-2">
           {pending.map((a) => (
             <li key={a.id} className="rounded-[18px] bg-chick-soft p-4">
-              {t("Advances.line", { name: name(a.employeeId), amount: formatMoney(BigInt(a.amountCentimes)), date: formatDay(a.day as FarmDay, locale), month: a.deductMonth })}
+              {t("Advances.line", { name: name(a.employeeId), amount: formatMoney(BigInt(a.amountCentimes)), date: formatDay(a.day as FarmDay, locale), month: formatMonth(a.deductMonth, locale) })}
             </li>
           ))}
         </ul>
@@ -511,7 +512,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
           onClick={() => write(W.validatePay, "payMonth", { id: payMonthId(farmId, month), farmId, month, lines, rulesId: inForce?.id ?? null, validatedOn: today, validatedBy: scope.userId } satisfies PayMonthDto)}
           className={primary}
         >
-          {t("Pay.validate", { month })}
+          {t("Pay.validate", { month: formatMonth(month, locale) })}
         </button>
       )}
       {owner && frozen && <WagesPaid farmId={farmId} month={month} net={sum((l) => (BigInt(l.netCentimes) > 0n ? l.netCentimes : "0")) ?? "0"} paid={payments.find((p) => p.id === payPaymentId(farmId, month))} today={today} write={write} />}

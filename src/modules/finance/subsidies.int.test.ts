@@ -91,6 +91,7 @@ describe("investment subsidies (SPEC-finance FC2, FQ17, T106)", () => {
       ["batch", "none", []], // T109: no batch either
       ["hens", "none", []], // T114, T115: no layer or pullet batch
       ["provision", "none", []],
+      ["interest", "none", []], // FQ16: no loan in this file
     ]);
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 2 });
     expect(await runClose(owner, { year: 2027 }, clock)).toEqual({ ok: true, value: 2 });
@@ -117,7 +118,7 @@ describe("investment subsidies (SPEC-finance FC2, FQ17, T106)", () => {
   it("posts nothing when the close runs again with the same facts; a changed life posts a reversal and a new release", async () => {
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
     expect(await runClose(owner, { year: 2027 }, clock)).toEqual({ ok: true, value: 0 });
-    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "unchanged" }, { kind: "subsidy", action: "unchanged" }, { kind: "stock" }, { kind: "batch" }, { kind: "hens" }, { kind: "provision" }] } });
+    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "unchanged" }, { kind: "subsidy", action: "unchanged" }, { kind: "stock" }, { kind: "batch" }, { kind: "hens" }, { kind: "provision" }, { kind: "interest" }] } });
     expect(await db.journalEntry.count({ where: { sourceId: { startsWith: "close:subsidy:" } } })).toBe(2);
 
     // 84 → 60 months: 2026 cumulative 315 667, released 0,3 × 315 667 = 94 700,1 → 94 700.
@@ -132,14 +133,10 @@ describe("investment subsidies (SPEC-finance FC2, FQ17, T106)", () => {
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 4 }); // back to §7.1 A
   });
 
-  it("refuses a subsidy on land only, on land and another asset, or on no asset (FQ17); nothing is posted or kept", async () => {
-    const plot = land();
+  it("refuses a subsidy on no asset, or on a depreciable asset with nothing to depreciate (FQ17); nothing is posted or kept", async () => {
     const kept = generator({ label: "Silo", amountCentimes: "100000", residualCentimes: "100000" }); // its base is 0
-    expect(await createFixedAsset(owner, plot, clock)).toEqual(OK);
     expect(await createFixedAsset(owner, kept, clock)).toEqual(OK);
     const before = await db.journalEntry.count();
-    expect(await createSubsidy(owner, subsidyA(bank, [plot.id]), clock)).toEqual({ ok: false, error: "SUBSIDY_ON_LAND" });
-    expect(await createSubsidy(owner, subsidyA(bank, [plot.id, asset.id]), clock)).toEqual({ ok: false, error: "SUBSIDY_ON_LAND" });
     expect(await createSubsidy(owner, subsidyA(bank, []), clock)).toEqual({ ok: false, error: "SUBSIDY_NO_ASSET" });
     expect(await createSubsidy(owner, subsidyA(bank, [kept.id]), clock)).toEqual({ ok: false, error: "SUBSIDY_NO_ASSET" });
     // Other refusals: a cash box, a day not yet come, a locked month, an asset or a bank account of another organisation.
@@ -194,5 +191,38 @@ describe("investment subsidies (SPEC-finance FC2, FQ17, T106)", () => {
     expect(await runClose(cashBook, { year: 2026 }, clock)).toEqual({ ok: false, error: "CASH_BOOK_NO_CLOSE" });
     const register = await subsidyRegister(cashBook);
     expect(register.ok && register.value.subsidies[0].years[0].release).toBe(67_643n); // the schedule only
+  });
+
+  it("FQ17 (PCA p. 75): accepts a subsidy on land, released over its inalienable years (else a tenth a year) by the close run", async () => {
+    const plot = land();
+    expect(await createFixedAsset(owner, plot, clock)).toEqual(OK);
+    const forms = await subsidyRegister(owner);
+    expect(forms.ok && forms.value.assets.map((x) => x.label)).toContain("Terrain"); // the form offers land
+    const onLand = subsidyA(bank, [plot.id], { label: "Aide au foncier", amountCentimes: "2000000", receivedOn: "2027-03-01", inalienableYears: 4 });
+    expect(await createSubsidy(owner, onLand, clock)).toEqual(OK);
+    expect(await db.subsidy.findUniqueOrThrow({ where: { id: onLand.id } })).toMatchObject({ inalienableYears: 4 });
+    expect(await linesOf(`subsidy:${onLand.id}:receipt`)).toEqual([
+      [1, "BQ", "2027-03-01", "5141", 2_000_000n, 0n],
+      [1, "BQ", "2027-03-01", "1311", 0n, 2_000_000n],
+    ]);
+    // 2027: the generator's 2 029,29 and a quarter of 20 000,00; posted again by reversal and new version (FN7).
+    expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 }); // received in 2027: 2026 doesn't move
+    expect(await runClose(owner, { year: 2027 }, clock)).toEqual({ ok: true, value: 2 });
+    expect((await linesOf(`close:subsidy:${entity}:2027`)).filter((l) => l[0] === 2)).toEqual([
+      [2, "OD", "2027-12-31", "1319", 702_929n, 0n],
+      [2, "OD", "2027-12-31", "7577", 0n, 702_929n],
+    ]);
+    const register = await subsidyRegister(owner);
+    if (!register.ok) throw new Error(register.error);
+    const view = register.value.subsidies.find((s) => s.id === onLand.id)!;
+    expect(view).toMatchObject({ inalienableYears: 4, assets: ["Terrain"] });
+    expect(view.years.map((y) => [y.from, y.release])).toEqual([["2027-01-01", 500_000n], ["2028-01-01", 500_000n], ["2029-01-01", 500_000n], ["2030-01-01", 500_000n]]);
+    // No clause: a tenth a year.
+    const noClause = subsidyA(bank, [plot.id], { label: "Aide au foncier 2", amountCentimes: "1000000", receivedOn: "2027-03-01" });
+    expect(await createSubsidy(owner, noClause, clock)).toEqual(OK);
+    const again = await subsidyRegister(owner);
+    const tenth = again.ok && again.value.subsidies.find((s) => s.id === noClause.id)!;
+    expect(tenth && [tenth.inalienableYears, tenth.years.length, tenth.years[0].release]).toEqual([null, 10, 100_000n]);
+    expect(await createSubsidy(owner, subsidyA(bank, [plot.id], { inalienableYears: 0 }), clock)).toEqual({ ok: false, error: "INVALID_INPUT" });
   });
 });

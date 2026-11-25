@@ -85,6 +85,7 @@ export async function createSubsidyAction(form: FormData): Promise<LoanState> {
     receivedOn: form.get("receivedOn"),
     treasuryId: text(form, "treasuryId"),
     assetIds: form.getAll("assetId"),
+    inalienableYears: whole(form, "inalienableYears"),
   };
   return run((ctx) => createSubsidy(ctx, subsidy), "Subsidies.created");
 }

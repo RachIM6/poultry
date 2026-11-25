@@ -15,6 +15,9 @@ const PullQuery = z.object({
 });
 
 // A read: no CSRF check. The session cookie is SameSite=Lax and the JSON is not readable cross-origin.
+// Seconds the host lets one call run (Vercel, docs/deploy-vercel-supabase.md): a snapshot reads the whole organisation.
+export const maxDuration = 60;
+
 export async function GET(req: Request) {
   const ctx = await getTenantContext(req.headers);
   if (!ctx.ok) return Response.json({ ok: false, messageKey: "errors.UNAUTHENTICATED" }, { status: 401 });

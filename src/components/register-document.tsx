@@ -101,7 +101,8 @@ export function Section({ title, children, heading: H = "h2" }: { title: string;
   );
 }
 
-/** A table that says "none" rather than print an empty grid. On screen a wide one scrolls (zoom, phone); on paper it fits the page. */
+/** A table that says "none" rather than print an empty grid. On screen a wide one scrolls (zoom, phone); on paper it fits the page.
+ * Each cell keeps its own direction: a Latin name or legal reference stays whole in an Arabic table. */
 export function Table({ head, rows, none }: { head: string[]; rows: ReactNode[][]; none: string }) {
   if (rows.length === 0) return <p className="text-sm">{none}</p>;
   return (
@@ -112,7 +113,7 @@ export function Table({ head, rows, none }: { head: string[]; rows: ReactNode[][
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className="break-inside-avoid">{r.map((c, j) => <td key={j}>{c}</td>)}</tr>
+            <tr key={i} className="break-inside-avoid">{r.map((c, j) => <td key={j}><bdi>{c}</bdi></td>)}</tr>
           ))}
         </tbody>
       </table>

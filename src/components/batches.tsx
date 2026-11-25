@@ -38,6 +38,7 @@ const CloseBatchForm = dynamic(() => import("@/components/closing").then((m) => 
 const TransferForm = dynamic(() => import("@/components/closing").then((m) => m.TransferForm));
 const CorrectPlacement = dynamic(() => import("@/components/correct-placement").then((m) => m.CorrectPlacement));
 const ClosedSummary = dynamic(() => import("@/components/closing").then((m) => m.ClosedSummary));
+const ReopenBatchForm = dynamic(() => import("@/components/reopen-batch").then((m) => m.ReopenBatchForm)); // SPEC B6 "Reopening"
 const Sales = dynamic(() => import("@/components/sales").then((m) => m.Sales));
 const Treatments = dynamic(() => import("@/components/treatments").then((m) => m.Treatments));
 const VetVisits = dynamic(() => import("@/components/treatments").then((m) => m.VetVisits));
@@ -158,6 +159,7 @@ function Batches(scope: Scope) {
         <RegisterLinks batchId={shown.id} scope={scope} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <ClosedSummary batch={shown} money={can(scope, "money.read")} />
+        {can(scope, "finance.manage") && <ReopenBatchForm batch={shown} batches={batches} cleanouts={of<CleanoutDto>("cleanout")} write={write} />}
         {!farming ? (
           <p className="text-sm text-ink-2">{t("Batches.noFarming")}</p>
         ) : shown.species === "layer" ? (

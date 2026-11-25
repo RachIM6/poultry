@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
 import { v7 as uuidv7 } from "uuid";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { MAX_JSON_BYTES } from "@/lib/security/body";
 import { SCOPE_HEADER } from "@/lib/sync/protocol";
@@ -10,6 +10,9 @@ import { requestCode as sendCode, verifyCode as checkCode } from "@/modules/iden
 import { tenant } from "@/test/tenant";
 import * as logout from "./auth/logout/route";
 import * as requestCode from "./auth/request-code/route";
+import * as resetPassword from "./auth/reset-password/route";
+import * as signIn from "./auth/sign-in/route";
+import * as signUp from "./auth/sign-up/route";
 import * as verifyCode from "./auth/verify-code/route";
 import * as captcha from "./captcha/challenge/route";
 import * as file from "./files/[id]/route";
@@ -44,7 +47,10 @@ type Row = {
 
 const ROUTES: Record<string, Row> = {
   "auth/logout": { route: logout }, // no session is fine: already logged out. Its capped body: the push test below
-  "auth/request-code": { route: requestCode, body: MAX_JSON_BYTES },
+  "auth/request-code": { route: requestCode, body: MAX_JSON_BYTES }, // SMS on here; off, a 404 (test below)
+  "auth/reset-password": { route: resetPassword, body: MAX_JSON_BYTES },
+  "auth/sign-in": { route: signIn, body: MAX_JSON_BYTES },
+  "auth/sign-up": { route: signUp, body: MAX_JSON_BYTES },
   "auth/verify-code": { route: verifyCode, body: MAX_JSON_BYTES },
   "captcha/challenge": { route: captcha },
   files: { route: files, session: true },
@@ -91,6 +97,10 @@ const traces = () => Promise.all([db.rateLimitHit.count(), db.authEvent.count(),
 describe("route handlers' security matrix", () => {
   let a: TenantContext, b: TenantContext;
   let aAuth: Record<string, string>;
+
+  // The SMS code routes are dormant by default (ADR-015): on here, so their CSRF and body caps are checked too.
+  beforeAll(() => vi.stubEnv("AUTH_SMS_ENABLED", "true"));
+  afterAll(() => vi.unstubAllEnvs());
 
   beforeAll(async () => {
     [a, b] = await Promise.all([tenant("+212680000001"), tenant("+212680000002")]);
@@ -142,6 +152,16 @@ describe("route handlers' security matrix", () => {
     // Just under the cap is read as usual (refused as invalid by the route, not as too large).
     const small = JSON.stringify({ pad: "x".repeat(row.body! - 64) });
     expect((await call(row, "POST", path, { ...sameSite, ...aAuth }, small)).status).not.toBe(413);
+  });
+
+  it("auth/request-code, auth/verify-code: 404 before any work while SMS login is off (ADR-015)", async () => {
+    vi.stubEnv("AUTH_SMS_ENABLED", "");
+    const before = await traces();
+    for (const path of ["auth/request-code", "auth/verify-code"]) {
+      expect((await call(ROUTES[path], "POST", path, { ...sameSite, ...aAuth }, JSON.stringify({ phone: "0680000001", code: "123456" }))).status).toBe(404);
+    }
+    expect(await traces()).toEqual(before);
+    vi.stubEnv("AUTH_SMS_ENABLED", "true");
   });
 
   it("files: another organisation's record or file is never found, and the refused upload keeps no bytes", async () => {

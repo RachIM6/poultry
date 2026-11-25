@@ -31,6 +31,7 @@ names (never the values) and exits with code 1 when (`src/lib/env.ts`):
 - `BETTER_AUTH_SECRET` or `CAPTCHA_HMAC_KEY` is missing, shorter than 32 characters, or the `.env.example` placeholder
   (generate each with `openssl rand -base64 32`);
 - `CAPTCHA_DISABLED=true` or `OTP_CONSOLE_SINK` is set (both test only);
+- `AUTH_SMS_ENABLED=true` (SMS code login needs a provider, and none is wired yet: OQ2, ADR-015);
 - `TRUSTED_PROXY_HOPS` is unset (it must be a decision, see "Reverse proxy");
 - only one of the two VAPID keys is set, or the keys are set without `VAPID_SUBJECT`.
 
@@ -50,8 +51,17 @@ VAPID_PRIVATE_KEY=<private key of the pair built in>
 VAPID_SUBJECT=mailto:<ops address>
 ```
 
-**Login codes need an SMS provider (OQ2).** Until one is wired in `src/modules/identity/infrastructure/sms.ts`, a
-production server refuses to send codes, so nobody can log in. See "Needs owner".
+**Login needs no SMS provider** ([ADR-015](decisions/ADR-015-password-login.md)): people sign in with their phone
+number or email and a password. Owners sign up on `/signup`; members and partners join with the invite code the owner
+is shown once in settings → members. A forgotten password: the owner gives a reset code (settings → members), or, for
+an owner or anyone else, the operator runs, in the app container:
+
+```sh
+pnpm user:reset <phone|email>   # prints a one-time reset code, valid 7 days; audited (AuthEvent reset_issued)
+```
+
+The person enters it on `/reset` with a new password; all their devices are signed out. SMS code login stays in the
+code, off (`AUTH_SMS_ENABLED` unset), for when a provider is chosen (OQ2).
 
 ## Release step (once per new image)
 
@@ -166,7 +176,7 @@ drill). The dumps must also be copied off the host: see "Needs owner".
 
 | Secret | Effect of a change | How |
 |---|---|---|
-| `BETTER_AUTH_SECRET` | **Logs everyone out**: session cookies are signed with it, and Better Auth 1.7 checks the signature with the current secret only. Its versioned `BETTER_AUTH_SECRETS` keeps old keys for encrypted data (cookie cache, OAuth tokens), which this app doesn't use, so it doesn't help here. | Change it and restart, at a quiet hour; users log in again with an SMS code (cost: one SMS each). |
+| `BETTER_AUTH_SECRET` | **Logs everyone out**: session cookies are signed with it, and Better Auth 1.7 checks the signature with the current secret only. Its versioned `BETTER_AUTH_SECRETS` keeps old keys for encrypted data (cookie cache, OAuth tokens), which this app doesn't use, so it doesn't help here. It also kills every pending invite and reset code (they are stored as HMACs keyed with it). | Change it and restart, at a quiet hour; users sign in again with their password, and owners issue new invite or reset codes if any were pending. |
 | `CAPTCHA_HMAC_KEY` | Safe. Challenges handed out in the last 5 minutes fail once; the phone fetches a new one. | Change it and restart. |
 | VAPID keys | **Breaks every push subscription**: phones subscribed with the old public key get no push until they subscribe again. | Only if the private key leaked. New pair, rebuild the image with the new public key, set the new private key, run it. |
 | `CRON_SECRET` | The dispatch route answers 404 to the old token. | Change it in the app's env and in the scheduler together, then restart the app. |
@@ -182,7 +192,7 @@ Restart = stop the container and run it again with the new env file (the env is 
 - **`TRUSTED_PROXY_HOPS` value:** depends on what sits in front of the app on that host (proxy, load balancer, CDN).
 - **Scheduler:** what calls `/api/push/dispatch` every minute (host cron, the platform's scheduler) and who watches it.
 - **Off-site backup storage:** where the daily dumps are copied, and who holds the passphrase (`docs/backup.md`).
-- **SMS vendor** (OQ2): without it production can't send login codes, so nobody can log in.
+- **SMS vendor** (OQ2): no longer needed to log in (ADR-015). Only for SMS code login and self-service reset later.
 - **Alert channel:** where the health check, a failed backup and a failed scheduler call raise an alert, and who gets
   it.
 - **Image registry:** where built images are kept (until then, build on the host).

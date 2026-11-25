@@ -1,8 +1,9 @@
 import { isSameOriginRequest } from "@/lib/security/csrf";
 import { readJson, tooLarge } from "@/lib/security/body";
-import { clientOf, verifyCode } from "@/modules/identity";
+import { clientOf, smsEnabled, verifyCode } from "@/modules/identity";
 
 export async function POST(req: Request) {
+  if (!smsEnabled()) return new Response(null, { status: 404 }); // ADR-015: SMS login is off unless AUTH_SMS_ENABLED=true
   if (!isSameOriginRequest(req)) return Response.json({ ok: false, messageKey: "errors.FORBIDDEN" }, { status: 403 });
   const read = await readJson(req);
   if (!read.ok) return tooLarge();

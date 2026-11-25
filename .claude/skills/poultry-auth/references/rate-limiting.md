@@ -1,6 +1,6 @@
 # Multi-dimensional rate limiting
 
-Adapted from `cdoc-auth`. The target is a **phone number**, and every code sent **costs money** (SMS pumping).
+Adapted from `cdoc-auth`. The target is the **login identifier** (phone or email, ADR-015). With SMS login on (dormant, `AUTH_SMS_ENABLED`), the target is also a phone number that every code sent to **costs money** (SMS pumping).
 
 ## 1. Why several dimensions
 
@@ -17,14 +17,15 @@ So every sensitive endpoint checks **all** of its dimensions. A request is block
 |---|---|---|
 | IP | `ip:<addr>` | Floods from a single source |
 | Subnet | `net:<IPv4 /24 or IPv6 /64>` | Distributed attacks from one range |
-| Target | `phone:<sha256(E.164)>` | Protects one person's phone (and our SMS bill) from many sources |
+| Target | `phone:<sha256(E.164)>` | Protects one person's phone (and our SMS bill) from many sources (SMS, dormant) |
+| Account | `account:<sha256(E.164 or email)>` | Protects one login identifier from guessing (sign-in, reset code) |
 | Prefix | `prefix:<+2126/+2127 + next 2 digits>` | Detects pumping on one number range |
-| Account | `user:<userId>` | Authenticated abuse |
+| User | `user:<userId>` | Authenticated abuse |
 | Session | `sid:<hash>` | Abuse from one browser |
 | Challenge | `otp:<challengeId>` | Brute force on one code (5 attempts, in the domain) |
 | Global | `global:<endpoint>` | Circuit breaker on cost. **Alert** when hit |
 
-Phone numbers are hashed in keys, so limiter tables hold no raw personal data (law 09-08).
+Phone numbers and identifiers are hashed in keys, so limiter tables hold no raw personal data (law 09-08).
 
 **Carrier NAT:** mobile carriers put many users behind few IPs. IP limits are therefore set higher than the target and global limits. The target and global dimensions do the real work.
 
@@ -32,10 +33,14 @@ Phone numbers are hashed in keys, so limiter tables hold no raw personal data (l
 
 Defaults, configurable. Policies live in config (`src/lib/security/policies.ts`), never inline in handlers.
 
-| Endpoint | IP | Subnet | Target (phone) | Other | Captcha |
+| Endpoint | IP | Subnet | Target | Other | Captcha |
 |---|---|---|---|---|---|
-| `POST /api/auth/request-code` | 20 / 15 min | 100 / h | **3 / 15 min, 10 / day** (SPEC I1) | prefix 30 / h; **global 300 codes / h** (cost cap, alert at 50 %) | always |
-| `POST /api/auth/verify-code` | 60 / h | 200 / h | 10 / h | challenge: 5 attempts total | after 3 failures |
+| `POST /api/auth/sign-in` (`signIn`) | 30 / 15 min | 150 / h | account 10 / h, 50 / day | global 3 000 / h (alerts) | after 3 failures (`signInFailures`: IP, account) |
+| `POST /api/auth/sign-up` (`signUp`) | 10 / h | 50 / h | — | global 300 / h (alerts), counted after the captcha | always |
+| `POST /api/auth/reset-password` (`resetPassword`) | 20 / 15 min | 100 / h | account 10 / h | global 500 / h (alerts) | after 3 failures (`signInFailures`) |
+| Invite code tried (`inviteCode`) | 20 / 15 min (sign-up) | 100 / h | — | user 10 / h (signed in); global 500 / h | with sign-up's |
+| `POST /api/auth/request-code` (dormant) | 20 / 15 min | 100 / h | **3 / 15 min, 10 / day** (SPEC I1) | prefix 30 / h; **global 300 codes / h** (cost cap, alert at 50 %) | always |
+| `POST /api/auth/verify-code` (dormant) | 60 / h | 200 / h | 10 / h | challenge: 5 attempts total | after 3 failures |
 | Invitation create (owner) | — | — | 10 / day per target | user: 50 / day | never (authenticated) |
 | `POST /api/sync/push` | — | — | — | session: 120 / min; mutations per request ≤ 500 | never |
 | `GET /api/sync/pull` | — | — | — | session: 120 / min | never |
@@ -73,4 +78,4 @@ Never hard-lock the farmer's account itself (see SKILL §9).
 
 - **Blocked:** `429` with `Retry-After`, body `{ "ok": false, "messageKey": "errors.TOO_MANY_REQUESTS" }`, the same on every endpoint.
 - **Code request blocked on the target or global dimension:** still answer the normal `202` (don't reveal targeting), send no SMS, write an audit event.
-- **Every block** writes an audit event. Global-limiter hits raise an alert (possible pumping, or a real surge during onboarding).
+- **Every block** writes an audit event. Global-limiter hits raise an alert (`alertOps`: `sms_cap_50` / `sms_cap_100` for the SMS cap, `<policy>_cap` for the others): possible pumping or credential stuffing, or a real surge during onboarding.

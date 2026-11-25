@@ -291,7 +291,7 @@ function Batches(scope: Scope) {
             />
           )}
           {can(scope, "flock.manage") && !open.fromBatchId && (
-            <CorrectPlacement batch={open} title={title(open)} houses={houses} batches={batches} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} strains={strains} vaccinations={vaccinationsOf(open.id)} write={write} />
+            <CorrectPlacement batch={open} title={title(open)} houses={houses} batches={batches} entries={entriesOf(open.id)} weighings={weighings} sold={soldOf(open.id)} strains={strains} vaccinations={vaccinationsOf(open.id)} treatments={treatments} visits={ofBatch<VetVisitDto>("vetVisit", open.id)} write={write} />
           )}
           {can(scope, "flock.manage") && <CloseBatchForm batch={open} write={write} />}
         </div>

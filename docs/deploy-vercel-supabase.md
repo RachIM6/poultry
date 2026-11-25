@@ -64,7 +64,7 @@ export DATABASE_URL='postgresql://postgres.<ref>:<password>@<pooler host>:5432/p
 
 pnpm exec prisma migrate deploy   # every migration; reads DIRECT_URL (prisma.config.ts)
 pnpm exec prisma db seed          # strains, catalogues, chart of accounts; idempotent
-DEMO_PHONE=+2126XXXXXXXX pnpm db:seed:demo   # optional: the demo farm, owned by that phone
+BETTER_AUTH_SECRET='<the value set in Vercel>' DEMO_PHONE=+2126XXXXXXXX DEMO_PASSWORD='<10+ characters>' pnpm db:seed:demo   # optional: the demo farms and their owner; the same secret as Vercel, or the printed invite codes never work
 ```
 
 - Two URLs because the tools read TLS settings differently: Prisma's engine only knows `sslmode=require` (encrypted;
@@ -150,9 +150,26 @@ journal entries and sends the pushes that are due. Cron jobs run on the producti
 
 ## 5. First owner sign-up
 
-Production can't send login codes by SMS until a provider is chosen (OQ2), so phone login doesn't work on the demo.
-Login with a password (ADR-015) is being built: the owner's first sign-up follows that ADR's steps once it is merged.
-Until then the demo can only be shown with the seeded demo farm on a local or Docker build.
+Login is by phone number or email and a password ([ADR-015](decisions/ADR-015-password-login.md)); no SMS provider is
+needed (SMS code login stays off, `AUTH_SMS_ENABLED` unset).
+
+- **The first owner** opens `https://<domain>/fr/signup` (or `/ar/signup`), types their phone (and/or an email) and a
+  password of at least 10 characters, then creates their organisation on the onboarding screen.
+- **Members and partners** join with the invite code the owner is shown once in Plus → Membres, on `/join`.
+- **A forgotten password:** the owner gives a member a reset code (Plus → Membres → « Réinitialiser le mot de passe »).
+  For an owner, or anyone else, the operator issues one from the laptop, with the shell of section 2 and the
+  **production** `BETTER_AUTH_SECRET` (the codes are HMAC-keyed with it; another value prints a code that never works):
+
+  ```sh
+  export BETTER_AUTH_SECRET='<the value set in Vercel>'
+  pnpm user:reset <phone|email>   # prints a one-time code, valid 7 days; audited (AuthEvent reset_issued)
+  ```
+
+  The person enters it on `/reset` with a new password; all their devices are signed out. Close the shell afterwards.
+- **The seeded demo owner** (`DEMO_PHONE`, section 2) signs in at `/fr/login` with that phone and `DEMO_PASSWORD`.
+  Without `DEMO_PASSWORD` the seed generates a password and prints it once (`demo: sign in with … and the password …`).
+  Run the seed again with `DEMO_PASSWORD` to change it (the farm isn't added twice), or use `pnpm user:reset
+  <DEMO_PHONE>` and `/reset`.
 
 ## 6. Backups
 

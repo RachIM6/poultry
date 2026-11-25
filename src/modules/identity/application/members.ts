@@ -1,3 +1,4 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
 import { farmDayOf } from "@/lib/kernel/farm-day";
@@ -6,8 +7,10 @@ import { can } from "@/lib/permissions";
 import { consume } from "@/lib/security/rate-limit";
 import type { Role, TenantContext } from "@/lib/tenant";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
+import { recordAuthEvent, type Client } from "@/modules/identity/infrastructure/auth-events";
 import { AUTH_CONFIG } from "@/modules/identity/infrastructure/better-auth";
-import { CancelInvitation, ChangeRole, InviteMember, PARTNER_ROLES, RemoveMember } from "@/modules/identity/schema";
+import { codeHash, newCode, normalizeCode } from "@/modules/identity/infrastructure/codes";
+import { CancelInvitation, ChangeRole, InviteMember, PARTNER_ROLES, RemoveMember, ResetPassword } from "@/modules/identity/schema";
 
 type MemberError = "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "LAST_OWNER";
 
@@ -18,16 +21,20 @@ type MemberError = "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "LAST_OWNER";
 export type ForgetDevices = (tx: Tx, userId: string) => Promise<unknown>;
 
 export type MembersDto = {
-  members: { membershipId: string; userId: string; phone: string | null; role: Role; accessUntil: string | null }[];
+  members: { membershipId: string; userId: string; phone: string | null; email: string | null; role: Role; accessUntil: string | null }[];
   invitations: { id: string; phone: string; role: Role; expiresAt: Date; accessUntil: string | null }[];
 };
 
-/** SPEC I4. Owner only. Inviting again replaces the pending invitation (new role, new expiry). No SMS is sent. */
+/**
+ * SPEC I4. Owner only. Inviting again replaces the pending invitation (new role, new expiry, new code). No SMS is sent.
+ * ADR-015: returns the one-time invite code, shown to the owner once; only its HMAC is kept. The person needs it to join.
+ */
 export async function inviteMember(
   ctx: TenantContext,
   raw: unknown,
+  client: Client = {},
   clock: Clock = systemClock,
-): Promise<Result<void, "FORBIDDEN" | "INVALID_INPUT" | "INVALID_PHONE" | "ALREADY_MEMBER" | "TOO_MANY_REQUESTS">> {
+): Promise<Result<{ code: string }, "FORBIDDEN" | "INVALID_INPUT" | "INVALID_PHONE" | "ALREADY_MEMBER" | "TOO_MANY_REQUESTS">> {
   if (!can(ctx, "members.manage")) return fail("FORBIDDEN");
   const input = InviteMember.safeParse(raw);
   if (!input.success) return fail("INVALID_INPUT");
@@ -41,19 +48,86 @@ export async function inviteMember(
 
   const { organizationId } = ctx;
   const phoneNumber = phone.value.e164;
-  return db.$transaction(async (tx) => {
+  const code = newCode();
+  const result = await db.$transaction(async (tx) => {
     const member = await tx.membership.findFirst({ where: { organizationId, user: { phoneNumber } } });
     if (member) return fail("ALREADY_MEMBER");
     const expiresAt = new Date(clock.now().getTime() + AUTH_CONFIG.invitation.expiresInSec * 1000);
-    const data = { role: input.data.role, accessUntil: accessUntil && date(accessUntil), invitedById: ctx.userId, expiresAt };
+    const data = { role: input.data.role, accessUntil: accessUntil && date(accessUntil), invitedById: ctx.userId, expiresAt, codeHash: codeHash("invite", code) };
     const invitation = await tx.invitation.upsert({
       where: { organizationId_phoneNumber: { organizationId, phoneNumber } },
       create: { organizationId, phoneNumber, ...data },
       update: data,
     });
     await audit(tx, ctx, "Invitation", invitation.id, "create", null, { phone: phone.value.masked, role: input.data.role, accessUntil });
-    return ok(undefined);
+    return ok({ code });
   });
+  if (result.ok) await recordAuthEvent("invite_issued", client, { userId: ctx.userId, phone: phone.value.masked, reason: input.data.role });
+  return result;
+}
+
+/**
+ * ADR-015: an invite code opens the invitation it was issued for, and only that one: its organisation and role. Single
+ * use (the row is locked, then deleted: of two concurrent uses one wins), unexpired. Runs in the caller's transaction,
+ * with the user who joins. Already a member there: the current role stays.
+ */
+export async function claimInvitation(tx: Tx, userId: string, rawCode: unknown, clock: Clock = systemClock): Promise<Result<{ organizationId: string }, "INVALID_INVITE_CODE">> {
+  const code = normalizeCode(rawCode);
+  if (!code) return fail("INVALID_INVITE_CODE");
+  const [inv] = await tx.$queryRaw<{ id: string; organizationId: string; role: Role; accessUntil: Date | null; expiresAt: Date }[]>`
+    SELECT i.id, i."organizationId", i.role, i."accessUntil", i."expiresAt" FROM "Invitation" i
+    JOIN "Organization" o ON o.id = i."organizationId" AND o."leftAt" IS NULL -- a left organisation takes no one new
+    WHERE i."codeHash" = ${codeHash("invite", code)} FOR UPDATE OF i`;
+  if (!inv || inv.expiresAt <= clock.now()) return fail("INVALID_INVITE_CODE");
+  const membership = await tx.membership.upsert({
+    where: { organizationId_userId: { organizationId: inv.organizationId, userId } },
+    create: { organizationId: inv.organizationId, userId, role: inv.role, accessUntil: inv.accessUntil },
+    update: {}, // already a member: keep the current role
+  });
+  await tx.invitation.delete({ where: { id: inv.id } });
+  await audit(tx, { userId, organizationId: inv.organizationId }, "Invitation", inv.id, "accept", null, { membershipId: membership.id, role: membership.role, code: true });
+  return ok({ organizationId: inv.organizationId });
+}
+
+/**
+ * ADR-015: the owner resets a member's password. Returns a one-time reset code, shown once; the member sets a new
+ * password with it on /reset. Only for a member who isn't an owner and belongs to no other organisation: otherwise
+ * this owner could take over an account that opens other farms (the operator's `pnpm user:reset` covers those).
+ */
+export async function issueReset(
+  ctx: TenantContext,
+  raw: unknown,
+  client: Client = {},
+  clock: Clock = systemClock,
+): Promise<Result<{ code: string }, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "RESET_NOT_ALLOWED">> {
+  if (!can(ctx, "members.manage")) return fail("FORBIDDEN");
+  const input = ResetPassword.safeParse(raw);
+  if (!input.success) return fail("INVALID_INPUT");
+  const member = await db.membership.findFirst({ where: { id: input.data.membershipId, organizationId: ctx.organizationId } });
+  if (!member) return fail("NOT_FOUND");
+  const elsewhere = await db.membership.count({ where: { userId: member.userId, organizationId: { not: ctx.organizationId } } });
+  if (member.role === "owner" || member.userId === ctx.userId || elsewhere > 0) return fail("RESET_NOT_ALLOWED");
+  const audited = db.auditEvent.create({
+    data: { organizationId: ctx.organizationId, userId: ctx.userId, entity: "Membership", entityId: member.id, action: "reset_password", after: { userId: member.userId } },
+  });
+  const code = await saveResetCode(member.userId, ctx.userId, clock, [audited]);
+  await recordAuthEvent("reset_issued", client, { userId: member.userId, reason: "owner" });
+  return ok({ code });
+}
+
+/**
+ * A new reset code for this user, replacing any pending one (one per user). `issuedById`: null for the operator.
+ * `alsoWrite`: the caller's audit row, in the same transaction (ADR-006).
+ */
+export async function saveResetCode(userId: string, issuedById: string | null, clock: Clock = systemClock, alsoWrite: Prisma.PrismaPromise<unknown>[] = []): Promise<string> {
+  const code = newCode();
+  const expiresAt = new Date(clock.now().getTime() + AUTH_CONFIG.reset.expiresInSec * 1000);
+  await db.$transaction([
+    db.passwordReset.deleteMany({ where: { userId } }),
+    db.passwordReset.create({ data: { userId, issuedById, codeHash: codeHash("reset", code), expiresAt } }),
+    ...alsoWrite,
+  ]);
+  return code;
 }
 
 /** Members and pending invitations of the caller's organisation. Owner only. */
@@ -62,7 +136,7 @@ export async function listMembers(ctx: TenantContext, clock: Clock = systemClock
   const [members, invitations] = await Promise.all([
     db.membership.findMany({
       where: { organizationId: ctx.organizationId },
-      include: { user: { select: { phoneNumber: true } } },
+      include: { user: { select: { phoneNumber: true, email: true } } },
       orderBy: { createdAt: "asc" },
     }),
     db.invitation.findMany({
@@ -71,7 +145,14 @@ export async function listMembers(ctx: TenantContext, clock: Clock = systemClock
     }),
   ]);
   return ok({
-    members: members.map((m) => ({ membershipId: m.id, userId: m.userId, phone: m.user.phoneNumber, role: m.role, accessUntil: day(m.accessUntil) })),
+    members: members.map((m) => ({
+      membershipId: m.id,
+      userId: m.userId,
+      phone: m.user.phoneNumber,
+      email: m.user.email.endsWith(".invalid") ? null : m.user.email, // a phone-only account's placeholder isn't shown
+      role: m.role,
+      accessUntil: day(m.accessUntil),
+    })),
     invitations: invitations.map((i) => ({ id: i.id, phone: i.phoneNumber, role: i.role, expiresAt: i.expiresAt, accessUntil: day(i.accessUntil) })),
   });
 }
@@ -125,8 +206,10 @@ export async function cancelInvitation(ctx: TenantContext, raw: unknown): Promis
 }
 
 /**
- * At first login (poultry-auth §1): pending, unexpired invitations for this number become memberships. Someone who
- * already belongs to an organisation is never added to another one without asking: their invitations stay pending.
+ * At first SMS code login (poultry-auth §1): pending, unexpired invitations for this number become memberships. Someone
+ * who already belongs to an organisation is never added to another one without asking: their invitations stay pending.
+ * ADR-015: only for a number an SMS code just verified (verifyCode). A password sign-in never calls this: a typed
+ * number proves nothing, so joining needs the invite code (claimInvitation).
  */
 // ponytail: those pending invitations wait for an accept/decline screen with the organisation switcher (M5).
 export async function acceptInvitations(userId: string, phoneNumber: string, clock: Clock = systemClock) {

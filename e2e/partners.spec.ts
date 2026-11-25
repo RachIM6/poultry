@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { farmWithBatch, login, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered } from "./auth";
+import { farmWithBatch, login, ownerWithFarm, pushAs, query, randomMobile, scopeRemembered, inviteCode } from "./auth";
 
 const orgOf = `(SELECT m."organizationId" FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1)`;
 
@@ -17,11 +17,12 @@ test("the owner invites a vet with an end day; the vet signs in and is listed un
   await page.getByLabel("Accès jusqu’au (facultatif)").fill(until);
   await page.getByRole("button", { name: "Inviter" }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
+  const code = await inviteCode(page);
   await expect(page.getByRole("listitem").filter({ hasText: "Vétérinaire" })).toContainText("jusqu’au");
 
   const vetContext = await browser.newContext({ ...test.info().project.use });
   const vet = await vetContext.newPage();
-  const e164 = await login(vet, "fr", phone);
+  const e164 = await login(vet, "fr", phone, code);
   await expect(vet).toHaveURL(/\/fr\/dashboard$/);
   expect(await query<{ role: string; until: string }>(`SELECT m.role::text, m."accessUntil"::text AS until FROM "Membership" m JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`, [e164])).toEqual([
     { role: "vet", until },

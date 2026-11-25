@@ -3,7 +3,9 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
+import { JoinCodeForm } from "@/components/join-code-form";
 import { card, primary, secondary } from "@/components/ui";
+import { ClientMessages } from "@/i18n/client-messages";
 import { redirect } from "@/i18n/navigation";
 import { myOrganizations } from "@/modules/identity";
 import { acceptAndOpen, openFarm } from "./actions";
@@ -12,11 +14,13 @@ import { acceptAndOpen, openFarm } from "./actions";
 // waiting for them. Each farm's data stays in its own database on the phone.
 export default function Organizations() {
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
-      <Suspense>
-        <Content />
-      </Suspense>
-    </main>
+    <ClientMessages paths={["Account", "Nav", "Offline", "Sync.refused", "errors"]}>
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
+        <Suspense>
+          <Content />
+        </Suspense>
+      </main>
+    </ClientMessages>
   );
 }
 
@@ -61,6 +65,10 @@ async function Content() {
           ))}
         </section>
       )}
+      <section aria-labelledby="join-title" className="flex flex-col gap-3">
+        <h2 id="join-title" className="text-[17px] font-semibold text-ink-2">{t("Account.joinWithCode")}</h2>
+        <JoinCodeForm />
+      </section>
     </>
   );
 }

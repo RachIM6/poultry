@@ -21,7 +21,7 @@ test("an advance recorded offline is pending, survives a reload and syncs once",
   await form.getByLabel("Montant (DH)").fill("1000");
   await form.getByRole("button", { name: "Enregistrer l’avance" }).click();
   const pending = page.getByRole("list", { name: "Avances en cours" }).getByRole("listitem");
-  await expect(pending).toHaveText([/^Said A\. · 1.000,00\sDH le .+ · retenue sur la paie de \d{4}-\d{2}$/]);
+  await expect(pending).toHaveText([/^Said A\. · 1.000,00\sDH le .+ · retenue sur la paie de \p{L}+ \d{4}$/u]);
   const reload = await page.reload();
   expect(reload?.fromServiceWorker()).toBe(true);
   await expect(pending).toHaveCount(1);

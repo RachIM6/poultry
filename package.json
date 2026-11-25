@@ -16,6 +16,7 @@
     "org:export": "esbuild scripts/export-organization.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/org-export.mjs && node --env-file-if-exists=.env node_modules/.cache/org-export.mjs",
     "org:left": "esbuild scripts/mark-organization-left.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/org-left.mjs && node --env-file-if-exists=.env node_modules/.cache/org-left.mjs",
     "org:delete": "esbuild scripts/delete-organization.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/org-delete.mjs && node --env-file-if-exists=.env node_modules/.cache/org-delete.mjs",
+    "user:reset": "esbuild scripts/reset-password.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/user-reset.mjs && node --env-file-if-exists=.env node_modules/.cache/user-reset.mjs",
     "member:export": "esbuild scripts/member-data.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/member-data.mjs && node --env-file-if-exists=.env node_modules/.cache/member-data.mjs export",
     "member:delete": "esbuild scripts/member-data.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/member-data.mjs && node --env-file-if-exists=.env node_modules/.cache/member-data.mjs delete",
     "postinstall": "prisma generate"

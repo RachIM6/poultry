@@ -22,6 +22,7 @@ Where the pilot stands. The features of M1 to M6 are built (index in [plan.md](p
 
 **Done without the host:**
 - Login with the self-hosted captcha, the auth audit table, the security headers and the T25 fixes (T26 below, [t25 report](../docs/t25-security-and-performance.md)).
+- **Password login, 2026-11-24** ([ADR-015](../docs/decisions/ADR-015-password-login.md), branch `feat/password-login`): sign-in with the phone or the email and a password; owners sign up on their own; members and partners join with a one-time invite code the owner is shown once; the owner (or the operator's `pnpm user:reset`) gives a one-time reset code. SMS code login stays in the code, off (`AUTH_SMS_ENABLED`). **T26 no longer waits on OQ2 for login.**
 - Production start check, `GET /api/health` and a privacy-safe error log line (#256). The server refuses to start in production on an unsafe config; [`.env.example`](../.env.example) lists every variable.
 - Encrypted daily backup, restore script and a round-trip drill in CI (#254, [backup.md](../docs/backup.md)).
 - Export and deletion of an organisation's data, books kept 10 years (#255, [data-requests.md](../docs/data-requests.md)).
@@ -31,7 +32,7 @@ Where the pilot stands. The features of M1 to M6 are built (index in [plan.md](p
 
 **Waits on the owner:**
 - **Host (OQ1):** the deployment itself, `TRUSTED_PROXY_HOPS`, the backup cron line, one timed real restore, brotli.
-- **SMS vendor (OQ2):** without it production can't send login codes (the console sink is refused in production).
+- **SMS vendor (OQ2):** no longer blocks login (ADR-015). Needed only to turn SMS code login back on, and for self-service reset by SMS.
 - **Alert channel:** a webhook or an email for `alertOps()` (the SMS cap). Until then the host must alert on the SMS-cap and scheduler error log lines.
 - **Off-site backup storage** and who keeps the passphrase.
 - **CNDP filing** ([ADR-007](../docs/decisions/ADR-007-data-protection-and-hosting.md)).
@@ -471,10 +472,10 @@ Also done without the host (2026-11-14; OQ1 hosting and OQ2 SMS set aside by the
 - [x] Scheduler, 2026-11-24 (branch `fix/scheduler-and-sms-alert`): `POST /api/push/dispatch` runs each of its eight steps (six reminders, postings, pushes) even when one throws, logs `{"level":"error","scheduler":"<step>","error":"<error name>"}`, and answers `{ok, failed}`, with 500 when a step failed so the host's scheduler alerts (`src/app/api/push/dispatch.int.test.ts`).
 - [x] Auth audit (poultry-auth §6), 2026-11-23 (branch `feat/auth-audit`): a new `AuthEvent` table owned by identity holds one row per request for code requested (eligible or not), verify failure (with a reason), login, logout, rate-limit block (request-code, verify-code, captcha challenge) and captcha failure (request-code, verify-code). Each row keeps the user id when known, the masked phone, the /24 or /64 subnet (none without `TRUSTED_PROXY_HOPS`) and the user agent, cut to 256 characters. It never holds a code, session id or captcha payload. Not in `AuditEvent`, because these events happen before any organisation is known and `AuditEvent` is per organisation (ADR-006). Invitation, membership and session-revoke events stay there. A failed write is logged and never changes the answer (`src/modules/identity/auth-events.int.test.ts`). Still open: how long these rows are kept (no rule yet in ADR-006 or ADR-007), and an "invitation expired" event, because nothing acts when an invitation expires (it is just ignored).
 
-Waiting on OQ1/OQ2: the deployment, the real SMS sender, the backup cron and a real restore, brotli, `TRUSTED_PROXY_HOPS`, the SMS-cap alert's channel, and the pilot farm's first day. See "Pilot readiness" at the top.
+Waiting on OQ1: the deployment, the backup cron and a real restore, brotli, `TRUSTED_PROXY_HOPS`, the alert channel, and the pilot farm's first day. Password login (ADR-015, 2026-11-24) removed OQ2 from the path to the pilot: the real SMS sender is needed only to turn SMS code login back on. See "Pilot readiness" at the top.
 
 **Verify:** smoke test on production. Backup restore drill.
-**Dependencies:** T25, **OQ1, OQ2 resolved**
+**Dependencies:** T25, **OQ1 resolved** (OQ2 no longer blocks login: ADR-015)
 **Files:** deployment config (depends on the host), `docs/quick-guide-ar.md`, `docs/quick-guide-fr.md`
 **Size:** M
 

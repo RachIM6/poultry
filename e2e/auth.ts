@@ -13,37 +13,46 @@ export async function query<T>(sql: string, params: unknown[]): Promise<T[]> {
   }
 }
 
-// Better Auth stores the pending code as "<code>:<attempts>". Polled: under load the row lands after the form's status shows.
-export async function codeFor(e164: string) {
-  let value = "";
-  await expect
-    .poll(async () => {
-      const rows = await query<{ value: string }>(`SELECT value FROM "Verification" WHERE identifier = $1 ORDER BY "createdAt" DESC LIMIT 1`, [`phone-number-otp-${e164}`]);
-      return (value = rows[0]?.value ?? "");
-    })
-    .not.toBe("");
-  return value.split(":")[0];
-}
-
 // A fresh number per run: rate limits persist in the database between runs.
 export const randomMobile = () => `06${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
 
+/** Every e2e account's password (ADR-015). */
+export const PASSWORD = "e2e long password 2026";
+
 const LABELS = {
-  fr: { phone: "Numéro de téléphone", send: "Recevoir un code", code: "Code reçu", verify: "Se connecter" },
-  ar: { phone: "رقم الهاتف", send: "استلام الرمز", code: "الرمز المستلم", verify: "دخول" },
+  fr: { identifier: "Téléphone ou e-mail", password: "Mot de passe", signIn: "Se connecter", phone: "Numéro de téléphone", confirm: "Confirmer le mot de passe", create: "Créer le compte", code: "Code", join: "Rejoindre" },
+  ar: { identifier: "الهاتف أو البريد الإلكتروني", password: "كلمة المرور", signIn: "دخول", phone: "رقم الهاتف", confirm: "تأكيد كلمة المرور", create: "إنشاء الحساب", code: "الرمز", join: "انضمام" },
 };
 
-/** Logs a new number in through the real form. Returns its E.164 form. */
-export async function login(page: Page, locale: "ar" | "fr", phone = randomMobile()) {
+/**
+ * Through the real forms (ADR-015): a number with no account signs up (an owner who onboards next, or, with the
+ * owner's `inviteCode`, a member who lands on the farm); a number with one signs in with PASSWORD. Returns its E.164.
+ */
+export async function login(page: Page, locale: "ar" | "fr", phone = randomMobile(), inviteCode?: string) {
   const l = LABELS[locale];
-  const e164 = `+212${phone.slice(1)}`;
-  await page.goto(`/${locale}/login`);
-  await page.getByLabel(l.phone).fill(phone);
-  await page.getByRole("button", { name: l.send }).click();
-  await page.getByRole("status").waitFor();
-  await page.getByLabel(l.code).fill(await codeFor(e164));
-  await page.getByRole("button", { name: l.verify }).click();
+  const e164 = `+212${phone.replace(/\D/g, "").slice(-9)}`; // any spelling: 06…, +212 6…
+  const [{ n }] = await query<{ n: number }>(`SELECT count(*)::int AS n FROM "User" WHERE "phoneNumber" = $1`, [e164]);
+  if (n > 0) {
+    await page.goto(`/${locale}/login`);
+    await page.getByLabel(l.identifier).fill(phone);
+    await page.getByLabel(l.password, { exact: true }).fill(PASSWORD);
+    await page.getByRole("button", { name: l.signIn, exact: true }).click();
+    return e164;
+  }
+  await page.goto(`/${locale}/${inviteCode ? "join" : "signup"}`);
+  if (inviteCode) await page.getByLabel(l.code, { exact: true }).fill(inviteCode);
+  await page.getByLabel(l.phone, { exact: true }).fill(phone);
+  await page.getByLabel(l.password, { exact: true }).fill(PASSWORD);
+  await page.getByLabel(l.confirm, { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: inviteCode ? l.join : l.create, exact: true }).click(); // waits for the captcha
   return e164;
+}
+
+/** The invite code the members screen shows the owner once, after "Inviter" (ADR-015). */
+export async function inviteCode(owner: Page) {
+  const shown = owner.locator("output").filter({ hasText: /^\s*[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}\s*$/ });
+  await expect(shown).toBeVisible();
+  return (await shown.textContent())!.trim();
 }
 
 /** Waits until the signed-in page has stored who is signed in on this phone (src/offline/db.ts, "poultry-device"). */

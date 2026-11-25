@@ -5,7 +5,7 @@ L’élevage avicole, jour après jour. L’application marche **sans réseau** 
 ## 1. Installer et se connecter
 - **Android (Chrome)** : ouvrez l’adresse de l’application, puis menu ⋮ → « Installer l’application » ou « Ajouter à l’écran d’accueil ».
 - **iPhone (Safari)** : bouton Partager → « Sur l’écran d’accueil ».
-- Ouvrez **DigiAtlas** depuis l’écran d’accueil, tapez votre numéro de mobile (06… ou 07…), puis le code reçu par SMS.
+- Ouvrez **DigiAtlas** depuis l’écran d’accueil, tapez votre numéro de mobile (06… ou 07…) et votre mot de passe. La première fois : « Créer un compte » (propriétaire), ou « J’ai un code d’invitation » avec le code que le propriétaire vous a donné.
 - Un responsable ou un ouvrier doit d’abord être **invité** par le propriétaire, avec son numéro.
 
 ## 2. Chaque jour (tout le monde)

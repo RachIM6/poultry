@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Readex_Pro } from "next/font/google";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
+import { CAPTURE_SCRIPT } from "@/components/install-prompt";
 import { PwaProvider } from "@/components/pwa-provider";
 import { ClientMessages } from "@/i18n/client-messages";
 import { dirOf, routing } from "@/i18n/routing";
@@ -31,6 +32,10 @@ export default async function RootLayout({ children }: LayoutProps<"/[locale]">)
   const lang = await locale();
   return (
     <html lang={lang} dir={dirOf(lang)} className={`${readex.variable} h-full antialiased`}>
+      <head>
+        {/* Inline, not a client component: catches the install offer even before hydration (no JS bundle cost). */}
+        <script dangerouslySetInnerHTML={{ __html: CAPTURE_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         {/* What the layouts' client components read (PwaProvider, AppNav, the error boundary); pages add theirs. */}
         <ClientMessages paths={["Nav", "Offline", "Pwa", "Sync.refused"]}>

@@ -2,60 +2,81 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { primary } from "@/components/ui";
-
-type Platform = "android" | "ios";
-type InstallPrompt = Event & { prompt(): Promise<void> };
+import { detectPlatform, installView, runPrompt, stepsOrder, type Outcome } from "@/components/install-prompt";
+import { primary, warn } from "@/components/ui";
+import { Link } from "@/i18n/navigation";
 
 const noSubscribe = () => () => {};
-const detectPlatform = (): Platform | null => {
-  const ua = navigator.userAgent;
-  // iPadOS reports itself as a Mac; touch points tell them apart.
-  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return "ios";
-  return /Android/.test(ua) ? "android" : null;
+// The root layout's CAPTURE_SCRIPT listens first, so window.installPrompt is already set when onChange runs.
+const onPrompt = (onChange: () => void) => {
+  addEventListener("beforeinstallprompt", onChange);
+  return () => removeEventListener("beforeinstallprompt", onChange);
 };
+const getPrompt = () => window.installPrompt ?? null;
+const getPlatform = () => detectPlatform(navigator.userAgent, navigator.maxTouchPoints);
 const isInstalled = () =>
   matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
 
 export function InstallGuide() {
   const t = useTranslations("Install");
-  const platform = useSyncExternalStore(noSubscribe, detectPlatform, () => null);
+  const prompt = useSyncExternalStore(onPrompt, getPrompt, () => null);
+  const platform = useSyncExternalStore(noSubscribe, getPlatform, () => "android" as const);
   const installed = useSyncExternalStore(noSubscribe, isInstalled, () => false);
-  const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
+  const [outcome, setOutcome] = useState<Outcome>();
 
-  // Android Chrome offers a one-tap install; keep its event for the button.
+  // Also when installed from the browser's own menu while this page is open.
   useEffect(() => {
-    const keep = (e: Event) => {
-      e.preventDefault();
-      setPrompt(e as InstallPrompt);
-    };
-    addEventListener("beforeinstallprompt", keep);
-    return () => removeEventListener("beforeinstallprompt", keep);
+    const done = () => setOutcome("accepted");
+    addEventListener("appinstalled", done);
+    return () => removeEventListener("appinstalled", done);
   }, []);
 
-  if (installed) return <p>{t("installed")}</p>;
+  const view = installView({ installed, prompt: prompt !== null, outcome });
+  const order = stepsOrder(platform);
+  // With the one-tap button, every platform's steps fold away; without it, the user's own come first.
+  const [shown, others] = view === "prompt" ? [[], order] : [order.slice(0, 1), order.slice(1)];
+  // After a dismissed or failed prompt, say so above the steps.
+  const status = view === "steps" && (outcome === "dismissed" || outcome === "failed") ? outcome : view;
+
+  const install = async () => {
+    if (!prompt) return;
+    window.installPrompt = null; // one prompt per event
+    setOutcome(await runPrompt(prompt));
+  };
+
+  const steps = (p: (typeof order)[number]) => (
+    <section key={p} className="flex flex-col gap-2">
+      <h2 className="text-[17px] font-semibold text-ink-2">{t(`${p}.title`)}</h2>
+      <ol className="list-decimal space-y-1 ps-6">
+        <li>{t(`${p}.step1`)}</li>
+        <li>{t(`${p}.step2`)}</li>
+        <li>{t(`${p}.step3`)}</li>
+      </ol>
+    </section>
+  );
 
   return (
     <>
-      {prompt && (
-        <button
-          type="button"
-          onClick={() => void prompt.prompt().then(() => setPrompt(null))}
-          className={primary}
-        >
+      <p role="status">{t(`status.${status}`)}</p>
+      {view === "prompt" && (
+        <button type="button" onClick={() => void install()} className={primary}>
           {t("title")}
         </button>
       )}
-      {(platform ? [platform] : (["android", "ios"] as const)).map((p) => (
-        <section key={p} className="flex flex-col gap-2">
-          <h2 className="text-[17px] font-semibold text-ink-2">{t(`${p}.title`)}</h2>
-          <ol className="list-decimal space-y-1 ps-6">
-            <li>{t(`${p}.step1`)}</li>
-            <li>{t(`${p}.step2`)}</li>
-            <li>{t(`${p}.step3`)}</li>
-          </ol>
-        </section>
-      ))}
+      {view === "installed" ? (
+        <Link href="/today" className={primary}>
+          {t("open")}
+        </Link>
+      ) : (
+        <>
+          {platform === "firefox" && <p className={warn}>{t("firefox")}</p>}
+          {shown.map(steps)}
+          <details className="rounded-2xl border border-line bg-card p-3">
+            <summary className="min-h-11 py-2.5 text-[17px] font-semibold text-ink-2">{t("others")}</summary>
+            <div className="flex flex-col gap-4">{others.map(steps)}</div>
+          </details>
+        </>
+      )}
     </>
   );
 }

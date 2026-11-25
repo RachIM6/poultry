@@ -35,3 +35,33 @@ test("a closed batch's report shows its figures and the margin of /results", asy
   await expect(doc.getByText("Marge", { exact: true }).locator("..")).toContainText(margin);
   await expect(doc.getByRole("table", { name: "Comparaison avec les bandes précédentes de la ferme" }).getByRole("row")).toHaveCount(2);
 });
+
+// SPEC-finance §9 "Laying hens in the batch result", "Typing the schedule" (§7.1 I.6): a cash-book farm types its layer
+// batch's laying period and cull value on /results, and the hens line moves from the birds gone to the depreciation.
+test("a laying flock's schedule typed on /results depreciates its hens", async ({ page }) => {
+  test.setTimeout(120_000);
+  await ownerWithFarm(page, "Élevage des Pondeuses");
+  await scopeRemembered(page);
+  const ids = { farm: crypto.randomUUID(), house: crypto.randomUUID(), hens: crypto.randomUUID() };
+  await pushAs(page, [
+    { type: "farm-registry.createFarm", payload: { id: ids.farm, name: "Ferme Ponte", region: "R", province: "P", commune: "C", gps: null, onssa: null } },
+    { type: "farm-registry.createHouse", payload: { id: ids.house, farmId: ids.farm, name: "Bâtiment P1", areaM2: 1000, capacity: 12000, type: "closed" } },
+    // 1 000 point-of-lay hens at 55,00 today, 10 dead: 550,00 of their 55 000,00 used up, until a schedule is typed
+    {
+      type: "flock.placeBatch",
+      payload: { id: ids.hens, houseId: ids.house, species: "layer", strainId: "lohmann-brown", placedOn: farmDaysAgo(0), chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "5500", dayOldWeightGrams: null, ageAtPlacementDays: 126 },
+    },
+    { type: "flock.recordDay", payload: { batchId: ids.hens, day: farmDaysAgo(0), changes: { dead: 10, deathCause: "unknown", culled: 0 } } },
+  ]);
+
+  await page.goto("/fr/results");
+  const hens = page.getByText(/^Poules : prix d’entrée/);
+  await expect(hens).toContainText(/Compté ici .*550,00/);
+  await page.getByLabel(/^Durée de ponte \(mois\) :/).fill("10");
+  await page.getByLabel(/^Valeur de réforme :/).fill("5000");
+  await page.getByRole("button", { name: "Enregistrer la durée et la réforme" }).click();
+  await expect(page.getByText("Durée de ponte et valeur de réforme enregistrées.")).toBeVisible();
+  // this month, whole (FC1): (55 000,00 − 5 000,00) × 1 ÷ 10
+  await expect(hens).toContainText(/Amortissement à ce jour 5\s000,00/);
+  await expect(page.getByLabel(/^Durée de ponte \(mois\) :/)).toHaveValue("10");
+});

@@ -8,7 +8,7 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
 import { listLegalEntities } from "@/modules/farm-registry";
-import { batchResults, budgetBases, changeAccountingChoices, postPending, saveHensSchedules } from "@/modules/finance";
+import { batchResults, budgetBases, changeAccountingChoices, closePreview, postPending, saveHensSchedules, saveLayerSchedule } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant } from "@/test/tenant";
 
@@ -64,7 +64,7 @@ describe("laying hens in the batch result (SPEC-finance FN13, §9, §7.1 I)", ()
     for (const [ctx, id, basis] of [[cashBook, c.hens, "birdsGone"], [simplified, s.hens, "birdsGone"], [classic, k.hens, "pending"]] as const) {
       const r = await row(ctx, id);
       expect(r.costs).toMatchObject({ chicks: 0n, hens: 137_500n, transferred: 0n });
-      expect(r.hens).toEqual({ basis, entry: 27_500_000n, depreciation: 0n, removed: 137_500n });
+      expect(r.hens).toEqual({ basis, entry: 27_500_000n, depreciation: 0n, removed: 137_500n, schedule: null, classic: ctx === classic });
       expect(r.costCentimes).toBe(137_500n);
     }
   });
@@ -73,7 +73,7 @@ describe("laying hens in the batch result (SPEC-finance FN13, §9, §7.1 I)", ()
     await postPending(classic); // the purchase on 23711, so the schedule can be typed (FC6)
     expect(await saveHensSchedules(classic, { year: 2026, values: { [k.hens]: { life: "14", cull: "100 000" } } })).toEqual({ ok: true, value: 1 });
     const r = await row(classic, k.hens);
-    expect(r.hens).toEqual({ basis: "depreciation", entry: 27_500_000n, depreciation: 1_250_000n, removed: 0n });
+    expect(r.hens).toEqual({ basis: "depreciation", entry: 27_500_000n, depreciation: 1_250_000n, removed: 0n, schedule: { lifeMonths: 14, cullValue: 10_000_000n }, classic: true });
     expect(r.costCentimes).toBe(1_250_000n);
     const asOf = await batchResults(classic, "2026-12-31" as FarmDay, clock); // as on a later day: December counts too
     expect(asOf.ok && asOf.value.find((x) => x.id === k.hens)?.costs.hens).toBe(2_500_000n);
@@ -92,18 +92,56 @@ describe("laying hens in the batch result (SPEC-finance FN13, §9, §7.1 I)", ()
     const pullets = await row(classic, k.pullets);
     expect(pullets.costs).toMatchObject({ chicks: 900_000n, direct: 100_000n, transferred: -1_000_000n });
     expect(pullets.costCentimes).toBe(0n);
-    expect((await row(classic, k.layers)).hens).toEqual({ basis: "pending", entry: 1_000_000n, depreciation: 0n, removed: 0n }); // none gone yet
+    expect((await row(classic, k.layers)).hens).toEqual({ basis: "pending", entry: 1_000_000n, depreciation: 0n, removed: 0n, schedule: null, classic: true }); // none gone yet
     await postPending(classic);
     // the books still take the pullets' whole production cost (#278): FN13 handing it on moves no posting
     const lay = await db.journalEntry.findFirstOrThrow({ where: { sourceModule: "flock", sourceId: `lay:${k.layers}` }, include: { lines: true } });
     expect(lay.lines.find((l) => l.account === "23711")?.debitCentimes).toBe(1_000_000n);
     expect(await saveHensSchedules(classic, { year: 2026, values: { [k.layers]: { life: "10", cull: "0" } } })).toEqual({ ok: true, value: 1 });
     const layers = await row(classic, k.layers);
-    expect(layers.hens).toEqual({ basis: "depreciation", entry: 1_000_000n, depreciation: 200_000n, removed: 0n }); // October, November: 10 000 × 2 ÷ 10
+    expect(layers.hens).toEqual({ basis: "depreciation", entry: 1_000_000n, depreciation: 200_000n, removed: 0n, schedule: { lifeMonths: 10, cullValue: 0n }, classic: true }); // October, November: 10 000 × 2 ÷ 10
     expect(layers.costs).toMatchObject({ chicks: 0n, hens: 200_000n });
     // a budget copied from the closed pullet batch keeps its whole cost: 9 000 chicks, 1 000 in other costs
     const bases = await budgetBases(classic);
     expect(bases.ok && bases.value.find((b) => b.batchId === k.pullets)?.inputs.otherCostCentimes).toBe(100_000n);
+  });
+
+  it("any books: the owner or the manager types the schedule and the cash book's hens depreciate (§7.1 I.6)", async () => {
+    const typed = { batchId: c.hens, life: "14", cull: "100 000" };
+    for (const role of ["worker", "vet", "accountant"] as const) expect(await saveLayerSchedule({ ...cashBook, role }, typed), role).toEqual({ ok: false, error: "FORBIDDEN" });
+    expect(await saveLayerSchedule(classic, typed)).toEqual({ ok: false, error: "NOT_FOUND" }); // another organisation's flock
+    expect(await saveLayerSchedule(cashBook, { ...typed, life: "0" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await saveLayerSchedule(cashBook, { ...typed, cull: "275 000,01" })).toEqual({ ok: false, error: "INVALID_INPUT" }); // above the entry value
+    expect(await saveLayerSchedule(cashBook, { ...typed, life: "", cull: "" })).toEqual({ ok: false, error: "INVALID_INPUT" }); // never a default
+    expect((await row(cashBook, c.hens)).hens?.basis).toBe("birdsGone");
+
+    expect(await saveLayerSchedule({ ...cashBook, role: "manager" }, typed)).toEqual({ ok: true, value: 1 });
+    expect(await saveLayerSchedule(cashBook, typed)).toEqual({ ok: true, value: 0 }); // the same again: nothing changes
+    const r = await row(cashBook, c.hens);
+    expect(r.hens).toEqual({ basis: "depreciation", entry: 27_500_000n, depreciation: 1_250_000n, removed: 0n, schedule: { lifeMonths: 14, cullValue: 10_000_000n }, classic: false });
+    expect(r.costCentimes).toBe(1_250_000n); // was 1 375,00, the 25 dead
+    expect(await db.auditEvent.count({ where: { organizationId: cashBook.organizationId, entity: "HensSchedule", action: "create" } })).toBe(1);
+    expect((await row(classic, k.hens)).hens?.schedule).toEqual({ lifeMonths: 14, cullValue: 10_000_000n }); // the other farm's own, untouched
+
+    // the simplified method too: a management figure only, nothing posts from it
+    await postPending(simplified);
+    const entries = () => db.journalEntry.count({ where: { organizationId: simplified.organizationId } });
+    const before = await entries();
+    expect(await saveLayerSchedule(simplified, typed)).toEqual({ ok: false, error: "NOT_FOUND" });
+    expect(await saveLayerSchedule({ ...simplified, role: "manager" }, { ...typed, batchId: s.hens })).toEqual({ ok: true, value: 1 });
+    expect((await row(simplified, s.hens)).costs.hens).toBe(1_250_000n);
+    await postPending(simplified);
+    expect(await entries()).toBe(before);
+  });
+
+  it("classic: the same row is the close's, typed by the owner only, frozen with the books' rules", async () => {
+    expect(await saveLayerSchedule({ ...classic, role: "manager" }, { batchId: k.hens, life: "12", cull: "100 000" })).toEqual({ ok: false, error: "FORBIDDEN" });
+    expect(await saveLayerSchedule(classic, { batchId: k.hens, life: "12", cull: "100 000" })).toEqual({ ok: true, value: 1 });
+    const preview = await closePreview(classic, 2026, clock);
+    expect(preview.ok && preview.value.hens.lines.find((l) => l.id === k.hens)).toMatchObject({ lifeMonths: 12, cullValue: 10_000_000n, missing: false });
+    expect((await row(classic, k.hens)).costs.hens).toBe(1_458_333n); // 175 000,00 × 1 ÷ 12, half up
+    expect(await saveHensSchedules(classic, { year: 2026, values: { [k.hens]: { life: "14", cull: "100 000" } } })).toEqual({ ok: true, value: 1 }); // back, from the close
+    expect((await row(classic, k.hens)).costs.hens).toBe(1_250_000n);
   });
 
   it("a closed flock has used up its whole entry value, with or without a schedule", async () => {

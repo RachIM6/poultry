@@ -2,20 +2,29 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
+import { ClientMessages } from "@/i18n/client-messages";
 import { redirect } from "@/i18n/navigation";
+import type { MessagePath } from "@/i18n/pick";
 import { formatDay, formatDecimal, formatMoney } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
+import { typedCentimes } from "@/lib/kernel/money";
+import { can } from "@/lib/permissions";
 import { batchResults } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { table } from "@/components/ui";
 import { Num } from "@/components/num";
+import { ScheduleForm } from "./form";
 
 // SPEC-finance FN13: each batch's result side by side, newest first, so the owner compares it with the last batches.
-// Online, owner and manager; computed from the server's records, never cached.
+// Online, owner and manager; computed from the server's records, never cached. An open laying flock's laying period and
+// cull value are typed here, any books (§9 "Laying hens in the batch result"): the owner's under the classic method.
+// What this page's client components read (src/i18n/client-messages.tsx).
+const MESSAGES: MessagePath[] = ["Results.schedule", "Nav", "Offline", "Sync.refused", "errors"];
+
 export default function ResultsPage() {
   return (
-    <>
+    <ClientMessages paths={MESSAGES}>
       <header className="px-4 pt-4">
         <BackLink href="/more" />
       </header>
@@ -24,7 +33,7 @@ export default function ResultsPage() {
           <Results />
         </Suspense>
       </main>
-    </>
+    </ClientMessages>
   );
 }
 
@@ -81,6 +90,14 @@ async function Results() {
                           ? t("Results.hensDepreciation", { entry: money(r.hens.entry), depreciation: money(r.hens.depreciation), removed: money(r.hens.removed) })
                           : t(r.hens.basis === "pending" ? "Results.hensPending" : "Results.hensBirdsGone", { entry: money(r.hens.entry), removed: money(r.hens.removed) })}
                       </div>
+                    )}
+                    {r.hens && !r.closedOn && can(ctx.value, r.hens.classic ? "finance.manage" : "finance.record") && (
+                      <ScheduleForm
+                        batchId={r.id}
+                        flock={`${r.houseName} · ${formatDay(r.placedOn as FarmDay, lang)}`}
+                        life={r.hens.schedule ? String(r.hens.schedule.lifeMonths) : ""}
+                        cull={r.hens.schedule ? typedCentimes(r.hens.schedule.cullValue) : ""}
+                      />
                     )}
                     {r.costs.transferred !== 0n && <div className="text-muted">{t("Results.transferred", { amount: money(-r.costs.transferred) })}</div>}
                   </td>

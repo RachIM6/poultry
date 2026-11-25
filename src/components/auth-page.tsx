@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { BrandLockup } from "@/components/brand";
+import { BrandPanel } from "@/components/landing";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { link } from "@/components/ui";
 import { ClientMessages } from "@/i18n/client-messages";
@@ -13,16 +14,24 @@ export async function AuthPage({ title, intro, children }: { title: string; intr
   const messages: MessagePath[] = ["Account", "Login", "LocaleSwitcher", "errors"];
   return (
     <ClientMessages paths={messages}>
-      <header className="flex items-center justify-between gap-4 p-4">
-        <BrandLockup />
-        <LocaleSwitcher />
-      </header>
-      <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 px-6 pb-8">
-        <h1 className="text-[28px] font-semibold leading-tight">{title}</h1>
-        <p className="text-ink-2">{intro}</p>
-        {children}
-        <Link href="/login" className={`${link} self-start`}>{t("backToSignIn")}</Link>
-      </main>
+      <div className="flex flex-1 flex-col lg:grid lg:grid-cols-2">
+        <BrandPanel />
+        <div className="flex flex-1 flex-col">
+          <header className="flex items-center justify-between gap-4 p-4 lg:justify-end">
+            {/* lg+: the brand panel shows it. */}
+            <span className="lg:hidden">
+              <BrandLockup />
+            </span>
+            <LocaleSwitcher />
+          </header>
+          <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-4 px-6 pb-8 lg:pt-12">
+            <h1 className="text-[28px] font-semibold leading-tight">{title}</h1>
+            <p className="text-ink-2">{intro}</p>
+            {children}
+            <Link href="/login" className={`${link} self-start`}>{t("backToSignIn")}</Link>
+          </main>
+        </div>
+      </div>
     </ClientMessages>
   );
 }

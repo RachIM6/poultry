@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// The public entry page (src/app/[locale]/page.tsx).
+// The public entry page (src/app/[locale]/page.tsx) and the wide sign-in panel (src/components/landing.tsx).
 
 for (const [locale, dir, signup, login] of [
   ["fr", "ltr", "Créer un compte", "Se connecter"],
@@ -18,3 +18,16 @@ for (const [locale, dir, signup, login] of [
   });
 }
 
+test("sign-in on a wide screen: the brand panel beside the form; on the phone, no panel", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/fr/login");
+  const panel = page.getByRole("complementary");
+  const form = page.getByRole("button", { name: "Se connecter", exact: true });
+  await expect(panel).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Connexion" })).toBeVisible();
+  const [a, b] = [(await panel.boundingBox())!, (await form.boundingBox())!];
+  expect(b.x).toBeGreaterThanOrEqual(a.x + a.width - 1);
+
+  await page.setViewportSize({ width: 412, height: 915 });
+  await expect(panel).toBeHidden();
+});

@@ -364,7 +364,7 @@ function Batches(scope: Scope) {
               onCancel={() => setPlacing(false)}
             />
           ) : (
-            <button type="button" onClick={() => setPlacing(true)} className={primary}>{t("Batches.place")}</button>
+            <button type="button" aria-expanded={false} onClick={() => setPlacing(true)} className={primary}>{t("Batches.place")}</button>
           ))}
       </div>
     </>

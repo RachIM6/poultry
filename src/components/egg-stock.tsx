@@ -131,7 +131,7 @@ function EggStock({ userId, organizationId, role }: Scope) {
             onCancel={() => setSelling(false)}
           />
         ) : (
-          total > 0 && <button type="button" className={primary} onClick={() => setSelling(true)}>{t(can({ userId, organizationId, role }, "sales.manage") ? "EggSale.open" : "EggSale.consume")}</button>
+          total > 0 && <button type="button" aria-expanded={false} className={primary} onClick={() => setSelling(true)}>{t(can({ userId, organizationId, role }, "sales.manage") ? "EggSale.open" : "EggSale.consume")}</button>
         ))}
 
       <section className={card} aria-labelledby="by-item">
@@ -170,8 +170,8 @@ function EggStock({ userId, organizationId, role }: Scope) {
               <span>{t("EggStock.lot", { day: formatDay(l.laidOn as FarmDay, locale), house: house(l.batchId), item: itemName(l.item), eggs: formatCount(l.eggs) })}</span>
               {until && <span className="self-start rounded-2xl bg-alert-soft px-3 py-1 text-sm font-semibold text-alert-fg">{t("EggStock.withheld", { day: formatDay(until, locale) })}</span>}
               <span className="flex gap-2">
-                {l.item === "ungraded" && grades.length > 0 && <button type="button" className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "grade" })}>{t("EggStock.grade")}</button>}
-                <button type="button" className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "discard" })}>{t("EggStock.discard")}</button>
+                {l.item === "ungraded" && grades.length > 0 && <button type="button" aria-expanded={action?.lot === keyOf(l) && action.kind === "grade"} className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "grade" })}>{t("EggStock.grade")}</button>}
+                <button type="button" aria-expanded={action?.lot === keyOf(l) && action.kind === "discard"} className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "discard" })}>{t("EggStock.discard")}</button>
               </span>
               {action?.lot === keyOf(l) && action.kind === "grade" && (
                 <GradeForm lot={l} grades={grades} lots={lots} onCancel={() => setAction(null)} onSave={(grading) => save({ type: M.gradeEggs, payload: grading }, "eggGrading", grading)} />

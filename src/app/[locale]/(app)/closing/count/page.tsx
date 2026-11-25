@@ -39,7 +39,7 @@ export default function CountPage({ searchParams }: { searchParams: Search }) {
 // As the register's tables: ruled cells that print black (src/components/register-document.tsx).
 const sheet =
   "w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:p-2 [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:p-2 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black";
-const box = "min-h-11 w-28 rounded-lg border border-line bg-card px-2 text-end";
+const box = "min-h-11 w-28 rounded-lg border border-muted bg-card px-2 text-end";
 
 async function CountView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);

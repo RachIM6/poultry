@@ -307,7 +307,7 @@ function Routines({ routines, today, house, onSave, ...place }: Place & { routin
               {t("Tasks.every", { count: r.everyDays })} · {r.fromAge !== null ? t("Tasks.fromAge", { day: String(r.fromAge) }) : t("Tasks.fromDay", { date: r.startOn ?? "" })}
             </span>
             <span className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setEditing(r)} className={secondary}>{t("Tasks.edit", { title: r.title })}</button>
+              <button type="button" aria-expanded={editing !== null && editing !== "new" && editing.id === r.id} onClick={() => setEditing(r)} className={secondary}>{t("Tasks.edit", { title: r.title })}</button>
               <button type="button" onClick={() => onSave({ ...r, stopOn: today })} className={secondary}>{t("Tasks.stop", { title: r.title })}</button>
             </span>
           </li>
@@ -323,7 +323,7 @@ function Routines({ routines, today, house, onSave, ...place }: Place & { routin
           onCancel={() => setEditing(null)}
         />
       ) : (
-        <button type="button" onClick={() => setEditing("new")} className={secondary}>{t("Tasks.addRoutine")}</button>
+        <button type="button" aria-expanded={false} onClick={() => setEditing("new")} className={secondary}>{t("Tasks.addRoutine")}</button>
       )}
     </section>
   );

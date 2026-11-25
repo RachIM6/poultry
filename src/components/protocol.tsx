@@ -179,7 +179,7 @@ function Editor({ protocol, vaccines, nameOf, manage, save }: { protocol: Protoc
             </div>
           </form>
         ) : (
-          <button type="button" onClick={() => setAdding(true)} className={`${primary} self-start`}>{t("addItem")}</button>
+          <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={`${primary} self-start`}>{t("addItem")}</button>
         ))}
     </div>
   );

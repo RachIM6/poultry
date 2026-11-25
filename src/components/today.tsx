@@ -17,7 +17,7 @@ import { ageOn, birdsOnHand, birdsStarted, houseFigure, houseWeight, layingVersu
 import { eggsIn, layerKpis, type EggCollectionDto } from "@/modules/eggs/shared";
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
 import { SyncBadge } from "@/components/sync-status";
-import { cachedReference, currentScope, localDb, scopeKey } from "@/offline/db";
+import { cachedReference, currentScope, localDb, metaValue, scopeKey } from "@/offline/db";
 import { groupRecords } from "@/offline/group";
 
 // tasks/plan-ui.md U3, Today.dc.html: the home screen. A dark header with each open batch's 42-day strip, then the
@@ -59,6 +59,8 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "dailyEntry", "weighing", "soldBirds", "vaccination", "treatment", "eggCollection").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
+  // Right after sign-in the phone is still empty: no "no farm yet" until the first pull has answered.
+  const pulled = useLiveQuery(() => metaValue(db, "cursor").then((c) => c !== undefined), [userId, organizationId]);
   const { of, ofBatch } = useMemo(() => groupRecords(records ?? []), [records]); // once per read, not per batch
   if (!records || reference === undefined) return null;
 
@@ -179,7 +181,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
           </p>
         )}
         <h2 className="text-[17px] font-semibold text-ink-2">{t("Today.tasks")}</h2>
-        {batches.length === 0 && (
+        {batches.length === 0 && pulled && (
           <div className={card}>
             <p>{farms.length === 0 ? t("Farms.none") : t("Today.none")}</p>
             {can(scope, farms.length === 0 ? "farms.manage" : "flock.manage") && (

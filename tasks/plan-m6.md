@@ -15,7 +15,7 @@ Definition of done, file layout and verification commands are the same as [todo.
 | FQ16 loans | Interest per period = annual rate ÷ periods per year; no accrued interest at year end (manual entry if wanted) | FC2, T105 |
 | FQ17 subsidies | Booked when received (D 5141 / C 1311); released to 7577 in proportion to the assets' depreciation, through 1319 Subventions d’investissement inscrites au compte de produits et charges (confirmed by T100); refused on land | FC2, T106 |
 | FQ18 eggs | Value per egg typed by the owner | FC5, T113 |
-| FQ19 batch in progress | FN13's cost only, split by head between birds on hand and birds sold | FC4, T109 |
+| FQ19 batch in progress | Production cost (PCA pp. 42–43, decided default to review, 2026-11-25): FN13's production costs + the depreciation of the house's and farm's production assets, split by head between birds on hand and birds sold | FC4, T109 |
 | FQ20 current value | Last weighing × last sale price for a batch; cost for a stock unless the owner lowers it | FC4, FC5, T108, T109 |
 | FQ21 home consumption | Prefilled with the last sale price; an employee's share on 6171 | FC7, T112 |
 | NQ7 accountant writes | The accountant approves outside the app; the owner closes the year | FCX6, T104 |

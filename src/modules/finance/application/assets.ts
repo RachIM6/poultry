@@ -59,6 +59,9 @@ export const facts = (r: FixedAsset): DepreciableAsset => ({
   disposedOn: r.disposedOn && dayOf(r.disposedOn),
   opening: r.openingOn && { on: dayOf(r.openingOn), accumulated: r.openingAccumulatedCentimes },
 });
+/** FQ19: an entity's fixed assets with their category and place, for `depreciationShares` (FC4, FC6). */
+export const placedAssets = async (tx: Tx, ctx: TenantContext, legalEntityId: string) =>
+  (await tx.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, legalEntityId } })).map((a) => ({ ...facts(a), category: a.category as AssetCategory, farmId: a.farmId, houseId: a.houseId }));
 const audited = (r: Pick<FixedAsset, "lifeMonths" | "residualCentimes">) => ({ lifeMonths: r.lifeMonths, residualCentimes: String(r.residualCentimes) });
 /** FQ23: the account an asset bought on credit is owed on, 4481 or 1486, by its last payment day. */
 const debtOf = (r: Pick<FixedAsset, "acquiredOn" | "lastPaymentOn">) => assetDebtAccount(dayOf(r.acquiredOn), r.lastPaymentOn && dayOf(r.lastPaymentOn));

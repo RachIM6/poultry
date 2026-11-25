@@ -16,33 +16,64 @@ Abbreviations: **AC** = acceptance criteria, **e2e** = end-to-end test.
 
 ---
 
-## Pilot readiness (2026-11-24)
+## Pilot readiness (2026-11-25)
 
-Where the pilot stands. The features of M1 to M6 are built (index in [plan.md](plan.md)); what is left is what needs the host, a vendor, a person or a real device.
+Where the pilot stands after the merges of 2026-11-24 and 25. The features of M1 to M6 are built (index in [plan.md](plan.md)). What is left needs the owner, a vendor, an expert, a person or a real device. Open PRs: #269 (the release to `main`) and #284 (a laying flock's schedule on any books).
 
-**Done without the host:**
-- Login with the self-hosted captcha, the auth audit table, the security headers and the T25 fixes (T26 below, [t25 report](../docs/t25-security-and-performance.md)).
-- **Password login, 2026-11-24** ([ADR-015](../docs/decisions/ADR-015-password-login.md), branch `feat/password-login`): sign-in with the phone or the email and a password; owners sign up on their own; members and partners join with a one-time invite code the owner is shown once; the owner (or the operator's `pnpm user:reset`) gives a one-time reset code. SMS code login stays in the code, off (`AUTH_SMS_ENABLED`). **T26 no longer waits on OQ2 for login.**
-- Production start check, `GET /api/health` and a privacy-safe error log line (#256). The server refuses to start in production on an unsafe config; [`.env.example`](../.env.example) lists every variable.
-- Encrypted daily backup, restore script and a round-trip drill in CI (#254, [backup.md](../docs/backup.md)).
-- Export and deletion of an organisation's data, books kept 10 years (#255, [data-requests.md](../docs/data-requests.md)).
-- Scheduler that runs every step even when one fails, and the `sms_cap_50` / `sms_cap_100` alert lines (#257).
-- CI on every push to `develop` and `main` (#117), the JS size check, the demo farm and the quick guides ([FR](../docs/quick-guide-fr.md), [AR](../docs/quick-guide-ar.md)).
-- The deployment recipe (Docker image, `docs/deploy.md`) is coming with #258. Not merged yet: don't read it as done.
+**Done without the host (all merged into `develop`):**
+- **Login and abuse protection:**
+  - self-hosted captcha, auth audit table, security headers and the T25 fixes (T26 below, [t25 report](../docs/t25-security-and-performance.md));
+  - **password login** (#271, [ADR-015](../docs/decisions/ADR-015-password-login.md)): sign-in with the phone or the email and a password; owners sign up on their own; members and partners join with a one-time invite code shown once to the owner; the owner (or the operator's `pnpm user:reset`) gives a one-time reset code. SMS code login stays in the code, off (`AUTH_SMS_ENABLED`). **T26 no longer waits on OQ2 for login**;
+  - a reset also forgets the user's push devices (#276); the phone remembers who is signed in before the first signed-in page (#282).
+- **Operation:**
+  - production start check, `GET /api/health`, privacy-safe error log line (#256);
+  - scheduler that runs every step even when one fails, and the `sms_cap_50` / `sms_cap_100` alert lines (#257);
+  - `alertOps()` also posts to `OPS_ALERT_WEBHOOK_URL` when it is set; retention periods with a daily purge; no personal data in Prisma errors (#263);
+  - encrypted daily backup, restore script and a round-trip drill in CI (#254, [backup.md](../docs/backup.md));
+  - production Docker image, release step and runbook (#258, [deploy.md](../docs/deploy.md)).
+- **Law 09-08 tools and drafts:**
+  - export and deletion of an organisation's data, books kept 10 years (#255, [data-requests.md](../docs/data-requests.md)); a left organisation is read-only for its 30 days, and one member's export and deletion (#262);
+  - CNDP drafts in French ([docs/cndp/](../docs/cndp/README.md)) and [ADR-016](../docs/decisions/ADR-016-hosting-and-transfers.md) (#265).
+- **Compliance content:** the notifiable diseases card, the ONSSA checklist lines from arrêté 2127-05, the Marek and H9N2 vaccine types (#266).
+- **Quality guards and fixes:** the a11y guard covers roles, hidden controls, 320 px, contrast and file inputs (#273); UI follow-ups (#270); what a dress rehearsal of the demo found (#279, #282, #283).
+- **Finance corrections from the PCA text** (decided defaults, to review): accrued interest, subsidies on land and long-term asset debts (#268); a batch in progress and pullets at production cost (#274, #278); a suggested cost per egg (#280); budget supplier delays (#277); default cash box and bank account (#281); a laying flock's batch result (#283). The owner can reopen a closed batch (#275).
+- CI on every push to `develop` and `main` (#117), the JS size check, the quick guides ([FR](../docs/quick-guide-fr.md), [AR](../docs/quick-guide-ar.md)).
+
+**The demo path (client demo, synthetic data only):**
+- **Host:** Vercel (Paris, `cdg1`) and Supabase (Paris, `eu-west-3`) (#264, #267): step by step in [deploy-vercel-supabase.md](../docs/deploy-vercel-supabase.md). The Docker path of #258 stays for a later real host.
+- **Rule:** [ADR-016](../docs/decisions/ADR-016-hosting-and-transfers.md): synthetic data only (the US is not on the CNDP's adequate list). Before any real data: host in Morocco, or an F-118 filing per recipient and the art. 23 contracts.
+- **Data:** `pnpm db:seed:demo` (#272): 406 writes through the sync push, in two organisations (Ferme Démo Ben Ahmed and SARL Démo Avicole), idempotent.
+- **Script:** [demo-script-fr.md](../docs/demo-script-fr.md), 15 minutes, rehearsed on a production build (#279).
+- **Switches:** `DEMO_MODE=1` (the « données fictives » banner, read at build time) and password login. The demo seed prints the vet's and the accountant's invite codes.
+- **Not seeded on purpose:** vaccinations (the protocol templates are empty), strain curves (OQ5).
 
 **Waits on the owner:**
-- **Host (OQ1):** the deployment itself, `TRUSTED_PROXY_HOPS`, the backup cron line, one timed real restore, brotli.
+- **Vercel and Supabase:** the Supabase project and its CA file, and the Vercel environment variables (`DATABASE_URL`, `DATABASE_CA_CERT`, `APP_ORIGIN`, `BETTER_AUTH_SECRET`, `CAPTCHA_HMAC_KEY`, `CRON_SECRET`, `CLIENT_IP_HEADER`, optional VAPID keys, `DEMO_MODE=1`). Seeding the demo needs the same `BETTER_AUTH_SECRET` and a `DEMO_PASSWORD`.
+- **Release PR #269** (`develop` to `main`), and a decision on #284.
+- **A real host (OQ1), for real data:** the deploy `.env` values, `TRUSTED_PROXY_HOPS` (the Vercel path uses `CLIENT_IP_HEADER`), the backup cron line, one timed real restore, brotli. Hosting in Morocco, or F-118 filings (ADR-016).
+- **CNDP filing:** the declarations in [docs/cndp/](../docs/cndp/README.md) are drafts « à faire relire par un juriste / la CNDP »; filing is the owner's ([ADR-007](../docs/decisions/ADR-007-data-protection-and-hosting.md)).
 - **SMS vendor (OQ2):** no longer blocks login (ADR-015). Needed only to turn SMS code login back on, and for self-service reset by SMS.
-- **Alert channel:** a webhook or an email for `alertOps()` (the SMS cap). Until then the host must alert on the SMS-cap and scheduler error log lines.
-- **Off-site backup storage** and who keeps the passphrase.
-- **CNDP filing** ([ADR-007](../docs/decisions/ADR-007-data-protection-and-hosting.md)).
-- **Retention periods:** the defaults in [data-requests.md](../docs/data-requests.md) and how long `AuthEvent` rows are kept are decided but not reviewed.
-- **A lawyer's review** of [data-requests.md](../docs/data-requests.md).
-- **Vet review:** Checkpoint F (OQ4), and the register and disposal methods of M2-compliance.
-- **Expert-comptable review** of the charts, posting rules and an exported month (M2-finance, M6).
+- **Alert channel:** the value of `OPS_ALERT_WEBHOOK_URL` (Slack, Discord or any JSON webhook), or the host's log alerting on `"alert":"sms_cap_50"`, `"sms_cap_100"` and `"scheduler_failed"`.
+- **Off-site backup storage** and who keeps the passphrase. Deleted rows stay in backups until those rotate: say so in the CNDP file.
+- **A lawyer's review** of [data-requests.md](../docs/data-requests.md) (the 10-year reading of law 9-88, the retention table) and of the CNDP drafts.
+- **Vet review:** Checkpoint F (OQ4), the register and disposal methods of M2-compliance, the notifiable diseases card and the ONSSA checklist lines, the Arabic medical terms.
+- **Expert-comptable review** of the charts, posting rules and an exported month (M2-finance, M6), and of the PCA readings of 2026-11-24 and 25.
 - **A native Arabic review** of the interface and of [the Arabic guide](../docs/quick-guide-ar.md).
 - **Real-device checks:** Checkpoints A, C and D (install, offline sync, push on Android and iPhone), the 60 s daily entry with 3 testers (T16), the performance measurement on a mid-range Android (T25), the captcha timing on a low-end phone.
 - **Breed curves licence (OQ5):** until then no curve values are committed (T11).
+
+**Where the decided defaults live** (the expert reviews start here; each is "decided default, to review"):
+
+| Subject | Where |
+|---|---|
+| Finance: FQ1 to FQ30, the readings settled from the PCA text (FQ16 to FQ19, FQ23), FN13 to FN15 and FC6 rules, the default cash box and bank account | [SPEC-finance.md](../SPEC-finance.md) §9 ("Decided defaults, to review", "Settled from the PCA text", "FN14 allocation keys", "Official statements") |
+| Compliance: register, disposal, downtime, notifiable diseases, ONSSA checklist (CQ1 to CQ9) | [SPEC-m2-compliance.md](../SPEC-m2-compliance.md) §9 |
+| Login: password, invite and reset codes, SMS off | [ADR-015](../docs/decisions/ADR-015-password-login.md) |
+| Hosting, transfers abroad, synthetic data only | [ADR-016](../docs/decisions/ADR-016-hosting-and-transfers.md) |
+| Retention, export, deletion, the 30 days after leaving | [docs/data-requests.md](../docs/data-requests.md) |
+| Backups: gpg AES256, 7 daily + 4 weekly, RPO 24 h | [docs/backup.md](../docs/backup.md) |
+| The demo on Vercel and Supabase: 4 MiB uploads, daily cron, RLS, a pool of 3 | [docs/deploy-vercel-supabase.md](../docs/deploy-vercel-supabase.md) |
+| Reopening a closed batch (B6), the vaccination programme left per farm (OQ4) | [SPEC.md](../SPEC.md) §8 B6 and §10 |
 
 ---
 
@@ -417,6 +448,8 @@ Decisions (2026-11-09, taken without asking): built from the phone's own records
 
 Decisions (2026-11-09, taken without asking): only the sale of the last birds closes a batch by itself; deaths that bring birds on hand to 0 don't, because closing can't be undone and a mistyped daily entry would lock the batch: the owner or manager closes it by hand, with a reason (also with birds left, e.g. a sanitary cull). The server locks the figures on the batch when it closes: kg sold (farm weight), total cost and cost per kg, with every chick placed paid for (dead on arrival included), consumptions valued at each item's weighted average cost (each consumption movement now records its batch), and the other costs. A batch with nothing sold has a total cost but no cost per kg. Workers see the batch closed and kg sold, not the costs; other costs are entered by owners and managers. The phone shows the batch closed at once and the locked figures after the next sync; the final KPIs are those of the last records, unchanged since nothing can be added. One page again (`/batches#<id>` shows the closed batch's summary), not `batches/[id]/close`.
 
+- [x] Reopening, 2026-11-25 (#275, SPEC B6, decided default, to review): the owner alone (`finance.manage`) can reopen a closed batch with a reason, fix it and close it again. It is refused when the house was cleaned out after the closing, has a newer or an open batch, the pullets were transferred, or the closing's month is locked or its year closed. Finance drops the batch's frozen shares; a reopen posts nothing, each later correction posts its own reversal.
+
 **Verify:** `pnpm test -- src/modules/flock/closing`. e2e full lifecycle.
 **Dependencies:** T21, T14
 **Files:** `src/modules/flock/closing.ts`, `src/app/[locale]/batches/[id]/close/*`
@@ -445,15 +478,16 @@ Decisions (2026-11-09, taken without asking): only the sale of the last birds cl
 **Size:** M
 
 ### T26: Pilot deployment
-**Description:** Deploy staging and pilot environments with the hosting chosen in OQ1 (ADR-007 superseded). Plug in the production OTP provider (OQ2), set up backups, add a demo-farm seed, and write a one-page quick guide in AR and FR.
+**Description:** Deploy staging and pilot environments with the hosting chosen in OQ1 (ADR-007 superseded). Plug in the production OTP provider (OQ2), set up backups, add a demo-farm seed, and write a one-page quick guide in AR and FR. Since 2026-11-24 the client demo runs on Vercel + Supabase with synthetic data and password login (ADR-015, ADR-016); the AC below that are still open are the owner's or the real host's.
 **AC:**
 - [ ] Captcha (ALTCHA candidate) before every code request, verified server-side and single use (poultry-auth §0.8), and `TRUSTED_PROXY_HOPS` set for the chosen host so the IP and subnet limits apply. Deferred from T5 on 2026-10-28; required before real SMS are sent. Until both exist, anyone who knows a farmer's number can use up that number's verify budget (10 / h) and block their login, or spend the global SMS cap (security review of PR #6).
   - [x] Captcha part, 2026-11-20 (branch `feat/login-captcha`): self-hosted ALTCHA (`altcha-lib` 2.9.0) on `POST /api/auth/request-code`, challenge from `GET /api/captcha/challenge`, solved in the browser with no puzzle (`src/components/captcha-field.tsx`), single use (`CaptchaUse`). A request without a solved captcha gets `400 errors.CAPTCHA_REQUIRED` and spends no per-number or global budget (`src/lib/security/captcha.int.test.ts`). The e2e suite logs in through the real captcha on the production build. Difficulty `CAPTCHA_MAX_NUMBER` (default 50); **not yet timed on a real low-end Android**.
   - [x] Adaptive captcha on `verify-code`, 2026-11-22 (branch `feat/t26-verify-captcha`): from the 3rd consecutive failure per number or IP (`verifyFailures` policy, reset by a success), a request without a solved, unused captcha gets `400 errors.CAPTCHA_REQUIRED` and spends no per-number verify budget; the code step then shows the captcha field (`src/lib/security/captcha.int.test.ts`, `e2e/login.spec.ts`).
-  - [ ] `TRUSTED_PROXY_HOPS` for the chosen host (tied to OQ1): until then the IP and subnet limits, and the per-IP failure count, don't apply.
+  - [ ] `TRUSTED_PROXY_HOPS` for the chosen host (tied to OQ1): until then the IP and subnet limits, and the per-IP failure count, don't apply. On Vercel (#264) the client address comes from `CLIENT_IP_HEADER=x-vercel-forwarded-for`, which the production start check accepts instead; the owner still sets it in the Vercel variables.
 - [ ] An alert (not just a log line) when the global SMS cap reaches 50 %.
   - [x] Software part, 2026-11-24 (branch `fix/scheduler-and-sms-alert`): crossing 150 of the 300 codes / h writes one error-level line `{"level":"error","alert":"sms_cap_50","count":150,"cap":300,"windowSec":3600}` through `alertOps()` (`src/lib/ops/alert.ts`), numbers only, no phone or IP; reaching all 300 writes `"alert":"sms_cap_100"` the same way (poultry-auth `references/rate-limiting.md`: alert when the global limiter is hit). A marker hit per event under the limiter's per-policy lock makes each one once per window across instances, even when the sliding window dips under 50 % and crosses back (`src/lib/security/rate-limit.int.test.ts`).
-  - [ ] **Needs owner** (tied to OQ1): the delivery channel, a webhook or an email, plugged into `alertOps()` only, in its own PR. Until then the host's log alerting must match `"alert":"sms_cap_50"` and `"alert":"sms_cap_100"`.
+  - [x] Webhook sender, 2026-11-25 (#263, branch `feat/retention-and-alerts`): `alertOps()` also POSTs the event to `OPS_ALERT_WEBHOOK_URL` when it is set (Slack, Discord or any JSON webhook; 3 s timeout, in `after()`, never throws, never logs the URL), and a failed scheduler step raises `scheduler_failed` (`src/lib/ops/alert.test.ts`).
+  - [ ] **Needs owner:** the webhook URL (or an email path, which is not built). Until then the host's log alerting must match `"alert":"sms_cap_50"`, `"alert":"sms_cap_100"` and `"alert":"scheduler_failed"`.
 - [ ] The pilot farm owner and a worker log in on their own phones and complete the first daily entry.
 - [ ] A daily backup runs and has been restored once as a test.
   - [x] Scripts and CI drill, 2026-11-24 (branch `feat/backup-restore`, `docs/backup.md`): `scripts/backup.sh` (pg_dump, gpg AES256, 7 daily + 4 weekly), `scripts/restore.sh`, and `scripts/backup-drill.sh`, which the `backup-drill` CI job runs: row counts, `StoredFile` hashes and `prisma migrate status` match after the round trip.
@@ -464,15 +498,25 @@ Done ahead of the host choice (2026-11-11, branch `feat/t26-pilot-hardening`): t
 Also done without the host (2026-11-14; OQ1 hosting and OQ2 SMS set aside by the product owner, branch `feat/t26-pilot-prep`):
 - [x] Content-Security-Policy (T25 S3), without nonces so the offline shells stay static: inline scripts are allowed, everything else is this origin only (`next.config.ts`, `e2e/login.spec.ts`).
 - [x] JS size check in CI: `e2e/budget.spec.ts` fails if `/fr/login` or `/fr/batches` loads more than 200 KB of compressed JS (now 147.8 and 191.3 KB, after precompiling the messages on 2026-11-23; `docs/t25-security-and-performance.md` §2).
-- [x] Demo farm: `pnpm db:seed:demo` (after `pnpm db:seed`) creates a demo owner (`DEMO_PHONE`, default +212600000099), a farm, two houses, stock and a 21-day batch with daily entries and two weighings, through the app's own mutations. Made-up figures, demo only.
+- [x] Demo farm: `pnpm db:seed:demo` (after `pnpm db:seed`) creates a demo owner (`DEMO_PHONE`, default +212600000099), a farm, two houses, stock and a 21-day batch with daily entries and two weighings, through the app's own mutations. Made-up figures, demo only. Rewritten on 2026-11-25 (#272): see "The demo path" in "Pilot readiness" at the top.
 - [x] Quick guides: `docs/quick-guide-fr.md`, `docs/quick-guide-ar.md` (the Arabic one needs a native review).
 - [x] Production start check, 2026-11-24 (#256, branch `feat/production-env-guard`): with `NODE_ENV=production` the server refuses to start, and exits with code 1, on a missing `DATABASE_URL`, a non-https `APP_ORIGIN`, a missing, placeholder or short `BETTER_AUTH_SECRET` or `CAPTCHA_HMAC_KEY`, `CAPTCHA_DISABLED`, an unset `TRUSTED_PROXY_HOPS`, a half-set VAPID pair or `OTP_CONSOLE_SINK`; it warns on `TRUSTED_PROXY_HOPS=0` and on no `CRON_SECRET` (`src/lib/env.ts`, `src/lib/env.test.ts`). `GET /api/health` answers 200 `{status:"ok"}` or 503 `{status:"unavailable"}` from a `SELECT 1`, no auth, no details (`src/app/api/health/health.int.test.ts`). A request error writes one JSON line with the path without query, method, error name and digest, never a body or a header (`src/instrumentation.test.ts`). `.env.example` lists every variable the code reads.
 - [x] Export and deletion of an organisation's data, 2026-11-24 (#255, branch `feat/organization-export`, law 09-08, [docs/data-requests.md](../docs/data-requests.md)): `pnpm org:export`, `pnpm org:left` and `pnpm org:delete` (refused until the organisation left 30 days ago and its exact name is typed), keeping the books and their supporting documents 10 years (law 9-88, art. 22). The retention defaults and the text are **to review** by the owner and a lawyer.
 - [x] CI on every push to `develop`, 2026-11-24 (#117): `.github/workflows/ci.yml` runs on `main` and `develop`; PRs target `develop`, `main` is production.
 - [x] Scheduler, 2026-11-24 (branch `fix/scheduler-and-sms-alert`): `POST /api/push/dispatch` runs each of its eight steps (six reminders, postings, pushes) even when one throws, logs `{"level":"error","scheduler":"<step>","error":"<error name>"}`, and answers `{ok, failed}`, with 500 when a step failed so the host's scheduler alerts (`src/app/api/push/dispatch.int.test.ts`).
-- [x] Auth audit (poultry-auth §6), 2026-11-23 (branch `feat/auth-audit`): a new `AuthEvent` table owned by identity holds one row per request for code requested (eligible or not), verify failure (with a reason), login, logout, rate-limit block (request-code, verify-code, captcha challenge) and captcha failure (request-code, verify-code). Each row keeps the user id when known, the masked phone, the /24 or /64 subnet (none without `TRUSTED_PROXY_HOPS`) and the user agent, cut to 256 characters. It never holds a code, session id or captcha payload. Not in `AuditEvent`, because these events happen before any organisation is known and `AuditEvent` is per organisation (ADR-006). Invitation, membership and session-revoke events stay there. A failed write is logged and never changes the answer (`src/modules/identity/auth-events.int.test.ts`). Still open: how long these rows are kept (no rule yet in ADR-006 or ADR-007), and an "invitation expired" event, because nothing acts when an invitation expires (it is just ignored).
+- [x] Auth audit (poultry-auth §6), 2026-11-23 (branch `feat/auth-audit`): a new `AuthEvent` table owned by identity holds one row per request for code requested (eligible or not), verify failure (with a reason), login, logout, rate-limit block (request-code, verify-code, captcha challenge) and captcha failure (request-code, verify-code). Each row keeps the user id when known, the masked phone, the /24 or /64 subnet (none without `TRUSTED_PROXY_HOPS`) and the user agent, cut to 256 characters. It never holds a code, session id or captcha payload. Not in `AuditEvent`, because these events happen before any organisation is known and `AuditEvent` is per organisation (ADR-006). Invitation, membership and session-revoke events stay there. A failed write is logged and never changes the answer (`src/modules/identity/auth-events.int.test.ts`). Kept 12 months since #263 (decided default, to review). Still open: an "invitation expired" event, because nothing acts when an invitation expires (it is just ignored).
 
-Waiting on OQ1: the deployment, the backup cron and a real restore, brotli, `TRUSTED_PROXY_HOPS`, the alert channel, and the pilot farm's first day. Password login (ADR-015, 2026-11-24) removed OQ2 from the path to the pilot: the real SMS sender is needed only to turn SMS code login back on. See "Pilot readiness" at the top.
+Also done without the host (2026-11-24 and 25, all merged into `develop`):
+- [x] Retention, 2026-11-25 (#263, `src/ops/retention.ts`, [data-requests.md](../docs/data-requests.md)): a daily scheduler step purges `AuthEvent` after 12 months, read notifications after 90 days (unread after 1 year), farm-operation audit events after 5 years; the sync log and the ledger are never purged. Decided defaults, to review; ADR-006 and ADR-007 amended. Prisma errors no longer carry personal data (`src/lib/db.ts`).
+- [x] A left organisation, 2026-11-24 (#262): read-only for its 30 days (`ORGANIZATION_LEFT`), a notice on the dashboard, and `pnpm member:export` / `pnpm member:delete` for one member's request.
+- [x] Docker, 2026-11-24 (#258, [deploy.md](../docs/deploy.md)): production image, release step (`prisma migrate deploy` and the idempotent seed), `HEALTHCHECK`, the service worker revision from `BUILD_ID`, a CI job that builds the image.
+- [x] Password login, 2026-11-24 (#271, ADR-015), with the reset forgetting devices (#276) and the sign-in scope remembered before the first page (#282).
+- [x] Vercel + Supabase, 2026-11-25 (#264, #267, [deploy-vercel-supabase.md](../docs/deploy-vercel-supabase.md)): pooled and direct database URLs, TLS checked against Supabase's CA (`DATABASE_CA_CERT`), row level security on every table, uploads capped at 4 MiB, a daily Vercel Cron, region `cdg1`, a service worker revision per deployment. Decided defaults, to review.
+- [x] CNDP drafts and the demo banner, 2026-11-25 (#265): [docs/cndp/](../docs/cndp/README.md) (declarations of the farm and of the publisher, the art. 23 contract, the art. 5 notices), [ADR-016](../docs/decisions/ADR-016-hosting-and-transfers.md), and `DEMO_MODE=1`.
+- [x] Demo seed and script, 2026-11-25 (#272, #279): `pnpm db:seed:demo` writes 406 records through the sync push into two organisations; [demo-script-fr.md](../docs/demo-script-fr.md) was rehearsed on a production build and the 8 things the rehearsal found are fixed.
+- [x] The a11y guard (#273), the ONSSA checklist and notifiable diseases card (#266) and the UI follow-ups (#270).
+
+Waiting on the owner: see "Pilot readiness" at the top (Vercel variables, release PR #269, the CNDP filing, the reviews, the real devices; for real data a host under ADR-016, the backup cron and a real restore, brotli, the alert webhook, and the pilot farm's first day). Password login (ADR-015, 2026-11-24) removed OQ2 from the path to the pilot: the real SMS sender is needed only to turn SMS code login back on.
 
 **Verify:** smoke test on production. Backup restore drill.
 **Dependencies:** T25, **OQ1 resolved** (OQ2 no longer blocks login: ADR-015)

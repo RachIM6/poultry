@@ -18,15 +18,17 @@ M1 delivers one thing: **a pilot farm can run a full broiler batch on a phone, o
 | [002](../docs/decisions/ADR-002-nextjs-modular-monolith-postgres.md) | One Next.js app, modules in `src/modules/<id>`, PostgreSQL + Prisma | Accepted |
 | [003](../docs/decisions/ADR-003-offline-first-sync.md) | Local-first writes + outbox + idempotent push + versioned pull | Proposed → confirmed at checkpoint C |
 | [004](../docs/decisions/ADR-004-i18n-arabic-french-rtl.md) | next-intl, `ar` (RTL, default) + `fr`, Western digits | Accepted |
-| [005](../docs/decisions/ADR-005-phone-otp-auth.md) | Phone + OTP, database sessions | Accepted (T5): Better Auth 1.7.14, cookie `__Secure-sid`. SMS provider still open (OQ2) |
+| [005](../docs/decisions/ADR-005-phone-otp-auth.md) | Phone + OTP, database sessions | Accepted (T5): Better Auth 1.7.14, cookie `__Secure-sid`. Its login part (phone + SMS code) is superseded by ADR-015 (2026-11-24); sessions, cookie and Better Auth stay |
 | [006](../docs/decisions/ADR-006-multi-tenancy-and-audit.md) | `organizationId` scoping via tenant context + append-only audit | Proposed |
-| [007](../docs/decisions/ADR-007-data-protection-and-hosting.md) | Law 09-08: synthetic data until hosting + CNDP are settled | Proposed, blocks T26 |
+| [007](../docs/decisions/ADR-007-data-protection-and-hosting.md) | Law 09-08: synthetic data until hosting + CNDP are settled | Proposed. Hosting part superseded by ADR-016 (2026-11-24); retention amended 2026-11-25 (#263) |
 | [009](../docs/decisions/ADR-009-zod-free-shared-files.md) | Zod-free `shared.ts` per module for the phone's screens (T25) | Accepted |
 | [010](../docs/decisions/ADR-010-accounting-model.md) | One double-entry ledger, charts as data (CGNC + PCA overlay), staged finance. Not M1: see [plan-m2-finance.md](plan-m2-finance.md) | Proposed, accountant review |
 | [011](../docs/decisions/ADR-011-files-in-postgres.md) | Uploaded files live in PostgreSQL (T43) | Proposed, revisit with hosting |
 | [012](../docs/decisions/ADR-012-no-separate-backend.md) | No separate backend | Accepted |
-| [013](../docs/decisions/ADR-013-partner-access.md) | Partner access (vet, accountant), M5 | Proposed, to review with SPEC-m5 |
+| [013](../docs/decisions/ADR-013-partner-access.md) | Partner access (vet, accountant), M5 | Proposed, to review with SPEC-m5. Amended by ADR-015: an invitation is accepted with its code |
 | [014](../docs/decisions/ADR-014-compacted-pull.md) | Compacted first pull | Accepted (decided default, to review) |
+| [015](../docs/decisions/ADR-015-password-login.md) | Password login with phone or email, one-time invite and reset codes, SMS login off behind `AUTH_SMS_ENABLED` (#271) | Accepted (decided 2026-11-24, details to review) |
+| [016](../docs/decisions/ADR-016-hosting-and-transfers.md) | Client demo on Vercel + Supabase with synthetic data only; transfers abroad under law 09-08 (#265) | Accepted (decided default, to review) |
 
 ## Dependency graph (M1)
 
@@ -95,24 +97,31 @@ T1 scaffold ─┬─ T2 db/test harness ─┬─ T5 OTP auth ── T6 org + t
 
 ### Phase 8: Pilot readiness
 - [ ] T25 Security review and performance budget (security review done, the high finding fixed; a real mid-range Android measurement and a Lighthouse report are owed)
-- [ ] T26 Pilot deployment (blocked by OQ1, OQ2; the host-independent parts are done, see todo.md)
+- [ ] T26 Pilot deployment (the host-independent parts are done; the demo runs on Vercel + Supabase with password login, ADR-015 and ADR-016; still open: the owner's Vercel variables, a real host for real data (OQ1), the backup cron and a real restore, see todo.md "Pilot readiness")
 - [ ] **Checkpoint M1:** SPEC §9 success criteria met (open: needs the pilot)
 
-## Later milestones (state on 2026-11-24)
+## Later milestones (state on 2026-11-25)
 
 M2 to M6 and the UI track are built and merged into `develop`; each plan keeps its own task ticks. What is open is review by people, real data or the pilot, not code.
 
 | Milestone | Plan | Tasks | Built | Open |
 |---|---|---|---|---|
-| M2 finance | [plan-m2-finance.md](plan-m2-finance.md) | T27–T39 | all | Checkpoint: expert-comptable review, one exported month imported, the pilot batch margin checked |
-| M2 compliance | [plan-m2-compliance.md](plan-m2-compliance.md) | T40–T49 | all | Checkpoint: a vet or ONSSA contact reviews the register, disposal methods and inspection checklist |
+| M2 finance | [plan-m2-finance.md](plan-m2-finance.md) | T27–T39 | all | Checkpoint: expert-comptable review, one exported month imported, the pilot batch margin checked. Also to review: the budget supplier delays (#277), the default cash box and bank account (#281), a laying flock's batch result (#283; #284 open) |
+| M2 compliance | [plan-m2-compliance.md](plan-m2-compliance.md) | T40–T49 | all | Checkpoint: a vet or ONSSA contact reviews the register, disposal methods and inspection checklist, now with the notifiable diseases card and the arrêté 2127-05 lines (#266) |
 | M3 production types | [plan-m3.md](plan-m3.md) | T50–T68 (T69 reserved) | all | none listed |
 | M4 farm operations | [plan-m4.md](plan-m4.md) | T70–T77, T80–T84, T86 | all | T78 CNSS export, blocked on MQ3. Checkpoint: the owner's sources (MQ1, MQ2), a manager using routines for a week |
 | M5 network | [plan-m5.md](plan-m5.md) | T90–T99 | all | Checkpoint: owner review of SPEC-m5, ADR-013; a real vet using the access for a week |
-| M6 accounting close | [plan-m6.md](plan-m6.md) | T100–T119 | all | T117 against the pilot banks' real statement files, T118 imported by the pilot's firm, checkpoint: expert-comptable review and a pilot company closing a year |
-| UI | [plan-ui.md](plan-ui.md) | U1–U17 | all | Arabic check with a native speaker |
+| M6 accounting close | [plan-m6.md](plan-m6.md) | T100–T119 | all | T117 against the pilot banks' real statement files, T118 imported by the pilot's firm, checkpoint: expert-comptable review (including the PCA readings of 2026-11-24 and 25: #268, #274, #278, #280) and a pilot company closing a year |
+| UI | [plan-ui.md](plan-ui.md) | U1–U17 | all | Arabic check with a native speaker. Since 2026-11-24: the a11y guard (#273) and UI follow-ups (#270, #279) |
 
 The `Status: draft` line at the top of each plan was written at the start and not updated.
+
+**Merged on 2026-11-24 and 25** (each is ticked or noted in the plan it belongs to; the pilot items are in [todo.md](todo.md) "Pilot readiness"):
+- **Pilot readiness:** backups #254, law 09-08 tools #255 and #262, env guard and health #256, scheduler and SMS alerts #257, Docker #258, retention and alert webhook #263, Vercel + Supabase #264 and #267, CNDP drafts and the demo banner #265 (ADR-016), password login #271 (ADR-015) with #276 and #282, demo seed and script #272 and #279.
+- **Health and compliance:** notifiable diseases, ONSSA checklist lines, Marek and H9N2 vaccine types #266.
+- **Flock:** the owner can reopen a closed batch #275.
+- **Finance (PCA readings and gaps):** accrued interest, land subsidies, long-term asset debts #268; a batch in progress at production cost #274; pullets on 23962 at production cost #278; budget supplier delays #277; suggested egg cost #280; default cash box and bank account #281; a laying flock's batch result #283. Open: #284.
+- **UI:** the a11y guard #273, dates in words, the not-found page and read-only accounting settings #270.
 
 ## Parallelization
 
@@ -133,14 +142,14 @@ There is one developer stream by default. If more people join:
 | Large MVP scope with no deadline turns into endless building | High | Milestones M1–M5, each pilotable. Do not start M2 before checkpoint M1 |
 | Wrong default vaccine protocol or withdrawal logic | High (legal, birds) | Vet review at checkpoint F (OQ4). Protocol is editable per farm |
 | Strain curve data licence or accuracy | Medium | Record source and version per value (OQ5). Curves can be swapped without code changes |
-| Hosting / CNDP not settled in time | Medium (blocks pilot) | Start the CNDP file and the hosting decision now, in parallel with Phases 1–7 |
+| Hosting / CNDP not settled in time | Medium (blocks pilot) | Demo on Vercel + Supabase with synthetic data only (ADR-016); CNDP drafts in `docs/cndp/` (#265). Before any real data: a host in Morocco or F-118 filings, and a lawyer's review |
 | Low-end phones too slow | Medium | 200 KB JS budget, measured at T25 on a real device |
-| OTP cost or deliverability (SMS / WhatsApp) | Medium | Rate limits from day 1. Provider chosen before T26 (OQ2) |
+| OTP cost or deliverability (SMS / WhatsApp) | Medium | Rate limits from day 1. Password login since 2026-11-24 (ADR-015), so no SMS is needed to sign in; the provider (OQ2) matters only for SMS login and notifications |
 
 ## Open questions
 
 See [SPEC.md §10](../SPEC.md). The ones that block M1 tasks:
-- **OQ1 hosting:** blocks T26.
-- **OQ2 OTP provider:** blocks T26 (dev uses a console sink).
+- **OQ1 hosting:** blocks T26 for real data. The demo runs on Vercel + Supabase with synthetic data (ADR-016).
+- **OQ2 SMS provider:** no longer blocks T26 since password login (ADR-015); needed to turn SMS login back on.
 - **OQ4 vet review:** gates checkpoint F.
 - **OQ5 curve source:** needed for T11.

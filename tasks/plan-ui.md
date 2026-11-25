@@ -88,4 +88,10 @@ Still open after U8: the sidebar's longer owner list on wide screens (role-depen
 - [x] Batch mockup's cost per kg tile on an open batch, for owners and managers (`money.read`): FN13's costs so far, read from the server as `/results` does (`/api/finance/batch-results`), ÷ (birds on hand × the latest average weight), half up (`flock` `liveCostPerKg`). "—" with the reason offline, before a weighing or before any cost. In the batch dashboard's lazy chunk.
 - [x] F-Profile's ICE, IF, RC (number and court) and CNSS numbers on the legal entity (farm-registry, nullable columns): the owner edits them on `/settings/accounting`, never locked by the fiscal year; owners, managers and the accountant read them on the official statements' header; workers and vets never get them. Only the ICE's format is checked (15 digits; its check digits' algorithm isn't public); the others are free text, capped (IF 20, RC 20, court 60, CNSS 20): no official format found. Not in the FEC: CNC avis n° 24 fixes no file name or header, and the LPF's name uses a French Siren (docs/studies/accountant-import-format.md). (`farm-registry/legal-ids.int.test.ts`, `finance/entity-ids.int.test.ts`, `e2e/wide-screens.spec.ts`, `e2e/accounting-settings.spec.ts`.)
 
+### After U17: guards and follow-ups (2026-11-24 and 25)
+- [x] The a11y guard (`e2e/a11y.spec.ts`) also checks roles, hidden controls, 320 px reflow, WCAG 2.2 AA contrast and file-input labels; 14 buttons got `aria-expanded`, and the stepper and closing field edges were made visible (#273).
+- [x] Dates in words on `/tasks` and `/staff`, a translated not-found page, a read-only accounting settings view for the accountant, wide screens checked in Arabic (#270).
+- [x] Fixes from a dress rehearsal of the client demo: the daily entry starts on the feed used the day before, the empty state waits for the first pull, partners see « Voir la bande » (#279); the sign-in scope is remembered before the first page (#282).
+- [x] Demo banner `DEMO_MODE=1` on every signed-in page (#265).
+
 ### Later:, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

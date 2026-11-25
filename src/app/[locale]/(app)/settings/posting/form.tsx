@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 import { saveOverrideAction } from "./actions";
 import { OfflineHint, useOnline } from "@/components/online";
-import { card, danger, field, primary } from "@/components/ui";
+import { cell, row, rowHead, rowTable, splitAside } from "@/components/layout";
+import { danger, field, primary } from "@/components/ui";
 
 type Account = { number: string; label: string };
 type Props = {
@@ -24,17 +25,23 @@ export function OverridesForm({ rows, choices }: Props) {
   const opLabel = (op: string) => (op.startsWith("expense.") ? t(`Expenses.categories.${op.slice(8)}`) : t(`Chart.ops.${op}`));
   return (
     <>
-      <ul className="flex flex-col gap-3" aria-label={t("Overrides.title")}>
+      {/* Wide screens: a table, operation · default · replaced (the page puts the form beside it); the phone: cards. */}
+      <ul className={`${rowTable} lg:grid-cols-[minmax(0,1fr)_repeat(2,minmax(0,1.3fr))]`} aria-label={t("Overrides.title")}>
+        <li aria-hidden="true" className={rowHead}>
+          <span>{t("Overrides.rule")}</span>
+          <span>{t("Overrides.default")}</span>
+          <span>{t("Overrides.override")}</span>
+        </li>
         {rows.map((r) => (
-          <li key={r.op} className={card}>
+          <li key={r.op} className={row}>
             <span className="font-semibold">{opLabel(r.op)}</span>
             <span className={`text-sm ${r.override?.applies ? "text-ink-2" : "font-semibold"}`}>
-              {t("Overrides.default")} <Named a={r.default} />
+              <span className="lg:sr-only">{t("Overrides.default")} </span><Named a={r.default} />
             </span>
             {r.override && (
-              <>
+              <div className={cell}>
                 <span className={`text-sm ${r.override.applies ? "font-semibold" : "text-ink-2"}`}>
-                  {t("Overrides.override")} <Named a={r.override} />
+                  <span className="lg:sr-only">{t("Overrides.override")} </span><Named a={r.override} />
                 </span>
                 {!r.override.applies && <p className="text-sm">{t("Overrides.notApplied")}</p>}
                 <form action={action}>
@@ -42,12 +49,12 @@ export function OverridesForm({ rows, choices }: Props) {
                   <input type="hidden" name="account" value="" />
                   <button type="submit" disabled={pending || !online} aria-label={t("Overrides.resetOf", { rule: opLabel(r.op) })} className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">{t("Overrides.reset")}</button>
                 </form>
-              </>
+              </div>
             )}
           </li>
         ))}
       </ul>
-      <form action={action} className="flex flex-col gap-3">
+      <form action={action} className={`flex flex-col gap-3 ${splitAside}`}>
         <label className="flex flex-col gap-1">
           <span className="font-semibold">{t("Overrides.rule")}</span>
           <select name="ruleAccount" value={rule} onChange={(e) => setRule(e.target.value)} disabled={pending} className={field}>

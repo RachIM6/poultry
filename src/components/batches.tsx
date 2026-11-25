@@ -44,6 +44,7 @@ const VetVisits = dynamic(() => import("@/components/treatments").then((m) => m.
 const WithdrawalBanner = dynamic(() => import("@/components/treatments").then((m) => m.WithdrawalBanner));
 const EggCollections = dynamic(() => import("@/components/eggs").then((m) => m.EggCollections));
 const Vaccinations = dynamic(() => import("@/components/vaccinations").then((m) => m.Vaccinations));
+const NotifiableDiseases = dynamic(() => import("@/components/notifiable-diseases").then((m) => m.NotifiableDiseases));
 const Weighings = dynamic(() => import("@/components/weighing").then((m) => m.Weighings));
 const BatchHeader = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchHeader));
 const BatchNotes = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchNotes));
@@ -258,6 +259,7 @@ function Batches(scope: Scope) {
               <VetVisits batch={open} visits={ofBatch<VetVisitDto>("vetVisit", open.id)} userId={userId} write={write} />
             </>
           )}
+          <NotifiableDiseases />
           {can(scope, "flock.record") && (
             <div className="lg:col-span-full">
               <Sales

@@ -36,7 +36,7 @@ export type Missing =
 
 /** `check`: the app can't tell; the keeper checks it on site and ticks it on paper (self-declaration). */
 export type CheckState = "ok" | "missing" | "check";
-export const CHECKLIST = ["authorization", "vetContract", "register", "annexes", "water", "cleaning", "rodents", "carcasses", "downtime", "newcastle", "installations"] as const;
+export const CHECKLIST = ["authorization", "vetContract", "register", "annexes", "water", "cleaning", "rodents", "carcasses", "downtime", "newcastle", "installations", "buildings", "manure", "layerStores"] as const;
 export type CheckKey = (typeof CHECKLIST)[number];
 
 /** Each line's source, printed as is (official French titles; docs/sources/onssa/README.md). */
@@ -52,6 +52,9 @@ export const CHECK_SOURCES: Record<CheckKey, string> = {
   downtime: "Arrêté n° 2127-05, art. 4",
   newcastle: "Arrêté n° 3308-17, art. 13 et 14",
   installations: "Arrêté n° 2127-05, art. 2 et 4",
+  buildings: "Arrêté n° 2127-05, art. 4",
+  manure: "Arrêté n° 2127-05, art. 4 ; décret n° 2-04-684, art. 12",
+  layerStores: "Arrêté n° 2127-05, art. 4", // "les fermes de poules pondeuses": only with a layer batch in the pack
 };
 
 export type CheckLine = { key: CheckKey; state: CheckState; source: string; missing: Missing[] };
@@ -129,5 +132,8 @@ export function inspectionChecklist({ today, farm, documents, batches, cleanouts
     line("downtime", downtime, false),
     line("newcastle", newcastle, pack.length > 0),
     line("installations", [], false),
+    line("buildings", [], false),
+    line("manure", [], false),
+    ...(pack.some((b) => b.species === "layer") ? [line("layerStores", [], false)] : []),
   ];
 }

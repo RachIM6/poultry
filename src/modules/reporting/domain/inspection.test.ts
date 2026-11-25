@@ -39,7 +39,7 @@ describe("inspection pack", () => {
 
   it("every line in order with its source; all recorded: nothing missing, the rest to check on site", () => {
     const lines = inspectionChecklist(complete);
-    expect(lines.map((l) => l.key)).toEqual([...CHECKLIST]);
+    expect(lines.map((l) => l.key)).toEqual(CHECKLIST.filter((k) => k !== "layerStores")); // a broiler farm
     expect(lines.map((l) => [l.key, l.source])).toEqual([
       ["authorization", "Loi n° 49-99, art. 1 et 2"],
       ["vetContract", "Arrêté n° 2124-05, art. 1 ; loi n° 49-99, art. 7"],
@@ -52,11 +52,21 @@ describe("inspection pack", () => {
       ["downtime", "Arrêté n° 2127-05, art. 4"],
       ["newcastle", "Arrêté n° 3308-17, art. 13 et 14"],
       ["installations", "Arrêté n° 2127-05, art. 2 et 4"],
+      ["buildings", "Arrêté n° 2127-05, art. 4"],
+      ["manure", "Arrêté n° 2127-05, art. 4 ; décret n° 2-04-684, art. 12"],
     ]);
     expect(missingOf(lines)).toEqual([]);
     expect(states(lines)).toEqual({
       authorization: "ok", vetContract: "ok", register: "ok", annexes: "check", water: "check", cleaning: "ok", rodents: "ok", carcasses: "check", downtime: "check", newcastle: "ok", installations: "check",
+      buildings: "check", manure: "check",
     });
+  });
+
+  it("a layer farm also self-declares its egg store and droppings area (arrêté n° 2127-05 art. 4); a pullet farm doesn't", () => {
+    const layer = inspectionChecklist({ ...complete, batches: [batch({ species: "layer" })] });
+    expect(layer.map((l) => l.key)).toEqual([...CHECKLIST]);
+    expect(layer.at(-1)).toEqual({ key: "layerStores", state: "check", source: "Arrêté n° 2127-05, art. 4", missing: [] });
+    expect(inspectionChecklist({ ...complete, batches: [batch({ species: "pullet" })] }).some((l) => l.key === "layerStores")).toBe(false);
   });
 
   it("lists each missing piece under its line", () => {

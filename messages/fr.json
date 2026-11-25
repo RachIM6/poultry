@@ -2561,6 +2561,22 @@
     "mortality": "Mortalité",
     "print": "Imprimer ou enregistrer en PDF"
   },
+  "Notifiable": {
+    "title": "Maladies à déclaration obligatoire",
+    "diseases": {
+      "hpai": "Peste aviaire (influenza aviaire hautement pathogène)",
+      "newcastle": "Maladie de Newcastle",
+      "gumboro": "Maladie de Gumboro",
+      "marek": "Maladie de Marek",
+      "pullorum": "Pullorose (S.P.G.)",
+      "salmonella": "Salmonellose aviaire (Salmonella enteritidis et Salmonella typhimurium)",
+      "bronchitis": "Bronchite infectieuse",
+      "tuberculosis": "Tuberculose chez les oiseaux",
+      "psittacosis": "Psittacose-ornithose, chez toutes les espèces d’oiseaux"
+    },
+    "duty": "Un cas suspect se déclare immédiatement à l’autorité administrative locale, par le propriétaire, la personne qui soigne ou garde les volailles et tout vétérinaire qui les visite. Newcastle, peste aviaire et pullorose : déclaration immédiate au service vétérinaire de l’ONSSA du lieu où se trouvent les volailles.",
+    "source": "Dahir n° 1-75-292, art. 1 et 3 ; arrêtés n° 3308-17, 2466-17 et 2836-17, art. 1"
+  },
   "Inspection": {
     "open": "Dossier d’inspection",
     "forbidden": "Le dossier d’inspection est réservé au propriétaire et au gérant.",
@@ -2616,9 +2632,13 @@
       "carcasses": "Système de destruction des cadavres : incinérateur, fosse bétonnée à fermeture étanche ou autre moyen agréé",
       "downtime": "Vide sanitaire d’au moins vingt jours entre deux bandes successives",
       "newcastle": "Vaccination contre la maladie de Newcastle enregistrée avec le numéro de lot",
-      "installations": "Clôture d’au moins 1,5 m avec portail, autoluve et pédiluves, sas sanitaire, aucun autre animal d’élevage sur la ferme"
+      "installations": "Clôture d’au moins 1,5 m avec portail, autoluve et pédiluves, sas sanitaire (deux vestiaires séparés par des douches), toilettes avec lavabo, logement du personnel isolé avec un accès propre de l’extérieur, aucun autre animal d’élevage sur la ferme",
+      "buildings": "Bâtiments : matériaux imputrescibles, sol bétonné, murs latéraux d’au moins 60 cm, pignons en dur, plafond conforme, sas de service, abords bétonnés d’au moins 50 cm, aires d’enlèvement dallées, évacuation des eaux de lavage, ouvertures munies de filets ou de grillage contre les oiseaux et les rongeurs",
+      "manure": "Dès l’enlèvement des volailles, fumier humidifié dans le bâtiment avant son évacuation, puis nettoyage, lavage et désinfection menés aussitôt",
+      "layerStores": "Pondeuses : local de stockage des œufs à l’extérieur des bâtiments d’élevage et aire de stockage des fientes, évacuées par camions étanches"
     },
     "threshold": "Loi n° 49-99, art. 1 : un élevage dont l’effectif par bande ne dépasse pas 500 volailles n’est pas soumis à autorisation.",
+    "declaration": "Maladies à déclaration obligatoire (dahir n° 1-75-292, art. 1 et 3 ; arrêtés n° 3308-17, 2466-17 et 2836-17, art. 1) : un cas suspect se déclare immédiatement à l’autorité administrative locale ; Newcastle, peste aviaire et pullorose au service vétérinaire de l’ONSSA du lieu.",
     "selfDeclared": "Points « à vérifier sur place » : déclaration du détenteur, à cocher et signer."
   },
   "Accounting": {

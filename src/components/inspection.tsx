@@ -127,6 +127,7 @@ function Pack(scope: Scope) {
         />
         <p className="text-sm text-ink-2 print:text-black">{t("Inspection.selfDeclared")}</p>
         <p className="text-sm text-ink-2 print:text-black">{t("Inspection.threshold")}</p>
+        <p className="text-sm text-ink-2 print:text-black">{t("Inspection.declaration")}</p>
         {missing.length === 0 ? (
           <p className={done}>{t("Inspection.complete")}</p>
         ) : (

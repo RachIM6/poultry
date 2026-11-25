@@ -236,12 +236,12 @@ const money: Mutation[] = [
   m("finance.recordExpense", { id: uuidv7(), day: closedDay(14), category: "vet_fees", amountCentimes: dh(600), paidFrom: "cash", treasuryId: a.cash, note: "Visite et ordonnance", batchId: a.closed }),
   m("finance.recordExpense", { id: uuidv7(), day: openDay(18), category: "vet_fees", amountCentimes: dh(800), paidFrom: "credit", treasuryId: null, note: "Visite et ordonnance, à payer", batchId: a.open }),
   m("finance.recordExpense", { id: uuidv7(), day: ago(30), category: "bank_fees", amountCentimes: dh(45), paidFrom: "bank", treasuryId: a.bank, note: null }),
-  m("finance.recordTransfer", { id: uuidv7(), day: closedDay(43), amountCentimes: dh(55_000), fromId: a.cash, toId: a.bank }), // the cash sale deposited
+  m("finance.recordTransfer", { id: uuidv7(), day: closedDay(43), amountCentimes: dh(8_000), fromId: a.cash, toId: a.bank }), // what the box held over; a sale names no box (unassigned)
 ];
 
 const sales: Mutation[] = [
   sale(a.closed, a.butcher, closedDay(40), 2000, 2_350, 1500, "cash", "all"),
-  sale(a.closed, a.abattoir, closedDay(41), 3000, 2_420, 1480, "cheque", "all", { number: "CHQ-DEMO-0001", dueOn: closedDay(55) }),
+  sale(a.closed, a.abattoir, closedDay(41), 3000, 2_420, 1480, "cheque", "all", { number: "CHQ-DEMO-0001", dueOn: addFarmDays(today, 6) }), // post-dated: still to remit
   sale(a.closed, a.trader, closedDay(42), finalBirds, 2_480, 1520, "credit", "none"), // closes the batch
   m("sales.recordPayment", { id: uuidv7(), buyerId: a.trader, day: closedDay(50), amountCentimes: dh(40_000), method: "cash", instrument: null }),
   m("sales.setCreditLimit", { buyerId: a.trader, limitCentimes: dh(50_000) }), // he still owes more: over his limit
@@ -338,7 +338,7 @@ const pushedB = await apply(B, "SARL Démo Avicole", [
   ...bClosed.entries,
   ...weighings(b.closed, bClosedOn, [[7, 172], [21, 860], [35, 1_920], [42, 2_460]]),
   sale(b.closed, b.abattoir, bDay(41), 3500, 2_400, 1490, "transfer", "all"),
-  sale(b.closed, b.trader, bDay(42), bClosed.alive, 2_470, 1510, "cheque", "all", { number: "CHQ-DEMO-0002", dueOn: bDay(60) }),
+  sale(b.closed, b.trader, bDay(42), bClosed.alive, 2_470, 1510, "cheque", "all", { number: "CHQ-DEMO-0002", dueOn: addFarmDays(today, 10) }),
   place(b.open, b.house, bOpenOn, 6000, "BL-DEMO-302"),
   ...bOpen.entries,
   ...weighings(b.open, bOpenOn, [[7, 168]]),

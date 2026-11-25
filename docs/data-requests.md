@@ -90,11 +90,45 @@ Law n° 9-88 on the accounting obligations of traders (_loi n° 9-88 relative au
 
 **Phones erased in kept tables:** `Buyer.phone`, `Supplier.phone`, `Employee.phone`, and `Employee.userId`. The names stay, because the documents need them to say who was paid or who paid.
 
-**Not linked to anyone, so it stays:** login-log rows recorded before a user was known. Their phone is masked (`+2126•••••12`), and they have no `userId`.
+**Not linked to anyone, so it stays:** login-log rows recorded before a user was known. Their phone is masked (`+2126•••••12`), and they have no `userId`. They go after 12 months, like every login-log row (below).
 
 **Every table is classified.** The export and the deletion refuse to run while a table is missing from these lists. So a new table must be added to `src/ops/organization-data.ts` and to this page first. The export finds the organisation's tables at runtime (every table with an `organizationId` column). It reaches a few tables without that column through their parent: `Organization`, `User` through `Membership`, and `CleanoutStep` through `Cleanout`.
 
 **The end of the ten years is not built.** The ledger's triggers refuse deletes, so the final purge of the books needs its own decision and tool. The first organisation that can reach it would be in 2036. Add the purge before then.
+
+## Retention periods, while the organisation is active
+
+_Status: **decided defaults (2026-11-24), to review** with the lawyer and in the CNDP filing._
+
+Some data outlives its purpose long before an organisation leaves. A scheduler step deletes it once a day: `retention` in `POST /api/push/dispatch`, code in `src/ops/retention.ts`.
+- It deletes in batches of 1 000 rows (100 for notifications) and stops after 10 s. What is left goes on the next day's run.
+- Running it again deletes nothing more: each batch is a fresh "older than" delete.
+- It logs one line a day, with counts only: `{"level":"info","retention":{"AuthEvent":12,…},"complete":true}`.
+- It never touches the books, nor their supporting documents.
+
+| Data | Kept | Why |
+|---|---|---|
+| `AuthEvent` (login log: action, masked phone, coarse IP) | **12 months** | Security: investigating an account takeover or SMS pumping. The CNDP sets one year for the time-stamped entry and exit records of visitors to private premises (D-943-2025, below), the closest published analogue to a login log. |
+| `RateLimitHit` | **The longest rate-limit window** (today 24 h, computed from `src/lib/security/policies.ts`) | A hit older than its window can no longer block anyone. The limiter already prunes the keys it counts; this removes the keys nobody uses again. |
+| `Session` | **Until it expires** | An expired session can't sign anyone in. It holds an IP and a browser name. |
+| `Verification` (login codes) | **Until it expires** | An expired code can't be used. |
+| `Notification` | **90 days after it was read; 1 year if never read** | An inbox reminder has done its job once read. The deletion is also written to the sync log, so phones drop their copy and a new phone's snapshot doesn't bring it back (ADR-014). |
+| `AuditEvent`, farm operations | **5 years** | ADR-006 keeps the audit for disputes and ONSSA inspections. The health register is kept 1 or 2 years after the birds leave (arrêté 2126-05 art. 9), and commercial claims prescribe in 5 years (Code de commerce art. 5). The entities are listed in `FARM_AUDIT`: farms, houses, members and invitations, documents, biosecurity, vet visits and protocols, weighings, tasks, staff records, climate, planning, budgets, prices. |
+| `AuditEvent`, everything else | **With the books** (10 years after the end of the fiscal year) | The audit of the ledger and its supporting documents, of records that move stock or pay (stock movements, daily entries, eggs, attendance, treatments, vaccinations: kept to be safe), and the operator's own events. An entity that isn't on `FARM_AUDIT` is kept, so a new one is safe until someone classifies it. Not purged yet, like the books. |
+| `Change` (sync log) | **As long as the organisation** | Not purged. A new phone's snapshot sends each record's latest change, so deleting it loses the record. Finance's posting sources also read changes past their own cursor (SPEC-finance FN7). ADR-014 rejected compacting it for that reason. It goes when the organisation is deleted. |
+
+**Not covered:** `CaptchaUse` already deletes its expired rows on each use (`src/lib/security/captcha.ts`). `Mutation` (the sync's exactly-once record) holds no personal data and goes with the organisation.
+
+### Sources
+
+- **Law 09-08, art. 3-1-e:** personal data is kept, in a form that identifies the person, no longer than the purposes need.
+  - Art. 3-2: the CNDP may authorise keeping data longer for historical, statistical or scientific purposes.
+  - Art. 55: keeping data past the period set by law, or by the declaration or authorisation, carries 3 months to 1 year of prison and 20 000 to 200 000 DH.
+  - Dahir n° 1-09-15 of 18 February 2009, B.O. n° 5714 of 5 March 2009, p. 345. Read in the Ministry of Justice's text: <https://adala.justice.gov.ma/api/uploads/2024/04/30/Protection%20des%20personnes%20physiques-1714464099884.pdf>.
+- **CNDP deliberation D-943-2025 of 28 November 2025**, model authorisation request for access control to private professional premises, §6: the data « ne doivent pas être conservées au-delà d'un an, sauf dispositions légales contraires ». The data includes time-stamped entries and exits. <https://www.cndp.ma/wp-content/uploads/2025/12/Deliberation-N°D-943-2025-du-28112025-relative-au-modele-type-de-demande-dautorisation-pour-le-traitement-des-donnees-a-caractere-personnel-recueillis-dans-le-cadre-du-controle.pdf>
+- **CNDP deliberation D-939-2025 of 28 November 2025** (cookies), §5: 6 months at most. Not applied: it covers cookies, not logs. Read only for the CNDP's scale of periods. <https://www.cndp.ma/wp-content/uploads/2025/12/Deliberation-N°-D-939-2025-du-28112025-relative-au-modele-de-declaration-simplifiee-relative-au-traitement-des-donnees-a-caractere-personnel-de-cookies-sur-un-terminal.pdf>
+- **Code de commerce (law 15-95), art. 5:** obligations between traders, or between traders and non-traders, arising from their trade prescribe in five years. Read through a secondary source quoting WIPO Lex, not checked against the B.O.
+- **Not found:** no CNDP deliberation on the retention of IT access logs (journalisation). The CNDP announced a deliberation on video surveillance in March 2025, but its final text was not found.
 
 ## Step by step
 
@@ -156,7 +190,7 @@ How to answer:
 | Item | What is needed |
 |---|---|
 | **CNDP filing** | The declaration or authorisation (ADR-007), with this retention table, the processors, and a contact for requests. Not done. |
-| **Lawyer's review** | The 9-88 reading above: farmers who are not traders, the starting point of the ten years, and which records count as supporting documents. Two more texts to check:<br>- the tax code's own retention rule (CGI art. 211, ten years per secondary sources, not verified here);<br>- whether law 09-08 sets a deadline to answer a request. |
+| **Lawyer's review** | The 9-88 reading above: farmers who are not traders, the starting point of the ten years, and which records count as supporting documents. The retention periods while the organisation is active (12 months of login log, 5 years of farm audit). Two more texts to check:<br>- the tax code's own retention rule (CGI art. 211, ten years per secondary sources, not verified here);<br>- whether law 09-08 sets a deadline to answer a request. |
 | **Health register** | Arrêté n° 2126-05 art. 9 has the keeper hold the register at least 1 year (meat) or 2 years (layers, breeders) after the birds leave (SPEC-m2-compliance CQ5). The deletion assumes the farmer keeps it from the export or the printed ONSSA register made before leaving. To confirm, or the batches' register rows must be kept for that period. |
 | **Backups** | Deleted rows stay in database backups until those rotate. The backup retention must be stated to the owner and in the CNDP file. |
 | **Access after leaving** | Decided default, to review: read-only during the 30 days (see "While an organisation has left"). Confirm, and whether its scheduled reminders should stop too. |

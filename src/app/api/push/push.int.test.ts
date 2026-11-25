@@ -16,7 +16,7 @@ describe("POST /api/push/dispatch", () => {
     const ok = await call("Bearer s3cret-for-tests");
     expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({
-      ok: ["vaccinationReminders", "instrumentReminders", "issuedReminders", "placementReminders", "documentReminders", "loanReminders", "postings", "pushes"],
+      ok: ["vaccinationReminders", "instrumentReminders", "issuedReminders", "placementReminders", "documentReminders", "loanReminders", "postings", "pushes", "retention"],
       failed: [],
     });
   });

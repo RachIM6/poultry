@@ -41,7 +41,7 @@ export async function consume(policy: PolicyName, dims: Partial<Record<Dimension
  * lets only the first crossing of a window alert. Every crossing renews the marker, so steady traffic around the
  * threshold alerts once, not once an hour.
  */
-async function alertCapOnce(policy: PolicyName, event: Parameters<typeof alertOps>[0], rule: Rule, count: number) {
+async function alertCapOnce(policy: PolicyName, event: "sms_cap_50" | "sms_cap_100" | `${PolicyName}_cap`, rule: Rule, count: number) {
   const [{ hits }] = await db.$queryRaw<{ hits: number }[]>`
     SELECT hits FROM rate_limit_consume(${policy}, ${[`${policy}:alert:${rule.windowSec}:${event}`]}::text[], ${[rule.windowSec]}::int[])`;
   if (hits === 0) alertOps(event, { count, cap: rule.limit, windowSec: rule.windowSec });

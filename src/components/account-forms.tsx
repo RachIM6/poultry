@@ -4,7 +4,7 @@ import type { Payload } from "altcha-lib";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { postJson } from "@/lib/api";
+import { postJson, rememberSignedIn } from "@/lib/api";
 import { CaptchaField } from "@/components/captcha-field";
 import { danger, field, primary } from "@/components/ui";
 
@@ -54,7 +54,8 @@ function useSubmit(url: string, always: boolean, body: (form: FormData) => Recor
     setBusy(true);
     setError(undefined);
     const res = await postJson(url, { ...body(form), password: form.get("password"), locale, captcha });
-    if (res.status === 200 || res.status === 201) return router.replace("/dashboard"); // no organisation yet: onboarding
+    // No organisation yet: nothing to remember, the dashboard sends to onboarding.
+    if (res.status === 200 || res.status === 201) return rememberSignedIn().then(() => router.replace("/dashboard"));
     setError(res.messageKey);
     if (res.messageKey === "errors.CAPTCHA_REQUIRED") setNeedsCaptcha(true);
     setCaptcha(undefined);

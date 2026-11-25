@@ -5,6 +5,7 @@ import { requestCode, verifyCode } from "@/modules/identity";
 import { tenant } from "@/test/tenant";
 import { GET } from "./pull/route";
 import { POST } from "./push/route";
+import { GET as scope } from "./scope/route";
 
 // The route posts to finance with after(), which needs a real request scope: here it runs right away.
 vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: (task: () => unknown) => void task() }));
@@ -43,6 +44,16 @@ describe("sync endpoints", () => {
       expect((await GET(pullReq("?since=0", headers))).status).toBe(409);
     }
     expect((await GET(pullReq("?since=0", auth))).status).toBe(200);
+  });
+
+  it("scope: the session's own user, organisation and role, as the phone names its database (stored at sign-in)", async () => {
+    const auth = await signedIn("0640000004");
+    const res = await scope(new Request(`${origin}/api/sync/scope`, { headers: { cookie: auth.cookie } }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const { userId, organizationId, role } = await res.json();
+    expect(`${userId}:${organizationId}`).toBe(auth[SCOPE_HEADER]);
+    expect(role).toBe("owner");
   });
 
   it("validate the body and the cursor, and reject unknown mutation types per mutation", async () => {

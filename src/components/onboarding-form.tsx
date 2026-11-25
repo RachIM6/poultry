@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { postJson } from "@/lib/api";
+import { postJson, rememberSignedIn } from "@/lib/api";
 import { danger, field, primary as button } from "@/components/ui";
 
 
@@ -22,7 +22,7 @@ export function OnboardingForm({ forms }: { forms: readonly string[] }) {
     const data = new FormData(e.currentTarget);
     const res = await postJson("/api/onboarding", { name: data.get("name"), form: data.get("form"), locale });
     // 409: an earlier submit already created it, so the dashboard is the right place either way.
-    if (res.status === 201 || res.status === 409) return router.replace("/dashboard");
+    if (res.status === 201 || res.status === 409) return rememberSignedIn().then(() => router.replace("/dashboard"));
     if (res.status === 401) return router.replace("/login");
     setError(res.messageKey);
     setBusy(false);

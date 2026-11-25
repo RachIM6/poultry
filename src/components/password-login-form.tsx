@@ -4,7 +4,7 @@ import type { Payload } from "altcha-lib";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { postJson } from "@/lib/api";
+import { postJson, rememberSignedIn } from "@/lib/api";
 import { CaptchaField } from "@/components/captcha-field";
 import { danger, primary } from "@/components/ui";
 
@@ -28,7 +28,7 @@ export function PasswordLoginForm() {
     setError(undefined);
     const form = new FormData(e.currentTarget);
     const res = await postJson("/api/auth/sign-in", { identifier: form.get("identifier"), password: form.get("password"), locale, captcha });
-    if (res.status === 200) return router.replace("/dashboard");
+    if (res.status === 200) return rememberSignedIn().then(() => router.replace("/dashboard"));
     setError(res.messageKey);
     if (res.messageKey === "errors.CAPTCHA_REQUIRED") setNeedsCaptcha(true);
     setCaptcha(undefined); // single use: a new one for the next try

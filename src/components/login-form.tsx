@@ -4,7 +4,7 @@ import type { Payload } from "altcha-lib";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { postJson } from "@/lib/api";
+import { postJson, rememberSignedIn } from "@/lib/api";
 import { CaptchaField } from "@/components/captcha-field";
 import { danger, primary as button } from "@/components/ui";
 
@@ -46,7 +46,7 @@ export function LoginForm() {
   const verify = submit(async (form) => {
     const code = new FormData(form).get("code");
     const res = await postJson("/api/auth/verify-code", { phone, code, locale, captcha });
-    if (res.status === 200) return router.replace("/dashboard");
+    if (res.status === 200) return rememberSignedIn().then(() => router.replace("/dashboard"));
     setError(res.messageKey);
     if (res.messageKey === "errors.CAPTCHA_REQUIRED") setVerifyCaptcha(true);
     setCaptcha(undefined); // single use: a new one for the next try

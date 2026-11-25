@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { InboxScreen } from "@/components/inbox";
-import { BackLink } from "@/components/app-nav";
+import { Page } from "@/components/page";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
@@ -13,13 +13,9 @@ export default function Inbox() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <header className="px-4 pt-4">
-        <BackLink href="/more" />
-      </header>
-      <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-6 p-4">
-        <h1 className="text-2xl font-semibold">{t("Inbox.title")}</h1>
+      <Page width="wide" back="/more" title={t("Inbox.title")}>
         <InboxScreen />
-      </main>
+      </Page>
     </ClientMessages>
   );
 }

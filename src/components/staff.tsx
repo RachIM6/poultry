@@ -6,6 +6,7 @@ import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
 import { useFieldError, useInline } from "@/components/focus";
+import { fields2, row, rowHead, rowTable, split } from "@/components/layout";
 import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
 import { formatMonth } from "@/lib/format-month";
@@ -61,10 +62,11 @@ function Staff(scope: Scope) {
       {farms.map((farm) => (
         <section key={farm.id} aria-label={farm.name} className="flex flex-col gap-3">
           {farms.length > 1 && <h2 className="text-[17px] font-semibold text-ink-2">{farm.name}</h2>}
-          <ul className="flex flex-col gap-2" aria-label={t("Staff.list")}>
+          <ul className={`${rowTable.replace("gap-3", "gap-2")} lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2.5fr)_auto]`} aria-label={t("Staff.list")}>
+            <li aria-hidden="true" className={rowHead}><span>{t("Staff.name")}</span><span>{t("Staff.job")}</span></li>
             {employees.filter((e) => e.farmId === farm.id).map((e) => (
-              <li key={e.id} className={card}>
-                <span className="flex items-baseline justify-between gap-3">
+              <li key={e.id} className={row}>
+                <span className="flex items-baseline justify-between gap-3 lg:contents">
                   <b className="text-lg font-semibold">{e.name}</b>
                   <span className="text-ink-2">{t(`Staff.jobs.${e.job}`)}</span>
                 </span>
@@ -76,7 +78,7 @@ function Staff(scope: Scope) {
                     e.leftOn ? t("Staff.leftOn", { date: formatDay(e.leftOn as FarmDay, locale) }) : e.userId ? t("Staff.usesApp") : t("Staff.noApp"),
                   ].filter(Boolean).join(" · ")}
                 </span>
-                {manage && <button type="button" {...opener(e.id)} className={`${secondary} self-start`}>{t("Staff.edit", { name: e.name })}</button>}
+                {manage && <button type="button" {...opener(e.id)} className={`${secondary} self-start lg:self-center`}>{t("Staff.edit", { name: e.name })}</button>}
               </li>
             ))}
           </ul>
@@ -85,11 +87,14 @@ function Staff(scope: Scope) {
       {!manage ? null : open ? (
         <EmployeeForm key={open} employee={employees.find((e) => e.id === open) ?? null} farms={farms} houses={houses} onSave={save} onCancel={close} />
       ) : (
-        <button type="button" {...opener("new")} className={primary}>{t("Staff.add")}</button>
+        <button type="button" {...opener("new")} className={`${primary} lg:self-start`}>{t("Staff.add")}</button>
       )}
       {manage && <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
-      <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={manage ? (a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed")) : undefined} />
-      {manage && <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
+      {/* Wide screens: the advances and the records side by side, each with its form. */}
+      <div className={split}>
+        <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={manage ? (a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed")) : undefined} />
+        {manage && <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
+      </div>
       <Pay scope={scope} farms={farms} employees={employees} attendance={of<AttendanceDto>("attendance")} advances={of<AdvanceDto>("advance")} rules={of<LabourRules>("labourRules")} months={of<PayMonthDto>("payMonth")} payments={of<PayPaymentDto>("payPayment")} write={(type, entity, data) => writeLocal(db, { type, payload: data }, { entity, id: data.id, data }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
     </>
   );
@@ -142,15 +147,17 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
 
   const wage = employee?.dailyWageCentimes;
   return (
-    <form onSubmit={submit} className={card} aria-label={employee ? t("Staff.edit", { name: employee.name }) : t("Staff.add")}>
+    <form onSubmit={submit} className={`${card} ${fields2}`} aria-label={employee ? t("Staff.edit", { name: employee.name }) : t("Staff.add")}>
       {!employee && farms.length > 1 && (
-        <Field label={t("Staff.farm")}>
-          {(id) => (
-            <select id={id} value={farmId} onChange={(e) => setFarmId(e.target.value)} className={field}>
-              {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-          )}
-        </Field>
+        <div className="flex flex-col lg:col-span-full">
+          <Field label={t("Staff.farm")}>
+            {(id) => (
+              <select id={id} value={farmId} onChange={(e) => setFarmId(e.target.value)} className={field}>
+                {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            )}
+          </Field>
+        </div>
       )}
       <Field label={t("Staff.name")}>{(id) => <input id={id} name="name" required maxLength={120} defaultValue={employee?.name} autoFocus className={field} />}</Field>
       <Field label={t("Staff.job")}>
@@ -179,8 +186,8 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
         ))}
       </fieldset>
       {employee && <Field label={t("Staff.leftOnLabel")}>{(id) => <input id={id} name="leftOn" type="date" defaultValue={employee.leftOn ?? ""} {...bad("leftOn")} className={field} />}</Field>}
-      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      {error && <p id={errorId} role="alert" className={`${danger} lg:col-span-full`}>{t(error)}</p>}
+      <div className="flex gap-3 lg:col-span-full">
         <button type="submit" className={primary}>{t("Staff.save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
       </div>
@@ -212,13 +219,14 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
   return (
     <section aria-label={t("Attendance.title")} className="flex flex-col gap-3">
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Attendance.title")}</h2>
-      <input type="month" aria-label={t("Attendance.month")} value={month} max={today.slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className={field} />
+      <input type="month" aria-label={t("Attendance.month")} value={month} max={today.slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className={`${field} lg:max-w-xs`} />
+      {/* Wide screens: the whole month without scrolling, 31 days of 28 px beside the names. */}
       <div className="overflow-x-auto rounded-[18px] bg-card">
-        <table className="text-sm">
+        <table className="text-sm lg:w-full">
           <thead>
             <tr>
               <th scope="col" className="sticky start-0 bg-card px-3 py-2 text-start font-medium text-ink-2">{t("Staff.name")}</th>
-              {days.map((d) => <th key={d} scope="col" className="px-1 py-2 font-medium text-ink-2">{Number(d.slice(8))}</th>)}
+              {days.map((d) => <th key={d} scope="col" className="px-1 py-2 font-medium text-ink-2 lg:px-0">{Number(d.slice(8))}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -228,7 +236,7 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
                 {days.map((d) => {
                   const a = attendance.find((x) => x.employeeId === e.id && x.day === d);
                   return (
-                    <td key={d} className="px-1 py-1 text-center">
+                    <td key={d} className="px-1 py-1 text-center lg:px-0">
                       {a ? <span title={a.arrivedAt ?? undefined} className={`inline-grid h-7 min-w-7 place-items-center rounded-md text-xs font-semibold ${CELL[a.status]}`}>{t(`Attendance.short.${a.status}`)}</span> : <span className="text-muted">·</span>}
                     </td>
                   );
@@ -239,7 +247,7 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
         </table>
       </div>
       <p className="text-[13px] text-ink-2">{t("Attendance.legend")}</p>
-      <form onSubmit={submit} className={card} aria-label={t("Attendance.set")}>
+      <form onSubmit={submit} className={`${card} lg:grid lg:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] lg:items-end lg:gap-x-4`} aria-label={t("Attendance.set")}>
         <Field label={t("Attendance.employee")}>
           {(id) => (
             <select id={id} name="employee" className={field}>
@@ -451,7 +459,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
   return (
     <section aria-label={t("Pay.title")} className="flex flex-col gap-3">
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Pay.title")}</h2>
-      <div className="flex gap-2">
+      <div className="flex gap-2 lg:max-w-xl">
         <input type="month" aria-label={t("Attendance.month")} value={month} max={today.slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className={`${field} flex-1`} />
         {farms.length > 1 && (
           <select aria-label={t("Staff.farm")} value={farmId} onChange={(e) => setFarmId(e.target.value)} className={`${field} flex-1`}>
@@ -510,7 +518,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
         <button
           type="button"
           onClick={() => write(W.validatePay, "payMonth", { id: payMonthId(farmId, month), farmId, month, lines, rulesId: inForce?.id ?? null, validatedOn: today, validatedBy: scope.userId } satisfies PayMonthDto)}
-          className={primary}
+          className={`${primary} lg:self-start`}
         >
           {t("Pay.validate", { month: formatMonth(month, locale) })}
         </button>
@@ -520,7 +528,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
         (editingRules ? (
           <RulesForm onCancel={close} onSave={(r) => write(W.saveLabourRules, "labourRules", r).then(close)} />
         ) : (
-          <button type="button" {...opener("rules")} className={secondary}>{t("Pay.enterRules")}</button>
+          <button type="button" {...opener("rules")} className={`${secondary} lg:self-start`}>{t("Pay.enterRules")}</button>
         ))}
     </section>
   );
@@ -539,7 +547,7 @@ function WagesPaid({ farmId, month, net, paid, today, write }: { farmId: string;
     void write(W.payWages, "payPayment", p);
   };
   return (
-    <form onSubmit={submit} aria-label={t("Pay.pay", { amount: formatMoney(BigInt(net)) })} className={`${card} gap-3`}>
+    <form onSubmit={submit} aria-label={t("Pay.pay", { amount: formatMoney(BigInt(net)) })} className={`${card} gap-3 ${fields2}`}>
       <Field label={t("Pay.payFrom")}>
         {(id) => (
           <select id={id} name="from" className={field}>
@@ -548,7 +556,7 @@ function WagesPaid({ farmId, month, net, paid, today, write }: { farmId: string;
         )}
       </Field>
       <Field label={t("Pay.payDay")}>{(id) => <input id={id} name="day" type="date" defaultValue={today} min={`${month}-01`} max={today} required className={field} />}</Field>
-      <button type="submit" className={primary}>{t("Pay.pay", { amount: formatMoney(BigInt(net)) })}</button>
+      <button type="submit" className={`${primary} lg:col-span-full lg:justify-self-start`}>{t("Pay.pay", { amount: formatMoney(BigInt(net)) })}</button>
     </form>
   );
 }
@@ -571,8 +579,8 @@ function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<v
   };
   const pctField = (name: string, label: string) => <Field label={label}>{(id) => <input id={id} name={name} inputMode="decimal" dir="ltr" className={field} />}</Field>;
   return (
-    <form onSubmit={submit} className={card} aria-label={t("Pay.enterRules")}>
-      <p className="text-sm text-ink-2">{t("Pay.rulesHint")}</p>
+    <form onSubmit={submit} className={`${card} ${fields2}`} aria-label={t("Pay.enterRules")}>
+      <p className="text-sm text-ink-2 lg:col-span-full">{t("Pay.rulesHint")}</p>
       <Field label={t("Pay.source")}>{(id) => <input id={id} name="source" required minLength={3} maxLength={300} autoFocus className={field} />}</Field>
       <Field label={t("Pay.validFrom")}>{(id) => <input id={id} name="validFrom" type="date" required className={field} />}</Field>
       <Field label={t("Pay.smag")}>{(id) => <input id={id} name="smag" inputMode="decimal" dir="ltr" className={field} />}</Field>
@@ -581,8 +589,8 @@ function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<v
       {pctField("employerCapped", t("Pay.employerCapped"))}
       {pctField("employerUncapped", t("Pay.employerUncapped"))}
       <Field label={t("Pay.cap")}>{(id) => <input id={id} name="cap" inputMode="decimal" dir="ltr" className={field} />}</Field>
-      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      {error && <p id={errorId} role="alert" className={`${danger} lg:col-span-full`}>{t(error)}</p>}
+      <div className="flex gap-3 lg:col-span-full">
         <button type="submit" className={primary}>{t("Pay.saveRules")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
       </div>

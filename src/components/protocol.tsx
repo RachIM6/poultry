@@ -23,6 +23,8 @@ import { field, primary, secondary } from "@/components/ui";
 // from its own database; both work offline (ADR-003, R4).
 
 const card = "flex flex-col gap-2 rounded-2xl border border-line bg-card p-3";
+// Wide screens: the templates two by two, the organisation's own programmes beside them (a copy appears there at once).
+const columns = "flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start lg:gap-x-8";
 
 type Save = (mutation: { type: string; payload: unknown }, record: { entity: string; id: string; data: unknown }) => Promise<void>;
 
@@ -69,44 +71,46 @@ function Protocols(scope: Scope) {
   return (
     <>
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[17px] font-semibold text-ink-2">{t("Protocol.template")}</h2>
-        {protocolTemplates.map((template) => (
-          <div key={template.id} className={card}>
-            <span className="font-semibold">{nameOf(template)}</span>
-            {/* OQ4: shown until a vet signs the template off */}
-            {!template.reviewedByVet && <p className="rounded-xl bg-chick-soft p-2 text-sm text-chick-fg">{t("Protocol.notReviewed")}</p>}
-            {template.items.length === 0 ? (
-              <p className="text-sm text-muted">{t("Protocol.emptyTemplate")}</p>
-            ) : (
-              <Items items={template.items} vaccines={vaccines} nameOf={nameOf} />
-            )}
-            {manage && (
-              <button
-                type="button"
-                className={`${secondary} self-start`}
-                onClick={() => {
-                  const id = uuidv7();
-                  const data: ProtocolDto = { id, templateId: template.id, name: nameOf(template), items: template.items };
-                  void save({ type: M.copyProtocol, payload: { id, templateId: template.id, name: data.name } }, { entity: "protocol", id, data });
-                }}
-              >
-                {t("Protocol.copy")}
-              </button>
-            )}
-          </div>
-        ))}
-      </section>
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[17px] font-semibold text-ink-2">{t("Protocol.yours")}</h2>
-        {copies.length === 0 ? (
-          <p>{t("Protocol.none")}</p>
-        ) : (
-          copies.map((record) => (
-            <Editor key={record.id} protocol={record.data as ProtocolDto} vaccines={vaccines} nameOf={nameOf} manage={manage} save={save} />
-          ))
-        )}
-      </section>
+      <div className={columns}>
+        <section className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4">
+          <h2 className="text-[17px] font-semibold text-ink-2 lg:col-span-full">{t("Protocol.template")}</h2>
+          {protocolTemplates.map((template) => (
+            <div key={template.id} className={card}>
+              <span className="font-semibold">{nameOf(template)}</span>
+              {/* OQ4: shown until a vet signs the template off */}
+              {!template.reviewedByVet && <p className="rounded-xl bg-chick-soft p-2 text-sm text-chick-fg">{t("Protocol.notReviewed")}</p>}
+              {template.items.length === 0 ? (
+                <p className="text-sm text-muted">{t("Protocol.emptyTemplate")}</p>
+              ) : (
+                <Items items={template.items} vaccines={vaccines} nameOf={nameOf} />
+              )}
+              {manage && (
+                <button
+                  type="button"
+                  className={`${secondary} self-start`}
+                  onClick={() => {
+                    const id = uuidv7();
+                    const data: ProtocolDto = { id, templateId: template.id, name: nameOf(template), items: template.items };
+                    void save({ type: M.copyProtocol, payload: { id, templateId: template.id, name: data.name } }, { entity: "protocol", id, data });
+                  }}
+                >
+                  {t("Protocol.copy")}
+                </button>
+              )}
+            </div>
+          ))}
+        </section>
+        <section className="flex flex-col gap-3">
+          <h2 className="text-[17px] font-semibold text-ink-2">{t("Protocol.yours")}</h2>
+          {copies.length === 0 ? (
+            <p>{t("Protocol.none")}</p>
+          ) : (
+            copies.map((record) => (
+              <Editor key={record.id} protocol={record.data as ProtocolDto} vaccines={vaccines} nameOf={nameOf} manage={manage} save={save} />
+            ))
+          )}
+        </section>
+      </div>
     </>
   );
 }

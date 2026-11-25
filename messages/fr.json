@@ -13,7 +13,7 @@
     "login": "Se connecter",
     "install": "Installer l’application",
     "strip": {
-      "house": "Exemple · Bâtiment 1 · Poulet de chair",
+      "house": "Exemple · Bande de poulet de chair",
       "label": "Exemple de bande au jour {day} sur {total}, avec un jour non saisi",
       "dayOf": "Jour {day} sur {total}",
       "missing": "Jour {day} non saisi",

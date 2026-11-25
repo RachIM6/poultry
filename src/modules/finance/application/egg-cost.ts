@@ -9,12 +9,13 @@ import { batchResultsIn } from "@/modules/finance/application/batch-results";
 import type { AssetCategory } from "@/modules/finance/domain/assets";
 import type { HensMethod } from "@/modules/finance/domain/hens";
 import { suggestedEggCost, type EggCostSuggestion } from "@/modules/finance/domain/egg-cost";
-import { depreciationShares } from "@/modules/finance/domain/production-cost";
+import { depreciationShares, PRODUCTION_EXPENSE_CATEGORIES } from "@/modules/finance/domain/production-cost";
 
 // SPEC-finance FC5, FQ18 (PCA p. 42, decided default to review): a suggested cost per egg next to the owner's value per
 // egg at the close. Reads flock, eggs and farm-registry through their index; writes nothing.
 
 type FiscalYear = { from: FarmDay; to: FarmDay };
+const date = (day: string) => new Date(`${day}T00:00:00Z`);
 
 /** A farm's suggestion; `from`: the period's first day (the fiscal year's, or its first flock's placement when later). */
 export type EggCostView = EggCostSuggestion & { from: FarmDay; to: FarmDay; hensPending: boolean };
@@ -25,6 +26,8 @@ export type EggCostView = EggCostSuggestion & { from: FarmDay; to: FarmDay; hens
  * hens are an asset, FC6), dated in the year, plus `hens`' classic depreciation charge of the year, ÷ the eggs they laid
  * in it. `hens`: the close's FC6 result; only the classic method depreciates the hens (none simplified, p. 89), and
  * not while a flock's life and cull value are untyped (`hensPending`). A farm with no flock or no egg in the year gets "NO_EGGS".
+ * A VAT-registered entity's direct costs are net of the VAT it recovers on the batch's production expenses (FQ30, PCA
+ * p. 41), as the pullets' production cost (FC6 classic).
  */
 export async function eggCostSuggestions(
   tx: Tx,
@@ -36,7 +39,7 @@ export async function eggCostSuggestions(
 ): Promise<Map<string, EggCostView>> {
   const layers = (await batchesForFinance(tx, ctx, year.to)).filter((b) => b.species === "layer" && (b.closedOn === null || b.closedOn >= year.from));
   const before = addFarmDays(year.from, -1);
-  const [now, then, laid, assets, houses] = await Promise.all([
+  const [now, then, laid, assets, houses, vat] = await Promise.all([
     layers.length > 0 ? batchResultsIn(tx, ctx, year.to, true) : [],
     // ponytail: the year's costs as (to the last day) − (to the eve of the year); a shared expense of an earlier year
     // whose split moved as batches froze could shift a few centimes between the two. A suggestion, so good enough.
@@ -44,7 +47,15 @@ export async function eggCostSuggestions(
     eggsLaidBetween(tx, ctx, year.from, year.to),
     layers.length > 0 ? tx.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, legalEntityId: entity.id } }) : [],
     houseAreas(tx, ctx),
+    entity.vatRegistered && layers.length > 0
+      ? tx.expense.groupBy({
+          by: ["batchId"],
+          where: { organizationId: ctx.organizationId, batchId: { in: layers.map((b) => b.id) }, day: { gte: date(year.from), lte: date(year.to) }, category: { in: PRODUCTION_EXPENSE_CATEGORIES } },
+          _sum: { vatCentimes: true },
+        })
+      : [],
   ]);
+  const recovered = new Map(vat.map((v) => [v.batchId!, v._sum.vatCentimes ?? 0n]));
   const own = (r: (typeof now)[number]) => ({ direct: r.costs.consumption + r.costs.other + r.costs.direct, indirect: r.costs.allocated });
   const nowOf = new Map(now.map((r) => [r.id, own(r)]));
   const thenOf = new Map(then.map((r) => [r.id, own(r)]));
@@ -59,7 +70,7 @@ export async function eggCostSuggestions(
       let eggs = 0;
       for (const b of flocks) {
         const [n, t] = [nowOf.get(b.id), thenOf.get(b.id)];
-        costs.direct += (n?.direct ?? 0n) - (t?.direct ?? 0n);
+        costs.direct += (n?.direct ?? 0n) - (t?.direct ?? 0n) - (recovered.get(b.id) ?? 0n);
         costs.indirect += (n?.indirect ?? 0n) - (t?.indirect ?? 0n);
         costs.depreciation += depreciation.get(b.id) ?? 0n;
         costs.hens += hensOf.get(b.id)?.charge ?? 0n;

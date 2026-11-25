@@ -20,8 +20,8 @@ const statuses = async (ctx: TenantContext, ...ms: { id: string; type: string; p
 const counts = (c: Partial<Record<"normal" | "cracked" | "dirty" | "doubleYolk" | "floor" | "broken", number>>) => ({ normal: 0, cracked: 0, dirty: 0, doubleYolk: 0, floor: 0, broken: 0, ...c });
 const collect = (batchId: string, day: string, c: Parameters<typeof counts>[0]) => m("eggs.recordCollection", { id: uuidv7(), batchId, day, counts: counts(c), sample: null });
 const feedOn = (batchId: string, stockItemId: string, day: string, grams: number) => m("flock.recordDay", { batchId, day, changes: { dead: 0, culled: 0, feed: { stockItemId, grams } } });
-const expense = (day: string, category: string, amount: string, more: { batchId?: string; serviceMonth?: string } = {}) =>
-  m("finance.recordExpense", { id: uuidv7(), day, category, amountCentimes: amount, paidFrom: "credit", treasuryId: null, note: null, batchId: more.batchId ?? null, serviceMonth: more.serviceMonth ?? null });
+const expense = (day: string, category: string, amount: string, more: { batchId?: string; serviceMonth?: string; vat?: string } = {}) =>
+  m("finance.recordExpense", { id: uuidv7(), day, category, amountCentimes: amount, vatCentimes: more.vat ?? "0", paidFrom: "credit", treasuryId: null, note: null, batchId: more.batchId ?? null, serviceMonth: more.serviceMonth ?? null });
 /** A farm with one 1 000 m² house, a layer batch, and a feed item bought at 4,00 DH/kg. */
 const layerFarm = (ids: { farm: string; house: string; batch: string; feed: string; supplier: string }, name: string, placedOn: string, chicks: number, price: string, boughtOn: string) => [
   m("farm-registry.createFarm", { id: ids.farm, name, region: "R", province: "P", commune: "C", gps: null, onssa: null }),
@@ -39,9 +39,9 @@ const eggsOf = async (ctx: TenantContext) => {
 };
 
 describe("the suggested cost per egg at the close (SPEC-finance FC5, FQ18: PCA p. 42)", () => {
-  let owner: TenantContext, other: TenantContext, entity: string;
+  let owner: TenantContext, other: TenantContext, registered: TenantContext, entity: string;
   const a = newIds();
-  const [x, y, z] = [newIds(), newIds(), newIds()];
+  const [x, y, z, v] = [newIds(), newIds(), newIds(), newIds()];
 
   beforeAll(async () => {
     const { accounts } = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
@@ -54,6 +54,8 @@ describe("the suggested cost per egg at the close (SPEC-finance FC5, FQ18: PCA p
     // The PCA on (the default), the classic hens method (the default), FN14 by house m².
     expect(await changeAccountingChoices(owner, entity, { books: "ledger", pcaOverlay: null, fiscalYearStartMonth: 1, allocationKey: "houseArea" })).toMatchObject({ ok: true });
     expect(await changeAccountingChoices(other, otherEntity, { books: "ledger", pcaOverlay: null, fiscalYearStartMonth: 1 })).toMatchObject({ ok: true });
+    registered = await tenant("+212600000003", "Ferme C");
+    expect(await changeAccountingChoices(registered, (await listLegalEntities(registered))[0].id, { books: "ledger", pcaOverlay: null, fiscalYearStartMonth: 1, vatRegistered: true })).toMatchObject({ ok: true });
 
     // §7.1 G: 4 000 point-of-lay hens at 63,00 on 1 June 2025 (252 000,00 on 23711).
     expect(
@@ -94,7 +96,18 @@ describe("the suggested cost per egg at the close (SPEC-finance FC5, FQ18: PCA p
         collect(z.batch, "2025-12-30", { normal: 800 }),
       ),
     ).toEqual(Array(26).fill("applied"));
-  }, 60_000); // two organisations and 41 mutations: above the 10 s hook default on a loaded Windows Docker
+
+    // VAT-registered: 1 200,00 of vet fees with 200,00 of VAT, a catching crew with VAT (out either way), 1 000 eggs.
+    expect(
+      await statuses(
+        registered,
+        ...layerFarm(v, "Ferme Tadla", "2025-06-01", 1000, "0", "2025-05-25"),
+        expense("2025-10-15", "vet_fees", "120000", { batchId: v.batch, vat: "20000" }),
+        expense("2025-11-10", "catching", "60000", { batchId: v.batch, vat: "10000" }),
+        collect(v.batch, "2025-12-30", { normal: 1_000 }),
+      ),
+    ).toEqual(Array(9).fill("applied"));
+  }, 90_000); // three organisations and 50 mutations: above the 10 s hook default on a loaded Windows Docker
 
   it("§7.1 G: feed, vet fees, the house's share, December's electricity and the hens' depreciation ÷ 700 000 eggs = 0,65", async () => {
     // Without the hens' life and cull value, their depreciation isn't counted yet: 372 994,52 ÷ 700 000 = 0,53.
@@ -115,6 +128,10 @@ describe("the suggested cost per egg at the close (SPEC-finance FC5, FQ18: PCA p
     expect(of("Ferme Rif")).toMatchObject({ perEgg: null, reason: "NO_EGGS", eggs: 0, direct: 400_000n }); // costs in 2025, eggs only in 2024
     expect(of("Ferme Doukkala")).toMatchObject({ perEgg: null, reason: "NO_COSTS", eggs: 800, total: 0n, from: "2025-03-01" });
     expect(of("Ferme Souss")).toMatchObject({ perEgg: 200n, reason: null, eggs: 6_000, total: 1_200_000n, from: "2025-01-01" }); // 12 000,00 ÷ 6 000
+  });
+
+  it("values a VAT-registered entity's eggs net of the VAT it recovers (FQ30, PCA p. 41)", async () => {
+    expect(await eggsOf(registered)).toMatchObject([{ farm: "Ferme Tadla", suggestion: { direct: 100_000n, total: 100_000n, eggs: 1_000, perEgg: 100n } }]); // (1 200,00 − 200,00) ÷ 1 000
   });
 
   it("leaves a closed year as posted: the owner's value, the entry and the refusal to run again", async () => {

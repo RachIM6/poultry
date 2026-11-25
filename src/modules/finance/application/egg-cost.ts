@@ -55,6 +55,7 @@ export async function eggCostSuggestions(
       : [],
   ]);
   const recovered = new Map(vat.map((v) => [v.batchId!, v._sum.vatCentimes ?? 0n]));
+  // FN13's hens line (costs.hens) stays out with the chicks: the hens count once, as the close's classic charge below
   const own = (r: (typeof now)[number]) => ({ direct: r.costs.consumption + r.costs.other + r.costs.direct, indirect: r.costs.allocated });
   const nowOf = new Map(now.map((r) => [r.id, own(r)]));
   const thenOf = new Map(then.map((r) => [r.id, own(r)]));

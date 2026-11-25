@@ -57,7 +57,8 @@ export async function batchLinesAtClose(tx: Tx, ctx: TenantContext, entity: Lega
     placedAssets(tx, ctx, entity.id),
     houseAreas(tx, ctx),
   ]);
-  const costs = new Map(results.map((r) => [r.id, r.costs]));
+  // a laying flock, listed but valued by FC6: its hens' entry value engaged, not FN13's part used up (§9 "Laying hens in the batch result")
+  const costs = new Map(results.map((r) => [r.id, { ...r.costs, chicks: r.costs.chicks + (r.hens?.entry ?? 0n) }]));
   const count = new Map(counted.map((c) => [c.subjectId, c.quantity]));
   const typeOf = new Map(batches.map((b) => [b.id, `${b.farmId}:${b.species}`]));
   const last = new Map<string, (typeof sales)[number]>(); // the farm's last sale of each production type

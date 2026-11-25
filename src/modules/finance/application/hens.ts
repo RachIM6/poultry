@@ -70,7 +70,8 @@ async function costsOn(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: 
   ]);
   const vat = new Map(batches.map((b) => [b.id, b.chickVatCentimes]));
   for (const e of expenses) vat.set(e.batchId!, (vat.get(e.batchId!) ?? 0n) + (e._sum.vatCentimes ?? 0n));
-  const costs = productionCosts(rows, vat, entity.vatRegistered);
+  // a pullet batch keeps its whole cost here, before FN13 hands it to its layer batch (costs.transferred)
+  const costs = productionCosts(rows.map((r) => ({ id: r.id, costCentimes: r.costCentimes - r.costs.transferred })), vat, entity.vatRegistered);
   if (!classic) return costs;
   // ponytail: past years' shares are recomputed from today's houses and assets; a fact changing a closed year (an asset
   // entered in its opening balance, a farm house added or resized) leaves the difference on 23962 at the transfer, for

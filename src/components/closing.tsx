@@ -49,6 +49,8 @@ export function ClosedSummary({ batch, money }: { batch: BatchDto; money: boolea
           {result ? (
             <>
               <span>{t("cost", { amount: formatMoney(BigInt(result.costCentimes)) })}</span>
+              {result.hens && <span className="text-muted">{t("hens", { amount: formatMoney(BigInt(result.hens.centimes)) })}</span>}
+              {result.transferredCentimes && <span className="text-muted">{t("transferredCost", { amount: formatMoney(BigInt(result.transferredCentimes)) })}</span>}
               <span className="font-semibold">{result.costPerKgCentimes === null ? t("noCostPerKg") : t("costPerKg", { amount: formatMoney(BigInt(result.costPerKgCentimes)) })}</span>
             </>
           ) : (

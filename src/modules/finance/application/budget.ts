@@ -71,7 +71,8 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
         chickPriceCentimes: f.chickUnitPriceCentimes,
         feedGrams: feed.quantity,
         feedPricePerKgCentimes: perKg(feed.centimes, feed.quantity),
-        otherCostCentimes: r.costCentimes - chicksCost(f.chicksPlaced, f.chickUnitPriceCentimes) - feed.centimes, // the placement's VAT (FQ30) lands here
+        // the placement's VAT (FQ30) lands here; a pullet batch transferred to lay keeps its whole cost (FN13 hands it on)
+        otherCostCentimes: r.costCentimes - r.costs.transferred - chicksCost(f.chicksPlaced, f.chickUnitPriceCentimes) - feed.centimes,
         plannedGrams: grams,
         salePricePerKgCentimes: perKg(r.salesCentimes, grams),
       },

@@ -152,6 +152,23 @@ export function classicYearEnd(capitalised: bigint, flocks: readonly FlockYear[]
 export const simplifiedValue = (species: "layer" | "pullet", entry: bigint, entered: number, onHand: number, sold: number): bigint =>
   species === "pullet" ? batchInProgressValue(entry, onHand, sold, null).cost : entry > 0n && entered > 0 && onHand > 0 ? divHalfUp(entry * BigInt(onHand), BigInt(entered)) : 0n;
 
+/**
+ * FN13's hens (§9 "Laying hens in the batch result"): what a laying flock's entry value has used up by `to`, the hens
+ * being a fixed asset (PCA p. 88), never its whole price at once. With the owner's laying period and cull value (the
+ * classic method's schedule): the straight-line depreciation to date and the net book value of the hens gone at a cull
+ * (`flockYear` from the entry). Without one: the entry value of the birds gone (dead, culled, sold), the simplified
+ * method's value of the birds left at entry value (p. 52, no depreciation, p. 89). A closed flock has used up its entry.
+ */
+export function hensConsumed(
+  f: Omit<LayingFlock, "lifeMonths" | "cullValue"> & { onHand: number },
+  schedule: { lifeMonths: number; cullValue: bigint } | null,
+  to: FarmDay,
+): { depreciation: bigint; removed: bigint } {
+  if (!schedule) return { depreciation: 0n, removed: f.entry - simplifiedValue("layer", f.entry, f.started, f.onHand, 0) };
+  const y = flockYear({ ...f, ...schedule }, f.entryDay, to);
+  return { depreciation: y.charge, removed: y.sold + y.lost };
+}
+
 /** The provision for a flock below its entry value: max(0, value − current value per bird × birds counted). */
 export const simplifiedProvision = (value: bigint, perBird: bigint, onHand: number): bigint => {
   const current = perBird * BigInt(onHand);

@@ -1603,6 +1603,8 @@
       "credit": "À crédit (dette sur immobilisation)"
     },
     "treasury": "Caisse ou compte bancaire (facultatif)",
+    "lastPaymentOn": "À crédit : date du dernier paiement (facultatif)",
+    "lastPaymentHint": "À plus de 12 mois de l’acquisition, la dette va en 1486 Fournisseurs d’immobilisations ; sinon, ou sans date, en 4481 Dettes sur acquisition d’immobilisations.",
     "opening": "Acquise avant l’application : dans les soldes d’ouverture (rien n’est comptabilisé ici)",
     "openingOn": "Date des soldes d’ouverture",
     "accumulated": "Amortissements cumulés à cette date",
@@ -1619,6 +1621,8 @@
     "paid": "Payée : {method}",
     "inOpening": "Dans les soldes d’ouverture du {day}, amortie de {amount}",
     "owed": "Reste dû : {amount}",
+    "debtOn": "Dette en compte {account}",
+    "debtUntil": "Dernier paiement le {day} : dette en compte {account}",
     "disposed": "Cédée le {day} pour {amount}",
     "receiptOf": "facture",
     "accountOf": "compte {account}",

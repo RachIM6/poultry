@@ -8,6 +8,7 @@ import { listLegalEntities } from "@/modules/farm-registry";
 import {
   assetRegister,
   attachFixedAssetReceipt,
+  cashForecast,
   changeAccountingChoices,
   createFixedAsset,
   disposeFixedAsset,
@@ -174,6 +175,35 @@ describe("fixed assets (SPEC-finance FC1, T102)", () => {
     const paidCash = generator();
     expect(await createFixedAsset(owner, paidCash, clock)).toEqual({ ok: true, value: undefined });
     expect(await payFixedAsset(owner, { ...payment, id: uuidv7(), assetId: paidCash.id }, clock)).toEqual({ ok: false, error: "INVALID_INPUT" }); // nothing owed
+  });
+
+  it("FQ23 (PCA pp. 77, 107): owes it on 1486 when the last payment is more than 12 months away, else on 4481; payments debit that account", async () => {
+    const forecast = async () => {
+      const f = await cashForecast(owner, clock);
+      if (!f.ok) throw new Error(f.error);
+      return f.value.weeks[0].outCentimes;
+    };
+    const owedBefore = await forecast();
+    const long = generator({ label: "Poulailler", paidWith: "credit", amountCentimes: "1000000", acquiredOn: "2026-10-01", inServiceOn: "2026-10-01", lastPaymentOn: "2027-10-02" });
+    const year = generator({ label: "Silo", paidWith: "credit", amountCentimes: "500000", acquiredOn: "2026-10-01", inServiceOn: "2026-10-01", lastPaymentOn: "2027-10-01" }); // 12 months exactly
+    expect(await createFixedAsset(owner, long, clock)).toEqual({ ok: true, value: undefined });
+    expect(await createFixedAsset(owner, year, clock)).toEqual({ ok: true, value: undefined });
+    expect(await linesOf(`asset:${long.id}:acq`)).toEqual([[1, "OD", "2026-10-01", "23321", 1_000_000n, 0n, null], [1, "OD", "2026-10-01", "1486", 0n, 1_000_000n, null]]);
+    expect(await linesOf(`asset:${year.id}:acq`)).toEqual([[1, "OD", "2026-10-01", "23321", 500_000n, 0n, null], [1, "OD", "2026-10-01", "4481", 0n, 500_000n, null]]);
+    const payment = { id: uuidv7(), assetId: long.id, day: "2026-11-05", amountCentimes: "300000", paidWith: "transfer", treasuryId: bank };
+    expect(await payFixedAsset(owner, payment, clock)).toEqual({ ok: true, value: undefined });
+    expect(await linesOf(`asset:${long.id}:pay:${payment.id}`)).toEqual([[1, "BQ", "2026-11-05", "1486", 300_000n, 0n, null], [1, "BQ", "2026-11-05", "5141", 0n, 300_000n, bank]]);
+    expect(await payFixedAsset(owner, { ...payment, id: uuidv7(), amountCentimes: "700001" }, clock)).toEqual({ ok: false, error: "PAID_MORE_THAN_OWED" });
+    const register = await assetRegister(owner, clock);
+    if (!register.ok) throw new Error(register.error);
+    expect(register.value.assets.filter((x) => x.id === long.id || x.id === year.id).map((x) => [x.label, x.lastPaymentOn, x.debtAccount, x.owed])).toEqual([
+      ["Poulailler", "2027-10-02", "1486", 700_000n],
+      ["Silo", "2027-10-01", "4481", 500_000n],
+    ]);
+    expect((await forecast()) - owedBefore).toBe(1_200_000n); // the cash schedule counts both accounts
+    // A term only for a credit, never before the acquisition.
+    expect(await createFixedAsset(owner, generator({ lastPaymentOn: "2027-10-02" }), clock)).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await createFixedAsset(owner, generator({ paidWith: "credit", lastPaymentOn: "2026-09-17" }), clock)).toEqual({ ok: false, error: "INVALID_INPUT" });
   });
 
   it("changes the life and the residual value only, checked as at registration", async () => {

@@ -1120,12 +1120,13 @@ model FixedAsset {
   houseId                    String?   @db.Uuid
   acquiredOn                 DateTime  @db.Date // farm day; the acquisition entry's day
   inServiceOn                DateTime  @db.Date // farm day; its month is the first month depreciated (FQ9)
-  amountCentimes             BigInt // the invoice total, VAT included: what was paid or is owed (4481)
+  amountCentimes             BigInt // the invoice total, VAT included: what was paid or is owed (4481 or 1486, FQ23)
   vatCentimes                BigInt    @default(0) // FN9: the invoice's VAT, part of amountCentimes, as typed
   costCentimes               BigInt // on the asset account: amount − VAT when the entity was VAT-registered, frozen
   residualCentimes           BigInt    @default(0) // depreciable base = cost − residual
   lifeMonths                 Int? // typed by the owner, never prefilled; null for land, never depreciated
   paidWith                   String? // cash | transfer | cheque | credit; null for an asset in the opening balance
+  lastPaymentOn              DateTime? @db.Date // FQ23: on credit, the last payment day typed; > 12 months after acquiredOn → 1486, else 4481
   openingOn                  DateTime? @db.Date // in the opening balance (FCX3): the day its accumulated depreciation is at
   openingAccumulatedCentimes BigInt    @default(0) // the accumulated depreciation on openingOn
   disposedOn                 DateTime? @db.Date // sold or scrapped: the disposal entries' day

@@ -101,6 +101,9 @@ async function AssetsView() {
           ) : (
             a.paidWith && <li>{t("Assets.paid", { method: t(`Assets.methods.${a.paidWith}`) })}</li>
           )}
+          {a.debtAccount && register.books === "ledger" && (
+            <li>{a.lastPaymentOn ? t("Assets.debtUntil", { day: day(a.lastPaymentOn), account: a.debtAccount }) : t("Assets.debtOn", { account: a.debtAccount })}</li>
+          )}
           {a.owed > 0n && register.books === "ledger" && <li>{t("Assets.owed", { amount: formatMoney(a.owed) })}</li>}
           {a.disposedOn && <li className="font-semibold">{t("Assets.disposed", { day: day(a.disposedOn), amount: formatMoney(a.disposalPrice ?? 0n) })}</li>}
         </ul>

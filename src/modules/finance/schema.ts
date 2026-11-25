@@ -119,6 +119,7 @@ export const FixedAssetInput = z.object({
   residualCentimes: centimes.default("0"),
   lifeMonths,
   paidWith: z.enum(["cash", "transfer", "cheque", "credit"]).nullable(),
+  lastPaymentOn: z.iso.date().nullable().default(null), // FQ23: on credit, the last payment day (1486 beyond 12 months)
   treasuryId,
   opening: z.object({ on: z.iso.date(), accumulatedCentimes: centimes }).nullable().default(null),
 });

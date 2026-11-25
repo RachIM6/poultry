@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { controlled, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // T72 (SPEC-m4 WF4, WF5): the day's tasks computed on the phone, and a routine and a one-off task added offline.
 test("a routine and a one-off task added offline join today's tasks, survive a reload and sync once", async ({ page, context }) => {
@@ -34,6 +34,9 @@ test("a routine and a one-off task added offline join today's tasks, survive a r
   const expected = [/Saisie du jour · Bâtiment 1/, /07:30\s*Contrôle des abreuvoirs · Bâtiment 1\s*tous les jours · J0/, /09:00\s*Recevoir le camion d’aliment · Toute la ferme\s*ajoutée par le responsable/];
   await expect(today).toHaveText(expected);
   await expect(page.getByRole("list", { name: "Tâches régulières" }).getByRole("listitem")).toHaveText([/07:30 · Contrôle des abreuvoirs · Bâtiment 1\s*tous les jours · à partir du/]);
+  // The start day in words, not 2026-11-23.
+  const startOn = new Intl.DateTimeFormat("fr", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${farmDaysAgo(0)}T00:00:00Z`));
+  await expect(page.getByRole("list", { name: "Tâches régulières" }).getByRole("listitem")).toContainText(`à partir du ${startOn}`);
 
   const reload = await page.reload(); // still offline: the shell and the data come from the phone
   expect(reload?.fromServiceWorker()).toBe(true);

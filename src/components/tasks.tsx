@@ -7,7 +7,8 @@ import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
 import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
-import { farmDayOf, farmMinutesOf } from "@/lib/kernel/farm-day";
+import { formatDay } from "@/lib/format";
+import { farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import type { BatchDto, DailyEntryDto } from "@/modules/flock/shared";
@@ -293,6 +294,7 @@ function OneOffForm({ today, onSave, ...place }: Place & { today: string; onSave
 
 function Routines({ routines, today, house, onSave, ...place }: Place & { routines: Routine[]; today: string; house: (id: string | null) => string; onSave: (r: Routine) => Promise<boolean> }) {
   const t = useTranslations();
+  const locale = useLocale();
   const [editing, setEditing] = useState<Routine | "new" | null>(null);
   const active = routines.filter((r) => r.farmId === place.farm.id && (r.stopOn === null || r.stopOn > today)).sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
 
@@ -304,7 +306,7 @@ function Routines({ routines, today, house, onSave, ...place }: Place & { routin
           <li key={r.id} className={card}>
             <b className="font-semibold">{r.time ? `${r.time} · ` : ""}{r.title} · {house(r.houseId)}</b>
             <span className="text-sm text-ink-2">
-              {t("Tasks.every", { count: r.everyDays })} · {r.fromAge !== null ? t("Tasks.fromAge", { day: String(r.fromAge) }) : t("Tasks.fromDay", { date: r.startOn ?? "" })}
+              {t("Tasks.every", { count: r.everyDays })} · {r.fromAge !== null ? t("Tasks.fromAge", { day: String(r.fromAge) }) : t("Tasks.fromDay", { date: r.startOn ? formatDay(r.startOn as FarmDay, locale) : "" })}
             </span>
             <span className="flex flex-wrap gap-2">
               <button type="button" onClick={() => setEditing(r)} className={secondary}>{t("Tasks.edit", { title: r.title })}</button>

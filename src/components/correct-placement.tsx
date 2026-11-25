@@ -22,7 +22,7 @@ import {
   type SoldBirdsDto,
   type WeighingDto,
 } from "@/modules/flock/shared";
-import { checkPlacementBeforeRecords, movedWithPlacement, type VaccinationDto } from "@/modules/health/shared";
+import { checkPlacementBeforeRecords, movedWithPlacement, type TreatmentDto, type VaccinationDto, type VetVisitDto } from "@/modules/health/shared";
 import type { ProductionType } from "@/modules/reference-data/shared";
 
 // SPEC B1 "Correcting a placement" on an open batch, in its own chunk: /batches has no room to grow (SPEC §9.3). The
@@ -61,6 +61,8 @@ export function CorrectPlacement({
   sold,
   strains,
   vaccinations,
+  treatments,
+  visits,
   write,
 }: {
   batch: BatchDto;
@@ -72,6 +74,8 @@ export function CorrectPlacement({
   sold: SoldBirdsDto[];
   strains: { id: string; name: string; productionTypes?: readonly ProductionType[] }[];
   vaccinations: VaccinationDto[];
+  treatments: TreatmentDto[];
+  visits: VetVisitDto[];
   write: Write;
 }) {
   const t = useTranslations();
@@ -129,9 +133,10 @@ export function CorrectPlacement({
     const freeFrom = houseFreeFrom(batch, placement.houseId ?? batch.houseId, batches);
     const checked = correctPlacement(aggregate, placement, { firstDay, birdsOut, houseFreeFrom: freeFrom }, today()); // as the server
     if (!checked.ok) return setError(checked.error === "INVALID_QUANTITY" ? "Batches.invalid" : `errors.${checked.error}`, form, FIELD_OF[checked.error]);
-    // Then health's rule, as the server chains it: not after a vaccination already given (B1).
-    const given = placement.placedOn && checkPlacementBeforeRecords(placement.placedOn, vaccinations.flatMap((v) => (v.done ? [v.done.on] : [])));
-    if (given && !given.ok) return setError(`errors.${given.error}`, form, "placedOn");
+    // Then health's rule, as the server chains it: not after a vaccine given, a treatment started or a vet visit (B1).
+    const recorded = [...vaccinations.flatMap((v) => (v.done ? [v.done.on] : [])), ...treatments.map((x) => x.startOn), ...visits.map((v) => v.on)];
+    const health = placement.placedOn && checkPlacementBeforeRecords(placement.placedOn, recorded);
+    if (health && !health.ok) return setError(`errors.${health.error}`, form, "placedOn");
     setError(undefined);
     // The plan's lines not yet done move with the placement day, as the server moves them (B1).
     const moved = placement.placedOn ? movedWithPlacement(vaccinations, { ...batch, placedOn: placement.placedOn }) : [];

@@ -99,8 +99,8 @@ const ROWS: Row[] = [
   { name: "placementsToPay", gate: "read", kind: "read", run: (c) => finance.placementsToPay(c) },
   { name: "creditExpensesToPay", gate: "read", kind: "read", run: (c) => finance.creditExpensesToPay(c) },
   { name: "chartView", gate: "read", kind: "read", run: (c) => finance.chartView(c) },
+  { name: "accountingSettings", gate: "read", kind: "read", run: (c) => finance.accountingSettings(c, clock) }, // the profile; only the owner changes it
   // The owner's settings (finance.manage, FX2: profile, overrides)
-  { name: "accountingSettings", gate: "manage", kind: "read", run: (c) => finance.accountingSettings(c, clock) },
   {
     name: "accountingChoicesOpen", // a boolean, false when refused: asked for a year without entries, the owner alone gets true
     gate: "manage",

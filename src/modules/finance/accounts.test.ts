@@ -5,8 +5,8 @@ import { chartOf, postingAccount, rollUp } from "@/modules/finance";
 import { operationAccounts } from "@/modules/finance/domain/operations";
 import { POSTED_ACCOUNTS } from "@/modules/finance/domain/posting";
 import { EXPENSE_ACCOUNTS } from "@/modules/finance/domain/treasury";
-import { ASSET_ACCOUNTS, ASSET_DEBTS, ASSET_VAT_RECOVERABLE, DEPRECIATION_CHARGES, DISPOSAL_PROCEEDS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
-import { LOAN_INTEREST, LOANS } from "@/modules/finance/domain/loans";
+import { ASSET_ACCOUNTS, ASSET_DEBTS, ASSET_VAT_RECOVERABLE, DEPRECIATION_CHARGES, DISPOSAL_PROCEEDS, LONG_TERM_ASSET_DEBTS, NET_BOOK_VALUE_DISPOSED } from "@/modules/finance/domain/assets";
+import { ACCRUED_INTEREST, LOAN_INTEREST, LOANS } from "@/modules/finance/domain/loans";
 import { SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE } from "@/modules/finance/domain/subsidies";
 import * as hens from "@/modules/finance/domain/hens";
 import { EGGS_STOCK, EGGS_VARIATION, IN_PROGRESS, IN_PROGRESS_PROVISION, IN_PROGRESS_VARIATION, PROVISION_CHARGE, PROVISION_REVERSAL, STOCK_ACCOUNTS, STOCK_PROVISION, stockAccountsOf } from "@/modules/finance/domain/stocks";
@@ -113,7 +113,7 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
     const named: [string, string][] = [
       ["1191", "Résultat net de l’exercice (créditeur)"], ["1199", "Résultat net de l’exercice (débiteur)"],
       ["1311", "Subventions d’investissement reçues"], ["1319", "Subventions d’investissement inscrites au compte de produits et charges"],
-      ["1481", "Emprunts auprès des établissements de crédit"],
+      ["1481", "Emprunts auprès des établissements de crédit"], ["1486", "Fournisseurs d’immobilisations"], // FQ23
       ["2311", "Terrains nus"], ["2312", "Terrains aménagés"], ["23211", "Bâtiments d’exploitation"],
       ["233111", "Installations techniques Agricoles sur sol propre"], ["233112", "Installations techniques Agricoles sur terrain d’autrui"],
       ["2332", "Matériel et outillage"], ["2340", "Matériel de transport"],
@@ -127,6 +127,7 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
       ["3455", "État – TVA récupérable"], // seeded before T100: typographic differences only (§9)
       ["3912", "Provisions pour dépréciation des matières et fournitures"], ["3913", "Provisions pour dépréciation des produits en cours"],
       ["4463", "Comptes courants des associés créditeurs"], ["4481", "Dettes sur acquisition d’immobilisations"],
+      ["4493", "Intérêts courus et non échus à payer"], // FQ16
       ["5141", "Banques (soldes débiteurs)"], ["5161", "Caisses"],
       ["612121", "Achats d’Animaux"], ["612412", "Variation des stocks de matières premières Agricoles – Animaux"],
       ["61242", "Variation des stocks de Matières et Fournitures consommables"], ["61243", "Variation des stocks d’emballage"],
@@ -154,18 +155,18 @@ describe("charts of accounts (SPEC-finance FN2, ADR-010 §2)", () => {
   it("keeps every account a posting rule uses a posting account, in both charts", () => {
     const parents = (chart: typeof withPca) => new Set([...chart.values()].map((a) => a.parent));
     // T102 (FC1): every asset and depreciation account of the categories, and the acquisition and disposal accounts.
-    const assets = [...Object.values(ASSET_ACCOUNTS).flatMap((a) => [a.asset, a.depreciation ?? []].flat()), ...Object.values(DEPRECIATION_CHARGES), ASSET_DEBTS, ASSET_VAT_RECOVERABLE, NET_BOOK_VALUE_DISPOSED, DISPOSAL_PROCEEDS];
+    const assets = [...Object.values(ASSET_ACCOUNTS).flatMap((a) => [a.asset, a.depreciation ?? []].flat()), ...Object.values(DEPRECIATION_CHARGES), ASSET_DEBTS, LONG_TERM_ASSET_DEBTS, ASSET_VAT_RECOVERABLE, NET_BOOK_VALUE_DISPOSED, DISPOSAL_PROCEEDS];
     // T108 (FC5): the stock and variation accounts by kind, the provision and its reversal. T109 (FC4): the batches in progress.
     const stocks = [...Object.values(STOCK_ACCOUNTS).flatMap((a) => [a.stock, a.variation]), PROVISION_CHARGE, STOCK_PROVISION, PROVISION_REVERSAL, IN_PROGRESS, IN_PROGRESS_VARIATION, IN_PROGRESS_PROVISION];
     // The rule accounts no exported constant names: the FN6 rows above (in posting.ts: an employee's home consumption
     // 61713, a remitted cheque 51112, the pay's 4432 / 4441, an associate's 4463), 5115 (treasury transfers) and the
     // à-nouveaux' 1191 / 1199 (entry.ts).
     const unexported = [...RULE_ACCOUNTS.map(([account]) => account), "4463", "5115", "1191", "1199"];
-    const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets, LOANS, LOAN_INTEREST, SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE, ...stocks, ...unexported]; // T105, T106 (FC2): the loans' and subsidies'
+    const rules = [...POSTED_ACCOUNTS.map((o) => o.account), ...Object.values(EXPENSE_ACCOUNTS), ...assets, LOANS, LOAN_INTEREST, ACCRUED_INTEREST, SUBSIDIES_RECEIVED, SUBSIDIES_RELEASED, SUBSIDY_RELEASE, ...stocks, ...unexported]; // T105, T106 (FC2): the loans' and subsidies'
     expect(rules).toEqual(expect.arrayContaining([
       "3421", "3424", "4411", "6136", "6134", "3121", "5161", // FQ24 and its kind: left leaves on purpose
       "23111", "233111", "23321", "2358", "28321", "28323", "28331", "28332", "2834", "28351", "28358", "4481", "34551", "61932", "61934", "6513", "7513",
-      "1481", "63111", "1311", "1319", "7577", "31221", "31223", "612412", "61242", "61961", "3912", "7196", "31322", "71311", "3913",
+      "1481", "63111", "4493", "1486", "1311", "1319", "7577", "31221", "31223", "612412", "61242", "61961", "3912", "7196", "31322", "71311", "3913",
       "61473", "34552", "51111", "51112", "51132", "61711", "61713", "61741",
     ]));
     for (const account of rules) {

@@ -1487,11 +1487,13 @@
     "kinds": {
       "depreciation": "Dotations aux amortissements",
       "subsidy": "Quote-part des subventions d’investissement",
+      "interest": "Intérêts courus et non échus",
       "stock": "Stocks",
       "batch": "Bandes en cours (animaux)",
       "hens": "Poules pondeuses et poulettes",
       "provision": "Provisions pour dépréciation"
     },
+    "interestHint": "Pour chaque emprunt, les intérêts de la prochaine échéance au prorata des jours écoulés depuis la précédente (règle à revoir avec le comptable). Ils sont contre-passés le premier jour de l’exercice suivant.",
     "stocks": "Stocks au coût moyen pondéré",
     "stocksHint": "La quantité comptée (sinon celle des registres) au coût moyen pondéré du dernier jour de l’exercice. Pour un lot abîmé ou périmé, saisissez sa valeur actuelle, plus basse : la différence est provisionnée. Sans valeur saisie, le stock reste au coût.",
     "quantity": "Quantité",

@@ -91,6 +91,7 @@ describe("investment subsidies (SPEC-finance FC2, FQ17, T106)", () => {
       ["batch", "none", []], // T109: no batch either
       ["hens", "none", []], // T114, T115: no layer or pullet batch
       ["provision", "none", []],
+      ["interest", "none", []], // FQ16: no loan in this file
     ]);
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 2 });
     expect(await runClose(owner, { year: 2027 }, clock)).toEqual({ ok: true, value: 2 });
@@ -117,7 +118,7 @@ describe("investment subsidies (SPEC-finance FC2, FQ17, T106)", () => {
   it("posts nothing when the close runs again with the same facts; a changed life posts a reversal and a new release", async () => {
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 });
     expect(await runClose(owner, { year: 2027 }, clock)).toEqual({ ok: true, value: 0 });
-    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "unchanged" }, { kind: "subsidy", action: "unchanged" }, { kind: "stock" }, { kind: "batch" }, { kind: "hens" }, { kind: "provision" }] } });
+    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { entries: [{ action: "unchanged" }, { kind: "subsidy", action: "unchanged" }, { kind: "stock" }, { kind: "batch" }, { kind: "hens" }, { kind: "provision" }, { kind: "interest" }] } });
     expect(await db.journalEntry.count({ where: { sourceId: { startsWith: "close:subsidy:" } } })).toBe(2);
 
     // 84 → 60 months: 2026 cumulative 315 667, released 0,3 × 315 667 = 94 700,1 → 94 700.

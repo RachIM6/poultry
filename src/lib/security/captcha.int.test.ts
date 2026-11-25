@@ -9,6 +9,7 @@ import { createCaptchaChallenge, verifyCaptcha } from "@/lib/security/captcha";
 
 // vitest.config.ts disables the captcha for the int suite's login helpers: switch it back on here.
 beforeEach(() => {
+  vi.stubEnv("AUTH_SMS_ENABLED", "true"); // the code endpoints, dormant by default (ADR-015)
   vi.stubEnv("CAPTCHA_DISABLED", "");
   vi.stubEnv("CAPTCHA_HMAC_KEY", "test-only-captcha-key");
   vi.stubEnv("CAPTCHA_MAX_NUMBER", "3");

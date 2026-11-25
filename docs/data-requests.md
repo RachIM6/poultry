@@ -86,7 +86,7 @@ Law n° 9-88 on the accounting obligations of traders (_loi n° 9-88 relative au
 | Biosecurity | `Visit` (visitor names, plates), `Disposal`, `ManureRemoval`, `Cleanout` and its `CleanoutStep`, `RodentCheck` |
 | Workforce and climate | `Routine`, `OneOffTask`, `TaskDone`, `TaskAssignment`, `Attendance`, `StaffRecord` (accidents), `ClimateTargetSet`, `ClimateReading`, `PowerCut` |
 | Planning, prices, management figures | `PlannedBatch`, `DowntimeRule`, `PriceObservation`, `Budget`, `FrozenAllocation`, `FrozenBatch`, `PostingCursor`, `ThresholdAlert` |
-| Members of no other organisation | `User` (phone, name) with its `Session` and `Account` rows, `PushSubscription`, `NotificationPreference`, `AuthEvent` (login log), `Verification` (pending codes). A member of another organisation keeps their account; only their membership here goes. |
+| Members of no other organisation | `User` (phone, name) with its `Session` and `Account` rows, `PushSubscription`, `NotificationPreference`, `AuthEvent` (login log), `Verification` (pending codes), `PasswordReset` (pending reset codes). A member of another organisation keeps their account; only their membership here goes, and a reset code this organisation's owner gave them. |
 
 **Phones erased in kept tables:** `Buyer.phone`, `Supplier.phone`, `Employee.phone`, and `Employee.userId`. The names stay, because the documents need them to say who was paid or who paid.
 
@@ -112,6 +112,8 @@ Some data outlives its purpose long before an organisation leaves. A scheduler s
 | `RateLimitHit` | **The longest rate-limit window** (today 24 h, computed from `src/lib/security/policies.ts`) | A hit older than its window can no longer block anyone. The limiter already prunes the keys it counts; this removes the keys nobody uses again. |
 | `Session` | **Until it expires** | An expired session can't sign anyone in. It holds an IP and a browser name. |
 | `Verification` (login codes) | **Until it expires** | An expired code can't be used. |
+| `PasswordReset` (one-time reset codes, as an HMAC; ADR-015) | **Until it expires** (7 days) or is used | An expired or used code opens nothing. Used codes are deleted at once. |
+| `Invitation` (invited phone, role, invite code as an HMAC) | **Until it expires** (7 days) or is accepted | An expired invitation can't be accepted; the owner invites again for a new code. Accepted ones are deleted at once. |
 | `Notification` | **90 days after it was read; 1 year if never read** | An inbox reminder has done its job once read. The deletion is also written to the sync log, so phones drop their copy and a new phone's snapshot doesn't bring it back (ADR-014). |
 | `AuditEvent`, farm operations | **5 years** | ADR-006 keeps the audit for disputes and ONSSA inspections. The health register is kept 1 or 2 years after the birds leave (arrêté 2126-05 art. 9), and commercial claims prescribe in 5 years (Code de commerce art. 5). The entities are listed in `FARM_AUDIT`: farms, houses, members and invitations, documents, biosecurity, vet visits and protocols, weighings, tasks, staff records, climate, planning, budgets, prices. |
 | `AuditEvent`, everything else | **With the books** (10 years after the end of the fiscal year) | The audit of the ledger and its supporting documents, of records that move stock or pay (stock movements, daily entries, eggs, attendance, treatments, vaccinations: kept to be safe), and the operator's own events. An entity that isn't on `FARM_AUDIT` is kept, so a new one is safe until someone classifies it. Not purged yet, like the books. |
@@ -163,7 +165,7 @@ The member's own data is:
   - the `Employee` record linked to them, with their attendance;
   - in each organisation, the records they entered (`recordedBy`, `createdBy`, `updatedBy`, `uploadedBy`, `byUserId`, `doneBy`, `invitedById`…).
 
-Never exported: their sessions, accounts and pending codes (`Session`, `Account`, `Verification`). The farm's other records belong to the organisation. For those, the member asks the owner.
+Never exported: their sessions, accounts and pending codes (`Session`, `Account`, `Verification`, `PasswordReset`), nor an invitation's code (`Invitation.codeHash`, left out of every export). The farm's other records belong to the organisation. For those, the member asks the owner.
 
 How to answer:
 
@@ -177,7 +179,7 @@ How to answer:
 1. **Check the request.** If they are the last owner of an organisation that has not left, the organisation must first get another owner, or leave (above). Otherwise `member:delete` refuses with `LAST_OWNER` and names it.
 2. **Delete.** Run `pnpm member:delete <phone> --confirm`. In one transaction, it:
    - deletes their memberships in every organisation, the invitations to their number, and their inbox (`Notification`, and its copies in the sync history);
-   - deletes the account: the `User` row with its `Session` and `Account` rows, `AuthEvent`, `PushSubscription`, `NotificationPreference`, and `Verification` codes for their number.
+   - deletes the account: the `User` row with its `Session` and `Account` rows, `AuthEvent`, `PushSubscription`, `NotificationPreference`, and `Verification` codes for their number, and their `PasswordReset` codes.
 3. **What stays.**
    - **The books' records.** As `org:delete` does: the `Employee` record linked to them, or holding their number, keeps the name, and loses the phone and the user link. Its pay figures are supporting documents. Its copies in the sync history are erased too, but a phone that already holds the record (the owner's or a manager's) keeps the number until the record next changes.
    - **The audit log** keeps its events. Where a snapshot copied their number (an employee record), the number is masked (`+2126•••••12`).

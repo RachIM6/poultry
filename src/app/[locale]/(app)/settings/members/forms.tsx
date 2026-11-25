@@ -2,15 +2,23 @@
 
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
-import { cancel, invite, remove, updateRole, type ActionState } from "./actions";
+import { cancel, invite, remove, resetPassword, updateRole, type ActionState } from "./actions";
 import { OfflineHint, useOnline } from "@/components/online";
-import { card, danger, field, primary, secondary } from "@/components/ui";
+import { card, danger, done, field, primary, secondary } from "@/components/ui";
 
 
 const ErrorText = ({ state }: { state: ActionState }) => {
   const t = useTranslations();
   return state.messageKey ? <p role="alert" className={danger}>{t(state.messageKey)}</p> : null;
 };
+
+/** ADR-015: an invite or reset code, shown this once. The owner reads it out or sends it by WhatsApp. */
+const CodeShown = ({ code, label, hint }: { code: string; label: string; hint: string }) => (
+  <div className={`${done} flex flex-col gap-2`}>
+    <p>{hint}</p>
+    <output dir="ltr" aria-label={label} className="block text-center text-2xl font-semibold tracking-widest">{code}</output>
+  </div>
+);
 
 export function InviteForm({ roles, partners }: { roles: readonly string[]; partners: readonly string[] }) {
   const t = useTranslations("Members");
@@ -33,6 +41,7 @@ export function InviteForm({ roles, partners }: { roles: readonly string[]; part
         </>
       )}
       {state.ok && <p role="status">{t("invited")}</p>}
+      {state.code && <CodeShown code={state.code} label={t("inviteCode")} hint={t("inviteCodeHint")} />}
       <ErrorText state={state} />
       <OfflineHint online={online} />
       <button type="submit" disabled={pending || !online} className={primary}>{t("invite")}</button>
@@ -44,6 +53,7 @@ export function MemberRow({ membershipId, phone, role, roles, until }: { members
   const t = useTranslations("Members");
   const [roleState, roleAction, rolePending] = useActionState(updateRole, {});
   const [removeState, removeAction, removePending] = useActionState(remove, {});
+  const [resetState, resetAction, resetPending] = useActionState(resetPassword, {});
   const online = useOnline();
   return (
     <li className={card}>
@@ -62,6 +72,14 @@ export function MemberRow({ membershipId, phone, role, roles, until }: { members
         <button type="submit" disabled={removePending || !online} aria-label={t("removeOf", { phone })} className={`${secondary} text-alert`}>{t("remove")}</button>
       </form>
       <ErrorText state={removeState} />
+      {role !== "owner" && ( // an owner's password: the operator's pnpm user:reset (ADR-015)
+        <form action={resetAction} onSubmit={(e) => !confirm(t("resetConfirm", { phone })) && e.preventDefault()}>
+          <input type="hidden" name="membershipId" value={membershipId} />
+          <button type="submit" disabled={resetPending || !online} aria-label={t("resetOf", { phone })} className={secondary}>{t("reset")}</button>
+        </form>
+      )}
+      {resetState.code && <CodeShown code={resetState.code} label={t("resetCode")} hint={t("resetCodeHint")} />}
+      <ErrorText state={resetState} />
     </li>
   );
 }

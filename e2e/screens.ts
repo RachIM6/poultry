@@ -182,6 +182,7 @@ export async function realisticOwner(page: Page) {
     "/settings/chart",
     "/settings/posting",
     "/settings/members",
+    "/organizations", // the invite-code form (ADR-015)
   ];
   return { e164, screens };
 }

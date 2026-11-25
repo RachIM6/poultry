@@ -73,7 +73,7 @@ describe("a left organisation is read-only (docs/data-requests.md)", () => {
 
   it("leaves other organisations writable", async () => {
     expect(await rename(b, "Ferme B")).toMatchObject({ status: "applied" });
-    expect(await inviteAs(b, "0650000008")).toEqual({ ok: true });
+    expect(await inviteAs(b, "0650000008")).toMatchObject({ ok: true }); // with its invite code (ADR-015)
   });
 
   it("lifts the lock when the departure is undone", async () => {
@@ -81,7 +81,7 @@ describe("a left organisation is read-only (docs/data-requests.md)", () => {
     const back = await getTenantContext(new Headers(a.headers));
     expect(back.ok && back.value.leftAt).toBeUndefined();
     expect(await rename(a, "De retour")).toMatchObject({ status: "applied" });
-    expect(await inviteAs(a, "0650000009")).toEqual({ ok: true });
+    expect(await inviteAs(a, "0650000009")).toMatchObject({ ok: true });
     expect(await db.farm.findUniqueOrThrow({ where: { id: a.farm } })).toMatchObject({ name: "De retour" });
   });
 });

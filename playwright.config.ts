@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Local .env for DATABASE_URL (tests read one-time codes from it); CI sets real env vars instead.
+// Local .env for DATABASE_URL (tests read and set up rows in it); CI sets real env vars instead.
 try {
   process.loadEnvFile();
 } catch {}
@@ -23,16 +23,16 @@ export default defineConfig({
   projects: [{ name: "mobile-chrome", use: { ...devices["Pixel 7"] } }],
   webServer: {
     command: `pnpm build && pnpm start --port ${port}`,
-    // OTP_CONSOLE_SINK lets the production build "send" codes without an SMS provider (tests read them from the DB).
+    // Login is by password (ADR-015): SMS code login stays off (AUTH_SMS_ENABLED unset), so no OTP_CONSOLE_SINK. Its
+    // flow is covered by the int tests (src/modules/identity/password.int.test.ts, src/lib/security/captcha.int.test.ts).
     // The real captcha runs (CAPTCHA_DISABLED is refused in production; CAPTCHA_HMAC_KEY comes from .env or CI),
-    // made easy so ~100 logins stay fast.
+    // made easy so ~100 sign-ups stay fast.
     // STRICT_MESSAGES: a message a page didn't pick throws (src/i18n/strict-messages.tsx).
-    // The production env check (src/lib/env.ts) refuses OTP_CONSOLE_SINK and an http:// origin unless this is a test
-    // server: ALLOW_TEST_SERVER_IN_CI plus CI, set for the server only (the runner's own CI behaviour is unchanged), so
-    // a laptop run works too. TRUSTED_PROXY_HOPS must be explicit in production: no proxy here.
+    // The production env check (src/lib/env.ts) refuses an http:// origin unless this is a test server:
+    // ALLOW_TEST_SERVER_IN_CI plus CI, set for the server only (the runner's own CI behaviour is unchanged), so a laptop
+    // run works too. TRUSTED_PROXY_HOPS must be explicit in production: no proxy here.
     env: {
       APP_ORIGIN: origin,
-      OTP_CONSOLE_SINK: "1",
       ALLOW_TEST_SERVER_IN_CI: "1",
       CI: "1",
       TRUSTED_PROXY_HOPS: "0",

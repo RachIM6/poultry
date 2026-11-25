@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login, ownerWithFarm, randomMobile } from "./auth";
+import { login, ownerWithFarm, randomMobile, inviteCode } from "./auth";
 
 // Two browsers: the owner's phone and the worker's phone (T7 manual check, automated).
 test("the owner invites a worker, who joins without owner screens, then removes them", async ({ page, browser }) => {
@@ -14,11 +14,12 @@ test("the owner invites a worker, who joins without owner screens, then removes 
   await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
   await page.getByRole("button", { name: "Inviter" }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
+  const code = await inviteCode(page);
   await expect(page.getByText(`+212${workerPhone.slice(1)}`)).toBeVisible(); // pending
 
   const workerContext = await browser.newContext({ ...test.info().project.use });
   const worker = await workerContext.newPage();
-  await login(worker, "fr", workerPhone);
+  await login(worker, "fr", workerPhone, code);
   await expect(worker).toHaveURL(/\/fr\/dashboard$/);
   await expect(worker.getByRole("heading", { name: "Ferme des Oliviers" })).toBeVisible();
   await worker.goto("/fr/more");

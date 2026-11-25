@@ -1,5 +1,5 @@
 // Rate-limit policies (poultry-auth references/rate-limiting.md §3). Handlers name a policy; numbers live here only.
-export type Dimension = "ip" | "subnet" | "phone" | "prefix" | "global" | "user" | "session";
+export type Dimension = "ip" | "subnet" | "phone" | "account" | "prefix" | "global" | "user" | "session"; // phone, account: hashed
 export type Rule = { dim: Dimension; limit: number; windowSec: number };
 
 const MIN = 60;
@@ -33,6 +33,41 @@ export const POLICIES = {
   verifyFailures: [
     { dim: "ip", limit: 3, windowSec: HOUR },
     { dim: "phone", limit: 3, windowSec: HOUR },
+  ],
+  // ADR-015 password sign-in. IP and subnet first (they cut floods before any hashing), then the identifier's budget
+  // (10 / h, 50 / day: slow guessing, never a hard lock) and a global breaker against credential stuffing (alerts).
+  signIn: [
+    { dim: "ip", limit: 30, windowSec: 15 * MIN },
+    { dim: "subnet", limit: 150, windowSec: HOUR },
+    { dim: "account", limit: 10, windowSec: HOUR },
+    { dim: "account", limit: 50, windowSec: DAY },
+    { dim: "global", limit: 3_000, windowSec: HOUR },
+  ],
+  // Consecutive sign-in or reset-code failures, as verifyFailures: from the 3rd one a captcha is required.
+  signInFailures: [
+    { dim: "ip", limit: 3, windowSec: HOUR },
+    { dim: "account", limit: 3, windowSec: HOUR },
+  ],
+  // POST /api/auth/sign-up creates an account (and says when one exists): captcha always, plus these.
+  signUp: [
+    { dim: "ip", limit: 10, windowSec: HOUR },
+    { dim: "subnet", limit: 50, windowSec: HOUR },
+    { dim: "global", limit: 300, windowSec: HOUR },
+  ],
+  // POST /api/auth/reset-password: a reset code tried for an identifier.
+  resetPassword: [
+    { dim: "ip", limit: 20, windowSec: 15 * MIN },
+    { dim: "subnet", limit: 100, windowSec: HOUR },
+    { dim: "account", limit: 10, windowSec: HOUR },
+    { dim: "global", limit: 500, windowSec: HOUR },
+  ],
+  // An invite code tried, at sign-up (ip, subnet) or signed in (user). ~40-bit codes: the global cap alone makes
+  // guessing one hopeless, the others stop one source from spending it.
+  inviteCode: [
+    { dim: "ip", limit: 20, windowSec: 15 * MIN },
+    { dim: "subnet", limit: 100, windowSec: HOUR },
+    { dim: "user", limit: 10, windowSec: HOUR },
+    { dim: "global", limit: 500, windowSec: HOUR },
   ],
   inviteMember: [
     { dim: "phone", limit: 10, windowSec: DAY }, // the invited number

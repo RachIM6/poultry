@@ -39,7 +39,7 @@ describe("members (SPEC I4, poultry-auth test matrix: access)", () => {
   beforeAll(async () => ([a, b] = await twoTenants())); // after the per-file reset in src/test/db.ts
 
   it("an invited number logs in, joins with the invited role and creates no organisation", async () => {
-    expect(await inviteMember(a, { phone: "06 10 00 00 01", role: "worker" })).toEqual({ ok: true, value: undefined });
+    expect(await inviteMember(a, { phone: "06 10 00 00 01", role: "worker" })).toMatchObject({ ok: true });
     const orgsBefore = await db.organization.count();
 
     const worker = await contextOf(await login("0610000001"));
@@ -129,7 +129,7 @@ describe("members (SPEC I4, poultry-auth test matrix: access)", () => {
   it("caps invitations per invited number (10 / day) within one organisation only", async () => {
     for (let i = 0; i < 10; i++) expect((await inviteMember(a, { phone: "0610000099", role: "worker" })).ok).toBe(true);
     expect(await inviteMember(a, { phone: "0610000099", role: "worker" })).toEqual({ ok: false, error: "TOO_MANY_REQUESTS" });
-    expect(await inviteMember(b, { phone: "0610000099", role: "worker" })).toEqual({ ok: true, value: undefined }); // a can't block b
+    expect(await inviteMember(b, { phone: "0610000099", role: "worker" })).toMatchObject({ ok: true }); // a can't block b
   });
 
   it("never adds someone who already has an organisation to another one without asking", async () => {

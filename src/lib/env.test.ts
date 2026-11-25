@@ -49,6 +49,12 @@ describe("checkProductionEnv", () => {
     expect(check({ TRUSTED_PROXY_HOPS: "0" })()).toEqual([expect.stringMatching(/TRUSTED_PROXY_HOPS=0/)]);
   });
 
+  it("accepts CLIENT_IP_HEADER instead of TRUSTED_PROXY_HOPS (Vercel), without the 0-hops warning", () => {
+    expect(check({ TRUSTED_PROXY_HOPS: undefined, CLIENT_IP_HEADER: "x-vercel-forwarded-for" })()).toEqual([]);
+    expect(check({ TRUSTED_PROXY_HOPS: "0", CLIENT_IP_HEADER: "x-vercel-forwarded-for" })()).toEqual([]);
+    expect(check({ TRUSTED_PROXY_HOPS: undefined, CLIENT_IP_HEADER: "" })).toThrow(/CLIENT_IP_HEADER/);
+  });
+
   it("refuses a half-set VAPID pair, and keys without a subject", () => {
     expect(check({ NEXT_PUBLIC_VAPID_PUBLIC_KEY: "pub" })).toThrow(/VAPID_PRIVATE_KEY/);
     expect(check({ VAPID_PRIVATE_KEY: "priv" })).toThrow(/NEXT_PUBLIC_VAPID_PUBLIC_KEY/);

@@ -2,7 +2,8 @@
 
 One Docker image (`Dockerfile`) runs the app with `next start` on port 3000. The host is not chosen yet (OQ1), so every
 host-specific value below is in "Needs owner". Everything here is host-independent: any machine with Docker, a
-PostgreSQL 18 database and a TLS reverse proxy will do.
+PostgreSQL 18 database and a TLS reverse proxy will do. The client demo runs on Vercel and Supabase instead:
+`docs/deploy-vercel-supabase.md`.
 
 ## Build
 
@@ -95,8 +96,9 @@ docker run -d --name poultry --restart unless-stopped --env-file /etc/poultry/ap
   gives it 30 s before Docker kills it; exit code 137 means it had to.
 - **Logs** go to stdout/stderr (`docker logs poultry`). A server error is one JSON line with the path, method, error
   name and digest, never the body, cookies or query (`src/instrumentation.ts`).
-- **Service worker:** the revision of the 52 precached page shells is Next's build id (`.next/BUILD_ID`). A restart
-  keeps it, so phones download nothing again; a new image changes it, so every phone refreshes its shells once.
+- **Service worker:** the revision of the 52 precached page shells is drawn once per build (`SW_REVISION`,
+  `next.config.ts`) and built into the image. A restart keeps it, so phones download nothing again; a new image
+  changes it, so every phone refreshes its shells once.
 - **Refused start:** an unsafe env exits with code 1 and `--restart unless-stopped` keeps retrying; `docker logs poultry`
   names the variables to fix.
 
@@ -150,7 +152,7 @@ The app speaks plain HTTP and expects a TLS reverse proxy in front (nginx, Caddy
   `gzip on; gzip_types …`, plus the brotli module if the host has it; Caddy: `encode zstd gzip` (brotli needs a plugin).
 - **Streaming:** don't buffer responses (nginx: `proxy_buffering off;` for this upstream), or pages lose their
   streamed loading states.
-- **Body size:** at least 6 MB. Uploads are capped at 5 MiB by the app (`MAX_FILE_BYTES`) and a sync push at 2 MB;
+- **Body size:** at least 5 MB. Uploads are capped at 4 MiB by the app (`MAX_FILE_BYTES`) and a sync push at 2 MB;
   nginx's default 1 MB (`client_max_body_size`) refuses both.
 
 ## Scheduler (every minute)
@@ -161,7 +163,7 @@ Reminders, pushes and the postings catch-up run when the host's scheduler calls 
 * * * * * curl -fsS -m 50 -X POST -H "Authorization: Bearer $CRON_SECRET" https://<domain>/api/push/dispatch > /dev/null
 ```
 
-The method is `POST`. A missing or wrong token gets a 404 (as does every call while `CRON_SECRET` is unset). Keep the
+The method is `POST` (`GET` works the same: it is what Vercel Cron sends). A missing or wrong token gets a 404 (as does every call while `CRON_SECRET` is unset). Keep the
 token out of the crontab line itself: read it from a root-only file (e.g. `CRON_SECRET=$(cat /etc/poultry/cron.secret)`
 in a small script). Calling `http://127.0.0.1:3000/api/push/dispatch` on the host also works and skips the proxy.
 

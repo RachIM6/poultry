@@ -64,11 +64,14 @@ const keyValue = (dim: Dimension, value: string) =>
 /**
  * Client IP from X-Forwarded-For, counted from the right past our own proxies (TRUSTED_PROXY_HOPS).
  * Without a configured proxy the header is client-controlled (Next only fills it when absent), so there is no IP.
+ * CLIENT_IP_HEADER instead names a header the platform overwrites with the one client address, e.g. Vercel's
+ * x-vercel-forwarded-for (docs/deploy-vercel-supabase.md); it wins over the hops, and anything but one address is no IP.
  */
 export function clientNet(headers: Headers): { ip?: string; subnet?: string } {
+  const header = process.env.CLIENT_IP_HEADER;
   const hops = Number(process.env.TRUSTED_PROXY_HOPS ?? 0);
-  const chain = headers.get("x-forwarded-for")?.split(",").map((s) => s.trim()) ?? [];
-  const raw = hops > 0 ? chain[chain.length - hops] : undefined;
+  const chain = headers.get(header || "x-forwarded-for")?.split(",").map((s) => s.trim()) ?? [];
+  const raw = header ? (chain.length === 1 ? chain[0] : undefined) : hops > 0 ? chain[chain.length - hops] : undefined;
   if (!raw) return {};
   const ip = raw.replace(/^::ffff:(?=\d+\.)/i, ""); // IPv4-mapped IPv6 → IPv4
   if (isIPv4(ip)) return { ip, subnet: `${ip.split(".").slice(0, 3).join(".")}.0/24` };

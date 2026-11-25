@@ -31,8 +31,11 @@ export function checkProductionEnv(env: NodeJS.ProcessEnv = process.env): string
   if (env.CAPTCHA_DISABLED === "true") errors.push("CAPTCHA_DISABLED=true is refused in production.");
 
   // Must be a decision for the host, even 0: a wrong count lets one X-Forwarded-For header bypass the IP limits.
-  if (env.TRUSTED_PROXY_HOPS === undefined || env.TRUSTED_PROXY_HOPS === "") {
-    errors.push("TRUSTED_PROXY_HOPS must be set: the number of proxies in front of the app (0 if none).");
+  // CLIENT_IP_HEADER, a header the platform itself sets (Vercel), is that decision too (src/lib/security/rate-limit.ts).
+  if (env.CLIENT_IP_HEADER) {
+    // the header is the decision
+  } else if (env.TRUSTED_PROXY_HOPS === undefined || env.TRUSTED_PROXY_HOPS === "") {
+    errors.push("TRUSTED_PROXY_HOPS must be set: the number of proxies in front of the app (0 if none), or CLIENT_IP_HEADER.");
   } else if (env.TRUSTED_PROXY_HOPS === "0") {
     warnings.push("TRUSTED_PROXY_HOPS=0: the per-IP and per-subnet rate limits do not apply.");
   }

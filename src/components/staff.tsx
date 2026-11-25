@@ -440,6 +440,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
       payFor(month, { id: e.id, dailyWageCentimes: e.dailyWageCentimes ?? "0" }, attendance.filter((a) => a.employeeId === e.id), advances.filter((a) => a.employeeId === e.id), inForce),
     );
   const money = (c: string | null) => (c === null ? "—" : formatMoney(BigInt(c)));
+  const cell = (c: string | null) => <bdi dir="ltr">{money(c)}</bdi>; // "DH" stays after its number in Arabic
   const sum = (pick: (l: PayLine) => string | null) => (lines.some((l) => pick(l) === null) ? null : String(lines.reduce((n, l) => n + BigInt(pick(l)!), 0n)));
   const name = (id: string) => employees.find((e) => e.id === id)?.name ?? "";
   const owner = can(scope, "workforce.validatePay");
@@ -481,19 +482,19 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
                     {l.belowSmag && <span className="block text-xs font-medium text-brick-fg">{t("Pay.belowSmag")}</span>}
                   </th>
                   <td className="px-2 py-2 text-end">{l.paidDays}</td>
-                  <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.grossCentimes)}</td>
-                  <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.employeeContributionCentimes)}</td>
-                  <td className="whitespace-nowrap px-2 py-2 text-end">{money(l.advancesCentimes)}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-end font-semibold">{money(l.netCentimes)}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-end">{cell(l.grossCentimes)}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-end">{cell(l.employeeContributionCentimes)}</td>
+                  <td className="whitespace-nowrap px-2 py-2 text-end">{cell(l.advancesCentimes)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-end font-semibold">{cell(l.netCentimes)}</td>
                 </tr>
               ))}
               <tr className="border-t border-line bg-shell font-semibold">
                 <th scope="row" className="px-3 py-2 text-start">{t("Pay.total")}</th>
                 <td />
-                <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.grossCentimes))}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.employeeContributionCentimes))}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{money(sum((l) => l.advancesCentimes))}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-end">{money(sum((l) => l.netCentimes))}</td>
+                <td className="whitespace-nowrap px-2 py-2 text-end">{cell(sum((l) => l.grossCentimes))}</td>
+                <td className="whitespace-nowrap px-2 py-2 text-end">{cell(sum((l) => l.employeeContributionCentimes))}</td>
+                <td className="whitespace-nowrap px-2 py-2 text-end">{cell(sum((l) => l.advancesCentimes))}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-end">{cell(sum((l) => l.netCentimes))}</td>
               </tr>
             </tbody>
           </table>

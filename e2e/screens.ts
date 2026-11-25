@@ -34,6 +34,25 @@ export async function overflow(page: Page, width: number) {
 }
 
 /**
+ * Arabic: the amounts and weights whose "DH" or "kg" the bidi algorithm moved before the number ("DH 1 234,50").
+ * ADR-004 shows "1 234,50 DH": an LTR isolate keeps that order (dir="ltr", <bdi>, or FSI … PDI in a message).
+ */
+export async function unitsMoved(page: Page) {
+  return page.evaluate(() => {
+    const found: string[] = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const el = n.parentElement!;
+      if (el.closest('[dir="ltr"], bdi, svg[direction="ltr"], .sr-only, option, script, style') || !el.getClientRects().length) continue;
+      const text = n.textContent!.replace(/[⁦-⁨][^⁩]*⁩/g, ""); // isolated parts keep their order
+      const at = text.search(/\d[\d\s.,]*\s(DH|kg)\b/);
+      if (at >= 0 && !/[A-Za-zÀ-ÿ]/.test(text.slice(0, at))) found.push(text.trim().slice(0, 60)); // after a Latin word it stays in order
+    }
+    return found;
+  });
+}
+
+/**
  * An owner with realistic data (open, closed and layer batches, sales, expenses, a loan, an asset, a budget, a bank
  * statement, books kept as a ledger), signed in on `page`. Returns the main screens' paths, without the locale.
  */

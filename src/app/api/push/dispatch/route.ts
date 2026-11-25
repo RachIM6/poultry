@@ -27,7 +27,11 @@ const STEPS: [name: string, run: () => Promise<unknown>][] = [
 // Each step runs even when an earlier one throws. A failure answers 500: 207 and "200 with failed" are 2xx, which
 // cron, curl --fail and hosted schedulers count as success, so a broken job would go unnoticed. Nothing is lost by
 // the 500, since every other step has already run.
-// Without CRON_SECRET the route doesn't exist.
+// Without CRON_SECRET the route doesn't exist. POST from a host's cron (docs/deploy.md); GET is what Vercel Cron sends,
+// with the same "Bearer <CRON_SECRET>" header (docs/deploy-vercel-supabase.md). Reading the header keeps the GET from
+// being prerendered at build time.
+export const maxDuration = 300; // seconds the host lets one run take (Vercel)
+
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   const given = req.headers.get("authorization") ?? "";
@@ -49,3 +53,5 @@ export async function POST(req: Request) {
   }
   return Response.json({ ok, failed }, { status: failed.length > 0 ? 500 : 200 });
 }
+
+export { POST as GET };

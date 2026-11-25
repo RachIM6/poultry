@@ -6,6 +6,9 @@ const STATUS = { FORBIDDEN: 403, INVALID_INPUT: 400, NOT_FOUND: 404 } as const;
 // SPEC-finance FN18: GET ?month=YYYY-MM downloads the month's books as a .zip; FC10: with &format=fec, the month's
 // FEC (.txt) for the accountant's software. A read: no CSRF check (SameSite=Lax session cookie, and a cross-site page
 // can't read the response).
+// Seconds the host lets one call run (Vercel, docs/deploy-vercel-supabase.md): a month's zip with its receipts.
+export const maxDuration = 300;
+
 export async function GET(req: Request) {
   const ctx = await getTenantContext(req.headers);
   if (!ctx.ok) return Response.json({ ok: false, messageKey: "errors.UNAUTHENTICATED" }, { status: 401 });

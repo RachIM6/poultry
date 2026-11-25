@@ -2352,6 +2352,7 @@
     "price": "Prix (DH)",
     "day": "Vu le",
     "seenOn": "Où ou sur quoi (facultatif)",
+    "where": "Où ou sur quoi",
     "save": "Enregistrer le prix",
     "products": {
       "chick": "Poussin d’un jour",

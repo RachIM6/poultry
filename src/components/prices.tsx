@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { rowHead, splitAside } from "@/components/layout";
 import { Scoped } from "@/components/scoped";
 import { card, done, field, primary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -17,6 +18,12 @@ import { writeLocal } from "@/offline/outbox";
 // SPEC-m5 MP1, MP2 on the static /prices shell, offline: the farm's own price log. Nothing is shared (MP3).
 
 export const PricesScreen = () => <Scoped>{(scope) => <Prices {...scope} />}</Scoped>;
+
+// Wide screens: the prices in a column, the form beside them in view (360 px); the grid places the three blocks, the
+// DOM (the phone's order) stays. The history reads as a table, one card of lines on the phone as before.
+const columns = "flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-8";
+const history = `${card} gap-2 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1.4fr)_auto] lg:gap-0 lg:overflow-hidden lg:p-0`;
+const line = "flex items-baseline justify-between gap-3 text-sm lg:col-span-full lg:grid lg:grid-cols-subgrid lg:gap-x-6 lg:border-t lg:border-line lg:px-4 lg:py-2.5";
 
 function Prices(scope: Scope) {
   const t = useTranslations();
@@ -50,57 +57,72 @@ function Prices(scope: Scope) {
   return (
     <>
       {message && <p role="status" className={done}>{t(message)}</p>}
-      <section aria-label={t("Prices.latest")} className="flex flex-col gap-2">
-        <h2 className="text-[17px] font-semibold text-ink-2">{t("Prices.latest")}</h2>
-        {all.length === 0 ? (
-          <p className="text-ink-2">{t("Prices.none")}</p>
-        ) : (
-          <ul aria-label={t("Prices.latest")} className={`${card} gap-2`}>
-            {latestByProduct(all).map(({ product, latest, changeCentimes }) => (
-              <li key={product} className="flex items-baseline justify-between gap-3">
-                <span>
-                  <b className="font-semibold">{t(`Prices.products.${product}`)}</b>
-                  <span className="block text-sm text-ink-2">{[formatDay(latest.day as FarmDay, locale), latest.seenOn].filter(Boolean).join(" · ")}</span>
-                </span>
-                <span className="text-end">
-                  <b className="whitespace-nowrap">{perUnit(latest)}</b>
-                  {changeCentimes !== null && changeCentimes !== 0n && (
-                    <span className="block whitespace-nowrap text-sm text-ink-2">{t(changeCentimes > 0n ? "Prices.up" : "Prices.down", { amount: formatMoney(changeCentimes < 0n ? -changeCentimes : changeCentimes) })}</span>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      {can(scope, "prices.record") && (
-        <form key={key} onSubmit={submit} className={card} aria-label={t("Prices.add")}>
-          <label htmlFor={ids.product}>{t("Prices.product")}</label>
-          <select id={ids.product} name="product" className={field}>
-            {PRODUCTS.map((p) => <option key={p} value={p}>{t(`Prices.products.${p}`)} ({t(`Prices.units.${UNIT[p]}`)})</option>)}
-          </select>
-          <label htmlFor={ids.price}>{t("Prices.price")}</label>
-          <input id={ids.price} name="price" inputMode="decimal" dir="ltr" required className={field} />
-          <label htmlFor={ids.day}>{t("Prices.day")}</label>
-          <input id={ids.day} name="day" type="date" required max={today} defaultValue={today} className={field} />
-          <label htmlFor={ids.seenOn}>{t("Prices.seenOn")}</label>
-          <input id={ids.seenOn} name="seenOn" maxLength={200} className={field} />
-          <button type="submit" className={primary}>{t("Prices.save")}</button>
-        </form>
-      )}
-      {all.length > 0 && (
-        <section aria-label={t("Prices.history")} className="flex flex-col gap-2">
-          <h2 className="text-[17px] font-semibold text-ink-2">{t("Prices.history")}</h2>
-          <ul aria-label={t("Prices.history")} className={`${card} gap-2`}>
-            {[...all].sort((a, b) => b.day.localeCompare(a.day) || b.id.localeCompare(a.id)).map((p) => (
-              <li key={p.id} className="flex items-baseline justify-between gap-3 text-sm">
-                <span>{formatDay(p.day as FarmDay, locale)} · {t(`Prices.products.${p.product}`)}{p.seenOn ? ` · ${p.seenOn}` : ""}</span>
-                <span className="whitespace-nowrap">{perUnit(p)}</span>
-              </li>
-            ))}
-          </ul>
+      <div className={columns}>
+        <section aria-label={t("Prices.latest")} className="flex flex-col gap-2 lg:col-start-1">
+          <h2 className="text-[17px] font-semibold text-ink-2">{t("Prices.latest")}</h2>
+          {all.length === 0 ? (
+            <p className="text-ink-2">{t("Prices.none")}</p>
+          ) : (
+            <ul aria-label={t("Prices.latest")} className={`${card} gap-2`}>
+              {latestByProduct(all).map(({ product, latest, changeCentimes }) => (
+                <li key={product} className="flex items-baseline justify-between gap-3">
+                  <span>
+                    <b className="font-semibold">{t(`Prices.products.${product}`)}</b>
+                    <span className="block text-sm text-ink-2">{[formatDay(latest.day as FarmDay, locale), latest.seenOn].filter(Boolean).join(" · ")}</span>
+                  </span>
+                  <span className="text-end">
+                    <b className="whitespace-nowrap">{perUnit(latest)}</b>
+                    {changeCentimes !== null && changeCentimes !== 0n && (
+                      <span className="block whitespace-nowrap text-sm text-ink-2">{t(changeCentimes > 0n ? "Prices.up" : "Prices.down", { amount: formatMoney(changeCentimes < 0n ? -changeCentimes : changeCentimes) })}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
-      )}
+        {can(scope, "prices.record") && (
+          <form key={key} onSubmit={submit} className={`${card} ${splitAside} lg:col-start-2 lg:row-span-2 lg:row-start-1`} aria-label={t("Prices.add")}>
+            <label htmlFor={ids.product}>{t("Prices.product")}</label>
+            <select id={ids.product} name="product" className={field}>
+              {PRODUCTS.map((p) => <option key={p} value={p}>{t(`Prices.products.${p}`)} ({t(`Prices.units.${UNIT[p]}`)})</option>)}
+            </select>
+            <label htmlFor={ids.price}>{t("Prices.price")}</label>
+            <input id={ids.price} name="price" inputMode="decimal" dir="ltr" required className={field} />
+            <label htmlFor={ids.day}>{t("Prices.day")}</label>
+            <input id={ids.day} name="day" type="date" required max={today} defaultValue={today} className={field} />
+            <label htmlFor={ids.seenOn}>{t("Prices.seenOn")}</label>
+            <input id={ids.seenOn} name="seenOn" maxLength={200} className={field} />
+            <button type="submit" className={primary}>{t("Prices.save")}</button>
+          </form>
+        )}
+        {all.length > 0 && (
+          <section aria-label={t("Prices.history")} className="flex flex-col gap-2 lg:col-start-1">
+            <h2 className="text-[17px] font-semibold text-ink-2">{t("Prices.history")}</h2>
+            <ul aria-label={t("Prices.history")} className={history}>
+              <li aria-hidden="true" className={rowHead}>
+                <span>{t("Prices.day")}</span>
+                <span>{t("Prices.product")}</span>
+                <span>{t("Prices.where")}</span>
+                <span className="text-end">{t("Prices.price")}</span>
+              </li>
+              {[...all].sort((a, b) => b.day.localeCompare(a.day) || b.id.localeCompare(a.id)).map((p) => (
+                <li key={p.id} className={line}>
+                  {/* the phone: one line, "day · product · where"; from lg each part in its column */}
+                  <span className="lg:contents">
+                    <span className="lg:whitespace-nowrap">{formatDay(p.day as FarmDay, locale)}</span>
+                    <span className="lg:hidden"> · </span>
+                    <span>{t(`Prices.products.${p.product}`)}</span>
+                    {p.seenOn && <span className="lg:hidden"> · </span>}
+                    <span>{p.seenOn}</span>
+                  </span>
+                  <span className="whitespace-nowrap text-end">{perUnit(p)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
     </>
   );
 }

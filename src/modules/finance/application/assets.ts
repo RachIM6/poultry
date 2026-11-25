@@ -14,8 +14,10 @@ import {
   assetPaymentPosting,
   ASSET_ACCOUNTS,
   ASSET_DEBTS,
+  assetDebtAccount,
   checkAsset,
   disposalPostings,
+  LONG_TERM_ASSET_DEBTS,
   straightLine,
   treasuryKindOf,
   yearEndDepreciation,
@@ -58,6 +60,8 @@ export const facts = (r: FixedAsset): DepreciableAsset => ({
   opening: r.openingOn && { on: dayOf(r.openingOn), accumulated: r.openingAccumulatedCentimes },
 });
 const audited = (r: Pick<FixedAsset, "lifeMonths" | "residualCentimes">) => ({ lifeMonths: r.lifeMonths, residualCentimes: String(r.residualCentimes) });
+/** FQ23: the account an asset bought on credit is owed on, 4481 or 1486, by its last payment day. */
+const debtOf = (r: Pick<FixedAsset, "acquiredOn" | "lastPaymentOn">) => assetDebtAccount(dayOf(r.acquiredOn), r.lastPaymentOn && dayOf(r.lastPaymentOn));
 
 // A refused step rolls back what the transaction already wrote (a disposal posts up to three entries).
 const REFUSED = Symbol("refused");
@@ -109,9 +113,10 @@ const lockAsset = async (tx: Tx, ctx: TenantContext, id: string) => {
 };
 
 /**
- * SPEC-finance FC1: the owner registers an asset. Acquired: posts D the asset account (+ 34551) / C 5161, 5141 or 4481
- * on its day, source `asset:<id>:acq`. In the opening balance: posts nothing, the opening entry carries it (FCX3).
- * The id comes from the form: the same form twice registers and posts once. A `cash_book` entity: the register only.
+ * SPEC-finance FC1: the owner registers an asset. Acquired: posts D the asset account (+ 34551) / C 5161, 5141, or on
+ * credit 4481, or 1486 when its last payment day is more than 12 months away (FQ23), on its day, source
+ * `asset:<id>:acq`. In the opening balance: posts nothing, the opening entry carries it (FCX3). The id comes from the
+ * form: the same form twice registers and posts once. A `cash_book` entity: the register only.
  */
 export async function createFixedAsset(ctx: TenantContext, input: unknown, clock: Clock = systemClock): Promise<Result<void, AssetWriteError>> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
@@ -120,6 +125,7 @@ export async function createFixedAsset(ctx: TenantContext, input: unknown, clock
   const a = parsed.data;
   const opening = a.opening && { on: a.opening.on as FarmDay, accumulated: BigInt(a.opening.accumulatedCentimes) };
   if ((a.paidWith === null) === (opening === null)) return fail("INVALID_INPUT"); // paid somehow, or in the opening balance
+  if (a.lastPaymentOn && (a.paidWith !== "credit" || a.lastPaymentOn < a.acquiredOn)) return fail("INVALID_INPUT"); // FQ23: a credit's term
   if (inFuture(a.acquiredOn, clock) || (opening && inFuture(opening.on, clock))) return fail("DAY_IN_FUTURE");
   const entity = await entityOf(ctx);
   if (!entity.ok) return entity;
@@ -146,7 +152,8 @@ export async function createFixedAsset(ctx: TenantContext, input: unknown, clock
         const fits = await treasuryFits(tx, ctx, treasuryId, treasuryKindOf(paidWith));
         if (!fits.ok) return fits;
       }
-      const posted = await post(tx, ctx, entity.value, acquisitionSource(a.id), 1, asset.acquiredOn, acquisitionPosting({ category, label: a.label, cost, amount, paidWith, treasuryId }));
+      const debt = assetDebtAccount(asset.acquiredOn, a.lastPaymentOn as FarmDay | null);
+      const posted = await post(tx, ctx, entity.value, acquisitionSource(a.id), 1, asset.acquiredOn, acquisitionPosting({ category, label: a.label, cost, amount, paidWith, treasuryId }, debt));
       if (!posted.ok) return posted;
     }
     await tx.fixedAsset.create({
@@ -166,6 +173,7 @@ export async function createFixedAsset(ctx: TenantContext, input: unknown, clock
         residualCentimes: residual,
         lifeMonths: a.lifeMonths,
         paidWith,
+        lastPaymentOn: a.lastPaymentOn ? date(a.lastPaymentOn) : null,
         openingOn: opening && date(opening.on),
         openingAccumulatedCentimes: opening?.accumulated ?? 0n,
         createdBy: ctx.userId,
@@ -199,7 +207,7 @@ export async function updateFixedAsset(ctx: TenantContext, input: unknown): Prom
   });
 }
 
-/** FC1: a later payment of an asset bought on credit, D 4481 / C 5161 or 5141, at most what is still owed. */
+/** FC1: a later payment of an asset bought on credit, D 4481 or 1486 (the account it is owed on, FQ23) / C 5161 or 5141, at most what is still owed. */
 export async function payFixedAsset(ctx: TenantContext, input: unknown, clock: Clock = systemClock): Promise<Result<void, AssetWriteError>> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
   const parsed = FixedAssetPayment.safeParse(input);
@@ -219,28 +227,29 @@ export async function payFixedAsset(ctx: TenantContext, input: unknown, clock: C
     if (amount > (await owedOn(tx, ctx, [row.id])).get(row.id)!) return fail("PAID_MORE_THAN_OWED");
     const fits = await treasuryFits(tx, ctx, p.treasuryId, treasuryKindOf(p.paidWith));
     if (!fits.ok) return fits;
-    const posted = await post(tx, ctx, entity.value, source, 1, p.day as FarmDay, assetPaymentPosting(row.label, amount, p.paidWith, p.treasuryId));
+    const posted = await post(tx, ctx, entity.value, source, 1, p.day as FarmDay, assetPaymentPosting(row.label, amount, p.paidWith, p.treasuryId, debtOf(row)));
     if (!posted.ok) return posted;
     await audit(tx, ctx, { entity: "FixedAsset", entityId: row.id, action: "pay", after: { paymentId: p.id, day: p.day, amountCentimes: p.amountCentimes, paidWith: p.paidWith, treasuryId: p.treasuryId } });
     return ok(undefined);
   });
 }
 
-/** F-Effects: what each asset bought on credit still owes on 4481 (`payFixedAsset`'s cap), due on its acquisition day. */
+/** F-Effects: what each asset bought on credit still owes on 4481 or 1486 (`payFixedAsset`'s cap), due on its acquisition day. */
 export async function assetDues(ctx: TenantContext): Promise<{ dueOn: string; amountCentimes: bigint }[]> {
   const rows = await db.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, paidWith: "credit" }, select: { id: true, acquiredOn: true } });
   const owed = await owedOn(db, ctx, rows.map((r) => r.id));
   return rows.flatMap((r) => (owed.get(r.id)! > 0n ? [{ dueOn: dayOf(r.acquiredOn), amountCentimes: owed.get(r.id)! }] : []));
 }
 
-/** What is still owed on 4481 for each asset: its acquisition's credit less its payments. */
+/** What is still owed on 4481 or 1486 (FQ23) for each asset: its acquisition's credit less its payments. */
+const DEBTS = [ASSET_DEBTS, LONG_TERM_ASSET_DEBTS];
 async function owedOn(tx: Tx, ctx: TenantContext, ids: string[]): Promise<Map<string, bigint>> {
   const lines = await tx.journalLine.findMany({
-    where: { organizationId: ctx.organizationId, account: ASSET_DEBTS, entry: { sourceModule: "finance", sourceId: { in: ids.map(acquisitionSource) } } },
+    where: { organizationId: ctx.organizationId, account: { in: DEBTS }, entry: { sourceModule: "finance", sourceId: { in: ids.map(acquisitionSource) } } },
     select: { creditCentimes: true, entry: { select: { sourceId: true } } },
   });
   const payments = await tx.journalLine.findMany({
-    where: { organizationId: ctx.organizationId, account: ASSET_DEBTS, entry: { sourceModule: "finance", OR: ids.map((id) => ({ sourceId: { startsWith: `asset:${id}:pay:` } })) } },
+    where: { organizationId: ctx.organizationId, account: { in: DEBTS }, entry: { sourceModule: "finance", OR: ids.map((id) => ({ sourceId: { startsWith: `asset:${id}:pay:` } })) } },
     select: { debitCentimes: true, entry: { select: { sourceId: true } } },
   });
   const owed = new Map(ids.map((id) => [id, 0n]));
@@ -315,11 +324,13 @@ export type AssetView = {
   residual: bigint;
   lifeMonths: number | null;
   paidWith: AssetPaidWith | null; // null: in the opening balance
+  lastPaymentOn: string | null; // FQ23: bought on credit, its last payment day as typed
+  debtAccount: string | null; // FQ23: bought on credit, 4481 or 1486
   opening: { on: string; accumulated: bigint } | null;
   disposedOn: string | null;
   disposalPrice: bigint | null;
   receiptFileId: string | null;
-  owed: bigint; // still due on 4481, bought on credit
+  owed: bigint; // still due on 4481 or 1486, bought on credit
   accumulated: bigint; // at the end of the current fiscal year, or at the disposal
   schedule: ScheduleYear[];
 };
@@ -358,6 +369,8 @@ export async function assetRegister(ctx: TenantContext, clock: Clock = systemClo
       residual: r.residualCentimes,
       lifeMonths: r.lifeMonths,
       paidWith: r.paidWith as AssetPaidWith | null,
+      lastPaymentOn: r.lastPaymentOn && dayOf(r.lastPaymentOn),
+      debtAccount: r.paidWith === "credit" ? debtOf(r) : null,
       opening: f.opening,
       disposedOn: f.disposedOn,
       disposalPrice: r.disposalPriceCentimes,

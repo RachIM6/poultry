@@ -9,7 +9,7 @@ import { listLegalEntities } from "@/modules/farm-registry";
 import { facts } from "@/modules/finance/application/assets";
 import type { PostError } from "@/modules/finance/application/ledger";
 import { post } from "@/modules/finance/application/loans";
-import { ASSET_ACCOUNTS, type AssetCategory } from "@/modules/finance/domain/assets";
+import type { AssetCategory } from "@/modules/finance/domain/assets";
 import type { Posting } from "@/modules/finance/domain/posting";
 import { checkSubsidy, receiptPosting, releaseSchedule, yearEndRelease, type ReleaseYear, type Subsidy as Facts, type SubsidyError } from "@/modules/finance/domain/subsidies";
 import { SubsidyInput } from "@/modules/finance/schema";
@@ -24,13 +24,18 @@ const dayOf = (d: Date) => d.toISOString().slice(0, 10) as FarmDay;
 const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, latestRecordableDay(clock)) < 0;
 const receiptSource = (id: string) => `subsidy:${id}:receipt`;
 const financed = (a: FixedAsset) => ({ ...facts(a), category: a.category as AssetCategory });
-const factsOf = (s: Subsidy & { assets: { asset: FixedAsset }[] }): Facts => ({ amount: s.amountCentimes, receivedOn: dayOf(s.receivedOn), assets: s.assets.map((x) => financed(x.asset)) });
+const factsOf = (s: Subsidy & { assets: { asset: FixedAsset }[] }): Facts => ({
+  amount: s.amountCentimes,
+  receivedOn: dayOf(s.receivedOn),
+  inalienableYears: s.inalienableYears,
+  assets: s.assets.map((x) => financed(x.asset)),
+});
 
 /**
  * FC2, default FQ17: the owner records a subsidy when it is received, on a bank account, with the register's assets it
- * finances (refused on land, or on no depreciable asset). Posts D 5141 / C 1311 on that day (source
- * `subsidy:<id>:receipt`), for a `cash_book` entity too: the money comes in on its bank account (as a loan's, T105). The
- * id comes from the form: the same form twice records one subsidy.
+ * finances (land included, with the years the contract makes it inalienable, if any; refused on no asset). Posts
+ * D 5141 / C 1311 on that day (source `subsidy:<id>:receipt`), for a `cash_book` entity too: the money comes in on its
+ * bank account (as a loan's, T105). The id comes from the form: the same form twice records one subsidy.
  */
 export async function createSubsidy(ctx: TenantContext, input: unknown, clock: Clock = systemClock): Promise<Result<void, SubsidyWriteError>> {
   if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
@@ -64,6 +69,7 @@ export async function createSubsidy(ctx: TenantContext, input: unknown, clock: C
         amountCentimes: amount,
         receivedOn: date(s.receivedOn),
         treasuryId: s.treasuryId,
+        inalienableYears: s.inalienableYears,
         createdBy: ctx.userId,
         assets: { create: s.assetIds.map((assetId) => ({ assetId, ...org })) },
       },
@@ -81,8 +87,8 @@ export async function closeSubsidies(tx: Tx, ctx: TenantContext, legalEntityId: 
   return yearEndRelease(rows.map(factsOf), year, fiscalYearStartMonth);
 }
 
-export type SubsidyView = { id: string; label: string; grantor: string; amount: bigint; receivedOn: FarmDay; bank: string; assets: string[]; years: ReleaseYear[] };
-/** `assets`: the register's depreciable assets still in service, for the form (never land, FQ17). */
+export type SubsidyView = { id: string; label: string; grantor: string; amount: bigint; receivedOn: FarmDay; bank: string; inalienableYears: number | null; assets: string[]; years: ReleaseYear[] };
+/** `assets`: the register's assets still in service, for the form (land included, FQ17). */
 export type SubsidyRegister = { subsidies: SubsidyView[]; assets: { id: string; label: string }[] };
 
 /** FC2 "Emprunts et subventions": each subsidy with its release by year. A read: the accountant too. */
@@ -93,7 +99,7 @@ export async function subsidyRegister(ctx: TenantContext): Promise<Result<Subsid
   const where = { organizationId: ctx.organizationId, legalEntityId: entity.id };
   const [rows, assets, banks] = await Promise.all([
     db.subsidy.findMany({ where, include: withAssets, orderBy: [{ receivedOn: "asc" }, { label: "asc" }] }),
-    db.fixedAsset.findMany({ where: { ...where, disposedOn: null }, select: { id: true, label: true, category: true }, orderBy: { label: "asc" } }),
+    db.fixedAsset.findMany({ where: { ...where, disposedOn: null }, select: { id: true, label: true }, orderBy: { label: "asc" } }),
     db.treasuryAccount.findMany({ where: { organizationId: ctx.organizationId, kind: "bank" }, select: { id: true, name: true } }),
   ]);
   const names = new Map(banks.map((b) => [b.id, b.name]));
@@ -105,9 +111,10 @@ export async function subsidyRegister(ctx: TenantContext): Promise<Result<Subsid
       amount: s.amountCentimes,
       receivedOn: dayOf(s.receivedOn),
       bank: names.get(s.treasuryId) ?? "—",
+      inalienableYears: s.inalienableYears,
       assets: s.assets.map((x) => x.asset.label),
       years: releaseSchedule(factsOf(s), entity.fiscalYearStartMonth),
     })),
-    assets: assets.filter((a) => ASSET_ACCOUNTS[a.category as AssetCategory]?.depreciation).map(({ id, label }) => ({ id, label })),
+    assets,
   });
 }

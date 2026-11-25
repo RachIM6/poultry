@@ -160,6 +160,11 @@ export function SubsidyForm({ today, banks, assets }: { today: string; banks: { 
             </label>
           ))}
         </fieldset>
+        <div className={row}>
+          <label htmlFor={`${id}-inalienable`}>{t("Subsidies.inalienableYears")}</label>
+          <input id={`${id}-inalienable`} type="number" name="inalienableYears" min={1} max={99} step={1} dir="ltr" aria-describedby={`${id}-inalienable-hint`} className={wide} />
+          <span id={`${id}-inalienable-hint`} className="text-sm text-ink-2">{t("Subsidies.inalienableHint")}</span>
+        </div>
         {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
         <OfflineHint online={online} />
         <button type="submit" disabled={pending || !online} className={primary}>{t("Subsidies.save")}</button>

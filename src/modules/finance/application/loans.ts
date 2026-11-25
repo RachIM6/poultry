@@ -11,7 +11,7 @@ import { listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry"
 import { notify } from "@/modules/notifications";
 import { postEntry, type PostError } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
-import { checkLoan, checkSchedule, disbursementPosting, installmentPosting, loanSchedule, type LoanError, type LoanFrequency } from "@/modules/finance/domain/loans";
+import { checkLoan, checkSchedule, disbursementPosting, installmentPosting, loanSchedule, yearEndInterest, type LoanError, type LoanFrequency } from "@/modules/finance/domain/loans";
 import { inChart, type Posting } from "@/modules/finance/domain/posting";
 import { ledgerAccounts } from "@/modules/finance/infrastructure/ledger";
 import { LoanInput, LoanPayment, LoanRef, LoanScheduleInput } from "@/modules/finance/schema";
@@ -183,6 +183,17 @@ export async function payLoanInstallment(ctx: TenantContext, input: unknown, clo
     await audit(tx, ctx, { entity: "LoanInstallment", entityId: loanId, action: "pay", after: { number, day } });
     return ok(undefined);
   });
+}
+
+/** FC2, FQ16, FCX4: the close run's interest kind on the fiscal year's last day, D 63111 / C 4493, over the confirmed loans. */
+export async function closeInterest(tx: Tx, ctx: TenantContext, legalEntityId: string, day: FarmDay): Promise<Posting | null> {
+  const loans = await tx.loan.findMany({ where: { organizationId: ctx.organizationId, legalEntityId, confirmedAt: { not: null } }, include: { rows: { orderBy: { number: "asc" } } } });
+  const accruing = loans.map((l) => ({
+    disbursedOn: l.disbursedOn && dayOf(l.disbursedOn),
+    frequency: l.frequency as LoanFrequency,
+    rows: l.rows.map((r) => ({ dueOn: dayOf(r.dueOn), interest: r.interestCentimes })),
+  }));
+  return yearEndInterest(accruing, day);
 }
 
 /** FC2, F-Effects: the installments of confirmed loans not yet paid, outflows on their due day for the cash schedule. */

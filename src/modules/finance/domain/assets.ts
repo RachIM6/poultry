@@ -2,6 +2,7 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import { divHalfUp } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
+import { dueDay } from "@/modules/finance/domain/loans";
 import type { Journal, Posting } from "@/modules/finance/domain/posting";
 import { PAID_WITH } from "@/modules/finance/domain/treasury";
 
@@ -49,7 +50,19 @@ export const DEPRECIATION_CHARGES = {
 export const ASSET_VAT_RECOVERABLE = "34551"; // État – TVA récupérable sur immobilisations (3455 is subdivided, FN4; CGNC scan p. 279)
 export const NET_BOOK_VALUE_DISPOSED = "6513"; // VNA des immobilisations corporelles cédées
 export const DISPOSAL_PROCEEDS = "7513"; // Produits des cessions des immobilisations corporelles
-export const ASSET_DEBTS = "4481"; // Dettes sur acquisition d'immobilisations (FQ23: 1486 is the other reading)
+export const ASSET_DEBTS = "4481"; // Dettes sur acquisition d'immobilisations: paid within a year (FQ23, PCA p. 107)
+export const LONG_TERM_ASSET_DEBTS = "1486"; // Fournisseurs d'immobilisations: paid in more than a year (FQ23, PCA p. 77)
+
+/**
+ * FQ23: the account an asset bought on credit is owed on, by its last payment day. 1486 "enregistre à son crédit les
+ * acquisitions d'immobilisations dont le paiement n'intervient que dans plus d'une année"; with "un délai de paiement
+ * inférieur à une année", 4481 (PCA p. 77; p. 107). More than 12 months after the acquisition day → 1486; 12 months
+ * exactly, or no last payment day typed → 4481. The debt stays on that account until paid off, never reclassified at a
+ * close: "les dettes de financement doivent demeurer dans leur compte d'entrée de manière irréversible, jusqu'à leur
+ * extinction totale" (p. 78).
+ */
+export const assetDebtAccount = (acquiredOn: FarmDay, lastPaymentOn: FarmDay | null) =>
+  lastPaymentOn !== null && lastPaymentOn > dueDay(acquiredOn, 12) ? LONG_TERM_ASSET_DEBTS : ASSET_DEBTS;
 
 /** How an asset was paid (FC1). An issued cheque leaves the bank on its issue day, the acquisition's. */
 export const ASSET_PAID_WITH = ["cash", "transfer", "cheque", "credit"] as const;
@@ -173,9 +186,9 @@ export function checkAsset(a: DepreciableAsset & { category: string; acquiredOn:
 
 type Registered = { category: AssetCategory; label: string; cost: bigint; amount: bigint };
 
-/** FC1 acquisition: D the asset account (+ D 34551 for a registered entity's VAT) / C 5161, 5141 or 4481. */
-export function acquisitionPosting(a: Registered & { paidWith: AssetPaidWith; treasuryId: string | null }): Posting {
-  const paid = PAID[a.paidWith];
+/** FC1 acquisition: D the asset account (+ D 34551 for a registered entity's VAT) / C 5161, 5141, or on credit `debt` (4481 or 1486, FQ23). */
+export function acquisitionPosting(a: Registered & { paidWith: AssetPaidWith; treasuryId: string | null }, debt: string = ASSET_DEBTS): Posting {
+  const paid = a.paidWith === "credit" ? { ...PAID.credit, account: debt } : PAID[a.paidWith];
   const vat = a.amount - a.cost;
   return {
     journal: paid.journal,
@@ -188,10 +201,10 @@ export function acquisitionPosting(a: Registered & { paidWith: AssetPaidWith; tr
   };
 }
 
-/** FC1: a later payment of an asset bought on credit, D 4481 / C 5161 or 5141. */
-export function assetPaymentPosting(label: string, amount: bigint, paidWith: Exclude<AssetPaidWith, "credit">, treasuryId: string | null): Posting {
+/** FC1: a later payment of an asset bought on credit, D the account it is owed on (4481 or 1486, FQ23) / C 5161 or 5141. */
+export function assetPaymentPosting(label: string, amount: bigint, paidWith: Exclude<AssetPaidWith, "credit">, treasuryId: string | null, debt: string = ASSET_DEBTS): Posting {
   const paid = PAID[paidWith];
-  return { journal: paid.journal, label: `Paiement : ${label}`, lines: [{ account: ASSET_DEBTS, debit: amount, credit: 0n }, { account: paid.account, debit: 0n, credit: amount, treasuryId }] };
+  return { journal: paid.journal, label: `Paiement : ${label}`, lines: [{ account: debt, debit: amount, credit: 0n }, { account: paid.account, debit: 0n, credit: amount, treasuryId }] };
 }
 
 /**

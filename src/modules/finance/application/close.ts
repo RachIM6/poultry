@@ -10,6 +10,7 @@ import { closeDepreciation } from "@/modules/finance/application/assets";
 import { closePosted } from "@/modules/finance/application/count";
 import { closeHens, hensAtClose, type HensAtClose } from "@/modules/finance/application/hens";
 import { batchLinesAtClose, closeBatches, closeProvision, closeStock, eggLinesAtClose, stockLinesAtClose } from "@/modules/finance/application/stocks";
+import { closeInterest } from "@/modules/finance/application/loans";
 import { closeSubsidies } from "@/modules/finance/application/subsidies";
 import { lockMonth, postOpening, postVersion, type PostError } from "@/modules/finance/application/ledger";
 import { chartOf } from "@/modules/finance/domain/chart";
@@ -34,6 +35,7 @@ const KINDS: Record<CloseKind, (tx: Tx, ctx: TenantContext, entity: LegalEntityD
   batch: (tx, ctx, entity, year) => closeBatches(tx, ctx, entity, year.to),
   hens: (tx, ctx, entity, year) => closeHens(tx, ctx, entity, year),
   provision: (tx, ctx, entity, year) => closeProvision(tx, ctx, entity, year.to),
+  interest: (tx, ctx, entity, year) => closeInterest(tx, ctx, entity.id, year.to),
 };
 
 /** The fiscal year that ends in calendar year `year`, as the count sheet's (T107). */
@@ -138,7 +140,7 @@ export async function closePreview(ctx: TenantContext, year: number | null, cloc
 const CloseRun = z.object({ year: z.number().int() });
 
 /**
- * FCX4: posts each kind's entry, OD on the fiscal year's last day, source `close:<kind>:<entity>:<year>`. FN7: the
+ * FCX4: posts each kind's entry (the loans' accrued interest included, FQ16), OD on the fiscal year's last day, source `close:<kind>:<entity>:<year>`. FN7: the
  * same figures post nothing; changed ones post a reversal of the standing version and a new version; figures now zero
  * post the reversal alone. Refused while the year's last month is locked (never moved to another period), for a
  * `cash_book` entity, for a year not yet begun, while a meat batch in progress has no current value (FC4: no

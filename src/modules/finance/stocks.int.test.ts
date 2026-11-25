@@ -76,7 +76,7 @@ describe("stocks at the close (SPEC-finance FC5, FQ20, T108)", () => {
     expect(await saveYearEndValues(owner, { year: 2026, values: { [ids.feed]: "97 300" } })).toEqual({ ok: true, value: 1 });
     const preview = await closePreview(owner, 2026, clock);
     if (!preview.ok) throw new Error(preview.error);
-    expect(preview.value.entries.slice(2)).toEqual([
+    expect(preview.value.entries.slice(2, 6)).toEqual([ // stock to provision (the accrued interest comes after: FQ16)
       {
         kind: "stock",
         action: "post",
@@ -109,10 +109,10 @@ describe("stocks at the close (SPEC-finance FC5, FQ20, T108)", () => {
     const entry = await db.journalEntry.findFirstOrThrow({ where: { sourceId: `close:stock:${entity}:2026` } });
     expect(entry).toMatchObject({ journal: "OD", label: "Stocks de fin d’exercice", sourceVersion: 1, createdBy: owner.userId });
     expect(await runClose(owner, { year: 2026 }, clock)).toEqual({ ok: true, value: 0 }); // the same facts
-    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { frozen: true, entries: [{}, {}, { action: "unchanged" }, { action: "none" }, { action: "none" }, { action: "unchanged" }] } });
+    expect(await closePreview(owner, 2026, clock)).toMatchObject({ ok: true, value: { frozen: true, entries: [{}, {}, { action: "unchanged" }, { action: "none" }, { action: "none" }, { action: "unchanged" }, { action: "none" }] } });
 
     // 2027 counts the January purchase, at its own average; the 2026 value isn't carried over.
-    expect(await closePreview(owner, 2027, clock)).toMatchObject({ ok: true, value: { entries: [{}, {}, { action: "post", lines: [{ account: "3121", debit: 15_840_000n }, {}] }, { action: "none" }, { action: "none" }, { action: "none" }] } });
+    expect(await closePreview(owner, 2027, clock)).toMatchObject({ ok: true, value: { entries: [{}, {}, { action: "post", lines: [{ account: "3121", debit: 15_840_000n }, {}] }, { action: "none" }, { action: "none" }, { action: "none" }, { action: "none" }] } });
   });
 
   it("freezes the current values with the count once the run has posted; the owner's only, audited, each organisation its own", async () => {

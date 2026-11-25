@@ -7,22 +7,22 @@ import { PROVISION_CHARGE, PROVISION_REVERSAL } from "@/modules/finance/domain/s
 /**
  * The run's kinds, in posting order: depreciation, the subsidy release (T106), bought stock (T108), the meat batches
  * in progress (T109, FC4), the laying hens and their pullets (T114, T115, FC6: their own entry, with their charge,
- * culls and provision) and the provisions for impairment of current assets (FC4, FC5: one entry for every
- * provision, FCX4).
+ * culls and provision), the provisions for impairment of current assets (FC4, FC5: one entry for every provision,
+ * FCX4) and the loans' accrued interest (FQ16).
  */
-export const CLOSE_KINDS = ["depreciation", "subsidy", "stock", "batch", "hens", "provision"] as const;
+export const CLOSE_KINDS = ["depreciation", "subsidy", "stock", "batch", "hens", "provision", "interest"] as const;
 export type CloseKind = (typeof CLOSE_KINDS)[number];
 
 /** FCX4: the entry's source id, `close:<kind>:<legal entity>:<year>` (the calendar year the fiscal year ends in). */
 export const closeSource = (kind: CloseKind, legalEntityId: string, year: number) => `close:${kind}:${legalEntityId}:${year}`;
 
 /**
- * FCX5: the kinds whose close entry is reversed on the next fiscal year's first day, with its à-nouveaux: stocks,
- * batches in progress and provisions (T108, T109). Depreciation and the subsidy release are never reversed, nor the
- * hens (FC6): 23962 builds up until the transfer to lay, and the simplified method reverses the previous year's value
- * in the next close run (p. 131).
+ * FCX5: the kinds whose close entry is reversed on the next fiscal year's first day, with its à-nouveaux: the accrued
+ * interest (FQ16: the installment then books its whole interest), stocks, batches in progress and provisions (T108,
+ * T109). Depreciation and the subsidy release are never reversed, nor the hens (FC6): 23962 builds up until the
+ * transfer to lay, and the simplified method reverses the previous year's value in the next close run (p. 131).
  */
-export const REVERSED_AT_OPENING: Record<CloseKind, boolean> = { depreciation: false, subsidy: false, stock: true, batch: true, hens: false, provision: true };
+export const REVERSED_AT_OPENING: Record<CloseKind, boolean> = { depreciation: false, subsidy: false, stock: true, batch: true, hens: false, provision: true, interest: true };
 
 /**
  * FCX5: a close entry's reversal at the next opening, sides swapped; a provision is taken back as a reversal of

@@ -223,7 +223,7 @@ Sources read: `docs/sources/plan-comptable-agricole-2015.pdf`, extracted with pd
 - **32-2015 of 13/02/2015, customer management, model declaration, form F-214.** https://www.cndp.ma/wp-content/uploads/2023/01/deliberation-n-32-2015-13-02-2015.pdf
   - Notified « au moyen d'une déclaration type ».
   - Transfers « préalablement notifié ».
-- **98-AU-2015 of 12/06/2015, supplier management, model authorisation, form F-113.** https://www.cndp.ma/wp-content/uploads/2023/01/deliberation-n-98-AU-2015-12-06-2015.pdf. The builder's agent read it; I did not open it.
+- **98-AU-2015 of 12/06/2015, supplier management, model authorisation, form F-113.** https://www.cndp.ma/wp-content/uploads/2023/01/deliberation-n-98-AU-2015-12-06-2015.pdf. Read in a delegated check; I did not open it.
 - **No model covers** the visitor log, the vet and technician contacts, the register keepers or a login log. These go through a normal declaration, **F-211**.
 
 **Forms** (CNDP, re-issued 10/09/2025)
@@ -465,7 +465,7 @@ Nothing to build. ONSSA or the vet confirming the checklist stays "to review", a
 
 ## Not verified in this study
 
-- Decree 2-09-165, read only through the footnotes of the consolidated law. Délibération 98-AU-2015 and forms F-214, F-112 and F-113 were read by a sub-agent or not opened. I spot-checked 236-2015, 298-AU-2014 and 32-2015 myself.
+- Decree 2-09-165, read only through the footnotes of the consolidated law. Délibération 98-AU-2015 and forms F-214, F-112 and F-113 were read in a delegated check or not opened. I spot-checked 236-2015, 298-AU-2014 and 32-2015 myself.
 - The CNDP-FORMS URL. The Asaar portal (unreachable).
 - Supabase and Vercel region identifiers (not read in their docs).
 - PCA page numbers p. 4 and front matter: the footers start later, so p. 4 is estimated. All other pages are read from the footer before the passage's page break.

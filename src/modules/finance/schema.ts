@@ -119,6 +119,7 @@ export const FixedAssetInput = z.object({
   residualCentimes: centimes.default("0"),
   lifeMonths,
   paidWith: z.enum(["cash", "transfer", "cheque", "credit"]).nullable(),
+  lastPaymentOn: z.iso.date().nullable().default(null), // FQ23: on credit, the last payment day (1486 beyond 12 months)
   treasuryId,
   opening: z.object({ on: z.iso.date(), accumulatedCentimes: centimes }).nullable().default(null),
 });
@@ -187,4 +188,5 @@ export const SubsidyInput = z.object({
   receivedOn: z.iso.date(),
   treasuryId: z.uuid(),
   assetIds: z.array(z.uuid()).max(50).refine((ids) => new Set(ids).size === ids.length),
+  inalienableYears: z.int32().min(1).max(99).nullable().default(null), // FQ17: its land's, by the contract; null: no clause
 });

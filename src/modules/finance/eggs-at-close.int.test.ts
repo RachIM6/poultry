@@ -148,7 +148,7 @@ describe("eggs at the close (SPEC-finance FC5, FQ18, T113)", () => {
 
     // A collection of the last day entered late: the books now hold 2 080 eggs on 31 December.
     expect(await statuses(owner, collect(ids.layers, "2025-12-31", 100))).toEqual(["applied"]);
-    expect(await closePreview(owner, 2025, clock)).toMatchObject({ ok: true, value: { entries: [{}, {}, { kind: "stock", action: "repost" }, {}, {}, {}] } });
+    expect(await closePreview(owner, 2025, clock)).toMatchObject({ ok: true, value: { entries: [{}, {}, { kind: "stock", action: "repost" }, {}, {}, {}, {}] } });
     expect(await runClose(owner, { year: 2025 }, clock)).toEqual({ ok: true, value: 2 });
     expect(await linesOf(`close:stock:${entity}:2025`)).toEqual([
       ["2025-12-31", "3152", 188_100n, 0n],

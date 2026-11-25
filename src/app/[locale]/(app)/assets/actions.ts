@@ -54,6 +54,7 @@ export async function createAssetAction(form: FormData): Promise<AssetState> {
         residualCentimes: residual,
         lifeMonths: months(form),
         paidWith: opening ? null : text(form, "paidWith"),
+        lastPaymentOn: !opening && text(form, "paidWith") === "credit" ? text(form, "lastPaymentOn") : null, // FQ23
         treasuryId: opening ? null : text(form, "treasuryId"),
         opening: opening ? { on: form.get("openingOn"), accumulatedCentimes: accumulated } : null,
       }),

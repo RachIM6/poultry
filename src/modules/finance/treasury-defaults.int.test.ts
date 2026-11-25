@@ -3,13 +3,15 @@ import { v7 as uuidv7 } from "uuid";
 import { beforeAll, describe, expect, it } from "vitest";
 import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
+import { fixedClock } from "@/lib/kernel/clock";
 import { addFarmDays, farmDayOf } from "@/lib/kernel/farm-day";
 import type { PushedMutation } from "@/lib/sync/protocol";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { cashForecast, postPending, setDefaultTreasuryAccount, treasuryOverview } from "@/modules/finance";
+import { listLegalEntities } from "@/modules/farm-registry";
+import { cashForecast, changeAccountingChoices, closeFiscalYear, postPending, runClose, setDefaultTreasuryAccount, treasuryOverview } from "@/modules/finance";
 import { AccountsFile } from "@/modules/finance/schema";
-import { twoTenants } from "@/test/tenant";
+import { tenant, twoTenants } from "@/test/tenant";
 
 // SPEC-finance §9 "Default cash box and bank account": the farm events paid in cash or at the bank name no account; they
 // go on the default cash box or bank account, so /treasury shows a balance per account and no "non affecté" line.
@@ -122,5 +124,40 @@ describe("default cash box and bank account (SPEC-finance §9)", () => {
     expect(await setDefaultTreasuryAccount(b, ids.bankA)).toEqual({ ok: false, error: "NOT_FOUND" }); // a's account
     expect(await setDefaultTreasuryAccount(a, "not-a-uuid")).toEqual({ ok: false, error: "NOT_FOUND" });
     expect(await setDefaultTreasuryAccount(a, uuidv7())).toEqual({ ok: false, error: "NOT_FOUND" });
+  });
+});
+
+// The à-nouveaux name no account and /treasury leaves them out (FN10): the defaults' lines keep their accounts in year 2.
+describe("default accounts across a year close (SPEC-finance §9, FN10, FCX5)", () => {
+  it("shows year 1's balances per account in year 2, with nothing unassigned", async () => {
+    const clock = fixedClock("2026-02-15T10:00:00Z");
+    const owner = await tenant("+212600000071");
+    const entity = (await listLegalEntities(owner))[0].id;
+    expect(await changeAccountingChoices(owner, entity, { books: "ledger", pcaOverlay: null, fiscalYearStartMonth: 1 }, fixedClock("2024-12-01T10:00:00Z"))).toMatchObject({ ok: true });
+    const [box, bank] = [uuidv7(), uuidv7()];
+    const expense = (day: string, paidFrom: string, amountCentimes: string) => m("finance.recordExpense", { id: uuidv7(), day, category: "electricity", amountCentimes, paidFrom, treasuryId: null, note: null });
+    expect(
+      await statuses(
+        owner,
+        m("finance.createTreasuryAccount", { id: box, kind: "cash", name: "Caisse" }),
+        m("finance.createTreasuryAccount", { id: bank, kind: "bank", name: "Banque" }),
+        expense("2025-03-10", "cash", "120000"), // no cash box named: the default
+        expense("2025-03-11", "bank", "30000"), // no bank account named: the default
+        m("finance.recordTransfer", { id: uuidv7(), day: "2025-04-01", amountCentimes: "50000", fromId: box, toId: bank }),
+      ),
+    ).toEqual(Array(5).fill("applied"));
+    const balances = async (month: string) => {
+      const o = await treasuryOverview(owner, month);
+      if (!o.ok) throw new Error(o.error);
+      return { accounts: o.value.accounts.map((x) => [x.name, x.balanceCentimes]), unassigned: o.value.unassignedCentimes };
+    };
+    const year1 = await balances("2025-12");
+    expect(year1).toEqual({ accounts: [["Banque", 20_000n], ["Caisse", -170_000n]], unassigned: 0n });
+
+    expect(await runClose(owner, { year: 2025 }, clock)).toMatchObject({ ok: true });
+    expect(await closeFiscalYear(owner, { year: 2025 }, clock)).toMatchObject({ ok: true });
+    const opening = await db.journalLine.findMany({ where: { organizationId: owner.organizationId, account: { in: ["5141", "5161"] }, entry: { sourceId: { startsWith: "opening:" } } }, orderBy: { account: "asc" } });
+    expect(opening.map((l) => [l.account, l.debitCentimes, l.creditCentimes, l.treasuryId])).toEqual([["5141", 20_000n, 0n, null], ["5161", 0n, 170_000n, null]]); // carried forward on no account
+    expect(await balances("2026-01")).toEqual(year1);
   });
 });

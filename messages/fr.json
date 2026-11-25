@@ -1353,6 +1353,8 @@
     "receiptOf": "Voir le reçu : {expense}",
     "receiptMissing": "Reçu à ajouter (après envoi, avec du réseau)",
     "receiptAdd": "Ajouter le reçu",
+    "colAmount": "Montant",
+    "colReceipt": "Reçu",
     "bankFeesAccount": "Les frais bancaires se paient depuis un compte bancaire : ajoutez-le d’abord.",
     "correct": "Corriger",
     "correctOf": "Corriger la dépense : {expense}",

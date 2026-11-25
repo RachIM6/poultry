@@ -1353,6 +1353,8 @@
     "receiptOf": "عرض الوصل: {expense}",
     "receiptMissing": "الوصل ينتظر الإضافة (بعد الإرسال، مع الشبكة)",
     "receiptAdd": "إضافة الوصل",
+    "colAmount": "المبلغ",
+    "colReceipt": "الوصل",
     "bankFeesAccount": "تؤدى المصاريف البنكية من حساب بنكي: أضفه أولًا.",
     "correct": "تصحيح",
     "correctOf": "تصحيح المصروف: {expense}",

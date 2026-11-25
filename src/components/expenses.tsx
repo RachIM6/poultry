@@ -16,6 +16,8 @@ import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { FileUpload, useOnline } from "@/components/local-screen";
 import { useFieldError, useInline } from "@/components/focus";
+import { fields2, rowTable, splitAside, splitNarrow } from "@/components/layout";
+import { cardRow, tightHead } from "@/components/layout-tight";
 import { card, danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
@@ -99,69 +101,91 @@ function Expenses(scope: Scope) {
   return (
     <>
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
-      <ExpenseForm key={prefill.toString()} prefill={prefill} accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
+      {/* Wide screens: the recent expenses as a table, the form beside it and in view (first on the phone, as it was).
+          A 360 px form, not half the page: the table's five columns need the room. */}
+      <div className={splitNarrow}>
+        <div className={`lg:order-last ${splitAside}`}>
+          <ExpenseForm key={prefill.toString()} prefill={prefill} accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
+        </div>
+        <div className="flex flex-col gap-5">
+          <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.recent")}</h2>
+          {uploadError && <p role="alert" className={danger}>{t(uploadError)}</p>}
+          {recent.length === 0 ? (
+            <p>{t("Expenses.none")}</p>
+          ) : (
+            <ul className={`${rowTable} lg:grid-cols-[auto_minmax(0,1.4fr)_auto_minmax(0,1fr)_auto]`} aria-label={t("Expenses.recent")}>
+              <li aria-hidden="true" className={tightHead}>
+                <span>{t("Expenses.day")}</span>
+                <span>{t("Expenses.category")}</span>
+                <span className="text-end">{t("Expenses.colAmount")}</span>
+                <span>{t("Expenses.colReceipt")}</span>
+              </li>
+              {recent.map((e) => (
+                <li key={e.id} className={`flex flex-col gap-2 rounded-2xl border border-line bg-card p-3 ${cardRow}`}>
+                  {/* The phone's line, read whole by screen readers; its parts in columns from lg. */}
+                  <span className="lg:sr-only">{line(e)}</span>
+                  <span aria-hidden="true" className="hidden whitespace-nowrap lg:block">{formatDay(e.day as FarmDay, locale)}</span>
+                  <span aria-hidden="true" className="hidden lg:block">{t(`Expenses.categories.${e.category}`)}</span>
+                  <span aria-hidden="true" className="hidden text-end tabular-nums whitespace-nowrap lg:block"><bdi dir="ltr">{formatMoney(BigInt(e.amountCentimes))}</bdi></span>
+                  {correcting === e.id ? (
+                    <div className="lg:order-1 lg:col-span-full">
+                      <ExpenseForm
+                        prefill={fieldsOf(e)}
+                        accounts={accounts}
+                        batches={batches}
+                        editing={{ id: e.id, title: t("Expenses.correcting", { expense: line(e) }), onCancel: stopCorrecting }}
+                        onSave={async (x) => {
+                          const saved = await write({ type: F.correctExpense, payload: x }, "expense", x, { ...e, ...x }); // the receipt stays
+                          if (saved) stopCorrecting();
+                          return saved;
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <span className="flex flex-wrap gap-2 lg:order-1 lg:justify-end">
+                      <button type="button" {...corrector(e.id)} aria-label={t("Expenses.correctOf", { expense: line(e) })} className={`${secondary} text-sm`}>{t("Expenses.correct")}</button>
+                      <button
+                        type="button"
+                        onClick={() => confirm(t("Expenses.voidConfirm", { expense: line(e) })) && write({ type: F.cancelExpense, payload: { expenseId: e.id } }, "expense", e, null)}
+                        aria-label={t("Expenses.voidOf", { expense: line(e) })}
+                        className={`${secondary} text-sm`}
+                      >
+                        {t("Expenses.void")}
+                      </button>
+                    </span>
+                  )}
+                  {/* FN10: the receipt photo goes up once the expense is on the server and the phone is online (ADR-011).
+                      Below the buttons on the phone, before them from lg. */}
+                  <div className="contents lg:block">
+                    {e.receiptFileId ? (
+                      <a href={`/api/files/${e.receiptFileId}`} aria-label={t("Expenses.receiptOf", { expense: line(e) })} className="underline underline-offset-4">{t("Expenses.receipt")}</a>
+                    ) : unsent.has(`expense:${e.id}`) || !online ? (
+                      <span className="text-sm text-ink-2">{t("Expenses.receiptMissing")}</span>
+                    ) : (
+                      <FileUpload url={`/api/files?purpose=receipt&expense=${e.id}`} accept="image/jpeg,image/png,image/webp,application/pdf" camera label={t("Expenses.receiptAdd")} onError={setUploadError} />
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
 
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.recent")}</h2>
-      {uploadError && <p role="alert" className={danger}>{t(uploadError)}</p>}
-      {recent.length === 0 ? (
-        <p>{t("Expenses.none")}</p>
-      ) : (
-        <ul className="flex flex-col gap-2" aria-label={t("Expenses.recent")}>
-          {recent.map((e) => (
-            <li key={e.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
-              <span>{line(e)}</span>
-              {correcting === e.id ? (
-                <ExpenseForm
-                  prefill={fieldsOf(e)}
-                  accounts={accounts}
-                  batches={batches}
-                  editing={{ id: e.id, title: t("Expenses.correcting", { expense: line(e) }), onCancel: stopCorrecting }}
-                  onSave={async (x) => {
-                    const saved = await write({ type: F.correctExpense, payload: x }, "expense", x, { ...e, ...x }); // the receipt stays
-                    if (saved) stopCorrecting();
-                    return saved;
-                  }}
-                />
-              ) : (
-                <span className="flex flex-wrap gap-2">
-                  <button type="button" {...corrector(e.id)} aria-label={t("Expenses.correctOf", { expense: line(e) })} className={`${secondary} text-sm`}>{t("Expenses.correct")}</button>
-                  <button
-                    type="button"
-                    onClick={() => confirm(t("Expenses.voidConfirm", { expense: line(e) })) && write({ type: F.cancelExpense, payload: { expenseId: e.id } }, "expense", e, null)}
-                    aria-label={t("Expenses.voidOf", { expense: line(e) })}
-                    className={`${secondary} text-sm`}
-                  >
-                    {t("Expenses.void")}
-                  </button>
-                </span>
-              )}
-              {/* FN10: the receipt photo goes up once the expense is on the server and the phone is online (ADR-011) */}
-              {e.receiptFileId ? (
-                <a href={`/api/files/${e.receiptFileId}`} aria-label={t("Expenses.receiptOf", { expense: line(e) })} className="underline underline-offset-4">{t("Expenses.receipt")}</a>
-              ) : unsent.has(`expense:${e.id}`) || !online ? (
-                <span className="text-sm text-ink-2">{t("Expenses.receiptMissing")}</span>
-              ) : (
-                <FileUpload url={`/api/files?purpose=receipt&expense=${e.id}`} accept="image/jpeg,image/png,image/webp,application/pdf" camera label={t("Expenses.receiptAdd")} onError={setUploadError} />
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.accounts")}</h2>
-      <ul className="flex flex-col gap-1">
-        {accounts.map((a) => <li key={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</li>)}
-      </ul>
-      {adding ? (
-        <AccountForm
-          onSave={async (a) => {
-            if (await write({ type: F.createTreasuryAccount, payload: a }, "treasuryAccount", a)) close();
-          }}
-          onCancel={close}
-        />
-      ) : (
-        <button type="button" {...opener("account")} className={secondary}>{t("Expenses.addAccount")}</button>
-      )}
+          <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.accounts")}</h2>
+          <ul className="flex flex-col gap-1">
+            {accounts.map((a) => <li key={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</li>)}
+          </ul>
+          {adding ? (
+            <AccountForm
+              onSave={async (a) => {
+                if (await write({ type: F.createTreasuryAccount, payload: a }, "treasuryAccount", a)) close();
+              }}
+              onCancel={close}
+            />
+          ) : (
+            <button type="button" {...opener("account")} className={`${secondary} lg:self-start`}>{t("Expenses.addAccount")}</button>
+          )}
+        </div>
+      </div>
     </>
   );
 }
@@ -235,7 +259,7 @@ function ExpenseForm({
   };
 
   return (
-    <form key={key} onSubmit={submit} aria-label={editing?.title} className={card}>
+    <form key={key} onSubmit={submit} aria-label={editing?.title} className={`${card} ${editing ? fields2 : ""}`}>
       <Field label={t("Expenses.category")}>
         {(id) => (
           <select id={id} name="category" defaultValue={pre("category")} onChange={(e) => setBank(bankOnly(e.target.value))} className={field}>
@@ -267,14 +291,14 @@ function ExpenseForm({
       <Field label={t("Expenses.month")}>{(id) => <input id={id} name="month" type="month" defaultValue={pre("month") ?? (pre("day") ?? today()).slice(0, 7)} max={today().slice(0, 7)} className={field} />}</Field>
       <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={pre("day") ?? today()} max={today()} required {...bad("day")} className={field} />}</Field>
       <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" defaultValue={pre("note")} maxLength={200} className={field} />}</Field>
-      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+      {error && <p id={errorId} role="alert" className={`${danger} lg:col-span-full`}>{t(error)}</p>}
       {editing ? (
-        <div className="flex gap-3">
+        <div className="flex gap-3 lg:col-span-full">
           <button type="submit" className={primary}>{t("Expenses.saveCorrection")}</button>
           <button type="button" onClick={editing.onCancel} className={secondary}>{t("Expenses.keep")}</button>
         </div>
       ) : (
-        <button type="submit" className={primary}>{t("Expenses.save")}</button>
+        <button type="submit" className={`${primary} lg:col-span-full`}>{t("Expenses.save")}</button>
       )}
     </form>
   );

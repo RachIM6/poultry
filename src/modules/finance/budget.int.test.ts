@@ -1,11 +1,14 @@
+import { readFileSync } from "node:fs";
 import { v7 as uuidv7 } from "uuid";
 import { beforeAll, describe, expect, it } from "vitest";
 import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
+import { fixedClock } from "@/lib/kernel/clock";
 import { push } from "@/lib/sync/server";
 import type { TenantContext } from "@/lib/tenant";
-import { budgetBases, budgetCash, budgetOf, listBudgets, saveBudget } from "@/modules/finance";
-import { twoTenants } from "@/test/tenant";
+import { budgetBases, budgetCash, budgetOf, budgetPaymentDelays, listBudgets, payPlacement, postPending, saveBudget } from "@/modules/finance";
+import { AccountsFile } from "@/modules/finance/schema";
+import { tenant, twoTenants } from "@/test/tenant";
 
 const m = <P,>(type: string, payload: P) => ({ id: uuidv7(), type, payload, createdAt: "2026-11-05T08:00:00+01:00" });
 
@@ -109,5 +112,76 @@ describe("budget from a closed batch (SPEC-finance FN15, T35)", () => {
     expect(await saveBudget(b, form)).toEqual({ ok: false, error: "ALREADY_EXISTS" }); // another organisation's id
     expect(await saveBudget(b, { ...form, id: uuidv7() })).toEqual({ ok: false, error: "INVALID_INPUT" }); // a's batch
     expect(await saveBudget(a, { ...form, id: uuidv7(), basedOn: uuidv7() })).toEqual({ ok: false, error: "INVALID_INPUT" }); // no such batch
+  });
+});
+
+describe("a budget's supplier payment delays, from the farm's own purchases (SPEC-finance FN15, §9 \"Budget cash need\")", () => {
+  let c: TenantContext;
+  const ids = { farm: uuidv7(), supplier: uuidv7(), feed: uuidv7(), grower: uuidv7(), vaccine: uuidv7(), box: uuidv7(), late: uuidv7(), soon: uuidv7(), owed: uuidv7(), delivered: uuidv7() };
+
+  beforeAll(async () => {
+    const { accounts } = AccountsFile.parse(JSON.parse(readFileSync("prisma/seed/finance/accounts.json", "utf8")));
+    await db.ledgerAccount.createMany({ data: accounts.map((x) => ({ chart: x.chart, number: x.number, label: x.label, parentNumber: x.parent, fallback: x.fallback })) });
+    c = await tenant("+212600000003", "Ferme C");
+    const purchase = (stockItemId: string, day: string, paidCentimes: string, dueOn: string | null, quantity = 1_000_000) =>
+      m("inventory.recordPurchase", { id: uuidv7(), movementId: uuidv7(), supplierId: ids.supplier, stockItemId, day, quantity, unitPriceCentimes: "460", paidCentimes, dueOn });
+    const houses = [ids.late, ids.soon, ids.owed, ids.delivered].map((id) => ({ batch: id, house: uuidv7() }));
+    const place = (i: number, placedOn: string, paidOnDelivery: object | null = null) =>
+      m("flock.placeBatch", { id: houses[i].batch, houseId: houses[i].house, strainId: "ross-308", placedOn, chicksPlaced: 1000, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: "550", dayOldWeightGrams: null, paidOnDelivery });
+    const pushed = await push(
+      c,
+      [
+        m("farm-registry.createFarm", { id: ids.farm, name: "F", region: "R", province: "P", commune: "C", gps: null, onssa: null }),
+        ...houses.map((h, i) => m("farm-registry.createHouse", { id: h.house, farmId: ids.farm, name: `B${i + 1}`, areaM2: 1000, capacity: 10000, type: "closed" })),
+        m("finance.createTreasuryAccount", { id: ids.box, kind: "cash", name: "Caisse" }),
+        m("inventory.createSupplier", { id: ids.supplier, name: "Alf", phone: null }),
+        m("inventory.createStockItem", { id: ids.feed, farmId: ids.farm, productId: null, kind: "feed", name: "Démarrage", unit: "kg", lot: null, expiresOn: null }),
+        m("inventory.createStockItem", { id: ids.grower, farmId: ids.farm, productId: null, kind: "feed", name: "Croissance", unit: "kg", lot: null, expiresOn: null }),
+        m("inventory.createStockItem", { id: ids.vaccine, farmId: ids.farm, productId: null, kind: "vaccine", name: "HB1", unit: "dose", lot: "L1", expiresOn: "2027-01-01" }),
+        purchase(ids.feed, "2026-03-01", "0", "2026-03-31"), // on credit, due in 30 days
+        purchase(ids.grower, "2026-03-10", "100000", "2026-04-24"), // partly paid, the rest due in 45 days
+        purchase(ids.vaccine, "2026-03-12", "0", "2026-06-10", 100), // not feed: left out
+        purchase(ids.feed, "2026-03-20", "460000", null),
+        purchase(ids.feed, "2026-03-25", "0", null),
+        place(0, "2026-03-01"), // paid off in two payments, the last 40 days after
+        place(1, "2026-03-05"), // paid off 21 days after
+        place(2, "2026-03-06"), // still owed: left out
+        place(3, "2026-03-07", { cashAccountId: ids.box, amountCentimes: "550000" }), // paid at delivery: 0
+      ],
+      registry,
+    );
+    expect(pushed.results.filter((r) => r.status !== "applied")).toEqual([]);
+    await postPending(c);
+    const clock = fixedClock("2026-06-15T10:00:00Z");
+    const pay = (batchId: string, day: string, amountCentimes: string) => payPlacement(c, { id: uuidv7(), batchId, day, amountCentimes, paidWith: "cash", treasuryId: null }, clock);
+    for (const r of [pay(ids.late, "2026-03-15", "200000"), pay(ids.late, "2026-04-10", "350000"), pay(ids.soon, "2026-03-26", "550000"), pay(ids.owed, "2026-03-20", "549999")]) expect(await r).toEqual({ ok: true, value: undefined });
+  });
+
+  it("derives each input's delay as the median of its last purchases", async () => {
+    // feed: 30, 45, 0, 0 → 15; chicks: 40, 21, 0 → 21 (the one still owed a centime is left out)
+    expect(await budgetPaymentDelays(c)).toEqual({ ok: true, value: { chicks: 21, feed: 15 } });
+    expect(await budgetPaymentDelays({ ...c, role: "worker" })).toEqual({ ok: false, error: "FORBIDDEN" });
+  });
+
+  it("is 0 with no history: paid on the day, as before", async () => {
+    expect(await budgetPaymentDelays(await tenant("+212600000004", "Ferme D"))).toEqual({ ok: true, value: { chicks: 0, feed: 0 } });
+  });
+
+  it("keeps the delays typed with a budget, and none when left to the farm's own", async () => {
+    const form = { name: "Avec délais", basedOn: null, chicks: "1000", chickPriceCentimes: "550", feedGrams: "3000000", feedPricePerKgCentimes: "460", otherCostCentimes: "0", plannedGrams: "2000000", salePricePerKgCentimes: "1400", saleDay: "41" };
+    const typed = { ...form, id: uuidv7(), chickPaymentDays: "14", feedPaymentDays: " 30 " };
+    const own = { ...form, id: uuidv7(), name: "Délais de la ferme" };
+    expect(await saveBudget(c, { ...typed, id: uuidv7(), feedPaymentDays: "-1" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await saveBudget(c, { ...typed, id: uuidv7(), chickPaymentDays: "1000" })).toEqual({ ok: false, error: "INVALID_INPUT" });
+    expect(await saveBudget(c, typed)).toEqual({ ok: true, value: typed.id });
+    expect(await saveBudget(c, own)).toEqual({ ok: true, value: own.id });
+    const saved = await listBudgets(c);
+    if (!saved.ok) throw new Error(saved.error);
+    expect(saved.value.map((s) => [s.name, s.delays])).toEqual([["Délais de la ferme", { chicks: null, feed: null }], ["Avec délais", { chicks: 14, feed: 30 }]]);
+    expect((await db.auditEvent.findFirst({ where: { entityId: typed.id } }))?.after).toMatchObject({ chickPaymentDays: 14, feedPaymentDays: 30 });
+    // the typed delays move the cash need: 5 500,00 of chicks in week 3, the feed from week 5 (§9)
+    const s = saved.value.find((x) => x.id === typed.id)!;
+    const cash = budgetCash(s.inputs, { lastDay: 41, feed: [[0, 1n]], other: [[0, 1n]], sales: [[41, 1n]] }, { chicks: s.delays.chicks!, feed: s.delays.feed! });
+    expect(cash.weeks.map((w) => w.outCentimes)).toEqual([0n, 0n, 550_000n, 0n, 1_380_000n, 0n]);
   });
 });

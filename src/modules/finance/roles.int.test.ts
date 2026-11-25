@@ -74,6 +74,7 @@ const ROWS: Row[] = [
   { name: "batchResults", gate: "read", kind: "read", run: (c) => finance.batchResults(c) },
   { name: "batchResultDtos", gate: "read", kind: "read", run: (c) => finance.batchResultDtos(c) },
   { name: "budgetBases", gate: "read", kind: "read", run: (c) => finance.budgetBases(c) },
+  { name: "budgetPaymentDelays", gate: "read", kind: "read", run: (c) => finance.budgetPaymentDelays(c) },
   { name: "budgetBatches", gate: "read", kind: "read", run: (c) => finance.budgetBatches(c) },
   { name: "listBudgets", gate: "read", kind: "read", run: (c) => finance.listBudgets(c) },
   { name: "readBooks", gate: "read", kind: "read", run: (c) => finance.readBooks(c, "2026-01") },

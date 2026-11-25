@@ -13,9 +13,10 @@ export { associateAccount, recordAssociateMovement, type AssociateMovementError 
 export { addBankStatement, bankReconciliation, matchBankLine, type BankReconciliation } from "./application/bank";
 export { IMPORT_MAX_BYTES, importBankFile, type BankImport, type ImportFailure } from "./application/bank-import";
 export { batchResultDtos, batchResults, type BatchResultRow } from "./application/batch-results";
-export { budgetBases, budgetBatches, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
+export { budgetBases, budgetBatches, budgetPaymentDelays, listBudgets, saveBudget, type BudgetBase, type SavedBudget } from "./application/budget";
 export { breakEvenPrice, budgetOf, type Budget, type BudgetInputs } from "./domain/budget";
 export { budgetCash, plainTiming, type BudgetCash, type CashTiming, type CashWeek } from "./domain/budget-cash";
+export type { PaymentDelays } from "./domain/payment-delay";
 export { readBooks, type Books } from "./application/books";
 export { attachManualEntryReceipt, postManualEntry, type ManualEntryError } from "./application/manual";
 export type { IncomeStatement } from "./domain/statements";

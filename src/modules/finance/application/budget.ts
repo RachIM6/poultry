@@ -9,10 +9,11 @@ import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
 import { batchesForFinance, batchFacts, type BatchMoneyFacts } from "@/modules/flock";
 import { chicksCost } from "@/modules/flock/shared";
-import { batchConsumptions, type BatchConsumption } from "@/modules/inventory";
+import { batchConsumptions, lastPurchaseTerms, type BatchConsumption } from "@/modules/inventory";
 import { batchResults, type BatchResultRow } from "@/modules/finance/application/batch-results";
 import type { BudgetInputs } from "@/modules/finance/domain/budget";
 import type { CashTiming } from "@/modules/finance/domain/budget-cash";
+import { medianDays, type PaymentDelays } from "@/modules/finance/domain/payment-delay";
 
 /** FN15: a closed batch as a budget's starting point: its figures as what-if inputs, and when its money moved. */
 export type BudgetBase = { batchId: string; label: string; inputs: BudgetInputs; timing: CashTiming };
@@ -80,6 +81,40 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
   return ok(bases);
 }
 
+const HISTORY = 10; // §9 "Budget cash need": the last purchases of an input its delay is the median of
+
+/**
+ * FN15, §9 "Budget cash need": the farm's own supplier delays, never a supplier's terms it didn't record. Feed: the
+ * median days from purchase to the due day typed with it, over its last purchases (paid at once, or no due day: 0).
+ * Chicks: from placement to the day its payments covered it (paid at delivery: 0), over its last placements paid off;
+ * one still owed is left out. No history: 0, paid on the day.
+ */
+export async function budgetPaymentDelays(ctx: TenantContext): Promise<Result<PaymentDelays, "FORBIDDEN">> {
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN");
+  const [feed, batches, payments] = await Promise.all([
+    lastPurchaseTerms(ctx, "feed", HISTORY),
+    batchesForFinance(db, ctx),
+    // §9 "Placement debts": source `placement:<batch>:pay:<payment>`, the delivery's `…:pay:delivery`
+    db.journalEntry.findMany({ where: { organizationId: ctx.organizationId, sourceModule: "finance", sourceId: { startsWith: "placement:" } }, select: { day: true, sourceId: true, lines: { select: { debitCentimes: true } } } }),
+  ]);
+  const late = (from: string, to: string) => Math.max(0, daysBetween(from as FarmDay, to as FarmDay));
+  const paidOf = Map.groupBy(payments, (e) => e.sourceId!.split(":")[1]);
+  const placements = batches
+    .filter((b) => b.fromBatchId === null && b.chicksCentimes > 0n) // a transferred layer batch bought nothing
+    .flatMap((b) => {
+      const paid = (paidOf.get(b.id) ?? [])
+        // posted on a later open month when the placement's was locked: the delivery's payment is still day 0
+        .map((e) => ({ day: e.sourceId!.endsWith(":delivery") ? b.placedOn : e.day.toISOString().slice(0, 10), amount: e.lines.reduce((s, l) => s + l.debitCentimes, 0n) }))
+        .sort((x, y) => x.day.localeCompare(y.day));
+      let run = 0n;
+      const off = paid.find((p) => (run += p.amount) >= b.chicksCentimes);
+      return off ? [{ placedOn: b.placedOn, days: late(b.placedOn, off.day) }] : [];
+    })
+    .sort((x, y) => y.placedOn.localeCompare(x.placedOn))
+    .slice(0, HISTORY);
+  return ok({ chicks: medianDays(placements.map((p) => p.days)), feed: medianDays(feed.map((p) => (p.dueOn ? late(p.day, p.dueOn) : 0))) });
+}
+
 /** FN17, SPEC-finance §9 FQ32: the open batches a budget can plan, for the form. */
 export async function budgetBatches(ctx: TenantContext): Promise<Result<{ batchId: string; label: string }[], "FORBIDDEN">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN");
@@ -88,6 +123,7 @@ export async function budgetBatches(ctx: TenantContext): Promise<Result<{ batchI
 }
 
 const amount = z.string().regex(/^\d{1,15}$/).transform(BigInt);
+const days = z.string().trim().regex(/^\d{1,3}$/).transform(Number).nullable().default(null); // 0–999
 export const SaveBudget = z.object({
   id: z.uuid(), // SPEC §7: made by the form, so a double submit saves once
   name: z.string().trim().min(1).max(80),
@@ -100,10 +136,21 @@ export const SaveBudget = z.object({
   otherCostCentimes: amount,
   plannedGrams: amount,
   salePricePerKgCentimes: amount,
-  saleDay: z.string().trim().regex(/^\d{1,3}$/).transform(Number).nullable().default(null), // §9 "Budget cash need": kept without a base only
+  saleDay: days, // §9 "Budget cash need": kept without a base only
+  chickPaymentDays: days, // §9 "Budget cash need": the supplier delays typed; null: the farm's own when shown
+  feedPaymentDays: days,
 });
 
-export type SavedBudget = { id: string; name: string; basedOn: string | null; batchId: string | null; saleDay: number | null; inputs: BudgetInputs; createdAt: string };
+export type SavedBudget = {
+  id: string;
+  name: string;
+  basedOn: string | null;
+  batchId: string | null;
+  saleDay: number | null;
+  delays: { chicks: number | null; feed: number | null }; // §9 "Budget cash need": null, the farm's own when shown
+  inputs: BudgetInputs;
+  createdAt: string;
+};
 
 /**
  * FN15: saves a planned batch's budget (owner, manager), audited. `basedOn` must be a batch of the organisation,
@@ -123,7 +170,7 @@ export async function saveBudget(ctx: TenantContext, input: unknown): Promise<Re
       if (rest.batchId && (await batchFacts(tx, ctx, rest.batchId))?.status !== "open") return fail("INVALID_INPUT");
       const kept = rest.basedOn ? null : saleDay; // a copied budget takes its base batch's timing
       await tx.budget.create({ data: { id, organizationId: ctx.organizationId, ...rest, saleDay: kept, chicks: Number(chicks), createdBy: ctx.userId } });
-      await audit(tx, ctx, { entity: "Budget", entityId: id, action: "create", after: { name: rest.name, basedOn: rest.basedOn, batchId: rest.batchId, saleDay: kept } }); // a web action, not a sync mutation: no mutation id
+      await audit(tx, ctx, { entity: "Budget", entityId: id, action: "create", after: { name: rest.name, basedOn: rest.basedOn, batchId: rest.batchId, saleDay: kept, chickPaymentDays: rest.chickPaymentDays, feedPaymentDays: rest.feedPaymentDays } }); // a web action, not a sync mutation: no mutation id
       return ok(id);
     })
     .catch(async (err) => {
@@ -143,6 +190,7 @@ export async function listBudgets(ctx: TenantContext): Promise<Result<SavedBudge
       basedOn: b.basedOn,
       batchId: b.batchId,
       saleDay: b.saleDay,
+      delays: { chicks: b.chickPaymentDays, feed: b.feedPaymentDays },
       createdAt: b.createdAt.toISOString(),
       inputs: {
         chicks: BigInt(b.chicks),

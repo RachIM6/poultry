@@ -2562,7 +2562,7 @@
     "vetContractValue": "{title}، من {from} إلى {to}",
     "technician": "التقني المؤطر: الاسم والهاتف",
     "cumulative": "النفوق التراكمي",
-    "feedOf": "العلف {name} (كلغ)",
+    "feedOf": "{name} (كلغ)",
     "eggs": "البيض الموضوع",
     "observations": "الملاحظات والتدخلات",
     "treatmentOf": "علاج: {name}",

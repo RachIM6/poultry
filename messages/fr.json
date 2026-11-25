@@ -2562,7 +2562,7 @@
     "vetContractValue": "{title}, du {from} au {to}",
     "technician": "Technicien d’encadrement : nom et téléphone",
     "cumulative": "Mortalité cumulée",
-    "feedOf": "Aliment {name} (kg)",
+    "feedOf": "{name} (kg)",
     "eggs": "Œufs pondus",
     "observations": "Observations et interventions",
     "treatmentOf": "Traitement : {name}",

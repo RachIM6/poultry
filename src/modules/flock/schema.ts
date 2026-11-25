@@ -61,6 +61,9 @@ export const TransferToLaying = z.object({ batchId: z.uuid(), day: z.iso.date(),
 /** B6: by hand, with a reason (the last sale closes it by itself). */
 export const CloseBatch = z.object({ batchId: z.uuid(), day: z.iso.date(), reason: text(200) });
 
+/** B6 "Reopening": the owner opens a closed batch again, with a reason. */
+export const ReopenBatch = z.object({ batchId: z.uuid(), reason: text(200) });
+
 /** B6: another cost of the batch, refused since SPEC-finance FN13 (an old phone may still send one). */
 export const RecordBatchCost = z.object({ id: z.uuid(), batchId: z.uuid(), day: z.iso.date(), label: text(120), amountCentimes: z.string().regex(/^\d{1,15}$/) });
 

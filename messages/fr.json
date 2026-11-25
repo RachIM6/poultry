@@ -202,6 +202,7 @@
         "closeBatch": "Clôture d’un lot",
         "transferToLaying": "Transfert en ponte",
         "correctPlacement": "Correction de la mise en place d’un lot",
+        "reopenBatch": "Réouverture d’un lot",
         "recordBatchCost": "Charge d’un lot"
       },
       "eggs": {
@@ -705,6 +706,10 @@
     "STEP_ALREADY_DONE": "Cette étape est déjà notée.",
     "DISINFECTANT_REQUIRED": "Indiquez le produit désinfectant.",
     "BATCH_NOT_CLOSED": "La bande de ce bâtiment n’est pas encore clôturée.",
+    "BATCH_TRANSFERRED": "Cette bande est passée en ponte : ses poules continuent dans la bande de ponte, elle ne peut pas être rouverte.",
+    "CLEANOUT_STARTED": "Le nettoyage du bâtiment a commencé depuis la clôture de cette bande : elle ne peut plus être rouverte.",
+    "HOUSE_HAS_NEWER_BATCH": "Ce bâtiment a reçu une bande après la clôture de celle-ci : elle ne peut plus être rouverte.",
+    "YEAR_CLOSED": "Cette bande a été clôturée dans un exercice clôturé : ses comptes ne peuvent plus changer.",
     "CLEANOUT_ALREADY_STARTED": "Le nettoyage après cette bande est déjà commencé.",
     "FILE_TOO_LARGE": "Fichier trop lourd : 4 Mo au maximum.",
     "FILE_TYPE_NOT_ALLOWED": "Type de fichier refusé : PDF, JPEG, PNG ou WebP seulement.",
@@ -1087,11 +1092,15 @@
     "addCost": "Ajouter une charge dans Dépense rapide",
     "day": "Date",
     "close": "Clôturer la bande",
-    "warning": "Une bande clôturée ne peut plus être modifiée. Les ventes la clôturent d’elles-mêmes quand tous les oiseaux sont vendus.",
+    "warning": "Une bande clôturée ne peut plus être modifiée, sauf si le propriétaire la rouvre. Les ventes la clôturent d’elles-mêmes quand tous les oiseaux sont vendus.",
     "reason": "Motif de la clôture",
     "confirm": "Clôturer",
     "cancel": "Annuler",
-    "transferred": "Passée en ponte"
+    "transferred": "Passée en ponte",
+    "reopen": "Rouvrir la bande",
+    "reopenWarning": "La bande redevient en cours : vous pourrez corriger ses ventes, ses saisies et ses charges, puis la clôturer de nouveau. Ses résultats seront recalculés.",
+    "reopenReason": "Motif de la réouverture",
+    "reopenConfirm": "Rouvrir"
   },
   "Expenses": {
     "title": "Dépense rapide",

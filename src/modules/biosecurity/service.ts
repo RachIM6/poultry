@@ -21,6 +21,7 @@ import {
   checkDisposal,
   checkManure,
   checkStep,
+  cleanedOutSince,
   type CleanoutDto,
   type CleanoutStepDto,
   type CleanoutStepKey,
@@ -297,4 +298,16 @@ export async function attachRodentProof(ctx: TenantContext, checkId: string, fil
     return ok(undefined);
   };
   return inTx ? attach(inTx) : db.$transaction(attach); // inTx: the upload's own transaction
+}
+
+/**
+ * SPEC B6 "Reopening", chained in the app's sync registry before flock reopens a batch (flock can't read biosecurity):
+ * refused once its house was cleaned out since it closed (BS4). Reads only.
+ */
+export async function checkReopenCleanout(tx: Tx, ctx: TenantContext, batchId: string): Promise<Result<void, "CLEANOUT_STARTED">> {
+  const batch = await batchFacts(tx, ctx, batchId);
+  if (!batch?.closedOn) return ok(undefined); // not found or not closed: flock refuses it
+  const cleanouts = await tx.cleanout.findMany({ where: { organizationId: ctx.organizationId, houseId: batch.houseId }, select: { houseId: true, afterBatchId: true, startedOn: true } });
+  const shown = cleanouts.map((c) => ({ ...c, startedOn: c.startedOn.toISOString().slice(0, 10) }));
+  return cleanedOutSince(shown, { id: batchId, houseId: batch.houseId, closedOn: batch.closedOn }) ? fail("CLEANOUT_STARTED") : ok(undefined);
 }

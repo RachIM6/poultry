@@ -7,7 +7,7 @@ import { consume, reset } from "@/lib/security/rate-limit";
 import { checkPassword, maskIdentifier, parseEmail, parseIdentifier, type Identifier } from "@/modules/identity/domain/identifier";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
 import { clientOf } from "@/modules/identity/application/login";
-import { claimInvitation, saveResetCode } from "@/modules/identity/application/members";
+import { claimInvitation, saveResetCode, type ForgetDevices } from "@/modules/identity/application/members";
 import { auditPartnerSignIn } from "@/modules/identity/application/membership";
 import { getSession } from "@/modules/identity/application/session";
 import { recordAuthEvent, type AuthAction, type Client } from "@/modules/identity/infrastructure/auth-events";
@@ -190,8 +190,9 @@ export async function signUp(
 
 /**
  * Sets a new password with a one-time reset code (issued by the owner or the operator), revokes every session of the
- * user, and opens one here. Every refusal of the code is the same INVALID_RESET_CODE: unknown account, wrong, expired
- * or used code. Password rules are checked against the typed identifier first, so they say nothing about the account.
+ * user, forgets their devices' pushes (`forgetDevices`: a lost phone stops showing them), and opens a session here.
+ * Issuing a code changes nothing until it is used, so only its use forgets devices. Every refusal of the code is the
+ * same INVALID_RESET_CODE: unknown account, wrong, expired or used code. Password rules are checked against the typed identifier first, so they say nothing about the account.
  */
 export async function resetPassword(
   rawIdentifier: string,
@@ -199,6 +200,7 @@ export async function resetPassword(
   newPassword: string,
   locale: Locale,
   client: Client,
+  forgetDevices: ForgetDevices,
   captcha?: unknown,
   clock: Clock = systemClock,
 ): Promise<Result<Headers, Gate | PasswordError | "INVALID_RESET_CODE">> {
@@ -230,6 +232,7 @@ export async function resetPassword(
       if (credential) await tx.account.update({ where: { id: credential.id }, data: { password: hash! } });
       else await tx.account.create({ data: { userId: user.id, providerId: "credential", accountId: user.id, password: hash! } });
       await tx.session.deleteMany({ where: { userId: user.id } }); // every device signs in again with the new password
+      await forgetDevices(tx, user.id);
       await tx.passwordReset.deleteMany({ where: { userId: user.id } });
       return true;
     }));

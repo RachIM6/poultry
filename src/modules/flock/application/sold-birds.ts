@@ -33,7 +33,7 @@ export async function recordBirdsSold(tx: Tx, ctx: TenantContext, s: SoldBirdsDt
 
 /**
  * For sales, inside its transaction: a cancelled sale's birds come back to the batch (SPEC-finance §9 "Cancelled
- * records"). Refused once the batch is closed: no reopening in v1. Checks before it writes; nothing to do without them.
+ * records"). Refused once the batch is closed: the owner reopens it first (B6). Checks before it writes; nothing to do without them.
  */
 export async function removeBirdsSold(tx: Tx, ctx: TenantContext, saleId: string): Promise<Result<void, "BATCH_CLOSED">> {
   const sold = await findSoldBirds(tx, ctx, saleId);

@@ -146,6 +146,7 @@ export async function batchFacts(tx: Tx, ctx: TenantContext, id: string) {
     ageAtPlacementDays: r.ageAtPlacementDays,
     species: r.species as ProductionType,
     status: r.status as BatchStatus,
+    closedOn: (r.closedOn?.toISOString().slice(0, 10) ?? null) as FarmDay | null,
   };
 }
 
@@ -196,6 +197,28 @@ export async function saveClosing(
     costCentimes: String(c.costCentimes),
     costPerKgCentimes: c.costPerKgCentimes === null ? null : String(c.costPerKgCentimes),
   };
+}
+
+/** B6 "Reopening": the batch's closing as stored (its locked figures), or null outside the caller's organisation. */
+export async function closingOf(tx: Tx, ctx: TenantContext, id: string) {
+  const r = await tx.batch.findFirst({ where: { id, organizationId: ctx.organizationId }, select: { closedOn: true, closeReason: true, soldGrams: true, costCentimes: true, costPerKgCentimes: true } });
+  return r && { ...r, closedOn: r.closedOn?.toISOString().slice(0, 10) ?? null };
+}
+
+/** B6 "Reopening": every batch of a house, what the reopening rule reads of them. */
+export const batchesOfHouse = async (tx: Tx, ctx: TenantContext, houseId: string) =>
+  (await tx.batch.findMany({ where: { organizationId: ctx.organizationId, houseId }, select: { id: true, houseId: true, species: true, sex: true, status: true, placedOn: true } })).map((b) => ({
+    ...b,
+    species: b.species as ProductionType,
+    sex: b.sex as BirdSex,
+    placedOn: b.placedOn.toISOString().slice(0, 10),
+  }));
+
+/** B6 "Reopening": open again, its closing's figures cleared (the audit keeps them; the next closing locks new ones). */
+export async function saveReopening(tx: Tx, batch: Batch): Promise<BatchDto> {
+  const cleared = { closedOn: null, closeReason: null, soldGrams: null, costCentimes: null, costPerKgCentimes: null };
+  const r = await tx.batch.update({ where: { id: batch.placement.id }, data: { ...cleared, status: batch.status } });
+  return dtoOf(batch, r.chickVatCentimes, paidOf(r));
 }
 
 /** For climate (CL3, CL4): the batch in this house on that farm day, its production type and the birds' age then, or null. */

@@ -86,7 +86,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
                 <Num className="whitespace-nowrap">{l.cost === null ? <span dir="auto">{t("Close.notValued")}</span> : formatMoney(l.cost)}</Num>
                 <td className="p-2 text-end tabular-nums whitespace-nowrap">
                   {owner && l.cost !== null ? (
-                    <input key={`${l.id}:${l.current}`} name={`value:${l.id}`} defaultValue={typed(l.current)} inputMode="decimal" dir="ltr" aria-label={t("Close.currentValueOf", { line: label(l) })} className="w-32 min-h-11 rounded-lg border border-line bg-card px-2 text-end" />
+                    <input key={`${l.id}:${l.current}`} name={`value:${l.id}`} defaultValue={typed(l.current)} inputMode="decimal" dir="ltr" aria-label={t("Close.currentValueOf", { line: label(l) })} className="w-32 min-h-11 rounded-lg border border-muted bg-card px-2 text-end" />
                   ) : (
                     <bdi dir="ltr">{l.current === null ? "" : formatMoney(l.current)}</bdi>
                   )}
@@ -99,7 +99,8 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
       </div>
     </ValuesForm>
   );
-  // FC4 (T109): the meat batches open on the last day, at cost by head, against the suggested or typed current value.
+  // FC4 (T109): the meat batches open on the last day, at cost by head, against the suggested or typed current value;
+  // FQ19: the cost engaged split into direct costs, depreciation and indirect production costs.
   const batchLabel = (b: CloseBatchView) => `${b.houseName} · ${t(`Types.${b.species}`)}`;
   const batchTable = batches.length > 0 && (
     <ValuesForm year={year} write={batches.some((b) => b.valued && typeable(b))}>
@@ -119,12 +120,20 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
           <tbody>
             {batches.map((b) => (
               <tr key={b.id} className="border-t border-line">
-                <td className="p-2">{batchLabel(b)}<span className="block text-sm text-ink-2">{b.farm}</span></td>
+                <td className="p-2">
+                  {batchLabel(b)}
+                  <span className="block text-sm text-ink-2">{b.farm}</span>
+                  {b.valued && (
+                    <span className="block text-sm text-ink-2">
+                      {t("Close.engaged", { total: formatMoney(b.engaged), direct: formatMoney(b.costs.direct), depreciation: formatMoney(b.costs.depreciation), indirect: formatMoney(b.costs.indirect) })}
+                    </span>
+                  )}
+                </td>
                 <Num className="whitespace-nowrap">{formatCount(b.onHand)}</Num>
                 <Num className="whitespace-nowrap">{b.valued ? formatMoney(b.cost) : <span dir="auto">{t("Close.notValuedFq7")}</span>}</Num>
                 <td className="p-2 text-end tabular-nums whitespace-nowrap">
                   {b.valued && typeable(b) ? (
-                    <input key={`${b.id}:${b.typed}`} name={`value:${b.id}`} defaultValue={typed(b.typed)} placeholder={typed(b.suggested)} inputMode="decimal" dir="ltr" aria-label={t("Close.currentValueOf", { line: batchLabel(b) })} className="w-32 min-h-11 rounded-lg border border-line bg-card px-2 text-end" />
+                    <input key={`${b.id}:${b.typed}`} name={`value:${b.id}`} defaultValue={typed(b.typed)} placeholder={typed(b.suggested)} inputMode="decimal" dir="ltr" aria-label={t("Close.currentValueOf", { line: batchLabel(b) })} className="w-32 min-h-11 rounded-lg border border-muted bg-card px-2 text-end" />
                   ) : (
                     <bdi dir="ltr">{b.current === null ? "" : formatMoney(b.current)}</bdi>
                   )}
@@ -163,7 +172,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
                   {!e.posted ? (
                     <span className="whitespace-normal">{t("Close.eggsNotPosted")}</span>
                   ) : typeable(e) ? (
-                    <input key={`${e.farmId}:${e.perEgg}`} name={`value:${e.farmId}`} defaultValue={typed(e.perEgg)} inputMode="decimal" dir="ltr" aria-label={t("Close.perEggOf", { farm: e.farm })} className="w-24 min-h-11 rounded-lg border border-line bg-card px-2 text-end" />
+                    <input key={`${e.farmId}:${e.perEgg}`} name={`value:${e.farmId}`} defaultValue={typed(e.perEgg)} inputMode="decimal" dir="ltr" aria-label={t("Close.perEggOf", { farm: e.farm })} className="w-24 min-h-11 rounded-lg border border-muted bg-card px-2 text-end" />
                   ) : (
                     <bdi dir="ltr">{e.perEgg === null ? "" : formatMoney(e.perEgg)}</bdi>
                   )}
@@ -183,7 +192,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   const flock = (h: Hen) => `${h.houseName} · ${t(`Types.${h.species}`)}`;
   const required = (h: Hen) => h.missing && <span className="block text-sm whitespace-normal text-alert-fg">{t("Close.valueRequired")}</span>;
   const field = (name: string, value: string, label: string) => (
-    <input key={`${name}:${value}`} name={name} defaultValue={value} inputMode="decimal" dir="ltr" aria-label={label} className="w-28 min-h-11 rounded-lg border border-line bg-card px-2 text-end" />
+    <input key={`${name}:${value}`} name={name} defaultValue={value} inputMode="decimal" dir="ltr" aria-label={label} className="w-28 min-h-11 rounded-lg border border-muted bg-card px-2 text-end" />
   );
   const num = (text: string) => <Num className="whitespace-nowrap">{text}</Num>;
   const hensRows = (cols: string[], cells: (h: Hen) => React.ReactNode) => (

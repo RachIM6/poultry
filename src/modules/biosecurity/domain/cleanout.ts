@@ -18,3 +18,10 @@ export function checkStep(done: readonly { step: CleanoutStep }[], next: { step:
  * (one figure, CQ3): `downtimeOn` and `placementDowntime` in planning's shared.ts.
  */
 export const downtimeDay = (disinfectedOn: FarmDay, today: FarmDay) => daysBetween(disinfectedOn, today) + 1;
+
+/**
+ * SPEC B6 "Reopening": was the closed batch's house cleaned out since (a clean-out after it, or started on or after its
+ * closing day)? Its house was emptied and cleaned, so the batch can't open again. The phone and the server run this.
+ */
+export const cleanedOutSince = (cleanouts: readonly { houseId: string; afterBatchId: string; startedOn: string }[], batch: { id: string; houseId: string; closedOn: string }) =>
+  cleanouts.some((c) => c.afterBatchId === batch.id || (c.houseId === batch.houseId && c.startedOn >= batch.closedOn));

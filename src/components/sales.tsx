@@ -98,7 +98,7 @@ export function Sales({
         <ul className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.7fr)_auto] lg:gap-y-2" aria-labelledby="sale-title">
           {list.map((s) => {
             const gap = weighingGap(s.farmWeightGrams, s.buyerWeightGrams);
-            // SPEC-finance §9 "Cancelled records": birds can't come back to a closed batch (no reopening in v1)
+            // SPEC-finance §9 "Cancelled records": birds can't come back to a closed batch (the owner reopens it first, SPEC B6)
             const actions = seller && <SaleActions sale={s} label={labelOf(s)} cancellable={batch.status === "open" || s.kind === "eggs"} write={write} />;
             if (s.takenBy) {
               return (
@@ -139,7 +139,7 @@ export function Sales({
       {batch.status !== "open" ? null : adding ? (
         <SaleForm batch={batch} sales={sales} buyers={buyers} treatments={treatments} birdsOnHand={birdsOnHand} seller={seller} write={write} onDone={() => setAdding(false)} />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t(seller ? "Sale.add" : "Sale.addConsumption")}</button>
+        <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={secondary}>{t(seller ? "Sale.add" : "Sale.addConsumption")}</button>
       )}
     </section>
   );

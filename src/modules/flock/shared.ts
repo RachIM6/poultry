@@ -9,12 +9,13 @@ export { PRODUCTION_TYPES, type ProductionType } from "@/modules/reference-data/
 // rules the phone runs like the server. The Zod schemas are in ./schema.ts, which re-exports this file.
 
 // SPEC B1: placement, age, closing.
-export { Batch, ageOfBatch, ageOn, birdsPlaced, birdsStarted, canJoinHouse, doaClaim } from "@/modules/flock/domain/batch";
+export { Batch, TRANSFER_REASON, ageOfBatch, ageOn, birdsPlaced, birdsStarted, canJoinHouse, doaClaim } from "@/modules/flock/domain/batch";
 export type { BatchStatus, PlacementError } from "@/modules/flock/domain/batch";
 export { batchCost, checkPaidOnDelivery, chicksCost, liveCostPerKg } from "@/modules/flock/domain/closing";
 export { birdsOnHand } from "@/modules/flock/domain/birds";
 export { correctPlacement, houseFreeFrom, recordedOf } from "@/modules/flock/domain/correction"; // B1, the correction form's chunk
 export type { CorrectionError, PlacementCorrection } from "@/modules/flock/domain/correction";
+export { checkReopen, type ReopenError } from "@/modules/flock/domain/reopen"; // B6 "Reopening", the reopen form's chunk
 
 /** What pull returns and the phone stores. */
 export type BatchDto = {
@@ -48,8 +49,6 @@ export type BatchDto = {
   costCentimes?: string;
   costPerKgCentimes?: string | null;
 };
-/** SPEC-m3 B13: the close reason of a pullet batch moved to laying (a code, shown translated). */
-export const TRANSFER_REASON = "transferToLaying";
 export const BATCH_MONEY = ["chickUnitPriceCentimes", "chickVatCentimes", "paidOnDelivery", "costCentimes", "costPerKgCentimes"] as const;
 /** SPEC-finance §9 "Chicks paid on delivery": the cash box (finance's id) and the amount, at most the placement's total. */
 export type PaidOnDelivery = { cashAccountId: string; amountCentimes: string };
@@ -68,6 +67,7 @@ export const FLOCK_MUTATIONS = {
   recordBatchCost: "flock.recordBatchCost",
   transferToLaying: "flock.transferToLaying",
   correctPlacement: "flock.correctPlacement",
+  reopenBatch: "flock.reopenBatch",
 } as const;
 
 // SPEC B2: the daily entry.

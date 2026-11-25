@@ -88,4 +88,32 @@ describe("a budget's weekly cash need (SPEC-finance FN15, §9 \"Budget cash need
     const free = budgetCash({ ...inputs, chicks: 0n, feedGrams: 0n, otherCostCentimes: 0n }, plainTiming(6));
     expect([free.peakNeedCentimes, free.peakWeek]).toEqual([0n, null]);
   });
+
+  it("pays the chicks and the feed after their supplier delays, the weeks running past the sale (§7)", () => {
+    // feed eaten on days 3 and 17, other costs on day 0, the sale on day 41; chicks paid 14 days late, feed 30
+    const timing: CashTiming = { lastDay: 41, feed: [[3, 1n], [17, 1n]], other: [[0, 1n]], sales: [[41, 1n]] };
+    const cash = budgetCash(inputs, timing, { chicks: 14, feed: 30 });
+    expect(cash.weeks.map((w) => [w.week, w.outCentimes, w.inCentimes, w.cumulativeCentimes])).toEqual([
+      [1, 50_000n, 0n, -50_000n], // the other costs, on their day
+      [2, 0n, 0n, -50_000n],
+      [3, 550_000n, 0n, -600_000n], // the chicks, day 14
+      [4, 0n, 0n, -600_000n],
+      [5, 690_000n, 0n, -1_290_000n], // day 3's feed, paid day 33
+      [6, 0n, 2_800_000n, 1_510_000n], // the sale, day 41
+      [7, 690_000n, 0n, 820_000n], // day 17's feed, paid day 47, after the sale: the margin, 8 200,00
+    ]);
+    expect([cash.peakNeedCentimes, cash.peakWeek]).toEqual([1_290_000n, 5]);
+    // paid on the day, the same batch needs every cost before its sale: 19 800,00 from week 3
+    const onTheDay = budgetCash(inputs, timing);
+    expect([onTheDay.peakNeedCentimes, onTheDay.peakWeek]).toEqual([1_980_000n, 3]);
+    expect(budgetCash(inputs, timing, { chicks: 0, feed: 0 })).toEqual(onTheDay);
+  });
+
+  it("still sums to the budget's totals when the payments are delayed", () => {
+    const b = budgetOf(inputs);
+    const cash = budgetCash(inputs, plainTiming(20), { chicks: 3, feed: 61 });
+    expect(cash.weeks).toHaveLength(12); // the last day's feed paid on day 81, week 12
+    expect(sum(cash.weeks.map((w) => w.outCentimes))).toBe(b.plannedCostCentimes);
+    expect(cash.weeks.at(-1)!.cumulativeCentimes).toBe(b.plannedMarginCentimes);
+  });
 });

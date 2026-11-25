@@ -74,6 +74,7 @@ const ROWS: Row[] = [
   { name: "batchResults", gate: "read", kind: "read", run: (c) => finance.batchResults(c) },
   { name: "batchResultDtos", gate: "read", kind: "read", run: (c) => finance.batchResultDtos(c) },
   { name: "budgetBases", gate: "read", kind: "read", run: (c) => finance.budgetBases(c) },
+  { name: "budgetPaymentDelays", gate: "read", kind: "read", run: (c) => finance.budgetPaymentDelays(c) },
   { name: "budgetBatches", gate: "read", kind: "read", run: (c) => finance.budgetBatches(c) },
   { name: "listBudgets", gate: "read", kind: "read", run: (c) => finance.listBudgets(c) },
   { name: "readBooks", gate: "read", kind: "read", run: (c) => finance.readBooks(c, "2026-01") },
@@ -168,6 +169,16 @@ const ROWS: Row[] = [
   // finance.manage: the owner (FX2: periods, profile, overrides; FCX1: registers, manual entries, the close)
   { name: "changeAccountingChoices", gate: "manage", kind: "write", ours: true, run: (c, s) => finance.changeAccountingChoices(c, s.entity, { books: "ledger", pcaOverlay: null, fiscalYearStartMonth: 1 }, clock) },
   { name: "setPeriodLocked", gate: "manage", kind: "write", ours: true, run: (c, s) => finance.setPeriodLocked(c, s.entity, "2026-05", false) },
+  {
+    name: "reopenBatchBooks via the registry's flock.reopenBatch", // SPEC B6 "Reopening": chained there, behind finance.manage
+    gate: "manage",
+    kind: "write",
+    ours: true,
+    run: async (c, s) => {
+      const [r] = (await push(c, [m("flock.reopenBatch", { batchId: s.batch, reason: "Vente oubliée" })], registry)).results;
+      return r.status === "applied" ? { ok: true } : { ok: false, error: r.messageKey.replace("errors.", "") };
+    },
+  },
   { name: "setPostingOverride", gate: "manage", kind: "write", run: (c) => finance.setPostingOverride(c, { ruleAccount: "612512", account: null }) },
   {
     name: "recordAssociateMovement",

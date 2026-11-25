@@ -55,7 +55,7 @@ describe("stocks at the close (SPEC-finance FC5, FQ20, T108)", () => {
 
 describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)", () => {
   // §7.1 C: 10 000 placed, 2 000 sold, 400 dead, 7 600 on hand; 182 400,00 engaged; 2 100 g; 8,50 DH/kg.
-  const c = { id: "c", farmId: "f1", houseName: "B1", species: "broiler", onHand: 7600, sold: 2000, engaged: 18_240_000n };
+  const c = { id: "c", farmId: "f1", houseName: "B1", species: "broiler", onHand: 7600, sold: 2000, costs: { direct: 18_240_000n, depreciation: 0n, indirect: 0n } };
   const weighing = { count: 50, totalGrams: 105_000 }; // 2 100 g on average
   const sale = { kind: "live" as const, pricePerKgCentimes: 850n, amountCentimes: 0n, birds: 0 };
 

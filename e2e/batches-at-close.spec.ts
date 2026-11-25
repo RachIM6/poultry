@@ -38,7 +38,8 @@ test("the owner reads an open batch at cost in the close preview, types its curr
   await expect(entry.nth(1)).toContainText(/^31322 Animaux\s*47\s500,00/);
   await expect(entry.nth(2)).toContainText(/^71311 Variation des stocks de biens produits en cours\s*47\s500,00/);
   const line = section.getByRole("table", { name: "Bandes en cours au coût engagé" }).getByRole("row").filter({ hasText: "B1" });
-  await expect(line).toContainText(/B1 · Poulet de chair\s*Ferme Atlas\s*7\s600\s*47\s500,00\sDH/);
+  // FQ19: the cost engaged by part; no asset and no shared charge here, so all of it is direct.
+  await expect(line).toContainText(/B1 · Poulet de chair\s*Ferme Atlas\s*Coût engagé 60\s000,00\sDH : directs 60\s000,00\sDH, amortissements 0,00\sDH, indirects 0,00\sDH\s*7\s600\s*47\s500,00\sDH/);
   await expect(line).toContainText("Valeur à saisir : ni pesée ni vente pour la proposer.");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // fits the phone
 

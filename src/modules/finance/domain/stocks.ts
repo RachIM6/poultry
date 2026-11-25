@@ -114,8 +114,9 @@ export function yearEndProvision(lines: readonly StockAtClose[], batches: readon
   };
 }
 
-// SPEC-finance FC4 (T109): meat batches still open on the fiscal year's last day, at FN13's cost engaged to that day,
-// split by head (FQ19), against a current value from the last weighing and the last sale price (FQ20).
+// SPEC-finance FC4 (T109): meat batches still open on the fiscal year's last day, at their production cost engaged to
+// that day (FQ19: direct costs, depreciation and indirect production costs, PCA pp. 42–43), split by head, against a
+// current value from the last weighing and the last sale price (FQ20).
 
 export const IN_PROGRESS = "31322"; // Animaux (3132 Encours de Production); 3132 with the PCA off
 export const IN_PROGRESS_VARIATION = "71311"; // Variation des stocks de biens produits en cours (7131 is subdivided, FN4; CGNC scan p. 305)
@@ -147,13 +148,20 @@ export function suggestedValue(onHand: number, weighing: Weighing | null, sale: 
   return divHalfUp(BigInt(onHand) * BigInt(weighing.totalGrams) * sale.pricePerKgCentimes, BigInt(weighing.count) * 1000n);
 }
 
-type BatchIn = { id: string; farmId: string; houseName: string; species: string; onHand: number; sold: number; engaged: bigint };
+/**
+ * FQ19: the production cost engaged, shown in the close preview. `direct`: chicks, valued consumptions, M1 other costs
+ * and the production expenses charged to the batch; `depreciation`: its share of the production assets' charge
+ * (`depreciationShares`); `indirect`: its share of the shared production expenses and pay months (FN14).
+ */
+export type EngagedCosts = { direct: bigint; depreciation: bigint; indirect: bigint };
+type BatchIn = { id: string; farmId: string; houseName: string; species: string; onHand: number; sold: number; costs: EngagedCosts };
 
 /**
- * A batch open on the last day. `valued` false: a pullet or layer batch, listed "non valorisés (FQ7)". `current`: the
- * owner's value, else the suggested one; `missing`: valued at a cost with neither, so the run refuses to post.
+ * A batch open on the last day. `engaged`: the sum of its `costs`. `valued` false: a pullet or layer batch, listed "non
+ * valorisés (FQ7)". `current`: the owner's value, else the suggested one; `missing`: valued at a cost with neither, so
+ * the run refuses to post.
  */
-export type BatchAtClose = BatchIn & { valued: boolean; cost: bigint; suggested: bigint | null; typed: bigint | null; current: bigint | null; provision: bigint; missing: boolean };
+export type BatchAtClose = BatchIn & { engaged: bigint; valued: boolean; cost: bigint; suggested: bigint | null; typed: bigint | null; current: bigint | null; provision: bigint; missing: boolean };
 
 export function batchesAtClose(batches: readonly BatchIn[], weighings: ReadonlyMap<string, Weighing>, sales: ReadonlyMap<string, Sale>, typed: ReadonlyMap<string, bigint>): BatchAtClose[] {
   return batches.map((b) => {
@@ -161,8 +169,9 @@ export function batchesAtClose(batches: readonly BatchIn[], weighings: ReadonlyM
     const suggested = valued ? suggestedValue(b.onHand, weighings.get(b.id) ?? null, sales.get(`${b.farmId}:${b.species}`) ?? null) : null;
     const own = valued ? (typed.get(b.id) ?? null) : null;
     const current = own ?? suggested;
-    const { cost, provision } = valued ? batchInProgressValue(b.engaged, b.onHand, b.sold, current) : { cost: 0n, provision: 0n };
-    return { ...b, valued, cost, suggested, typed: own, current, provision, missing: cost > 0n && current === null };
+    const engaged = b.costs.direct + b.costs.depreciation + b.costs.indirect;
+    const { cost, provision } = valued ? batchInProgressValue(engaged, b.onHand, b.sold, current) : { cost: 0n, provision: 0n };
+    return { ...b, engaged, valued, cost, suggested, typed: own, current, provision, missing: cost > 0n && current === null };
   });
 }
 

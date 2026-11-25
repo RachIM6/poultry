@@ -12,7 +12,7 @@ import { batchResults, budgetBases, changeAccountingChoices, postPending, saveHe
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant } from "@/test/tenant";
 
-// SPEC-finance FN13, §9 "Laying hens in the batch result", §7.1 H: a laying flock carries its hens' entry value used up
+// SPEC-finance FN13, §9 "Laying hens in the batch result", §7.1 I: a laying flock carries its hens' entry value used up
 // to the day, not their price; a pullet batch transferred to lay hands its cost to the layer batch. Meat batches as before.
 const clock = fixedClock("2026-11-25T10:00:00Z");
 const m = <P,>(type: string, payload: P) => ({ id: uuidv7(), type, payload, createdAt: "2026-11-05T08:00:00+01:00" });
@@ -22,7 +22,7 @@ const place = (id: string, houseId: string, species: string, placedOn: string, c
   m("flock.placeBatch", { id, houseId, species, strainId: species === "broiler" ? "ross-308" : "isa-brown", placedOn, chicksPlaced: chicks, deadOnArrival: 0, hatchery: "H", deliveryNote: "BL", chickUnitPriceCentimes: price, dayOldWeightGrams: null, ageAtPlacementDays: age });
 const dead = (batchId: string, day: string, birds: number) => m("flock.recordDay", { batchId, day, changes: { dead: birds, culled: 0 } });
 
-/** A farm with houses L1 (laying), P1 (rearing), B1 (broilers), and 5 000 point-of-lay hens at 55,00 in L1 on 4 November (§7.1 H). */
+/** A farm with houses L1 (laying), P1 (rearing), B1 (broilers), and 5 000 point-of-lay hens at 55,00 in L1 on 4 November (§7.1 I). */
 async function farm(ctx: TenantContext, ids: Record<string, string>) {
   expect(
     await statuses(
@@ -42,7 +42,7 @@ const row = async (ctx: TenantContext, id: string) => {
   return r.value.find((x) => x.id === id)!;
 };
 
-describe("laying hens in the batch result (SPEC-finance FN13, §9, §7.1 H)", () => {
+describe("laying hens in the batch result (SPEC-finance FN13, §9, §7.1 I)", () => {
   let cashBook: TenantContext, classic: TenantContext, simplified: TenantContext;
   const c = ids(), k = ids(), s = ids();
 

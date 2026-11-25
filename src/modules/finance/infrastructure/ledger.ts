@@ -2,6 +2,7 @@ import type { Tx } from "@/lib/db";
 import type { FarmDay } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import type { Line } from "@/modules/finance/domain/entry";
+import type { TreasuryKind } from "@/modules/finance/domain/treasury";
 import type { AccountRow } from "@/modules/finance/schema";
 import type { Journal } from "@/generated/prisma/client";
 
@@ -28,6 +29,14 @@ export async function ledgerAccounts(tx: Tx): Promise<AccountRow[]> {
 export async function lockedMonths(tx: Tx, ctx: TenantContext, legalEntityId: string): Promise<Set<string>> {
   const rows = await tx.lockedPeriod.findMany({ where: { organizationId: ctx.organizationId, legalEntityId }, select: { month: true } });
   return new Set(rows.map((r) => r.month));
+}
+
+/** §9 "Default cash box and bank account": per kind, the account marked default, else the first created; none without one. */
+export async function defaultTreasuryAccounts(tx: Tx, ctx: TenantContext): Promise<Partial<Record<TreasuryKind, string>>> {
+  const rows = await tx.treasuryAccount.findMany({ where: { organizationId: ctx.organizationId }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }, { id: "asc" }], select: { id: true, kind: true } });
+  const defaults: Partial<Record<TreasuryKind, string>> = {};
+  for (const r of rows) defaults[r.kind as TreasuryKind] ??= r.id;
+  return defaults;
 }
 
 export async function entryExists(tx: Tx, id: string) {

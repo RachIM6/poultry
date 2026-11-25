@@ -37,7 +37,7 @@ export const PRODUCTION_ASSETS: Record<AssetCategory, boolean> = {
 
 type PlacedAsset = DepreciableAsset & { category: AssetCategory; farmId: string | null; houseId: string | null };
 type HouseIn = { id: string; farmId: string; areaM2: number };
-/** `until`: the batch's last day counted, when before the year's last depreciated day (a transfer to lay, FC6). */
+/** `until`: the batch's last day counted, when before the year's last depreciated day (a transfer to lay, FC6; a laying flock's closing day, FQ18). */
 type BatchIn = { id: string; houseId: string; placedOn: string; until?: string };
 
 const monthOf = (day: string) => day.slice(0, 7);
@@ -49,7 +49,7 @@ const plusMonths = (month: string, n: number) => {
 /**
  * §7 `depreciationShare` (FQ19): each batch open at the close takes a share of the fiscal year's charge (FC1) of every
  * production asset of its house or farm: charge × its house's m² × its days in the months depreciated that year (up to
- * the close) ÷ (the m² of the houses the asset serves × those months' days), half up per asset. An asset on a house
+ * the close, or `until`) ÷ (the m² of the houses the asset serves × those months' days), half up per asset. An asset on a house
  * serves that house; on a farm only, all the farm's houses; on neither, no batch. A share for empty days or other
  * batches stays in the year's charges (§7.1 F).
  */

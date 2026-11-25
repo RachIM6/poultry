@@ -103,18 +103,27 @@ describe("treasury and quick expenses (SPEC-finance FN3, FN6, FX2, FX4, T32)", (
     expect((await pull(a, 0, registry)).changes.some((c) => c.entity === "expense")).toBe(true);
   });
 
-  it("shows the cash posted on no account on its own row, so the total is the forecast's start", async () => {
+  it("puts cash paid from no cash box on the only one (§9 defaults)", async () => {
     const before = await treasuryOverview(a, "2026-04");
     if (!before.ok) throw new Error(before.error);
-    expect(before.value.unassignedCentimes).toBe(0n);
     const e = expense({ day: "2026-04-02", amountCentimes: "25000", treasuryId: null }); // cash, no cash box named
     expect(await statuses(a, e)).toEqual(["applied"]);
-    expect(await linesOf(e.payload.id)).toEqual([["612512", 25_000n, 0n, null], ["5161", 0n, 25_000n, null]]);
+    expect(await linesOf(e.payload.id)).toEqual([["612512", 25_000n, 0n, null], ["5161", 0n, 25_000n, box]]);
     const overview = await treasuryOverview(a, "2026-04");
-    const forecast = await cashForecast(a);
+    if (!overview.ok) throw new Error(overview.error);
+    expect(overview.value.unassignedCentimes).toBe(0n);
+    expect(overview.value.accounts.map((x) => [x.name, x.balanceCentimes - before.value.accounts.find((y) => y.id === x.id)!.balanceCentimes])).toEqual([["Banque Populaire", 0n], ["Caisse ferme", -25_000n]]);
+  });
+
+  it("shows the cash posted on no account on its own row, so the total is the forecast's start", async () => {
+    const e = expense({ day: "2026-04-02", amountCentimes: "25000", treasuryId: null }); // b has no cash box: on no account
+    expect(await statuses(b, e)).toEqual(["applied"]);
+    expect(await linesOf(e.payload.id)).toEqual([["612512", 25_000n, 0n, null], ["5161", 0n, 25_000n, null]]);
+    const overview = await treasuryOverview(b, "2026-04");
+    const forecast = await cashForecast(b);
     if (!overview.ok || !forecast.ok) throw new Error("forbidden");
     expect(overview.value.unassignedCentimes).toBe(-25_000n);
-    expect(overview.value.accounts.map((x) => x.balanceCentimes)).toEqual(before.value.accounts.map((x) => x.balanceCentimes)); // no account moved
-    expect(overview.value.accounts.reduce((s, x) => s + x.balanceCentimes, overview.value.unassignedCentimes)).toBe(forecast.value.startCentimes);
+    expect(overview.value.accounts).toEqual([]);
+    expect(forecast.value.startCentimes).toBe(-25_000n);
   });
 });

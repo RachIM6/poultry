@@ -1057,6 +1057,9 @@ model TreasuryAccount {
   organizationId String   @db.Uuid
   kind           String // bank | cash
   name           String
+  // §9 "Default cash box and bank account": takes the 5141 / 5161 lines that name no account; at most one per kind
+  // (a partial unique index, in the migration). None marked: the first created of its kind.
+  isDefault      Boolean  @default(false)
   createdAt      DateTime @default(now()) @db.Timestamptz
 
   @@index([organizationId])

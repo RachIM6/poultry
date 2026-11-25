@@ -24,7 +24,7 @@ it("uses logical classes in src", () => {
 // "1 234,50 DH" in an Arabic line comes out "DH 1 234,50": the bidi algorithm moves a Latin unit to the far side of its
 // number. Inside FSI … PDI (U+2068 … U+2069, what <bdi> does) the amount keeps its order. Notifications (SMS, push)
 // are not screens and are left as they are.
-const MONEY_OR_WEIGHT = /\{(amount|limit|cost|margin|weight|kg|paid|breakEven|price|feed|principal|opening|closing|consumption|other|direct|allocated|quantity|standard|average|employer)\}/g;
+const MONEY_OR_WEIGHT = /\{(amount|limit|cost|margin|weight|kg|paid|breakEven|price|feed|principal|opening|closing|consumption|other|direct|allocated|quantity|standard|average|employer|perEgg|hens|depreciation|indirect)\}/g;
 const flat = (obj: object, prefix = ""): [string, string][] =>
   Object.entries(obj).flatMap(([k, v]) => (typeof v === "object" ? flat(v, `${prefix}${k}.`) : [[`${prefix}${k}`, v as string]]));
 

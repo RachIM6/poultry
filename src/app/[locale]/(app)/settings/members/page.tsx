@@ -42,7 +42,7 @@ async function Content() {
         {members.map((m) =>
           m.userId === ctx.value.userId ? (
             <li key={m.membershipId} className={card}>
-              <bdi dir="ltr" className="font-semibold">{m.phone ?? m.email}</bdi> · {t(`roles.${m.role}`)} ({t("you")})
+              <p><bdi dir="ltr" className="font-semibold">{m.phone ?? m.email}</bdi> · {t(`roles.${m.role}`)} ({t("you")})</p>
             </li>
           ) : (
             <MemberRow key={m.membershipId} membershipId={m.membershipId} phone={m.phone ?? m.email ?? ""} role={m.role} roles={ROLES} until={m.accessUntil && formatDay(m.accessUntil as FarmDay, lang)} />

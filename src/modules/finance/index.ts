@@ -6,7 +6,7 @@ export type { EntryRow } from "./infrastructure/ledger";
 export { CHARTS, type AccountRow, type Chart } from "./schema";
 export { catchUpBooks, postAllPending, postPending } from "./application/posting";
 export { financeSync } from "./sync";
-export { attachExpenseReceipt, cashForecast, treasuryOverview, type TreasuryOverview } from "./application/treasury";
+export { attachExpenseReceipt, cashForecast, setDefaultTreasuryAccount, treasuryOverview, type TreasuryOverview } from "./application/treasury";
 export { payPlacement, placementsToPay, type PlacementPayError, type PlacementToPay } from "./application/placements";
 export { creditExpensesToPay, payCreditExpense, type CreditExpense } from "./application/expense-debts";
 export { associateAccount, recordAssociateMovement, type AssociateMovementError } from "./application/contributions";
@@ -31,6 +31,7 @@ export { saveYearEndCount, yearEndCount, type CountSheet } from "./application/c
 export type { CountBatchLine, CountEggsLine, CountLine, CountStockLine } from "./domain/count";
 export { assetRegister, attachFixedAssetReceipt, createFixedAsset, disposeFixedAsset, payFixedAsset, updateFixedAsset, type AssetRegister, type AssetView, type AssetWriteError } from "./application/assets";
 export { ASSET_CATEGORIES, ASSET_ACCOUNTS, type AssetCategory, type ScheduleYear } from "./domain/assets";
+export type { EggCostView } from "./application/egg-cost";
 export { closeFiscalYear, closePreview, openFiscalYear, reopenFiscalYear, runClose, type CloseBatchView, type CloseEggsView, type CloseEntryView, type CloseHensView, type ClosePreview, type CloseStockView, type YearCloseError } from "./application/close";
 export { saveYearEndValues } from "./application/stocks";
 export { saveHensSchedules } from "./application/hens";

@@ -90,7 +90,7 @@ describe("laying hens, classic method (FC6, T115)", () => {
   });
 });
 
-describe("laying hens in the batch result (FN13, §7.1 H)", () => {
+describe("laying hens in the batch result (FN13, §7.1 I)", () => {
   // 5 000 point-of-lay hens at 55,00 (275 000,00) placed on 4 November 2026; life 14 months, cull value 100 000,00
   const hens = { entry: 27_500_000n, entryDay: d("2026-11-04"), started: 5000, onHand: 5000, out: [], sold: [], closedOn: null };
   const schedule = { lifeMonths: 14, cullValue: 10_000_000n };

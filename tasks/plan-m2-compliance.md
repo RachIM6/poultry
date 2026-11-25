@@ -175,6 +175,10 @@ Updated 2026-11-23 (branch `feat/official-register`), SPEC-m2-compliance §9 CQ2
 - The checklist is built from the texts: eleven lines, each with its source, state « conforme d'après les saisies », « à compléter » or « à vérifier sur place »; missing details under « À compléter » (a month without a vet visit, downtime under 20 days in a house, Newcastle vaccination missing or without lot, plus the earlier ones). An expired vault document is no longer a checklist line (no text requires it); the documents table still shows its state.
 - Registers stay in the pack 12 months after closing for meat batches, 24 for layers and pullets (arrêté n° 2126-05 art. 9); logs 12 months.
 - **Follow-up:** store the fixed-installations self-declaration once per farm instead of ticking it on paper.
+Updated 2026-11-25 (#266, branch `feat/notifiable-diseases-checklist`), SPEC-m2-compliance §9 CQ8 and CQ9, decided defaults, to review:
+- [x] A collapsed card of the 9 notifiable diseases (dahir n° 1-75-292, art. 1) and the duty to declare a suspected case at once (art. 3) on an open batch's screen, for every role, offline, in French and Arabic. The Arabic medical terms need a vet's or native review.
+- [x] New checklist lines from arrêté 2127-05 (art. 2 and 4) and décret art. 12: toilets and sas showers, isolated staff housing, nets on openings, manure humidified before removal, and, for laying-hen farms only, an egg store and a droppings area outside the buildings.
+- [x] Vaccine types `vaccine-marek` and `vaccine-avian-influenza-h9n2` with no schedule and no withdrawal data. No default vaccination programme: it stays per farm (CQ9, SPEC OQ4).
 
 **Size:** M
 

@@ -41,7 +41,7 @@ test("the owner reopens a closed batch, fixes its last sale and it closes again"
   await expect(page.getByText("Oiseaux présents : 1 000")).toBeVisible(); // its birds are back
 
   await page.getByRole("button", { name: "Nouvelle vente" }).click();
-  await page.getByLabel("Nom de l’acheteur").fill("Abattoir Atlas");
+  await expect(page.getByLabel("Acheteur", { exact: true })).toHaveValue(buyer); // the buyer already known
   await page.getByLabel("Nombre d’oiseaux").fill("1000");
   await page.getByLabel("Poids à la ferme (kg)").fill("2100");
   await page.getByLabel("Prix au kg (DH)").fill("15");

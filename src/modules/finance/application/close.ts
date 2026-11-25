@@ -8,6 +8,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { legalEntityIn, listLegalEntities, placeNames, type LegalEntityDto } from "@/modules/farm-registry";
 import { closeDepreciation } from "@/modules/finance/application/assets";
 import { closePosted } from "@/modules/finance/application/count";
+import { eggCostSuggestions, type EggCostView } from "@/modules/finance/application/egg-cost";
 import { closeHens, hensAtClose, type HensAtClose } from "@/modules/finance/application/hens";
 import { batchLinesAtClose, closeBatches, closeProvision, closeStock, eggLinesAtClose, stockLinesAtClose } from "@/modules/finance/application/stocks";
 import { closeInterest } from "@/modules/finance/application/loans";
@@ -69,8 +70,11 @@ export type CloseEntryView = { kind: CloseKind; action: CloseAction; lines: { ac
 export type CloseStockView = StockAtClose & { farm: string };
 /** FC4: a batch open on the last day as the run values it; `valued` false: a pullet or layer batch (FQ7). */
 export type CloseBatchView = BatchAtClose & { farm: string };
-/** FC5 (T113): a farm's eggs as the run values them; `posted` false: the PCA is off (FQ25). */
-export type CloseEggsView = EggsAtClose & { farm: string };
+/**
+ * FC5 (T113): a farm's eggs as the run values them; `posted` false: the PCA is off (FQ25). `suggestion` (FQ18): the
+ * suggested cost per egg shown next to the owner's value, never saved by itself; null when the eggs don't post.
+ */
+export type CloseEggsView = EggsAtClose & { farm: string; suggestion: EggCostView | null };
 /** FC6 (T114, T115): the layer and pullet batches by the entity's method; `method` null: not valued (FQ25). */
 export type CloseHensView = { method: HensMethod | null; lines: (HensAtClose & { farm: string })[] };
 /**
@@ -125,7 +129,9 @@ export async function closePreview(ctx: TenantContext, year: number | null, cloc
   const farms = await placeNames(db, ctx, [...new Set([...stock, ...batch, ...egg, ...hen.lines].map((l) => l.farmId))]);
   const stocks = stock.map((l) => ({ ...l, farm: farms.get(l.farmId) ?? "" }));
   const batches = batch.map((b) => ({ ...b, farm: farms.get(b.farmId) ?? "" }));
-  const eggs = egg.map((e) => ({ ...e, farm: farms.get(e.farmId) ?? "" }));
+  const posted = egg.filter((e) => e.posted).map((e) => e.farmId);
+  const suggested = posted.length > 0 ? await eggCostSuggestions(db, ctx, entity, { from, to: day }, posted, hen) : new Map<string, EggCostView>();
+  const eggs = egg.map((e) => ({ ...e, farm: farms.get(e.farmId) ?? "", suggestion: suggested.get(e.farmId) ?? null }));
   const hens = { method: hen.method, lines: hen.lines.map((h) => ({ ...h, farm: farms.get(h.farmId) ?? "" })) };
   const entries = kinds.map(({ kind, action, posting, standing }) => ({
     kind,

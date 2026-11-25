@@ -37,6 +37,23 @@ export function ValuesForm({ year, write, children }: { year: number; write: boo
   );
 }
 
+/** SPEC-finance FC5, FQ18: copies the suggested cost per egg into its form's field `name`, on the owner's tap only. */
+export function UseSuggested({ name, value, label }: { name: string; value: string; label: string }) {
+  const t = useTranslations();
+  const use = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const input = e.currentTarget.form?.elements.namedItem(name);
+    if (input instanceof HTMLInputElement) {
+      input.value = value;
+      input.focus();
+    }
+  };
+  return (
+    <button type="button" onClick={use} aria-label={label} className={`${secondary} ms-2`}>
+      {t("Close.useSuggested")}
+    </button>
+  );
+}
+
 /** SPEC-finance FC6 (T115): the laying flocks inside a form; the owner saves each one's life and cull value. */
 export function HensForm({ year, write, children }: { year: number; write: boolean; children: React.ReactNode }) {
   const t = useTranslations();

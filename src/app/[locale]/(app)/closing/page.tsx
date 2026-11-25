@@ -10,9 +10,9 @@ import { formatCount, formatDay, formatKg, formatMoney } from "@/lib/format";
 import { typedCentimes } from "@/lib/kernel/money";
 import { addFarmDays } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
-import { closePreview, type CloseBatchView, type CloseHensView, type CloseStockView } from "@/modules/finance";
+import { closePreview, type CloseBatchView, type CloseHensView, type CloseStockView, type EggCostView } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
-import { CloseForm, HensForm, OpenYearForm, ValuesForm, YearForm } from "./form";
+import { CloseForm, HensForm, OpenYearForm, UseSuggested, ValuesForm, YearForm } from "./form";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
@@ -25,6 +25,7 @@ const MESSAGES: MessagePath[] = ["Close", "Nav", "Offline", "Sync.refused", "err
 // FC5 (T108): the stock lines the "stock" entry values, where the owner types a lower current value until the run posts.
 // FC4 (T109): the batches the "batch" entry values, the same way; the run refuses while one has no current value.
 // FC5 (T113): each farm's eggs in the "stock" entry, at the value per egg the owner types; required before the run posts.
+// FQ18: a suggested cost per egg next to it, with what it is based on; one tap copies it into the field, never by itself.
 // FN3: until the previous year is closed, the owner opens this one from it as it stands, marked provisional for everyone.
 // FC6 (T114, T115): the layer and pullet batches by the hens' method; the owner types each laying flock's life and cull
 // value (classic) or the current value of a bird (simplified), required before the run posts.
@@ -149,6 +150,19 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   );
 
   // FC5, FQ18 (T113): the eggs counted (else in the books) × the owner's value per egg; with the PCA off, nothing posts (FQ25).
+  // The suggestion (FQ18) says what it is based on, or why there is none.
+  const suggestion = (s: EggCostView) =>
+    s.perEgg === null ? (
+      <span className="block text-sm text-ink-2">{t(`Close.noSuggestion.${s.reason}`)}</span>
+    ) : (
+      <>
+        <span className="block text-sm text-ink-2">
+          {t("Close.suggestedCost", { perEgg: formatMoney(s.perEgg), total: formatMoney(s.total), eggs: formatCount(s.eggs), from: formatDay(s.from, lang), to: formatDay(s.to, lang) })}
+        </span>
+        <span className="block text-sm text-ink-2">{t("Close.suggestedParts", { direct: formatMoney(s.direct), depreciation: formatMoney(s.depreciation), indirect: formatMoney(s.indirect), hens: formatMoney(s.hens) })}</span>
+        {s.hensPending && <span className="block text-sm text-ink-2">{t("Close.suggestedHensPending")}</span>}
+      </>
+    );
   const eggTable = eggs.length > 0 && (
     <ValuesForm year={year} write={eggs.some((e) => e.posted && typeable(e))}>
       <p className="text-sm text-ink-2">{t("Close.eggsHint")}</p>
@@ -166,13 +180,19 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
           <tbody>
             {eggs.map((e) => (
               <tr key={e.farmId} className="border-t border-line">
-                <td className="p-2">{e.farm}</td>
+                <td className="p-2">
+                  {e.farm}
+                  {e.suggestion && suggestion(e.suggestion)}
+                </td>
                 <Num className="whitespace-nowrap">{formatCount(e.quantity)}</Num>
                 <td className="p-2 text-end tabular-nums whitespace-nowrap">
                   {!e.posted ? (
                     <span className="whitespace-normal">{t("Close.eggsNotPosted")}</span>
                   ) : typeable(e) ? (
-                    <input key={`${e.farmId}:${e.perEgg}`} name={`value:${e.farmId}`} defaultValue={typed(e.perEgg)} inputMode="decimal" dir="ltr" aria-label={t("Close.perEggOf", { farm: e.farm })} className="w-24 min-h-11 rounded-lg border border-muted bg-card px-2 text-end" />
+                    <>
+                      <input key={`${e.farmId}:${e.perEgg}`} name={`value:${e.farmId}`} defaultValue={typed(e.perEgg)} inputMode="decimal" dir="ltr" aria-label={t("Close.perEggOf", { farm: e.farm })} className="w-24 min-h-11 rounded-lg border border-muted bg-card px-2 text-end" />
+                      {e.suggestion?.perEgg != null && <UseSuggested name={`value:${e.farmId}`} value={typed(e.suggestion.perEgg)} label={t("Close.useSuggestedOf", { farm: e.farm })} />}
+                    </>
                   ) : (
                     <bdi dir="ltr">{e.perEgg === null ? "" : formatMoney(e.perEgg)}</bdi>
                   )}

@@ -8,6 +8,7 @@ import type { TenantContext } from "@/lib/tenant";
 import { createOrganization } from "@/modules/farm-registry";
 import { postPending, recordAssociateMovement, saveBudget } from "@/modules/finance";
 import { addOwner, inviteMember, setPassword } from "@/modules/identity";
+import { purchaseAmount } from "@/modules/inventory/shared";
 import { attendanceId, taskDoneId } from "@/modules/workforce/schema";
 
 // `pnpm db:seed:demo` (T26): two demo organisations to show the app, owned by DEMO_PHONE (default +212600000099): an
@@ -94,7 +95,7 @@ const place = (id: string, houseId: string, placedOn: FarmDay, chicksPlaced: num
   m("flock.placeBatch", { id, houseId, strainId: "ross-308", placedOn, chicksPlaced, deadOnArrival: Math.round(chicksPlaced * 0.0015), hatchery: "Couvoir Démo", deliveryNote, chickUnitPriceCentimes: "550", dayOldWeightGrams: 42, ...extra });
 
 const purchase = (supplierId: string, stockItemId: string, day: FarmDay, quantity: number, unitPriceCentimes: string, paid: "all" | "none" | bigint, paidMethod = "transfer", dueOn: FarmDay | null = null) => {
-  const total = (BigInt(quantity) * BigInt(unitPriceCentimes) * 2n + 1000n) / 2000n; // per kg or per ml / 1000
+  const total = purchaseAmount(quantity, stockItemId === a.medicine ? "ml" : "kg", BigInt(unitPriceCentimes)); // the app's own total: per kg, or per ml
   const paidCentimes = paid === "all" ? total : paid === "none" ? 0n : paid;
   return m("inventory.recordPurchase", { id: uuidv7(), movementId: uuidv7(), supplierId, stockItemId, day, quantity, unitPriceCentimes, paidCentimes: String(paidCentimes), paidMethod, dueOn });
 };

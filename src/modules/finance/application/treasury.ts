@@ -1,0 +1,387 @@
+import { v7 as uuidv7 } from "uuid";
+import { z } from "zod";
+import { audit } from "@/lib/audit";
+import { db, type Tx } from "@/lib/db";
+import { systemClock, type Clock } from "@/lib/kernel/clock";
+import { daysBetween, farmDayOf, latestRecordableDay, type FarmDay } from "@/lib/kernel/farm-day";
+import { fail, ok, type Result } from "@/lib/kernel/result";
+import { can } from "@/lib/permissions";
+import { recordChange } from "@/lib/sync/server";
+import type { TenantContext } from "@/lib/tenant";
+import { listLegalEntities } from "@/modules/farm-registry";
+import { batchFacts } from "@/modules/flock";
+import { issuedBillsDue, supplierDuesOf } from "@/modules/inventory";
+import { instrumentsToCollect } from "@/modules/sales";
+import { wagesDue } from "@/modules/workforce";
+import { catchUpBooks } from "@/modules/finance/application/posting";
+import { postEntry, type PostError } from "@/modules/finance/application/ledger";
+import { entryTags } from "@/modules/finance/application/tags";
+import { loanInstallmentsDue } from "@/modules/finance/application/loans";
+import { assetDues } from "@/modules/finance/application/assets";
+import { creditExpenseDues, expensePaid } from "@/modules/finance/application/expense-debts";
+import { placementDues } from "@/modules/finance/application/placements";
+import { overridesFor } from "@/modules/finance/application/overrides";
+import { monthPeriod } from "@/modules/finance/domain/batch";
+import { OPENING_PREFIX } from "@/modules/finance/domain/close";
+import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
+import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
+import { batchOf } from "@/modules/finance/domain/export";
+import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
+import { inChart, type Posting } from "@/modules/finance/domain/posting";
+import { bankOnly, expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
+import { defaultTreasuryAccounts, firstPostedAt, lastSourceVersion, ledgerAccounts, lockedMonths, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
+import type { CancelExpense, CreateTreasuryAccount, ExpenseDto, RecordExpense, RecordTransfer, TransferDto, TreasuryAccountDto } from "@/modules/finance/schema";
+
+type Meta = { mutationId: string; deviceCreatedAt: Date };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const date = (day: string) => new Date(`${day}T00:00:00Z`);
+const inFuture = (day: string, clock: Clock) => daysBetween(day as FarmDay, latestRecordableDay(clock)) < 0;
+
+/** FN3, applied by the sync push: a bank account or cash box (owner, manager). */
+export async function createTreasuryAccount(tx: Tx, ctx: TenantContext, cmd: z.output<typeof CreateTreasuryAccount>, meta: Meta) {
+  if ((await tx.treasuryAccount.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
+  const account: TreasuryAccountDto = cmd;
+  await tx.treasuryAccount.create({ data: { ...account, organizationId: ctx.organizationId } });
+  await recordChange(tx, ctx, "treasuryAccount", account.id, account);
+  await audit(tx, ctx, { entity: "TreasuryAccount", entityId: account.id, action: "create", after: account, ...meta });
+  return ok(undefined);
+}
+
+/**
+ * SPEC-finance §9 "Default cash box and bank account": the owner or a manager picks the cash box or bank account that
+ * takes, from now on, the cash or bank lines naming none (postEntry); the one before stops. Online, audited.
+ */
+export async function setDefaultTreasuryAccount(ctx: TenantContext, id: unknown): Promise<Result<void, "FORBIDDEN" | "NOT_FOUND">> {
+  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  if (!z.uuid().safeParse(id).success) return fail("NOT_FOUND");
+  return db.$transaction(async (tx) => {
+    const account = await tx.treasuryAccount.findFirst({ where: { id: id as string, organizationId: ctx.organizationId } });
+    if (!account) return fail("NOT_FOUND");
+    const kind = { organizationId: ctx.organizationId, kind: account.kind };
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`treasury-default:${ctx.organizationId}:${account.kind}`}, 8))`; // two at once: one after the other
+    const before = await defaultTreasuryAccounts(tx, ctx);
+    await tx.treasuryAccount.updateMany({ where: { ...kind, isDefault: true }, data: { isDefault: false } });
+    await tx.treasuryAccount.update({ where: { id: account.id }, data: { isDefault: true } });
+    await audit(tx, ctx, { entity: "TreasuryAccount", entityId: account.id, action: "setDefault", before: { defaultId: before[account.kind as TreasuryKind] ?? null }, after: { defaultId: account.id } });
+    return ok(undefined);
+  });
+}
+
+const treasuryOf = (tx: Tx, ctx: TenantContext, id: string) =>
+  tx.treasuryAccount.findFirst({ where: { id, organizationId: ctx.organizationId } }).then((a) => a && { id: a.id, kind: a.kind as TreasuryKind });
+
+/**
+ * Posts a farm-side record's entries in the same transaction, into the first open month when its month is locked. The
+ * rules' PCA accounts land in the entity's chart as the posting pipeline's do (FN2: PCA off → the CGNC fallback). As
+ * FC7 (FQ25), a line with no leaf to go on posts nothing and invents no account (FN4): the record is kept, unposted.
+ * A corrected expense (§9 "Cancelled records") posts its next `version`, with the overrides in force when it was
+ * `firstPosted` (FN8, as the posting pipeline's later versions).
+ */
+async function postNow(tx: Tx, ctx: TenantContext, sourceId: string, day: string, build: (entity: { vatRegistered: boolean }) => Posting[], version = 1, firstPosted: Date | null = null): Promise<Result<void, PostError>> {
+  const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation in M1
+  if (!entity) return fail("NOT_FOUND");
+  const all = await ledgerAccounts(tx);
+  const chart = chartOf(all, entity.accountingProfile.base, entity.accountingProfile.overlays);
+  const leaves = new Set(leafAccounts(chart).map((a) => a.number));
+  const override = await overridesFor(tx, ctx, entity, chart);
+  // As the posting pipeline: FN8's overrides first (a new source: today's), then the lines in the entity's chart (FN2).
+  const mapped = build(entity).map((p) => inChart(override ? override(p, firstPosted) : p, chartOf(all, "cgnc", ["pca"]), chart));
+  // ponytail: no expense or transfer account lacks a CGNC leaf today; list such a record on /books (as FC7) if one does.
+  if (!mapped.every((p) => p?.lines.every((l) => leaves.has(l.account)))) return ok(undefined);
+  const postings = mapped as Posting[];
+  const locked = await lockedMonths(tx, ctx, entity.id);
+  const onDay = (locked.has(monthOf(day as FarmDay)) ? `${firstOpenMonth(monthOf(day as FarmDay), locked)}-01` : day) as FarmDay;
+  for (const [i, p] of postings.entries()) {
+    const posted = await postEntry(tx, ctx, { id: uuidv7(), legalEntityId: entity.id, journal: p.journal, day: onDay, label: p.label, reversesId: null, lines: p.lines, source: { module: "finance", id: sourceId, version: version + i } });
+    if (!posted.ok) return posted;
+  }
+  return ok(undefined);
+}
+
+/** FX4's rules for a quick expense, recorded or corrected: the expense as the phone stores it, or why it is refused. */
+async function checkedExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordExpense>, clock: Clock): Promise<Result<ExpenseDto>> {
+  if (inFuture(cmd.day, clock)) return fail("DAY_IN_FUTURE");
+  if (bankOnly(cmd.category) && (cmd.paidFrom !== "bank" || !cmd.treasuryId)) return fail("INVALID_INPUT"); // FC9: on the bank account it reconciles
+  if (cmd.treasuryId) {
+    const t = await treasuryOf(tx, ctx, cmd.treasuryId);
+    if (!t) return fail("NOT_FOUND");
+    if (t.kind !== cmd.paidFrom) return fail("INVALID_INPUT"); // a cash box for cash, a bank account for the bank
+  }
+  if (cmd.batchId && !(await batchFacts(tx, ctx, cmd.batchId))) return fail("NOT_FOUND"); // another organisation's batch
+  if (BigInt(cmd.vatCentimes) > BigInt(cmd.amountCentimes)) return fail("VAT_MORE_THAN_AMOUNT");
+  return ok({
+    ...cmd,
+    category: cmd.category as ExpenseDto["category"],
+    treasuryId: cmd.paidFrom === "credit" ? null : cmd.treasuryId,
+    serviceMonth: cmd.batchId ? null : cmd.serviceMonth, // a direct charge has no service period to share over
+  });
+}
+
+/** The expense's columns. */
+function expenseRow(e: ExpenseDto) {
+  const period = e.serviceMonth ? monthPeriod(e.serviceMonth) : null;
+  return {
+    day: date(e.day),
+    category: e.category,
+    amountCentimes: BigInt(e.amountCentimes),
+    vatCentimes: BigInt(e.vatCentimes ?? "0"),
+    paidFrom: e.paidFrom,
+    treasuryId: e.treasuryId,
+    note: e.note,
+    batchId: e.batchId ?? null,
+    shared: period !== null,
+    serviceFrom: period && date(period.from),
+    serviceTo: period && date(period.to),
+  };
+}
+
+type ExpenseRow = NonNullable<Awaited<ReturnType<Tx["expense"]["findFirst"]>>>;
+const expenseDtoOf = (row: ExpenseRow): ExpenseDto => ({
+  id: row.id,
+  day: row.day.toISOString().slice(0, 10),
+  category: row.category as ExpenseDto["category"],
+  amountCentimes: String(row.amountCentimes),
+  vatCentimes: String(row.vatCentimes),
+  paidFrom: row.paidFrom as ExpenseDto["paidFrom"],
+  treasuryId: row.treasuryId,
+  note: row.note,
+  batchId: row.batchId,
+  serviceMonth: row.shared && row.serviceFrom ? row.serviceFrom.toISOString().slice(0, 7) : null,
+  receiptFileId: row.receiptFileId,
+});
+
+const postingOfExpense = (e: ExpenseDto) => (entity: { vatRegistered: boolean }) => [
+  expensePosting({ category: e.category as ExpenseCategory, amount: BigInt(e.amountCentimes), paidFrom: e.paidFrom, treasuryId: e.treasuryId, vat: BigInt(e.vatCentimes ?? "0") }, entity.vatRegistered),
+];
+
+/**
+ * FX4, FN6, applied by the sync push: a quick expense recorded on the phone (owner, manager), posted once when it
+ * arrives (its id is the source key). Paid from one of the organisation's cash boxes or bank accounts, or on credit.
+ */
+export async function recordExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordExpense>, meta: Meta, clock: Clock = systemClock) {
+  if ((await tx.expense.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
+  const checked = await checkedExpense(tx, ctx, cmd, clock);
+  if (!checked.ok) return checked;
+  const expense = checked.value;
+  await tx.expense.create({ data: { id: expense.id, organizationId: ctx.organizationId, ...expenseRow(expense), recordedBy: ctx.userId } });
+  const posted = await postNow(tx, ctx, expense.id, expense.day, postingOfExpense(expense));
+  if (!posted.ok) return posted; // the push rolls the expense back with it
+  await recordChange(tx, ctx, "expense", expense.id, expense);
+  await audit(tx, ctx, { entity: "Expense", entityId: expense.id, action: "create", after: expense, ...meta });
+  return ok(undefined);
+}
+
+/**
+ * SPEC-finance §9 "Cancelled records": may this expense be corrected or cancelled? Under the expense's lock (a payment
+ * waits). Not once a payment was posted for it (credit expenses), nor once a closed batch counts it (FN14: its result
+ * never moves again), nor with its entry, or its new day, in a locked month (FN5). Returns its entity and standing entry.
+ */
+async function changeable(tx: Tx, ctx: TenantContext, row: ExpenseRow, newDay: string | null, newBatchId: string | null) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${row.id}, 8))`; // payCreditExpense's lock
+  if (await expensePaid(tx, ctx, row.id)) return fail("EXPENSE_PAID");
+  const closed = async (batchId: string | null) => batchId !== null && (await batchFacts(tx, ctx, batchId))?.status === "closed";
+  const frozen = await tx.frozenAllocation.count({ where: { organizationId: ctx.organizationId, expenseId: row.id } });
+  if (frozen > 0 || (await closed(row.batchId)) || (await closed(newBatchId))) return fail("EXPENSE_IN_CLOSED_BATCH");
+  const [entity] = await listLegalEntities(ctx);
+  if (!entity) return fail("NOT_FOUND");
+  const standing = await standingEntryFor(tx, ctx, "finance", row.id);
+  const locked = await lockedMonths(tx, ctx, entity.id);
+  const days = [row.day.toISOString().slice(0, 10), standing?.day, newDay].filter((d): d is string => d != null);
+  if (days.some((d) => locked.has(monthOf(d as FarmDay)))) return fail("PERIOD_LOCKED");
+  return ok({ entity, standing });
+}
+
+/** Reverses an expense's standing entry on its own day (its month is open: checked first). */
+async function reverseStanding(tx: Tx, ctx: TenantContext, legalEntityId: string, standing: NonNullable<Awaited<ReturnType<typeof standingEntryFor>>>) {
+  const posted = await postEntry(tx, ctx, { id: uuidv7(), legalEntityId, journal: standing.journal, day: standing.day as FarmDay, label: "Annulation", reversesId: standing.id, lines: reversalOf(standing.lines) });
+  if (!posted.ok) throw new Error(`expense reversal: ${posted.error}`); // the checks passed: a bug; the push retries it
+}
+
+/**
+ * SPEC-finance §9 "Cancelled records", applied by the sync push: a quick expense corrected (amount, VAT, category,
+ * day, batch or month shared over, paid from, note), checked as FX4 checks a new one. Its entry is reversed on its day
+ * and the corrected one posted as the source's next version (FN7). Owner, manager.
+ */
+export async function correctExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordExpense>, meta: Meta, clock: Clock = systemClock) {
+  const row = await tx.expense.findFirst({ where: { id: cmd.id, organizationId: ctx.organizationId } });
+  if (!row) return fail("NOT_FOUND");
+  const checked = await checkedExpense(tx, ctx, cmd, clock);
+  if (!checked.ok) return checked;
+  const allowed = await changeable(tx, ctx, row, cmd.day, cmd.batchId);
+  if (!allowed.ok) return allowed;
+  const before = expenseDtoOf(row);
+  const after: ExpenseDto = { ...checked.value, receiptFileId: row.receiptFileId };
+
+  await tx.expense.update({ where: { id: row.id }, data: expenseRow(after) });
+  if (allowed.value.standing) await reverseStanding(tx, ctx, allowed.value.entity.id, allowed.value.standing);
+  const version = (await lastSourceVersion(tx, ctx, "finance", after.id)) + 1;
+  const posted = await postNow(tx, ctx, after.id, after.day, postingOfExpense(after), version, await firstPostedAt(tx, ctx, "finance", after.id));
+  if (!posted.ok) throw new Error(`expense ${after.id}: ${posted.error}`); // as above
+  await recordChange(tx, ctx, "expense", after.id, after);
+  await audit(tx, ctx, { entity: "Expense", entityId: after.id, action: "correct", before, after, ...meta });
+  return ok(undefined);
+}
+
+/** SPEC-finance §9 "Cancelled records", applied by the sync push: a quick expense cancelled; its entry is reversed on its day. */
+export async function cancelExpense(tx: Tx, ctx: TenantContext, cmd: z.output<typeof CancelExpense>, meta: Meta) {
+  const row = await tx.expense.findFirst({ where: { id: cmd.expenseId, organizationId: ctx.organizationId } });
+  if (!row) return fail("NOT_FOUND");
+  const allowed = await changeable(tx, ctx, row, null, null);
+  if (!allowed.ok) return allowed;
+
+  await tx.expense.delete({ where: { id: row.id } });
+  if (allowed.value.standing) await reverseStanding(tx, ctx, allowed.value.entity.id, allowed.value.standing);
+  await recordChange(tx, ctx, "expense", row.id, null);
+  await audit(tx, ctx, { entity: "Expense", entityId: row.id, action: "cancel", before: expenseDtoOf(row), ...meta });
+  return ok(undefined);
+}
+
+/**
+ * FN10: attaches the receipt photo the upload route has just stored for this organisation, once (ADR-011, like the
+ * rodent check's proof). Owners and managers, like the expense itself.
+ */
+export async function attachExpenseReceipt(ctx: TenantContext, expenseId: string, fileId: string, inTx?: Tx): Promise<Result<void>> {
+  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  const attach = async (tx: Tx) => {
+    // Conditional update: of two uploads at once, only the first attaches.
+    const { count } = await tx.expense.updateMany({ where: { id: expenseId, organizationId: ctx.organizationId, receiptFileId: null }, data: { receiptFileId: fileId } });
+    const row = await tx.expense.findFirst({ where: { id: expenseId, organizationId: ctx.organizationId } });
+    if (!row) return fail("NOT_FOUND");
+    if (count === 0) return fail("FILE_ALREADY_ATTACHED");
+    await recordChange(tx, ctx, "expense", expenseId, expenseDtoOf(row));
+    await audit(tx, ctx, { entity: "Expense", entityId: expenseId, action: "update", before: { receiptFileId: null }, after: { receiptFileId: fileId } });
+    return ok(undefined);
+  };
+  return inTx ? attach(inTx) : db.$transaction(attach); // inTx: the upload's own transaction
+}
+
+/** FN6, applied by the sync push: cash deposited in the bank, cash withdrawn, or between two accounts, through 5115. */
+export async function recordTransfer(tx: Tx, ctx: TenantContext, cmd: z.output<typeof RecordTransfer>, meta: Meta, clock: Clock = systemClock) {
+  if ((await tx.treasuryTransfer.count({ where: { id: cmd.id } })) > 0) return fail("ALREADY_EXISTS");
+  if (inFuture(cmd.day, clock)) return fail("DAY_IN_FUTURE");
+  if (cmd.fromId === cmd.toId) return fail("INVALID_INPUT");
+  const [from, to] = await Promise.all([treasuryOf(tx, ctx, cmd.fromId), treasuryOf(tx, ctx, cmd.toId)]);
+  if (!from || !to) return fail("NOT_FOUND");
+  const transfer: TransferDto = cmd;
+  await tx.treasuryTransfer.create({ data: { ...transfer, organizationId: ctx.organizationId, day: date(transfer.day), amountCentimes: BigInt(transfer.amountCentimes), recordedBy: ctx.userId } });
+  const posted = await postNow(tx, ctx, transfer.id, transfer.day, () => transferPostings({ amount: BigInt(transfer.amountCentimes), from, to }));
+  if (!posted.ok) return posted;
+  await recordChange(tx, ctx, "transfer", transfer.id, transfer);
+  await audit(tx, ctx, { entity: "TreasuryTransfer", entityId: transfer.id, action: "create", after: transfer, ...meta });
+  return ok(undefined);
+}
+
+export type TreasuryOverview = {
+  // isDefault: takes the cash or bank lines naming no account (§9 "Default cash box and bank account")
+  accounts: { id: string; kind: TreasuryKind; name: string; balanceCentimes: bigint; isDefault: boolean }[];
+  // The cash and bank posted on no account: before a cash box or bank account existed, or before §9's defaults (sale
+  // receipts, wages, supplier payments…, FN6). With the accounts' balances, the forecast's start.
+  unassignedCentimes: bigint;
+  // counterAccounts: the entry's other lines' accounts, as the cash book shows them (FN16); batch: its house and
+  // placement day, as the books show it, or "". receipt: an expense's photo id, null when it has none yet; undefined
+  // for a movement that isn't an expense.
+  movements: {
+    day: string;
+    journal: string;
+    label: string;
+    account: string;
+    treasuryId: string | null;
+    counterAccounts: { number: string; label: string }[];
+    batch: string;
+    debitCentimes: bigint;
+    creditCentimes: bigint;
+    receipt?: string | null;
+  }[];
+};
+
+/**
+ * FN10: Σdebit − Σcredit on 5141 / 5161 since the books began, per bank account or cash box, and under null the lines
+ * that name none (the farm-event rules', FN6). The à-nouveaux and their reversals are left out: they restate the
+ * earlier years' lines, which all stay in the ledger, and name no account. So the balances hold across a year close.
+ */
+async function treasuryBalances(ctx: TenantContext): Promise<Map<string | null, bigint>> {
+  const org = { organizationId: ctx.organizationId };
+  const openings = (await db.journalEntry.findMany({ where: { ...org, sourceModule: "finance", sourceId: { startsWith: OPENING_PREFIX } }, select: { id: true } })).map((e) => e.id);
+  const sums = await db.journalLine.groupBy({
+    by: ["treasuryId"],
+    where: { ...org, account: { in: ["5141", "5161"] }, entryId: { notIn: openings }, entry: { OR: [{ reversesId: null }, { reversesId: { notIn: openings } }] } },
+    _sum: { debitCentimes: true, creditCentimes: true },
+  });
+  return new Map(sums.map((x) => [x.treasuryId, (x._sum.debitCentimes ?? 0n) - (x._sum.creditCentimes ?? 0n)]));
+}
+
+/**
+ * FN10: each bank account's and cash box's balance, and this month's movements on 5141 / 5161 with their journal,
+ * counter-accounts, batch and receipt (owner, manager, accountant).
+ */
+export async function treasuryOverview(ctx: TenantContext, month: string): Promise<Result<TreasuryOverview, "FORBIDDEN" | "INVALID_INPUT">> {
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN"); // a read: the accountant too (SPEC-m5 PA5)
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("INVALID_INPUT");
+  await catchUpBooks(ctx); // §9
+  const org = { organizationId: ctx.organizationId };
+  const [accounts, defaults, balance, tags, lines] = await Promise.all([
+    db.treasuryAccount.findMany({ where: org, orderBy: { name: "asc" } }),
+    defaultTreasuryAccounts(db, ctx),
+    treasuryBalances(ctx),
+    entryTags(ctx, month), // the same month: the movements' entries are in it
+    db.journalLine.findMany({
+      where: { ...org, account: { in: ["5141", "5161"] }, entry: { day: { gte: date(`${month}-01`), lt: date(nextMonth(month)) } } },
+      include: { entry: { select: { day: true, journal: true, label: true, sourceModule: true, sourceId: true, lines: { select: { account: true } } } } },
+      orderBy: [{ entry: { day: "asc" } }, { entry: { createdAt: "asc" } }],
+    }),
+  ]);
+  // An expense's entries carry its id; a rule's key (asset:<id>:acq, FC1) isn't a uuid and has no receipt here.
+  const sourceIds = lines.flatMap((l) => (l.entry.sourceModule === "finance" && l.entry.sourceId && UUID.test(l.entry.sourceId) ? [l.entry.sourceId] : []));
+  const expenses = await db.expense.findMany({ where: { ...org, id: { in: sourceIds } }, select: { id: true, receiptFileId: true } });
+  const receipt = new Map(expenses.map((e) => [e.id, e.receiptFileId]));
+  // FN16's rule: a cash, bank or cheque account (51xx, 5115 too) is never a counter-account.
+  const counters = (l: (typeof lines)[number]) => [...new Set(l.entry.lines.map((x) => x.account).filter((a) => !a.startsWith("51")))];
+  const numbers = [...new Set(lines.flatMap(counters))];
+  const labels = new Map((await db.ledgerAccount.findMany({ where: { number: { in: numbers } }, select: { number: true, label: true } })).map((a) => [a.number, a.label]));
+  return ok({
+    accounts: accounts.map((x) => ({ id: x.id, kind: x.kind as TreasuryKind, name: x.name, balanceCentimes: balance.get(x.id) ?? 0n, isDefault: defaults[x.kind as TreasuryKind] === x.id })),
+    unassignedCentimes: balance.get(null) ?? 0n,
+    movements: lines.map((l) => ({
+      day: l.entry.day.toISOString().slice(0, 10),
+      journal: l.entry.journal,
+      label: l.entry.label,
+      account: l.account,
+      treasuryId: l.treasuryId,
+      counterAccounts: counters(l).map((number) => ({ number, label: labels.get(number) ?? "" })),
+      batch: batchOf(tags, l.entryId),
+      debitCentimes: l.debitCentimes,
+      creditCentimes: l.creditCentimes,
+      receipt: l.entry.sourceId ? receipt.get(l.entry.sourceId) : undefined,
+    })),
+  });
+}
+
+const nextMonth = (month: string) => {
+  const [y, m] = month.split("-").map(Number);
+  return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
+};
+
+/**
+ * F-Effects' schedule, the weekly cash need from facts: today's cash and bank (5161, 5141 in the ledger) run forward
+ * with the cheques and bills to collect, what is due to suppliers, the bills accepted and not yet debited, the validated
+ * wages not yet paid, the loan installments not yet paid (FC2), and the debts with no due date, on their own day (late
+ * ones this week): placements' chicks or hens, assets bought on credit (4481), quick expenses on credit (§9). Owners,
+ * managers and the accountant (a read).
+ */
+export async function cashForecast(ctx: TenantContext, clock: Clock = systemClock) {
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN");
+  const [balances, ins, outs, wages, bills, loans, placements, assets, expenses] = await Promise.all([
+    treasuryBalances(ctx), // the accounts' balances, and the cash the farm-event rules post on no account
+    instrumentsToCollect(ctx),
+    supplierDuesOf(ctx),
+    wagesDue(ctx),
+    issuedBillsDue(ctx), // FN11: accepted bills leave the bank at their agreed date
+    loanInstallmentsDue(ctx), // FC2: the installments not yet paid, on their due day
+    placementDues(ctx), // §9 "Placement debts"
+    assetDues(ctx), // FC1: 4481 still owed
+    creditExpenseDues(ctx), // §9 "Credit expenses"
+  ]);
+  const start = [...balances.values()].reduce((s, b) => s + b, 0n);
+  const flows = [...ins.map((f) => ({ ...f, direction: "in" as const })), ...[...outs, ...wages, ...bills, ...loans, ...placements, ...assets, ...expenses].map((f) => ({ ...f, direction: "out" as const }))];
+  return ok({ startCentimes: start, weeks: cashSchedule(farmDayOf(clock.now()), start, flows) });
+}

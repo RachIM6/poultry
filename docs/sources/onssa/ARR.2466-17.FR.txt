@@ -1,0 +1,681 @@
+    Arrêté du ministre de l'agriculture, de la pêche maritime, du développement rural et des
+      eaux et forêts n°2466-17 du 5 moharrem 1439 (26 septembre 2017) relatif aux mesures
+    complémentaires et spéciales pour lutter contre l'influenza aviaire hautement pathogène
+
+                                                    (peste aviaire).
+
+                                                             (BO. n°6644 du 01/02/2018, page 403)
+
+LE MINISTRE DE L'AGRICULTURE, DE LA PECHE MARITIME, DU DEVELOPPEMENT RURAL ET DES EAUX
+ET FORETS,
+
+Vu le dahir portant loi n°1-75-292 du 5 chaoual 1397 (19 septembre 1977) édictant des mesures propres
+à garantir les animaux domestiques contre les maladies contagieuses, tel que modifié et complété,
+notamment ses articles 3, 5, 6 et 7 ;
+Vu la loi n°49-99 relative à la protection sanitaire des élevages avicoles, au contrôle de la production
+et la commercialisation des produits avicoles, promulguée par le dahir n°1-02-119 du 1er rabii II 1423
+(13 juin 2002), notamment son article 7 ;
+Vu la loi n°25-08 portant création de l'Office national de sécurité sanitaire des produits alimentaires,
+promulguée par le dahir n°1-09-20 du 22 safar 1430 (18 février 2009), notamment son article 2 ;
+Vu le décret n°2-04-684 du 14 kaada 1425 (27 décembre 2004) pris pour l'application de la loi n°49-
+99 relative à la protection sanitaire des élevages avicoles, au contrôle de la production et la
+commercialisation des produits avicoles, notamment son article 20 ;
+Après avis du ministre de l'économie et des finances,
+
+                                                      ARRETE :
+
+                                  Chapitre premier : Dispositions générales
+
+ARTICLE PREMIER.­ La déclaration de l'influenza aviaire hautement pathogène (peste aviaire) ci-après
+dénommée (IAHP), est effectuée conformément aux dispositions de l'article 3 du dahir portant loi n°1-
+75-292 susvisé par les personnes mentionnées audit article ainsi que par les vétérinaires inspecteurs
+des abattoirs avicoles, des postes frontières et des laboratoires et par les vétérinaires du secteur privé,
+lors de la constatation des symptômes d'IAHP sur des volailles ou des oiseaux captifs vivants ou en
+cas de constatation de lésions sur leur carcasse lors d'une autopsie ou d'un diagnostic expérimental.
+Cette déclaration qui doit être immédiatement déposée auprès du service vétérinaire de l'Office
+national de sécurité sanitaire des produits alimentaires (ONSSA) du lieu où se trouve les volailles ou
+les oiseaux captifs infectés ou suspects d'être infectés par l'IAHP, mentionne l'identité du propriétaire
+ou du gestionnaire de l'exploitation avicole ou du détenteur desdits volailles ou oiseaux captifs et porte
+les indications permettant l'identification de ladite exploitation et des volailles ou oiseaux captifs.
+
+                                                                                                                         1
+ART. 2. ­ Au sens du présent arrêté, on entend par :
+
+    1) Influenza aviaire hautement pathogène (IAHP) :
+
+         - toute infection des volailles ou des oiseaux captifs causée par tout virus « Influenza »
+             d'origine avicole ayant un indice de pathogénicité intraveineux supérieur à 1,2 chez le
+             poulet âgé de 6 semaines ;
+
+         - toute infection des volailles ou des oiseaux captifs causée par des virus grippaux de type A
+             et de sous-type H5 ou H7 avec des séquences génomiques, codant pour de multiples acides
+             aminés basiques sur le site de clivage de la molécule hémagglutinine similaires à celles
+             observées pour d'autres virus IAHP ;
+
+    2) Volaille : tout oiseau élevé ou détenu en captivité à des fins de production de viande ou d'oeufs
+         à consommer ou à couver, de production d'autres produits, de repeuplement de populations de
+         gibier à plumes ou aux fins d'un programme d'élevage pour la reproduction de ces catégories
+         d'oiseaux, y compris les ratites ;
+
+    3) Oiseau captif : tout oiseau autre que la volaille, détenu en captivité tels les oiseaux de
+         compagnie ou les oiseaux détenus à des fins d'expositions ou de concours ;
+
+    4) Volaille ou oiseau captif suspect d'être infecté par le virus de l'IAHP : toute volaille ou
+         oiseau captif présentant des symptômes ou des lésions à l'autopsie permettant de suspecter la
+         présence de l'IAHP ou toute volaille ou oiseau captif sur lequel la présence du virus grippal de
+         type A est constatée par des analyses de laboratoire, en l'absence de manifestations cliniques
+         de la maladie ;
+
+    5) Volaille ou oiseau captif infecté par l'IAHP :
+
+        - toute volaille ou oiseau captif sur lequel la présence de l'IAHP a été confirmée par des
+             analyses effectuées en laboratoire ;
+
+        - toute volaille ou oiseau captif sur lequel des symptômes ou des lésions propres à l'IAHP
+             sont constatées lorsqu'il s'agit d'un foyer secondaire ;
+
+    6) Sous-produits animaux : cadavres entiers ou parties de cadavres d'animaux, ou produits issus
+         des animaux, tels que les peaux, les plumes, les coquilles d'oeufs, le sang, les déchets d'industrie
+         agroalimentaire ou de cuisine, non destinés à la consommation humaine ;
+
+    7) Exploitation avicole : les élevages avicoles au sens de la loi n°49-99 sus visée ainsi que toute
+         construction ou, dans le cas de l'élevage de volailles ou d'oiseaux captifs en plein air, tout lieu,
+         dans lequel ils sont élevés, détenus ou manipulés, de manière permanente ou temporaire y
+         compris un couvoir, un cirque, un zoo, un magasin, un marché, un laboratoire ou une volière
+         d'oiseaux de compagnie ou de loisir. Cette définition n'inclut pas les abattoirs ni les moyens de
+         transport ;
+
+    8) Unité de production : toute partie d'une exploitation avicole indépendante de toute autre partie
+         de cette même exploitation en ce qui concerne sa localisation et ses activités habituelles de
+         gestion des volailles ou des oiseaux captifs de même espèce qui y sont détenus ;
+
+    9) Animal sensible : tout animal, y compris les volailles, réceptif au virus de l'IAHP et
+         développant des signes cliniques ou des lésions propres à cette maladie ;
+
+    10) Abattage : toute action provoquant la mort de l'animal par saignée en vue de la consommation
+         humaine ;
+
+    11) Mise à mort : toute action, autre que l'abattage, provoquant la mort des volailles ou des oiseaux
+         captifs.
+
+                                                                                                                         2
+ART. 3. ­ Pour l'IAHP, les mesures complémentaires et spéciales visées à l'article 5 du dahir portant
+loi n°1-75-292 précitée comprennent :
+
+    1) l'épidémiosurveillance ;
+    2) les mesures spéciales de police sanitaire ;
+    3) les dispositions relatives à la vaccination.
+Lors de la mise en oeuvre des mesures susmentionnées, il incombe aux propriétaires ou gestionnaires
+des exploitations avicoles de prendre, sous leur responsabilité, toutes les dispositions nécessaires pour
+aider à la réalisation desdites mesures conformément aux dispositions de l'article 4 de loi n°49-99
+précitée.
+
+                                Chapitre II - Epidémiosurveillance de l'IAHP
+
+ART. 4. - L'épidémiosurveillance de l'IAHP comprend :
+    1) des visites régulières des volailles et des oiseaux captifs effectuées par les services vétérinaires
+         de l'ONSSA et les vétérinaires du secteur privé munis du mandat sanitaire dans les souks, les
+         exploitations avicoles, les abattoirs avicoles, les postes frontières et généralement dans tous les
+         lieux de rassemblement desdites volailles ou oiseaux ;
+    2) des enquêtes épidémiologiques menées par les services vétérinaires de l'ONSSA et les
+         vétérinaires privés munis du mandat sanitaire. Toute enquête donne lieu à la rédaction, par le
+         vétérinaire concerné d'un rapport établi selon le modèle fixé par l'ONSSA. Ces rapports sont
+         enregistrés et conservés par le service concerné de l'ONSSA ;
+    3) les analyses des prélèvements effectués lors des visites et des enquêtes épidémiologiques.
+
+ART. 5. - Les analyses des prélèvements visés aux articles 4 et 6 du présent arrêté doivent être réalisées
+dans les laboratoires de l'ONSSA. Elles peuvent également être effectuées dans un laboratoire de
+référence figurant sur la liste de l'Organisation mondiale de la santé animale (OIE).
+
+                             Chapitre III : Mesures spéciales de police sanitaire
+
+                          Section 1 : Mesures prises en cas de suspicion de l'IAHP
+ART. 6. - Sitôt réception de la déclaration visée à l'article premier ci-dessus, le service vétérinaire
+concerné place l'exploitation avicole sous surveillance sanitaire. Information de cette décision est
+immédiatement adressée au directeur régional de l'ONSSA, au vétérinaire privé désigné par le
+propriétaire ou le gestionnaire de l'exploitation avicole conformément à l'article 7 de la loi n°49-99
+précitée, et au gouverneur de la préfecture ou de la province dans laquelle se trouve cette exploitation
+avicole, aux fins de la mise en oeuvre des mesures suivantes :
+1) la visite de l'exploitation avicole par le vétérinaire du service vétérinaire de l'ONSSA
+
+       susmentionné pour effectuer :
+        a) le recensement des volailles et des oiseaux captifs avec l'indication, pour chaque espèce, du
+
+            nombre d'animaux suspects d'être infectés ou déjà morts ;
+        b) l'examen des animaux sensibles à la maladie se trouvant dans l'exploitation avicole ;
+        c) l'examen clinique approfondi des animaux suspects d'être infectés ;
+        d) l'autopsie des animaux morts.
+       Lors de cette visite le vétérinaire veille au respect des mesures de biosécurité requises ;
+
+                                                                                                                         3
+2) l'information du laboratoire de l'ONSSA le plus proche du lieu de l'exploitation avicole
+       concernée, pour validation de la nature des prélèvements à effectuer et des modalités d'envoi de
+       ceux-ci ;
+
+3) la réalisation des prélèvements nécessaires aux examens de laboratoire en veillant au respect des
+       mesures de biosécurité requises ;
+
+4) la réalisation d'une enquête épidémiologique menée sous la responsabilité du vétérinaire chef du
+       service vétérinaire susmentionné, aux fins de déterminer :
+
+        a) la durée pendant laquelle l'IAHP peut avoir été présente dans l'exploitation avicole avant
+             d'avoir été suspectée ;
+
+        b) l'étendue possible de l'infection ou de la contamination chez les animaux sensibles autres
+             que les volailles et les oiseaux captifs ;
+
+        c) l'origine possible du virus de l'IAHP présent dans l'exploitation avicole et la détermination
+             d'autres exploitations avicoles détenant des animaux suspectés d'être infectés ou
+             contaminés à partir de cette même origine ;
+
+       En outre, au cours de cette enquête, il doit être procédé :
+
+        - aux prélèvements nécessaires pour un diagnostic complémentaire ;
+
+        - au recensement des entrées et des sorties de cette exploitation avicole, des personnes, des
+             animaux (vivants ou morts), des véhicules et des matières susceptibles de diffuser le virus
+             de l'IAHP ;
+
+5) l'isolement et la séquestration des animaux de l'exploitation avicole suspecte ;
+
+6) l'interdiction de toute entrée ou sortie, à partir ou vers l'exploitation avicole, des volailles et des
+       oiseaux captifs suspects d'être infectés, des animaux sensibles, des cadavres de volailles, des
+       viandes, des oeufs, des produits alimentaires issus des volailles, des aliments pour animaux, des
+       sous-produits animaux, des déchets, des litières et des déjections, des équipements, des matériels
+       ainsi que toute matière susceptible de diffuser le virus de l'IAHP. Toutefois, l'entrée des produits
+       nécessaires à la vie des animaux est autorisée sous couvert d'un laissez-passer délivré à cet effet
+       par le vétérinaire du service vétérinaire de l'ONSSA sus-indiqué ;
+
+7) l'interdiction des déplacements des animaux non sensibles à l'IAHP à partir ou vers l'exploitation
+       avicole. Toutefois, ces déplacements peuvent être autorisés sous couvert d'un laissez-passer
+       délivré à cet effet par le vétérinaire du service vétérinaire de l'ONSSA sus-indiqué ;
+
+8) l'interdiction de déplacement des moyens de transport à partir ou vers l'exploitation avicole sauf
+       présentation d'un laissez-passer délivré à cet effet par le vétérinaire du service vétérinaire sus-
+       indiqué, à la demande de l'intéressé, et sous réserve que des moyens appropriés de désinfection
+       soient utilisés à l'entrée et à la sortie de l'exploitation avicole, des bâtiments et des locaux
+       hébergeant les animaux ;
+
+9) l'obligation pour les personnes entrant ou sortant de l'exploitation avicole, des unités de
+       production, des bâtiments ou des locaux hébergeant des animaux sensibles, d'observer les
+       mesures de biosécurité requises ;
+
+10) la destruction, sur place, à la charge de leur propriétaire, des animaux morts, sous le contrôle du
+       service vétérinaire susmentionné. Cette destruction doit être effectuée en respectant les règles de
+       biosécurité par enfouissement ou par incinération ou par tout autre procédé permettant
+       d'empêcher la diffusion du virus de l'IAHP. Toutefois, en cas d'impossibilité de détruire, sur
+       place, les animaux morts, le vétérinaire du service vétérinaire de l'ONSSA sus-indiqué, peut
+       autoriser, sous sa responsabilité, leur déplacement dans un autre lieu, dans le respect des mesures
+       de biosécurité permettant d'éviter la diffusion du virus de l'IAHP ;
+
+11) le nettoyage et la désinfection par le propriétaire ou le gestionnaire de l'exploitation avicole du
+       lieu de la destruction des animaux morts, en utilisant un désinfectant autorisé conformément à la
+       réglementation en vigueur.
+
+                                                                                                                         4
+Les mesures visées aux 5) à 11) ci-dessus doivent être notifiées par le service vétérinaire de l'ONSSA
+susmentionné, par tout moyen faisant preuve de la réception au propriétaire ou gestionnaire de
+l'exploitation avicole concernée, lequel doit veiller à l'application desdites mesures conformément aux
+dispositions de l'article 7 de la loi n°49-99 précitée.
+
+Tout laissez-passer porte les mentions permettant d'identifier l'exploitation avicole, son propriétaire
+ou son gestionnaire et selon le cas, les produits nécessaires à la vie des animaux ou les animaux ou les
+moyens de transport déplacés ainsi que le lieu de provenance et de destination. Il indique également
+les conditions dans lesquelles le déplacement doit être effectué pour éviter la diffusion du virus de
+l'IAHP.
+
+ART. 7. - Les mesures visées à l'article 6 ci-dessus peuvent être étendues à d'autres exploitations
+avicoles dans le cas où leur implantation, leur situation géographique ou les contacts avec l'exploitation
+avicole abritant les volailles ou les oiseaux captifs suspects d'être infectés par l'IAHP permettent de
+soupçonner une contamination par ce virus. Dans ce cas, le service vétérinaire concerné de l'ONSSA
+informe les gouverneurs des préfectures et des provinces dans lesquelles se trouvent lesdites
+exploitations aux fins de la mise en oeuvre desdites mesures.
+
+ART. 8. - Lorsque la présence d'IAHP est soupçonnée dans un lieu ou un établissement autre qu'une
+exploitation avicole, le service vétérinaire de l'ONSSA dans le ressort duquel se trouve le lieu où
+l'établissement concerné place celui-ci immédiatement sous surveillance sanitaire et met en oeuvre,
+selon le cas, les mesures suivantes :
+
+1) une ou plusieurs des mesures prévues à l'article 6 ci-dessus, compte tenu du lieu ou de
+       l'établissement concerné et des circonstances ;
+
+2) l'isolement et la séquestration des volailles ou des oiseaux captifs ou des oeufs ;
+
+3) la conservation séparément des viandes et de tous les produits, sous-produits animaux et déchets
+       dérivés de ces volailles ou oiseaux captifs qui pourraient avoir été contaminés au cours du
+       processus d'abattage ou de production, sous le contrôle du service vétérinaire de l'ONSSA
+       susmentionné, jusqu'à la réalisation des investigations nécessaires permettant de confirmer ou
+       d'infirmer la présence de l'IAHP ;
+
+4) l'application, dans le lieu ou l'établissement concerné, des mesures de biosécurité permettant
+       d'éviter la diffusion du virus de l'IAHP ;
+
+5) la réalisation d'une enquête épidémiologique dans le lieu ou dans l'établissement concerné ainsi
+       que dans la ou les exploitations avicoles d'origine des volailles, des oiseaux captifs, ou des oeufs,
+       afin de confirmer ou d'exclure la présence de la maladie.
+
+Les mesures visées aux 1) à 4) ci-dessus doivent être notifiées par le service vétérinaire de l'ONSSA
+susmentionné, par tout moyen faisant preuve de la réception, au propriétaire ou gestionnaire du lieu ou
+de l'établissement concerné, lequel doit veiller à l'application desdites mesures.
+
+Lorsque les activités du lieu ou de l'établissement concerné ne peuvent pas être interrompues durant
+une longue période sans occasionner de dommage, dans l'attente des résultats des analyses des
+prélèvements, le service vétérinaire sus-indiqué peut autoriser, sous certaines conditions sanitaires
+particulières, la reprise desdites activités, au moins 24 heures après l'exécution des opérations de
+nettoyage et de désinfection des bâtiments, des équipements, des matériels et des moyens de transport.
+
+ART. 9. - Les mesures visées aux articles 6 et 8 ci-dessus sont levées lorsque la suspicion de l'IAHP
+est infirmée par les résultats des analyses. La notification de cette levée est adressée aux gouverneurs
+des préfectures ou des provinces concernées et ainsi qu'aux propriétaires ou gestionnaires des
+exploitations avicoles ou aux responsables des lieux ou établissements visés à l'article 6 ou à l'article
+8 ci-dessus.
+
+                                                                                                                         5
+                        Section 2 - Mesures prises en cas de confirmation de l'IAHP
+
+ART. 10. - Lorsque, dans une exploitation avicole, la présence de l'IAHP est confirmée, celle-ci est
+placée sous la surveillance sanitaire du service vétérinaire de l'ONSSA dans le ressort duquel se trouve
+ladite exploitation. Information de la décision de mise sous surveillance est immédiatement adressée
+au directeur régional de l'ONSSA et au gouverneur de la préfecture ou province dans laquelle se trouve
+cette exploitation et, si nécessaire, aux gouverneurs des préfectures et des provinces limitrophes, aux
+fins de la mise en oeuvre des mesures spéciales de police sanitaire suivantes :
+
+I. la délimitation « d'une zone réglementée » en tenant compte des facteurs d'ordre géographique,
+     administratif et épidémiologique liés à l'IAHP et comprenant :
+
+     - l'exploitation avicole infectée dite « foyer» de l'IAHP ;
+
+     - une zone de protection autour du foyer, d'un rayon minimal de 3 kilomètres ;
+
+     - une zone de surveillance autour du foyer, d'un rayon minimal de 10 kilomètres.
+
+     Les zones de protection et de surveillance ainsi délimitées sont signalées par des panneaux, postés
+     à leur entrée sur les routes d'accès à ces zones.
+
+II. l'application dans le foyer, pour une durée qui ne peut être inférieure à la période
+       d'incubation du virus de l'IAHP selon les animaux sensibles considérés, des mesures
+       suivantes :
+
+1) la mise à mort et la destruction immédiate, sur place, de toutes les volailles et oiseaux captifs
+
+       ainsi que des cadavres et des oeufs se trouvant dans l'exploitation avicole et la désinfection du
+       lieu de destruction avec un désinfectant autorisé conformément à la réglementation en vigueur.
+       Toutefois, en cas d'impossibilité de réaliser la destruction des cadavres d'animaux sur place, le
+       vétérinaire du service vétérinaire de l'ONSSA sus-indiqué, peut autoriser, sous sa responsabilité,
+       leur déplacement dans un autre lieu à l'intérieur de la zone de protection, dans le respect des
+       mesures de biosécurité permettant d'éviter tout risque de diffusion du virus de l'IAHP. Toute
+       mise à mort ou destruction des volailles ou d'oiseaux captifs ou d'oeufs doit faire l'objet d'un
+       procès-verbal établi, à l'issue des opérations, par le vétérinaire du service vétérinaire de l'ONSSA
+       dans le ressort duquel se trouve le lieu de la mise à mort et/ou de la destruction. Ce procès-verbal
+       doit porter les mentions d'identification de l'exploitation avicole, le nombre de volailles,
+       d'oiseaux captifs ou d'oeufs ainsi que la date et la raison de leur mise à mort ou de leur
+       destruction ;
+
+2) l'interdiction des déplacements des animaux sensibles à partir ou vers le foyer ;
+
+3) l'interdiction des déplacements des véhicules à partir ou vers le foyer, sauf présentation d'un
+
+       laissez-passer délivré à cet effet par le vétérinaire du service vétérinaire précité à la demande de
+       l'intéressé et sous réserve que des moyens appropriés de désinfection soient utilisés à l'entrée et
+       à la sortie du foyer et des bâtiments et locaux hébergeant des animaux sensibles ;
+
+4) l'obligation, pour les personnes entrant et sortant de l'exploitation avicole ou des bâtiments et des
+
+       locaux hébergeant des animaux sensibles, d'observer les mesures de biosécurité permettant
+       d'éviter tout risque de diffusion du virus de l'IAHP ;
+
+5) la destruction, sur place, des viandes de volailles abattues pendant la période d'incubation de la
+
+       maladie. Toutefois, en cas d'impossibilité de détruire, sur place, les viandes de volailles, le
+       vétérinaire du service vétérinaire sus-indiqué, peut autoriser, sous sa responsabilité, leur
+       déplacement dans un autre lieu à l'intérieur de la zone de protection, dans le respect des mesures
+       de biosécurité permettant d'éviter la diffusion du virus de l'IAHP ;
+
+                                                                                                                          6
+6) la destruction par leur propriétaire et sous la supervision du service vétérinaire de l'ONSSA dans
+
+       le ressort duquel ils se trouvent :
+
+       a) des oeufs à couver sortis de l'exploitation avicole pendant la période d'incubation de la
+             maladie ;
+
+       b) des oeufs de consommation sortis de l'exploitation avicole et cédés pendant la période
+             d'incubation de la maladie ;
+
+       c) des aliments pour animaux produits dans l'exploitation avicole et cédés pendant la période
+             d'incubation de la maladie.
+
+       Toutefois, en cas d'impossibilité de détruire, sur place, les oeufs à couver, les oeufs de
+       consommation ou les aliments pour animaux, susmentionnés, le vétérinaire du service sus-
+       indiqué, peut autoriser, sous sa responsabilité, leur déplacement dans un autre lieu aux fins de
+       destruction, dans le respect des mesures de biosécurité permettant d'éviter la diffusion du virus
+       de l'IAHP. Toute destruction des oeufs doit faire l'objet d'un procès verbal établi, à l'issue de
+       cette destruction, par le vétérinaire du service vétérinaire de l'ONSSA dans le ressort duquel se
+       trouve le lieu de la destruction. Le procès-verbal doit porter les mentions d'identification de
+       l'exploitation avicole, le nombre des oeufs ainsi que la date et la raison de leur destruction ;
+
+7) le nettoyage et la désinfection, sous la supervision du service vétérinaire sus-indiqué, des
+
+       bâtiments, des locaux et de leurs abords utilisés pour l'hébergement des animaux sensibles, des
+       véhicules utilisés pour le transport, de tous les autres bâtiments et de tout matériel susceptibles
+       d'être contaminés, en utilisant un désinfectant autorisé conformément à la réglementation en
+       vigueur. Les bâtiments utilisés pour l'hébergement des personnes ou les espaces de bureaux
+       susceptibles d'être contaminés par le virus de l'IAHP doivent être également désinfectés.
+
+       A l'issue de cette désinfection une attestation doit être délivrée au propriétaire ou gestionnaire
+       de l'exploitation avicole par le vétérinaire du service vétérinaire précité ;
+
+8) la destruction, sur place, par leur propriétaire, du matériel utilisé pour les besoins de l'élevage et
+
+       pour lequel la désinfection ne peut être effectuée de manière efficace, tel que les cages de
+       transport ou les alvéoles pour les oeufs. Toutefois, en cas d'impossibilité de détruire, sur place,
+       ce matériel, le vétérinaire du service sus-indiqué, peut autoriser, sous sa responsabilité, son
+       déplacement dans un autre lieu à l'intérieur de la zone de protection, dans le respect des mesures
+       de biosécurité permettant d'éviter la diffusion du virus de l'IAHP ;
+
+9) la destruction, sur place, ou le traitement, selon le cas, de toute matière susceptible d'être
+
+       contaminée par le virus de l'IAHP.
+
+Les mesures visées ci-dessus doivent être notifiées par le service vétérinaire susmentionné par tout
+moyen faisant preuve de la réception, au propriétaire ou gestionnaire de l'exploitation avicole «foyer»,
+lequel doit veiller à l'application desdites mesures, conformément aux dispositions de l'article 7 de la
+loi n°49-99 précitée.
+
+Le vétérinaire du service vétérinaire de l'ONSSA susmentionné, délivre au propriétaire ou gestionnaire
+de l'exploitation avicole qui a respecté les mesures de police sanitaire visées ci-dessus, une « attestation
+de respect des mesures de police sanitaire ».
+
+III. la mise en oeuvre dans la zone de protection des mesures suivantes :
+
+1) le recensement de toutes les exploitations avicoles détenant des volailles ou des oiseaux captifs
+       ainsi que des établissements et entreprises à risque tels que les abattoirs avicoles ou les postes
+       frontières ;
+
+2) le contrôle vétérinaire des exploitations avicoles susmentionnées, comportant un examen clinique
+       et des prélèvements d'échantillons sur les animaux sensibles, dans le respect des mesures de
+       biosécurité permettant d'éviter tout risque de diffusion du virus de l'IAHP ;
+
+                                                                                                                          7
+3) l'interdiction des déplacements des animaux sensibles et leur transport entre les exploitations
+       avicoles. Toutefois, le transport des animaux sensibles peut être autorisé par le vétérinaire du
+       service vétérinaire de l'ONSSA dans le ressort duquel se trouve la zone de protection, lorsque:
+
+       - l'examen clinique des animaux et la situation épidémiologique dans l'exploitation avicole
+             permet de ne pas suspecter une infection ou une contamination par le virus de l'IAHP ;
+
+       - le transport se fait directement et sous le contrôle du vétérinaire sus-indiqué depuis
+             l'exploitation avicole vers un abattoir agréé ou régulièrement surveillé sur le plan sanitaire
+             situé à l'intérieur de la zone de protection ou, le cas échéant, de la zone de surveillance. Dans
+             le cas où il n'existe aucun abattoir agréé ou régulièrement surveillé sur le plan sanitaire dans
+             ces deux zones, le transport des animaux sensibles en vue de leur abattage peut être autorisé
+             par le vétérinaire du service vétérinaire susmentionné, vers tout autre abattoir agréé ou
+             régulièrement surveillé sur le plan sanitaire le plus proche ;
+
+       - le transport des animaux sensibles est effectué en empruntant les grands axes routiers ou
+             ferroviaires ;
+
+       - les moyens de transport utilisés sont nettoyés et désinfectés, avant et après chaque opération
+             de transport, en utilisant un désinfectant autorisé conformément à la réglementation en
+             vigueur ;
+
+4) l'interdiction des rassemblements de volailles ou d'oiseaux captifs ;
+
+5) l'interdiction d'entrée et de sortie de la zone de protection, des animaux sensibles, des volailles
+       et des oiseaux captifs, des oeufs et des aliments qui leur sont destinés ainsi que des fientes, litières
+       et fumiers de volailles ou d'autres oiseaux, des cadavres ou tous autres sous-produits issus de
+       volailles ou d'oiseaux. Toutefois l'entrée des produits nécessaires à la vie des animaux est
+       autorisée sous couvert d'un laissez-passer délivré par le vétérinaire du service vétérinaire sus-
+       indiqué ;
+
+6) l'interdiction d'entrée ou de sortie de la zone de protection des animaux non sensibles. Toutefois,
+       le chef du service vétérinaire sus-indiqué peut autoriser ces déplacements sous couvert d'un
+       laissez-passer établi à cet effet à la demande du propriétaire ou du gestionnaire desdits animaux.
+       Ce laissez-passer porte les mentions permettant d'identifier le propriétaire ou le gestionnaire,
+       l'exploitation avicole de provenance, les animaux déplacés et le lieu de destination. Il indique les
+       conditions dans lesquelles le déplacement doit être effectué pour éviter la diffusion du virus de
+       l'IAHP ;
+
+7) l'isolement et le maintien des volailles et des oiseaux captifs de telle sorte qu'ils n'aient aucun
+       contact avec tout autre volaille, oiseau captif ou oiseau sauvage ;
+
+8) l'interdiction d'enlever ou d'épandre les fientes, les litières, les fumiers de volailles ou d'autres
+       oiseaux ;
+
+9) l'obligation pour toute personne pénétrant dans une exploitation avicole ou en sortant d'observer
+       les mesures de biosécurité appropriées afin d'éviter la diffusion de l'IAHP ;
+
+10) l'installation de systèmes de désinfection pour les personnes et les véhicules à tous les points de
+       sortie de la zone de protection ;
+
+11) l'interdiction de lâcher des volailles ou des oiseaux captifs.
+
+Les mesures visées aux 3), 4), 5), 6), 9) et 10) ci-dessus ne s'appliquent pas au transit des volailles,
+oiseaux captifs ou autres animaux, par la route ou par le rail sans déchargement ni arrêt dans la zone
+de protection.
+
+IV. la mise en oeuvre dans la zone de surveillance des mesures suivantes :
+
+1) le recensement de toutes les exploitations avicoles détenant des animaux sensibles et de tous les
+       animaux présents dans ces exploitations ainsi que des établissements et entreprises à risque tels
+       que les abattoirs et les postes frontières ;
+
+                                                                                                                          8
+2) l'interdiction des déplacements des animaux sensibles et leur transport entre les exploitations
+       avicoles. Toutefois, le transport des animaux sensibles peut être autorisé par le vétérinaire du
+       service vétérinaire de l'ONSSA dans le ressort duquel se trouve la zone de surveillance, lorsque:
+
+       - l'examen clinique des animaux ainsi que la situation épidémiologique dans l'exploitation
+             avicole permet de ne pas suspecter une infection ou une contamination par le virus de
+             l'IAHP ;
+
+       - le transport se fait directement et sous contrôle du vétérinaire depuis l'exploitation avicole
+             vers un abattoir agréé ou régulièrement surveillé sur le plan sanitaire situé à l'intérieur de
+             la zone de surveillance, ou le cas échéant, de la zone de protection. Dans le cas où il n'existe
+             aucun abattoir dans ces deux zones, le transport des animaux sensibles en vue de leur
+             abattage peut être autorisé par le vétérinaire du service vétérinaire de l'ONSSA
+             susmentionné vers un abattoir agréé ou régulièrement surveillé sur le plan sanitaire le plus
+             proche ;
+
+       - le transport des animaux est effectué en empruntant les grands axes routiers ou ferroviaires ;
+
+       - les moyens de transport utilisés sont nettoyés et désinfectés, avant et après chaque opération
+             de transport, en utilisant un désinfectant autorisé conformément à la réglementation en
+             vigueur ;
+
+    3) l'interdiction des rassemblements de volailles ou d'oiseaux captifs ;
+
+    4) les entrées et sorties des mammifères domestiques des exploitations avicoles détenant des
+         volailles ou des oiseaux captifs doivent respecter les mesures de biosécurité permettant d'éviter
+         tout risque de diffusion du virus de l'IAHP.
+
+Les mesures prévues aux I, II, II et IV ci-dessus peuvent être étendues à d'autres exploitations avicoles
+situées en dehors de la zone réglementée, dans le cas où leur implantation, leur situation géographique
+ou les contacts avec le foyer de l'IAHP, permettent de soupçonner une contamination par ce virus. Ces
+exploitations sont dites « foyers secondaires ». Dans ce cas, les services vétérinaires de l'ONSSA dans
+le ressort desquels se trouvent les foyers secondaires en informent les gouverneurs des préfectures et
+des provinces concernées aux fins de la mise en oeuvre desdites mesures.
+
+ART. 11. - Les mesures prévues à l'article 10 ci-dessus sont levées au minimum le trentième (30ème)
+jour, suivant la date de la fin des opérations de nettoyage et de désinfection du lieu d'abattage et de
+destruction du dernier animal infecté ou contaminé. La notification de cette levée est adressée aux
+gouverneurs des préfectures et des provinces visés audit article 10 et aux propriétaires ou gestionnaires
+des exploitations avicoles concernées.
+
+ART. 12. - Lorsque la présence de l'IAHP est confirmée dans un lieu ou un établissement autre qu'une
+exploitation avicole, le vétérinaire du service vétérinaire de l'ONSSA dans le ressort duquel se trouve
+ledit lieu ou établissement, veille à la mise en oeuvre d'une ou de plusieurs des mesures prévues au II
+de l'article 10 ci-dessus en tenant compte des spécificités du lieu ou établissement et des contraintes
+liées à l'activité de ceux-ci.
+
+Après l'application de ces mesures, aucun animal ne peut être introduit dans les lieux ou établissements
+sus-indiqués, avant l'expiration d'un délai d'au moins vingt-quatre (24) heures après la fin des
+opérations de nettoyage et de désinfection réalisées.
+
+                             Chapitre IV : Dispositions relatives à la vaccination
+
+ART. 13. ­ Suite à la confirmation de la présence de l'IAHP et aux conclusions d'une enquête
+épidémiologique destinée à évaluer les risques de dissémination de la maladie menée par les services
+vétérinaires de l'ONSSA pour une ou plusieurs régions, ou en raison du risque d'introduction sur le
+territoire national du virus de l'IAHP, la vaccination des volailles et des oiseaux captifs peut être
+
+                                                                                                                         9
+préconisée par le directeur général de l'ONSSA qui fixe l'étendue territoriale et la période durant
+laquelle celle-ci doit être effectuée.
+
+Cette vaccination doit être faite par les services vétérinaires de l'ONSSA ou par les vétérinaires privés
+munis du mandat sanitaire exclusivement avec des vaccins autorisés par le directeur général de
+l'ONSSA.
+
+Les opérations de vaccination contre l'IAHP sont enregistrées sur le registre d'élevage de l'exploitation
+avicole concernée en précisant le type de vaccin utilisé, la dénomination commerciale et le numéro du
+lot de fabrication, la date de la vaccination, ainsi que le nombre, l'espèce et l'âge des volailles ou des
+oiseaux captifs vaccinés.
+
+En cas de cession des volailles, des poussins d'un jour, des oiseaux captifs ou de leurs oeufs, les
+informations relatives à cette vaccination doivent êtres portées à la connaissance des destinataires de
+ces animaux ou oeufs.
+
+                            Chapitre V : Dispositions relatives à l'indemnisation
+
+ART. 14. - Les indemnités prévues à l'article 7 du dahir portant loi n°1-75-292 précité ne sont accordées
+qu'aux propriétaires des volailles mises à mort et détruites et aux propriétaires des oeufs détruits
+conformément aux dispositions du présent arrêté.
+
+Le montant des indemnités est fixé conformément aux dispositions de l'annexe au présent arrêté.
+
+Cette indemnité est imputée sur le budget de l'ONSSA.
+
+ART. 15. - En vue de permettre aux propriétaires visés à l'article 14 ci-dessus de bénéficier des
+indemnités prévues audit article, il doit être procédé à l'établissement d'un procès-verbal de
+catégorisation et d'estimation des volailles et/ou des oeufs, par une commission composée :
+
+1) d'un expert désigné par le propriétaire des volailles ou des oeufs et choisi de préférence parmi les
+       membres d'une association d'éleveurs de volaille ;
+
+2) d'un vétérinaire du service vétérinaire de l'ONSSA du lieu dans le ressort duquel a été effectuée
+       la mise à mort ou la destruction des volailles et/ou des oeufs.
+
+ART. 16. - Le procès-verbal de catégorisation et d'estimation prévu à l'article 15 ci-dessus doit
+mentionner l'identité du propriétaire des volailles et/ou des oeufs concernés et porter les indications
+relatives à l'exploitation avicole ainsi que la catégorie dans laquelle les volailles et/ou les oeufs sont
+classés, leur nombre et leur valeur estimée. Ce procès-verbal est établi en un original et autant de copies
+que nécessaire.
+
+ART. 17. - La demande d'indemnisation établie sur le formulaire délivré à cet effet par le service
+vétérinaire de l'ONSSA du lieu de l'exploitation avicole concernée doit être déposée par le propriétaire
+ou son représentant auprès dudit service.
+
+Cette demande doit être datée et signée par le propriétaire.
+
+Le dossier d'indemnisation, comprend, outre la demande sus-indiquée, les documents suivants :
+
+- une fiche d'identification du propriétaire des volailles et/ou des oeufs et de l'exploitation avicole,
+    accompagnée, le cas échéant, d'une copie de l'autorisation de ladite exploitation délivrée
+    conformément aux dispositions de la loi n°49-99 précitée, en cours de validité ;
+
+- l'original du procès-verbal de catégorisation et d'estimation prévu à l'article 16 ci-dessus ;
+
+- l'original du procès-verbal de mise à mort et de destruction des volailles ou des oiseaux captifs
+    et/ou de destruction des oeufs, prévu à l'article 10 ci-dessus ;
+
+- l'attestation de désinfection et l'attestation de respect des mesures de police sanitaire prévues au II
+    de l'article 10 ci-dessus.
+
+Au vu des documents sus-indiqués le directeur général de l'ONSSA ou la personne déléguée par lui à
+cet effet, établit une décision d'indemnisation.
+
+                                                                                                                        10
+ART. 18. ­ Est abrogé l'arrêté du ministre de l'agriculture, du développement rural et des pêches
+maritimes n°1044-06 du 12 rabii II 1427 (10 mai 2006) relatif aux mesures complémentaires et
+spéciales pour lutter contre l'influenza aviaire, tel qu'il a été modifié.
+ART. 19. - Le présent arrêté sera publié au Bulletin officiel.
+Rabat, le 5 moharrem 1439 (26 septembre 2017).
+Le Ministre de l'Agriculture, de la Pêche Maritime, du Développement Rural et des Eaux et
+Forêts, Aziz AKHANNOUCH
+
+                                                                                                                        11
+                                                    ANNEXE
+
+à l'arrêté du ministre de l'agriculture, de la pêche maritime, du développement rural et des
+   eaux et forêts n°2466-17 du 5 moharrem 1439 (26 septembre 2017) relatif aux mesures
+ complémentaires et spéciales pour lutter contre l'influenza aviaire hautement pathogène
+                                                 (peste aviaire).
+
+Montants de l'indemnité allouée selon l'espèce, le type de production et l'âge (en dirhams)
+                                                    (article 14)
+
+Catégorie par espèce / type de production / âge        Montant en dirhams,
+                                                            par individu
+Reproducteurs Gallus (mâle et femelle) type chair :
+                                1-8 semaines                     30
+                                9-16 semaines                    43
+                               17-25 semaines                    59
+                               26-40 semaines                    77
+                               41-50 semaines                    62
+                                                                 40
+                                >50 semaines
+Reproducteurs Gallus (mâle et femelle) Type ponte :              48
+                                                                 61
+                                1-8 semaines                     74
+                                9-16 semaines                    81
+                               17-25 semaines                    52
+                               26-40 semaines                    27
+                               41-50 semaines
+                                >50 semaines                     152
+Reproducteurs Dinde (mâle ou femelle) :                          211
+                                1-8 semaines                     281
+                                9-16 semaines                    325
+                               17-25 semaines                    192
+                               26-40 semaines                    108
+                               41-50 semaines
+                                >50 semaines                     10
+Poulettes futures pondeuses d'oeufs de consommation :            22
+                                1-8 semaines                     33
+                                9-16 semaines                    30
+                               17-25 semaines                    25
+                               26-40 semaines                    18
+                               41-50 semaines
+                                >50 semaines                      8
+Poulet de chair :                                                 8
+                                0-2 semaines                     13
+                                2-4 semaines
+                                 >4 semaines                     17
+Dinde de chair :                                                 40
+                                0-6 semaines                     82
+                                7-12 semaines
+                                >12 semaines
+
+                                                                            12
+ Autruches (mâle et femelle) :                              600
+                             Autruchons < 3mois             1500
+                             Autruchons > 3mois             5000
+                               Autruches adultes
+                                                             25
+ Volailles à gaver :                                         50
+                                     <1 mois                100
+                                    1-2 mois
+                                     >2 mois                  4
+                                                             15
+ Poulet (élevage non industriel)                             30
+                                     <1 mois
+                                    1-3 mois                  8
+                                     >3 mois                 30
+                                                             60
+ Dinde-oie- canard-pintade :                                 10
+                                     <2 mois
+                                    2-5 mois      Montant en dirhams,
+                                     >5 mois             par unité
+
+ Autres volailles ou oiseaux captifs :                      0,9
+                                                             1
+OEufs :                                                     3,9
+ OEufs à couver :
+         Reproducteurs Gallus type chair                    0,3
+         Reproducteurs Gallus type ponte
+         Reproducteurs dinde
+
+ OEufs de consommation :
+
+                                                                       13
+

@@ -1,0 +1,238 @@
+import { v7 as uuidv7 } from "uuid";
+import { Prisma } from "@/generated/prisma/client";
+import { db, type Tx } from "@/lib/db";
+import { systemClock, type Clock } from "@/lib/kernel/clock";
+import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { fail, ok, type Result } from "@/lib/kernel/result";
+import { can } from "@/lib/permissions";
+import type { TenantContext } from "@/lib/tenant";
+import { z } from "zod";
+import { ALLOCATION_KEYS, BOOKS, booksAllowed, HENS_METHODS, legalEntityIn, legalIds, listLegalEntities, saveAccountingChoices, type LegalEntityDto } from "@/modules/farm-registry";
+import { chartOf } from "@/modules/finance/domain/chart";
+import { CLOSE_KINDS, OPENING_PREFIX, REVERSED_AT_OPENING, closeAction, closeSource, openingReversalOf, openingSource, reversalSource } from "@/modules/finance/domain/close";
+import { checkEntry, firstOpenMonth, fiscalYearOf, monthOf, openingLines, reversalOf, type EntryError } from "@/modules/finance/domain/entry";
+import type { Posting } from "@/modules/finance/domain/posting";
+import { onDefaultTreasury, treasuryKindOfAccount } from "@/modules/finance/domain/treasury";
+import {
+  balancesBetween,
+  defaultTreasuryAccounts,
+  entriesBetween,
+  entryExists,
+  lastSourceVersion,
+  ledgerAccounts,
+  loadEntry,
+  lockedMonths,
+  saveEntry,
+  sourceAlreadyPosted,
+  standingEntryFor,
+  yearClose,
+  type EntryRow,
+} from "@/modules/finance/infrastructure/ledger";
+
+export type PostError = EntryError | "FORBIDDEN" | "NOT_FOUND" | "PERIOD_LOCKED" | "ALREADY_EXISTS";
+
+const audit = (tx: Tx, ctx: TenantContext, entity: string, entityId: string, action: string, after: object) =>
+  tx.auditEvent.create({ data: { organizationId: ctx.organizationId, userId: ctx.userId, entity, entityId, action, after } });
+
+const auditLines = (e: EntryRow) => ({
+  journal: e.journal,
+  day: e.day,
+  label: e.label,
+  reversesId: e.reversesId,
+  lines: e.lines.map((l) => ({ account: l.account, debit: String(l.debit), credit: String(l.credit) })),
+});
+
+/**
+ * SPEC-finance FN4–FN5: posts one balanced entry into a legal entity's books, in the caller's transaction (T30's
+ * posting pipeline calls it with each farm event). The month must be open; the accounts must be in the entity's
+ * chart (base + overlays). Audited. An entry already posted for the same `source` is a no-op (FN7). A 5141 / 5161 line
+ * naming no account goes on the default cash box or bank account (§9), but in a reversal, which mirrors its original,
+ * or the à-nouveaux, which name none (FN10).
+ */
+export async function postEntry(tx: Tx, ctx: TenantContext, row: EntryRow): Promise<Result<void, PostError>> {
+  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  const entity = await legalEntityIn(tx, ctx, row.legalEntityId);
+  if (!entity) return fail("NOT_FOUND");
+  if (row.source && (await sourceAlreadyPosted(tx, ctx, row.source))) return ok(undefined);
+  const untagged = !row.reversesId && !row.source?.id.startsWith(OPENING_PREFIX) && row.lines.some((l) => !l.treasuryId && treasuryKindOfAccount(l.account));
+  const e = untagged ? { ...row, lines: onDefaultTreasury(row.lines, await defaultTreasuryAccounts(tx, ctx)) } : row;
+  if ((await lockedMonths(tx, ctx, e.legalEntityId)).has(monthOf(e.day))) return fail("PERIOD_LOCKED");
+  const { base, overlays } = entity.accountingProfile;
+  const checked = checkEntry(e.lines, chartOf(await ledgerAccounts(tx), base, overlays));
+  if (!checked.ok) return checked;
+  if (await entryExists(tx, e.id)) return fail("ALREADY_EXISTS");
+  await saveEntry(tx, ctx, e);
+  await audit(tx, ctx, "JournalEntry", e.id, "create", auditLines(e));
+  return ok(undefined);
+}
+
+/**
+ * FN5, FCX3: the owner cancels a manual entry with the same lines, sides swapped, linked to it ("Annuler l'écriture"),
+ * then types a new one. Dated on the entry's day, or the 1st of the first open month after it when that month is
+ * locked. An entry is reversed at most once. Other entries are reversed by their own module's flow (FN7): refused here.
+ */
+export async function reverseEntry(ctx: TenantContext, entryId: string): Promise<Result<string, PostError | "ALREADY_REVERSED" | "NOT_MANUAL_ENTRY">> {
+  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  if (!z.uuid().safeParse(entryId).success) return fail("NOT_FOUND");
+  return db
+    .$transaction(async (tx) => {
+      const original = await loadEntry(tx, ctx, entryId);
+      if (!original) return fail("NOT_FOUND");
+      if (!(await tx.manualEntry.count({ where: { id: entryId, organizationId: ctx.organizationId } }))) return fail("NOT_MANUAL_ENTRY");
+      if (original.reversed) return fail("ALREADY_REVERSED");
+      const month = firstOpenMonth(monthOf(original.day), await lockedMonths(tx, ctx, original.legalEntityId));
+      const id = uuidv7(); // created on the server, never offline
+      const posted = await postEntry(tx, ctx, {
+        id,
+        legalEntityId: original.legalEntityId,
+        journal: original.journal,
+        day: month === monthOf(original.day) ? original.day : (`${month}-01` as FarmDay),
+        label: `Annulation : ${original.label}`,
+        reversesId: original.id,
+        lines: reversalOf(original.lines),
+      });
+      return posted.ok ? ok(id) : posted;
+    })
+    .catch((err) => {
+      // Two cancels at once: the second hits the unique reversesId once the first commits.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return fail("ALREADY_REVERSED" as const);
+      throw err;
+    });
+}
+
+/**
+ * FN5: locking and unlocking a month of a legal entity's books, owner only, audited. A month of a closed fiscal year
+ * stays locked: the year's reopen (FCX6) is the way back.
+ */
+export async function setPeriodLocked(ctx: TenantContext, legalEntityId: string, month: string, locked: boolean): Promise<Result<void, "FORBIDDEN" | "NOT_FOUND" | "FISCAL_YEAR_CLOSED">> {
+  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("NOT_FOUND");
+  return db.$transaction(async (tx) => {
+    const entity = await legalEntityIn(tx, ctx, legalEntityId); // row-locked, like the year close and reopen
+    if (!entity) return fail("NOT_FOUND");
+    if (!locked && (await yearClose(tx, ctx, legalEntityId, fiscalYearOf(`${month}-01` as FarmDay, entity.fiscalYearStartMonth).to))) return fail("FISCAL_YEAR_CLOSED");
+    await lockMonth(tx, ctx, legalEntityId, month, locked);
+    return ok(undefined);
+  });
+}
+
+/** FN5 in the caller's transaction (the year close, FCX6, locks a whole year): one month locked or unlocked, audited. */
+export async function lockMonth(tx: Tx, ctx: TenantContext, legalEntityId: string, month: string, locked: boolean) {
+  const key = { legalEntityId_month: { legalEntityId, month } };
+  if (locked) {
+    await tx.lockedPeriod.upsert({ where: key, create: { organizationId: ctx.organizationId, legalEntityId, month, lockedBy: ctx.userId }, update: {} });
+  } else {
+    await tx.lockedPeriod.deleteMany({ where: { organizationId: ctx.organizationId, legalEntityId, month } });
+  }
+  await audit(tx, ctx, "LockedPeriod", legalEntityId, locked ? "lock" : "unlock", { month });
+}
+
+/**
+ * FN7 for an entry finance computes itself (the close run, the opening), source `sourceId`, dated `day`: the same
+ * figures post nothing; changed ones reverse the standing version on the same day and post the next version; none
+ * now, the reversal alone. Throws on a refusal so the caller's transaction rolls back: the caller checks the period
+ * first. Returns the entries posted.
+ */
+export async function postVersion(tx: Tx, ctx: TenantContext, legalEntityId: string, sourceId: string, day: FarmDay, posting: Posting | null): Promise<number> {
+  const standing = await standingEntryFor(tx, ctx, "finance", sourceId);
+  const action = closeAction(standing, posting && { day, lines: posting.lines });
+  let posted = 0;
+  const post = async (e: EntryRow) => {
+    const r = await postEntry(tx, ctx, e);
+    if (!r.ok) throw new Error(`${sourceId}: ${r.error}`); // the caller's checks passed: a rule bug
+    posted++;
+  };
+  if (standing && (action === "repost" || action === "reverse")) {
+    await post({ id: uuidv7(), legalEntityId, journal: standing.journal, day, label: "Annulation", reversesId: standing.id, lines: reversalOf(standing.lines) });
+  }
+  if (posting && (action === "post" || action === "repost")) {
+    const version = (await lastSourceVersion(tx, ctx, "finance", sourceId)) + 1;
+    await post({ id: uuidv7(), legalEntityId, journal: posting.journal, day, label: posting.label, reversesId: null, lines: posting.lines, source: { module: "finance", id: sourceId, version } });
+  }
+  return posted;
+}
+
+/**
+ * FN3, FCX5: the entries opening the fiscal year that begins on `firstDay`, in the caller's transaction: the
+ * à-nouveaux from the previous year's closing balances (classes 1–5 carried forward, the result on 1191 / 1199), then
+ * the reversal of each reversible kind's standing close entry (`REVERSED_AT_OPENING`). Each is versioned (FN7): when
+ * the closing changed, it is posted again by reversal and new version, so the opening always equals the closing.
+ * Refused while the first month is locked. Returns the standing à-nouveaux and the entries posted.
+ */
+export async function postOpening(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, firstDay: FarmDay): Promise<Result<{ id: string | null; posted: number }, "PERIOD_LOCKED">> {
+  if ((await lockedMonths(tx, ctx, entity.id)).has(monthOf(firstDay))) return fail("PERIOD_LOCKED");
+  const previous = fiscalYearOf(addFarmDays(firstDay, -1), entity.fiscalYearStartMonth);
+  const closedYear = Number(previous.to.slice(0, 4)); // the close run's year (FCX4)
+  const lines = openingLines(await balancesBetween(tx, ctx, entity.id, previous.from, previous.to));
+  const source = openingSource(entity.id, firstDay);
+  let posted = await postVersion(tx, ctx, entity.id, source, firstDay, lines.length > 0 ? { journal: "OD", label: "À-nouveaux", lines } : null);
+  for (const kind of CLOSE_KINDS.filter((k) => REVERSED_AT_OPENING[k])) {
+    const close = await standingEntryFor(tx, ctx, "finance", closeSource(kind, entity.id, closedYear));
+    const reversal = close && { journal: "OD" as const, label: "Extourne des écritures de clôture", lines: openingReversalOf(close.lines) };
+    posted += await postVersion(tx, ctx, entity.id, reversalSource(kind, entity.id, closedYear), firstDay, reversal);
+  }
+  return ok({ id: (await standingEntryFor(tx, ctx, "finance", source))?.id ?? null, posted });
+}
+
+/**
+ * FN1, FN9: the owner's accounting choices; null keeps the legal form's default, an absent vatRegistered keeps it.
+ * FC6 (FQ7a): the laying hens' method, one for the laying flock and its pullets; FN14: the shared costs' key; absent keeps them.
+ */
+const AccountingChoicesInput = z.object({
+  books: z.enum(BOOKS).nullable(),
+  pcaOverlay: z.boolean().nullable(),
+  fiscalYearStartMonth: z.int32().min(1).max(12),
+  vatRegistered: z.boolean().optional(),
+  hensMethod: z.enum(HENS_METHODS).optional(),
+  allocationKey: z.enum(ALLOCATION_KEYS).optional(),
+});
+
+/**
+ * FN1 (from T27): the owner changes the books, the PCA overlay, the fiscal-year start, VAT registration (FN9), the
+ * laying hens' method (FC6) or the shared costs' key (FN14) only while the current fiscal year has no entry (CGNC "permanence des méthodes"). Saved and
+ * audited by farm-registry.
+ */
+export async function changeAccountingChoices(
+  ctx: TenantContext,
+  legalEntityId: string,
+  input: unknown,
+  clock: Clock = systemClock,
+): Promise<Result<void, "FORBIDDEN" | "NOT_FOUND" | "INVALID_INPUT" | "FISCAL_YEAR_HAS_ENTRIES">> {
+  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  const parsed = AccountingChoicesInput.safeParse(input);
+  if (!parsed.success) return fail("INVALID_INPUT");
+  const choices = parsed.data;
+  return db.$transaction(async (tx) => {
+    const entity = await legalEntityIn(tx, ctx, legalEntityId); // row-locked: no entry can land while we decide
+    if (!entity) return fail("NOT_FOUND");
+    if (choices.books && !booksAllowed(entity.form).includes(choices.books)) return fail("INVALID_INPUT");
+    if (await yearHasEntries(tx, ctx, entity, clock)) return fail("FISCAL_YEAR_HAS_ENTRIES");
+    await saveAccountingChoices(tx, ctx, legalEntityId, choices);
+    return ok(undefined);
+  });
+}
+
+const yearHasEntries = async (tx: Tx, ctx: TenantContext, entity: { id: string; fiscalYearStartMonth: number }, clock: Clock) => {
+  const year = fiscalYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth);
+  return (await entriesBetween(tx, ctx, entity.id, year.from, year.to)) > 0;
+};
+
+/** FN1, the owner's home: whether the accounting choices can still change. A plain count, no lock or transaction. */
+export async function accountingChoicesOpen(ctx: TenantContext, entity: LegalEntityDto, clock: Clock = systemClock) {
+  return can(ctx, "finance.manage") && !(await yearHasEntries(db, ctx, entity, clock));
+}
+
+/**
+ * The profile screen: the entity, the books its form allows, whether this fiscal year still lets them change, and the
+ * first day of the next one, when they can change again before its first entry. A read: the accountant and the manager
+ * see it too (SPEC-m5 PA5); only the owner changes it (changeAccountingChoices, saveLegalIds).
+ */
+export async function accountingSettings(ctx: TenantContext, clock: Clock = systemClock) {
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN");
+  const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation (see postPending)
+  if (!entity) return ok(null);
+  // A read: no row lock nor interactive transaction (P2028 under load); the change re-checks under the lock.
+  const nextYearFrom = addFarmDays(fiscalYearOf(farmDayOf(clock.now()), entity.fiscalYearStartMonth).to, 1);
+  const [locked, ids] = await Promise.all([yearHasEntries(db, ctx, entity, clock), legalIds(ctx)]);
+  return ok({ entity, books: booksAllowed(entity.form), locked, nextYearFrom, ids }); // ids: F-Profile, never locked
+}

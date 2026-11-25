@@ -1,0 +1,1810 @@
+// Conventions (SPEC §6, ADR-006): UUIDv7 ids generated on the client (the DB default is only a fallback
+// for server-created rows), timestamptz everywhere, and every farm-data table carries organizationId.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Owner: farm-registry
+model Organization {
+  id            String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name          String
+  createdAt     DateTime      @default(now()) @db.Timestamptz
+  // ADR-007, docs/data-requests.md: when it left the platform (scripts/mark-organization-left.ts). Its data is deleted
+  // 30 days later (scripts/delete-organization.ts); the books stay, read-only, for their retention period.
+  leftAt        DateTime?     @db.Timestamptz
+  memberships   Membership[]
+  legalEntities LegalEntity[]
+  invitations   Invitation[]
+  farms         Farm[]
+}
+
+// Owner: farm-registry. SPEC F2. Created offline, so the id comes from the device (ADR-003).
+model Farm {
+  id             String       @id @db.Uuid
+  organizationId String       @db.Uuid
+  name           String
+  region         String
+  province       String
+  commune        String
+  latitude       Float?
+  longitude      Float?
+  onssaNumber    String? // ONSSA authorization
+  onssaExpiresOn DateTime?    @db.Date
+  doaClaimThresholdPermille Int? // SPEC-m3 B10: dead on arrival above it = a claim to the hatchery; null = no alert (MQ6)
+  // The register's cover (arrêté 2126-05 of 15/12/2005, art. 3 and 4). All optional, as entered, never defaulted.
+  holderName          String? // the détenteur of the birds
+  holderAddress       String? // when different from the farm's
+  vetName             String? // the vétérinaire sanitaire in charge
+  vetAddress          String?
+  vetPhone            String?
+  technicianName      String?
+  chickImportApproval String? // agrément number, for a farm importing chicks
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  updatedAt      DateTime     @updatedAt @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  houses         House[]
+  registerKeepers RegisterKeeper[]
+
+  @@index([organizationId])
+}
+
+// Owner: farm-registry. Arrêté 2126-05 art. 4: who keeps (kept) the farm's register, and when. Written with the farm,
+// the whole list at once, in its order (`n`), like a sale's lines.
+model RegisterKeeper {
+  farmId         String    @db.Uuid
+  n              Int
+  organizationId String    @db.Uuid
+  name           String
+  position       String // their function on the farm
+  fromOn         DateTime  @db.Date
+  toOn           DateTime? @db.Date // null: still keeps it
+  farm           Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@id([farmId, n])
+  @@index([organizationId])
+}
+
+// Owner: farm-registry. SPEC F3.
+model House {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  farmId         String    @db.Uuid
+  name           String
+  areaM2         Int
+  capacity       Int // birds
+  type           HouseType
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @db.Timestamptz
+  farm           Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([farmId])
+}
+
+enum HouseType {
+  open
+  closed
+}
+
+// Owner: farm-registry. SPEC F1: the form sets the accounting profile (derived in code, not stored).
+model LegalEntity {
+  id                   String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId       String        @db.Uuid
+  name                 String
+  form                 LegalForm
+  // ADR-010: the owner's accounting choices; null keeps the legal form's default (farm-registry accountingProfileOf).
+  // Changed only while the fiscal year has no entry: the check lives in finance (T29), which calls farm-registry.
+  books                Books?
+  pcaOverlay           Boolean?
+  fiscalYearStartMonth Int           @default(1) // 1 = January: the fiscal year runs 1 Jan–31 Dec
+  vatRegistered        Boolean       @default(false) // SPEC-finance FN9: not registered until FQ4 is answered
+  hensMethod           HensMethod    @default(classic) // SPEC-finance FC6 (FQ7a): laying hens and their pullets
+  allocationKey        AllocationKey @default(birdDays) // SPEC-finance FN14: the key shared costs are split by
+  // F-Profile: registration numbers, optional (farm-registry LegalIds). Owner writes; money readers read (statements).
+  ice                  String? // Identifiant Commun de l'Entreprise: 15 digits
+  fiscalId             String? // identifiant fiscal (IF)
+  rcNumber             String? // registre de commerce number
+  rcCourt              String? // the court (city) that keeps that register
+  cnssNumber           String? // CNSS affiliation number
+  createdAt            DateTime      @default(now()) @db.Timestamptz
+  organization         Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+enum Books {
+  cash_book
+  ledger
+}
+
+enum AllocationKey {
+  birdDays
+  houseArea
+  kgSold
+}
+
+enum HensMethod {
+  classic
+  simplified
+}
+
+enum LegalForm {
+  individual
+  indivision
+  company
+  cooperative
+  association
+  gie
+}
+
+// Owner: identity. User, Session, Account and Verification follow Better Auth's schema (ADR-005);
+// ids come from the uuidv7() default (Better Auth runs with generateId: false).
+model User {
+  id                  String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  phoneNumber         String?      @unique // E.164 +2126… / +2127…, a login identifier (ADR-015)
+  phoneNumberVerified Boolean?     @default(false) // true only after an SMS code login (AUTH_SMS_ENABLED)
+  name                String // Better Auth requires it; the phone number (or the email)
+  email               String       @unique // a login identifier, lowercase (CHECK); placeholder <digits>@phone.invalid when none
+  emailVerified       Boolean      @default(false)
+  image               String?
+  locale              Locale       @default(ar)
+  createdAt           DateTime     @default(now()) @db.Timestamptz
+  updatedAt           DateTime     @updatedAt @db.Timestamptz
+  memberships         Membership[]
+  sessions            Session[]
+  accounts            Account[]
+  passwordResets      PasswordReset[]
+}
+
+model Session {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  token     String   @unique
+  userId    String   @db.Uuid
+  expiresAt DateTime @db.Timestamptz
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Better Auth's: the "credential" row (accountId = userId) holds the scrypt password hash (ADR-015).
+model Account {
+  id                    String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  accountId             String
+  providerId            String
+  userId                String    @db.Uuid
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz
+  refreshTokenExpiresAt DateTime? @db.Timestamptz
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @db.Timestamptz
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// One-time codes: identifier = phone number, value = "<code>:<failed attempts>" (Better Auth stores it unhashed).
+model Verification {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @db.Timestamptz
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+
+  @@index([identifier])
+}
+
+// Owner: src/lib/security/rate-limit.ts. One row per counted request (sliding window); old rows are pruned on use.
+model RateLimitHit {
+  id  BigInt   @id @default(autoincrement())
+  key String // "<policy>:<dimension>:<window s>:<value>", phone values hashed
+  at  DateTime @default(now()) @db.Timestamptz
+
+  @@index([key, at])
+}
+
+// Owner: src/lib/security/captcha.ts. Captcha challenges already used, kept until they expire (single use).
+model CaptchaUse {
+  id        String   @id // SHA-256 of the challenge's HMAC signature
+  expiresAt DateTime @db.Timestamptz
+
+  @@index([expiresAt])
+}
+
+enum Locale {
+  ar
+  fr
+}
+
+// Owner: identity
+model Membership {
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @db.Uuid
+  userId         String       @db.Uuid
+  role           MemberRole
+  accessUntil    DateTime?    @db.Date // partners (SPEC-m5 PA1): last farm day the membership opens the organisation
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+// Owner: identity. poultry-auth §1: managers and workers get access only through a pending, unexpired invitation
+// for their number. Accepted (and deleted) at their next login; one pending invitation per number per organisation.
+model Invitation {
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @db.Uuid
+  phoneNumber    String // E.164, through PhoneNumber
+  role           MemberRole
+  accessUntil    DateTime?    @db.Date // copied to the membership
+  invitedById    String       @db.Uuid
+  codeHash       String?      @unique // ADR-015: HMAC of the one-time invite code; null for one made before codes
+  expiresAt      DateTime     @db.Timestamptz
+  createdAt      DateTime     @default(now()) @db.Timestamptz
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, phoneNumber])
+  @@index([phoneNumber])
+}
+
+// Owner: identity. poultry-auth §6: login and abuse events (code requested, verify failure, login, logout, rate-limit
+// block, captcha failure). Not AuditEvent: most happen before any organisation is known, and AuditEvent is
+// organisation-scoped and written with the change it records (ADR-006). Membership, invitation and session-revoke
+// events stay in AuditEvent. Only what §6 lists: never a code, session id, captcha payload or full phone number.
+model AuthEvent {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  at        DateTime @default(now()) @db.Timestamptz
+  action    String // identity/infrastructure/auth-events.ts AuthAction
+  reason    String? // outcome, e.g. eligible, wrong_code, requestCode:phone
+  userId    String?  @db.Uuid // when known: login, logout
+  phone     String? // the masked identifier: +2126•••••12, or a•••@example.ma (ADR-015)
+  ip        String? // coarse: /24 or /64 subnet, absent without TRUSTED_PROXY_HOPS
+  userAgent String? // truncated
+}
+
+// Owner: identity. ADR-015: a pending one-time password reset code, issued by an owner (settings → members) or by
+// the operator (pnpm user:reset, issuedById null). One per user; deleted when used. Only the code's HMAC is kept.
+model PasswordReset {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId      String   @db.Uuid
+  codeHash    String   @unique
+  issuedById  String?  @db.Uuid
+  expiresAt   DateTime @db.Timestamptz
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum MemberRole {
+  owner
+  manager
+  worker
+  vet
+  accountant
+}
+
+// Owner: src/lib/sync/server.ts (ADR-003). One row per pushed mutation id: a replay returns the stored result.
+// No FK to Organization, like AuditEvent: organisation deletion purges it explicitly (ADR-007).
+model Mutation {
+  id             String   @id @db.Uuid // generated on the device
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  type           String
+  result         Json // { status: "applied" } | { status: "rejected", messageKey }
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: src/lib/sync/server.ts. The per-organisation version counter; its row lock orders changes by commit.
+model SyncVersion {
+  organizationId String @id @db.Uuid
+  version        BigInt @default(0)
+}
+
+// Owner: src/lib/sync/server.ts. What pull returns: every change to a synced record, in version order.
+// data = the record as its module serializes it; null = deleted (tombstone).
+model Change {
+  organizationId String @db.Uuid
+  version        BigInt
+  entity         String
+  entityId       String @db.Uuid
+  data           Json?
+
+  @@id([organizationId, version])
+  @@index([organizationId, entity, version]) // a module's changes since its cursor; finance's pending check (FN7)
+  @@index([organizationId, entity, entityId, version]) // ADR-014: is there a later change of this record (compacted pull)
+}
+
+// Owner: reference-data (SPEC R1–R4). Global, not per organisation: read-only for farms, seeded from
+// prisma/seed/reference/*.json, cached offline through GET /api/reference.
+model Strain {
+  id              String          @id // "ross-308"
+  name            String
+  productionTypes String[]        @default(["broiler"]) // SPEC-m3 R5
+  curves          StandardCurve[]
+  layingCurves    LayingCurve[]
+}
+
+// One published performance-objectives table (R1). Each value keeps its source and version (OQ5).
+model StandardCurve {
+  id       String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  strainId String
+  source   String // document title + publisher
+  version  String // e.g. "2022"
+  sex      String          @default("mixed") // SPEC-m3 R6: mixed | female | male
+  points   StandardPoint[]
+  strain   Strain          @relation(fields: [strainId], references: [id], onDelete: Cascade)
+
+  @@unique([strainId, version, sex])
+}
+
+model StandardPoint {
+  curveId             String        @db.Uuid
+  day                 Int // age in days, as-hatched
+  bodyWeightGrams     Int
+  cumulativeFeedGrams Int
+  curve               StandardCurve @relation(fields: [curveId], references: [id], onDelete: Cascade)
+
+  @@id([curveId, day])
+}
+
+// SPEC-m3 R7: one published laying table, by week of age, exactly as published. A column the guide doesn't give is null.
+model LayingCurve {
+  id       String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  strainId String
+  source   String
+  version  String
+  points   LayingPoint[]
+  strain   Strain        @relation(fields: [strainId], references: [id], onDelete: Cascade)
+
+  @@unique([strainId, version])
+}
+
+model LayingPoint {
+  curveId                String      @db.Uuid
+  week                   Int // week of age
+  layingRatePermille     Int? // hen-day, per mille
+  eggsPerHenHousedTenths Int? // cumulative, tenths of an egg
+  eggWeightDg            Int? // average egg weight, decigrams
+  feedGramsPerHenDay     Int?
+  bodyWeightGrams        Int?
+  curve                  LayingCurve @relation(fields: [curveId], references: [id], onDelete: Cascade)
+
+  @@id([curveId, week])
+}
+
+enum ProductKind {
+  feed
+  vaccine
+  medicine
+}
+
+// R3. Withdrawal days come from the product, never from code (poultry-ddd §3.7); null = not known yet.
+model Product {
+  id             String      @id // "feed-starter"
+  kind           ProductKind
+  nameFr         String
+  nameAr         String
+  withdrawalDays Int?
+  eggWithdrawalDays Int? // SPEC-m3 R10: eggs, for layers; null = not known yet, never a default
+}
+
+// SPEC-m3 R8. Egg grade classes; the weight limits stay null until the Moroccan standard is supplied (MQ2).
+model EggGrade {
+  id        String @id // "m"
+  label     String // as printed on trays: "M"
+  sortOrder Int
+  minGrams  Int?
+  maxGrams  Int?
+}
+
+// R2. The global template is read-only; farms copy it into VaccinationProtocol and edit the copy.
+model ProtocolTemplate {
+  id            String  @id // "broiler-default"
+  nameFr        String
+  nameAr        String
+  reviewedByVet Boolean @default(false) // OQ4: false until a vet signs it off
+  productionType String @default("broiler") // SPEC-m3 R9
+  items         Json // [{ dayOfAge, productId, method }]
+}
+
+// Owner: reference-data. An organisation's own, editable copy of a protocol (written offline, ADR-003).
+model VaccinationProtocol {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  templateId     String?
+  name           String
+  items          Json // same shape as ProtocolTemplate.items
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: notifications (SPEC N1–N3). One row per recipient: their inbox entry, and the outbox for web push, written in
+// the caller's transaction and pushed after commit (poultry-ddd §4).
+model Notification {
+  id             String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String    @db.Uuid
+  userId         String    @db.Uuid
+  templateKey    String // messages: Notifications.templates.<key>
+  params         Json
+  urgent         Boolean   @default(false)
+  deliverAfter   DateTime  @db.Timestamptz // end of the recipient's quiet hours when held (N2)
+  pushedAt       DateTime? @db.Timestamptz // claimed by the dispatcher
+  readAt         DateTime? @db.Timestamptz
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  @@index([userId, createdAt])
+  @@index([pushedAt, deliverAfter])
+}
+
+// Owner: notifications. One per browser that accepted push (N1).
+model PushSubscription {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@index([userId])
+}
+
+// Owner: notifications. N2: quiet hours per user, in farm time (Africa/Casablanca), "HH:MM".
+model NotificationPreference {
+  userId     String @id @db.Uuid
+  quietStart String @default("22:00")
+  quietEnd   String @default("06:00")
+}
+
+// Owner: inventory (SPEC S1–S3). All written offline: ids come from the device (ADR-003).
+model Supplier {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  phone          String?
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// S2, SPEC-finance FN6: a later payment to a supplier, against what is owed. Finance posts it.
+model SupplierPayment {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  supplierId     String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  amountCentimes BigInt
+  method         String // cash | transfer | cheque | bill
+  // SPEC-finance FN11: an issued cheque's or bill's number and agreed date, when given
+  instrumentNumber String?
+  instrumentDueOn  DateTime? @db.Date
+  instrumentRemindedAt DateTime? @db.Timestamptz // FN11: claimed by the reminder job, so it goes out once
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, supplierId])
+}
+
+// Owner: inventory. SPEC-finance FN11, issued side: the bank debited a cheque or bill given to a supplier (a purchase's
+// paid part or a later payment, by its id). Once per instrument.
+model IssuedDebit {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  instrumentId   String   @unique @db.Uuid
+  day            DateTime @db.Date // farm day
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// S1: one per farm and product (and lot, for vaccines and medicines).
+model StockItem {
+  id                String    @id @db.Uuid
+  organizationId    String    @db.Uuid
+  farmId            String    @db.Uuid
+  productId         String? // reference-data catalogue, when the item is one of its products
+  kind              String // feed | vaccine | medicine | litter | gas | other
+  name              String
+  unit              String // kg (stored in grams) | dose | ml | unit
+  lot               String?
+  expiresOn         DateTime? @db.Date
+  lowStockThreshold Int? // S6: base units; an alert when stock goes below it
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId])
+}
+
+// S3: the ledger. Stock on hand = sum of quantity; rows are never edited.
+model StockMovement {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  stockItemId    String   @db.Uuid
+  kind           String // purchase | consumption | adjustment
+  quantity       Int // base units (grams for kg), signed: + in, − out
+  day            DateTime @db.Date // farm day
+  reason         String? // required for an adjustment
+  purchaseId     String?  @db.Uuid
+  batchId        String?  @db.Uuid // a consumption: the batch it was used by, which is charged its cost (S5, B6)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, stockItemId])
+  @@index([batchId])
+}
+
+// S2: what was bought and paid; amount − paid is supplier credit.
+model Purchase {
+  id                String    @id @db.Uuid
+  organizationId    String    @db.Uuid
+  farmId            String    @db.Uuid
+  supplierId        String    @db.Uuid
+  stockItemId       String    @db.Uuid
+  day               DateTime  @db.Date
+  quantity          Int
+  unitPriceCentimes BigInt // per displayed unit (per kg for feed)
+  amountCentimes    BigInt
+  vatCentimes       BigInt    @default(0) // SPEC-finance FN9: the invoice's VAT, part of amountCentimes
+  paidCentimes      BigInt
+  paidMethod        String    @default("cash") // SPEC-finance FN6: how the part paid at once was paid: cash | transfer | cheque | bill
+  dueOn             DateTime? @db.Date
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, supplierId])
+}
+
+// Owner: flock (SPEC B1). Created offline: the id comes from the device. One open batch per house is enforced by the
+// partial unique index "Batch_one_open_per_house" (raw SQL in the migration: Prisma can't declare it); beldi bands share
+// a run (SPEC-m3 B8).
+model Batch {
+  id                     String    @id @db.Uuid
+  organizationId         String    @db.Uuid
+  farmId                 String    @db.Uuid
+  houseId                String    @db.Uuid
+  species                String    @default("broiler")
+  strainId               String
+  placedOn               DateTime  @db.Date // farm day
+  chicksPlaced           Int
+  deadOnArrival          Int
+  hatchery               String
+  deliveryNote           String
+  chickUnitPriceCentimes BigInt
+  chickVatCentimes       BigInt? // SPEC-finance FN9: the delivery's VAT, on top of the chicks' price; null: none typed
+  // SPEC-finance §9 "Chicks paid on delivery": paid in cash at delivery, from this cash box (finance's id, unchecked here:
+  // flock can't see finance). Both null, or both set.
+  paidOnDeliveryCentimes BigInt?
+  paidOnDeliveryCashAccountId String? @db.Uuid
+  dayOldWeightGrams      Int?
+  ageAtPlacementDays     Int       @default(0) // SPEC-m3 B7: started pullets or point-of-lay hens arrive older
+  sex                    String    @default("mixed") // SPEC-m3 B9: mixed | female | male (turkeys raised apart)
+  // SPEC-m3 B10, chick arrival quality, all optional: free extra chicks are placed but not billed.
+  freeChicks             Int       @default(0)
+  parentFlock            String?
+  weakChicks             Int?
+  litterTempTenths       Int? // °C × 10
+  fromBatchId            String?   @db.Uuid // SPEC-m3 B13: the pullet batch these hens were transferred from
+  status                 String    @default("open") // open | closed
+  // B6, set when it closes and never changed afterwards: the locked figures.
+  closedOn               DateTime? @db.Date // farm day
+  closeReason            String? // null: closed by the sale of its last birds
+  soldGrams              Int? // farm weight of every bird sold
+  costCentimes           BigInt? // chicks + valued consumptions + other costs
+  costPerKgCentimes      BigInt? // null when nothing was sold
+  createdAt              DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([houseId])
+}
+
+// Owner: flock (SPEC B2). One per batch per farm day; its id is a UUIDv5 of batch + day, the same on every phone, so two
+// phones entering the same day write the same record. The feed becomes one consumption movement with the same id (S4).
+model DailyEntry {
+  id              String   @id @db.Uuid
+  organizationId  String   @db.Uuid
+  batchId         String   @db.Uuid
+  day             DateTime @db.Date
+  dead            Int      @default(0)
+  deathCause      String?
+  culled          Int      @default(0)
+  feedStockItemId String?  @db.Uuid
+  feedGrams       Int?
+  waterMl         Int?
+  note            String?
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+
+  @@unique([batchId, day])
+  @@index([organizationId])
+}
+
+// SPEC B3. One row per sample, append-only. `weightsGrams` is empty when the birds were weighed as a group.
+model Weighing {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  batchId        String   @db.Uuid
+  day            DateTime @db.Date
+  count          Int
+  totalGrams     Int
+  weightsGrams   Int[]
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([batchId, day])
+  @@index([organizationId])
+}
+
+// Owner: health (SPEC H1, H2). One per line of the batch's plan, copied from the farm's protocol at placement so later
+// edits of the protocol never change it. The id is a UUIDv5 of batch + line, the same on the phone and the server.
+model Vaccination {
+  id               String    @id @db.Uuid
+  organizationId   String    @db.Uuid
+  batchId          String    @db.Uuid
+  protocolId       String?   @db.Uuid // the farm's protocol it came from; null for a line added by hand (SPEC-m5 PA4)
+  dayOfAge         Int
+  dueOn            DateTime  @db.Date // farm day
+  productId        String // a vaccine of the catalogue
+  method           String // planned method
+  doneOn           DateTime? @db.Date // farm day it was given
+  stockItemId      String?   @db.Uuid // the lot it was taken from (one consumption movement, same id)
+  doses            Int?
+  doneMethod       String?
+  doneBy           String?   @db.Uuid
+  remindedBeforeAt DateTime? @db.Timestamptz // claimed by the reminder job, so each reminder goes out once
+  remindedDueAt    DateTime? @db.Timestamptz
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+  @@index([dueOn])
+}
+
+// Owner: health (SPEC H3, H6). Kept as recorded, never edited: the ONSSA health register (M2) is rebuilt from these rows.
+model Treatment {
+  id               String   @id @db.Uuid
+  organizationId   String   @db.Uuid
+  batchId          String   @db.Uuid
+  stockItemId      String   @db.Uuid // the medicine lot (one consumption movement, same id)
+  quantity         Int // taken from stock, in the item's base unit
+  dose             String // as prescribed
+  startOn          DateTime @db.Date // farm day
+  endOn            DateTime @db.Date
+  reason           String
+  prescriber       String
+  withdrawalDays   Int // from the label or the prescription, as entered
+  withdrawalEndsOn DateTime @db.Date // endOn + withdrawalDays (H3): what the sale block reads (T21)
+  // SPEC-m3 H7: eggs, for layer batches (required there, as entered, never a default); null elsewhere.
+  eggWithdrawalDays   Int?
+  eggWithdrawalEndsOn DateTime? @db.Date
+  // The register (arrêté 2126-05 art. 4): how it was given and the prescription's reference. Optional, as entered.
+  route            String? // drinkingWater | feed | injection | spray | eyeDrop | other
+  routeNote        String? // what "other" was
+  prescriptionRef  String? // e.g. the ordonnance's number
+  recordedBy       String   @db.Uuid
+  createdAt        DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: health (SPEC H5, H6).
+model VetVisit {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  batchId        String   @db.Uuid
+  on             DateTime @db.Date // farm day
+  vetName        String
+  notes          String
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: flock (SPEC B5). Birds that left a batch alive, told by sales with the sale's id: flock owns birds on hand.
+model SoldBirds {
+  id              String   @id @db.Uuid // the sale's
+  organizationId  String   @db.Uuid
+  batchId         String   @db.Uuid
+  day             DateTime @db.Date // farm day
+  birds           Int
+  liveWeightGrams Int // at the farm's weighing, for the FCR
+  createdAt       DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: flock (SPEC B6). Other costs of a batch (electricity, labour…) until finance arrives in M2.
+model BatchCost {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  batchId        String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  label          String
+  amountCentimes BigInt
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: eggs (SPEC-m3 E1). Several per layer batch and farm day, each with the phone's id; corrected in place while the
+// batch is open (the replaced counts are in the audit log).
+model EggCollection {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  normal         Int
+  cracked        Int
+  dirty          Int
+  doubleYolk     Int
+  floor          Int
+  broken         Int
+  sampleCount    Int? // eggs weighed together, for the average egg weight
+  sampleGrams    Int?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId, batchId, day])
+}
+
+// Owner: eggs (SPEC-m3 E3). A batch's eggs of one laying day sorted into grade classes: { gradeId: eggs }. Never edited.
+model EggGrading {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  laidOn         DateTime @db.Date
+  grades         Json
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: eggs (SPEC-m3 E3). Eggs thrown away from a lot, with the reason. Never edited.
+model EggDiscard {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  laidOn         DateTime @db.Date
+  item           String // ungraded | downgraded | grade:<id>
+  eggs           Int
+  reason         String
+  day            DateTime @db.Date // farm day the phone recorded it
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: eggs (SPEC-m3 V6). The eggs a sale took from a batch's lots, oldest laying day first; written with the sale.
+model EggDraw {
+  id             String   @id @db.Uuid // UUIDv5 of the sale and the line of the draw
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  batchId        String   @db.Uuid
+  saleId         String   @db.Uuid
+  laidOn         DateTime @db.Date
+  item           String
+  eggs           Int
+  day            DateTime @db.Date // the sale's farm day
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: sales (SPEC V1).
+model Buyer {
+  id                  String   @id @db.Uuid
+  organizationId      String   @db.Uuid
+  name                String
+  phone               String?
+  type                String // trader | abattoir | market | other
+  address             String? // the register (arrêté 2126-05 art. 4): where the birds go; optional, as entered
+  // SPEC-finance FN11/FN12: set when one of their cheques or bills comes back unpaid; no sale on credit until the
+  // owner lifts it.
+  creditBlocked       Boolean  @default(false)
+  // FN12: what they may owe at most, set by the owner; null = no limit. A credit sale beyond it waits for the owner.
+  creditLimitCentimes BigInt?
+  createdAt           DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: sales (SPEC V2, V3). Money in centimes; the amount is computed by the server from the farm weight.
+model Sale {
+  id                   String    @id @db.Uuid
+  organizationId       String    @db.Uuid
+  batchId              String    @db.Uuid
+  buyerId              String?   @db.Uuid // null: a home consumption (SPEC-finance FC7)
+  day                  DateTime  @db.Date // farm day
+  birds                Int
+  farmWeightGrams      Int
+  buyerWeightGrams     Int?
+  pricePerKgCentimes   BigInt
+  amountCentimes       BigInt
+  vatCentimes          BigInt    @default(0) // SPEC-finance FN9: the invoice's VAT, part of amountCentimes
+  paymentMethod        String // cash | cheque | bill | transfer | credit | none (a home consumption)
+  paidCentimes         BigInt
+  instrumentNumber     String? // cheque or bill of exchange
+  instrumentDueOn      DateTime? @db.Date
+  instrumentRemindedAt DateTime? @db.Timestamptz // V4: claimed by the reminder job, so it goes out once
+  creditApproval       String? // FN12: "pending" when it took the buyer past their credit limit, "approved" by the owner
+  kind                 String    @default("live") // SPEC-m3: live (per kg) | eggs (birds, weights and price per kg are 0)
+  takenBy              String? // SPEC-finance FC7: exploitant | associate | employee took it home; null = a sale
+  // The register (arrêté 2126-05 art. 4): live birds going to a farm or an establishment that isn't the buyer's
+  destinationName      String?
+  destinationAddress   String?
+  recordedBy           String    @db.Uuid
+  createdAt            DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, batchId])
+}
+
+// Owner: sales (SPEC-m3 V6). The lines of an egg sale. Money in centimes; never edited.
+model SaleLine {
+  saleId            String @db.Uuid
+  n                 Int // order in the sale
+  organizationId    String @db.Uuid
+  item              String // ungraded | downgraded | grade:<id>
+  eggs              Int
+  eggsPerTray       Int
+  unitPriceCentimes BigInt // per tray
+  amountCentimes    BigInt
+
+  @@id([saleId, n])
+  @@index([organizationId])
+}
+
+// Owner: sales (SPEC V4). A buyer paying later what their sales left unpaid. Money in centimes.
+model BuyerPayment {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  buyerId        String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  amountCentimes BigInt
+  method         String // cash | cheque | bill | transfer
+  // SPEC-finance FN11: a cheque's or bill's number and agreed date, when given; reminded once on that day (V4)
+  instrumentNumber     String?
+  instrumentDueOn      DateTime? @db.Date
+  instrumentRemindedAt DateTime? @db.Timestamptz
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, buyerId])
+}
+
+// Cross-cutting (ADR-006): append-only, written in the same transaction as the change. Never updated or deleted.
+// No FK to Organization so the log outlives what it describes; organisation deletion purges it explicitly (ADR-007).
+model AuditEvent {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId   String    @db.Uuid
+  userId           String?   @db.Uuid
+  entity           String
+  entityId         String    @db.Uuid
+  action           String
+  before           Json?
+  after            Json?
+  mutationId       String?   @db.Uuid
+  deviceCreatedAt  DateTime? @db.Timestamptz
+  serverReceivedAt DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, entity, entityId])
+}
+
+// Owner: finance. ADR-010 §2, SPEC-finance FN2: charts of accounts as data, the same for every organisation (like the
+// catalogue). `chart` is cgnc or pca (finance/schema.ts CHARTS); an overlay account can reuse a base number.
+// Seeded from prisma/seed/finance/accounts.json, which cites the official text. Per-organisation bank and cash
+// sub-accounts come with treasury (T32).
+model LedgerAccount {
+  chart        String
+  number       String
+  label        String
+  parentNumber String?
+  fallback     String? // the base-chart account used when this overlay is off
+
+  @@id([chart, number])
+}
+
+// Owner: finance. ADR-010 §1, SPEC-finance FN4–FN5: one double-entry ledger per legal entity. Posted entries are
+// immutable (a trigger refuses UPDATE and DELETE); a correction is a reversal, linked by `reversesId`. A deferred
+// constraint trigger re-checks at commit that each entry has ≥ 2 lines and balances. `source*` makes posting from
+// farm events idempotent (T30).
+model JournalEntry {
+  id             String        @id @db.Uuid
+  organizationId String        @db.Uuid
+  legalEntityId  String        @db.Uuid
+  journal        Journal
+  day            DateTime      @db.Date
+  label          String
+  sourceModule   String?
+  sourceId       String?
+  sourceVersion  Int?
+  reversesId     String?       @unique @db.Uuid
+  createdBy      String        @db.Uuid
+  createdAt      DateTime      @default(now()) @db.Timestamptz
+  lines          JournalLine[]
+
+  @@unique([sourceModule, sourceId, sourceVersion])
+  @@index([organizationId, legalEntityId, day])
+}
+
+model JournalLine {
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationId String       @db.Uuid
+  entryId        String       @db.Uuid
+  account        String // number in the entity's chart (base + overlays): finance/domain/chart.ts
+  debitCentimes  BigInt       @default(0)
+  creditCentimes BigInt       @default(0)
+  treasuryId     String?      @db.Uuid // FN3: the bank account or cash box of a 5141 / 5161 line
+  entry          JournalEntry @relation(fields: [entryId], references: [id])
+  bankMatch      BankMatch?
+
+  @@index([entryId])
+  @@index([organizationId, account])
+}
+
+// SPEC-finance FN17: the 90 % alert of a legal entity's fiscal year, sent once. The row is the claim.
+model ThresholdAlert {
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  fiscalYearFrom DateTime @db.Date
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@id([legalEntityId, fiscalYearFrom])
+}
+
+// A month of a legal entity's books that refuses new entries (FN5). Locking and unlocking: owner only, audited.
+model LockedPeriod {
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  month          String // YYYY-MM
+  lockedBy       String   @db.Uuid
+  lockedAt       DateTime @default(now()) @db.Timestamptz
+
+  @@id([legalEntityId, month])
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FN8: the owner's account for a default posting rule of a legal entity, append-only: the
+// override in force for a source is the latest row saved before the source's first entry (§9 "Posting overrides").
+// `ruleAccount`: the rule's default account as the rules hold it (PCA number); `account` null: back to the default.
+model PostingOverride {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  ruleAccount    String
+  account        String?
+  savedBy        String   @db.Uuid
+  savedAt        DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([legalEntityId, savedAt])
+}
+
+// Owner: finance. SPEC-finance FCX6 (T104): a fiscal year the owner closed, who and when. Reopening deletes it (audited).
+model FiscalYearClose {
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  day            DateTime @db.Date // the fiscal year's last day, like YearEndCount's
+  closedBy       String   @db.Uuid
+  closedAt       DateTime @db.Timestamptz // from the Clock: shown as "Exercice clôturé le …"
+
+  @@id([legalEntityId, day])
+  @@index([organizationId])
+}
+
+// SPEC-finance FN6: AC purchases, VT sales, CA cash, BQ bank, EF bills and cheques received, OD miscellaneous.
+enum Journal {
+  AC
+  VT
+  CA
+  BQ
+  EF
+  OD
+}
+
+// Owner: finance. SPEC-finance FN7: how far the posting pipeline has read each source's change log (the
+// organisation's sync version). Row-locked while posting, so two pushes never post the same change twice.
+model PostingCursor {
+  organizationId String @db.Uuid
+  source         String // inventory.purchase | flock.placement
+  version        BigInt @default(0)
+
+  @@id([organizationId, source])
+}
+
+// Owner: sales. SPEC-finance FN11: what happened to a cheque or bill received (a sale paid at once with one, or a
+// later payment), append-only; its current state is the latest row. `instrumentId` is that sale's or payment's id.
+// Created offline: the id comes from the device (UUIDv7, so ids sort by time).
+model InstrumentStatus {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  instrumentId   String   @db.Uuid
+  state          String // remitted | cashed | unpaid
+  day            DateTime @db.Date // farm day
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@unique([instrumentId, state]) // each step happens at most once
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FN3: an organisation's bank accounts and cash boxes. Their ledger lines carry the id as a
+// tag on 5141 / 5161 rather than a sub-account number per organisation. Created offline: the id comes from the device.
+model TreasuryAccount {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  kind           String // bank | cash
+  name           String
+  // §9 "Default cash box and bank account": takes the 5141 / 5161 lines that name no account; at most one per kind
+  // (a partial unique index, in the migration). None marked: the first created of its kind.
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FC9: a bank statement as printed, for one bank account (a TreasuryAccount of kind bank):
+// its last day and closing balance (negative when overdrawn). Entered online by the owner or a manager.
+model BankStatement {
+  id              String      @id @db.Uuid
+  organizationId  String      @db.Uuid
+  treasuryId      String      @db.Uuid
+  endDay          DateTime    @db.Date // farm day
+  closingCentimes BigInt
+  createdBy       String      @db.Uuid
+  createdAt       DateTime    @default(now()) @db.Timestamptz
+  matches         BankMatch[]
+  lines           BankStatementLine[]
+
+  @@unique([treasuryId, endDay])
+  @@index([organizationId])
+}
+
+// Owner: finance. FC9, T117: a line of an imported statement file, as the bank printed it (signed: credit +, debit −).
+// Keyed by its statement (account + end day) and a hash of the line, so importing the same file again adds nothing.
+model BankStatementLine {
+  id             String        @id @db.Uuid
+  organizationId String        @db.Uuid
+  statementId    String        @db.Uuid
+  day            DateTime      @db.Date // farm day: the bank's booking date
+  amountCentimes BigInt
+  label          String
+  reference      String
+  hash           String
+  statement      BankStatement @relation(fields: [statementId], references: [id])
+
+  @@unique([statementId, hash])
+  @@index([organizationId])
+}
+
+// Owner: finance. FC9: a 5141 line ticked on a statement of its bank account. Keyed by the line, so a line is ticked
+// on one statement at most. Unticking deletes the row (audited), refused once the line's month is locked.
+model BankMatch {
+  journalLineId  String        @id @db.Uuid
+  organizationId String        @db.Uuid
+  statementId    String        @db.Uuid
+  tickedBy       String        @db.Uuid
+  tickedAt       DateTime      @default(now()) @db.Timestamptz
+  line           JournalLine   @relation(fields: [journalLineId], references: [id])
+  statement      BankStatement @relation(fields: [statementId], references: [id])
+
+  @@index([statementId])
+}
+
+// Owner: finance. SPEC-finance FCX3: an entry the owner typed (T101), posted as the JournalEntry with the same id
+// (source finance:<id>). Its piece reference, and the receipt attached after posting: the entry itself is immutable.
+model ManualEntry {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  piece          String?
+  receiptFileId  String?  @db.Uuid // ADR-011: a StoredFile, attached online after the entry
+  createdBy      String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FC1 (T102): the fixed-asset register, per legal entity, typed online by the owner. Its
+// entries carry the source (finance, asset:<id>:acq | asset:<id>:pay:<payment id> | asset:<id>:disposal, version);
+// the yearly depreciation is the close run's (T103), which leaves out the disposal year: the disposal posted it.
+model FixedAsset {
+  id                         String    @id @db.Uuid
+  organizationId             String    @db.Uuid
+  legalEntityId              String    @db.Uuid // whose books it is in (FC1: per legal entity)
+  label                      String
+  category                   String // finance/domain/assets.ts ASSET_ACCOUNTS: its asset and depreciation accounts
+  farmId                     String?   @db.Uuid // where it is, through farm-registry (optional)
+  houseId                    String?   @db.Uuid
+  acquiredOn                 DateTime  @db.Date // farm day; the acquisition entry's day
+  inServiceOn                DateTime  @db.Date // farm day; its month is the first month depreciated (FQ9)
+  amountCentimes             BigInt // the invoice total, VAT included: what was paid or is owed (4481 or 1486, FQ23)
+  vatCentimes                BigInt    @default(0) // FN9: the invoice's VAT, part of amountCentimes, as typed
+  costCentimes               BigInt // on the asset account: amount − VAT when the entity was VAT-registered, frozen
+  residualCentimes           BigInt    @default(0) // depreciable base = cost − residual
+  lifeMonths                 Int? // typed by the owner, never prefilled; null for land, never depreciated
+  paidWith                   String? // cash | transfer | cheque | credit; null for an asset in the opening balance
+  lastPaymentOn              DateTime? @db.Date // FQ23: on credit, the last payment day typed; > 12 months after acquiredOn → 1486, else 4481
+  openingOn                  DateTime? @db.Date // in the opening balance (FCX3): the day its accumulated depreciation is at
+  openingAccumulatedCentimes BigInt    @default(0) // the accumulated depreciation on openingOn
+  disposedOn                 DateTime? @db.Date // sold or scrapped: the disposal entries' day
+  disposalPriceCentimes      BigInt? // 0 when scrapped
+  receiptFileId              String?   @db.Uuid // ADR-011: the invoice, a StoredFile attached after the asset
+  createdBy                  String    @db.Uuid
+  createdAt                  DateTime  @default(now()) @db.Timestamptz
+  subsidies                  SubsidyAsset[]
+
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FC2 (T105): a loan, per legal entity, typed online by the owner from the contract. A
+// draft until the owner confirms its schedule, adjusted to the bank's table; then its rows are fixed. Its entries carry
+// the source (finance, loan:<id>:disbursement | loan:<id>:installment:<number>, 1).
+model Loan {
+  id                String            @id @db.Uuid
+  organizationId    String            @db.Uuid
+  legalEntityId     String            @db.Uuid // whose books it is in
+  lender            String
+  treasuryId        String            @db.Uuid // the bank account (FN3) it is paid into and the installments leave
+  principalCentimes BigInt // borrowed; in the opening balance, the capital still owed when Dawra starts
+  disbursedOn       DateTime?         @db.Date // farm day, the disbursement entry's; null: in the opening balance (FCX3), not posted
+  rate              Int // annual, typed from the contract, in 1/100 000 (5,55 % → 5 550; FX1: no float)
+  frequency         String // monthly | quarterly
+  installments      Int // n, the capital installments
+  deferral          Int               @default(0) // d periods of interest only, before them
+  firstDueOn        DateTime          @db.Date
+  confirmedAt       DateTime?         @db.Timestamptz // null: a draft, whose rows the owner may still change
+  createdBy         String            @db.Uuid
+  createdAt         DateTime          @default(now()) @db.Timestamptz
+  rows              LoanInstallment[]
+
+  @@index([organizationId])
+}
+
+// Owner: finance. FC2: one row of a loan's schedule, from loanSchedule, then as the owner adjusted it before confirming.
+model LoanInstallment {
+  loanId           String    @db.Uuid
+  number           Int // 1 to deferral + installments
+  organizationId   String    @db.Uuid
+  dueOn            DateTime  @db.Date // first due day + (number − 1) periods, clamped to the month's end
+  capitalCentimes  BigInt // on 1481; 0 during the deferral
+  interestCentimes BigInt // on 6311
+  paidOn           DateTime? @db.Date // marked paid: the day the bank debited it, the entry's day
+  remindedAt       DateTime? @db.Timestamptz // announced once, on its due day
+  loan             Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@id([loanId, number])
+  @@index([organizationId])
+  @@index([dueOn])
+}
+
+// Owner: finance. SPEC-finance FC2 (T106): an investment subsidy, per legal entity, typed online by the owner. Default
+// FQ17: posted when received (finance, subsidy:<id>:receipt, 1), D 5141 / C 1311; released by the close run's subsidy
+// kind (T103) to 7577 through 1319, at the depreciation rate of the assets it finances and over its land's inalienable years.
+model Subsidy {
+  id             String         @id @db.Uuid
+  organizationId String         @db.Uuid
+  legalEntityId  String         @db.Uuid // whose books it is in
+  label          String
+  grantor        String // the granting body, free text
+  amountCentimes BigInt // received, on 1311
+  receivedOn     DateTime       @db.Date // farm day, the receipt entry's
+  treasuryId     String         @db.Uuid // the bank account (FN3) it was paid into: the 5141 line's
+  inalienableYears Int? // FQ17 (PCA p. 75): the years the contract makes its land inalienable; null: no clause, a tenth a year
+  createdBy      String         @db.Uuid
+  createdAt      DateTime       @default(now()) @db.Timestamptz
+  assets         SubsidyAsset[]
+
+  @@index([organizationId])
+}
+
+// Owner: finance. FC2: the register's assets a subsidy finances (one or more, land included: FQ17).
+model SubsidyAsset {
+  subsidyId      String     @db.Uuid
+  assetId        String     @db.Uuid
+  organizationId String     @db.Uuid
+  subsidy        Subsidy    @relation(fields: [subsidyId], references: [id], onDelete: Cascade)
+  asset          FixedAsset @relation(fields: [assetId], references: [id])
+
+  @@id([subsidyId, assetId])
+  @@index([organizationId])
+  @@index([assetId])
+}
+
+// Owner: finance. SPEC-finance FN6, FX4: a quick expense recorded on the phone, offline; posted when it syncs.
+model Expense {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  day            DateTime  @db.Date // farm day
+  category       String // electricity | water | vet_fees | insurance | catching | bank_fees
+  amountCentimes BigInt
+  vatCentimes    BigInt   @default(0) // SPEC-finance FN9: the bill's VAT, part of amountCentimes
+  paidFrom       String // cash | bank | credit
+  treasuryId     String?   @db.Uuid
+  note           String?
+  // FN13, FN14: a direct charge of one batch, or shared across the batches present during the service period
+  // (by bird-days). Neither: a general charge, in no batch's result.
+  batchId        String?   @db.Uuid
+  shared         Boolean   @default(false)
+  serviceFrom    DateTime? @db.Date
+  serviceTo      DateTime? @db.Date
+  receiptFileId  String?   @db.Uuid // FN10, FN18: the receipt photo, a StoredFile attached online after the expense
+  recordedBy     String    @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, day])
+}
+
+// Owner: finance. FN14: a closed batch's share of each shared expense, frozen at its closing (its result never moves
+// again). Later allocations split only what's left of an expense across the batches still open.
+model FrozenAllocation {
+  organizationId String @db.Uuid
+  batchId        String @db.Uuid
+  expenseId      String @db.Uuid
+  amountCentimes BigInt
+
+  @@id([batchId, expenseId])
+  @@index([organizationId, expenseId])
+}
+
+// Owner: finance. FN14: the batches whose allocation is frozen (with or without a share of anything).
+model FrozenBatch {
+  batchId        String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  frozenAt       DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FN6: money moved between two treasury accounts, through 5115.
+model TreasuryTransfer {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  amountCentimes BigInt
+  fromId         String   @db.Uuid
+  toId           String   @db.Uuid
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FN15: a planned batch's budget, its what-if inputs saved (the figures are recomputed from
+// them). `basedOn`: the closed batch it was copied from.
+model Budget {
+  id                     String   @id @db.Uuid
+  organizationId         String   @db.Uuid
+  name                   String
+  basedOn                String?  @db.Uuid
+  batchId                String?  @db.Uuid // FN17: the open flock batch it plans (§9 FQ32); null: a batch not placed yet
+  chicks                 Int
+  chickPriceCentimes     BigInt
+  feedGrams              BigInt
+  feedPricePerKgCentimes BigInt
+  otherCostCentimes      BigInt
+  plannedGrams           BigInt
+  salePricePerKgCentimes BigInt
+  saleDay                Int? // FN15 (§9 "Budget cash need"): days after placement, for a budget not copied from a batch
+  chickPaymentDays       Int? // FN15 (§9 "Budget cash need"): the supplier delays typed, in days; null: the farm's own
+  feedPaymentDays        Int?
+  createdBy              String   @db.Uuid
+  createdAt              DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FC3: a line of the year-end count, the quantity counted on the fiscal year's last day.
+// `subjectId`: the open batch (birds), the stock item (its base unit: grams, doses, ml, units) or the farm (its eggs,
+// T113). Changed until the close run posts (T103 freezes it); the inventory, flock and eggs books are corrected in their
+// own screens, never from here.
+model YearEndCount {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  day            DateTime @db.Date // the count day: the fiscal year's last day
+  kind           String // batch | stock | eggs
+  subjectId      String   @db.Uuid
+  quantity       Int
+  updatedBy      String   @db.Uuid
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@unique([legalEntityId, day, subjectId])
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FC5, FQ20 (T108): the owner's current value of a count line on the fiscal year's last
+// day, the whole line in centimes, typed when it is below cost (a damaged or expired lot); the close run provisions the
+// difference. `subjectId`: the stock item (T109: the open batch). T113: for `eggs`, the farm, and `valueCentimes` is the
+// value of one egg (FQ18), not of the line. Frozen with the count once the close run posts.
+model YearEndValue {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  legalEntityId  String   @db.Uuid
+  day            DateTime @db.Date
+  kind           String // stock (T109: batch, T113: eggs, T114: hens, the value of one bird)
+  subjectId      String   @db.Uuid
+  valueCentimes  BigInt
+  updatedBy      String   @db.Uuid
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@unique([legalEntityId, day, subjectId])
+  @@index([organizationId])
+}
+
+// Owner: finance. SPEC-finance FC6 (T115), classic method: a laying flock's depreciation, typed by the owner (never
+// prefilled), required before the close run posts. Life = the laying period in months; cull value = what the culled
+// hens are expected to fetch, the whole flock, deducted from the depreciable base. Frozen once the close run of the
+// flock's entry year has posted.
+model HensSchedule {
+  id                String   @id @db.Uuid
+  organizationId    String   @db.Uuid
+  legalEntityId     String   @db.Uuid
+  batchId           String   @db.Uuid // the layer batch (flock), referenced by id
+  lifeMonths        Int
+  cullValueCentimes BigInt
+  updatedBy         String   @db.Uuid
+  updatedAt         DateTime @updatedAt @db.Timestamptz
+
+  @@unique([legalEntityId, batchId])
+  @@index([organizationId])
+}
+
+// Owner: workforce. SPEC-m4 WF1–WF3: a person working on a farm. Not every employee has a phone, so not every one is a
+// member; `userId` is the member signing in with `phone`, set by the server when the employee is saved.
+model Employee {
+  id                String    @id @db.Uuid
+  organizationId    String    @db.Uuid
+  farmId            String    @db.Uuid
+  name              String
+  job               String // lead | worker | guard | other
+  phone             String? // E.164
+  userId            String?   @db.Uuid
+  housedOnFarm      Boolean
+  startedOn         DateTime  @db.Date // farm day
+  leftOn            DateTime? @db.Date // farm day; no new task from then on
+  dailyWageCentimes BigInt // agreed with the employee; never sent to workers
+  cnssNumber        String?
+  houseIds          String[]  @db.Uuid // the houses they look after (WF7)
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @db.Timestamptz
+
+  @@unique([farmId, userId]) // WF2: one employee per member and farm (NULLs don't collide)
+  @@index([organizationId])
+}
+
+// Owner: workforce. SPEC-m4 WF5: a recurring task, every `everyDays` days from `startOn`, or from an age (`fromAge`)
+// of the open batch of its house. The day's tasks are computed from it (domain/tasks.ts), never stored.
+model Routine {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  farmId         String    @db.Uuid
+  houseId        String?   @db.Uuid // null: the whole farm
+  title          String
+  time           String? // HH:MM, farm clock
+  everyDays      Int
+  startOn        DateTime? @db.Date
+  fromAge        Int?
+  stopOn         DateTime? @db.Date // nothing from this day on
+  employeeId     String?   @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: workforce. SPEC-m4 WF5: a task the manager adds for one farm day.
+model OneOffTask {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  houseId        String?  @db.Uuid
+  day            DateTime @db.Date
+  title          String
+  time           String?
+  employeeId     String?  @db.Uuid
+  cancelled      Boolean  @default(false)
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, day])
+}
+
+// Owner: workforce. SPEC-m4 WF6: a routine or one-off task ticked done on a farm day. id = UUIDv5 of key + day, the
+// same on every phone; unticking deletes it (same farm day only).
+model TaskDone {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  key            String // routine:<id> | oneoff:<id>
+  day            DateTime @db.Date
+  byUserId       String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: workforce. SPEC-m4 WF7: one day's task given to another employee. id = UUIDv5 of key + day: one per task and
+// day, the last write wins.
+model TaskAssignment {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  key            String // entry:<batchId> | vaccine:<id> | routine:<id> | oneoff:<id>
+  day            DateTime @db.Date
+  employeeId     String   @db.Uuid
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: workforce. SPEC-m4 WF9: one status per employee and farm day. id = UUIDv5 of employee + day, so a check-in on
+// the worker's phone and the manager's edit meet on one record. userId: the linked member, who sees their own days.
+model Attendance {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  employeeId     String   @db.Uuid
+  day            DateTime @db.Date
+  status         String // present | rest | leave | absent
+  arrivedAt      String? // HH:MM, farm clock
+  userId         String?  @db.Uuid
+  updatedBy      String   @db.Uuid
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId, day])
+}
+
+// Owner: workforce. SPEC-m4 WF10: money given to an employee before pay day, deducted from one month's pay.
+model SalaryAdvance {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  employeeId     String   @db.Uuid
+  day            DateTime @db.Date
+  amountCentimes BigInt
+  deductMonth    String // YYYY-MM
+  note           String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+/// SPEC-m4 WF13: a training or a work accident, recorded once. Owners and managers only.
+model StaffRecord {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  employeeId     String   @db.Uuid
+  day            DateTime @db.Date
+  kind           String // training | accident
+  topic          String? // training: biosecurity | vaccination | other
+  note           String? // an accident: what happened (required)
+  daysOff        Int? // an accident: days off work, if known
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: workforce. SPEC-m4 §2, MQ2: the labour figures the owner entered, with their source. Dated, never edited;
+// no value is seeded. Rates in basis points (1 % = 100); null: not given by the source.
+model LabourRules {
+  id                 String   @id @db.Uuid
+  organizationId     String   @db.Uuid
+  validFrom          DateTime @db.Date
+  source             String
+  smagDailyCentimes  BigInt?
+  employeeCappedBp   Int?
+  employeeUncappedBp Int?
+  employerCappedBp   Int?
+  employerUncappedBp Int?
+  monthlyCapCentimes BigInt?
+  createdBy          String   @db.Uuid
+  createdAt          DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: workforce. SPEC-m4 WF12: a farm's month of pay, frozen by the owner as the server computed it.
+model PayMonth {
+  id             String   @id @db.Uuid // UUIDv5 of farm + month
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  month          String // YYYY-MM
+  lines          Json // PayLine[]
+  rulesId        String?  @db.Uuid
+  validatedOn    DateTime @db.Date
+  validatedBy    String   @db.Uuid
+
+  @@unique([farmId, month])
+  @@index([organizationId])
+}
+
+// Owner: workforce. A validated month's wages paid out (D 4432 / C cash or bank in finance); one per farm and month.
+model PayPayment {
+  id             String   @id @db.Uuid // UUIDv5 of farm + month + "paid"
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  month          String // YYYY-MM
+  day            DateTime @db.Date
+  paidFrom       String // cash | bank
+  netCentimes    BigInt // the validated month's net, as paid
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@unique([farmId, month])
+  @@index([organizationId])
+}
+
+// Owner: climate. SPEC-m4 CL1, §2: the farm's climate targets per batch age, typed by the owner from a source they name
+// (MQ1). Dated versions, never edited; none seeded. bands: Band[] (domain/targets.ts), temperatures in tenths of °C.
+model ClimateTargetSet {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  validFrom      DateTime @db.Date
+  source         String
+  bands          Json
+  productionType String? // SPEC-m3 type the set is for; null: every type without a set of its own
+  createdBy      String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: climate. SPEC-m4 CL2: one reading of a house, by hand. Integers: tenths of °C, % humidity, ppm ammonia.
+model ClimateReading {
+  id                String   @id @db.Uuid
+  organizationId    String   @db.Uuid
+  farmId            String   @db.Uuid
+  houseId           String   @db.Uuid
+  day               DateTime @db.Date // farm day
+  time              String // HH:MM, farm clock
+  temperatureTenths Int
+  humidity          Int
+  ammonia           Int?
+  byUserId          String   @db.Uuid
+  createdAt         DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([houseId, day])
+}
+
+// Owner: climate. SPEC-m4 CL5: a farm's power cut and how the generator did. One open cut per farm (checked on push).
+model PowerCut {
+  id               String    @id @db.Uuid
+  organizationId   String    @db.Uuid
+  farmId           String    @db.Uuid
+  startedAt        DateTime  @db.Timestamptz
+  endedAt          DateTime? @db.Timestamptz
+  generatorStarted Boolean?
+  generatorSeconds Int? // how long it took to start
+  dieselMl         Int? // diesel used, millilitres
+  byUserId         String    @db.Uuid
+  createdAt        DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([farmId, endedAt])
+}
+
+// Owner: market-prices (SPEC-m5 MP1). A price someone on the farm saw, per unit; never edited, never shared.
+model PriceObservation {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  product        String // chick | feed | liveBroiler | egg | cullHen (fixed units: head, kg, egg)
+  day            DateTime @db.Date
+  priceCentimes  BigInt
+  seenOn         String?
+  byUserId       String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, product, day])
+}
+
+// Owner: planning (SPEC-m5 PL1). A batch planned in a house: edited while planned, then cancelled or placed.
+model PlannedBatch {
+  id                 String   @id @db.Uuid
+  organizationId     String   @db.Uuid
+  farmId             String   @db.Uuid
+  houseId            String   @db.Uuid
+  placeOn            DateTime @db.Date
+  chicks             Int
+  strainId           String
+  hatchery           String
+  chickPriceCentimes BigInt?
+  saleAge            Int? // days
+  status             String // planned | cancelled | placed
+  batchId            String?  @db.Uuid // the batch it became (PL3)
+  remindedAt         DateTime? @db.Timestamptz // PL4: the day-before reminder was sent
+  createdBy          String   @db.Uuid
+  createdAt          DateTime @default(now()) @db.Timestamptz
+  updatedAt          DateTime @updatedAt @db.Timestamptz
+
+  @@index([organizationId])
+  @@index([placeOn, status])
+}
+
+// Owner: planning (SPEC-m5 PL5, §2). The owner's minimum downtime between batches of a farm, from a source; dated.
+// The one downtime figure (CQ3): without a rule the official 20 days apply (arrêté n° 2127-05, art. 4, built in).
+model DowntimeRule {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  validFrom      DateTime @db.Date
+  minDays        Int
+  source         String
+  createdBy      String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS1–BS2: one entry of the visitor and vehicle register, recorded on the phone.
+model Visit {
+  id                String   @id @db.Uuid
+  organizationId    String   @db.Uuid
+  farmId            String   @db.Uuid
+  enteredAt         DateTime @db.Timestamptz
+  visitor           String // name and company
+  vehicle           String? // plate
+  purpose           String // feedDelivery | gas | chickDelivery | vet | buyer | technician | other
+  recentFarm        Boolean // on another poultry farm recently (VISITOR_RECENT_FARM_HOURS)
+  wheelsDisinfected Boolean
+  footbath          Boolean
+  farmClothing      Boolean
+  zone              String // clean | dirty
+  recordedBy        String   @db.Uuid
+  createdAt         DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, enteredAt])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS6: dead birds disposed of (law 49-99 art. 12).
+model Disposal {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  day            DateTime @db.Date // farm day
+  batchId        String?  @db.Uuid
+  birds          Int
+  weightGrams    Int?
+  method         String // incineration | sealedPit | authorizedSite | other (CQ4)
+  methodNote     String?
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS7: manure taken out (art. 13). Kilograms, no money.
+model ManureRemoval {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  day            DateTime @db.Date
+  houseId        String?  @db.Uuid
+  batchId        String?  @db.Uuid
+  quantityKg     Int
+  destination    String // stored | spread | sold | given
+  recipient      String?
+  spreadDeclared Boolean  @default(false) // CQ4: spread more than 500 m from any poultry farm or hatchery, or composted
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS4: the clean-out of a house after one batch, once per batch.
+model Cleanout {
+  id             String         @id @db.Uuid
+  organizationId String         @db.Uuid
+  farmId         String         @db.Uuid
+  houseId        String         @db.Uuid
+  afterBatchId   String         @unique @db.Uuid
+  startedOn      DateTime       @db.Date
+  startedBy      String         @db.Uuid
+  createdAt      DateTime       @default(now()) @db.Timestamptz
+  steps          CleanoutStep[]
+
+  @@index([organizationId, houseId])
+}
+
+// Owner: biosecurity. BS4: one step of SCOPE §4's checklist, each once per clean-out. Ids are UUIDv7: they sort by time.
+model CleanoutStep {
+  id         String   @id @db.Uuid
+  cleanoutId String   @db.Uuid
+  step       String // manureOut | equipmentWashed | pressureWash | disinfection | rodentControl | waterFlush | litterPreheat
+  day        DateTime @db.Date
+  product    String?
+  dose       String?
+  productLot String?
+  note       String?
+  recordedBy String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  cleanout   Cleanout @relation(fields: [cleanoutId], references: [id], onDelete: Cascade)
+
+  @@unique([cleanoutId, step])
+}
+
+// Owner: documents. SPEC-m2-compliance DC2, ADR-011: an uploaded file, kept in the database until hosting is chosen
+// (OQ1). `purpose`: "proof" (a biosecurity photo, every member) or "document" (the vault, owners and managers).
+model StoredFile {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  purpose        String // proof | document
+  contentType    String // from the file's own bytes
+  sizeBytes      Int
+  sha256         String
+  bytes          Bytes
+  uploadedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId])
+}
+
+// Owner: biosecurity. SPEC-m2-compliance BS8: rodent control with physical proof (law 49-99 art. 15). The photo is a
+// StoredFile, attached online after the check was recorded.
+model RodentCheck {
+  id             String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  farmId         String   @db.Uuid
+  houseId        String?  @db.Uuid
+  day            DateTime @db.Date
+  action         String // baitPlaced | baitChecked
+  product        String?
+  proofFileId    String?  @db.Uuid
+  recordedBy     String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  @@index([organizationId, farmId, day])
+}
+
+// Owner: documents. SPEC-m2-compliance DC1: a document of the vault. farmId null: the organisation as a whole.
+model Document {
+  id             String    @id @db.Uuid
+  organizationId String    @db.Uuid
+  title          String
+  category       String // authorization | vetContract | labReport | insurance | land | company | tax | equipment | other
+  farmId         String?   @db.Uuid
+  issuedOn       DateTime? @db.Date
+  expiresOn      DateTime? @db.Date
+  notes          String?
+  fileId         String?   @db.Uuid // a StoredFile, attached online
+  createdBy      String    @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  @@index([organizationId, expiresOn])
+}
+
+// Owner: documents. SPEC-m2-compliance DC4: which expiry reminders went out, so each goes once per subject (a vault
+// document or a farm's ONSSA authorization), expiry date and kind ("soon" | "expired"). A new expiry date starts over.
+model DocumentReminder {
+  subjectId      String   @db.Uuid
+  expiresOn      DateTime @db.Date
+  kind           String
+  organizationId String   @db.Uuid
+  sentAt         DateTime @db.Timestamptz
+
+  @@id([subjectId, expiresOn, kind])
+}

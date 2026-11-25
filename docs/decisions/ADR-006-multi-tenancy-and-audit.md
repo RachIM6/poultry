@@ -18,7 +18,7 @@ Proposed
 - Permissions are checked in one place (`can(ctx, action, resource)`), using a role → action table.
 - **Audit log:** an append-only `AuditEvent` table with these fields: `organizationId`, `userId`, `entity`, `entityId`, `action`, `before`, `after` (JSON), `deviceCreatedAt`, `serverReceivedAt`, `mutationId`.
   - It is written in the same transaction as the change.
-  - Rows are never updated or deleted, except when the whole organisation is deleted (ADR-007).
+  - Rows are never updated or deleted, except when the whole organisation is deleted (ADR-007), and the audit of farm operations after 5 years (ADR-007, retention; decided default 2026-11-24, to review).
 
 ## Alternatives Considered
 - **Database or schema per tenant:** strong isolation, but heavy for many small farms (migrations × N). Rejected.

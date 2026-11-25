@@ -26,8 +26,8 @@ Vets and accountants come in M5.
 
 | Layer | Choice | ADR |
 |---|---|---|
-| Client | **PWA**: Next.js App Router pages, service worker (Serwist), IndexedDB (Dexie) | [ADR-001](docs/decisions/ADR-001-pwa-only-client.md), [ADR-003](docs/decisions/ADR-003-offline-first-sync.md) |
-| Server | **Single Next.js app** (route handlers + server actions), TypeScript strict. Modular monolith | [ADR-002](docs/decisions/ADR-002-nextjs-modular-monolith-postgres.md) |
+| Client | **PWA**: Next.js App Router pages, service worker (Serwist), IndexedDB (Dexie) | [ADR-001](docs/decisions/ADR-001-pwa-only-client.md), [ADR-003](docs/decisions/ADR-003-offline-first-sync.md), [ADR-014](docs/decisions/ADR-014-compacted-pull.md) |
+| Server | **Single Next.js app** (route handlers + server actions), TypeScript strict. Modular monolith, scaled out as copies of the same app | [ADR-002](docs/decisions/ADR-002-nextjs-modular-monolith-postgres.md), [ADR-012](docs/decisions/ADR-012-no-separate-backend.md) |
 | Database | **PostgreSQL 16+** through **Prisma** | ADR-002 |
 | Validation | **Zod**. The same schemas run on the client (offline writes) and the server (sync push) | ADR-003 |
 | i18n | **next-intl**. Locales `ar` (default, RTL) and `fr`. Tailwind logical properties | [ADR-004](docs/decisions/ADR-004-i18n-arabic-french-rtl.md) |
@@ -64,8 +64,9 @@ src/
   app/api/sync/...        sync push / pull endpoints
   app/api/auth/...        OTP request / verify / logout
   modules/<module-id>/    one folder per capability-map module (layout: ADR-008, skill poultry-ddd)
-    index.ts              the ONLY file other modules may import
+    index.ts              server API: with schema.ts and shared.ts, the only files other modules may import (ADR-008, ADR-009)
     schema.ts             Zod schemas + mutation types (shared client/server)
+    shared.ts             the same without Zod: mutation names, DTO types, domain functions, for the phone's screens (ADR-009)
     domain/               strict modules: pure, isomorphic rules (KPIs, withdrawal, aggregates)
     application/          strict modules: use cases (transaction + audit)
     infrastructure/       strict modules: Prisma repositories + mappers
@@ -151,7 +152,7 @@ No global coverage percentage. The bar is: every domain rule in this spec has a 
 - **Ask first**
   - Adding a dependency.
   - A migration that drops or renames columns.
-  - Changing the sync protocol.
+  - Changing the sync protocol. (2026-11-23: optional `messageValues` added to rejected results, decided by the product owner; backward compatible, old phones ignore it. 2026-11-24: compacted pull, snapshot from 0 and read-back of refused records, [ADR-014](docs/decisions/ADR-014-compacted-pull.md), decided under the owner's standing instruction; additive, old phones keep working.)
   - Adding an external service (SMS / WhatsApp provider, hosting, analytics).
   - Changing a module's dependencies in the capability map.
 - **Never**
@@ -180,7 +181,7 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 ### `farm-registry`
 - F1. First login → create the organisation and its **legal entity**:
   - form: individual / indivision / company / cooperative / association / GIE;
-  - the accounting profile is derived from the form and used in M2.
+  - the accounting profile is derived from the form and used in M2 (its shape changes in M2: [ADR-010](docs/decisions/ADR-010-accounting-model.md), [SPEC-finance.md](SPEC-finance.md) FN1).
 - F2. A farm has a name, region and province, commune, optional GPS, and optional **ONSSA authorization number + expiry date**.
 - F3. A poultry house has a name, floor area (m²), capacity (birds) and type (open / closed).
 - F4. Farms and houses can be created and edited **offline**.
@@ -207,6 +208,7 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 
 ### `flock`
 - B1. Create a batch: house, species broiler, strain, placement date, chicks placed, hatchery, delivery note n°, chick unit price, average day-old weight (optional), dead on arrival. **One open batch per house.**
+  - **Correcting a placement** (owner, manager: `flock.manage`; offline, `flock.correctPlacement`): while the batch is open, a typing error is fixed in the chicks placed, the free chicks, the dead on arrival, the chick price and the delivery's VAT, the strain, the placement day, the hatchery and the delivery note, and in the house (one of the batch's farm that would take it) only before any daily entry, weighing or sale. The corrected placement is checked as a new one; its day stays on or before the batch's first day of data and on or after the day the house's previous batch closed; the birds started stay at least the birds already dead, culled or sold. Not a batch made by a transfer to lay (SPEC-m3 B13: its figures come from the pullets). Audited with the fields before and after. Birds on hand, mortality, the KPIs and the register follow, as they are computed from the batch; finance reposts the chicks (SPEC-finance FN7) and the placement debt follows (SPEC-finance §9 "Placement debts"). A corrected placement day moves the vaccination plan in the same write: each line not yet done keeps its day of age (one moved by hand too, SPEC-m5 PA4), so its due day moves by the same days; a vaccination given keeps the day it was given. A moved line's reminders (H2) go out for its new day, not again for the old one; the phone shows the new days at once. The placement day also stays on or before the first day health recorded on the batch (a vaccination given, a treatment started, a vet visit): a later day is refused and nothing of the correction is kept; the phone refuses it at once against the vaccinations given that it holds, the server against all three.
 - B2. **Daily entry, one per batch per farm day:**
   - mortality count + cause (from a list) and culls;
   - feed consumed (item + kg);
@@ -220,7 +222,8 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 - B6. Closing a batch:
   - **automatic** when birds on hand reach 0;
   - **manual** with a reason.
-  - The final KPIs and the **cost per kg sold** (chicks + consumed inputs + other costs entered) are then locked.
+  - The final KPIs and the **cost per kg sold** (chicks + consumed inputs + other costs entered) are then locked. Screens show FN13's cost per kg instead, which also counts the batch's expenses (SPEC-finance §9 "One cost per kg").
+  - **Reopening**, decided default, to review (2026-11-25): a wrong last sale, a missed mortality or a late cost can be fixed. The owner alone (`finance.manage`: it changes the books' batch results) taps "Rouvrir la bande" on a closed batch, confirms and gives a reason; offline like the closing (`flock.reopenBatch`, idempotent by mutation id). The batch is open again, its closing's figures cleared (kept in the audit with the reason), its house occupied again, and the phones get it at the next pull. Refused `HOUSE_HAS_NEWER_BATCH` once its house took a batch placed on or after its closing day (open or closed), `HOUSE_HAS_OPEN_BATCH` when the house would not take it as a placement (SPEC-m3 B8, B9), `BATCH_TRANSFERRED` for pullets moved to laying (their hens live on in the layer batch, SPEC-m3 B13), `CLEANOUT_STARTED` once a clean-out of its house (BS4) was started after it or on or after its closing day (the house was emptied and cleaned), `PERIOD_LOCKED` while the month of its closing is locked and `YEAR_CLOSED` once that fiscal year is closed (SPEC-finance FN5, FCX6: those books never change this way); the phone checks the house, the transfer and the clean-outs it holds, the server all of them and the books. No age limit: the period lock and the year close bound it, and a number of days would be a threshold nobody set. Finance releases its frozen shares (FN14, audited), so its result is computed again while it is open (FN13); a closing posts no entry (FN7), so there is nothing to reverse, and each correction that follows (a sale cancelled and typed again, an expense) posts its own reversal and new entry. Closing it again (the last sale, or by hand) locks new figures and freezes its shares anew. Not changed by a reopening: the year-end close run (FCX4) of a year not closed yet shows the batch's change to post again if its closing moves across the year end.
 
 ### `health`
 - H1. Creating a batch generates its **vaccination plan** from the farm's protocol (due day = age).
@@ -246,10 +249,14 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 - X1. **Offline for at least 7 days:**
   - every M1 action works offline and survives a reload;
   - the sync status is always visible (pending count, last sync);
-  - **no data is lost or duplicated** when syncing (idempotent).
+  - **no data is lost or duplicated** when syncing (idempotent);
+  - dead link, decided default, to review: on a connected-but-dead link (one bar of 3G), a page or a tap on a link gives up after **5 s** and opens its offline shell or the offline page (`src/sw.ts`). For 10 s after a timed-out tap, page requests get 1 s, so Next's reload after the failed tap doesn't wait 5 s more: a tab reaches its shell in about 7 s (5 s, 1 s, then the shell's load). `/api/*` has no timeout: a sync pull can take longer on 3G. `e2e/dead-link.spec.ts` checks it;
+  - start screen, decided default, to review: the installed app opens on `/{locale}/today` (the manifest's `start_url`), the farmer's day, a precached shell that works offline and shows a login link when nobody has signed in on the phone.
 - X2. Two devices editing the same farm converge after sync. For the same daily entry, the last write received by the server wins, and the overwritten version stays in the audit log.
 - X3. **Tenant isolation:** no API returns or accepts data from another organisation. Integration tests prove it for every endpoint.
 - X4. Accessibility basics: touch targets ≥ 44 px, WCAG AA contrast, labels on every input, works at 200% zoom.
+  - Zoom, decided default, to review: "works at 200% zoom" means WCAG 1.4.10 reflow, no sideways page scroll at 320 CSS px wide (1280 px at 400 %). 200 % of a 412 px phone (206 px) is not required.
+  - `e2e/a11y.spec.ts` checks, on every main screen in `fr` and `ar`: the targets at 412 px and at 320 px (a link inside running text is exempt, WCAG 2.5.8), buttons, links, fields, disclosures and `role="button"` / `"tab"` / `"menuitem"` alike; the accessible names, and a label of its own on each file input; the 320 px reflow; contrast to WCAG 2.2 AA (text 4.5:1, large text 3:1, a field's edge and the focus ring 3:1), computed in the page. It checks again with every `<details>` and every collapsed disclosure button (`aria-expanded="false"`, a destructive one aside) open, so a button that reveals a form carries `aria-expanded`. `e2e/no-overflow.spec.ts` checks the 412 px phone width.
 
 ## 9. Success criteria (M1 done)
 
@@ -269,6 +276,13 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 | OQ1 | **Hosting location** and law 09-08: host in Morocco, or abroad with a CNDP authorization for the transfer? | Staging / pilot deploy (T25) |
 | OQ2 | SMS / WhatsApp provider for OTP and notifications. Cost per message | T5 (production OTP), N4 |
 | OQ3 | Minimum supported phones (Android version, RAM, iPhone share): answered by interview question Q3 | Performance budget, T4 |
-| OQ4 | Vet review of the default vaccination protocol and of the withdrawal-period block | T10, T19, T20 |
-| OQ5 | Source and licence of the strain standard curves (Aviagen / Cobb performance objectives) | T10 |
+| OQ4 | Vet review of the default vaccination protocol and of the withdrawal-period block. **Official minimum decided** (2026-11-24, below); the vet review stays open | T10, T19, T20 |
+| OQ5 | Source and licence of the strain standard curves (Aviagen / Cobb performance objectives). **Decided** (2026-11-24, below): no values | T10 |
 | OQ6 | Pricing / who pays (farm, integrator, feed supplier) | Not M1 |
+
+Decided defaults from the official texts (2026-11-24, sources in [docs/sources/onssa/README.md](docs/sources/onssa/README.md)):
+
+- **OQ4, Newcastle required.** Arrêté n° 3308-17 du 10 décembre 2017 (BO n° 6700 du 6 août 2018, p. 1557), art. 13: Newcastle vaccination “est obligatoire pour les volailles et les oiseaux captifs” (art. 2: “volaille” is any bird kept for meat or eggs, so every production type), “dans le cadre des programmes de vaccination validés par le directeur général de l’ONSSA”. Art. 14: ONSSA-authorised vaccines only, given by a vet holding the mandat sanitaire; the register records the type, commercial name, lot, date, number, species and age. ONSSA publishes no programme (no ages, no strains): programmes are farm-specific. The app keeps `REQUIRED_VACCINES` (Newcastle, catalogue product `vaccine-newcastle`, all production types) in `src/modules/health/domain/required.ts` and shows a **warning, never a block**, on the protocol editor and on an open batch’s vaccination plan when no Newcastle line exists, citing art. 13 and the ONSSA-validated programme (chicks may have been vaccinated at the hatchery). The protocol templates stay empty and `reviewedByVet: false`.
+- **OQ4, vaccination programme stays per farm** (decided 2026-11-24, to review). Arrêté n° 3308-17, art. 13: Newcastle vaccination is done « dans le cadre des programmes de vaccination validés par le directeur général de l’ONSSA »; loi n° 49-99, art. 7: the owner designates the private vet who carries out the prophylaxis. No official text gives an age, a strain or a route, so the app ships **no default schedule**: the farm types its vet’s programme. The catalogue adds the vaccine types `vaccine-marek` and `vaccine-avian-influenza-h9n2` (authorised vaccines exist on the ONSSA positive list of 6 May 2025; withdrawal `null`). The batch screen shows the notifiable diseases of dahir n° 1-75-292, art. 1, and the duty to declare a suspected case (art. 3; arrêtés n° 3308-17, 2466-17 and 2836-17, art. 1): SPEC-m2-compliance CQ8, CQ9.
+- **OQ4, withdrawal periods.** No official withdrawal list exists: the ONSSA “Liste positive des médicaments vétérinaires” (6 May 2025) has no withdrawal column. Withdrawal days stay typed on each treatment; the form says where they come from: the notice (AMM) or the vet’s prescription (loi n° 49-99, art. 9).
+- **OQ5, growth curves: no values, licence status recorded.** Every breeder table checked (Aviagen Ross 308 and Arbor Acres, Hubbard, Cobb 500, Hy-Line, Lohmann; Aviagen Turkeys not verified) is copyrighted with no reuse licence: none is usable without the breeder’s written permission, and nothing is committed. Details, URLs and quotes in `prisma/seed/reference/curves/README.md` (Licence status).

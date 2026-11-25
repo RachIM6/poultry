@@ -1,13 +1,45 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Local .env for DATABASE_URL (tests read and set up rows in it); CI sets real env vars instead.
+try {
+  process.loadEnvFile();
+} catch {}
+
+// E2E_PORT: parallel sessions (one worktree each) run their own server; a reused server would test another branch.
+const port = process.env.E2E_PORT ?? "3100";
+const origin = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: "e2e",
-  use: { baseURL: "http://localhost:3000" },
+  // Own port, so a dev server (or another project) on 3000 is never reused by mistake.
+  use: { baseURL: origin, trace: "retain-on-failure" },
+  // Login → dashboard → onboarding is three server round trips, each checking the session. With 4 workers on one
+  // production server they took just over the 5 s default in two of three full runs during T9 (never when run alone).
+  expect: { timeout: 10_000 },
+  // CI uploads playwright-report/ and test-results/ when a test fails (.github/workflows/ci.yml).
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  forbidOnly: !!process.env.CI,
   // Farm users are on phones: test the mobile viewport first (SPEC §6).
   projects: [{ name: "mobile-chrome", use: { ...devices["Pixel 7"] } }],
   webServer: {
-    command: "pnpm build && pnpm start",
-    url: "http://localhost:3000",
+    command: `pnpm build && pnpm start --port ${port}`,
+    // Login is by password (ADR-015): SMS code login stays off (AUTH_SMS_ENABLED unset), so no OTP_CONSOLE_SINK. Its
+    // flow is covered by the int tests (src/modules/identity/password.int.test.ts, src/lib/security/captcha.int.test.ts).
+    // The real captcha runs (CAPTCHA_DISABLED is refused in production; CAPTCHA_HMAC_KEY comes from .env or CI),
+    // made easy so ~100 sign-ups stay fast.
+    // STRICT_MESSAGES: a message a page didn't pick throws (src/i18n/strict-messages.tsx).
+    // The production env check (src/lib/env.ts) refuses an http:// origin unless this is a test server:
+    // ALLOW_TEST_SERVER_IN_CI plus CI, set for the server only (the runner's own CI behaviour is unchanged), so a laptop
+    // run works too. TRUSTED_PROXY_HOPS must be explicit in production: no proxy here.
+    env: {
+      APP_ORIGIN: origin,
+      ALLOW_TEST_SERVER_IN_CI: "1",
+      CI: "1",
+      TRUSTED_PROXY_HOPS: "0",
+      CAPTCHA_MAX_NUMBER: "4",
+      STRICT_MESSAGES: "1",
+    },
+    url: origin,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
   },

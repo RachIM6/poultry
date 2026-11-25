@@ -1,7 +1,9 @@
 # ADR-005: Phone number + one-time code, database sessions
 
 ## Status
-Proposed. The library choice and the SMS / WhatsApp provider are still open (SPEC OQ2).
+Accepted (2026-10-28, task T5). **Login part superseded on 2026-11-24 by [ADR-015](ADR-015-password-login.md)**: sign-in is now a phone number or an email plus a password, and the SMS code login below is off unless `AUTH_SMS_ENABLED=true`. The sessions, the cookie, the offline rules, Better Auth as the engine, the rate limiting and the captcha below still apply.
+
+Original status: **Better Auth 1.7.14** behind our own route handlers. The SMS / WhatsApp provider is still open (SPEC OQ2). The captcha, deferred in T5, was added on 2026-11-20 (see "Not done in T5").
 
 ## Date
 2026-10-27
@@ -23,7 +25,7 @@ Proposed. The library choice and the SMS / WhatsApp provider are still open (SPE
   - A session lasts 30 days, renewed on each online use.
   - The owner can revoke the sessions of any member.
 - **Offline:** the client caches the user, the memberships and the permissions. A session that expired while offline keeps local entries queued until the user logs in again.
-- **Library:** build on a maintained auth library with phone-OTP support (Better Auth is the candidate) rather than writing session handling from scratch. This is confirmed in task T5, where the alternative is evaluated as well.
+- **Library:** Better Auth 1.7.14, confirmed in T5. See "Library decision" below.
 
 - **Abuse protection** follows `.claude/skills/poultry-auth/` (added on 2026-10-27, adapted from the EMSI `cdoc-auth` skill). On top of the per-number limits, it adds:
   - multi-dimensional rate limits (IP, subnet, phone, number prefix, global);
@@ -32,6 +34,27 @@ Proposed. The library choice and the SMS / WhatsApp provider are still open (SPE
   - uniform responses;
   - a 90-day absolute session cap;
   - CSRF checks on route handlers.
+
+## Library decision (T5, 2026-10-28)
+Chosen by the product owner: **Better Auth 1.7.14** (exact pin) with its `phoneNumber` plugin and the Prisma adapter. The in-house alternative (about 200 lines on `node:crypto` and our own `Session` table, no dependency) was recommended for exact fit with `poultry-auth`, and was not chosen.
+
+How it is wired:
+- **Better Auth is the engine only.** Its HTTP handler is not mounted. Our route handlers (`src/app/api/auth/{request-code,verify-code,logout}`) run CSRF, the rate limits and uniform responses, then call `auth.api.*` on the server (`src/modules/identity/`).
+- **Rate limiting is ours,** in Postgres (`src/lib/security/rate-limit.ts`, policies in `policies.ts`): phone 3 / 15 min and 10 / day, number prefix 30 / h, a global 300 codes / h cost cap, plus IP and subnet limits. IP and subnet count only once a trusted proxy is configured (`TRUSTED_PROXY_HOPS`, ADR-007), because without one `X-Forwarded-For` is client-controlled. Better Auth's own limiter is off.
+- **OTP:** 6 digits, 5 min, locked after 5 wrong attempts; only `+2126` / `+2127` numbers get a code. The first verified login creates the user (`signUpOnVerification`, placeholder email `<digits>@phone.invalid`).
+- **Sessions:** 30 days, sliding daily; our `getSession()` adds the 90-day absolute cap.
+- **Dev sink:** codes go to the server console. The production build refuses this unless `OTP_CONSOLE_SINK=1`, which only CI's e2e job sets.
+
+Accepted differences from `poultry-auth` (consequences of using the library as it is):
+- **One-time codes are stored unhashed** in `Verification.value` (`<code>:<attempts>`) and compared with `!==`, not in constant time. They live 5 minutes and are single-use; anyone with database read access could use a pending code.
+- **Session tokens are stored unhashed** in `Session.token`. The cookie carries the token plus an HMAC signature. Database read access would allow session hijacking: restrict database access accordingly (ADR-007).
+- **Cookie name is `__Secure-sid`, not `__Host-sid`.** Better Auth always prefixes `__Secure-` when secure. Attributes stay `HttpOnly; Secure; SameSite=Lax; Path=/`, with no `Domain`, so only `__Host-`'s protection against subdomain cookie injection is lost.
+- **Sliding refresh extends the database row, but not the cookie, when the session is read from a page.** Route handlers that forward Better Auth's headers refresh both (the sync endpoints in T8 will).
+
+Not done in T5:
+- the captcha on code requests (ALTCHA candidate): before the pilot, with T26. **Done on 2026-11-20** (branch `feat/login-captcha`): self-hosted ALTCHA proof of work, `altcha-lib` 2.9.0 (exact pin), behind `verifyCaptcha()` in `src/lib/security/captcha.ts`, single use (`CaptchaUse` table). `POST /api/auth/request-code` checks the IP and subnet limits, then the captcha, and only then counts the number, prefix and global limits, so a request without a solved captcha spends neither a farmer's code budget nor the SMS cap. **Still open:** `TRUSTED_PROXY_HOPS` for the chosen host (without it the IP and subnet limits don't apply), and the adaptive captcha on `verify-code`: until then anyone who knows a number can still use up its verify budget (10 / h) and block that farmer's login. Acceptable in development only; T26 lists both as blockers;
+- auth audit events: `AuditEvent` requires an `organizationId`, so they come with the tenant context (T6);
+- logout refusing while unsynced changes exist: with the outbox (T9).
 
 ## Alternatives Considered
 - **Email + password:** rejected. It doesn't match the users, and passwords on shared phones are a risk.

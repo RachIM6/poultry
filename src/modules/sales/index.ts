@@ -1,2 +1,5 @@
-// Public API of the `sales` module (see CAPABILITY-MAP.md). Other modules import only from here.
-export {};
+// Public API of the `sales` module (see CAPABILITY-MAP.md). Other modules import only from here,
+// or from ./schema for what the offline client needs (ADR-008).
+export { salesSync } from "./sync";
+export { sendInstrumentReminders } from "./application/reminders";
+export { consumptionsBetween, instrumentStepsChangedSince, instrumentsToCollect, lastSales, ledgerTagsOf, paymentsChangedSince, salesByBatch, salesChangedSince, type Consumption, type InstrumentStep, type LastSale, type PaymentChange, type SaleChange, type Voided } from "./application/changes";

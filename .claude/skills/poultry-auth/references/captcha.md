@@ -4,7 +4,7 @@
 
 | Option | Why / why not |
 |---|---|
-| **ALTCHA** (preferred) | Open source and self-hosted. No calls to third parties, no cookies, no tracking. **Fits law 09-08**: no personal data leaves our server, so there is no extra processor in the CNDP file. Works offline-tolerant: the challenge is fetched only when the device is online, which is when the code request happens anyway |
+| **ALTCHA** (preferred) | Open source and self-hosted. No calls to third parties, no cookies, no tracking. **Fits law 09-08**: no personal data leaves our server, so there is no extra processor in the CNDP file. Works offline-tolerant: the challenge is fetched only when the device is online, which is when signing in or up happens anyway |
 | Cloudflare Turnstile | Good user experience, but sends visitor data to a third party, which is a new processor (ADR-007) |
 | reCAPTCHA / hCaptcha | Third-party tracking. Avoid |
 
@@ -16,8 +16,8 @@ Proof-of-work costs CPU on the phone. Tune the difficulty (`CAPTCHA_MAX_NUMBER`)
 
 | Mode | Endpoints |
 |---|---|
-| `always` | `POST /api/auth/request-code` |
-| `adaptive` (after 3 consecutive failures, see `rate-limiting.md` §4) | `POST /api/auth/verify-code` |
+| `always` | `POST /api/auth/sign-up`; `POST /api/auth/request-code` (dormant) |
+| `adaptive` (after 3 consecutive failures, see `rate-limiting.md` §4) | `POST /api/auth/sign-in`, `POST /api/auth/reset-password`; `POST /api/auth/verify-code` (dormant) |
 | `never` | Authenticated routes, sync endpoints |
 
 ## Server rules
@@ -37,4 +37,4 @@ Proof-of-work costs CPU on the phone. Tune the difficulty (`CAPTCHA_MAX_NUMBER`)
 
 ## What captcha does not replace
 
-A captcha slows bots. It does not stop a determined attacker. The rate limits on all dimensions, the global SMS cost cap, uniform responses and the OTP attempt limits stay mandatory.
+A captcha slows bots. It does not stop a determined attacker. The rate limits on all dimensions, uniform responses, the code attempt limits and (SMS on) the global SMS cost cap stay mandatory.

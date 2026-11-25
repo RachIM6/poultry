@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -16,6 +16,21 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      db:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: poultry
+          POSTGRES_PASSWORD: poultry
+          POSTGRES_DB: poultry
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U poultry" --health-interval 2s --health-retries 15
+    env:
+      DATABASE_URL: postgresql://poultry:poultry@localhost:5432/poultry
+      TEST_DATABASE_URL: postgresql://poultry:poultry@localhost:5432/poultry_test
+      APP_ORIGIN: http://localhost:3000
+      BETTER_AUTH_SECRET: ci-only-not-a-secret-0123456789abcdef # throwaway database, never deployed
+      CAPTCHA_HMAC_KEY: ci-only-not-a-secret-captcha-key # signs throwaway captcha challenges
     steps:
       # Third-party actions are pinned to a commit SHA (tag in the comment).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,3 +44,83 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  # Separate job so lint/unit failures still report in under a minute.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      db:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: poultry
+          POSTGRES_PASSWORD: poultry
+          POSTGRES_DB: poultry
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U poultry" --health-interval 2s --health-retries 15
+    env:
+      DATABASE_URL: postgresql://poultry:poultry@localhost:5432/poultry
+      BETTER_AUTH_SECRET: ci-only-not-a-secret-0123456789abcdef # throwaway database, never deployed
+      CAPTCHA_HMAC_KEY: ci-only-not-a-secret-captcha-key # signs throwaway captcha challenges
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec prisma migrate deploy
+      - run: pnpm db:seed # reference data (T11): the protocol screen needs the catalogue and template
+      - run: pnpm test:e2e # builds and starts the app itself (playwright.config.ts)
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  # The production image builds (docs/deploy.md). Build only: nothing is pushed until a registry is chosen.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -t poultry:ci .
+
+  # Backup round trip (docs/backup.md, T26): backup.sh, then restore.sh into a fresh database, then compare.
+  backup-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      db:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: poultry
+          POSTGRES_PASSWORD: poultry
+          POSTGRES_DB: poultry
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U poultry" --health-interval 2s --health-retries 15
+    env:
+      DATABASE_URL: postgresql://poultry:poultry@localhost:5432/poultry
+      BETTER_AUTH_SECRET: ci-only-not-a-secret-0123456789abcdef # the demo seed keys its invite codes with it
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Ubuntu 24.04 packages PostgreSQL 16 only; the version-18 client (pg_dump must be >= the server) comes from PGDG.
+      # The script's -y skips its prompt. The PATH entry wins over Debian's pg_wrapper, which could pick another version.
+      - name: PostgreSQL 18 client
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+      - run: scripts/backup-drill.sh

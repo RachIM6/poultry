@@ -53,8 +53,9 @@ If a light module starts accumulating interdependent rules or status changes, pr
 
 ```
 src/modules/<id>/
-  index.ts          public API: the ONLY file other modules and app code import
-  schema.ts         Zod schemas + mutation types, shared by client (offline) and server (sync push)
+  index.ts          server API: other modules and app code import this, or schema.ts (ADR-008)
+  schema.ts         Zod schemas, used by the sync push and by forms that validate; re-exports shared.ts
+  shared.ts         no Zod (ADR-009): mutation names, DTO types, constants, domain re-exports, for the phone's screens
   domain/           strict only. Pure TS: aggregates, value objects, policies, KPI/withdrawal functions
   application/      strict only. Use cases: load → domain method → save + audit, in one transaction
   infrastructure/   strict only. Prisma repositories + mappers
@@ -66,7 +67,7 @@ Callers:
 - `src/lib/sync/server.ts`: applies sync mutations;
 - `src/offline/**`: client sync and local reads.
 
-All three call the module **only through `index.ts`**.
+All three call the module **only through `index.ts`**, or `schema.ts` / `shared.ts` for the isomorphic parts (the offline client must not pull in Prisma). Screens import values from `shared.ts` and only types from `schema.ts`, so Zod stays out of the app shell (ADR-009, enforced by ESLint).
 
 ## 3. Non-negotiable rules (all modules)
 
@@ -74,7 +75,7 @@ All three call the module **only through `index.ts`**.
    - Domain functions (KPIs, withdrawal end date, vaccine plan generation, stock valuation) run in **both** the server and the offline client. Write them once.
    - Enforced by ESLint (`eslint.config.mjs`) and tested in `eslint.boundaries.test.ts`.
 2. **Module boundaries follow CAPABILITY-MAP.md.**
-   - Import another module only through its `index.ts`, and only if it is a declared dependency.
+   - Import another module only through its `index.ts` (or `schema.ts`), and only if it is a declared dependency.
    - Never query another module's tables. Ask its `index.ts` for what you need.
    - Enforced by ESLint.
 3. **Each table has one owning module.** Only the owner writes to it.
@@ -97,7 +98,7 @@ All three call the module **only through `index.ts`**.
 - **No public setters.** No `batch.status = 'CLOSED'` from a service.
 - **Expected business failures return `Result`**, for example `fail('HOUSE_HAS_OPEN_BATCH')` or `fail('WITHDRAWAL_IN_PROGRESS')`. Throw only for programming errors.
   - Error codes double as i18n `messageKey`s (`errors.HOUSE_HAS_OPEN_BATCH` in `ar.json` / `fr.json`).
-- **Status changes use a typed transition table** inside the aggregate. Example for a batch: `OPEN → CLOSED`, with no reopen in v1.
+- **Status changes use a typed transition table** inside the aggregate. Example for a batch: `OPEN → CLOSED`, and `CLOSED → OPEN` when the owner reopens it (SPEC B6).
 - **Value objects** for anything with validation or a format: `FarmDay`, `Grams`, `Centimes`, `PhoneNumber` (E.164 +212), `OnssaAuthorizationNumber`, `Lot`, `WithdrawalPeriod`. Immutable, built through `create()` → `Result`, compared by value.
 - **Repository per aggregate root**, with intention-named methods (`findOpenByHouse`, `findWithActiveWithdrawal`), never a generic `findMany(where)`.
 - **Use cases orchestrate:** load → domain method → save + audit in one transaction → return DTO. They contain no business `if`s.

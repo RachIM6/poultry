@@ -1509,6 +1509,8 @@
     "hensBirdsGone": "Poules : prix d’entrée {entry}, un bien qui sert toute la durée de ponte, pas une charge en une fois. Compté ici : le prix d’entrée des seules poules sorties (mortes, réformées, vendues), {removed}. Avec une durée de ponte et une valeur de réforme saisies, il s’amortit sur la durée de ponte.",
     "hensPending": "Poules : prix d’entrée {entry}, un bien qui sert toute la durée de ponte, pas une charge en une fois. Compté ici : le prix d’entrée des seules poules sorties (mortes, réformées, vendues), {removed}. Le propriétaire saisit la durée de ponte et la valeur de réforme, ici ou dans la clôture, pour l’amortir.",
     "transferred": "Coût d’élevage transféré en ponte : {amount}. La bande de ponte le porte comme prix d’entrée de ses poules.",
+    "detail": "Détail",
+    "detailOf": "Détail : {batch}",
     "schedule": {
       "life": "Durée de ponte (mois)",
       "lifeOf": "Durée de ponte (mois) : {flock}",

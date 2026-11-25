@@ -79,8 +79,11 @@ async function Content() {
       title: t("More.account"),
       links: [
         can(ctx.value, "members.manage") && { href: "/settings/members", label: t("Members.title") },
-        // SPEC-m5 PA2: a second farm to open, or an invitation waiting.
-        mine.ok && mine.value.memberships.length + mine.value.invitations.length > 1 && { href: "/organizations", label: t("Organizations.link") },
+        // SPEC-m5 PA2: a second farm to open, or an invitation waiting. Otherwise the same screen joins another farm with
+        // an invite code (ADR-015): a vet or an accountant invited by a second farm.
+        mine.ok && mine.value.memberships.length + mine.value.invitations.length > 1
+          ? { href: "/organizations", label: t("Organizations.link") }
+          : { href: "/organizations", label: t("Account.joinWithCode") },
       ].filter((l) => l !== false),
     },
   ].filter((g) => g.links.length > 0);

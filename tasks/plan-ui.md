@@ -94,4 +94,14 @@ Still open after U8: the sidebar's longer owner list on wide screens (role-depen
 - [x] Fixes from a dress rehearsal of the client demo: the daily entry starts on the feed used the day before, the empty state waits for the first pull, partners see « Voir la bande » (#279); the sign-in scope is remembered before the first page (#282).
 - [x] Demo banner `DEMO_MODE=1` on every signed-in page (#265).
 
+### Desktop rules (2026-11-25)
+A 1 440 px audit found most signed-in pages hand-writing their width (`max-w-sm` … `max-w-4xl`), 23 of 40 using less than half of the content area beside the sidebar, and 15 putting the back link outside the centred column, far from its title. Every page converted from now on follows these rules; `/threshold` and `/sync` are the reference examples.
+- **`Page`** (`src/components/page.tsx`) is the page's one container: `<Page width back title subtitle actions>`. It renders the back link above the h1, inside the column, then the children. No hand-written `<main>` or `<header><BackLink/></header>`. A page inside `ClientMessages` lists `"Nav"` when it has a back link. A title that needs data: the whole Page goes inside the Suspense, with `<Page width back />` as its fallback (`/threshold`).
+- **Widths by page type**: forms and field entry `form` (576 px); lists, money and operations `wide` (576 px on the phone, 1 152 px from lg); printable documents `doc` (1 024 px from lg, full width on paper).
+- **`split`** (`src/components/layout.ts`) for a form beside a list or a summary: `split` (two halves) or `splitNarrow` (a 360 px aside), `splitAside` to keep the aside in view. **`fields2`** puts a form's fields two by two from lg; long fields, fieldsets and buttons take `lg:col-span-full`.
+- **Lists read as tables** from lg: `rowTable` + `rowHead` + `row` + `cell` (as on `/receivables`), each list giving its own `lg:grid-cols-[…]`.
+- **No new client JS**: the layouts are CSS only (`lg:`). `layout.ts` stays out of `ui.ts`, which is in `/fr/batches`' first load (~8.5 KB left of 200 KB).
+- **The phone stays as it was**: one column, the same order. The one change is the gap between a page's blocks, now `gap-5` everywhere (it was 3 to 6 depending on the page).
+- **Logical properties only** (`ms-`/`me-`/`ps-`/`pe-`/`start-`/`end-`/`text-start`), so Arabic mirrors without `rtl:` overrides; grids mirror on their own.
+
 ### Later:, finance screens (`F-*`), settings and members. Arabic check with a native speaker before the pilot.

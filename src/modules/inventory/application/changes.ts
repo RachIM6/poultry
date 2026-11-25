@@ -68,6 +68,23 @@ export async function supplierDuesOf(ctx: TenantContext): Promise<{ dueOn: strin
   );
 }
 
+/**
+ * For finance's budget (SPEC-finance FN15, §9 "Budget cash need"): the last `take` purchases of a kind of item, newest
+ * first, each with its day and, bought on credit, the due day typed with it (none: paid at once, or due on its day).
+ */
+export async function lastPurchaseTerms(ctx: TenantContext, kind: string, take: number): Promise<{ day: string; dueOn: string | null }[]> {
+  const where = { organizationId: ctx.organizationId };
+  const items = await db.stockItem.findMany({ where: { ...where, kind }, select: { id: true } });
+  const rows = await db.purchase.findMany({
+    where: { ...where, stockItemId: { in: items.map((i) => i.id) } },
+    orderBy: [{ day: "desc" }, { createdAt: "desc" }],
+    take,
+    select: { day: true, dueOn: true, amountCentimes: true, paidCentimes: true },
+  });
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  return rows.map((p) => ({ day: day(p.day), dueOn: p.dueOn && p.paidCentimes < p.amountCentimes ? day(p.dueOn) : null }));
+}
+
 /** For finance's export (SPEC-finance FN18): each purchase's or supplier payment's supplier name and farm, by id. */
 export async function ledgerTagsOf(tx: Tx, ctx: TenantContext, ids: string[]) {
   const where = { organizationId: ctx.organizationId, id: { in: ids } };

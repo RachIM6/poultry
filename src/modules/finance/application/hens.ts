@@ -7,8 +7,9 @@ import { parseCentimes } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
+import { houseAreas, legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
 import { batchesForFinance, type PlacementChange } from "@/modules/flock";
+import { placedAssets } from "@/modules/finance/application/assets";
 import { batchResultsIn } from "@/modules/finance/application/batch-results";
 import { closePosted } from "@/modules/finance/application/count";
 import { assetCost } from "@/modules/finance/domain/assets";
@@ -17,6 +18,7 @@ import { countDay, countYearOf } from "@/modules/finance/domain/count";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
 import { HENS_ADULTS, classicYearEnd, productionCosts, flockYear, hensMethodOf, simplifiedProvision, simplifiedValue, simplifiedYearEnd, type HensMethod } from "@/modules/finance/domain/hens";
 import type { FarmEvent, Posting } from "@/modules/finance/domain/posting";
+import { depreciationToDay, PRODUCTION_EXPENSE_CATEGORIES } from "@/modules/finance/domain/production-cost";
 import { standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 
 // SPEC-finance FC6 (T114, T115): laying hens and their pullets at the close, and at the transfer to lay. Reads flock
@@ -26,10 +28,11 @@ const date = (day: string) => new Date(`${day}T00:00:00Z`);
 type FiscalYear = { from: FarmDay; to: FarmDay };
 
 /**
- * A layer or pullet batch at the close. Classic: a pullet batch still rearing, `entry` = its cost capitalised this year
- * (23962); a laying flock on 23711, `entry` = its value there, `charge` = the year's depreciation, `lifeMonths` and
- * `cullValue` typed by the owner. Simplified: `entry` = its entry value (cost), `value` = birds counted × entry value
- * per bird, `perBird` = the owner's current value of a bird, `provision` below it. `missing`: a value the run needs.
+ * A layer or pullet batch at the close. Classic: a pullet batch still rearing, `entry` = its production cost
+ * capitalised this year (23962, depreciation included, FQ19); a laying flock on 23711, `entry` = its value there,
+ * `charge` = the year's depreciation, `lifeMonths` and `cullValue` typed by the owner. Simplified: `entry` = its entry
+ * value (cost), `value` = birds counted × entry value per bird, `perBird` = the owner's current value of a bird,
+ * `provision` below it. `missing`: a value the run needs.
  */
 export type HensAtClose = {
   id: string;
@@ -50,17 +53,33 @@ export type HensAtClose = {
 /** `method` null: not valued, listed "non valorisés (FQ25)" (PCA off) or nothing to post (cash book). */
 export type HensClose = { method: HensMethod | null; lines: HensAtClose[]; posting: Posting | null };
 
-/** The FN13 cost of each batch on a day (facts dated on or before it). */
-/** Each batch's production cost on `day` (`productionCosts`): the VAT recovered is the placement's and the batch's expenses'. */
-async function costsOn(tx: Tx, ctx: TenantContext, day: FarmDay, vatRegistered: boolean) {
-  const [rows, batches, expenses] = await Promise.all([
-    batchResultsIn(tx, ctx, day),
+/**
+ * Each batch's production cost on `day` (`productionCosts`, facts dated on or before it): the VAT recovered is the
+ * placement's and the batch's expenses'. `classic` (FC6 classic, 23962; FQ19, PCA p. 34): a fixed asset's production
+ * cost: FN13's costs of production categories only, as FC4, plus each pullet batch's share of the production assets'
+ * depreciation from its placement to the day (`depreciationToDay`). The simplified method keeps FN13's cost.
+ */
+async function costsOn(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay, classic = false) {
+  const categories = classic ? { category: { in: PRODUCTION_EXPENSE_CATEGORIES } } : {};
+  const [rows, batches, expenses, assets, houses] = await Promise.all([
+    batchResultsIn(tx, ctx, day, classic),
     batchesForFinance(tx, ctx, day),
-    tx.expense.groupBy({ by: ["batchId"], where: { organizationId: ctx.organizationId, batchId: { not: null }, day: { lte: date(day) } }, _sum: { vatCentimes: true } }),
+    tx.expense.groupBy({ by: ["batchId"], where: { organizationId: ctx.organizationId, batchId: { not: null }, day: { lte: date(day) }, ...categories }, _sum: { vatCentimes: true } }),
+    classic ? placedAssets(tx, ctx, entity.id) : [],
+    classic ? houseAreas(tx, ctx) : [],
   ]);
   const vat = new Map(batches.map((b) => [b.id, b.chickVatCentimes]));
   for (const e of expenses) vat.set(e.batchId!, (vat.get(e.batchId!) ?? 0n) + (e._sum.vatCentimes ?? 0n));
-  return productionCosts(rows, vat, vatRegistered);
+  const costs = productionCosts(rows, vat, entity.vatRegistered);
+  if (!classic) return costs;
+  // ponytail: past years' shares are recomputed from today's houses and assets; a fact changing a closed year (an asset
+  // entered in its opening balance, a farm house added or resized) leaves the difference on 23962 at the transfer, for
+  // the accountant (SPEC-finance §9 "Pullets on 23962"). Store each close's part per batch if that case shows up.
+  for (const b of batches.filter((x) => x.species === "pullet")) {
+    const share = depreciationToDay(assets, houses, { id: b.id, houseId: b.houseId, placedOn: b.placedOn }, (b.closedOn ?? day) as FarmDay, entity.fiscalYearStartMonth);
+    costs.set(b.id, (costs.get(b.id) ?? 0n) + share);
+  }
+  return costs;
 }
 
 /** FC6: the layer and pullet batches of a fiscal year, and the "hens" entry the close run posts for them. */
@@ -70,7 +89,7 @@ export async function hensAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntit
   if (batches.length === 0) return { method, lines: [], posting: null };
   const where = { organizationId: ctx.organizationId, legalEntityId: entity.id, day: date(year.to) };
   const [costs, counted, typed, schedules] = await Promise.all([
-    costsOn(tx, ctx, year.to, entity.vatRegistered),
+    costsOn(tx, ctx, entity, year.to, method === "classic"),
     tx.yearEndCount.findMany({ where: { ...where, kind: "batch" }, select: { subjectId: true, quantity: true } }),
     tx.yearEndValue.findMany({ where: { ...where, kind: "hens" }, select: { subjectId: true, valueCentimes: true } }),
     tx.hensSchedule.findMany({ where: { organizationId: ctx.organizationId, legalEntityId: entity.id } }),
@@ -105,10 +124,10 @@ export async function hensAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntit
     return { method, lines, posting: simplifiedYearEnd(lines, previous?.lines ?? []) };
   }
 
-  // Classic: the pullets still rearing capitalise this year's cost (their cost at the last year end was, at that close).
+  // Classic: the pullets still rearing capitalise this year's production cost (to the last year end, that close did).
   const lastYearEnd = addFarmDays(year.from, -1);
   const pullets = open.filter((b) => b.species === "pullet");
-  const before = pullets.some((b) => b.placedOn <= lastYearEnd) ? await costsOn(tx, ctx, lastYearEnd, entity.vatRegistered) : new Map<string, bigint>();
+  const before = pullets.some((b) => b.placedOn <= lastYearEnd) ? await costsOn(tx, ctx, entity, lastYearEnd, true) : new Map<string, bigint>();
   const lines: HensAtClose[] = pullets.map((b) => ({ ...lineOf(b), ...none, entry: (costs.get(b.id) ?? 0n) - (b.placedOn <= lastYearEnd ? (before.get(b.id) ?? 0n) : 0n) }));
   const flocks = [];
   // The laying flocks on 23711 this year: their value there is what the purchase or the transfer posted (the books).
@@ -130,15 +149,16 @@ export const closeHens = async (tx: Tx, ctx: TenantContext, entity: LegalEntityD
 
 /**
  * FC6 classic (T115), for the posting pipeline (FN7): each batch placed or changed, as a transfer to lay. A layer batch
- * transferred from pullets (SPEC-m3 B13) carries the pullet batch's FN13 cost on the transfer day and its cost at the
- * last year end it was open on (capitalised by that close); any other batch, or the method not classic, carries 0, so
- * a transfer posted under the classic method is reversed. Source `lay:<layer batch>`: once per batch, versioned.
+ * transferred from pullets (SPEC-m3 B13) carries the pullet batch's production cost (`costsOn`, classic) on the transfer
+ * day and its cost at the last year end it was open on (capitalised by that close), both from the same function; any
+ * other batch, or the method not classic, carries 0, so a transfer posted under the classic method is reversed. Source
+ * `lay:<layer batch>`: once per batch, versioned.
  */
 export async function layEvents(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, changes: readonly PlacementChange[]): Promise<{ version: bigint; event: FarmEvent }[]> {
   const classic = hensMethodOf(entity.accountingProfile, entity.hensMethod) === "classic";
   const costs = new Map<string, Map<string, bigint>>();
   const costOn = async (id: string, day: FarmDay) => {
-    if (!costs.has(day)) costs.set(day, await costsOn(tx, ctx, day, entity.vatRegistered));
+    if (!costs.has(day)) costs.set(day, await costsOn(tx, ctx, entity, day, true));
     return costs.get(day)!.get(id) ?? 0n;
   };
   const out: { version: bigint; event: FarmEvent }[] = [];

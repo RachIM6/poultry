@@ -297,17 +297,24 @@ describe("password reset (ADR-015)", () => {
     workerMembership = (await db.membership.findFirstOrThrow({ where: { organizationId: a.organizationId, role: "worker" } })).id;
   });
 
-  it("the owner's code sets a new password once, ends every session, and opens one here", async () => {
+  it("the owner's code sets a new password once, ends every session, forgets the pushes, and opens one here", async () => {
     const devices = [cookieOf(await signIn("0645000001")), cookieOf(await signIn("0645000001"))];
+    const worker = (await db.user.findUniqueOrThrow({ where: { phoneNumber: "+212645000001" } })).id;
+    const pushes = (userId: string) => db.pushSubscription.count({ where: { userId } });
+    for (const [userId, n] of [[worker, 1], [worker, 2], [a.userId, 3]] as const)
+      await db.pushSubscription.create({ data: { userId, endpoint: `https://fcm.googleapis.com/fcm/send/reset-${n}`, p256dh: "k", auth: "a" } });
     const issued = await issueReset(a, { membershipId: workerMembership });
     if (!issued.ok) throw new Error(issued.error);
     expect(await db.passwordReset.findFirstOrThrow({})).toMatchObject({ issuedById: a.userId, codeHash: expect.stringMatching(/^[0-9a-f]{64}$/) });
     for (const d of devices) expect(await getSession(d)).not.toBeNull(); // issuing alone logs nobody out
+    expect(await pushes(worker)).toBe(2); // nor forgets any device
 
     expect(await answer(await reset("0645000001", issued.value.code, "short"))).toMatchObject({ status: 400, messageKey: "errors.PASSWORD_TOO_SHORT" });
     const res = await reset("0645000001", issued.value.code);
     expect(res.status).toBe(200);
     for (const d of devices) expect(await getSession(d)).toBeNull();
+    expect(await pushes(worker)).toBe(0); // a lost phone stops showing this user's notifications
+    expect(await pushes(a.userId)).toBe(1); // someone else's stay
     expect(await getSession(cookieOf(res))).toMatchObject({ phone: "+212645000001" });
     expect(await db.user.findUniqueOrThrow({ where: { phoneNumber: "+212645000001" } })).toMatchObject({ locale: "ar" });
     expect(await answer(await signIn("0645000001"))).toEqual(INVALID); // the old password

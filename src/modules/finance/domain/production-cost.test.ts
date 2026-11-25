@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { depreciationShares, PRODUCTION_EXPENSE_CATEGORIES } from "@/modules/finance/domain/production-cost";
+import { depreciationShares, depreciationToDay, PRODUCTION_EXPENSE_CATEGORIES } from "@/modules/finance/domain/production-cost";
 import { batchInProgressValue, batchesAtClose } from "@/modules/finance/domain/stocks";
 
 const day = (d: string) => d as FarmDay;
@@ -53,7 +53,7 @@ describe("the production cost of a batch in progress (SPEC-finance FC4, FQ19: PC
       { id: "b", houseId: "B1", placedOn: "2025-01-01" }, // another house
     ];
     expect(depreciationShares([year1], houses, two, year, 1)).toEqual(new Map([["a", 30_000n]]));
-    expect(depreciationShares([year1], houses, [{ ...two[0], closedOn: "2025-12-11" }], year, 1)).toEqual(new Map([["a", 10_000n]])); // a laying flock gone on the 11th: 10 days (FQ18)
+    expect(depreciationShares([year1], houses, [{ ...two[0], until: "2025-12-11" }], year, 1)).toEqual(new Map([["a", 10_000n]])); // a laying flock gone on the 11th: 10 days (FQ18)
     // On the farm: 1 000 of its 3 000 m²; X1 is on another farm.
     const farm = asset({ cost: 365_000n, lifeMonths: 12 });
     expect(depreciationShares([farm], houses, [...two, { id: "x", houseId: "X1", placedOn: "2025-01-01" }], year, 1)).toEqual(new Map([["a", 10_000n], ["b", 121_667n]]));
@@ -67,5 +67,32 @@ describe("the production cost of a batch in progress (SPEC-finance FC4, FQ19: PC
 
   it("counts the production expense categories only (p. 43: no distribution, no administration)", () => {
     expect(PRODUCTION_EXPENSE_CATEGORIES).toEqual(["electricity", "water", "vet_fees", "insurance"]);
+  });
+});
+
+describe("the pullets' share of depreciation capitalised on 23962 (SPEC-finance FC6 classic, FQ19: PCA p. 34)", () => {
+  // §7.1 G: the rearing house P1, 120 000,00 over 120 months from January 2025 (12 000,00 a year, 365 days); 1 000
+  // pullets placed in it on 1 October 2025.
+  const p1 = [{ id: "P1", farmId: "F", areaM2: 1000 }, { id: "L1", farmId: "F", areaM2: 1000 }];
+  const rearing = asset({ category: "building", houseId: "P1", cost: 12_000_000n, lifeMonths: 120 });
+  const pullets = { id: "p", houseId: "P1", placedOn: "2025-10-01" };
+
+  it("§7.1 G: 92 days of 2025 at the close; 60 more of 2026 at the transfer on 1 March; 365 more at the 2026 close", () => {
+    expect(depreciationToDay([rearing], p1, pullets, day("2025-12-31"), 1)).toBe(302_466n); // 1 200 000 × 92 ÷ 365 = 302 465,75
+    expect(depreciationToDay([rearing], p1, pullets, day("2026-03-01"), 1)).toBe(302_466n + 197_260n); // × 60 ÷ 365 = 197 260,27
+    expect(depreciationToDay([rearing], p1, pullets, day("2026-12-31"), 1)).toBe(302_466n + 1_200_000n);
+    // the same as each year's share alone: the 2026 close capitalises 12 000,00, the cumulative less the 2025 part
+    expect(depreciationShares([rearing], p1, [pullets], { from: day("2026-01-01"), to: day("2026-12-31") }, 1)).toEqual(new Map([["p", 1_200_000n]]));
+  });
+
+  it("`until` bounds the days of the year; a day before the placement counts none", () => {
+    expect(depreciationShares([rearing], p1, [{ ...pullets, until: "2025-10-31" }], year, 1)).toEqual(new Map([["p", 101_918n]])); // × 31 ÷ 365 = 101 917,81
+    expect(depreciationShares([rearing], p1, [{ ...pullets, until: "2025-09-30" }], year, 1)).toEqual(new Map());
+    expect(depreciationToDay([rearing], p1, pullets, day("2025-09-30"), 1)).toBe(0n);
+  });
+
+  it("follows a fiscal year starting in July", () => {
+    // 2025-07 → 2026-06: 12 000,00 over 365 days; the pullets' 1 Oct – 31 Dec 2025 then 1 Jan – 1 Mar 2026: 152 days.
+    expect(depreciationToDay([rearing], p1, pullets, day("2026-03-01"), 7)).toBe(499_726n); // 1 200 000 × 152 ÷ 365 = 499 726,03
   });
 });

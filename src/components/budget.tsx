@@ -5,7 +5,7 @@ import { useActionState, useId, useState, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { formatKg, formatMoney } from "@/lib/format";
 import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
-import { budgetCash, budgetOf, plainTiming, type BudgetInputs, type CashTiming } from "@/modules/finance/shared";
+import { budgetCash, budgetOf, plainTiming, type BudgetInputs, type CashTiming, type PaymentDelays } from "@/modules/finance/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
 import { OfflineHint, unsent, useOnline } from "@/components/online";
 import { danger, field, primary } from "@/components/ui";
@@ -66,8 +66,15 @@ function parse(t: Text): BudgetInputs | null {
   return unread(t).length > 0 ? null : (Object.fromEntries(KEYS.map((k) => [k, PARSE[k](t[k])])) as BudgetInputs);
 }
 
-/** Without `save` (the accountant reads, SPEC-m5 PA5), the same what-if without the name and the button. */
-export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches: { batchId: string; label: string }[]; save?: (state: SaveState, form: FormData) => Promise<SaveState> }) {
+/** A typed supplier delay: whole days, 0–999; empty, the farm's own. Null: doesn't read. */
+const delayOf = (s: string, own: number) => (s.trim() === "" ? own : /^\d{1,3}$/.test(s.trim()) ? Number(s.trim()) : null);
+const DELAYS = [["chicks", "chickPaymentDays", "chickDelay"], ["feed", "feedPaymentDays", "feedDelay"]] as const;
+
+/**
+ * Without `save` (the accountant reads, SPEC-m5 PA5), the same what-if without the name and the button. `delays`: the
+ * farm's own supplier delays (§9 "Budget cash need"), the delay fields' first values.
+ */
+export function BudgetPlanner({ bases, batches, delays, save }: { bases: Base[]; batches: { batchId: string; label: string }[]; delays: PaymentDelays; save?: (state: SaveState, form: FormData) => Promise<SaveState> }) {
   const t = useTranslations("Budget");
   const tr = useTranslations();
   const [id, setId] = useState(() => uuidv7()); // SPEC §7: a double submit sends the same id, saved once
@@ -84,9 +91,13 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
   const b = inputs && budgetOf(inputs);
   const base = bases.find((x) => x.batchId === basedOn);
   const saleDayOk = /^\d{1,3}$/.test(saleDay.trim());
+  const [delayText, setDelayText] = useState({ chicks: String(delays.chicks), feed: String(delays.feed) });
+  const typedDelays = { chicks: delayOf(delayText.chicks, delays.chicks), feed: delayOf(delayText.feed, delays.feed) };
+  const delaysOk = typedDelays.chicks !== null && typedDelays.feed !== null;
+  const delayHint = useId();
   const timing = base ? timingOf(base.timing) : saleDayOk ? plainTiming(Number(saleDay.trim())) : null;
   const saleDayHint = useId();
-  const cash = inputs && timing && budgetCash(inputs, timing);
+  const cash = inputs && timing && delaysOk && budgetCash(inputs, timing, typedDelays as PaymentDelays);
   const errorId = useId();
   const list = new Intl.ListFormat(useLocale() === "ar" ? "ar" : "fr"); // "a, b et c" in French
   // Set when the user leaves a field: the fields to check, else the result to say.
@@ -161,11 +172,19 @@ export function BudgetPlanner({ bases, batches, save }: { bases: Base[]; batches
       {/* SPEC-finance FN15, §9 "Budget cash need": the batch's cash week by week, from the base batch's timing or the plain rule */}
       <section className="flex flex-col gap-2" aria-labelledby="budget-cash">
         <h2 id="budget-cash" className="text-[17px] font-semibold text-ink-2">{t("cash")}</h2>
-        {!base && <Field label={t("saleDay")}>{(id) => <input id={id} name="saleDay" value={saleDay} onChange={(e) => setSaleDay(e.target.value)} inputMode="numeric" dir="ltr" aria-invalid={(saleDay.trim() !== "" && !saleDayOk) || undefined} aria-describedby={cash ? undefined : saleDayHint} className={`${field} aria-invalid:border-alert`} />}</Field>}
+        <div className="grid grid-cols-2 gap-3">
+          {DELAYS.map(([k, name, label]) => (
+            <Field key={k} label={t(label)}>
+              {(id) => <input id={id} name={name} value={delayText[k]} onChange={(e) => setDelayText({ ...delayText, [k]: e.target.value })} inputMode="numeric" dir="ltr" aria-invalid={typedDelays[k] === null || undefined} aria-describedby={delayHint} className={`${field} aria-invalid:border-alert`} />}
+            </Field>
+          ))}
+        </div>
+        <p id={delayHint} className="text-sm text-ink-2">{t(delaysOk ? "delayHint" : "delayCheck")}</p>
+        {!base && <Field label={t("saleDay")}>{(id) => <input id={id} name="saleDay" value={saleDay} onChange={(e) => setSaleDay(e.target.value)} inputMode="numeric" dir="ltr" aria-invalid={(saleDay.trim() !== "" && !saleDayOk) || undefined} aria-describedby={cash || !delaysOk ? undefined : saleDayHint} className={`${field} aria-invalid:border-alert`} />}</Field>}
         {cash ? (
           <BudgetCashView cash={cash} label={t("cash")} fromBase={!!base} />
         ) : (
-          inputs && <p id={saleDayHint} className="text-sm text-ink-2">{t("saleDayMissing")}</p>
+          inputs && delaysOk && <p id={saleDayHint} className="text-sm text-ink-2">{t("saleDayMissing")}</p>
         )}
       </section>
 

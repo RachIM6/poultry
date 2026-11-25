@@ -4,9 +4,8 @@ import type { TenantContext } from "@/lib/tenant";
 import { houseAreas, type LegalEntityDto } from "@/modules/farm-registry";
 import { eggsLaidBetween } from "@/modules/eggs";
 import { batchesForFinance } from "@/modules/flock";
-import { facts } from "@/modules/finance/application/assets";
+import { placedAssets } from "@/modules/finance/application/assets";
 import { batchResultsIn } from "@/modules/finance/application/batch-results";
-import type { AssetCategory } from "@/modules/finance/domain/assets";
 import type { HensMethod } from "@/modules/finance/domain/hens";
 import { suggestedEggCost, type EggCostSuggestion } from "@/modules/finance/domain/egg-cost";
 import { depreciationShares, PRODUCTION_EXPENSE_CATEGORIES } from "@/modules/finance/domain/production-cost";
@@ -45,7 +44,7 @@ export async function eggCostSuggestions(
     // whose split moved as batches froze could shift a few centimes between the two. A suggestion, so good enough.
     layers.some((b) => b.placedOn <= before) ? batchResultsIn(tx, ctx, before, true) : [],
     eggsLaidBetween(tx, ctx, year.from, year.to),
-    layers.length > 0 ? tx.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, legalEntityId: entity.id } }) : [],
+    layers.length > 0 ? placedAssets(tx, ctx, entity.id) : [],
     houseAreas(tx, ctx),
     entity.vatRegistered && layers.length > 0
       ? tx.expense.groupBy({
@@ -59,8 +58,8 @@ export async function eggCostSuggestions(
   const own = (r: (typeof now)[number]) => ({ direct: r.costs.consumption + r.costs.other + r.costs.direct, indirect: r.costs.allocated });
   const nowOf = new Map(now.map((r) => [r.id, own(r)]));
   const thenOf = new Map(then.map((r) => [r.id, own(r)]));
-  const placed = assets.map((a) => ({ ...facts(a), category: a.category as AssetCategory, farmId: a.farmId, houseId: a.houseId }));
-  const depreciation = depreciationShares(placed, houses, layers, year, entity.fiscalYearStartMonth);
+  const flocksIn = layers.map((b) => ({ id: b.id, houseId: b.houseId, placedOn: b.placedOn, until: b.closedOn ?? undefined })); // a flock gone in the year: to its closing day
+  const depreciation = depreciationShares(assets, houses, flocksIn, year, entity.fiscalYearStartMonth);
   const hensOf = new Map(hens.method === "classic" ? hens.lines.filter((h) => h.species === "layer").map((h) => [h.id, h]) : []);
 
   return new Map(

@@ -2,7 +2,7 @@ import { divHalfUp } from "@/lib/kernel/money";
 
 // SPEC-finance FC5, FQ18 (PCA 2015 p. 42, decided default to review): the maintenance costs of the hens « relatifs à la
 // période de ponte » go « dans le prix de revient des oeufs pondus ». A suggestion only: the run posts the value per egg
-// the owner types (§7.1 G).
+// the owner types (§7.1 H).
 
 /**
  * A farm's laying flocks' production costs over the period, in centimes: FC4's parts (direct, the depreciation share of

@@ -7,7 +7,7 @@ import { BudgetCashView } from "@/components/budget-cash";
 import { redirect } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
 import { can } from "@/lib/permissions";
-import { budgetBases, budgetBatches, budgetCash, budgetOf, listBudgets, plainTiming, type CashTiming } from "@/modules/finance";
+import { budgetBases, budgetBatches, budgetCash, budgetPaymentDelays, budgetOf, listBudgets, plainTiming, type CashTiming } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { saveBudgetAction } from "./actions";
 import { BackLink } from "@/components/app-nav";
@@ -40,13 +40,14 @@ const timingText = (t: CashTiming) => ({ lastDay: t.lastDay, feed: weightsText(t
 async function Budget() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
-  const [bases, batches, saved] = await Promise.all([budgetBases(ctx.value), budgetBatches(ctx.value), listBudgets(ctx.value)]);
-  if (!bases.ok || !batches.ok || !saved.ok) return <p>{t("Budget.forbidden")}</p>;
+  const [bases, batches, saved, delays] = await Promise.all([budgetBases(ctx.value), budgetBatches(ctx.value), listBudgets(ctx.value), budgetPaymentDelays(ctx.value)]);
+  if (!bases.ok || !batches.ok || !saved.ok || !delays.ok) return <p>{t("Budget.forbidden")}</p>;
+  const own = delays.value; // §9 "Budget cash need": a budget saved without delays is shown with the farm's own
   const timingOf = new Map(bases.value.map((b) => [b.batchId, b.timing]));
   return (
     <>
       <h1 className="text-2xl font-semibold">{t("Budget.title")}</h1>
-      <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs), timing: timingText(b.timing) }))} batches={batches.value} save={can(ctx.value, "finance.record") ? saveBudgetAction : undefined} />
+      <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs), timing: timingText(b.timing) }))} batches={batches.value} delays={own} save={can(ctx.value, "finance.record") ? saveBudgetAction : undefined} />
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Budget.saved")}</h2>
       {saved.value.length === 0 ? (
         <p>{t("Budget.none")}</p>
@@ -56,7 +57,7 @@ async function Budget() {
             const b = budgetOf(s.inputs);
             // §9 "Budget cash need": its base batch's timing, or the plain rule from its saved sale day
             const timing = s.basedOn ? timingOf.get(s.basedOn) : s.saleDay === null ? undefined : plainTiming(s.saleDay);
-            const cash = timing && budgetCash(s.inputs, timing);
+            const cash = timing && budgetCash(s.inputs, timing, { chicks: s.delays.chicks ?? own.chicks, feed: s.delays.feed ?? own.feed });
             return (
               <li key={s.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
                 <p>

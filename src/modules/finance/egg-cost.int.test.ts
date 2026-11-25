@@ -11,7 +11,7 @@ import { changeAccountingChoices, closeFiscalYear, closePreview, createFixedAsse
 import { AccountsFile } from "@/modules/finance/schema";
 import { tenant } from "@/test/tenant";
 
-// SPEC-finance FC5, FQ18 (PCA p. 42), §7.1 G: the suggested cost per egg at the close, from the laying flocks' feed,
+// SPEC-finance FC5, FQ18 (PCA p. 42), §7.1 H: the suggested cost per egg at the close, from the laying flocks' feed,
 // expenses, depreciation shares and the hens' own depreciation, over the eggs laid in the fiscal year.
 const clock = fixedClock("2026-06-15T10:00:00Z");
 const m = <P,>(type: string, payload: P) => ({ id: uuidv7(), type, payload, createdAt: "2025-11-05T08:00:00+01:00" });
@@ -57,7 +57,7 @@ describe("the suggested cost per egg at the close (SPEC-finance FC5, FQ18: PCA p
     registered = await tenant("+212600000003", "Ferme C");
     expect(await changeAccountingChoices(registered, (await listLegalEntities(registered))[0].id, { books: "ledger", pcaOverlay: null, fiscalYearStartMonth: 1, vatRegistered: true })).toMatchObject({ ok: true });
 
-    // §7.1 G: 4 000 point-of-lay hens at 63,00 on 1 June 2025 (252 000,00 on 23711).
+    // §7.1 H: 4 000 point-of-lay hens at 63,00 on 1 June 2025 (252 000,00 on 23711).
     expect(
       await statuses(
         owner,
@@ -109,7 +109,7 @@ describe("the suggested cost per egg at the close (SPEC-finance FC5, FQ18: PCA p
     ).toEqual(Array(9).fill("applied"));
   }, 90_000); // three organisations and 50 mutations: above the 10 s hook default on a loaded Windows Docker
 
-  it("§7.1 G: feed, vet fees, the house's share, December's electricity and the hens' depreciation ÷ 700 000 eggs = 0,65", async () => {
+  it("§7.1 H: feed, vet fees, the house's share, December's electricity and the hens' depreciation ÷ 700 000 eggs = 0,65", async () => {
     // Without the hens' life and cull value, their depreciation isn't counted yet: 372 994,52 ÷ 700 000 = 0,53.
     expect(await eggsOf(owner)).toMatchObject([
       { farm: "Ferme Atlas", quantity: 700_000, perEgg: null, missing: true, suggestion: { direct: 36_300_000n, depreciation: 879_452n, indirect: 120_000n, hens: 0n, total: 37_299_452n, eggs: 700_000, perEgg: 53n, reason: null, from: "2025-06-01", to: "2025-12-31", hensPending: true } },

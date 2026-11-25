@@ -1304,6 +1304,8 @@ model Budget {
   plannedGrams           BigInt
   salePricePerKgCentimes BigInt
   saleDay                Int? // FN15 (§9 "Budget cash need"): days after placement, for a budget not copied from a batch
+  chickPaymentDays       Int? // FN15 (§9 "Budget cash need"): the supplier delays typed, in days; null: the farm's own
+  feedPaymentDays        Int?
   createdBy              String   @db.Uuid
   createdAt              DateTime @default(now()) @db.Timestamptz
 

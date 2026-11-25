@@ -3,7 +3,7 @@ import { suggestedEggCost } from "./egg-cost";
 
 const none = { direct: 0n, depreciation: 0n, indirect: 0n, hens: 0n };
 
-it("§7.1 G: 453 994,52 of laying costs ÷ 700 000 eggs → 0,65 DH per egg", () => {
+it("§7.1 H: 453 994,52 of laying costs ÷ 700 000 eggs → 0,65 DH per egg", () => {
   // feed 360 000,00 + vet fees 3 000,00; the house's share 8 794,52; December's electricity 1 200,00; the hens 81 000,00
   expect(suggestedEggCost({ direct: 36_300_000n, depreciation: 879_452n, indirect: 120_000n, hens: 8_100_000n }, 700_000)).toEqual({
     direct: 36_300_000n,

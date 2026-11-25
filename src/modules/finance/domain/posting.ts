@@ -12,7 +12,7 @@ export type FarmEvent =
   | { type: "purchase"; id: string; day: FarmDay; itemKind: string; amount: bigint; paid: bigint; vat?: bigint; method?: string } // vat: part of amount (FN9); method: of the paid part, cash when absent
   | { type: "chicks"; id: string; day: FarmDay; amount: bigint; vat?: bigint; layers?: boolean } // the chicks bought at placement (SPEC B1); vat: on top of amount (FN9); layers: point-of-lay hens (FC6)
   | { type: "sale"; id: string; day: FarmDay; amount: bigint; paid: bigint; method: string; kind?: "live" | "eggs" | "perHead"; vat?: bigint; layers?: boolean } // SPEC V2, SPEC-m3 V6, V7; layers: from a laying flock (FC6)
-  | { type: "lay"; id: string; day: FarmDay; amount: bigint; capitalised: bigint } // FC6: a pullet batch's FN13 cost at its transfer to lay, and at the last year end
+  | { type: "lay"; id: string; day: FarmDay; amount: bigint; capitalised: bigint } // FC6: a pullet batch's production cost (FQ19) at its transfer to lay, and at the last year end
   | { type: "placementPaid"; id: string; day: FarmDay; amount: bigint; account: string; treasuryId: string; hatchery: string } // §9 "Chicks paid on delivery": account, the debt's
   | { type: "receipt"; id: string; day: FarmDay; amount: bigint; method: string } // a later payment (SPEC V4)
   | { type: "consumption"; id: string; day: FarmDay; amount: bigint; takenBy: "exploitant" | "associate" | "employee"; individual: boolean } // FC7, at its value; individual: the entity's legal form (FQ11)

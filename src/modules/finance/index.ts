@@ -34,7 +34,7 @@ export { ASSET_CATEGORIES, ASSET_ACCOUNTS, type AssetCategory, type ScheduleYear
 export type { EggCostView } from "./application/egg-cost";
 export { closeFiscalYear, closePreview, openFiscalYear, reopenFiscalYear, runClose, type CloseBatchView, type CloseEggsView, type CloseEntryView, type CloseHensView, type ClosePreview, type CloseStockView, type YearCloseError } from "./application/close";
 export { saveYearEndValues } from "./application/stocks";
-export { saveHensSchedules } from "./application/hens";
+export { saveHensSchedules, saveLayerSchedule } from "./application/hens";
 export { createSubsidy, subsidyRegister, type SubsidyRegister, type SubsidyView, type SubsidyWriteError } from "./application/subsidies";
 export type { ReleaseYear } from "./domain/subsidies";
 export { confirmLoan, createLoan, discardLoan, loanRegister, payLoanInstallment, saveLoanSchedule, sendLoanReminders, type LoanRegister, type LoanRowView, type LoanView, type LoanWriteError } from "./application/loans";

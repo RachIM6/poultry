@@ -215,6 +215,8 @@ const ROWS: Row[] = [
   { name: "discardLoan", gate: "manage", kind: "write", run: (c, s) => finance.discardLoan(c, { loanId: s.loan }) },
   { name: "saveYearEndValues", gate: "manage", kind: "write", run: (c) => finance.saveYearEndValues(c, { year: 2026, values: {} }) },
   { name: "saveHensSchedules", gate: "manage", kind: "write", run: (c) => finance.saveHensSchedules(c, { year: 2026, values: {} }) },
+  // the owner's under the classic method, as here; the manager's too on other books (layer-results.int.test.ts)
+  { name: "saveLayerSchedule", gate: "manage", kind: "write", ours: true, run: (c, s) => finance.saveLayerSchedule(c, { batchId: s.batch, life: "14", cull: "0" }) },
   { name: "runClose", gate: "manage", kind: "write", run: (c) => finance.runClose(c, { year: 2025 }, clock) },
   { name: "openFiscalYear", gate: "manage", kind: "write", run: (c) => finance.openFiscalYear(c, { year: 2026 }, clock) },
   { name: "closeFiscalYear", gate: "manage", kind: "write", run: (c) => finance.closeFiscalYear(c, { year: 2025 }, clock) },

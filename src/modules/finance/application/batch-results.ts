@@ -93,10 +93,17 @@ export type BatchResultRow = BatchResult & {
   // hens: a laying flock's entry value used up to the day (§9 "Laying hens in the batch result"), its chicks then 0;
   // transferred: a pullet batch's whole cost, negative, once transferred to lay: the layer batch carries it as its hens
   costs: { chicks: bigint; consumption: bigint; other: bigint; direct: bigint; allocated: bigint; hens: bigint; transferred: bigint };
-  // a laying flock's hens (`hensConsumed`): basis "depreciation" with the owner's schedule (classic), else the entry value
+  // a laying flock's hens (`hensConsumed`): basis "depreciation" with a typed schedule (any books), else the entry value
   // of the birds gone, "pending" while a classic flock's schedule is untyped, "birdsGone" otherwise (simplified, cash
-  // book, PCA off)
-  hens: { basis: "depreciation" | "pending" | "birdsGone"; entry: bigint; depreciation: bigint; removed: bigint } | null;
+  // book, PCA off). `schedule`: as typed (`saveLayerSchedule`); `classic`: the books' schedule too (FC6), the owner's
+  hens: {
+    basis: "depreciation" | "pending" | "birdsGone";
+    entry: bigint;
+    depreciation: bigint;
+    removed: bigint;
+    schedule: { lifeMonths: number; cullValue: bigint } | null;
+    classic: boolean;
+  } | null;
   byBirdDays: boolean; // FN14: part of its live share was split by bird-days, no batch having any weight by the key
   costCentimes: bigint;
   comparison: BatchComparison; // FN13: mortality, FCR, feed price and price per kg, next to the result
@@ -168,9 +175,9 @@ export async function batchResultsIn(tx: Tx, ctx: TenantContext, asOf?: FarmDay,
       : [...live.values()].reduce((s, split) => s + (split.parts.get(id) ?? 0n), 0n);
 
   const consumptions = await batchConsumptions(tx, ctx, batches.map((b) => b.id), asOf);
-  // §9 "Laying hens in the batch result": the owner's laying period and cull value, when the books follow the classic method
+  // §9 "Laying hens in the batch result": the laying period and cull value typed, whatever the books
   const classic = !!entity && hensMethodOf(entity.accountingProfile, entity.hensMethod) === "classic";
-  const schedules = new Map(classic ? (await tx.hensSchedule.findMany({ where: { ...org, legalEntityId: entity.id } })).map((s) => [s.batchId, s]) : []);
+  const schedules = new Map(entity ? (await tx.hensSchedule.findMany({ where: { ...org, legalEntityId: entity.id } })).map((s) => [s.batchId, s]) : []);
   const to = asOf ?? farmDayOf(clock.now());
   const own = new Map(
     batches.map((b) => {
@@ -188,8 +195,9 @@ export async function batchResultsIn(tx: Tx, ctx: TenantContext, asOf?: FarmDay,
       // bought: the placement's price, VAT included as the chicks' (FQ30); transferred: the pullet batch's whole cost
       const entry = b.fromBatchId ? whole(b.fromBatchId) : b.chicksCentimes;
       const s = schedules.get(b.id);
+      const schedule = s ? { lifeMonths: s.lifeMonths, cullValue: s.cullValueCentimes } : null;
       const flock = { entry, entryDay: b.placedOn as FarmDay, started: b.started, onHand: b.onHand, out: b.out, sold: b.soldOut, closedOn: b.closedOn };
-      hens = { basis: s ? "depreciation" : classic ? "pending" : "birdsGone", entry, ...hensConsumed(flock, s ? { lifeMonths: s.lifeMonths, cullValue: s.cullValueCentimes } : null, to) };
+      hens = { basis: s ? "depreciation" : classic ? "pending" : "birdsGone", entry, ...hensConsumed(flock, schedule, to), schedule, classic };
     }
     const costs = { ...own.get(b.id)!, ...(hens && { chicks: 0n }), hens: hens ? hens.depreciation + hens.removed : 0n, transferred: transferred.has(b.id) ? -whole(b.id) : 0n };
     const costCentimes = Object.values(costs).reduce((s, c) => s + c, 0n);

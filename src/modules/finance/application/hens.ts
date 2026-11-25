@@ -22,7 +22,8 @@ import { depreciationToDay, PRODUCTION_EXPENSE_CATEGORIES } from "@/modules/fina
 import { standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 
 // SPEC-finance FC6 (T114, T115): laying hens and their pullets at the close, and at the transfer to lay. Reads flock
-// through its index; writes only HensSchedule (the simplified current values go through saveYearEndValues).
+// through its index; writes only HensSchedule (the simplified current values go through saveYearEndValues), also typed
+// for FN13 on any books (saveLayerSchedule).
 
 const date = (day: string) => new Date(`${day}T00:00:00Z`);
 type FiscalYear = { from: FarmDay; to: FarmDay };
@@ -203,27 +204,72 @@ export async function saveHensSchedules(ctx: TenantContext, input: unknown): Pro
       const flock = flocks.get(id);
       if (!flock) return fail("INVALID_INPUT"); // not a laying flock on 23711 this year, of this organisation
       if (typed.life === "" && typed.cull === "") continue;
-      const lifeMonths = /^\d{1,3}$/.test(typed.life) ? Number(typed.life) : 0;
-      const cullValue = parseCentimes(typed.cull);
-      if (lifeMonths < 1 || lifeMonths > MAX_LIFE || cullValue === null || cullValue > flock.entry) return fail("INVALID_INPUT");
-      if (lifeMonths === flock.lifeMonths && cullValue === flock.cullValue) continue;
+      const schedule = scheduleOf(typed, flock.entry);
+      if (!schedule) return fail("INVALID_INPUT");
+      if (schedule.lifeMonths === flock.lifeMonths && schedule.cullValue === flock.cullValue) continue;
       if (flock.lifeMonths !== null && (await closePosted(tx, ctx, entity.id, countYearOf(flock.placedOn as FarmDay, start)))) return fail("COUNT_FROZEN");
-      const key = { legalEntityId_batchId: { legalEntityId: entity.id, batchId: id } };
-      const before = await tx.hensSchedule.findUnique({ where: key });
-      const row = await tx.hensSchedule.upsert({
-        where: key,
-        create: { id: uuidv7(), organizationId: ctx.organizationId, legalEntityId: entity.id, batchId: id, lifeMonths, cullValueCentimes: cullValue, updatedBy: ctx.userId },
-        update: { lifeMonths, cullValueCentimes: cullValue, updatedBy: ctx.userId },
-      });
-      await audit(tx, ctx, {
-        entity: "HensSchedule",
-        entityId: row.id,
-        action: before ? "update" : "create",
-        before: before ? { batchId: id, lifeMonths: before.lifeMonths, cullValueCentimes: String(before.cullValueCentimes) } : null,
-        after: { batchId: id, lifeMonths, cullValueCentimes: String(cullValue) },
-      }); // a web action, not a sync mutation: no mutation id
+      await putSchedule(tx, ctx, entity.id, id, schedule);
       changed++;
     }
     return ok(changed);
   });
+}
+
+/** What was typed, checked: a laying period of 1 to MAX_LIFE whole months, a cull value within the entry value; else null. */
+function scheduleOf(typed: { life: string; cull: string }, entry: bigint) {
+  const lifeMonths = /^\d{1,3}$/.test(typed.life) ? Number(typed.life) : 0;
+  const cullValue = parseCentimes(typed.cull);
+  return lifeMonths < 1 || lifeMonths > MAX_LIFE || cullValue === null || cullValue > entry ? null : { lifeMonths, cullValue };
+}
+
+/** Saves a flock's schedule, audited (a web action, not a sync mutation: no mutation id). */
+async function putSchedule(tx: Tx, ctx: TenantContext, legalEntityId: string, batchId: string, { lifeMonths, cullValue }: { lifeMonths: number; cullValue: bigint }) {
+  const key = { legalEntityId_batchId: { legalEntityId, batchId } };
+  const before = await tx.hensSchedule.findUnique({ where: key });
+  const row = await tx.hensSchedule.upsert({
+    where: key,
+    create: { id: uuidv7(), organizationId: ctx.organizationId, legalEntityId, batchId, lifeMonths, cullValueCentimes: cullValue, updatedBy: ctx.userId },
+    update: { lifeMonths, cullValueCentimes: cullValue, updatedBy: ctx.userId },
+  });
+  await audit(tx, ctx, {
+    entity: "HensSchedule",
+    entityId: row.id,
+    action: before ? "update" : "create",
+    before: before ? { batchId, lifeMonths: before.lifeMonths, cullValueCentimes: String(before.cullValueCentimes) } : null,
+    after: { batchId, lifeMonths, cullValueCentimes: String(cullValue) },
+  });
+}
+
+export const SaveLayerSchedule = z.object({ batchId: z.uuid(), life: z.string().trim().max(4), cull: z.string().trim().max(20) });
+
+/**
+ * FN13 (§9 "Laying hens in the batch result", decided default to review): a laying flock's laying period (months) and
+ * cull value (the whole flock, in dirhams), typed on /results for any farm and any books, never prefilled; the batch
+ * result then depreciates its hens (`hensConsumed`). The same row is FC6's classic schedule: under the classic method
+ * this is `saveHensSchedules` for the flock's entry year (owner only, the books' entry value, frozen once that close
+ * posted). Otherwise it is a management figure only, nothing posts from it: the owner or the manager types it, the cull
+ * value within FN13's entry value (the price paid, VAT included, or the pullets' cost). Returns 1 if it changed, else 0.
+ */
+export async function saveLayerSchedule(ctx: TenantContext, input: unknown): Promise<Result<number, "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "COUNT_FROZEN">> {
+  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  const parsed = SaveLayerSchedule.safeParse(input);
+  if (!parsed.success) return fail("INVALID_INPUT");
+  const { batchId, ...typed } = parsed.data;
+  const [entity] = await listLegalEntities(ctx);
+  if (!entity) return fail("NOT_FOUND");
+  if (hensMethodOf(entity.accountingProfile, entity.hensMethod) === "classic") {
+    if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+    const batch = (await batchesForFinance(db, ctx)).find((b) => b.id === batchId);
+    if (!batch) return fail("NOT_FOUND");
+    return saveHensSchedules(ctx, { year: countYearOf(batch.placedOn as FarmDay, entity.fiscalYearStartMonth), values: { [batchId]: typed } });
+  }
+  // A read on the pool, as batchResults: FN13 for the entry value; only the write and its audit share a transaction
+  const flock = (await batchResultsIn(db, ctx)).find((r) => r.id === batchId);
+  if (!flock) return fail("NOT_FOUND"); // another organisation's, or none
+  const schedule = flock.hens && scheduleOf(typed, flock.hens.entry);
+  if (!schedule) return fail("INVALID_INPUT"); // not a laying flock, or not a valid schedule
+  const was = flock.hens!.schedule;
+  if (was && was.lifeMonths === schedule.lifeMonths && was.cullValue === schedule.cullValue) return ok(0);
+  await db.$transaction((tx) => putSchedule(tx, ctx, entity.id, batchId, schedule));
+  return ok(1);
 }

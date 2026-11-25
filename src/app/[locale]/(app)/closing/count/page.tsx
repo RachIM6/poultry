@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { BackLink } from "@/components/app-nav";
+import { Page } from "@/components/page";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatKgValue } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
@@ -24,14 +24,12 @@ type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 export default function CountPage({ searchParams }: { searchParams: Search }) {
   return (
     <ClientMessages paths={MESSAGES}>
-      <header className="px-4 pt-4 print:hidden">
-        <BackLink href="/more" />
-      </header>
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 print:max-w-none print:p-0">
-        <Suspense>
+      {/* On paper the sheet starts with its farm's heading: no back link, no page title (nor the gap after them). */}
+      <div className="contents print:[&>main>header]:hidden">
+        <Suspense fallback={<Page width="doc" back="/more" />}>
           <CountView searchParams={searchParams} />
         </Suspense>
-      </main>
+      </div>
     </ClientMessages>
   );
 }
@@ -45,7 +43,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await yearEndCount(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
-  if (!result.ok) return <p>{t("Count.forbidden")}</p>;
+  if (!result.ok) return <Page width="doc" back="/more"><p>{t("Count.forbidden")}</p></Page>;
   const { year, day, frozen, farms } = result.value;
   const write = can(ctx.value, "finance.record") && !frozen; // the accountant reads (FCX1); frozen once the close posted (FCX4)
 
@@ -95,15 +93,14 @@ async function CountView({ searchParams }: { searchParams: Search }) {
   );
 
   return (
-    <>
-      <h1 className="text-2xl font-semibold print:hidden">{t("Count.title")}</h1>
+    <Page width="doc" back="/more" title={t("Count.title")}>
       <nav className="flex flex-wrap items-center gap-3 print:hidden" aria-label={t("Count.year")}>
         <Link href={{ pathname: "/closing/count", query: { year: year - 1 } }} aria-label={t("Count.previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
         <span className="font-semibold" dir="ltr">{year}</span>
         <Link href={{ pathname: "/closing/count", query: { year: year + 1 } }} aria-label={t("Count.nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
         {farms.length > 0 && <span className="ms-auto"><PrintButton /></span>}
       </nav>
-      <p className="text-sm text-ink-2 print:hidden">{t("Count.hint")}</p>
+      <p className="max-w-prose text-sm text-ink-2 print:hidden">{t("Count.hint")}</p>
       {frozen && <p className="text-sm font-semibold print:hidden">{t("Count.frozen")}</p>}
       {farms.length === 0 ? (
         <p>{t("Count.none")}</p>
@@ -181,6 +178,6 @@ async function CountView({ searchParams }: { searchParams: Search }) {
           })}
         </CountForm>
       )}
-    </>
+    </Page>
   );
 }

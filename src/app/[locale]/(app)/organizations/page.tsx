@@ -14,7 +14,7 @@ import { acceptAndOpen, openFarm } from "./actions";
 // waiting for them. Each farm's data stays in its own database on the phone.
 export default function Organizations() {
   return (
-    <ClientMessages paths={["Account", "errors"]}>
+    <ClientMessages paths={["Account", "Nav", "Offline", "Sync.refused", "errors"]}>
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
         <Suspense>
           <Content />

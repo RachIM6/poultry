@@ -215,7 +215,9 @@ export async function resetPassword(
 
   const user = await userOf(id.value);
   const code = normalizeCode(rawCode);
-  // An unknown account looks its code up too (under a nil id), so it answers in the same time as a wrong code.
+  // An unknown account hashes and looks its code up too (under a nil id), so it answers in the same time as a wrong
+  // code. The hash (scrypt) is computed before the transaction, which stays short.
+  const hash = code !== null ? await (await auth.$context).password.hash(password.value) : null;
   const done =
     code !== null &&
     (await db.$transaction(async (tx) => {
@@ -224,10 +226,9 @@ export async function resetPassword(
         WHERE "userId" = ${user?.id ?? NIL_UUID}::uuid AND "codeHash" = ${codeHash("reset", code)} AND "expiresAt" > ${clock.now()}
         FOR UPDATE`;
       if (!row || !user) return false;
-      const hash = await (await auth.$context).password.hash(password.value);
       const credential = await tx.account.findFirst({ where: { userId: user.id, providerId: "credential" } });
-      if (credential) await tx.account.update({ where: { id: credential.id }, data: { password: hash } });
-      else await tx.account.create({ data: { userId: user.id, providerId: "credential", accountId: user.id, password: hash } });
+      if (credential) await tx.account.update({ where: { id: credential.id }, data: { password: hash! } });
+      else await tx.account.create({ data: { userId: user.id, providerId: "credential", accountId: user.id, password: hash! } });
       await tx.session.deleteMany({ where: { userId: user.id } }); // every device signs in again with the new password
       await tx.passwordReset.deleteMany({ where: { userId: user.id } });
       return true;

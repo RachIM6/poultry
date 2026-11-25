@@ -2497,7 +2497,12 @@
     "discardEggs": "Œufs écartés",
     "reason": "Raison",
     "saveDiscard": "Écarter ces œufs",
-    "withheld": "En délai d’attente jusqu’au {day} : à écarter, jamais à vendre"
+    "withheld": "En délai d’attente jusqu’au {day} : à écarter, jamais à vendre",
+    "colDay": "Pondus le",
+    "colHouse": "Bâtiment",
+    "colItem": "Article",
+    "colEggs": "Œufs",
+    "colWithheld": "Délai d’attente"
   },
   "Layers": {
     "hens": "Poules présentes",

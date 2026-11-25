@@ -8,5 +8,5 @@ export { recordConsumption, removeConsumption } from "./application/consumption"
 export { batchConsumptionCost, batchConsumptions } from "./application/batch-cost";
 export type { BatchConsumption } from "./application/batch-cost";
 export { stockOnDay, stockValueOnDay } from "./application/count";
-export { issuedBillsDue, issuedDebitsChangedSince, ledgerTagsOf, purchasesChangedSince, supplierDuesOf, supplierPaymentsChangedSince, type PurchaseChange } from "./application/changes";
+export { issuedBillsDue, issuedDebitsChangedSince, lastPurchaseTerms, ledgerTagsOf, purchasesChangedSince, supplierDuesOf, supplierPaymentsChangedSince, type PurchaseChange } from "./application/changes";
 export { sendIssuedReminders } from "./application/reminders";

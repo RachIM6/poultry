@@ -28,12 +28,13 @@ describe("Batch placement (SPEC B1)", () => {
     expect(batch.value.ageOn(day("2027-01-02"))).toBe(80); // across a month and a year end
   });
 
-  it("is open, starts with the chicks placed minus those dead on arrival, and can only be closed", () => {
+  it("is open, starts with the chicks placed minus those dead on arrival, and can only be closed, then reopened", () => {
     const batch = Batch.place(placement, day("2026-10-14"));
     if (!batch.ok) throw new Error(batch.error);
     expect(batch.value.status).toBe("open");
     expect(batch.value.birdsStarted).toBe(11_964);
-    expect([batch.value.canBecome("closed"), Batch.rehydrate(placement, "closed").canBecome("open")]).toEqual([true, false]);
+    expect([batch.value.canBecome("closed"), Batch.rehydrate(placement, "closed").canBecome("open")]).toEqual([true, true]);
+    expect(batch.value.reopen()).toEqual({ ok: false, error: "BATCH_NOT_CLOSED" });
   });
 
   it("refuses impossible placements", () => {

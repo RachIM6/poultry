@@ -8,7 +8,10 @@ import type { BirdSex, ProductionType } from "@/modules/reference-data/shared";
 // phone and the server run the same rules (poultry-ddd §3.1).
 
 export type BatchStatus = "open" | "closed";
-const TRANSITIONS: Record<BatchStatus, readonly BatchStatus[]> = { open: ["closed"], closed: [] }; // no reopening in v1
+const TRANSITIONS: Record<BatchStatus, readonly BatchStatus[]> = { open: ["closed"], closed: ["open"] }; // reopened by the owner (domain/reopen.ts)
+
+/** SPEC-m3 B13: the close reason of a pullet batch moved to laying (a code, shown translated). */
+export const TRANSFER_REASON = "transferToLaying";
 
 export type Placement = {
   id: string;
@@ -141,12 +144,19 @@ export class Batch {
 
   /**
    * B6: closed on `day`, by the last sale or by hand. Afterwards nothing changes (entries, weighings, sales, health):
-   * the final KPIs and the cost per kg are locked. No reopening in v1.
+   * the final KPIs and the cost per kg are locked, until the owner reopens it (`reopen`).
    */
   close(day: FarmDay, today: FarmDay): Result<void, DataDayError> {
     const open = this.acceptsDataFor(day, today);
     if (!open.ok) return open;
     this._status = "closed";
+    return ok(undefined);
+  }
+
+  /** B6 "Reopening": open again, once `checkReopen` (domain/reopen.ts) has passed. */
+  reopen(): Result<void, "BATCH_NOT_CLOSED"> {
+    if (!this.canBecome("open")) return fail("BATCH_NOT_CLOSED");
+    this._status = "open";
     return ok(undefined);
   }
 

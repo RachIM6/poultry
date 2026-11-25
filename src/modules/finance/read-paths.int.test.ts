@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import type { TenantContext } from "@/lib/tenant";
-import { accountingSettings, bankReconciliation, batchResults, budgetBases, yearEndCount } from "@/modules/finance";
+import { accountingSettings, bankReconciliation, batchResults, budgetBases, budgetPaymentDelays, yearEndCount } from "@/modules/finance";
 import { tenant } from "@/test/tenant";
 
 // Under load an interactive transaction waits for a pooled connection and, past maxWait, fails the page (P2028). The
@@ -20,6 +20,7 @@ describe("finance page reads run without an interactive transaction", () => {
   it.each([
     ["batchResults", () => batchResults(owner)],
     ["budgetBases", () => budgetBases(owner)],
+    ["budgetPaymentDelays", () => budgetPaymentDelays(owner)],
     ["yearEndCount", () => yearEndCount(owner, null)],
     ["accountingSettings", () => accountingSettings(owner)],
     ["bankReconciliation", () => bankReconciliation(owner)],

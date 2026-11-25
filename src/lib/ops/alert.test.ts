@@ -1,7 +1,9 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { alertOps } from "./alert";
 
 const log = vi.spyOn(console, "error").mockImplementation(() => {});
+// alertOps loads next/server on first use; a server has it loaded already. Loading it here keeps the waits below short.
+beforeAll(() => import("next/server"), 30_000);
 beforeEach(() => log.mockClear());
 afterEach(() => {
   vi.unstubAllEnvs();

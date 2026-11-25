@@ -1,5 +1,3 @@
-import { after } from "next/server";
-
 type Alerts = {
   sms_cap_50: Record<string, number>;
   sms_cap_100: Record<string, number>;
@@ -11,6 +9,8 @@ type Alerts = {
  * `"alert":"<event>"`, and, when OPS_ALERT_WEBHOOK_URL is set, the same event POSTed there as JSON (any incoming
  * webhook: chat, or an email relay). Data holds numbers and fixed names only, so no phone number or IP can slip in
  * (law 09-08). Never throws, and never holds the request: inside one, the POST runs after the response (`after`).
+ * `next/server` is imported only when there is something to post: scripts bundled for plain Node (db:seed:demo,
+ * org:*) reach this file through the rate limiter, and Node's ESM loader can't resolve that bare specifier.
  */
 export function alertOps<E extends keyof Alerts>(event: E, data: Alerts[E]) {
   const line = { level: "error", alert: event, ...data };
@@ -29,9 +29,6 @@ export function alertOps<E extends keyof Alerts>(event: E, data: Alerts[E]) {
       (res) => void (!res.ok && console.error(JSON.stringify({ level: "error", alertWebhook: res.status }))),
       (e: unknown) => console.error(JSON.stringify({ level: "error", alertWebhook: e instanceof Error ? e.name : typeof e })), // never the URL: it is a secret
     );
-  try {
-    after(post);
-  } catch {
-    void post(); // outside a request (a script, a test): fire and forget
-  }
+  // Outside a request (a script, a test), or where next/server doesn't load, `after` throws: fire and forget instead.
+  void import("next/server").then(({ after }) => after(post)).catch(() => void post());
 }

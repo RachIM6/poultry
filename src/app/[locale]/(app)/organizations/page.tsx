@@ -3,7 +3,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BackLink } from "@/components/app-nav";
-import { JoinCodeForm } from "@/components/join-code-form";
+import { JoinCodeForm, OpenFarmForm } from "@/components/join-code-form";
 import { card, primary, secondary } from "@/components/ui";
 import { ClientMessages } from "@/i18n/client-messages";
 import { redirect } from "@/i18n/navigation";
@@ -43,11 +43,10 @@ async function Content() {
             {m.organizationId === current ? (
               <span className="text-sm font-medium text-olive">{t("Organizations.current")}</span>
             ) : (
-              <form action={openFarm}>
+              <OpenFarmForm action={openFarm}>
                 <input type="hidden" name="organizationId" value={m.organizationId} />
-                <input type="hidden" name="locale" value={lang} />
                 <button type="submit" className={secondary}>{t("Organizations.open", { name: m.name })}</button>
-              </form>
+              </OpenFarmForm>
             )}
           </li>
         ))}
@@ -56,12 +55,11 @@ async function Content() {
         <section aria-label={t("Organizations.invitations")} className="flex flex-col gap-3">
           <h2 className="text-[17px] font-semibold text-ink-2">{t("Organizations.invitations")}</h2>
           {invitations.map((i) => (
-            <form key={i.id} action={acceptAndOpen} className={card}>
+            <OpenFarmForm key={i.id} action={acceptAndOpen} className={card}>
               <input type="hidden" name="invitationId" value={i.id} />
-              <input type="hidden" name="locale" value={lang} />
               <p>{t("Organizations.invitedAs", { name: i.name, role: t(`Members.roles.${i.role}`) })}</p>
               <button type="submit" className={primary}>{t("Organizations.accept", { name: i.name })}</button>
-            </form>
+            </OpenFarmForm>
           ))}
         </section>
       )}

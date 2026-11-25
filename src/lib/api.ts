@@ -12,3 +12,16 @@ export async function postJson(url: string, body?: unknown): Promise<{ status: n
     return { status: 0, messageKey: "errors.NETWORK" };
   }
 }
+
+/**
+ * Right after signing in or opening a farm, before navigating: stores who is signed in on this phone (ADR-003), so an
+ * offline screen opened before the dashboard has rendered finds it. A new scope opens its own database, and a role
+ * change clears the local records first (rememberScope). Dexie loads only now, off the login page's first load. Never
+ * blocks: on any failure the dashboard's SyncBadge remembers it, as before.
+ */
+export async function rememberSignedIn() {
+  try {
+    const res = await fetch("/api/sync/scope", { headers: { "x-requested-with": "poultry" } });
+    if (res.ok) await (await import("@/offline/db")).rememberScope(await res.json());
+  } catch {}
+}

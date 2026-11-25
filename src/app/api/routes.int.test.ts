@@ -29,6 +29,7 @@ import * as subscribe from "./push/subscribe/route";
 import * as reference from "./reference/route";
 import * as syncPull from "./sync/pull/route";
 import * as syncPush from "./sync/push/route";
+import * as syncScope from "./sync/scope/route";
 
 // Pushes and postings run after the response with after(): nothing to run here.
 vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: () => {} }));
@@ -67,6 +68,7 @@ const ROUTES: Record<string, Row> = {
   reference: { route: reference, session: true },
   "sync/pull": { route: syncPull, session: true },
   "sync/push": { route: syncPush, session: true, body: 2_000_000 },
+  "sync/scope": { route: syncScope, session: true },
 };
 
 const WRITES = ["POST", "PUT", "PATCH", "DELETE"];

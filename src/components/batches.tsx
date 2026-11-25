@@ -331,8 +331,10 @@ function Batches(scope: Scope) {
               <span>{title(b)}</span>
               <span className="text-sm text-muted">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
               {farming && <span>{t("Day.onHand", { birds: formatCount(onHand(b)) })}</span>}
-              {b.status === "open" ? (
+              {b.status === "open" && can(scope, "flock.record") ? (
                 <a href={`#${b.id}`} className={`${primary} mt-2`}>{t("Day.open")}</a>
+              ) : b.status === "open" ? (
+                <a href={`#${b.id}`} className={link}>{t("Batches.view")}</a> // a vet or an accountant reads it, enters no day
               ) : (
                 <a href={`#${b.id}`} className={link}>{t("Closing.open")}</a>
               )}

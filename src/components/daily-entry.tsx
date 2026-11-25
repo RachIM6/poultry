@@ -26,6 +26,10 @@ import { card, danger, field, primary } from "@/components/ui";
 
 const today = () => farmDayOf(new Date());
 
+/** The feed of the batch's latest earlier day: a new day starts on it (starter, then grower, then finisher), not on the first item. */
+export const lastFeed = (entries: DailyEntryDto[], day: string) =>
+  entries.reduce<DailyEntryDto | undefined>((last, e) => (e.feed && e.day < day && (!last || e.day > last.day) ? e : last), undefined)?.feed?.stockItemId;
+
 export type Write = (mutation: { type: string; payload: unknown }, records: { entity: string; id: string; data: unknown }[]) => Promise<boolean>;
 
 export function DayForm({ batch, entries, sold, feedItems, write }: { batch: BatchDto; entries: DailyEntryDto[]; sold: SoldBirdsDto[]; feedItems: StockItemDto[]; write: Write }) {
@@ -119,7 +123,7 @@ function EntryFields({
         </div>
       </section>
       <section className={card}>
-        <Select name="feedItem" label={t("Day.feed")} defaultValue={current.feed?.stockItemId ?? feedItems[0]?.id ?? ""}>
+        <Select name="feedItem" label={t("Day.feed")} defaultValue={current.feed?.stockItemId ?? feedItems.find((i) => i.id === lastFeed(entries, day))?.id ?? feedItems[0]?.id ?? ""}>
           <option value="">{t("Day.noFeed")}</option>
           {feedItems.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
         </Select>

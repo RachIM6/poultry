@@ -81,6 +81,9 @@ test("the accountant reads money without production figures; the vet records hea
 
   await becomes(page, e164, "vet");
   await expect(page.getByRole("link", { name: /Saisie du jour/ })).toHaveCount(0); // not the vet's to enter
+  await page.goto("/fr/batches");
+  await expect(page.getByRole("link", { name: "Voir la bande" })).toBeVisible(); // the card opens the batch, not a day entry
+  await expect(page.getByRole("link", { name: "Saisir le jour" })).toHaveCount(0);
   await page.goto(`/fr/batches#${ids.batch}`);
   await expect(page.getByRole("heading", { name: "Traitements" })).toBeVisible();
   await expect(page.getByText(/^Oiseaux présents/)).toBeVisible();

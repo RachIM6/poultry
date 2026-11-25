@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { Page } from "@/components/page";
 import { PlanningScreen } from "@/components/planning";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
@@ -11,10 +12,9 @@ export default function PlanningPage() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 p-4">
-        <h1 className="text-2xl font-semibold">{t("Planning.title")}</h1>
+      <Page width="wide" title={t("Planning.title")}>
         <PlanningScreen />
-      </main>
+      </Page>
     </ClientMessages>
   );
 }

@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { Page } from "@/components/page";
 import { StaffScreen } from "@/components/staff";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
@@ -15,10 +16,9 @@ export default function StaffPage() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
-        <h1 className="text-2xl font-semibold">{t("Staff.title")}</h1>
+      <Page width="wide" title={t("Staff.title")}>
         <StaffScreen />
-      </main>
+      </Page>
     </ClientMessages>
   );
 }

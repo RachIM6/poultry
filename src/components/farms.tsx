@@ -13,11 +13,18 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useInline } from "@/components/focus";
+import { rowHead, rowTable } from "@/components/layout";
 import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC F2–F4. Runs on the static /farms shell: everything comes from and goes to the phone's database (ADR-003).
 
 const card = "flex flex-col gap-1 rounded-2xl border border-line bg-card p-3";
+// Wide screens: the farms in a 360 px column, the open farm beside them (the first one until another is picked).
+const master = "flex flex-col gap-5 lg:grid lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start lg:gap-x-8";
+const column = "flex flex-col gap-5";
+const wideOnly = "hidden lg:flex lg:flex-col lg:gap-5";
+// A house is a card on the phone, a table row from lg (layout.ts `row`, with this screen's own card).
+const houseRow = `${card} lg:col-span-full lg:grid lg:grid-cols-subgrid lg:items-center lg:gap-x-6 lg:rounded-none lg:border-0 lg:border-t lg:border-line lg:px-4`;
 
 type Save = (mutation: { type: string; payload: unknown }, record: { entity: string; id: string; data: unknown }) => Promise<boolean>;
 
@@ -79,26 +86,31 @@ function Farms(scope: Scope) {
   };
 
   const open = farms.find((f) => f.id === openId);
+  // The phone shows the list or the open farm; a wide screen shows both, so the list stays (hidden on the phone).
+  const shown = open ?? (openId ? undefined : farms[0]);
   return (
     <>
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
-      {openId ? (
-        open ? (
-          <FarmDetail key={open.id} farm={open} houses={houses.filter((h) => h.farmId === open.id)} manage={manage} save={save} />
-        ) : (
-          <>
-            <a href="#" className="underline underline-offset-4">{t("back")}</a>
+      <div className={master}>
+        <div className={openId ? wideOnly : column}>
+          <FarmList farms={farms} houses={houses} manage={manage} save={save} selected={open?.id} />
+        </div>
+        {shown ? (
+          <div className={open ? column : wideOnly}>
+            <FarmDetail key={shown.id} farm={shown} houses={houses.filter((h) => h.farmId === shown.id)} manage={manage} save={save} />
+          </div>
+        ) : openId ? (
+          <div className={column}>
+            <a href="#" className="underline underline-offset-4 lg:hidden">{t("back")}</a>
             <p>{t("notFound")}</p>
-          </>
-        )
-      ) : (
-        <FarmList farms={farms} houses={houses} manage={manage} save={save} />
-      )}
+          </div>
+        ) : null}
+      </div>
     </>
   );
 }
 
-function FarmList({ farms, houses, manage, save }: { farms: FarmDto[]; houses: HouseDto[]; manage: boolean; save: Save }) {
+function FarmList({ farms, houses, manage, save, selected }: { farms: FarmDto[]; houses: HouseDto[]; manage: boolean; save: Save; selected?: string }) {
   const t = useTranslations("Farms");
   const { open: adding, opener, close } = useInline<"farm">();
   return (
@@ -109,7 +121,7 @@ function FarmList({ farms, houses, manage, save }: { farms: FarmDto[]; houses: H
         <ul className="flex flex-col gap-3">
           {farms.map((f) => (
             <li key={f.id}>
-              <a href={`#${f.id}`} className={card}>
+              <a href={`#${f.id}`} aria-current={f.id === selected || undefined} className={`${card} lg:aria-[current=true]:border-ink`}>
                 <span className="font-semibold">{f.name}</span>
                 <span className="text-sm text-muted">
                   {t("farmSummary", { commune: f.commune, province: f.province, count: formatCount(houses.filter((h) => h.farmId === f.id).length) })}
@@ -132,7 +144,7 @@ function FarmList({ farms, houses, manage, save }: { farms: FarmDto[]; houses: H
             }}
           />
         ) : (
-          <button type="button" {...opener("farm")} className={primary}>{t("add")}</button>
+          <button type="button" {...opener("farm")} className={`${primary} lg:self-start`}>{t("add")}</button>
         ))}
     </>
   );
@@ -152,7 +164,7 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
 
   return (
     <>
-      <a href="#" className="underline underline-offset-4">{t("back")}</a>
+      <a href="#" className="underline underline-offset-4 lg:hidden">{t("back")}</a>
       {open === "farm" ? (
         <FarmForm
           initial={current}
@@ -179,7 +191,8 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
       {houses.length === 0 ? (
         <p>{t("noHouses")}</p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className={`${rowTable} lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]`} aria-label={t("houses")}>
+          <li aria-hidden="true" className={rowHead}><span>{t("houseName")}</span></li>
           {houses.map((h) => <HouseRow key={h.id} house={h} manage={manage} save={save} />)}
         </ul>
       )}
@@ -194,7 +207,7 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
             }}
           />
         ) : (
-          <button type="button" {...opener("house")} className={primary}>{t("addHouse")}</button>
+          <button type="button" {...opener("house")} className={`${primary} lg:self-start`}>{t("addHouse")}</button>
         ))}
     </>
   );
@@ -206,7 +219,7 @@ function HouseRow({ house, manage, save }: { house: HouseDto; manage: boolean; s
   const { id, farmId, ...current } = house;
   if (editing) {
     return (
-      <li>
+      <li className="lg:col-span-full lg:border-t lg:border-line lg:p-4">
         <HouseForm
           initial={current}
           onCancel={close}
@@ -220,12 +233,12 @@ function HouseRow({ house, manage, save }: { house: HouseDto; manage: boolean; s
     );
   }
   return (
-    <li className={card}>
+    <li className={houseRow}>
       <span className="font-semibold">{house.name}</span>
       <span className="text-sm text-muted">
         {t("houseSummary", { area: formatCount(house.areaM2), capacity: formatCount(house.capacity), type: t(`types.${house.type}`) })}
       </span>
-      {manage && <button type="button" {...opener("house")} aria-label={t("editNamed", { name: house.name })} className={`${secondary} mt-1 self-start py-2`}>{t("edit")}</button>}
+      {manage && <button type="button" {...opener("house")} aria-label={t("editNamed", { name: house.name })} className={`${secondary} mt-1 self-start py-2 lg:mt-0 lg:self-center`}>{t("edit")}</button>}
     </li>
   );
 }

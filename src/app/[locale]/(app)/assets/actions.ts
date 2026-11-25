@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { parseCentimes } from "@/lib/kernel/money";
 import { createFixedAsset, disposeFixedAsset, payFixedAsset, updateFixedAsset } from "@/modules/finance";
-import { getTenantContext } from "@/modules/identity";
+import { getWriteContext } from "@/modules/identity";
 
 export type AssetState = { ok?: boolean; messageKey?: string };
 
@@ -26,8 +26,8 @@ const months = (form: FormData) => {
 };
 
 async function run(write: (ctx: Parameters<typeof createFixedAsset>[0]) => Promise<{ ok: boolean; error?: string }>, done: string): Promise<AssetState> {
-  const ctx = await getTenantContext(await headers());
-  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const ctx = await getWriteContext(await headers());
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
   const result = await write(ctx.value);
   if (!result.ok) return { messageKey: `errors.${result.error}` };
   refresh();

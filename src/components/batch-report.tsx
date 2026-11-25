@@ -68,7 +68,8 @@ function ReportDocument({ batch, house, report: r }: { batch: BatchDto; house: H
   const tw = useTranslations("Weighing");
   const locale = useLocale();
   const day = (d: string) => formatDay(d as FarmDay, locale);
-  const money = (c: string | null) => (c === null ? "—" : formatMoney(BigInt(c)));
+  const money = (c: string | null) => (c === null ? "—" : <bdi dir="ltr">{formatMoney(BigInt(c))}</bdi>); // "DH" stays after its number in Arabic
+  const kg = (grams: number) => <bdi dir="ltr">{formatKg(grams)}</bdi>;
   const fcr = (x: number | null) => (x === null ? "—" : formatDecimal(x, 2));
   const permille = (p: string | null) => (p === null ? "—" : `${formatPercent(Number(p) / 10)} %`);
   const k = r.kpis;
@@ -87,11 +88,11 @@ function ReportDocument({ batch, house, report: r }: { batch: BatchDto; house: H
           <Figure label={t("age")}>{t("days", { days: k.ageDays })}</Figure>
           <Figure label={t("placed")}>{k.freeChicks > 0 ? t("placedFree", { birds: formatCount(k.placed), free: formatCount(k.freeChicks) }) : formatCount(k.placed)}</Figure>
           <Figure label={t("dead")}>{formatCount(k.dead)} · {formatPercent(k.mortalityPercent)} %</Figure>
-          <Figure label={t("sold")}>{formatCount(k.sold)} · {formatKg(k.soldGrams)}</Figure>
-          <Figure label={t("feed")}>{formatKg(k.feedGrams)}</Figure>
+          <Figure label={t("sold")}>{formatCount(k.sold)} · {kg(k.soldGrams)}</Figure>
+          <Figure label={t("feed")}>{kg(k.feedGrams)}</Figure>
           <Figure label={t("fcr")}>{fcr(k.fcr)}</Figure>
           <Figure label={batch.status === "closed" ? t("weightSold") : t("weight")}>
-            {k.avgWeightGrams === null ? "—" : formatKg(Math.round(k.avgWeightGrams))}
+            {k.avgWeightGrams === null ? "—" : kg(Math.round(k.avgWeightGrams))}
             {r.standard && <span className="block text-sm font-normal">{tw("versusStandard", { gap: formatPercent(r.standard.gapPercent, true), standard: formatKg(r.standard.bodyWeightGrams) })}</span>}
           </Figure>
           <Figure label={t("epef")}>{k.epef === null ? "—" : formatCount(Math.round(k.epef))}</Figure>

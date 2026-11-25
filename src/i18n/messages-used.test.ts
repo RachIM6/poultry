@@ -14,6 +14,7 @@ const SILENT_CODES: Record<string, string> = {
   NOT_LEFT: "src/ops: printed by the operator's pnpm org:delete, never on a screen",
   TOO_SOON: "src/ops: printed by the operator's pnpm org:delete, never on a screen",
   WRONG_NAME: "src/ops: printed by the operator's pnpm org:delete, never on a screen",
+  LAST_OWNER: "src/ops: printed by the operator's pnpm member:delete, never on a screen",
 };
 
 const src = fileURLToPath(new URL("..", import.meta.url));

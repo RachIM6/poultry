@@ -51,7 +51,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
 
   const kg = (l: CountLine) => l.kind === "stock" && l.unit === "kg";
   const unit = (l: CountLine) => (l.kind === "batch" ? t("Count.birdUnit") : l.kind === "eggs" ? t("Count.eggUnit") : t(`Stock.units.${l.unit}`));
-  const quantity = (n: number, l: CountLine) => (kg(l) ? formatKg(n) : `${formatCount(n)} ${unit(l)}`); // as the stock screen
+  const quantity = (n: number, l: CountLine) => <bdi>{kg(l) ? formatKg(n) : `${formatCount(n)} ${unit(l)}`}</bdi>; // as the stock screen; "kg" stays after its number in Arabic
   // The sign stays with its number in Arabic too.
   const gap = (l: CountLine) =>
     l.gap !== null && (

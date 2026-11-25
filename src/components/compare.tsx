@@ -100,7 +100,7 @@ function Compare({ userId, organizationId, role }: Scope) {
               {rows.map(({ b, cells, house }) => (
                 <tr key={b.id} className="border-t border-line">
                   <th scope="row" className="p-2 text-start font-semibold">{house} · {formatDay(b.closedOn as FarmDay, locale)}</th>
-                  {COLUMNS.map((c) => <td key={c} className="p-2">{cells[c]}</td>)}
+                  {COLUMNS.map((c) => <td key={c} className="p-2"><bdi>{cells[c]}</bdi></td>)}
                 </tr>
               ))}
             </tbody>

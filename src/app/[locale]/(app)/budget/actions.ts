@@ -3,14 +3,14 @@
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { saveBudget } from "@/modules/finance";
-import { getTenantContext } from "@/modules/identity";
+import { getWriteContext } from "@/modules/identity";
 
 export type SaveState = { ok?: boolean; messageKey?: string };
 
 // Server actions get Next's Origin check; finance still runs can() and Zod (poultry-auth §2).
 export async function saveBudgetAction(_: SaveState, form: FormData): Promise<SaveState> {
-  const ctx = await getTenantContext(await headers());
-  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const ctx = await getWriteContext(await headers());
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
   const fields = Object.fromEntries(form);
   const saved = await saveBudget(ctx.value, { ...fields, basedOn: fields.basedOn || null, batchId: fields.batchId || null, saleDay: fields.saleDay || null });
   if (!saved.ok) return { messageKey: `errors.${saved.error}` };

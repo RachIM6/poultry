@@ -2,15 +2,42 @@
 
 _Status: **decided defaults (2026-11-24), to review** by the product owner and a lawyer. Amends [ADR-007](decisions/ADR-007-data-protection-and-hosting.md) on one point: deleting an organisation keeps its books for their legal retention period. Nothing here is legal advice._
 
-What an operator does when a farm or one of its members asks for their data, or for its deletion. The tools are operator commands (ADR-006: admin tools that cross tenants are separate and logged). Each run writes an `AuditEvent` on the organisation (`entity` = `Organization`, `action` = `export`, `left`, `rejoined` or `delete`, with the operator's name from `OPERATOR` or the system user).
+What an operator does when a farm or one of its members asks for their data, or for its deletion. The tools are operator commands (ADR-006: admin tools that cross tenants are separate and logged). Every run is audited, with the operator's name from `OPERATOR` or the system user:
+
+- the `org:*` commands write an `AuditEvent` on the organisation (`entity` = `Organization`, `action` = `export`, `left`, `rejoined` or `delete`);
+- the `member:*` commands write an `AuthEvent` (the login log), `action` = `member_export` or `member_delete`, with the masked phone, no user id, and `reason` = `operator:<name>`. A member's request belongs to no single organisation, and it often comes from someone who no longer belongs to any.
 
 | Command | Does |
 |---|---|
 | `pnpm org:export <organizationId> <out.zip>` | One .zip with every table holding the organisation's rows, as `tables/<Table>.json` and `.csv` (`;`, UTF-8 with BOM, like the books export), every stored file as `files/<id>.<ext>`, and `manifest.json`. It never overwrites a file, and it never includes another organisation's rows. |
-| `pnpm org:left <organizationId> [--undo]` | Sets `Organization.leftAt` to now: the organisation has left the platform. `--undo` clears it. |
+| `pnpm org:left <organizationId> [--undo]` | Sets `Organization.leftAt` to now: the organisation has left the platform and is read-only (below). `--undo` clears it and lifts the lock. |
 | `pnpm org:delete <organizationId> --confirm "<name>"` | Refused unless the organisation left 30 days ago or more and `<name>` is its exact name. Then it deletes as the retention table below says, in one transaction, and prints what was deleted and what was kept. |
+| `pnpm member:export <phone> <out.zip>` | One .zip of a member's own data across organisations, laid out like the organisation export (see "A member asks for their data"). The phone is typed as `06…` or `+2126…`. It never overwrites a file. |
+| `pnpm member:delete <phone> --confirm` | Erases a member's personal data across organisations (see "A member asks for deletion"), in one transaction, and prints what was deleted and kept. Refused with `LAST_OWNER` while they are the last owner of an organisation that has not left; it names those organisations. |
 
-The commands run from a checkout of the repository with its dev dependencies installed (esbuild bundles them), with `DATABASE_URL` pointing at the database. The code is in `src/ops/organization-data.ts`.
+The commands run from a checkout of the repository with its dev dependencies installed (esbuild bundles them), with `DATABASE_URL` pointing at the database. The code is in `src/ops/organization-data.ts` and `src/ops/member-data.ts`.
+
+## While an organisation has left (the 30 days)
+
+_Decided default (2026-11-24), to review._ From `pnpm org:left` until `org:delete` (or `--undo`), the organisation is **read-only**:
+
+- **Members can still sign in.** The home screen shows a notice: the organisation left on that day, it is read-only, its data goes 30 days after it left except the books, and the owner asks the platform team for the full export.
+- **Reads keep working:** every screen, the sync pull, the books export (`/api/finance/export`) and the files already stored.
+- **Every write is refused** with `ORGANIZATION_LEFT` (« Cette exploitation a quitté la plateforme… », in French and Arabic):
+  - sync pushes: each mutation is rejected, and the phone lists it with what was typed, like any refused write;
+  - server actions (books, closing, treasury, members, settings…) and file uploads.
+- **No one new joins:** its pending invitations can't be accepted.
+- **Undo:** `pnpm org:left <id> --undo` lifts the lock at once.
+- **The owner's export.** There is no full export in the app; the books export covers the ledger only. The owner asks for the full export, and the operator runs `pnpm org:export`, as below.
+
+How it is enforced:
+
+- `getTenantContext` (identity) puts `leftAt` on the tenant context.
+- The sync push refuses every mutation of such a context (`src/lib/sync/server.ts`).
+- Server actions and the upload route take their context from `getWriteContext`, which refuses it.
+- `can()` is not the place: some reads are gated by the same permissions as writes (the members list, the vault, attendance in the pull), and they must keep working.
+
+Not refused: a member's own settings, which are not the organisation's data (language, quiet hours, push subscriptions). The scheduler's own work goes on too (reminders, postings of what was recorded before).
 
 ## Retention: the decided default
 
@@ -130,27 +157,33 @@ Some data outlives its purpose long before an organisation leaves. A scheduler s
 The member's own data is:
 
 - their `User` row;
-- their `Membership` rows;
-- their `AuthEvent` rows (`userId`);
-- their `PushSubscription` and `NotificationPreference`;
-- in each organisation, the records holding their user id: the columns named `userId`, `…By` or `…ById` (`recordedBy`, `createdBy`, `updatedBy`, `uploadedBy`, `byUserId`, `doneBy`, `invitedById`…).
+- the `Invitation` rows sent to their number;
+- in every table, the rows holding their user id: the uuid columns named `userId`, `…UserId`, `…By` or `…ById`. That covers:
+  - their `Membership` rows, their `AuthEvent` login log, their `PushSubscription` and `NotificationPreference`, their `Notification` inbox;
+  - the `Employee` record linked to them, with their attendance;
+  - in each organisation, the records they entered (`recordedBy`, `createdBy`, `updatedBy`, `uploadedBy`, `byUserId`, `doneBy`, `invitedById`…).
 
-The farm records themselves belong to the organisation. For those, the member asks the owner.
+Never exported: their sessions, accounts and pending codes (`Session`, `Account`, `Verification`). The farm's other records belong to the organisation. For those, the member asks the owner.
 
 How to answer:
 
-1. Find the user by phone: `SELECT id FROM "User" WHERE "phoneNumber" = '+212…'`.
-2. Export the rows listed above as CSV.
-3. Send them to the member's own phone or address. Record the request in the register.
+1. **Check the request** (see "Identity checks" below).
+2. **Export.** Run `pnpm member:export <phone> <file>.zip`. It prints the number of tables and rows. `NOT_FOUND`: no account signs in with that number.
+3. **Hand it over.** Send the file to the member's own phone or address, never as a public link.
+4. **Clean up.** Delete the local copy, and record the request in the register.
 
 ### A member asks for deletion
 
-1. **Remove the member.** The owner removes them in the app (Members screen, `removeMember`), or the operator does it on the owner's word.
-2. **Delete the account, if they belong to no other organisation.** Delete, for that user id:
-   - `PushSubscription`, `NotificationPreference` and `AuthEvent` rows;
-   - `Verification` rows for their phone;
-   - the `User` row (its `Session` and `Account` rows cascade).
-3. **What stays.** Records they entered keep their user id, which now points at nobody. The organisation's `Employee` record about them is the owner's to edit or delete in the app. Its pay figures are supporting documents and stay with the books.
+1. **Check the request.** If they are the last owner of an organisation that has not left, the organisation must first get another owner, or leave (above). Otherwise `member:delete` refuses with `LAST_OWNER` and names it.
+2. **Delete.** Run `pnpm member:delete <phone> --confirm`. In one transaction, it:
+   - deletes their memberships in every organisation, the invitations to their number, and their inbox (`Notification`, and its copies in the sync history);
+   - deletes the account: the `User` row with its `Session` and `Account` rows, `AuthEvent`, `PushSubscription`, `NotificationPreference`, and `Verification` codes for their number.
+3. **What stays.**
+   - **The books' records.** As `org:delete` does: the `Employee` record linked to them, or holding their number, keeps the name, and loses the phone and the user link. Its pay figures are supporting documents. Its copies in the sync history are erased too, but a phone that already holds the record (the owner's or a manager's) keeps the number until the record next changes.
+   - **The audit log** keeps its events. Where a snapshot copied their number (an employee record), the number is masked (`+2126•••••12`).
+   - **The records they entered** keep their user id, which now names nobody.
+   - **Numbers the owner typed** into the farm's own records (a farm's vet, a buyer, a supplier) are the owner's to edit in the app.
+4. **Report back.** Keep the printed summary with the request, and tell the member what was deleted and what was kept.
 
 ## Needs owner
 
@@ -160,6 +193,6 @@ How to answer:
 | **Lawyer's review** | The 9-88 reading above: farmers who are not traders, the starting point of the ten years, and which records count as supporting documents. The retention periods while the organisation is active (12 months of login log, 5 years of farm audit). Two more texts to check:<br>- the tax code's own retention rule (CGI art. 211, ten years per secondary sources, not verified here);<br>- whether law 09-08 sets a deadline to answer a request. |
 | **Health register** | Arrêté n° 2126-05 art. 9 has the keeper hold the register at least 1 year (meat) or 2 years (layers, breeders) after the birds leave (SPEC-m2-compliance CQ5). The deletion assumes the farmer keeps it from the export or the printed ONSSA register made before leaving. To confirm, or the batches' register rows must be kept for that period. |
 | **Backups** | Deleted rows stay in database backups until those rotate. The backup retention must be stated to the owner and in the CNDP file. |
-| **Access after leaving** | Marking an organisation as left does not lock it: members keep using it during the 30 days. Decide whether `leftAt` should make it read-only. |
+| **Access after leaving** | Decided default, to review: read-only during the 30 days (see "While an organisation has left"). Confirm, and whether its scheduled reminders should stop too. |
 | **Identity checks** | How an operator confirms the requester is the owner or the member (a call from the registered number, a signed letter). |
 | **Requests register** | Where requests and answers are recorded, and who keeps it. |

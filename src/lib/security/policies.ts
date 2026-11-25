@@ -40,7 +40,7 @@ export const POLICIES = {
   ],
   syncPush: [{ dim: "user", limit: 120, windowSec: MIN }],
   syncPull: [{ dim: "user", limit: 120, windowSec: MIN }],
-  fileUpload: [{ dim: "user", limit: 30, windowSec: HOUR }], // up to 5 MB each, into the database (ADR-011)
+  fileUpload: [{ dim: "user", limit: 30, windowSec: HOUR }], // up to 4 MiB each, into the database (ADR-011)
 
   // §3 "Authenticated default": session 300 / min (one browser), user 1000 / min (all of a user's devices). A cheap
   // write such as POST /api/notifications/quiet-hours. The costly endpoints below take a fraction of it.
@@ -48,13 +48,13 @@ export const POLICIES = {
     { dim: "session", limit: 300, windowSec: MIN },
     { dim: "user", limit: 1000, windowSec: MIN },
   ],
-  // GET /api/finance/export: builds a whole month's zip (or FEC) in memory, receipts up to 5 MB each. About 1/60 of
+  // GET /api/finance/export: builds a whole month's zip (or FEC) in memory, receipts up to 4 MiB each. About 1/60 of
   // the default: an accountant still pulls a quarter's months back to back, a loop can't stack zips in memory.
   financeExport: [
     { dim: "session", limit: 5, windowSec: MIN },
     { dim: "user", limit: 10, windowSec: MIN },
   ],
-  // GET /api/files/[id]: one stored file (up to 5 MB) read into memory per call. A fifth of the default per session:
+  // GET /api/files/[id]: one stored file (up to 4 MiB) read into memory per call. A fifth of the default per session:
   // one tap per receipt or document, far below that even when going through a month of receipts.
   fileRead: [
     { dim: "session", limit: 60, windowSec: MIN },

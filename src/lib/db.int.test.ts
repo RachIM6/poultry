@@ -43,3 +43,10 @@ describe("errors carry no query values (law 09-08)", () => {
     expect(leaks(e)).toEqual([]);
   });
 });
+
+// Supabase's Data API would serve any table without RLS to the public anon key (migration *_row_level_security).
+test("every table has row level security on, so a new migration can't expose one", async () => {
+  const open = await db.$queryRaw<{ relname: string }[]>`
+    SELECT relname FROM pg_class WHERE relkind = 'r' AND relnamespace = current_schema()::regnamespace AND NOT relrowsecurity`;
+  expect(open.map((t) => t.relname)).toEqual([]);
+});

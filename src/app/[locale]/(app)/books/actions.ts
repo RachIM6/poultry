@@ -5,15 +5,15 @@ import { headers } from "next/headers";
 import { parseCentimes } from "@/lib/kernel/money";
 import { listLegalEntities } from "@/modules/farm-registry";
 import { postManualEntry, reverseEntry, setPeriodLocked } from "@/modules/finance";
-import { getTenantContext } from "@/modules/identity";
+import { getWriteContext } from "@/modules/identity";
 
 export type PostState = { ok?: boolean; messageKey?: string; month?: string };
 
 // Server actions get Next's Origin check; finance still runs can() and Zod (poultry-auth §2). The receipt goes up
 // afterwards through /api/files, never in this body.
 export async function postManualEntryAction(form: FormData): Promise<PostState> {
-  const ctx = await getTenantContext(await headers());
-  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const ctx = await getWriteContext(await headers());
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
   const text = (k: string) => form.getAll(k).map((v) => String(v).trim());
   const [accounts, debits, credits] = [text("account"), text("debit"), text("credit")];
   const lines = [];
@@ -32,8 +32,8 @@ export async function postManualEntryAction(form: FormData): Promise<PostState> 
 
 /** FN5, FCX3: the owner cancels a manual entry ("Annuler l'écriture"); the reversal is the server's. */
 export async function reverseEntryAction(_: PostState, form: FormData): Promise<PostState> {
-  const ctx = await getTenantContext(await headers());
-  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const ctx = await getWriteContext(await headers());
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
   const reversed = await reverseEntry(ctx.value, String(form.get("entryId") ?? ""));
   if (!reversed.ok) return { messageKey: `errors.${reversed.error}` };
   refresh();
@@ -42,8 +42,8 @@ export async function reverseEntryAction(_: PostState, form: FormData): Promise<
 
 /** FN5: the owner locks (`locked` = 1) or unlocks a month of the books. */
 export async function periodLockAction(_: PostState, form: FormData): Promise<PostState> {
-  const ctx = await getTenantContext(await headers());
-  if (!ctx.ok) return { messageKey: "errors.UNAUTHENTICATED" };
+  const ctx = await getWriteContext(await headers());
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
   const [entity] = await listLegalEntities(ctx.value); // ponytail: one legal entity per organisation in M1
   if (!entity) return { messageKey: "errors.NOT_FOUND" };
   const locked = form.get("locked") === "1";

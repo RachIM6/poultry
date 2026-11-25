@@ -2,7 +2,8 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 
 // SPEC-m2-compliance DC2, D4 (ADR-011): what the farm may upload. Proof photos and scanned documents only.
 
-export const MAX_FILE_BYTES = 5 * 1024 * 1024;
+// 4 MiB: under Vercel Functions' 4.5 MB request body cap (docs/deploy-vercel-supabase.md), with room for the headers.
+export const MAX_FILE_BYTES = 4 * 1024 * 1024;
 export const FILE_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"] as const;
 export type FileType = (typeof FILE_TYPES)[number];
 

@@ -10,7 +10,7 @@ import type { MessagePath } from "@/i18n/pick";
 import { can } from "@/lib/permissions";
 import { listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
 import { accountingChoicesOpen, batchResults, catchUpBooks, thresholdTracker, treasuryOverview } from "@/modules/finance";
-import { formatMoney } from "@/lib/format";
+import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf } from "@/lib/kernel/farm-day";
 import type { TenantContext } from "@/lib/tenant";
 import { getTenantContext } from "@/modules/identity";
@@ -57,9 +57,17 @@ async function Content() {
         )
       }
       alert={
-        <Suspense>
-          <Alerts ctx={ctx.value} entity={entity} />
-        </Suspense>
+        <>
+          {/* docs/data-requests.md: a left organisation is read-only until its deletion; the export goes through the operator */}
+          {ctx.value.leftAt && (
+            <p role="status" className="rounded-2xl bg-alert-soft p-4 font-semibold text-alert-fg">
+              {t("Today.left", { day: formatDay(farmDayOf(new Date(ctx.value.leftAt)), lang) })}
+            </p>
+          )}
+          <Suspense>
+            <Alerts ctx={ctx.value} entity={entity} />
+          </Suspense>
+        </>
       }
     />
   );
@@ -86,7 +94,7 @@ async function Money({ ctx }: { ctx: TenantContext }) {
       {cash !== null && (
         <Link href="/treasury" className={row}>
           <span className="text-sm">{t("Today.cash")}</span>
-          <b className="text-lg font-semibold">{formatMoney(cash)}</b>
+          <b dir="ltr" className="text-lg font-semibold">{formatMoney(cash)}</b>
         </Link>
       )}
       {last && last.costPerKgCentimes !== null && (
@@ -95,7 +103,7 @@ async function Money({ ctx }: { ctx: TenantContext }) {
             <span className="text-sm">{t("Today.lastBatch", { house: last.houseName })}</span>
             <span className="text-xs text-sand">{t("Today.margin", { margin: formatMoney(last.marginCentimes) })}</span>
           </span>
-          <b className="text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
+          <b className="whitespace-nowrap text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
         </Link>
       )}
     </MoneyCard>

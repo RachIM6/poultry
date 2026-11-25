@@ -322,7 +322,7 @@ function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps
             >
               <span>
                 {t("Disposal.line", { date: day(d.day), birds: formatCount(d.birds), method: d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`) })}
-                {d.weightGrams !== null && ` · ${formatKg(d.weightGrams)}`}
+                {d.weightGrams !== null && <> · <bdi dir="ltr">{formatKg(d.weightGrams)}</bdi></>}
                 {d.batchId && ` · ${batchLabel(d.batchId) ?? ""}`}
               </span>
             </Editable>

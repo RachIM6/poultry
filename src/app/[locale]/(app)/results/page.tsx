@@ -72,8 +72,17 @@ async function Results() {
                     <div>{kpis(r.comparison)}</div>
                     {r.byBirdDays && <div className="text-muted">{t("Results.byBirdDays")}</div>}
                     <div className="text-muted">
-                      {t("Results.costs", { chicks: money(r.costs.chicks), consumption: money(r.costs.consumption), other: money(r.costs.other), direct: money(r.costs.direct), allocated: money(r.costs.allocated) })}
+                      {t(r.hens ? "Results.costsHens" : "Results.costs", { chicks: money(r.costs.chicks), hens: money(r.costs.hens), consumption: money(r.costs.consumption), other: money(r.costs.other), direct: money(r.costs.direct), allocated: money(r.costs.allocated) })}
                     </div>
+                    {/* §9 "Laying hens in the batch result": the hens are a fixed asset, their price used up over time */}
+                    {r.hens && (
+                      <div className="text-muted">
+                        {r.hens.basis === "depreciation"
+                          ? t("Results.hensDepreciation", { entry: money(r.hens.entry), depreciation: money(r.hens.depreciation), removed: money(r.hens.removed) })
+                          : t(r.hens.basis === "pending" ? "Results.hensPending" : "Results.hensBirdsGone", { entry: money(r.hens.entry), removed: money(r.hens.removed) })}
+                      </div>
+                    )}
+                    {r.costs.transferred !== 0n && <div className="text-muted">{t("Results.transferred", { amount: money(-r.costs.transferred) })}</div>}
                   </td>
                   <Num>{money(r.salesCentimes)}</Num>
                   <Num>{money(r.costCentimes)}</Num>

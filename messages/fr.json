@@ -833,7 +833,10 @@
     "costPerKgNote": "{cost} engagés · {kg} vifs estimés",
     "costOffline": "En ligne seulement",
     "costNoWeighing": "Après une pesée",
-    "costNone": "Aucun coût encore"
+    "costNone": "Aucun coût encore",
+    "hens_depreciation": "Dont poules : amortissement à ce jour {amount}, pas leur prix d’entrée en une fois.",
+    "hens_birdsGone": "Dont poules : {amount}, le prix d’entrée des seules poules sorties, pas de toutes en une fois.",
+    "hens_pending": "Dont poules : {amount}, le prix d’entrée des seules poules sorties. Saisissez la durée de ponte et la valeur de réforme dans la clôture pour l’amortir."
   },
   "Vaccination": {
     "title": "Vaccinations",
@@ -1101,7 +1104,9 @@
     "reopen": "Rouvrir la bande",
     "reopenWarning": "La bande redevient en cours : vous pourrez corriger ses ventes, ses saisies et ses charges, puis la clôturer de nouveau. Ses résultats seront recalculés.",
     "reopenReason": "Motif de la réouverture",
-    "reopenConfirm": "Rouvrir"
+    "reopenConfirm": "Rouvrir",
+    "hens": "Dont poules : {amount}, leur prix d’entrée utilisé jusqu’à la réforme.",
+    "transferredCost": "Coût d’élevage {amount} transféré à la bande de ponte, qui l’amortit."
   },
   "Expenses": {
     "title": "Dépense rapide",
@@ -1298,7 +1303,12 @@
     "open_": "en cours",
     "closed": "clôturée le {date}",
     "kpis": "Mortalité {lost} · IC {fcr} · aliment {feed}/kg · vendu {price}/kg",
-    "byBirdDays": "Une partie des charges communes est répartie selon les sujets présents par jour : aucune bande n’avait de poids selon la clé choisie sur la période."
+    "byBirdDays": "Une partie des charges communes est répartie selon les sujets présents par jour : aucune bande n’avait de poids selon la clé choisie sur la période.",
+    "costsHens": "Poules {hens} · consommations {consumption} · autres {other} · direct {direct} · réparti (charges communes et salaires) {allocated}",
+    "hensDepreciation": "Poules : prix d’entrée {entry}, un bien qui s’use sur la durée de ponte, pas une charge en une fois. Amortissement à ce jour {depreciation} (durée de ponte et valeur de réforme saisies à la clôture), valeur restante des poules sorties {removed}.",
+    "hensBirdsGone": "Poules : prix d’entrée {entry}, un bien qui sert toute la durée de ponte, pas une charge en une fois. Compté ici : le prix d’entrée des seules poules sorties (mortes, réformées, vendues), {removed}.",
+    "hensPending": "Poules : prix d’entrée {entry}, un bien qui sert toute la durée de ponte, pas une charge en une fois. Compté ici : le prix d’entrée des seules poules sorties (mortes, réformées, vendues), {removed}. Saisissez la durée de ponte et la valeur de réforme dans la clôture pour l’amortir.",
+    "transferred": "Coût d’élevage transféré en ponte : {amount}. La bande de ponte le porte comme prix d’entrée de ses poules."
   },
   "Budget": {
     "forbidden": "Le budget d’une bande est réservé au propriétaire, au gérant et au comptable.",

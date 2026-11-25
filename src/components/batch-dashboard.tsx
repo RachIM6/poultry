@@ -89,6 +89,7 @@ export function BatchDashboard({
           </div>
         ))}
       </dl>
+      {result?.hens && <p className="text-sm text-muted lg:col-span-full">{t(`Kpi.hens_${result.hens.basis}`, { amount: formatMoney(BigInt(result.hens.centimes)) })}</p>}
       <p className="text-sm text-muted lg:col-span-full">{batch.status === "closed" ? t("Kpi.atClosing", { age: String(k.ageDays) }) : w ? t("Kpi.atWeighing", { age: String(w.ageDays) }) : t("Kpi.weighFirst")}</p>
     </section>
   );

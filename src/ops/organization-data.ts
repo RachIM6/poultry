@@ -56,8 +56,12 @@ const THROUGH_PARENT: Record<string, string> = {
 const NOT_ORGANIZATION_DATA = [
   ...["Strain", "StandardCurve", "StandardPoint", "LayingCurve", "LayingPoint", "Product", "EggGrade", "ProtocolTemplate", "LedgerAccount"],
   ...["Session", "Account", "Verification", "RateLimitHit", "CaptchaUse", "AuthEvent", "PushSubscription", "NotificationPreference"],
+  "PasswordReset", // ADR-015: a member's pending reset code (a login secret), deleted with the member
   "_prisma_migrations",
 ];
+
+/** Columns never exported: login secrets kept on an exported table (ADR-015: an invitation's code, as an HMAC). */
+const SECRET_COLUMNS: Record<string, string[]> = { Invitation: ["codeHash"] };
 
 export type Column = { name: string; type: string };
 
@@ -114,10 +118,14 @@ export async function writeZip(out: string, fill: (add: AddEntry) => Promise<voi
   return offset;
 }
 
-/** The rows of `table` matching `where` ($1… = `params`), as `tables/<Table>.json` and `.csv`, bytes columns left out. */
+/**
+ * The rows of `table` matching `where` ($1… = `params`), as `tables/<Table>.json` and `.csv`, bytes columns and
+ * SECRET_COLUMNS left out.
+ */
 export async function addTable(add: AddEntry, table: string, columns: Column[], where: string, params: unknown[]): Promise<number> {
-  const binary = columns.filter((c) => c.type === "bytea").map((c) => `'${c.name}'`);
-  const text = columns.filter((c) => c.type !== "bytea");
+  const left = (c: Column) => c.type === "bytea" || (SECRET_COLUMNS[table] ?? []).includes(c.name);
+  const binary = columns.filter(left).map((c) => `'${c.name}'`);
+  const text = columns.filter((c) => !left(c));
   // Postgres writes both: exact bigints and dates, nothing goes through a JS number. Names come from the catalogue.
   const json = binary.length ? `to_jsonb(t) - ARRAY[${binary.join(", ")}]` : "to_jsonb(t)";
   const rows = await db.$queryRawUnsafe<{ json: string; cells: (string | null)[] }[]>(
@@ -176,12 +184,14 @@ export const DELETION_GRACE_DAYS = 30;
 
 /**
  * Deletes these users with what is theirs alone: pending codes (Better Auth keys them `phone-number-otp-<phone>`, so by
- * suffix), login log, push subscriptions, quiet hours. Their sessions and accounts cascade. Returns their ids.
+ * suffix; reset codes, ADR-015), login log, push subscriptions, quiet hours. Their sessions and accounts cascade.
+ * Returns their ids.
  */
 export async function deleteUsers(tx: Tx, users: { id: string; phoneNumber: string | null }[]): Promise<string[]> {
   const ids = users.map((u) => u.id);
   const phones = users.flatMap((u) => (u.phoneNumber ? [u.phoneNumber] : []));
   if (phones.length) await tx.verification.deleteMany({ where: { OR: phones.map((p) => ({ identifier: { endsWith: p } })) } });
+  await tx.passwordReset.deleteMany({ where: { userId: { in: ids } } });
   await tx.authEvent.deleteMany({ where: { userId: { in: ids } } });
   await tx.pushSubscription.deleteMany({ where: { userId: { in: ids } } });
   await tx.notificationPreference.deleteMany({ where: { userId: { in: ids } } });
@@ -224,6 +234,8 @@ export async function deleteOrganization(
         scrubbed[table] = await tx.$executeRawUnsafe(`UPDATE "${table}" SET ${set} WHERE "organizationId" = $1::uuid AND (${any})`, organizationId);
       }
 
+      // Pending reset codes an owner gave this organisation's members (ADR-015; they carry no organisation id).
+      deleted.PasswordReset = (await tx.passwordReset.deleteMany({ where: { userId: { in: members }, issuedById: { in: members } } })).count;
       // Members of no other organisation: the person goes, with what is theirs alone. Sessions and accounts cascade.
       const gone = await tx.user.findMany({ where: { id: { in: members }, memberships: { none: {} } }, select: { id: true, phoneNumber: true } });
       const ids = await deleteUsers(tx, gone);

@@ -12,7 +12,7 @@ import { getTenantContext } from "@/modules/identity";
 import { BackLink } from "@/components/app-nav";
 import { card, field, table } from "@/components/ui";
 import { Num, Scroll } from "@/components/num";
-import { payCreditExpenseAction, payPlacementAction, recordAssociateAction } from "./actions";
+import { payCreditExpenseAction, payPlacementAction, recordAssociateAction, setDefaultTreasuryAction } from "./actions";
 import { TreasuryForm } from "./pay-form";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
@@ -59,6 +59,8 @@ async function Treasury() {
   const { accounts, unassignedCentimes, movements } = overview.value;
   const nameOf = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? t(id === null ? "Treasury.untagged" : "Treasury.unknown");
   const total = accounts.reduce((s, a) => s + a.balanceCentimes, unassignedCentimes); // the forecast's start
+  // §9 "Default cash box and bank account": shown, and changed, only where there is a choice (two of a kind or more)
+  const choice = (kind: string) => accounts.filter((a) => a.kind === kind).length > 1;
   const label = (text: string, input: ReactNode) => (
     <label className="flex flex-col gap-1">
       {text}
@@ -98,9 +100,19 @@ async function Treasury() {
       <h1 className="text-2xl font-semibold">{t("Treasury.title")}</h1>
       <ul className="flex flex-col gap-2" aria-label={t("Treasury.balances")}>
         {accounts.map((a) => (
-          <li key={a.id} className="flex justify-between gap-4 rounded-2xl border border-line bg-card p-3">
-            <span>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</span>
-            <span dir="ltr" className="font-semibold tabular-nums">{formatMoney(a.balanceCentimes)}</span>
+          <li key={a.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-card p-3">
+            <div className="flex justify-between gap-4">
+              <span>
+                {t(`Expenses.kinds.${a.kind}`)} · {a.name}
+                {a.isDefault && choice(a.kind) && <span className="ms-2 text-sm text-ink-2">({t("Treasury.default")})</span>}
+              </span>
+              <span dir="ltr" className="font-semibold tabular-nums">{formatMoney(a.balanceCentimes)}</span>
+            </div>
+            {canPay && !a.isDefault && choice(a.kind) && (
+              <TreasuryForm action={setDefaultTreasuryAction} submit={t("Treasury.makeDefault")} submitLabel={t("Treasury.makeDefaultOf", { name: a.name })}>
+                <input type="hidden" name="treasuryId" value={a.id} />
+              </TreasuryForm>
+            )}
           </li>
         ))}
         {unassignedCentimes !== 0n && (
@@ -114,6 +126,7 @@ async function Treasury() {
           <span dir="ltr" className="tabular-nums">{formatMoney(total)}</span>
         </li>
       </ul>
+      {(choice("cash") || choice("bank")) && <p className="text-sm text-ink-2">{t("Treasury.defaultHint")}</p>}
       {/* F-Effects: the next weeks' cash, from today's cash and bank and what falls due */}
       <section className="flex flex-col gap-2" aria-labelledby="schedule">
         <h2 id="schedule" className="text-[17px] font-semibold text-ink-2">{t("Treasury.schedule")}</h2>

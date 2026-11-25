@@ -1,5 +1,5 @@
 import { v7 as uuidv7 } from "uuid";
-import type { z } from "zod";
+import { z } from "zod";
 import { audit } from "@/lib/audit";
 import { db, type Tx } from "@/lib/db";
 import { systemClock, type Clock } from "@/lib/kernel/clock";
@@ -29,7 +29,7 @@ import { batchOf } from "@/modules/finance/domain/export";
 import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
 import { inChart, type Posting } from "@/modules/finance/domain/posting";
 import { bankOnly, expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
-import { firstPostedAt, lastSourceVersion, ledgerAccounts, lockedMonths, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
+import { defaultTreasuryAccounts, firstPostedAt, lastSourceVersion, ledgerAccounts, lockedMonths, standingEntryFor } from "@/modules/finance/infrastructure/ledger";
 import type { CancelExpense, CreateTreasuryAccount, ExpenseDto, RecordExpense, RecordTransfer, TransferDto, TreasuryAccountDto } from "@/modules/finance/schema";
 
 type Meta = { mutationId: string; deviceCreatedAt: Date };
@@ -45,6 +45,26 @@ export async function createTreasuryAccount(tx: Tx, ctx: TenantContext, cmd: z.o
   await recordChange(tx, ctx, "treasuryAccount", account.id, account);
   await audit(tx, ctx, { entity: "TreasuryAccount", entityId: account.id, action: "create", after: account, ...meta });
   return ok(undefined);
+}
+
+/**
+ * SPEC-finance §9 "Default cash box and bank account": the owner or a manager picks the cash box or bank account that
+ * takes, from now on, the cash or bank lines naming none (postEntry); the one before stops. Online, audited.
+ */
+export async function setDefaultTreasuryAccount(ctx: TenantContext, id: unknown): Promise<Result<void, "FORBIDDEN" | "NOT_FOUND">> {
+  if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
+  if (!z.uuid().safeParse(id).success) return fail("NOT_FOUND");
+  return db.$transaction(async (tx) => {
+    const account = await tx.treasuryAccount.findFirst({ where: { id: id as string, organizationId: ctx.organizationId } });
+    if (!account) return fail("NOT_FOUND");
+    const kind = { organizationId: ctx.organizationId, kind: account.kind };
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`treasury-default:${ctx.organizationId}:${account.kind}`}, 8))`; // two at once: one after the other
+    const before = await defaultTreasuryAccounts(tx, ctx);
+    await tx.treasuryAccount.updateMany({ where: { ...kind, isDefault: true }, data: { isDefault: false } });
+    await tx.treasuryAccount.update({ where: { id: account.id }, data: { isDefault: true } });
+    await audit(tx, ctx, { entity: "TreasuryAccount", entityId: account.id, action: "setDefault", before: { defaultId: before[account.kind as TreasuryKind] ?? null }, after: { defaultId: account.id } });
+    return ok(undefined);
+  });
 }
 
 const treasuryOf = (tx: Tx, ctx: TenantContext, id: string) =>
@@ -252,9 +272,10 @@ export async function recordTransfer(tx: Tx, ctx: TenantContext, cmd: z.output<t
 }
 
 export type TreasuryOverview = {
-  accounts: { id: string; kind: TreasuryKind; name: string; balanceCentimes: bigint }[];
-  // The cash and bank the farm-event rules post on no account (sale receipts, wages, supplier payments…, FN6): with
-  // the accounts' balances, the forecast's start.
+  // isDefault: takes the cash or bank lines naming no account (§9 "Default cash box and bank account")
+  accounts: { id: string; kind: TreasuryKind; name: string; balanceCentimes: bigint; isDefault: boolean }[];
+  // The cash and bank posted on no account: before a cash box or bank account existed, or before §9's defaults (sale
+  // receipts, wages, supplier payments…, FN6). With the accounts' balances, the forecast's start.
   unassignedCentimes: bigint;
   // counterAccounts: the entry's other lines' accounts, as the cash book shows them (FN16); batch: its house and
   // placement day, as the books show it, or "". receipt: an expense's photo id, null when it has none yet; undefined
@@ -298,8 +319,9 @@ export async function treasuryOverview(ctx: TenantContext, month: string): Promi
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return fail("INVALID_INPUT");
   await catchUpBooks(ctx); // §9
   const org = { organizationId: ctx.organizationId };
-  const [accounts, balance, tags, lines] = await Promise.all([
+  const [accounts, defaults, balance, tags, lines] = await Promise.all([
     db.treasuryAccount.findMany({ where: org, orderBy: { name: "asc" } }),
+    defaultTreasuryAccounts(db, ctx),
     treasuryBalances(ctx),
     entryTags(ctx, month), // the same month: the movements' entries are in it
     db.journalLine.findMany({
@@ -317,7 +339,7 @@ export async function treasuryOverview(ctx: TenantContext, month: string): Promi
   const numbers = [...new Set(lines.flatMap(counters))];
   const labels = new Map((await db.ledgerAccount.findMany({ where: { number: { in: numbers } }, select: { number: true, label: true } })).map((a) => [a.number, a.label]));
   return ok({
-    accounts: accounts.map((x) => ({ id: x.id, kind: x.kind as TreasuryKind, name: x.name, balanceCentimes: balance.get(x.id) ?? 0n })),
+    accounts: accounts.map((x) => ({ id: x.id, kind: x.kind as TreasuryKind, name: x.name, balanceCentimes: balance.get(x.id) ?? 0n, isDefault: defaults[x.kind as TreasuryKind] === x.id })),
     unassignedCentimes: balance.get(null) ?? 0n,
     movements: lines.map((l) => ({
       day: l.entry.day.toISOString().slice(0, 10),

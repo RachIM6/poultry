@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expensePosting, transferPostings } from "@/modules/finance/domain/treasury";
+import { expensePosting, onDefaultTreasury, transferPostings } from "@/modules/finance/domain/treasury";
 
 describe("quick expenses and transfers (SPEC-finance FN6)", () => {
   it("charges each category to its account, against the cash box, the bank or the supplier", () => {
@@ -39,5 +39,18 @@ describe("quick expense VAT (SPEC-finance FN9)", () => {
   it("keeps the whole bill on the charge otherwise", () => {
     expect(expensePosting(bill).lines[0]).toEqual({ account: "612512", debit: 120_000n, credit: 0n });
     expect(expensePosting(bill).lines).toHaveLength(2);
+  });
+});
+
+describe("default cash box and bank account (SPEC-finance §9)", () => {
+  it("puts a 5141 / 5161 line that names no account on the default of its kind, and leaves every other line", () => {
+    const lines = [
+      { account: "5161", debit: 5n, credit: 0n },
+      { account: "5141", debit: 0n, credit: 3n, treasuryId: null },
+      { account: "5141", debit: 0n, credit: 2n, treasuryId: "named" },
+      { account: "3421", debit: 0n, credit: 0n },
+    ];
+    expect(onDefaultTreasury(lines, { cash: "box", bank: "bank" }).map((l) => l.treasuryId)).toEqual(["box", "bank", "named", undefined]);
+    expect(onDefaultTreasury(lines, { cash: "box" }).map((l) => l.treasuryId)).toEqual(["box", null, "named", undefined]); // no bank account yet
   });
 });

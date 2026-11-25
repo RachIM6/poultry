@@ -5,6 +5,9 @@
     "description": "Gestion des élevages avicoles",
     "tagline": "L’élevage avicole, jour après jour."
   },
+  "Demo": {
+    "banner": "Démonstration — données fictives uniquement"
+  },
   "LocaleSwitcher": {
     "label": "Langue",
     "ar": "العربية",

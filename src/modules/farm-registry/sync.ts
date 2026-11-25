@@ -169,6 +169,9 @@ export async function housesOf(tx: Tx, ctx: TenantContext, ids: string[]) {
   return new Map(rows.map((h) => [h.id, h]));
 }
 
+/** For finance (SPEC-finance FC4, FQ19): every house of the caller's organisation, with its farm and m². */
+export const houseAreas = (tx: Tx, ctx: TenantContext) => tx.house.findMany({ where: { organizationId: ctx.organizationId }, select: { id: true, farmId: true, areaM2: true } });
+
 /** For finance's export (SPEC-finance FN18): the names of the caller's organisation's farms and houses, by id. */
 export async function placeNames(tx: Tx, ctx: TenantContext, ids: string[]) {
   const where = { organizationId: ctx.organizationId, id: { in: ids } };

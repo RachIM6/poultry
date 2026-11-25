@@ -7,16 +7,19 @@ import { parseCentimes } from "@/lib/kernel/money";
 import { fail, ok, type Result } from "@/lib/kernel/result";
 import { can } from "@/lib/permissions";
 import type { TenantContext } from "@/lib/tenant";
-import { legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
+import { houseAreas, legalEntityIn, listLegalEntities, type LegalEntityDto } from "@/modules/farm-registry";
 import { eggStockOnDay } from "@/modules/eggs";
 import { batchesForFinance, lastWeighings } from "@/modules/flock";
 import { stockOnDay, stockValueOnDay } from "@/modules/inventory";
 import { lastSales } from "@/modules/sales";
+import { facts } from "@/modules/finance/application/assets";
 import { batchResultsIn } from "@/modules/finance/application/batch-results";
 import { closePosted } from "@/modules/finance/application/count";
 import { hensAtClose } from "@/modules/finance/application/hens";
 import { countDay } from "@/modules/finance/domain/count";
+import type { AssetCategory } from "@/modules/finance/domain/assets";
 import { fiscalYearOf } from "@/modules/finance/domain/entry";
+import { depreciationShares } from "@/modules/finance/domain/production-cost";
 import { batchesAtClose, eggsAtClose, stocksAtClose, yearEndBatches, yearEndProvision, yearEndStock, type BatchAtClose, type EggsAtClose, type StockAtClose } from "@/modules/finance/domain/stocks";
 import type { Posting } from "@/modules/finance/domain/posting";
 
@@ -39,20 +42,23 @@ export async function stockLinesAtClose(tx: Tx, ctx: TenantContext, entity: Lega
 
 /**
  * FC4: each batch open at the end of the last day: birds on hand counted (FC3), else from flock; birds sold up to that
- * day; FN13's cost engaged to that day; its last weighing and the farm's last sale of that type (FQ20) up to that day;
- * and the owner's current value.
+ * day; its production cost engaged to that day (FQ19: FN13's costs of production categories, plus its share of the
+ * fiscal year's depreciation of the production assets of its house and farm); its last weighing and the farm's last
+ * sale of that type (FQ20) up to that day; and the owner's current value.
  */
 export async function batchLinesAtClose(tx: Tx, ctx: TenantContext, entity: LegalEntityDto, day: FarmDay): Promise<BatchAtClose[]> {
   const where = { organizationId: ctx.organizationId, legalEntityId: entity.id, day: date(day), kind: "batch" };
-  const [batches, results, weighings, sales, counted, current] = await Promise.all([
+  const [batches, results, weighings, sales, counted, current, assets, houses] = await Promise.all([
     batchesForFinance(tx, ctx, day),
-    batchResultsIn(tx, ctx, day),
+    batchResultsIn(tx, ctx, day, true),
     lastWeighings(tx, ctx, day),
     lastSales(tx, ctx, day),
     tx.yearEndCount.findMany({ where, select: { subjectId: true, quantity: true } }),
     tx.yearEndValue.findMany({ where, select: { subjectId: true, valueCentimes: true } }),
+    tx.fixedAsset.findMany({ where: { organizationId: ctx.organizationId, legalEntityId: entity.id } }),
+    houseAreas(tx, ctx),
   ]);
-  const engaged = new Map(results.map((r) => [r.id, r.costCentimes]));
+  const costs = new Map(results.map((r) => [r.id, r.costs]));
   const count = new Map(counted.map((c) => [c.subjectId, c.quantity]));
   const typeOf = new Map(batches.map((b) => [b.id, `${b.farmId}:${b.species}`]));
   const last = new Map<string, (typeof sales)[number]>(); // the farm's last sale of each production type
@@ -62,8 +68,14 @@ export async function batchLinesAtClose(tx: Tx, ctx: TenantContext, entity: Lega
     if (key && (!seen || sale.day > seen.day || (sale.day === seen.day && sale.id > seen.id))) last.set(key, sale);
   }
   const open = batches.filter((b) => b.closedOn === null); // as of the day: placed by then, not closed by then
+  const placed = assets.map((a) => ({ ...facts(a), category: a.category as AssetCategory, farmId: a.farmId, houseId: a.houseId }));
+  const depreciation = depreciationShares(placed, houses, open, fiscalYearOf(day, entity.fiscalYearStartMonth), entity.fiscalYearStartMonth);
+  const engaged = (id: string) => {
+    const c = costs.get(id);
+    return { direct: c ? c.chicks + c.consumption + c.other + c.direct : 0n, depreciation: depreciation.get(id) ?? 0n, indirect: c?.allocated ?? 0n };
+  };
   return batchesAtClose(
-    open.map((b) => ({ id: b.id, farmId: b.farmId, houseName: b.houseName, species: b.species, onHand: count.get(b.id) ?? b.onHand, sold: b.sold, engaged: engaged.get(b.id) ?? 0n })),
+    open.map((b) => ({ id: b.id, farmId: b.farmId, houseName: b.houseName, species: b.species, onHand: count.get(b.id) ?? b.onHand, sold: b.sold, costs: engaged(b.id) })),
     weighings,
     last,
     new Map(current.map((c) => [c.subjectId, c.valueCentimes])),

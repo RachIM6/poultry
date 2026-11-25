@@ -162,6 +162,7 @@ const ROWS: Row[] = [
   },
   { name: "saveBudget", gate: "record", kind: "write", run: (c) => finance.saveBudget(c, budget()) },
   { name: "saveYearEndCount", gate: "record", kind: "write", run: (c) => finance.saveYearEndCount(c, { year: 2026, counts: {} }) },
+  { name: "setDefaultTreasuryAccount", gate: "record", kind: "write", ours: true, run: (c, s) => finance.setDefaultTreasuryAccount(c, s.bank) }, // §9 "Default cash box and bank account"
   { name: "payLoanInstallment", gate: "record", kind: "write", ours: true, run: (c, s) => finance.payLoanInstallment(c, { loanId: s.loan, number: 1, day: "2026-03-31" }, clock) },
 
   // finance.manage: the owner (FX2: periods, profile, overrides; FCX1: registers, manual entries, the close)

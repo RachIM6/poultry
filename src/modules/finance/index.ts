@@ -6,7 +6,7 @@ export type { EntryRow } from "./infrastructure/ledger";
 export { CHARTS, type AccountRow, type Chart } from "./schema";
 export { catchUpBooks, postAllPending, postPending } from "./application/posting";
 export { financeSync } from "./sync";
-export { attachExpenseReceipt, cashForecast, treasuryOverview, type TreasuryOverview } from "./application/treasury";
+export { attachExpenseReceipt, cashForecast, setDefaultTreasuryAccount, treasuryOverview, type TreasuryOverview } from "./application/treasury";
 export { payPlacement, placementsToPay, type PlacementPayError, type PlacementToPay } from "./application/placements";
 export { creditExpensesToPay, payCreditExpense, type CreditExpense } from "./application/expense-debts";
 export { associateAccount, recordAssociateMovement, type AssociateMovementError } from "./application/contributions";

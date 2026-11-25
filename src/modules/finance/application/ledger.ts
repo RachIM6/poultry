@@ -9,11 +9,13 @@ import type { TenantContext } from "@/lib/tenant";
 import { z } from "zod";
 import { ALLOCATION_KEYS, BOOKS, booksAllowed, HENS_METHODS, legalEntityIn, legalIds, listLegalEntities, saveAccountingChoices, type LegalEntityDto } from "@/modules/farm-registry";
 import { chartOf } from "@/modules/finance/domain/chart";
-import { CLOSE_KINDS, REVERSED_AT_OPENING, closeAction, closeSource, openingReversalOf, openingSource, reversalSource } from "@/modules/finance/domain/close";
+import { CLOSE_KINDS, OPENING_PREFIX, REVERSED_AT_OPENING, closeAction, closeSource, openingReversalOf, openingSource, reversalSource } from "@/modules/finance/domain/close";
 import { checkEntry, firstOpenMonth, fiscalYearOf, monthOf, openingLines, reversalOf, type EntryError } from "@/modules/finance/domain/entry";
 import type { Posting } from "@/modules/finance/domain/posting";
+import { onDefaultTreasury, treasuryKindOfAccount } from "@/modules/finance/domain/treasury";
 import {
   balancesBetween,
+  defaultTreasuryAccounts,
   entriesBetween,
   entryExists,
   lastSourceVersion,
@@ -43,13 +45,17 @@ const auditLines = (e: EntryRow) => ({
 /**
  * SPEC-finance FN4–FN5: posts one balanced entry into a legal entity's books, in the caller's transaction (T30's
  * posting pipeline calls it with each farm event). The month must be open; the accounts must be in the entity's
- * chart (base + overlays). Audited. An entry already posted for the same `source` is a no-op (FN7).
+ * chart (base + overlays). Audited. An entry already posted for the same `source` is a no-op (FN7). A 5141 / 5161 line
+ * naming no account goes on the default cash box or bank account (§9), but in a reversal, which mirrors its original,
+ * or the à-nouveaux, which name none (FN10).
  */
-export async function postEntry(tx: Tx, ctx: TenantContext, e: EntryRow): Promise<Result<void, PostError>> {
+export async function postEntry(tx: Tx, ctx: TenantContext, row: EntryRow): Promise<Result<void, PostError>> {
   if (!can(ctx, "finance.record")) return fail("FORBIDDEN");
-  const entity = await legalEntityIn(tx, ctx, e.legalEntityId);
+  const entity = await legalEntityIn(tx, ctx, row.legalEntityId);
   if (!entity) return fail("NOT_FOUND");
-  if (e.source && (await sourceAlreadyPosted(tx, ctx, e.source))) return ok(undefined);
+  if (row.source && (await sourceAlreadyPosted(tx, ctx, row.source))) return ok(undefined);
+  const untagged = !row.reversesId && !row.source?.id.startsWith(OPENING_PREFIX) && row.lines.some((l) => !l.treasuryId && treasuryKindOfAccount(l.account));
+  const e = untagged ? { ...row, lines: onDefaultTreasury(row.lines, await defaultTreasuryAccounts(tx, ctx)) } : row;
   if ((await lockedMonths(tx, ctx, e.legalEntityId)).has(monthOf(e.day))) return fail("PERIOD_LOCKED");
   const { base, overlays } = entity.accountingProfile;
   const checked = checkEntry(e.lines, chartOf(await ledgerAccounts(tx), base, overlays));

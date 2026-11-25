@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { parseCentimes } from "@/lib/kernel/money";
 import type { TenantContext } from "@/lib/tenant";
-import { payCreditExpense, payPlacement, recordAssociateMovement } from "@/modules/finance";
+import { payCreditExpense, payPlacement, recordAssociateMovement, setDefaultTreasuryAccount } from "@/modules/finance";
 import { getWriteContext, limitSignedIn } from "@/modules/identity";
 
 export type TreasuryFormState = { ok?: boolean; messageKey?: string };
@@ -37,6 +37,19 @@ export async function payPlacementAction(_: TreasuryFormState, form: FormData): 
 export async function payCreditExpenseAction(_: TreasuryFormState, form: FormData): Promise<TreasuryFormState> {
   const p = await paymentFrom(form);
   return "failed" in p ? p.failed : outcome(await payCreditExpense(p.ctx, { ...p.fields, expenseId: form.get("expenseId") }));
+}
+
+// §9 "Default cash box and bank account": the owner or a manager (finance.record, checked by finance). The page shows
+// the new default once refreshed: no message.
+export async function setDefaultTreasuryAction(_: TreasuryFormState, form: FormData): Promise<TreasuryFormState> {
+  const h = await headers();
+  const ctx = await getWriteContext(h);
+  if (!ctx.ok) return { messageKey: `errors.${ctx.error}` };
+  if (await limitSignedIn("authenticated", h, ctx.value.userId)) return { messageKey: "errors.TOO_MANY_REQUESTS" };
+  const done = await setDefaultTreasuryAccount(ctx.value, form.get("treasuryId"));
+  if (!done.ok) return { messageKey: `errors.${done.error}` };
+  refresh();
+  return { ok: true };
 }
 
 // §9 "Associate contributions": the owner only (finance.manage, checked by finance).

@@ -95,7 +95,7 @@ describe("batches in progress at the close (SPEC-finance FC4, FQ19, FQ20, T109)"
   it("§7.1 C: 144 400,00 at cost, current value 135 660,00, provision 8 740,00; pullets and layers listed, valued by FC6", async () => {
     const preview = await closePreview(owner, 2025, clock);
     if (!preview.ok) throw new Error(preview.error);
-    expect(preview.value.entries.slice(3)).toEqual([
+    expect(preview.value.entries.slice(3, 6)).toEqual([ // batch, hens, provision (the accrued interest comes after: FQ16)
       {
         kind: "batch",
         action: "post",

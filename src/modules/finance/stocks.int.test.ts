@@ -76,7 +76,7 @@ describe("stocks at the close (SPEC-finance FC5, FQ20, T108)", () => {
     expect(await saveYearEndValues(owner, { year: 2026, values: { [ids.feed]: "97 300" } })).toEqual({ ok: true, value: 1 });
     const preview = await closePreview(owner, 2026, clock);
     if (!preview.ok) throw new Error(preview.error);
-    expect(preview.value.entries.slice(2)).toEqual([
+    expect(preview.value.entries.slice(2, 6)).toEqual([ // stock to provision (the accrued interest comes after: FQ16)
       {
         kind: "stock",
         action: "post",

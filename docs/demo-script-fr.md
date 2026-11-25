@@ -4,7 +4,7 @@ Données fictives uniquement (ADR-016). Tout ce qui est affiché est inventé po
 
 ## Avant la séance (la veille)
 
-- Base vide, puis `pnpm db:seed` et `pnpm db:seed:demo` avec `DEMO_PHONE` et `DEMO_PASSWORD` définis. La bande en cours vieillit d'un jour chaque jour : semer la veille.
+- Base vide, puis `pnpm db:seed` et `pnpm db:seed:demo` avec `DEMO_PHONE`, `DEMO_PASSWORD` et le même `BETTER_AUTH_SECRET` que sur Vercel (sinon les codes d'invitation affichés ne fonctionnent pas). La bande en cours vieillit d'un jour chaque jour : semer la veille.
 - Connexion du propriétaire démo : le numéro `DEMO_PHONE` (par défaut `+212600000099`, soit `0600000099`) et le mot de passe `DEMO_PASSWORD`. Sans `DEMO_PASSWORD`, le script imprime un mot de passe généré, une seule fois. Relancer le script avec `DEMO_PASSWORD` change le mot de passe sans toucher aux données.
 - `DEMO_MODE=1` sur le serveur : le bandeau « Démonstration — données fictives uniquement » s'affiche sur chaque page.
 - Le script imprime aussi les codes d'invitation du vétérinaire (`0600000097`) et du comptable (`0600000096`). Les garder pour l'étape 9.

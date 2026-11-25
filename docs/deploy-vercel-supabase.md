@@ -64,7 +64,7 @@ export DATABASE_URL='postgresql://postgres.<ref>:<password>@<pooler host>:5432/p
 
 pnpm exec prisma migrate deploy   # every migration; reads DIRECT_URL (prisma.config.ts)
 pnpm exec prisma db seed          # strains, catalogues, chart of accounts; idempotent
-DEMO_PHONE=+2126XXXXXXXX DEMO_PASSWORD='<10+ characters>' pnpm db:seed:demo   # optional: the demo farm and its owner
+BETTER_AUTH_SECRET='<the value set in Vercel>' DEMO_PHONE=+2126XXXXXXXX DEMO_PASSWORD='<10+ characters>' pnpm db:seed:demo   # optional: the demo farms and their owner; the same secret as Vercel, or the printed invite codes never work
 ```
 
 - Two URLs because the tools read TLS settings differently: Prisma's engine only knows `sslmode=require` (encrypted;

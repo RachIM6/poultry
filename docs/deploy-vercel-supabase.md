@@ -118,6 +118,12 @@ DEMO_PHONE=+2126XXXXXXXX pnpm db:seed:demo   # optional: the demo farm, owned by
    `*.vercel.app` address then fails every write (CSRF compares the browser's `Origin` with `APP_ORIGIN`): use the
    domain only.
 
+### Demo banner (ADR-016)
+
+Set `DEMO_MODE=1` (exactly `1`) in the Production variables **before the build**: the static pages read it at build
+time, so changing it needs a redeploy. Every signed-in page then shows « Démonstration — données fictives uniquement ».
+Keep the function region on `cdg1` (`vercel.json`): Vercel's default is `iad1` (US), which ADR-016 rules out.
+
 ### Previews
 
 Preview deployments (other branches, pull requests) get other addresses, and `APP_ORIGIN` is one exact origin, so a

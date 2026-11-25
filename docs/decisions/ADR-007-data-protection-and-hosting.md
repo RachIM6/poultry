@@ -1,7 +1,7 @@
 # ADR-007: Personal data protection (law 09-08) and hosting location
 
 ## Status
-Proposed. Hosting is **open** (SPEC OQ1). The legal points need validation by a lawyer.
+Proposed. Hosting is **open** (SPEC OQ1). The legal points need validation by a lawyer. The hosting part ("Before the pilot", points 2 and 3) is superseded by [ADR-016](ADR-016-hosting-and-transfers.md) (2026-11-24): synthetic data only on the Vercel + Supabase demo, and the steps before any real data.
 
 ## Date
 2026-10-27

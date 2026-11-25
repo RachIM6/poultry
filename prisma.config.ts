@@ -12,5 +12,7 @@ export default defineConfig({
     seed: "node prisma/seed.ts",
   },
   // Not env(): that throws during `prisma generate` (postinstall) on a fresh clone without .env.
-  datasource: { url: process.env.DATABASE_URL },
+  // DIRECT_URL: migrations through a session connection when DATABASE_URL is a transaction pooler (Supabase's 6543,
+  // docs/deploy-vercel-supabase.md). Unset: DATABASE_URL.
+  datasource: { url: process.env.DIRECT_URL || process.env.DATABASE_URL },
 });

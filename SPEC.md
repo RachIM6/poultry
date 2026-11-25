@@ -255,7 +255,7 @@ These are the testable requirements per module id for M1. They become `SPEC-<id>
 - X3. **Tenant isolation:** no API returns or accepts data from another organisation. Integration tests prove it for every endpoint.
 - X4. Accessibility basics: touch targets ≥ 44 px, WCAG AA contrast, labels on every input, works at 200% zoom.
   - Zoom, decided default, to review: "works at 200% zoom" means WCAG 1.4.10 reflow, no sideways page scroll at 320 CSS px wide (1280 px at 400 %). 200 % of a 412 px phone (206 px) is not required.
-  - `e2e/a11y.spec.ts` checks the targets (a link inside running text is exempt, WCAG 2.5.8), the accessible names and the 320 px reflow on every main screen in `fr` and `ar`; `e2e/no-overflow.spec.ts` checks the 412 px phone width. Contrast is not automated.
+  - `e2e/a11y.spec.ts` checks, on every main screen in `fr` and `ar`: the targets at 412 px and at 320 px (a link inside running text is exempt, WCAG 2.5.8), buttons, links, fields, disclosures and `role="button"` / `"tab"` / `"menuitem"` alike; the accessible names, and a label of its own on each file input; the 320 px reflow; contrast to WCAG 2.2 AA (text 4.5:1, large text 3:1, a field's edge and the focus ring 3:1), computed in the page. It checks again with every `<details>` and every collapsed disclosure button (`aria-expanded="false"`, a destructive one aside) open, so a button that reveals a form carries `aria-expanded`. `e2e/no-overflow.spec.ts` checks the 412 px phone width.
 
 ## 9. Success criteria (M1 done)
 

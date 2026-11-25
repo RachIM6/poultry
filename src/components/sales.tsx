@@ -139,7 +139,7 @@ export function Sales({
       {batch.status !== "open" ? null : adding ? (
         <SaleForm batch={batch} sales={sales} buyers={buyers} treatments={treatments} birdsOnHand={birdsOnHand} seller={seller} write={write} onDone={() => setAdding(false)} />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t(seller ? "Sale.add" : "Sale.addConsumption")}</button>
+        <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={secondary}>{t(seller ? "Sale.add" : "Sale.addConsumption")}</button>
       )}
     </section>
   );

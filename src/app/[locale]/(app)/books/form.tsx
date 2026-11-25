@@ -84,7 +84,7 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
       className="flex flex-col gap-3"
     >
       <input type="hidden" name="id" value={id} />
-      <fieldset key={id} className="flex flex-col gap-3">
+      <fieldset key={id} className="flex min-w-0 flex-col gap-3">
         <label className="flex flex-col gap-1">
           {t("Books.day")}
           <input type="date" name="day" defaultValue={pre?.day ?? today} max={today} required className={field} />

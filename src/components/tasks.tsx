@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { split } from "@/components/layout";
 import { Scoped } from "@/components/scoped";
 import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
@@ -114,92 +115,98 @@ function Tasks(scope: Scope) {
         </div>
       )}
       {!manage && !me && <p className={card}>{t("Tasks.notStaff")}</p>}
-      {shown.length > 0 && (
-        <section aria-label={t("Tasks.progress")} className="flex items-center justify-between rounded-[18px] bg-ink px-4 py-3.5 text-shell">
-          <span className="flex flex-col">
-            <span className="text-[13px] text-sand">{t("Nav.today")}</span>
-            <b className="text-xl font-semibold">{t("Tasks.doneOf", { done: String(doneCount), total: String(shown.length) })}</b>
-          </span>
-          <span className="flex gap-1" aria-hidden="true">
-            {shown.map((x) => <span key={x.key} className={`h-2 w-[18px] rounded-sm ${x.done ? "bg-sand" : "bg-shell/20"}`} />)}
-          </span>
-        </section>
-      )}
-      {message && <p role="status" className={done}>{t(message)}</p>}
-      {shown.length === 0 ? (
-        <p className={card}>{t("Tasks.none")}</p>
-      ) : (
-        <ol aria-label={t("Tasks.today")} className="flex flex-col rounded-[18px] bg-card px-3.5 py-1">
-          {shown.map((task) => {
-            const body = (
-              <>
-                <span className="w-11 shrink-0 text-[13px] text-ink-2">{task.time ?? ""}</span>
-                <span className="flex flex-1 flex-col">
-                  <b className={`text-[15px] font-semibold ${task.done ? "text-ink-2" : ""}`}>{label(task)}</b>
-                  <span className="text-xs text-muted">{why(task)}</span>
-                  {manage && <span className="text-xs text-muted">{t("Tasks.for", { names: names(task.assignees) })}</span>}
-                </span>
-              </>
-            );
-            const mark = `grid size-[34px] shrink-0 place-items-center rounded-full text-sm font-bold ${task.done ? "bg-ink-2 text-shell" : "bg-line"}`;
-            const id = taskDoneId(task.key, today);
-            const tick = { id, farmId: farm.id, key: task.key, day: today };
-            const toggle = () =>
-              task.done
-                ? write({ type: W.untickTask, payload: { id } }, "taskDone", id, null)
-                : write({ type: W.tickTask, payload: tick }, "taskDone", id, { ...tick, byUserId: scope.userId });
-            // WF6: routines and one-off tasks are ticked here; an entry or a vaccine is done by recording it on its batch.
-            const assign = (employeeId: string) => {
-              const a: TaskAssignmentDto = { id: taskAssignmentId(scope.organizationId, task.key, today), farmId: farm.id, key: task.key, day: today, employeeId };
-              return write({ type: W.assignTask, payload: a }, "taskAssignment", a.id, a);
-            };
-            return (
-              <li key={task.key} className="flex flex-col border-t border-line py-1 first:border-t-0">
-                <span className="flex min-h-[62px] items-center gap-3">
-                {tickable(task.key) ? (
+      {/* Wide screens, for those who assign: the day's list, and the tasks to add and the routines beside it.
+          data-assign widens the page (tasks/page.tsx), in CSS: the worker's list stays narrow. */}
+      <div data-assign={manage || undefined} className={manage ? split : "flex flex-col gap-5"}>
+        <div className="flex flex-col gap-5">
+          {shown.length > 0 && (
+            <section aria-label={t("Tasks.progress")} className="flex items-center justify-between rounded-[18px] bg-ink px-4 py-3.5 text-shell">
+              <span className="flex flex-col">
+                <span className="text-[13px] text-sand">{t("Nav.today")}</span>
+                <b className="text-xl font-semibold">{t("Tasks.doneOf", { done: String(doneCount), total: String(shown.length) })}</b>
+              </span>
+              <span className="flex gap-1" aria-hidden="true">
+                {shown.map((x) => <span key={x.key} className={`h-2 w-[18px] rounded-sm ${x.done ? "bg-sand" : "bg-shell/20"}`} />)}
+              </span>
+            </section>
+          )}
+          {message && <p role="status" className={done}>{t(message)}</p>}
+          {shown.length === 0 ? (
+            <p className={card}>{t("Tasks.none")}</p>
+          ) : (
+            <ol aria-label={t("Tasks.today")} className="flex flex-col rounded-[18px] bg-card px-3.5 py-1">
+              {shown.map((task) => {
+                const body = (
                   <>
-                    <span className="flex flex-1 items-center gap-3">{body}</span>
-                    <button type="button" onClick={toggle} aria-pressed={task.done} aria-label={t("Tasks.tick", { task: label(task) })} className={`${mark} min-h-11 min-w-11`}>
-                      {task.done ? "✓" : ""}
-                    </button>
+                    <span className="w-11 shrink-0 text-[13px] text-ink-2">{task.time ?? ""}</span>
+                    <span className="flex flex-1 flex-col">
+                      <b className={`text-[15px] font-semibold ${task.done ? "text-ink-2" : ""}`}>{label(task)}</b>
+                      <span className="text-xs text-muted">{why(task)}</span>
+                      {manage && <span className="text-xs text-muted">{t("Tasks.for", { names: names(task.assignees) })}</span>}
+                    </span>
                   </>
-                ) : (
-                  <Link href={{ pathname: "/batches", hash: task.batchId ?? "" }} className="flex flex-1 items-center gap-3">
-                    {body}
-                    <span className={mark} aria-label={t(task.done ? "Tasks.done" : "Tasks.todo")}>{task.done ? "✓" : ""}</span>
-                  </Link>
-                )}
-                </span>
-                {/* WF7: today's task given to someone else; the list below "Pour" follows. */}
-                {manage && staff.length > 0 && (
-                  <select
-                    aria-label={t("Tasks.assign", { task: label(task) })}
-                    value={task.assignees.length === 1 ? task.assignees[0] : ""}
-                    onChange={(e) => e.target.value && assign(e.target.value)}
-                    className={`${field} mb-2 min-h-11 text-base`}
-                  >
-                    <option value="">{t("Tasks.assignTo")}</option>
-                    {staff.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-                  </select>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      )}
-      <p className="text-[13px] text-ink-2">{t("Tasks.source")}</p>
+                );
+                const mark = `grid size-[34px] shrink-0 place-items-center rounded-full text-sm font-bold ${task.done ? "bg-ink-2 text-shell" : "bg-line"}`;
+                const id = taskDoneId(task.key, today);
+                const tick = { id, farmId: farm.id, key: task.key, day: today };
+                const toggle = () =>
+                  task.done
+                    ? write({ type: W.untickTask, payload: { id } }, "taskDone", id, null)
+                    : write({ type: W.tickTask, payload: tick }, "taskDone", id, { ...tick, byUserId: scope.userId });
+                // WF6: routines and one-off tasks are ticked here; an entry or a vaccine is done by recording it on its batch.
+                const assign = (employeeId: string) => {
+                  const a: TaskAssignmentDto = { id: taskAssignmentId(scope.organizationId, task.key, today), farmId: farm.id, key: task.key, day: today, employeeId };
+                  return write({ type: W.assignTask, payload: a }, "taskAssignment", a.id, a);
+                };
+                return (
+                  <li key={task.key} className="flex flex-col border-t border-line py-1 first:border-t-0">
+                    <span className="flex min-h-[62px] items-center gap-3">
+                    {tickable(task.key) ? (
+                      <>
+                        <span className="flex flex-1 items-center gap-3">{body}</span>
+                        <button type="button" onClick={toggle} aria-pressed={task.done} aria-label={t("Tasks.tick", { task: label(task) })} className={`${mark} min-h-11 min-w-11`}>
+                          {task.done ? "✓" : ""}
+                        </button>
+                      </>
+                    ) : (
+                      <Link href={{ pathname: "/batches", hash: task.batchId ?? "" }} className="flex flex-1 items-center gap-3">
+                        {body}
+                        <span className={mark} aria-label={t(task.done ? "Tasks.done" : "Tasks.todo")}>{task.done ? "✓" : ""}</span>
+                      </Link>
+                    )}
+                    </span>
+                    {/* WF7: today's task given to someone else; the list below "Pour" follows. */}
+                    {manage && staff.length > 0 && (
+                      <select
+                        aria-label={t("Tasks.assign", { task: label(task) })}
+                        value={task.assignees.length === 1 ? task.assignees[0] : ""}
+                        onChange={(e) => e.target.value && assign(e.target.value)}
+                        className={`${field} mb-2 min-h-11 text-base`}
+                      >
+                        <option value="">{t("Tasks.assignTo")}</option>
+                        {staff.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      </select>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          <p className="text-[13px] text-ink-2">{t("Tasks.source")}</p>
+        </div>
 
-      {manage && (
-        <>
-          <OneOffs
-            tasks={of<OneOffTask>("oneOffTask").filter((o) => o.farmId === farm.id && o.day >= today && !o.cancelled)}
-            house={house}
-            onCancel={(o) => write({ type: W.cancelTask, payload: { id: o.id } }, "oneOffTask", o.id, { ...o, cancelled: true })}
-          />
-          <OneOffForm farm={farm} houses={houses} employees={employees} today={today} onSave={(o) => write({ type: W.addTask, payload: o }, "oneOffTask", o.id, o)} />
-          <Routines farm={farm} routines={routines} houses={houses} employees={employees} today={today} house={house} onSave={(r) => write({ type: W.saveRoutine, payload: r }, "routine", r.id, r)} />
-        </>
-      )}
+        {manage && (
+          <div className="flex flex-col gap-5">
+            <OneOffs
+              tasks={of<OneOffTask>("oneOffTask").filter((o) => o.farmId === farm.id && o.day >= today && !o.cancelled)}
+              house={house}
+              onCancel={(o) => write({ type: W.cancelTask, payload: { id: o.id } }, "oneOffTask", o.id, { ...o, cancelled: true })}
+            />
+            <OneOffForm farm={farm} houses={houses} employees={employees} today={today} onSave={(o) => write({ type: W.addTask, payload: o }, "oneOffTask", o.id, o)} />
+            <Routines farm={farm} routines={routines} houses={houses} employees={employees} today={today} house={house} onSave={(r) => write({ type: W.saveRoutine, payload: r }, "routine", r.id, r)} />
+          </div>
+        )}
+      </div>
     </>
   );
 }

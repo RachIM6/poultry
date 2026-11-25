@@ -3,6 +3,7 @@ import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BrandLockup } from "@/components/brand";
+import { BrandPanel } from "@/components/landing";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { PasswordLoginForm } from "@/components/password-login-form";
 import { link } from "@/components/ui";
@@ -19,25 +20,29 @@ export default function Login() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-7 px-6 pb-8 pt-6">
-        <div className="flex justify-end">
-          <LocaleSwitcher />
-        </div>
-        <div className="flex flex-col items-start gap-3.5 pt-6">
-          <BrandLockup large />
-          <p className="text-lg text-ink-2">{t("App.tagline")}</p>
-        </div>
-        <h1 className="sr-only">{t("Login.title")}</h1>
-        <PasswordLoginForm />
-        <nav aria-label={t("Login.otherWays")} className="flex flex-col items-start">
-          <Link href="/signup" className={link}>{t("Login.signupLink")}</Link>
-          <Link href="/join" className={link}>{t("Login.joinLink")}</Link>
-          <Link href="/reset" className={link}>{t("Login.resetLink")}</Link>
-          <Suspense>
-            <SmsLink />
-          </Suspense>
-        </nav>
-      </main>
+      <div className="flex flex-1 flex-col lg:grid lg:grid-cols-2">
+        <BrandPanel />
+        <main className="mx-auto flex w-full max-w-sm flex-1 flex-col gap-7 px-6 pb-8 pt-6">
+          <div className="flex justify-end">
+            <LocaleSwitcher />
+          </div>
+          {/* lg+: the brand panel shows them instead, and the title is shown. */}
+          <div className="flex flex-col items-start gap-3.5 pt-6 lg:hidden">
+            <BrandLockup large />
+            <p className="text-lg text-ink-2">{t("App.tagline")}</p>
+          </div>
+          <h1 className="sr-only lg:not-sr-only lg:pt-16 lg:text-[28px] lg:font-semibold lg:leading-tight">{t("Login.title")}</h1>
+          <PasswordLoginForm />
+          <nav aria-label={t("Login.otherWays")} className="flex flex-col items-start">
+            <Link href="/signup" className={link}>{t("Login.signupLink")}</Link>
+            <Link href="/join" className={link}>{t("Login.joinLink")}</Link>
+            <Link href="/reset" className={link}>{t("Login.resetLink")}</Link>
+            <Suspense>
+              <SmsLink />
+            </Suspense>
+          </nav>
+        </main>
+      </div>
     </ClientMessages>
   );
 }

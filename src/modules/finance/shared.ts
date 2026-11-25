@@ -40,6 +40,8 @@ export type BatchResultDto = {
   costPerKgCentimes: string | null;
   marginPerKgCentimes: string | null;
   marginPermille: string | null;
+  hens: { basis: "depreciation" | "pending" | "birdsGone"; centimes: string } | null; // a laying flock's hens used up (FN13, §9)
+  transferredCentimes: string | null; // a pullet batch's cost handed to its layer batch
 };
 
 export const FINANCE_MUTATIONS = {

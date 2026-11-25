@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FarmDay } from "@/lib/kernel/farm-day";
-import { classicYearEnd, flockYear, hensMethodOf, layPosting, productionCosts, simplifiedProvision, simplifiedValue, simplifiedYearEnd, type LayingFlock } from "@/modules/finance/domain/hens";
+import { classicYearEnd, flockYear, hensConsumed, hensMethodOf, layPosting, productionCosts, simplifiedProvision, simplifiedValue, simplifiedYearEnd, type LayingFlock } from "@/modules/finance/domain/hens";
 import { postingOf } from "@/modules/finance/domain/posting";
 
 // SPEC-finance FC6 (T114, T115): the laying hens' rules, pure.
@@ -87,6 +87,35 @@ describe("laying hens, classic method (FC6, T115)", () => {
     expect(postingOf(sale, false, false)!.lines[1].account).toBe("712121");
     expect(postingOf({ ...sale, kind: "eggs" }, false, true)!.lines[1].account).toBe("71213");
     expect(postingOf({ type: "lay", id: "lay:b", day: d("2026-06-01"), amount: 100n, capitalised: 0n }, false, false)).toBeNull();
+  });
+});
+
+describe("laying hens in the batch result (FN13, §7.1 H)", () => {
+  // 5 000 point-of-lay hens at 55,00 (275 000,00) placed on 4 November 2026; life 14 months, cull value 100 000,00
+  const hens = { entry: 27_500_000n, entryDay: d("2026-11-04"), started: 5000, onHand: 5000, out: [], sold: [], closedOn: null };
+  const schedule = { lifeMonths: 14, cullValue: 10_000_000n };
+
+  it("carries the depreciation to date, never the whole price: (275 000 − 100 000) × 1 ÷ 14 = 12 500,00 in November", () => {
+    expect(hensConsumed(hens, schedule, d("2026-11-25"))).toEqual({ depreciation: 1_250_000n, removed: 0n });
+  });
+
+  it("without a schedule, the entry value of the birds gone: 275 000 × 25 ÷ 5 000 = 1 375,00", () => {
+    const dead = { ...hens, onHand: 4975, out: [{ day: "2026-11-20", birds: 25 }] };
+    expect(hensConsumed(dead, null, d("2026-11-25"))).toEqual({ depreciation: 0n, removed: 137_500n });
+    expect(hensConsumed({ ...hens, entry: 0n }, null, d("2026-11-25"))).toEqual({ depreciation: 0n, removed: 0n }); // free hens
+  });
+
+  it("a cull of 1 000 on 10 March 2027: 4 months on all, the sold fifth's book value, then March on the rest", () => {
+    const culled = { ...hens, onHand: 4000, out: [{ day: "2027-03-10", birds: 1000 }], sold: [{ day: "2027-03-10", birds: 1000 }] };
+    // 175 000 × 4 ÷ 14 = 50 000; a fifth leaves: 55 000 − 10 000 = 45 000; (220 000 − 80 000 − 40 000) × 1 ÷ 10 = 10 000
+    expect(hensConsumed(culled, schedule, d("2027-03-31"))).toEqual({ depreciation: 6_000_000n, removed: 4_500_000n });
+  });
+
+  it("a closed flock has used up its whole entry value, with a schedule or without", () => {
+    const closed = { ...hens, onHand: 0, out: [{ day: "2027-06-15", birds: 5000 }], sold: [{ day: "2027-06-15", birds: 5000 }], closedOn: "2027-06-15" };
+    const used = hensConsumed(closed, schedule, d("2027-06-15"));
+    expect(used.depreciation + used.removed).toBe(27_500_000n);
+    expect(hensConsumed(closed, null, d("2027-06-15"))).toEqual({ depreciation: 0n, removed: 27_500_000n });
   });
 });
 

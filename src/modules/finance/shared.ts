@@ -6,6 +6,7 @@ export { breakEvenPrice, budgetOf } from "./domain/budget.ts";
 export type { Budget, BudgetInputs } from "./domain/budget.ts";
 export { budgetCash, plainTiming } from "./domain/budget-cash.ts";
 export type { BudgetCash, CashTiming, CashWeek } from "./domain/budget-cash.ts";
+export type { PaymentDelays } from "./domain/payment-delay.ts";
 export { CSV_DATE_FORMATS, CSV_SEPARATORS } from "./domain/bank-import.ts";
 export type { CsvMapping } from "./domain/bank-import.ts";
 

@@ -1,5 +1,6 @@
 // SPEC-finance FN15, §9 "Budget cash need". Pure and Zod-free: /budget recomputes it on every keystroke.
 import { budgetOf, mulDiv, type BudgetInputs } from "./budget.ts";
+import { NO_DELAY, shifted, type PaymentDelays } from "./payment-delay.ts";
 
 type Weights = [day: number, weight: bigint][]; // day: days since placement (0 = placement day); weights are relative
 
@@ -50,33 +51,38 @@ function spread(total: bigint, weights: Weights, fallback: Weights, lastDay: num
 
 /**
  * FN15: the budget's cash, week by week from placement (week 1 = placement day and the 6 days after): the chicks
- * (placement day), the feed, the other costs and the sales spread by `timing`. Each outflow is paid on its day: the app
- * records no supplier credit terms (§9).
+ * (placement day), the feed, the other costs and the sales spread by `timing`. The chicks and the feed are paid
+ * `delays` days after they happen (§9: the farm's own supplier terms, or the owner's), each payment in the week its day
+ * falls in, so the weeks run on past the sale when a payment does; the other costs are paid on their day.
  */
-export function budgetCash(i: BudgetInputs, timing: CashTiming): BudgetCash {
+export function budgetCash(i: BudgetInputs, timing: CashTiming, delays: PaymentDelays = NO_DELAY): BudgetCash {
   const last = Math.max(0, timing.lastDay);
   const plain = plainTiming(last);
-  const out = Array.from({ length: last + 1 }, () => 0n);
-  const inflow = Array.from({ length: last + 1 }, () => 0n);
+  const zeros = () => Array.from({ length: last + 1 }, () => 0n);
+  const [chicks, feed, other, inflow] = [zeros(), zeros(), zeros(), zeros()];
   const b = budgetOf(i);
-  out[0] += i.chicks * i.chickPriceCentimes;
-  spread(b.feedCostCentimes, timing.feed, plain.feed, last, out);
-  spread(i.otherCostCentimes, timing.other, plain.other, last, out);
+  chicks[0] = i.chicks * i.chickPriceCentimes;
+  spread(b.feedCostCentimes, timing.feed, plain.feed, last, feed);
+  spread(i.otherCostCentimes, timing.other, plain.other, last, other);
   spread(b.plannedSalesCentimes, timing.sales, plain.sales, last, inflow);
+  const outflows = [shifted(chicks, delays.chicks), shifted(feed, delays.feed), other];
+  const end = Math.max(last, ...outflows.map((o) => o.findLastIndex((x) => x !== 0n))); // to the last payment
 
   const weeks: CashWeek[] = [];
   let cash = 0n;
   let low = 0n;
   let peakWeek: number | null = null;
-  for (let d = 0; d <= last; d++) {
+  for (let d = 0; d <= end; d++) {
     const week = Math.floor(d / 7) + 1;
     if (week > weeks.length) weeks.push({ week, outCentimes: 0n, inCentimes: 0n, cumulativeCentimes: 0n });
     const w = weeks[week - 1];
-    cash -= out[d];
+    const out = outflows.reduce((s, o) => s + (o[d] ?? 0n), 0n);
+    const into = inflow[d] ?? 0n;
+    cash -= out;
     if (cash < low) [low, peakWeek] = [cash, week];
-    cash += inflow[d];
-    w.outCentimes += out[d];
-    w.inCentimes += inflow[d];
+    cash += into;
+    w.outCentimes += out;
+    w.inCentimes += into;
     w.cumulativeCentimes = cash;
   }
   return { weeks, peakNeedCentimes: -low, peakWeek };

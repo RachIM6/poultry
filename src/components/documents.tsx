@@ -2,9 +2,10 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Field, FileUpload, Shell, of, useOnline, type Screen } from "@/components/local-screen";
+import { row, rowHead, rowTable, splitAside, splitNarrow } from "@/components/layout";
 import { card, danger, field, primary, secondary } from "@/components/ui";
 import { formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -46,55 +47,83 @@ function Vault({ records, save, db }: Parameters<Screen>[0]) {
     if (Object.keys(changes).length === 0 || (await save({ type: D.updateDocument, payload: { id: d.id, changes } }, "document", { ...before, ...changes }))) setEditing(null);
   };
 
+  // What the table's header already says is for screen readers only from lg (`<l>` in the message).
+  const label = (chunks: ReactNode) => <span className="lg:sr-only">{chunks}</span>;
   return (
-    <>
-      {adding ? (
-        <DocumentForm
-          farms={farms}
-          onCancel={() => setAdding(false)}
-          onSave={async (d) => {
-            // fileId is null here and dropped by the schema: the scan is attached online, later
-            if (await save({ type: D.createDocument, payload: d }, "document", d)) setAdding(false);
-          }}
-        />
-      ) : (
-        <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={secondary}>{t("add")}</button>
-      )}
-      {error && <p role="alert" className={danger}>{tr(error)}</p>}
-      {docs.length === 0 ? (
-        <p>{t("none")}</p>
-      ) : (
-        <ul className="flex flex-col gap-2" aria-label={t("list")}>
-          {docs.map((d) => {
-            const state = documentState(d.expiresOn, today);
-            if (editing === d.id) return <li key={d.id}><DocumentForm doc={d} farms={farms} onCancel={() => setEditing(null)} onSave={(changed) => update(changed, d)} /></li>;
-            return (
-              <li key={d.id} className={card}>
-                <div className="flex items-start justify-between gap-2">
-                  <span className="flex flex-col">
-                    <span className="font-semibold">{d.title}</span>
-                    <span className="text-sm text-muted">
-                      {t(`categories.${d.category}`)} · {farms.find((f) => f.id === d.farmId)?.name ?? t("wholeOrganization")}
+    // Wide screens: the vault as a table, the add form beside it (first on the phone, as it was).
+    <div className={splitNarrow}>
+      <div className={`lg:order-last ${splitAside}`}>
+        {adding ? (
+          <DocumentForm
+            farms={farms}
+            onCancel={() => setAdding(false)}
+            onSave={async (d) => {
+              // fileId is null here and dropped by the schema: the scan is attached online, later
+              if (await save({ type: D.createDocument, payload: d }, "document", d)) setAdding(false);
+            }}
+          />
+        ) : (
+          <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={`${secondary} w-full`}>{t("add")}</button>
+        )}
+      </div>
+      <div className="flex flex-col gap-5">
+        {error && <p role="alert" className={danger}>{tr(error)}</p>}
+        {docs.length === 0 ? (
+          <p>{t("none")}</p>
+        ) : (
+          <ul className={`${rowTable} lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]`} aria-label={t("list")}>
+            <li aria-hidden="true" className={rowHead}>
+              <span>{t("colDocument")}</span>
+              <span>{t("category")}</span>
+              <span>{t("farm")}</span>
+              <span>{t("colExpires")}</span>
+              <span>{t("colState")}</span>
+            </li>
+            {docs.map((d) => {
+              const state = documentState(d.expiresOn, today);
+              if (editing === d.id) {
+                return (
+                  <li key={d.id} className="lg:col-span-full lg:border-t lg:border-line lg:p-4">
+                    <div className="lg:max-w-xl">
+                      <DocumentForm doc={d} farms={farms} onCancel={() => setEditing(null)} onSave={(changed) => update(changed, d)} />
+                    </div>
+                  </li>
+                );
+              }
+              // The phone's card, its parts in the table's columns from lg (`lg:contents` and `lg:order-*`).
+              return (
+                <li key={d.id} className={row}>
+                  <div className="flex items-start justify-between gap-2 lg:contents">
+                    <span className="flex flex-col lg:contents">
+                      <span className="font-semibold lg:order-1">{d.title}</span>
+                      <span className="text-sm text-muted lg:contents">
+                        <span className="lg:order-2">{t(`categories.${d.category}`)}</span>
+                        <span className="lg:hidden"> · </span>
+                        <span className="lg:order-3">{farms.find((f) => f.id === d.farmId)?.name ?? t("wholeOrganization")}</span>
+                      </span>
                     </span>
-                  </span>
-                  <span className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap ${STATE_STYLE[state]}`}>{t(`states.${state}`)}</span>
-                </div>
-                {d.expiresOn && <span>{t("expiresOn", { date: day(d.expiresOn) })}</span>}
-                {d.notes && <span className="text-sm text-ink-2">{d.notes}</span>}
-                {d.fileId ? (
-                  <a href={`/api/files/${d.fileId}`} className="underline underline-offset-4">{t("file")}</a>
-                ) : unsent.has(`document:${d.id}`) || !online ? (
-                  <span className="text-sm text-muted">{t("fileLater")}</span>
-                ) : (
-                  <FileUpload url={`/api/files?purpose=document&document=${d.id}`} accept="application/pdf,image/jpeg,image/png,image/webp" label={t("fileAdd")} onError={setError} />
-                )}
-                <button type="button" aria-expanded={false} onClick={() => setEditing(d.id)} className={`${secondary} self-start`}>{t("edit", { title: d.title })}</button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </>
+                    <span className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap lg:order-5 lg:justify-self-start ${STATE_STYLE[state]}`}>{t(`states.${state}`)}</span>
+                  </div>
+                  {d.expiresOn ? <span className="lg:order-4 lg:whitespace-nowrap">{t.rich("expiresOn", { date: day(d.expiresOn), l: label })}</span> : <span className="hidden lg:order-4 lg:block" />}
+                  {d.notes && <span className="text-sm text-ink-2 lg:order-6 lg:col-span-full">{d.notes}</span>}
+                  {/* Wide screens: the file and the edit button on the row's second line. */}
+                  <div className="contents lg:order-7 lg:col-span-full lg:flex lg:flex-wrap lg:items-center lg:gap-x-4 lg:gap-y-2">
+                    {d.fileId ? (
+                      <a href={`/api/files/${d.fileId}`} className="underline underline-offset-4">{t("file")}</a>
+                    ) : unsent.has(`document:${d.id}`) || !online ? (
+                      <span className="text-sm text-muted">{t("fileLater")}</span>
+                    ) : (
+                      <FileUpload url={`/api/files?purpose=document&document=${d.id}`} accept="application/pdf,image/jpeg,image/png,image/webp" label={t("fileAdd")} onError={setError} />
+                    )}
+                    <button type="button" aria-expanded={false} onClick={() => setEditing(d.id)} className={`${secondary} self-start lg:self-auto`}>{t("edit", { title: d.title })}</button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 

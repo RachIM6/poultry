@@ -2730,7 +2730,7 @@
     "wholeOrganization": "Toute l’exploitation",
     "issuedOn": "Date de délivrance (facultatif)",
     "expiresOnField": "Date d’échéance (facultatif)",
-    "expiresOn": "Échéance : {date}",
+    "expiresOn": "<l>Échéance : </l>{date}",
     "notes": "Note (facultatif)",
     "save": "Enregistrer le document",
     "cancel": "Annuler",
@@ -2743,7 +2743,10 @@
     "file": "Voir le fichier",
     "fileAdd": "Ajouter le fichier (PDF ou photo)",
     "fileLater": "Fichier à ajouter (après envoi, avec du réseau)",
-    "edit": "Modifier « {title} »"
+    "edit": "Modifier « {title} »",
+    "colDocument": "Document",
+    "colExpires": "Échéance",
+    "colState": "État"
   },
   "Register": {
     "incomplete": "Registre incomplet sur ce téléphone : votre rôle ne reçoit pas toutes ses données.",

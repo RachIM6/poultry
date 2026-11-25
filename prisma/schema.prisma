@@ -1182,7 +1182,7 @@ model LoanInstallment {
 
 // Owner: finance. SPEC-finance FC2 (T106): an investment subsidy, per legal entity, typed online by the owner. Default
 // FQ17: posted when received (finance, subsidy:<id>:receipt, 1), D 5141 / C 1311; released by the close run's subsidy
-// kind (T103) to 7577 through 1319, at the depreciation rate of the assets it finances.
+// kind (T103) to 7577 through 1319, at the depreciation rate of the assets it finances and over its land's inalienable years.
 model Subsidy {
   id             String         @id @db.Uuid
   organizationId String         @db.Uuid
@@ -1192,6 +1192,7 @@ model Subsidy {
   amountCentimes BigInt // received, on 1311
   receivedOn     DateTime       @db.Date // farm day, the receipt entry's
   treasuryId     String         @db.Uuid // the bank account (FN3) it was paid into: the 5141 line's
+  inalienableYears Int? // FQ17 (PCA p. 75): the years the contract makes its land inalienable; null: no clause, a tenth a year
   createdBy      String         @db.Uuid
   createdAt      DateTime       @default(now()) @db.Timestamptz
   assets         SubsidyAsset[]
@@ -1199,7 +1200,7 @@ model Subsidy {
   @@index([organizationId])
 }
 
-// Owner: finance. FC2: the register's depreciable assets a subsidy finances (one or more, never land: FQ17).
+// Owner: finance. FC2: the register's assets a subsidy finances (one or more, land included: FQ17).
 model SubsidyAsset {
   subsidyId      String     @db.Uuid
   assetId        String     @db.Uuid

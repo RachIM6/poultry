@@ -188,4 +188,5 @@ export const SubsidyInput = z.object({
   receivedOn: z.iso.date(),
   treasuryId: z.uuid(),
   assetIds: z.array(z.uuid()).max(50).refine((ids) => new Set(ids).size === ids.length),
+  inalienableYears: z.int32().min(1).max(99).nullable().default(null), // FQ17: its land's, by the contract; null: no clause
 });

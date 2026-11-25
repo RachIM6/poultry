@@ -78,7 +78,7 @@ function Targets(scope: Scope) {
         <p key="all" role="note" className="rounded-2xl bg-chick-soft p-3">{t("Climate.noTargets")}</p>
       ) : null)}
       {can(scope, "climate.manage") &&
-        (adding ? <TargetsForm onSave={save} onCancel={() => setAdding(false)} /> : <button type="button" onClick={() => setAdding(true)} className={primary}>{t("Climate.enterTargets")}</button>)}
+        (adding ? <TargetsForm onSave={save} onCancel={() => setAdding(false)} /> : <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={primary}>{t("Climate.enterTargets")}</button>)}
     </>
   );
 }

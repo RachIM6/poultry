@@ -150,7 +150,7 @@ function Stepper({ name, label, defaultValue, step, decimal = false, big = false
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <label htmlFor={id} className={`flex-1 ${big ? "text-lg font-semibold" : "text-base text-ink-2"}`}>{label}</label>
-      <div className="inline-flex items-center rounded-2xl bg-shell">
+      <div className="inline-flex items-center rounded-2xl border border-muted bg-shell">
         <button type="button" aria-label={t("minus", { step: String(step), label })} onClick={() => bump(-step)} className={button}>−</button>
         <input
           id={id}

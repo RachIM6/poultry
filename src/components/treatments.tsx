@@ -102,7 +102,7 @@ export function Treatments({
           onDone={() => setAdding(false)}
         />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t("add")}</button>
+        <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={secondary}>{t("add")}</button>
       )}
     </section>
   );
@@ -262,7 +262,7 @@ export function VetVisits({ batch, visits, userId, write }: { batch: BatchDto; v
           </div>
         </form>
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t("VetVisit.add")}</button>
+        <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={secondary}>{t("VetVisit.add")}</button>
       )}
     </section>
   );

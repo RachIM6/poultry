@@ -58,7 +58,7 @@ function Vault({ records, save, db }: Parameters<Screen>[0]) {
           }}
         />
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className={secondary}>{t("add")}</button>
+        <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={secondary}>{t("add")}</button>
       )}
       {error && <p role="alert" className={danger}>{tr(error)}</p>}
       {docs.length === 0 ? (
@@ -88,7 +88,7 @@ function Vault({ records, save, db }: Parameters<Screen>[0]) {
                 ) : (
                   <FileUpload url={`/api/files?purpose=document&document=${d.id}`} accept="application/pdf,image/jpeg,image/png,image/webp" label={t("fileAdd")} onError={setError} />
                 )}
-                <button type="button" onClick={() => setEditing(d.id)} className={`${secondary} self-start`}>{t("edit", { title: d.title })}</button>
+                <button type="button" aria-expanded={false} onClick={() => setEditing(d.id)} className={`${secondary} self-start`}>{t("edit", { title: d.title })}</button>
               </li>
             );
           })}

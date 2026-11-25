@@ -4,7 +4,7 @@ export { VISIT_PURPOSES, VISITOR_RECENT_FARM_HOURS, ZONES, visitZone } from "@/m
 export type { VisitPurpose, Zone } from "@/modules/biosecurity/domain/visit";
 export { DISPOSAL_METHODS, MANURE_DESTINATIONS, checkDisposal, checkManure, disposalGaps } from "@/modules/biosecurity/domain/disposal";
 export type { DisposalGap, DisposalMethod, ManureDestination } from "@/modules/biosecurity/domain/disposal";
-export { CLEANOUT_STEPS, checkStep, downtimeDay } from "@/modules/biosecurity/domain/cleanout";
+export { CLEANOUT_STEPS, checkStep, cleanedOutSince, downtimeDay } from "@/modules/biosecurity/domain/cleanout";
 export type { CleanoutStep as CleanoutStepKey } from "@/modules/biosecurity/domain/cleanout";
 import type { CleanoutStep } from "@/modules/biosecurity/domain/cleanout";
 import type { DisposalMethod, ManureDestination } from "@/modules/biosecurity/domain/disposal";

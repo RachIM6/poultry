@@ -143,6 +143,26 @@ describe("reopening a closed batch (SPEC B6)", () => {
     expect(await db.auditEvent.count({ where: { entity: "Batch", entityId: ids.batchA, action: "close" } })).toBe(2);
   });
 
+  it("is refused once its house was cleaned out since it closed (BS4), changing nothing", async () => {
+    const [house, batch] = [uuidv7(), uuidv7()];
+    expect(
+      await statuses(
+        a,
+        m("farm-registry.createHouse", { id: house, farmId: ids.farm, name: "B5", areaM2: 1000, capacity: 10000, type: "closed" }),
+        place(batch, house, "2026-09-25"),
+        m("sales.recordSale", { id: uuidv7(), batchId: batch, buyerId: ids.buyer, day: "2026-11-03", birds: 1000, farmWeightGrams: 2_000_000, buyerWeightGrams: null, pricePerKgCentimes: "1500", paymentMethod: "cash", paidCentimes: "3000000", instrument: null }),
+        m("biosecurity.startCleanout", { id: uuidv7(), houseId: house, afterBatchId: batch, startedOn: "2026-11-04" }),
+      ),
+    ).toEqual(Array(4).fill("applied"));
+    await postPending(a); // freezes it
+    const frozen = () => db.frozenAllocation.count({ where: { batchId: batch } }).then(async (n) => [n, await db.frozenBatch.count({ where: { batchId: batch } })]);
+    const before = [await frozen(), await db.change.count({ where: { organizationId: a.organizationId } })];
+    expect(await statuses(a, reopen(batch))).toEqual(["CLEANOUT_STARTED"]);
+    expect((await db.batch.findUniqueOrThrow({ where: { id: batch } })).status).toBe("closed");
+    expect([await frozen(), await db.change.count({ where: { organizationId: a.organizationId } })]).toEqual(before);
+    expect(await db.auditEvent.count({ where: { entityId: batch, action: { in: ["reopen", "unfreeze"] } } })).toBe(0);
+  });
+
   it("is refused once its house took a newer batch, and for pullets moved to laying", async () => {
     expect(await statuses(a, place(uuidv7(), ids.h1, "2026-11-10"))).toEqual(["applied"]);
     expect(await statuses(a, reopen())).toEqual(["HOUSE_HAS_NEWER_BATCH"]);

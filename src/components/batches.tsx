@@ -159,7 +159,7 @@ function Batches(scope: Scope) {
         <RegisterLinks batchId={shown.id} scope={scope} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <ClosedSummary batch={shown} money={can(scope, "money.read")} />
-        {can(scope, "finance.manage") && <ReopenBatchForm batch={shown} batches={batches} write={write} />}
+        {can(scope, "finance.manage") && <ReopenBatchForm batch={shown} batches={batches} cleanouts={of<CleanoutDto>("cleanout")} write={write} />}
         {!farming ? (
           <p className="text-sm text-ink-2">{t("Batches.noFarming")}</p>
         ) : shown.species === "layer" ? (

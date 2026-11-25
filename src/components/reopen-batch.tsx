@@ -4,11 +4,13 @@ import { useTranslations } from "next-intl";
 import { useId, type FormEvent } from "react";
 import type { Write } from "@/components/daily-entry";
 import { useFieldError, useInline } from "@/components/focus";
+import { cleanedOutSince, type CleanoutDto } from "@/modules/biosecurity/shared";
 import { FLOCK_MUTATIONS as M, checkReopen, type BatchDto } from "@/modules/flock/shared";
 import { danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC B6 "Reopening" on a closed batch's screen, the owner's: a confirmation with a reason. Its own chunk (SPEC §9.3).
-// The phone checks the house as the server; the period lock is the server's (finance), which may still refuse it.
+// The phone checks the house and its clean-outs as the server; the period lock is the server's (finance), which may
+// still refuse it.
 
 /** The batch open again on the phone, as the server reopens it: its closing's figures gone. */
 export function reopenedLocally(batch: BatchDto): BatchDto {
@@ -17,7 +19,7 @@ export function reopenedLocally(batch: BatchDto): BatchDto {
   return open;
 }
 
-export function ReopenBatchForm({ batch, batches, write }: { batch: BatchDto; batches: BatchDto[]; write: Write }) {
+export function ReopenBatchForm({ batch, batches, cleanouts, write }: { batch: BatchDto; batches: BatchDto[]; cleanouts: CleanoutDto[]; write: Write }) {
   const t = useTranslations();
   const reasonId = useId();
   const { open, opener, close } = useInline<"reopen">();
@@ -30,6 +32,7 @@ export function ReopenBatchForm({ batch, batches, write }: { batch: BatchDto; ba
     if (!reason) return setError("errors.INVALID_INPUT", e.currentTarget, "reason");
     const checked = checkReopen(batch, batches); // as the server
     if (!checked.ok) return setError(`errors.${checked.error}`);
+    if (cleanedOutSince(cleanouts, { ...batch, closedOn: batch.closedOn! })) return setError("errors.CLEANOUT_STARTED"); // BS4
     setError(undefined);
     await write({ type: M.reopenBatch, payload: { batchId: batch.id, reason } }, [{ entity: "batch", id: batch.id, data: reopenedLocally(batch) }]);
   };

@@ -707,6 +707,7 @@
     "DISINFECTANT_REQUIRED": "Indiquez le produit désinfectant.",
     "BATCH_NOT_CLOSED": "La bande de ce bâtiment n’est pas encore clôturée.",
     "BATCH_TRANSFERRED": "Cette bande est passée en ponte : ses poules continuent dans la bande de ponte, elle ne peut pas être rouverte.",
+    "CLEANOUT_STARTED": "Le nettoyage du bâtiment a commencé depuis la clôture de cette bande : elle ne peut plus être rouverte.",
     "HOUSE_HAS_NEWER_BATCH": "Ce bâtiment a reçu une bande après la clôture de celle-ci : elle ne peut plus être rouverte.",
     "YEAR_CLOSED": "Cette bande a été clôturée dans un exercice clôturé : ses comptes ne peuvent plus changer.",
     "CLEANOUT_ALREADY_STARTED": "Le nettoyage après cette bande est déjà commencé.",

@@ -1,13 +1,15 @@
+import { randomBytes } from "node:crypto";
 import { v7 as uuidv7 } from "uuid";
 import { registry } from "@/app/api/sync/registry";
 import { db } from "@/lib/db";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { push } from "@/lib/sync/server";
 import { createOrganization } from "@/modules/farm-registry";
+import { setPassword } from "@/modules/identity";
 
-// `pnpm db:seed:demo` (T26): a demo farm to show the app, owned by DEMO_PHONE (default +212600000099). To log in with
-// that number, set its password with a reset code: `pnpm user:reset <DEMO_PHONE>`, then /reset (ADR-015).
-// Everything goes through the same sync mutations as a phone, so every rule and audit event applies. Run `pnpm db:seed` first (strains, catalogue).
+// `pnpm db:seed:demo` (T26): a demo farm to show the app, owned by DEMO_PHONE (default +212600000099). It signs in
+// with that number and DEMO_PASSWORD, or, without it, a generated password printed once (ADR-015). Run again with
+// DEMO_PASSWORD to change it. Everything goes through the same sync mutations as a phone, so every rule and audit event applies. Run `pnpm db:seed` first (strains, catalogue).
 // The figures are made up to look plausible: DEMO ONLY, never a reference (no breeder curve, no vaccine schedule).
 
 // The production image runs with NODE_ENV=production: a demo farm there is a mistake unless asked for explicitly.
@@ -17,12 +19,24 @@ if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "1"
 }
 
 const phone = process.env.DEMO_PHONE ?? "+212600000099";
-if (await db.user.findUnique({ where: { phoneNumber: phone } })) {
-  console.log(`demo: ${phone} already exists, nothing to do`);
+
+// The demo owner's password (ADR-015): DEMO_PASSWORD, else a generated one, printed once.
+const demoPassword = async (userId: string) => {
+  const password = process.env.DEMO_PASSWORD || randomBytes(9).toString("base64url");
+  const set = await setPassword(userId, password);
+  if (!set.ok) throw new Error(`DEMO_PASSWORD refused: ${set.error}`);
+  console.log(`demo: sign in with ${phone} and ${process.env.DEMO_PASSWORD ? "DEMO_PASSWORD" : `the password ${password}`}`);
+};
+
+const existing = await db.user.findUnique({ where: { phoneNumber: phone } });
+if (existing) {
+  if (process.env.DEMO_PASSWORD) await demoPassword(existing.id);
+  console.log(`demo: ${phone} already exists, no farm added`);
   process.exit(0);
 }
 
 const user = await db.user.create({ data: { phoneNumber: phone, name: "Démo", email: `${phone.slice(1)}@phone.invalid`, locale: "fr" } });
+await demoPassword(user.id);
 const org = await createOrganization(user.id, { name: "Élevage de démonstration", form: "individual", locale: "fr" });
 if (!org.ok) throw new Error(org.error);
 

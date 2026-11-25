@@ -64,7 +64,7 @@ export DATABASE_URL='postgresql://postgres.<ref>:<password>@<pooler host>:5432/p
 
 pnpm exec prisma migrate deploy   # every migration; reads DIRECT_URL (prisma.config.ts)
 pnpm exec prisma db seed          # strains, catalogues, chart of accounts; idempotent
-DEMO_PHONE=+2126XXXXXXXX pnpm db:seed:demo   # optional: the demo farm, owned by that phone
+DEMO_PHONE=+2126XXXXXXXX DEMO_PASSWORD='<10+ characters>' pnpm db:seed:demo   # optional: the demo farm and its owner
 ```
 
 - Two URLs because the tools read TLS settings differently: Prisma's engine only knows `sslmode=require` (encrypted;
@@ -166,8 +166,10 @@ needed (SMS code login stays off, `AUTH_SMS_ENABLED` unset).
   ```
 
   The person enters it on `/reset` with a new password; all their devices are signed out. Close the shell afterwards.
-- **The seeded demo owner** (`DEMO_PHONE`, section 2) has no password: set one the same way, `pnpm user:reset
-  <DEMO_PHONE>`, then `/reset`.
+- **The seeded demo owner** (`DEMO_PHONE`, section 2) signs in at `/fr/login` with that phone and `DEMO_PASSWORD`.
+  Without `DEMO_PASSWORD` the seed generates a password and prints it once (`demo: sign in with … and the password …`).
+  Run the seed again with `DEMO_PASSWORD` to change it (the farm isn't added twice), or use `pnpm user:reset
+  <DEMO_PHONE>` and `/reset`.
 
 ## 6. Backups
 

@@ -245,6 +245,20 @@ export async function resetPassword(
   return ok(session.headers);
 }
 
+/**
+ * Sets a user's password directly (the demo seed's DEMO_PHONE owner, DEMO_PASSWORD). Not for any request path: those
+ * go through sign-up or a reset code. Returns the policy error rather than setting a weak password.
+ */
+export async function setPassword(userId: string, password: string): Promise<Result<void, PasswordError>> {
+  const checked = checkPassword(password);
+  if (!checked.ok) return checked;
+  const hash = await (await auth.$context).password.hash(checked.value);
+  const credential = await db.account.findFirst({ where: { userId, providerId: "credential" } });
+  if (credential) await db.account.update({ where: { id: credential.id }, data: { password: hash } });
+  else await db.account.create({ data: { userId, providerId: "credential", accountId: userId, password: hash } });
+  return ok(undefined);
+}
+
 /** The operator's reset (`pnpm user:reset <phone|email>`): a code for anyone, owners included. Audited. */
 export async function issueResetFor(rawIdentifier: string): Promise<Result<{ code: string }, "INVALID_IDENTIFIER" | "NOT_FOUND">> {
   const id = parseIdentifier(rawIdentifier);

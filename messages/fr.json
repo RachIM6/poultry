@@ -29,7 +29,16 @@
   "Install": {
     "title": "Installer l'application",
     "back": "Retour",
-    "installed": "L'application est déjà installée sur ce téléphone.",
+    "open": "Ouvrir l'application",
+    "others": "Autres appareils",
+    "firefox": "Firefox ne permet pas d'installer une application web sur ordinateur. Ouvrez cette page dans Chrome ou Edge.",
+    "status": {
+      "prompt": "Installez DigiAtlas-VOLAILLE sur cet appareil : elle s'ouvre comme une application, même sans connexion.",
+      "steps": "Suivez les étapes pour votre appareil.",
+      "installed": "L'application est installée sur cet appareil.",
+      "dismissed": "Installation annulée. Vous pourrez la faire plus tard avec les étapes ci-dessous.",
+      "failed": "Le navigateur n'a pas ouvert l'installation. Suivez les étapes ci-dessous."
+    },
     "android": {
       "title": "Android (Chrome)",
       "step1": "Ouvrez le menu ⋮ en haut de Chrome.",
@@ -37,10 +46,16 @@
       "step3": "Confirmez avec « Installer »."
     },
     "ios": {
-      "title": "iPhone (Safari)",
+      "title": "iPhone et iPad (Safari)",
       "step1": "Ouvrez cette page dans Safari.",
       "step2": "Touchez le bouton Partager (carré avec une flèche).",
       "step3": "Touchez « Sur l'écran d'accueil », puis « Ajouter »."
+    },
+    "desktop": {
+      "title": "Ordinateur (Chrome ou Edge)",
+      "step1": "Ouvrez cette page dans Chrome ou Edge.",
+      "step2": "Cliquez sur l'icône d'installation au bout de la barre d'adresse, ou ouvrez le menu puis « Installer DigiAtlas-VOLAILLE ».",
+      "step3": "Confirmez avec « Installer »."
     }
   },
   "Login": {

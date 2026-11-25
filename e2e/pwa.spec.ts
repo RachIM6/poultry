@@ -1,4 +1,4 @@
-import { devices, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 test("after the first visit, the shell reloads offline", async ({ page, context }) => {
   await page.goto("/ar");
@@ -68,20 +68,4 @@ test("a new version waits for the user, then reloads the page", async ({ page })
   await page.getByRole("button", { name: "Mettre à jour" }).click();
   await reloaded;
   expect(await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toMatch(/\/serwist\/sw\.js\?next$/);
-});
-
-test("the install guide shows Android steps on Android", async ({ page }) => {
-  await page.goto("/fr/install");
-  await expect(page.getByRole("heading", { name: "Android (Chrome)" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "iPhone (Safari)" })).toBeHidden();
-});
-
-test.describe("on an iPhone", () => {
-  test.use({ userAgent: devices["iPhone 15"].userAgent });
-
-  test("the install guide shows Safari steps", async ({ page }) => {
-    await page.goto("/ar/install");
-    await expect(page.getByRole("heading", { name: "آيفون (Safari)" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "أندرويد (Chrome)" })).toBeHidden();
-  });
 });

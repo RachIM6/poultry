@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { BackLink } from "@/components/app-nav";
+import { Page } from "@/components/page";
 import { card, field, table, warn } from "@/components/ui";
 import { Num } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
@@ -25,14 +25,9 @@ const MESSAGES: MessagePath[] = ["Loans", "Nav", "Offline", "Subsidies", "Sync.r
 export default function LoansPage() {
   return (
     <ClientMessages paths={MESSAGES}>
-      <header className="px-4 pt-4">
-        <BackLink href="/more" />
-      </header>
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4">
-        <Suspense>
-          <LoansView />
-        </Suspense>
-      </main>
+      <Suspense fallback={<Page width="wide" back="/more" />}>
+        <LoansView />
+      </Suspense>
     </ClientMessages>
   );
 }
@@ -44,7 +39,7 @@ async function LoansView() {
   const [ctx, lang, t] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations()]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const [result, grants] = await Promise.all([loanRegister(ctx.value), subsidyRegister(ctx.value)]);
-  if (!result.ok || !grants.ok) return <p>{t("Loans.forbidden")}</p>;
+  if (!result.ok || !grants.ok) return <Page width="wide" back="/more"><p>{t("Loans.forbidden")}</p></Page>;
   const { books, loans, banks } = result.value;
   const { subsidies, assets } = grants.value;
   const owner = can(ctx.value, "finance.manage");
@@ -54,9 +49,7 @@ async function LoansView() {
   const money = (c: bigint) => <bdi dir="ltr" className="tabular-nums">{formatMoney(c)}</bdi>;
 
   return (
-    <>
-      <h1 className="text-2xl font-semibold">{t("Loans.title")}</h1>
-      <p className="text-sm text-ink-2">{t("Loans.hint")}</p>
+    <Page width="wide" back="/more" title={t("Loans.title")} subtitle={<span className="block max-w-prose">{t("Loans.hint")}</span>}>
       {owner && (
         <details className={card}>
           <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Loans.add")}</summary>
@@ -72,7 +65,7 @@ async function LoansView() {
       {loans.length === 0 ? <p>{t("Loans.none")}</p> : loans.map((l) => <Loan key={l.id} l={l} />)}
 
       <h2 className="text-xl font-semibold">{t("Subsidies.title")}</h2>
-      <p className="text-sm text-ink-2">{t(books === "ledger" ? "Subsidies.hint" : "Subsidies.cashBook")}</p>
+      <p className="max-w-prose text-sm text-ink-2">{t(books === "ledger" ? "Subsidies.hint" : "Subsidies.cashBook")}</p>
       {owner && (
         <details className={card}>
           <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Subsidies.add")}</summary>
@@ -90,7 +83,7 @@ async function LoansView() {
         </details>
       )}
       {subsidies.length === 0 ? <p>{t("Subsidies.none")}</p> : subsidies.map((s) => <Subsidy key={s.id} s={s} />)}
-    </>
+    </Page>
   );
 
   function Subsidy({ s }: { s: SubsidyView }) {

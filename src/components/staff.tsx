@@ -221,7 +221,7 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Attendance.title")}</h2>
       <input type="month" aria-label={t("Attendance.month")} value={month} max={today.slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className={`${field} lg:max-w-xs`} />
       {/* Wide screens: the whole month without scrolling, 31 days of 28 px beside the names. */}
-      <div className="overflow-x-auto rounded-[18px] bg-card">
+      <div className="overflow-x-auto rounded-[18px] bg-card lg:pe-3">
         <table className="text-sm lg:w-full">
           <thead>
             <tr>
@@ -459,7 +459,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
   return (
     <section aria-label={t("Pay.title")} className="flex flex-col gap-3">
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Pay.title")}</h2>
-      <div className="flex gap-2 lg:max-w-xl">
+      <div className="flex gap-2 lg:max-w-md">
         <input type="month" aria-label={t("Attendance.month")} value={month} max={today.slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className={`${field} flex-1`} />
         {farms.length > 1 && (
           <select aria-label={t("Staff.farm")} value={farmId} onChange={(e) => setFarmId(e.target.value)} className={`${field} flex-1`}>

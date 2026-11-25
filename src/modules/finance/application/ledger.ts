@@ -218,10 +218,11 @@ export async function accountingChoicesOpen(ctx: TenantContext, entity: LegalEnt
 
 /**
  * The profile screen: the entity, the books its form allows, whether this fiscal year still lets them change, and the
- * first day of the next one, when they can change again before its first entry.
+ * first day of the next one, when they can change again before its first entry. A read: the accountant and the manager
+ * see it too (SPEC-m5 PA5); only the owner changes it (changeAccountingChoices, saveLegalIds).
  */
 export async function accountingSettings(ctx: TenantContext, clock: Clock = systemClock) {
-  if (!can(ctx, "finance.manage")) return fail("FORBIDDEN");
+  if (!can(ctx, "money.read")) return fail("FORBIDDEN");
   const [entity] = await listLegalEntities(ctx); // ponytail: one legal entity per organisation (see postPending)
   if (!entity) return ok(null);
   // A read: no row lock nor interactive transaction (P2028 under load); the change re-checks under the lock.

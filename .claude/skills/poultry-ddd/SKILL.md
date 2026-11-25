@@ -98,7 +98,7 @@ All three call the module **only through `index.ts`**, or `schema.ts` / `shared.
 - **No public setters.** No `batch.status = 'CLOSED'` from a service.
 - **Expected business failures return `Result`**, for example `fail('HOUSE_HAS_OPEN_BATCH')` or `fail('WITHDRAWAL_IN_PROGRESS')`. Throw only for programming errors.
   - Error codes double as i18n `messageKey`s (`errors.HOUSE_HAS_OPEN_BATCH` in `ar.json` / `fr.json`).
-- **Status changes use a typed transition table** inside the aggregate. Example for a batch: `OPEN → CLOSED`, with no reopen in v1.
+- **Status changes use a typed transition table** inside the aggregate. Example for a batch: `OPEN → CLOSED`, and `CLOSED → OPEN` when the owner reopens it (SPEC B6).
 - **Value objects** for anything with validation or a format: `FarmDay`, `Grams`, `Centimes`, `PhoneNumber` (E.164 +212), `OnssaAuthorizationNumber`, `Lot`, `WithdrawalPeriod`. Immutable, built through `create()` → `Result`, compared by value.
 - **Repository per aggregate root**, with intention-named methods (`findOpenByHouse`, `findWithActiveWithdrawal`), never a generic `findMany(where)`.
 - **Use cases orchestrate:** load → domain method → save + audit in one transaction → return DTO. They contain no business `if`s.

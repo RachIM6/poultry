@@ -2150,7 +2150,8 @@
     "nothingToDo": "لا شيء للإنجاز اليوم.",
     "withdrawalUntil": "مدة الانتظار حتى {date} (ضمنه)",
     "fcrShort": "م.ت.غ",
-    "fcrName": "معامل التحويل الغذائي"
+    "fcrName": "معامل التحويل الغذائي",
+    "entryDoneShort": "تمّ"
   },
   "Staff": {
     "title": "العمال",

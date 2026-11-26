@@ -197,9 +197,10 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
 
   // Wide screens (U18, Main.dc.html): the title over a row of figures, then the batches beside a rail with the tasks
   // and the money, in one centred column (tasks/plan-ui.md "Desktop rules"). The phone: the dark header edge to edge
-  // with the strips, the tasks under it, as before.
+  // with the strips, the tasks under it, as before. The one exception to the 1 152 px column: from 2xl the home grows
+  // to 1 600 px, so the strips use a large screen (U18).
   return (
-    <div className="flex w-full flex-1 flex-col lg:mx-auto lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,1fr)_340px] lg:content-start lg:items-start lg:gap-5 lg:px-4 lg:pb-10 lg:pt-7">
+    <div className="flex w-full flex-1 flex-col lg:mx-auto lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,1fr)_340px] lg:content-start lg:items-start lg:gap-5 lg:px-4 lg:pb-10 lg:pt-7 2xl:max-w-[1600px]">
       <header className="flex flex-col gap-[18px] rounded-b-3xl bg-ink px-5 pb-[22px] pt-5 text-shell print:hidden lg:col-span-full lg:rounded-none lg:bg-transparent lg:p-0 lg:text-ink">
         <div className="flex items-start justify-between gap-3 lg:flex-wrap lg:items-end">
           <div className="flex flex-col gap-0.5">

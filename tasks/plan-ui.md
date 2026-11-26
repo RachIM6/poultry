@@ -96,6 +96,8 @@ Still open after U8: the sidebar's longer owner list on wide screens (role-depen
 
 ### U18: Cockpit home
 - [x] From lg, the home follows the owner's chosen mockup « A · Cockpit » (`Main.dc.html`): a row of figures on top (yesterday's eggs, the live birds, the cash at hand, the tasks left), the open batches as rows (strip on light, status in colour, two or three figures inline) beside a rail with the day's checklist (withdrawals and missing days first, then one « Saisir » per house) and the « Argent » card. Same data as the phone (Dexie), the cash tile streamed in by the server with the money card's read (one `cache`d read). The figures and the order are pure (`components/today-cockpit.ts`, unit-tested); the wide parts are `hidden lg:…` in `components/today-wide.tsx`, the phone's `lg:hidden`, so the phone is unchanged and no hook reads the width. A figure with nothing behind it is left out (no eggs tile without a collection recorded yesterday; no tasks for the accountant; no cash for a worker). (`e2e/wide-screens.spec.ts`, `e2e/production-types.spec.ts`.)
+- [x] Review fixes: the batch rows keep a 220 px name column (one line at 1 440 px, cut with a title beyond), the checklist names the house alone under « Saisies du jour », and the cash shows once on wide screens (the top tile; the « Argent » card drops that line there, and hides when it has nothing else).
+- Exception to the Desktop rules' widths: from 2xl (1 536 px) the home alone grows to 1 600 px instead of the 1 152 px column, so on a 1 920 px screen the batches and their strips use the room. Every other page keeps `Page`'s widths.
 - The new Arabic strings need a native speaker's review.
 
 ### Desktop rules (2026-11-25)

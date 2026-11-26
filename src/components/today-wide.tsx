@@ -100,13 +100,16 @@ export function CockpitBatches({ rows, farming }: { rows: readonly CockpitRow[];
       <ul>
         {rows.map((r) => (
           <li key={r.id} className="border-t border-line">
-            <Link href={{ pathname: "/batches", hash: r.id }} className="flex flex-wrap items-center gap-x-6 gap-y-2 px-1 py-3.5">
-              <span className="flex flex-[1_1_150px] flex-col gap-0.5">
-                <b className="font-semibold"><bdi>{r.house}</bdi></b>
-                <span className="text-[13px] text-ink-2"><bdi>{r.strain}</bdi> · {r.age}</span>
+            {/* A 220 px name column keeps « Bâtiment pondeuses » and « Ross 308 · Jour 24 sur 42 » on one line; the strip
+                takes what is left, the same width on every row (a fixed figures column). Longer names are cut, whole in
+                their title. */}
+            <Link href={{ pathname: "/batches", hash: r.id }} className="grid grid-cols-[220px_minmax(0,1fr)_170px] items-center gap-x-6 px-1 py-3.5">
+              <span className="flex min-w-0 flex-col gap-0.5 whitespace-nowrap">
+                <b title={r.house} className="truncate font-semibold"><bdi>{r.house}</bdi></b>
+                <span title={`${r.strain} · ${r.age}`} className="truncate text-[13px] text-ink-2"><bdi>{r.strain}</bdi> · {r.age}</span>
               </span>
               {farming && (
-                <span className="flex flex-[999_1_260px] flex-col gap-2">
+                <span className="flex min-w-0 flex-col gap-2">
                   <BatchStrip days={r.days} label={r.stripLabel} />
                   <span className="flex flex-wrap gap-x-3.5 gap-y-1 text-[13px]">
                     {r.missingText ? <span className="font-semibold text-brick-fg">{r.missingText}</span> : <span className="text-muted">{t("Today.allEntered")}</span>}
@@ -114,7 +117,7 @@ export function CockpitBatches({ rows, farming }: { rows: readonly CockpitRow[];
                   </span>
                 </span>
               )}
-              <span className="flex flex-[1_1_130px] flex-col items-end gap-0.5 text-end">
+              <span className="flex flex-col items-end gap-0.5 whitespace-nowrap text-end">
                 {farming && <b className="text-[15px] font-semibold">{t("Today.birds", { count: formatCount(r.birds) })}</b>}
                 {r.kpi && <span className="text-[13px] text-ink-2">{r.kpi}</span>}
               </span>
@@ -192,12 +195,13 @@ export function CockpitTasks({ rows, recording, remaining }: { rows: readonly Co
               r.enteredToday ? (
                 <li key={r.id} className="flex min-h-[52px] items-center gap-3 text-olive">
                   <Svg d="M5 12l5 5L20 7" size={18} className="shrink-0" />
-                  <span className="flex-1 text-[15px]">{t("entryDone", { house: r.house })}</span>
+                  <span className="flex-1 text-[15px]"><bdi>{r.house}</bdi></span>
+                  <span className="text-sm font-semibold">{t("entryDoneShort")}</span>
                 </li>
               ) : (
                 <li key={r.id} className="flex min-h-[52px] items-center gap-3">
                   <span aria-hidden="true" className="size-[18px] shrink-0 rounded-full border-2 border-muted" />
-                  <span className="flex-1 text-[15px]">{t("entry", { house: r.house })}</span>
+                  <span className="flex-1 text-[15px]"><bdi>{r.house}</bdi></span>
                   <Link
                     href={{ pathname: "/batches", hash: r.id }}
                     className="inline-flex min-h-11 items-center rounded-xl bg-chick px-3.5 text-sm font-semibold text-ink shadow-[0_2px_0_var(--color-chick-edge)]"

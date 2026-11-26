@@ -168,7 +168,9 @@ test("the wide home: figures on top, the batches beside the checklist, no money 
   await expect(page.getByRole("link", { name: /Saisie du jour · Bâtiment 1/ })).toHaveCount(0); // the phone's card is hidden
   await below(figures, batches);
   await beside(batches, tasks);
-  await below(tasks, page.getByRole("region", { name: "Argent" }));
+  // The cash is the top row's tile, not repeated in « Argent »: with no closed batch either, no card on a wide screen.
+  await expect(page.getByRole("region", { name: "Argent" })).toBeHidden();
+  await expect(tasks.getByRole("list", { name: /^Saisies du jour/ }).getByRole("listitem")).toHaveText([/^Bâtiment 1\s*Saisir/]); // the house alone
   expect(await noSideScroll(page)).toBe(true);
 
   await page.setViewportSize(PHONE); // the phone: as before
@@ -176,6 +178,7 @@ test("the wide home: figures on top, the batches beside the checklist, no money 
   await expect(batches).toBeHidden();
   await expect(page.getByRole("link", { name: /Saisie du jour · Bâtiment 1/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Tâches du jour" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Argent" })).toContainText("Trésorerie disponible"); // no tile on the phone
 
   // A worker: the same tasks, no cash figure, no money card (I5).
   await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);

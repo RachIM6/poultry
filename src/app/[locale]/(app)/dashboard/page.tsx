@@ -83,9 +83,9 @@ async function Content() {
 }
 
 // WebOverview.dc.html "Argent": the cash at hand and the last closed batch, for those who see money (FX2).
-function MoneyCard({ title, busy, children }: { title: string; busy?: boolean; children?: React.ReactNode }) {
+function MoneyCard({ title, busy, wideHidden, children }: { title: string; busy?: boolean; wideHidden?: boolean; children?: React.ReactNode }) {
   return (
-    <section aria-labelledby="money-title" aria-busy={busy} className="flex flex-col rounded-[18px] bg-ink px-5 py-4 text-shell">
+    <section aria-labelledby="money-title" aria-busy={busy} className={`flex flex-col rounded-[18px] bg-ink px-5 py-4 text-shell ${wideHidden ? "lg:hidden" : ""}`}>
       <h2 id="money-title" className="mb-1 text-lg font-semibold">{title}</h2>
       {children}
     </section>
@@ -109,10 +109,13 @@ async function Money({ ctx }: { ctx: TenantContext }) {
   const [t, cash, results] = await Promise.all([getTranslations(), cashAtHand(ctx), batchResults(ctx)]);
   const last = results.ok ? results.value.filter((r) => r.closedOn).sort((a, b) => b.closedOn!.localeCompare(a.closedOn!))[0] : undefined;
   const row = "flex items-baseline justify-between gap-3 border-t border-shell/15 py-2.5 first:border-t-0";
+  const closed = last?.costPerKgCentimes != null;
+  // Wide screens show the cash as the top row's tile (CashFigure, the same read): not twice. With nothing else to show,
+  // no card there; the phone, which has no tile, keeps both.
   return (
-    <MoneyCard title={t("Today.money")}>
+    <MoneyCard title={t("Today.money")} wideHidden={cash !== null && !closed}>
       {cash !== null && (
-        <Link href="/treasury" className={row}>
+        <Link href="/treasury" className={`${row} lg:hidden`}>
           <span className="text-sm">{t("Today.cash")}</span>
           <b dir="ltr" className="text-lg font-semibold">{formatMoney(cash)}</b>
         </Link>

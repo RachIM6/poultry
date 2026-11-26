@@ -2150,7 +2150,8 @@
     "nothingToDo": "Rien à faire aujourd’hui.",
     "withdrawalUntil": "Délai d’attente jusqu’au {date} inclus",
     "fcrShort": "IC",
-    "fcrName": "Indice de consommation"
+    "fcrName": "Indice de consommation",
+    "entryDoneShort": "Faite"
   },
   "Staff": {
     "title": "Personnel",

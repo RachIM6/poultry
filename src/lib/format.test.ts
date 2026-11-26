@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { formatDateTime, formatDay, formatKg, formatMoney } from "@/lib/format";
+import { formatDateTime, formatDay, formatKg, formatKgValue, formatMoney } from "@/lib/format";
 
 const NNBSP = " "; // narrow no-break space: French thousands separator
 const NBSP = " "; // keeps the unit on the same line as the number
@@ -9,7 +9,9 @@ describe("formatMoney", () => {
   it("formats centimes as dirhams with Western digits", () => {
     expect(formatMoney(123450n)).toBe(`1${NNBSP}234,50${NBSP}DH`);
     expect(formatMoney(5n)).toBe(`0,05${NBSP}DH`);
-    expect(formatMoney(-123450n)).toBe(`-1${NNBSP}234,50${NBSP}DH`);
+    expect(formatMoney(-123450n)).toBe(`−1${NNBSP}234,50${NBSP}DH`); // the true minus sign, U+2212
+    expect(formatMoney(-5n)).toBe(`−0,05${NBSP}DH`);
+    expect(formatMoney(0n)).toBe(`0,00${NBSP}DH`);
   });
 
   it("stays exact beyond Number precision", () => {
@@ -20,9 +22,19 @@ describe("formatMoney", () => {
 });
 
 describe("formatKg", () => {
-  it("formats grams as kilograms, up to 3 decimals", () => {
-    expect(formatKg(1_234_500)).toBe(`1${NNBSP}234,5${NBSP}kg`);
+  it("formats grams as kilograms", () => {
+    expect(formatKg(1_234_500)).toBe(`1${NNBSP}235${NBSP}kg`);
     expect(formatKg(42)).toBe(`0,042${NBSP}kg`);
+  });
+
+  it("drops the decimals from 100 kg up, keeps up to 3 below", () => {
+    expect(formatKgValue(99_999)).toBe("99,999");
+    expect(formatKgValue(100_000)).toBe("100");
+    expect(formatKgValue(24_407_142)).toBe(`24${NNBSP}407`);
+    expect(formatKgValue(165)).toBe("0,165"); // a chick's weight keeps its grams
+    expect(formatKgValue(99_999.6)).toBe("100"); // rounds up across the threshold
+    expect(formatKgValue(-24_407_142)).toBe(`-24${NNBSP}407`);
+    expect(formatKgValue(-165)).toBe("-0,165");
   });
 });
 

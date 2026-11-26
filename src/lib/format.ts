@@ -11,16 +11,18 @@ export function formatMoney(centimes: bigint): string {
   // Intl formats decimal strings exactly, so bigint amounts never pass through a float. typedCentimes(centimes, ".")
   // (@/lib/kernel/money) written out: this file ships with /batches, which has no room for that module (SPEC §9.3).
   const abs = centimes < 0n ? -centimes : centimes;
-  const decimal = `${centimes < 0n ? "-" : ""}${abs / 100n}.${String(abs % 100n).padStart(2, "0")}`;
-  return `${money.format(decimal as Intl.StringNumericLiteral)} DH`;
+  const decimal = `${abs / 100n}.${String(abs % 100n).padStart(2, "0")}`;
+  // The true minus sign (U+2212): Intl's French one is a hyphen.
+  return `${centimes < 0n ? "−" : ""}${money.format(decimal as Intl.StringNumericLiteral)} DH`;
 }
 
 const count = new Intl.NumberFormat("fr", { numberingSystem: "latn" });
 /** Birds, m², heads: 12 000 in both locales. */
 export const formatCount = (n: number) => count.format(n);
 
-/** The number alone ("1 250,5"), for messages that place the unit themselves. */
-export const formatKgValue = (grams: number) => kg.format(grams / 1000);
+const kgWhole = new Intl.NumberFormat("fr", { numberingSystem: "latn", maximumFractionDigits: 0 });
+/** The number alone ("0,165", "24 407": no decimals from 100 kg up), for messages that place the unit themselves. */
+export const formatKgValue = (grams: number) => (Math.abs(grams) >= 100_000 ? kgWhole : kg).format(grams / 1000);
 export const formatKg = (grams: number) => `${formatKgValue(grams)} kg`;
 
 /** A moment (e.g. the last sync) in farm time: Africa/Casablanca, which follows Morocco's Ramadan offset change. */

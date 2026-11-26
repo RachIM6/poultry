@@ -30,7 +30,7 @@ test("cash and bank paid with no account named go on the default cash box and ba
 
   await page.goto("/fr/treasury");
   const balances = page.getByRole("list", { name: "Soldes" }).getByRole("listitem");
-  await expect(balances).toHaveText([/^Banque · Banque A\s*-4.500,00\sDH$/, /^Caisse · Caisse ferme\s*3.000,00\sDH$/, /^Total disponible\s*-1.500,00\sDH$/]);
+  await expect(balances).toHaveText([/^Banque · Banque A\s*−4.500,00\sDH$/, /^Caisse · Caisse ferme\s*3.000,00\sDH$/, /^Total disponible\s*−1.500,00\sDH$/]);
   await expect(page.getByText("Non affecté à un compte")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Mettre par défaut/ })).toHaveCount(0); // one of each: nothing to pick
 
@@ -44,7 +44,7 @@ test("cash and bank paid with no account named go on the default cash box and ba
 
   await pushAs(page, [bankPurchase("90000")]); // 200 kg at 4,50
   await page.reload();
-  await expect(balances.filter({ hasText: "Banque B" })).toContainText(/-900,00\sDH/);
-  await expect(balances.filter({ hasText: "Banque A" })).toContainText(/-4.500,00\sDH/);
+  await expect(balances.filter({ hasText: "Banque B" })).toContainText(/−900,00\sDH/);
+  await expect(balances.filter({ hasText: "Banque A" })).toContainText(/−4.500,00\sDH/);
   await expect(page.getByText("Non affecté à un compte")).toHaveCount(0);
 });

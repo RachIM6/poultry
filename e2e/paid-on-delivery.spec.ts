@@ -49,5 +49,5 @@ test("a batch placed offline and paid on delivery leaves nothing to pay on /trea
 
   await page.goto("/fr/treasury");
   await expect(page.getByText("Paiement fournisseur : Couvoir Atlas")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Poussins et poulettes à payer" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "À payer" })).toHaveCount(0);
 });

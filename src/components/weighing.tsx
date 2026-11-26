@@ -14,6 +14,7 @@ import { curveFor, standardAt } from "@/modules/reference-data/shared";
 
 type StrainCurves = ReferenceData["strains"][number]["curves"];
 import { danger, field, secondary } from "@/components/ui";
+import { sectionTitle } from "@/components/layout";
 
 // SPEC B3 on the phone: type the sample, see the average, uniformity (CV%) and the gap to the strain standard at once.
 // Without a published curve for the strain (OQ5) the gap is not shown: a standard is never guessed.
@@ -83,7 +84,7 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
   const past = [...weighings].sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id));
   return (
     <section className="flex flex-col gap-3 border-t border-line pt-4">
-      <h3 className="text-[17px] font-semibold text-ink-2">{t("Weighing.title")}</h3>
+      <h2 className={sectionTitle}>{t("Weighing.title")}</h2>
       {write && (
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">

@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { card } from "@/components/ui";
+import { sectionTitle } from "@/components/layout";
 import { formatCount, formatDecimal, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { layerKpis, type EggCollectionDto } from "@/modules/eggs/shared";
@@ -47,7 +48,7 @@ export function LayerDashboard({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="layers-title">
-      <h3 id="layers-title" className="text-lg font-semibold">{t("Kpi.title")}</h3>
+      <h2 id="layers-title" className={sectionTitle}>{t("Kpi.title")}</h2>
       <dl className="grid grid-cols-2 gap-3">
         {tiles.map(([label, value, note]) => (
           <div key={label} className={card}>

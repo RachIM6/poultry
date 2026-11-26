@@ -12,7 +12,9 @@ import type { Product, ProtocolDto } from "@/modules/reference-data/schema";
 import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 import type { Write } from "@/components/daily-entry";
 import { useFieldError, useInline } from "@/components/focus";
-import { danger, field, primary, secondary, warn } from "@/components/ui";
+import { formActions, sectionHead, sectionTitle } from "@/components/layout";
+import { Sheet } from "@/components/sheet";
+import { danger, field, ghost, primary, secondarySm, warn } from "@/components/ui";
 
 // SPEC H2 on the batch screen, offline: the batch's plan, and "mark done" with the lot it came from. The phone runs the
 // same check as the server and shows the stock leaving the lot at once (S4). Whoever manages health (the vet, the owner,
@@ -59,7 +61,11 @@ export function Vaccinations({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="vaccination-title">
-      <h3 id="vaccination-title" className="text-[17px] font-semibold text-ink-2">{t("Vaccination.title")}</h3>
+      {/* tasks/plan-ui-cleanup.md §2.3, §2.7: the section's action beside its title; the form in a sheet */}
+      <div className={sectionHead}>
+        <h2 id="vaccination-title" className={sectionTitle}>{t("Vaccination.title")}</h2>
+        {manage && <button type="button" aria-haspopup="dialog" {...opener("add")} className={secondarySm}>{t("Vaccination.add")}</button>}
+      </div>
       {/* OQ4: a warning, never a block (arrêté 3308-17 art. 13); brick, as warnings are (yellow is for actions) */}
       {batch.status === "open" &&
         missingRequiredVaccines(plan).map((r) => (
@@ -100,7 +106,7 @@ export function Vaccinations({
                   ) : doing === `remove:${v.id}` ? (
                     <div className="mt-2 flex flex-col gap-3">
                       <p role="alert">{t("Vaccination.removeConfirm")}</p>
-                      <div className="flex gap-3">
+                      <div className={formActions}>
                         <button
                           type="button"
                           className={primary}
@@ -110,14 +116,14 @@ export function Vaccinations({
                         >
                           {t("Vaccination.removeYes")}
                         </button>
-                        <button type="button" onClick={close} autoFocus className={secondary}>{t("Vaccination.cancel")}</button>
+                        <button type="button" onClick={close} autoFocus className={ghost}>{t("Vaccination.cancel")}</button>
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-1 flex flex-wrap gap-3">
-                      <button type="button" {...opener(`done:${v.id}`)} aria-label={t("Vaccination.markDoneNamed", named)} className={secondary}>{t("Vaccination.markDone")}</button>
-                      {manage && <button type="button" {...opener(`move:${v.id}`)} aria-label={t("Vaccination.moveNamed", named)} className={secondary}>{t("Vaccination.move")}</button>}
-                      {manage && <button type="button" {...opener(`remove:${v.id}`)} aria-label={t("Vaccination.removeNamed", named)} className={secondary}>{t("Vaccination.remove")}</button>}
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <button type="button" {...opener(`done:${v.id}`)} aria-label={t("Vaccination.markDoneNamed", named)} className={secondarySm}>{t("Vaccination.markDone")}</button>
+                      {manage && <button type="button" {...opener(`move:${v.id}`)} aria-label={t("Vaccination.moveNamed", named)} className={ghost}>{t("Vaccination.move")}</button>}
+                      {manage && <button type="button" {...opener(`remove:${v.id}`)} aria-label={t("Vaccination.removeNamed", named)} className={ghost}>{t("Vaccination.remove")}</button>}
                     </div>
                   ))}
               </li>
@@ -125,12 +131,11 @@ export function Vaccinations({
           })}
         </ul>
       )}
-      {manage &&
-        (doing === "add" ? (
+      {manage && (
+        <Sheet open={doing === "add"} onClose={close} title={t("Vaccination.add")}>
           <AddForm batch={batch} vaccines={products.filter((p) => p.kind === "vaccine")} vaccine={vaccine} write={write} onDone={close} />
-        ) : (
-          <button type="button" {...opener("add")} className={secondary}>{t("Vaccination.add")}</button>
-        ))}
+        </Sheet>
+      )}
     </section>
   );
 }
@@ -151,7 +156,7 @@ function Blocked({ message, onDone }: { message: string; onDone: () => void }) {
   return (
     <div className="mt-2 flex flex-col gap-3">
       <p role="alert" className={danger}>{message}</p>
-      <button type="button" onClick={onDone} autoFocus className={`${secondary} self-start`}>{t("cancel")}</button>
+      <button type="button" onClick={onDone} autoFocus className={`${ghost} w-fit`}>{t("cancel")}</button>
     </div>
   );
 }
@@ -216,9 +221,9 @@ function AddForm({ batch, vaccines, vaccine, write, onDone }: { batch: BatchDto;
         )}
       </Labelled>
       {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Vaccination.addSave")}</button>
-        <button type="button" onClick={onDone} className={secondary}>{t("Vaccination.cancel")}</button>
+        <button type="button" onClick={onDone} className={ghost}>{t("Vaccination.cancel")}</button>
       </div>
     </form>
   );
@@ -243,9 +248,9 @@ function MoveForm({ batch, vaccination, write, onDone }: { batch: BatchDto; vacc
         {(id) => <input id={id} name="dayOfAge" inputMode="numeric" pattern="\d+" defaultValue={String(vaccination.dayOfAge)} required autoFocus dir="ltr" {...bad("dayOfAge")} className={field} />}
       </Labelled>
       {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Vaccination.moveSave")}</button>
-        <button type="button" onClick={onDone} className={secondary}>{t("Vaccination.cancel")}</button>
+        <button type="button" onClick={onDone} className={ghost}>{t("Vaccination.cancel")}</button>
       </div>
     </form>
   );
@@ -322,9 +327,9 @@ function DoneForm({
         )}
       </Labelled>
       {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Vaccination.save")}</button>
-        <button type="button" onClick={onDone} className={secondary}>{t("Vaccination.cancel")}</button>
+        <button type="button" onClick={onDone} className={ghost}>{t("Vaccination.cancel")}</button>
       </div>
     </form>
   );

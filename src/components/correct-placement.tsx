@@ -4,7 +4,9 @@ import { useTranslations } from "next-intl";
 import { useId, type FormEvent, type InputHTMLAttributes } from "react";
 import type { Write } from "@/components/daily-entry";
 import { useFieldError, useInline } from "@/components/focus";
-import { danger, field, primary, secondary } from "@/components/ui";
+import { formActions } from "@/components/layout";
+import { Sheet } from "@/components/sheet";
+import { danger, field, ghost, primary, secondarySm } from "@/components/ui";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import type { HouseDto } from "@/modules/farm-registry/schema";
@@ -81,13 +83,6 @@ export function CorrectPlacement({
   const t = useTranslations();
   const { open, opener, close } = useInline<"correct">();
   const { id: errorId, error, set: setError, field: bad } = useFieldError();
-  if (!open) {
-    return (
-      <button type="button" {...opener("correct")} aria-label={t("Correct.openLabel", { batch: title })} className={secondary}>
-        {t("Correct.open")}
-      </button>
-    );
-  }
 
   const { firstDay, birdsOut } = recordedOf(entries, weighings, sold);
   const openIn = (houseId: string) => batches.filter((b) => b.status === "open" && b.houseId === houseId && b.id !== batch.id);
@@ -146,43 +141,50 @@ export function CorrectPlacement({
   };
 
   const number = { inputMode: "numeric", pattern: "\\d+", dir: "ltr" } as const;
+  // tasks/plan-ui-cleanup.md §2.7: an occasional form, in a sheet.
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3" aria-labelledby="correct-title">
-      <h3 id="correct-title" className="text-lg font-semibold">{t("Correct.open")}</h3>
-      <p className="text-muted">{t("Correct.hint")}</p>
-      {firstDay ? (
-        <p>{t("Correct.houseLocked")}</p>
-      ) : (
-        <div className="flex flex-col gap-1">
-          <label htmlFor="correct-house">{t("Batches.house")}</label>
-          <select id="correct-house" name="houseId" defaultValue={batch.houseId} autoFocus {...bad("houseId")} className={field}>
-            {choices.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-          </select>
-        </div>
-      )}
-      <div className="flex flex-col gap-1">
-        <label htmlFor="correct-strain">{t("Batches.strain")}</label>
-        <select id="correct-strain" name="strainId" defaultValue={batch.strainId} autoFocus={!!firstDay} className={field}>
-          {typeStrains.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
-      <Field name="placedOn" label={t("Batches.placedOn")} type="date" defaultValue={batch.placedOn} required {...bad("placedOn")} />
-      <Field name="chicksPlaced" label={t("Batches.chicksPlaced")} defaultValue={batch.chicksPlaced} required {...number} {...bad("chicksPlaced")} />
-      {!sexed && <Field name="freeChicks" label={t("Batches.freeChicks")} defaultValue={batch.freeChicks ?? 0} {...number} />}
-      <Field name="deadOnArrival" label={t("Batches.deadOnArrival")} defaultValue={batch.deadOnArrival} {...number} {...bad("deadOnArrival")} />
-      <Field name="hatchery" label={t("Batches.hatchery")} defaultValue={batch.hatchery} required maxLength={120} {...bad("hatchery")} />
-      <Field name="deliveryNote" label={t("Batches.deliveryNote")} defaultValue={batch.deliveryNote} required maxLength={60} dir="ltr" {...bad("deliveryNote")} />
-      {money && (
-        <>
-          <Field name="price" label={t("Batches.chickPrice")} defaultValue={typedCentimes(BigInt(batch.chickUnitPriceCentimes ?? 0))} inputMode="decimal" required dir="ltr" {...bad("price")} />
-          <Field name="vat" label={t("Batches.chickVat")} defaultValue={batch.chickVatCentimes ? typedCentimes(BigInt(batch.chickVatCentimes)) : ""} inputMode="decimal" dir="ltr" {...bad("vat")} />
-        </>
-      )}
-      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
-        <button type="submit" className={primary}>{t("Correct.save")}</button>
-        <button type="button" onClick={close} className={secondary}>{t("Batches.cancel")}</button>
-      </div>
-    </form>
+    <>
+      <button type="button" aria-haspopup="dialog" {...opener("correct")} aria-label={t("Correct.openLabel", { batch: title })} className={secondarySm}>
+        {t("Correct.open")}
+      </button>
+      <Sheet open={open === "correct"} onClose={close} title={t("Correct.open")}>
+        <form onSubmit={submit} className="flex flex-col gap-3" aria-label={t("Correct.open")}>
+          <p className="text-muted">{t("Correct.hint")}</p>
+          {firstDay ? (
+            <p>{t("Correct.houseLocked")}</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <label htmlFor="correct-house">{t("Batches.house")}</label>
+              <select id="correct-house" name="houseId" defaultValue={batch.houseId} autoFocus {...bad("houseId")} className={field}>
+                {choices.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="correct-strain">{t("Batches.strain")}</label>
+            <select id="correct-strain" name="strainId" defaultValue={batch.strainId} autoFocus={!!firstDay} className={field}>
+              {typeStrains.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <Field name="placedOn" label={t("Batches.placedOn")} type="date" defaultValue={batch.placedOn} required {...bad("placedOn")} />
+          <Field name="chicksPlaced" label={t("Batches.chicksPlaced")} defaultValue={batch.chicksPlaced} required {...number} {...bad("chicksPlaced")} />
+          {!sexed && <Field name="freeChicks" label={t("Batches.freeChicks")} defaultValue={batch.freeChicks ?? 0} {...number} />}
+          <Field name="deadOnArrival" label={t("Batches.deadOnArrival")} defaultValue={batch.deadOnArrival} {...number} {...bad("deadOnArrival")} />
+          <Field name="hatchery" label={t("Batches.hatchery")} defaultValue={batch.hatchery} required maxLength={120} {...bad("hatchery")} />
+          <Field name="deliveryNote" label={t("Batches.deliveryNote")} defaultValue={batch.deliveryNote} required maxLength={60} dir="ltr" {...bad("deliveryNote")} />
+          {money && (
+            <>
+              <Field name="price" label={t("Batches.chickPrice")} defaultValue={typedCentimes(BigInt(batch.chickUnitPriceCentimes ?? 0))} inputMode="decimal" required dir="ltr" {...bad("price")} />
+              <Field name="vat" label={t("Batches.chickVat")} defaultValue={batch.chickVatCentimes ? typedCentimes(BigInt(batch.chickVatCentimes)) : ""} inputMode="decimal" dir="ltr" {...bad("vat")} />
+            </>
+          )}
+          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+          <div className={formActions}>
+            <button type="submit" className={primary}>{t("Correct.save")}</button>
+            <button type="button" onClick={close} className={ghost}>{t("Batches.cancel")}</button>
+          </div>
+        </form>
+      </Sheet>
+    </>
   );
 }

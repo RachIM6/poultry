@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { controlled, farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // T68, SPEC-m3 §6.1: the layer farm's journey, offline, in each language on a phone: pullets → transfer to the laying
 // house → a collection → grading → an egg sale by the tray → old hens sold by the head → reload → online → synced.
@@ -49,6 +49,7 @@ for (const locale of ["fr", "ar"] as const) {
 
     // 1. Transfer to the laying house.
     await page.getByRole("link", { name: t("Day", "open"), exact: true }).click();
+    await batchTab(page, t("Batches", "tabs.gestion"));
     await button("Transfer", "title").click();
     await label(page, "Transfer", "house").selectOption({ label: "Ferme Sidi Hajjaj · P1" });
     await label(page, "Transfer", "hens").fill("4700");
@@ -62,6 +63,7 @@ for (const locale of ["fr", "ar"] as const) {
     await expect(page.getByText(new RegExp(t("Eggs", "line", { n: "1", eggs: "1.713", down: "65" }).replace(/[()]/g, "\\$&")))).toBeVisible();
 
     // 3. Old hens sold by the head (P-Beldi's form on the layer batch).
+    await batchTab(page, t("Batches", "tabs.ventes"));
     await button("Sale", "add").click();
     await label(page, "Sale", "perHead").check();
     await label(page, "Sale", "heads.bird").fill("100");

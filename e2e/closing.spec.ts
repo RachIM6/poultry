@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, referenceCached, scopeRemembered } from "./auth";
 
 // T24 acceptance, the whole lifecycle: a batch placed, fed, then all its birds sold offline. The last sale closes it on
 // the phone at once; after the sync its cost per kg arrives, FN13's, read online as /results shows it (SPEC-finance §9
@@ -12,7 +12,7 @@ test("selling the last birds offline closes the batch; its cost per kg arrives w
   const ids = await farmWithBatch(page, "ross-308", farmDaysAgo(40)); // 1 000 chicks at 4,50 DH; feed bought at 4,50 DH/kg
   await pushAs(page, [{ type: "flock.recordDay", payload: { batchId: ids.batch, day: farmDaysAgo(39), changes: { feed: { stockItemId: ids.feed, grams: 100_000 } } } }]); // 450 DH
 
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=ventes#${ids.batch}`);
   await controlled(page);
   await referenceCached(page);
   await expect(page.getByText("Oiseaux présents : 1 000")).toBeVisible();
@@ -31,10 +31,12 @@ test("selling the last birds offline closes the batch; its cost per kg arrives w
   await page.getByLabel("Montant reçu maintenant (DH)").fill("30000");
   await page.getByRole("button", { name: "Enregistrer la vente" }).click();
 
+  await expect(page.getByRole("link", { name: "Document d’origine (Français)" })).toBeVisible(); // still printable
+  await expect(page.getByRole("button", { name: "Nouvelle vente" })).toHaveCount(0); // closed by its last sale
+  await batchTab(page, "Bilan");
   const summary = page.getByRole("region", { name: "Bilan de la bande" });
   await expect(summary).toContainText("Tous les oiseaux ont été vendus.");
   await expect(summary).toContainText("Les chiffres définitifs arrivent à la prochaine synchronisation.");
-  await expect(page.getByRole("link", { name: "Document d’origine (Français)" })).toBeVisible(); // still printable
   for (const gone of ["Saisir", "Nouvelle vente", "Clôturer la bande"]) {
     await expect(page.getByRole("button", { name: gone })).toHaveCount(0); // read-only
   }

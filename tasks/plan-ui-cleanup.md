@@ -347,7 +347,7 @@ each in its own worktree and E2E port. Batch 7 last, alone.
 - `src/sw.ts`: `precacheOptions.ignoreURLParametersMatching` = Serwist's `utm_`/`fbclid` defaults + `tab` + `page`. A
   new query key a client shell reads offline must be added there.
 
-### Batch 1: the batch page and the batches list
+### Batch 1: the batch page and the batches list — done
 - Goal: §4 rows `/batches` and `/batches#<id>`.
 - Owns: `batches.tsx`, `batch-dashboard.tsx`, `daily-entry.tsx`, `weighing.tsx`, `vaccinations.tsx`, `treatments.tsx`,
   `sales.tsx`, `closing.tsx`, `correct-placement.tsx`, `notifiable-diseases.tsx`, `register-links.tsx`, `eggs.tsx`,
@@ -363,8 +363,34 @@ each in its own worktree and E2E port. Batch 7 last, alone.
 - Risks: the highest. Tests that `getByRole("button", { name: "Ajouter un vaccin" })` then fill fields still work if the
   sheet keeps the same labels; tests that scroll to a section heading now need the tab click. The hash `#<id>` and
   `?tab=` must coexist (`useSyncExternalStore` on both). Budget margin.
+- [x] Open batch: the dark strip card, the turkey sexes, the hatchery claim and the withdrawal banner stay above the
+  tabs, then one tab: **Saisie du jour** (daily entry, egg collections, weighings; the default) · **Santé**
+  (vaccinations, treatments, vet visits, notifiable diseases) · **Ventes** (sales, other costs and the « Dépense
+  rapide » link) · **Indicateurs** (density, chart, KPI tiles) · **Gestion** (« Passage en ponte », « Corriger la mise
+  en place », « Clôturer la bande »). Closed batch: **Bilan** · **Ventes**. A tab shows only when the role has
+  something in it (a vet: Santé first, the weighings read with the figures; no Gestion without `flock.manage`).
+- [x] Tabs are `<Tabs>` links (`?tab=<key>#<id>`), followed in place with `pushState` (no RSC round trip, offline
+  too); the screen reads `?tab=` and `#<id>` from one `useSyncExternalStore` (hashchange, popstate and its own
+  event). A batch opened from the list starts on its first tab; a reload or a deep link keeps the tab.
+- [x] Sheets: « Ajouter un vaccin », « Ajouter un traitement », « Ajouter une visite », « Nouvelle vente / consommation
+  », « Corriger la mise en place », « Passage en ponte », « Clôturer la bande », « Rouvrir la bande ». The section's
+  opener sits beside its `h2` (`sectionHead`); forms end in `formActions` with « Annuler » as `ghost`. Batch-page
+  sections are `h2` `sectionTitle` (were grey `h3`). Keyboard check on a real page: `e2e/treatment.spec.ts`.
+- [x] List: « En cours (n) / Clôturées (n) » tabs (only once a batch is closed); closed batches one line each with
+  « Voir le bilan »; « Saisir le jour » `primarySm`; « Mettre en place une bande » `secondarySm`.
+- [x] Every section, form, rule and permission kept: daily entry, eggs, weighings, vaccinations (plan, done, move,
+  remove, apply protocol), treatments, vet visits, notifiable diseases, sales (sale, consumption, price correction,
+  cancel, origin documents), other costs, transfer, correction, close, reopen, KPIs, layer KPIs, density, claim,
+  withdrawal, turkey sexes, registers and report.
+- [x] Budget: `/fr/batches` 194.2 → 194.1 KB (of 200); `/fr/login` 147.6 KB.
+- [x] `e2e/screens.ts` opens every tab of the realistic batches (and the closed list), so `a11y` and `no-overflow`
+  check each panel.
+- Deviations: « Marquer comme fait / Changer le jour / Retirer du plan » are `secondarySm` + two `ghost` buttons, not a
+  « ⋯ » menu (a `<details>` menu would lose the focus return of the inline forms); the registers and the report stay as
+  links in the header (`RegisterLinks`) rather than in a menu; a closed batch has no Santé tab (its health records were
+  never shown on the closed screen; adding them is new scope).
 
-### Batch 2: money, day to day
+### Batch 2: money, day to day — done
 - Goal: §4 rows `/treasury`, `/treasury/bank`, `/receivables`, `/expenses`, `/prices`; the « Payer » pattern §2.9.
 - Owns: `treasury/page.tsx`, `treasury/pay-form.tsx`, `treasury/bank/page.tsx`, `treasury/bank/forms.tsx`,
   `receivables.tsx`, `expenses.tsx`, `prices.tsx` (actions files read-only).
@@ -375,6 +401,39 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   (treasury side), `screens.ts` users.
 - Risks: server-action forms inside a client sheet (keep `useActionState` behaviour and error focus); the supplier pay
   form on `/stock` is batch 3's, reuse the same sheet pattern without touching `pay-form.tsx` there.
+- [x] `/treasury` and `/treasury/bank`: route tabs « Vue d'ensemble · Rapprochement » (`treasury/treasury-tabs.tsx`, new,
+  server-safe), one h1 « Trésorerie »; the bank page's back button and the « Rapprochement bancaire » link are gone
+  (the phone keeps `back="/more"`, hidden from lg).
+- [x] `/treasury`: balances (one card) beside the 4-week forecast; one « À payer » table (Échéance, Type, Fournisseur ·
+  objet, Reste dû, « Payer »), the placements and the credit expenses together, oldest due first; « Payer »
+  (`secondarySm`, accessible name « Payer : <name> ») opens the unchanged pay form in a sheet, amount prefilled with
+  what is owed; « Apport ou retrait » is a header action opening its form in a sheet; « Mouvements du mois » is a
+  `dataTable` of 7 columns, one line per movement (the date with its journal code as a badge; the batch after the
+  label; label, account and counter-account truncated with the full text in `title`), `PeriodNav` over `?month=`
+  (`treasuryOverview` already took a month) in the section's header row, `Pager` 25. Phone: the tables keep 2–4 columns,
+  the others go under the first cell (no table cut at the edge). Saved, a sheet's form closes it and the page shows
+  « Paiement enregistré. » / « Opération enregistrée. » (`TreasuryNotices`, `pay-form.tsx`).
+- [x] `/treasury/bank`: the statement's four figures in one card on top; « Ajouter un relevé » and « Importer un relevé
+  (fichier) » header actions → sheets (each keyed on the account and its statements, so the action's redirect closes
+  it); filter tabs « À pointer (n) / Toutes » (`?tab=`, default « À pointer »: not ticked here nor on a later
+  statement); the imported lines beside the book lines from lg, each paged (`?ipage=`, `?page=`); « Pointer /
+  Dépointer » `secondarySm`.
+- [x] `/receivables`: a cheque or bill row shows its next state as a button, the other states in a « ⋯ » `<details>`
+  menu (« Autres actions : <instrument> »); « Enregistrer un paiement » and « Modifier » (credit limit) open sheets.
+- [x] `/expenses`: the list is sorted and paged (`?page=`, 25) instead of cut at 20; « Ajouter une caisse ou un
+  compte » is the section's action, its form in a sheet.
+- [x] `/prices`: product tabs (`?tab=`, « Tous » + the products noted, with counts) and a pager over the history; the
+  form stays inline.
+- [x] Section headings use `sectionTitle` on these pages (one heading style).
+- Heights (demo seed, full page, before → after; after includes develop's new 64 px header bar): 1 440, individual
+  farm: `/treasury` 3 727 → 1 787, `/treasury/bank` 4 171 → 1 438, `/receivables` 1 599 → 1 638, `/expenses` 1 049 →
+  1 054, `/prices` 2 340 → 1 681; SARL: `/treasury` 1 777 → 974, `/treasury/bank` 2 227 → 1 093. 390, individual farm:
+  `/treasury` 4 697 → 4 109, `/treasury/bank` 6 812 → 3 139, `/prices` 3 783 → 2 908.
+- Deviations: the « Plafonds de crédit » section of `/receivables` stays (merging it into the buyers table would drop the
+  limits of buyers who owe nothing); its « Modifier » opens a sheet. The page shells `receivables/page.tsx`,
+  `expenses/page.tsx`, `prices/page.tsx` (not listed above) gained `"Ui"` in their `ClientMessages`, and `/prices` a
+  `Suspense` (it reads `?tab=`/`?page=`). Eight `Treasury.*` keys nothing reads any more (the old « Payer » cards',
+  the movements' « Journal » and « Bande » headers) are removed. The new Arabic keys need a native speaker's review.
 
 ### Batch 3: stock, eggs and the small Élevage screens
 - Goal: §4 rows `/stock`, `/eggs`, `/farms`, `/compare`, `/protocol`, `/planning`.

@@ -80,7 +80,7 @@ ${printed(inDay)};VIREMENT RECU;;500,00
 
   await page.goBack();
   await row("VIREMENT RECU").getByRole("link", { name: "Passer une écriture manuelle" }).click();
-  const form = page.locator("details");
+  const form = page.getByRole("dialog", { name: "Écriture manuelle" }); // open at once on /books
   await expect(form.getByLabel("Date")).toHaveValue(inDay);
   await expect(form.getByLabel("Libellé")).toHaveValue("VIREMENT RECU");
   await expect(form.getByLabel("Compte, ligne 1")).toHaveValue("5141");

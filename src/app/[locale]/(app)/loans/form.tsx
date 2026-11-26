@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { OfflineHint, unsent, useOnline } from "@/components/online";
-import { danger, field, primary, secondary } from "@/components/ui";
+import { useCloseSheet } from "@/components/sheet";
+import { danger, field, primary, secondary, secondarySm } from "@/components/ui";
 import { createLoanAction, createSubsidyAction, discardLoanAction, payInstallmentAction, scheduleAction, type LoanState } from "./actions";
 
 const row = "flex min-w-0 flex-col gap-1";
@@ -12,7 +13,8 @@ const wide = `${field} w-full min-w-0`; // a long option or a date never widens 
 
 /**
  * SPEC-finance FC2: the owner types a loan from its contract; its schedule comes back as a draft. The id is made once
- * per loan, so sending the form again creates one. Refused, the form keeps what was typed.
+ * per loan, so sending the form again creates one. Refused, the form keeps what was typed; saved, its sheet closes and the
+ * draft shows on the page (tasks/plan-ui-cleanup.md §2.7).
  */
 export function LoanForm({ today, banks }: { today: string; banks: { id: string; name: string }[] }) {
   const t = useTranslations();
@@ -21,6 +23,7 @@ export function LoanForm({ today, banks }: { today: string; banks: { id: string;
   const [state, setState] = useState<LoanState>({});
   const [pending, startTransition] = useTransition();
   const online = useOnline();
+  const close = useCloseSheet();
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,6 +36,7 @@ export function LoanForm({ today, banks }: { today: string; banks: { id: string;
       form.reset();
       setId(uuidv7());
       setOpening(false);
+      close();
     });
   };
 
@@ -100,7 +104,8 @@ export function LoanForm({ today, banks }: { today: string; banks: { id: string;
 
 /**
  * SPEC-finance FC2 (T106): the owner records a subsidy as received (default FQ17), with the register's assets it
- * finances. The id is made once per subsidy, so sending the form again records one. Refused, the form keeps what was typed.
+ * finances. The id is made once per subsidy, so sending the form again records one. Refused, the form keeps what was typed;
+ * saved, its sheet closes.
  */
 export function SubsidyForm({ today, banks, assets }: { today: string; banks: { id: string; name: string }[]; assets: { id: string; label: string }[] }) {
   const t = useTranslations();
@@ -108,6 +113,7 @@ export function SubsidyForm({ today, banks, assets }: { today: string; banks: { 
   const [state, setState] = useState<LoanState>({});
   const [pending, startTransition] = useTransition();
   const online = useOnline();
+  const close = useCloseSheet();
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -119,6 +125,7 @@ export function SubsidyForm({ today, banks, assets }: { today: string; banks: { 
       if (!created.ok) return;
       form.reset();
       setId(uuidv7());
+      close();
     });
   };
 
@@ -208,7 +215,7 @@ export function LoanActionForm({ kind, submit, children }: { kind: keyof typeof 
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
       {children}
-      <button type="submit" disabled={pending || !online} className={secondary}>{submit}</button>
+      <button type="submit" disabled={pending || !online} className={secondarySm}>{submit}</button>
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={`basis-full ${state.ok ? "" : danger}`}>{t(state.messageKey)}</p>}
     </form>
   );

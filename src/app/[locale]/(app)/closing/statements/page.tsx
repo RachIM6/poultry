@@ -2,7 +2,11 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Fragment, Suspense } from "react";
-import { Page } from "@/components/page";
+import { Page, PeriodNav } from "@/components/page";
+import { empty as emptyBox } from "@/components/layout";
+import { pickTab } from "@/components/paging";
+import { Tabs } from "@/components/tabs";
+import { ghost } from "@/components/ui";
 import { EntityHeader } from "@/components/entity-header";
 import { Num, Scroll } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
@@ -11,6 +15,7 @@ import type { FarmDay } from "@/lib/kernel/farm-day";
 import { officialStatements, type OfficialStatements } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { PrintButton } from "../count/form";
+import { ClosingSteps } from "../steps";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
@@ -19,8 +24,11 @@ const MESSAGES: MessagePath[] = ["Count.print", "Count.save", "Count.saved", "Na
 
 // SPEC-finance FC8 (T116): the bilan, the CPC and the ETIC tables the ledger fills, in the CGNC's simplified model (its
 // PCA variant with the overlay), with N-1. "Projet" until the year close (FCX6). Printable (print CSS). Online, like /books.
+// tasks/plan-ui-cleanup.md batch 4: one part per tab on screen (`?tab=`), every part on paper; a line with nothing in it
+// waits behind « Afficher les lignes vides » (`?empty=1`) on screen and always prints, as the model has it.
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 type Ledger = Extract<OfficialStatements, { books: "ledger" }>;
+const TABS = ["actif", "passif", "cpc", "etic"] as const;
 
 export default function StatementsPage({ searchParams }: { searchParams: Search }) {
   return (
@@ -41,21 +49,35 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
   const result = await officialStatements(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
   if (!result.ok) return <Page width="doc" back="/more"><p>{t("forbidden")}</p></Page>;
   const s = result.value;
+  const tab = pickTab(TABS, search.tab);
+  const all = search.empty === "1";
+  const at = (query: Record<string, string | number>) => ({ pathname: "/closing/statements", query });
+  const keep = { tab, ...(all ? { empty: "1" } : {}) }; // the part and the empty lines shown, from year to year
   const nav = (
-    <nav className="flex flex-wrap items-center gap-3 print:hidden" aria-label={t("year")}>
-      <Link href={{ pathname: "/closing/statements", query: { year: s.year - 1 } }} aria-label={t("previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
-      <span className="font-semibold" dir="ltr">{s.year}</span>
-      <Link href={{ pathname: "/closing/statements", query: { year: s.year + 1 } }} aria-label={t("nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
-      {s.books === "ledger" && <span className="ms-auto"><PrintButton /></span>}
-    </nav>
+    <ClosingSteps
+      current="statements"
+      year={s.year}
+      period={
+        <PeriodNav
+          label={t("year")}
+          period={<span dir="ltr">{s.year}</span>}
+          prev={{ href: at({ year: s.year - 1, ...keep }), label: t("previousYear") }}
+          next={{ href: at({ year: s.year + 1, ...keep }), label: t("nextYear") }}
+          end={s.books === "ledger" && <PrintButton />}
+        />
+      }
+    />
   );
   if (s.books === "cash_book")
     return (
-      <Page width="doc" back="/more" title={t("title")}>
-        {nav}
-        <p>{t("cashBook")}</p>
+      <Page width="doc" back="/more" title={t("title")} nav={nav}>
+        <p className={emptyBox}>{t("cashBook")}</p>
       </Page>
     );
+  // The part on screen; the others hidden there and printed.
+  const part = (...keys: (typeof TABS)[number][]) => (keys.includes(tab) ? "flex" : "hidden print:flex");
+  // A line with nothing in it, this year or the previous: hidden on screen unless asked for, always printed.
+  const blank = (...values: (bigint | undefined)[]) => (!all && values.every((v) => !v) ? "hidden print:table-row" : undefined);
 
   const label = (x: { fr: string; ar: string }) => (lang === "ar" ? x.ar : x.fr);
   const money = (c: bigint | undefined) => (c === undefined || c === 0n ? "" : formatMoney(c));
@@ -96,7 +118,7 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
                       <Num>{money(prevNet(side, r.key))}</Num>
                     </tr>
                     {r.postes.map((x) => (
-                      <tr key={x.key}>
+                      <tr key={x.key} className={actif ? blank(x.gross, x.contra, x.net, prevNet(side, x.key)) : blank(x.net, prevNet(side, x.key))}>
                         <td className="ps-6">{label(x)}</td>
                         {actif && <Num>{money(x.gross)}</Num>}
                         {actif && <Num>{money(x.contra)}</Num>}
@@ -144,13 +166,12 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
     );
 
   return (
-    <Page width="doc" back="/more" title={t("title")}>
+    <Page width="doc" back="/more" title={t("title")} nav={nav}>
       {!s.closedOn && (
         <p aria-hidden className="pointer-events-none fixed inset-0 z-10 flex items-center justify-center text-8xl font-bold text-ink-2/15 print:text-black/10 -rotate-30 select-none">
           {t("draft")}
         </p>
       )}
-      {nav}
       <EntityHeader {...s.entity} />
       <p className="font-semibold">{s.closedOn ? t("closed", { day: day(s.closedOn) }) : t("draftCaption")}</p>
       <p className="text-sm text-ink-2">
@@ -161,13 +182,26 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
         <p className="text-sm font-semibold">{t("unmapped", { accounts: [...s.bilan.unmapped, ...s.cpc.unmapped].join(", ") })}</p>
       )}
 
-      <section aria-label={t("bilan")} className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 print:hidden">
+        <div className="min-w-0 flex-1">
+          <Tabs
+            label={t("tabs.label")}
+            current={tab}
+            tabs={TABS.map((key) => ({ key, label: t(`tabs.${key}`), href: at({ year: s.year, tab: key, ...(all ? { empty: "1" } : {}) }) }))}
+          />
+        </div>
+        {tab !== "etic" && (
+          <Link href={at({ year: s.year, tab, ...(all ? {} : { empty: "1" }) })} scroll={false} className={ghost}>{t(all ? "hideEmpty" : "showEmpty")}</Link>
+        )}
+      </div>
+
+      <section aria-label={t("bilan")} className={`${part("actif", "passif")} flex-col gap-4`}>
         <h2 className="text-xl font-semibold">{t("bilan")}</h2>
-        <div className="relative overflow-x-auto">{bilanSide("actif")}</div>
-        <div className="relative overflow-x-auto">{bilanSide("passif")}</div>
+        <div className={`${tab === "passif" ? "hidden print:block" : ""} relative overflow-x-auto`}>{bilanSide("actif")}</div>
+        <div className={`${tab === "actif" ? "hidden print:block" : ""} relative overflow-x-auto`}>{bilanSide("passif")}</div>
       </section>
 
-      <section aria-label={t("cpc")} className="flex flex-col gap-4 print:break-before-page">
+      <section aria-label={t("cpc")} className={`${part("cpc")} flex-col gap-4 print:break-before-page`}>
         <h2 className="text-xl font-semibold">{t("cpc")}</h2>
         <div className="relative overflow-x-auto">
           <table className={sheet}>
@@ -182,7 +216,7 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
               {s.cpc.groups.map((g) => (
                 <Fragment key={g.key}>
                   {g.lines.map((x) => (
-                    <tr key={x.key}>
+                    <tr key={x.key} className={blank(x.amount, prevCpc(x.key))}>
                       <td className="ps-6">{label(x)}</td>
                       <Num>{money(x.amount)}</Num>
                       <Num>{money(prevCpc(x.key))}</Num>
@@ -207,7 +241,7 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
         </div>
       </section>
 
-      <section aria-label={t("etic.title")} className="flex flex-col gap-4 print:break-before-page">
+      <section aria-label={t("etic.title")} className={`${part("etic")} flex-col gap-4 print:break-before-page`}>
         <h2 className="text-xl font-semibold">{t("etic.title")}</h2>
         <p className="text-sm text-ink-2">{t("etic.hint")}</p>
         {etic("s1", s.etic.s1)}

@@ -41,8 +41,8 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   expect(files.get(`recettes-depenses-${month}.csv`)).toMatch(/;5161;Caisses;[^;]+;;0,00;450,00\r\nTotal;;;;;;0,00;450,00\r\n$/); // no batch: a general expense
 
   // FN3, FCX3, FQ11: its manual entry carries the opening cash and bank balances, against 1117 Capital personnel.
-  await page.getByText("Écriture manuelle", { exact: true }).click();
-  const form = page.locator("details");
+  await page.getByRole("button", { name: "Écriture manuelle" }).click(); // a sheet (tasks/plan-ui-cleanup.md §2.7)
+  const form = page.getByRole("dialog", { name: "Écriture manuelle" });
   await expect(form.getByText(/^Soldes d’ouverture de la banque \(5141\) et de la caisse \(5161\)/)).toBeVisible();
   await form.getByLabel("Date").fill(`${month.slice(0, 4)}-01-01`);
   await form.getByLabel("Libellé").fill("Soldes d’ouverture");

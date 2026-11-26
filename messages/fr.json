@@ -1767,6 +1767,15 @@
     "frozen": "Comptage figé : les écritures de clôture de cet exercice sont comptabilisées."
   },
   "Statements": {
+    "tabs": {
+      "label": "Parties des états",
+      "actif": "Bilan actif",
+      "passif": "Bilan passif",
+      "cpc": "Produits et charges",
+      "etic": "Informations complémentaires"
+    },
+    "showEmpty": "Afficher les lignes vides",
+    "hideEmpty": "Masquer les lignes vides",
     "open": "États de synthèse",
     "title": "États de synthèse (modèle simplifié)",
     "year": "Exercice",
@@ -1820,6 +1829,14 @@
     }
   },
   "Close": {
+    "steps": {
+      "label": "Clôture de l’exercice",
+      "count": "Inventaire",
+      "entries": "Écritures de clôture",
+      "statements": "États de synthèse"
+    },
+    "howCalculated": "Comment c’est calculé",
+    "closeYearFirst": "À faire d’abord : comptabiliser les écritures de clôture ci-dessus.",
     "forbidden": "La clôture est réservée au propriétaire, au gérant et au comptable.",
     "open": "Préparer la clôture",
     "title": "Préparer la clôture",
@@ -1912,6 +1929,7 @@
     "opened": "Exercice ouvert. Écritures d’ouverture passées : {count}."
   },
   "Assets": {
+    "scheduleShow": "Plan d’amortissement",
     "forbidden": "Les immobilisations sont réservées au propriétaire, au gérant et au comptable.",
     "open": "Immobilisations",
     "title": "Immobilisations",
@@ -2007,6 +2025,13 @@
     "cashBook": "Livre des recettes et dépenses : le registre et les plans d’amortissement seulement. Rien n’est comptabilisé, et la sortie de caisse ou de banque de l’achat n’apparaît pas dans le livre (question posée à l’expert-comptable)."
   },
   "Loans": {
+    "scheduleShow": "Échéancier",
+    "next": "Prochaine échéance : {day} · {amount}",
+    "tabs": {
+      "label": "Emprunts et subventions",
+      "loans": "Emprunts",
+      "subsidies": "Subventions"
+    },
     "forbidden": "Les emprunts et subventions sont réservés au propriétaire, au gérant et au comptable.",
     "open": "Emprunts et subventions",
     "title": "Emprunts et subventions",
@@ -2061,6 +2086,7 @@
     "discarded": "Brouillon supprimé."
   },
   "Subsidies": {
+    "releaseShow": "Reprise par exercice",
     "title": "Subventions d’investissement",
     "hint": "La subvention est comptabilisée à sa réception (5141 / 1311). À chaque clôture, la part de l’exercice est reprise en produit (1319 / 7577) : au rythme de l’amortissement des immobilisations amortissables qu’elle finance ; pour un terrain, sur ses années d’inaliénabilité, sinon un dixième par an. Une subvention sur plusieurs immobilisations est répartie selon leur coût.",
     "cashBook": "Livre des recettes et dépenses : la subvention apparaît à sa réception, sur le compte bancaire. Sa reprise par exercice est indiquée sans écriture : il n’y a pas de clôture.",

@@ -11,8 +11,8 @@ test("the owner cancels a manual entry, then locks and unlocks the month", async
   const month = today.slice(0, 7);
 
   await page.goto(`/fr/books?view=journals&month=${month}`);
-  await page.getByText("Écriture manuelle", { exact: true }).click();
-  const form = page.locator("details");
+  await page.getByRole("button", { name: "Écriture manuelle" }).click(); // a sheet (tasks/plan-ui-cleanup.md §2.7)
+  const form = page.getByRole("dialog", { name: "Écriture manuelle" });
   await form.getByLabel("Libellé").fill("Intérêts mal saisis");
   await form.getByLabel("Compte, ligne 1").fill("63111");
   await form.getByLabel("Débit, ligne 1").fill("120");
@@ -20,6 +20,7 @@ test("the owner cancels a manual entry, then locks and unlocks the month", async
   await form.getByLabel("Crédit, ligne 2").fill("120");
   await form.getByRole("button", { name: "Passer l’écriture" }).click();
   await expect(form.getByText("Écriture enregistrée.")).toBeVisible();
+  await form.getByRole("button", { name: "Fermer" }).click(); // the sheet stays open for the next entry
 
   // FN5: a reversal on the same day, after a confirmation; the entry stays, marked as cancelled, with no button.
   const cancel = page.getByRole("button", { name: /^Annuler l’écriture .*Intérêts mal saisis/ });
@@ -38,6 +39,7 @@ test("the owner cancels a manual entry, then locks and unlocks the month", async
   await expect(period).toContainText("Ce mois est clôturé");
   const monthName = new Intl.DateTimeFormat("fr", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${month}-01T00:00:00Z`));
   await expect(period.getByRole("link", { name: monthName })).toBeVisible(); // "novembre 2026", not "2026-11"
+  await page.getByRole("button", { name: "Écriture manuelle" }).click();
   await form.getByLabel("Libellé").fill("Trop tard");
   await form.getByLabel("Compte, ligne 1").fill("63111");
   await form.getByLabel("Débit, ligne 1").fill("10");
@@ -45,6 +47,7 @@ test("the owner cancels a manual entry, then locks and unlocks the month", async
   await form.getByLabel("Crédit, ligne 2").fill("10");
   await form.getByRole("button", { name: "Passer l’écriture" }).click();
   await expect(form.getByRole("alert")).toHaveText("Cette période est clôturée : aucune écriture ne peut y être ajoutée.");
+  await form.getByRole("button", { name: "Fermer" }).click();
   await period.getByRole("button", { name: "Rouvrir le mois" }).click();
   await expect(period).toContainText("Ce mois est ouvert");
 });

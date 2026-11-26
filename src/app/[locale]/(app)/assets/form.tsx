@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { OfflineHint, unsent, useOnline } from "@/components/online";
-import { danger, field, primary, secondary } from "@/components/ui";
+import { useCloseSheet } from "@/components/sheet";
+import { danger, field, primary } from "@/components/ui";
 import { createAssetAction, disposeAssetAction, payAssetAction, updateAssetAction, type AssetState } from "./actions";
 
 type Farm = { id: string; name: string; houses: { id: string; name: string }[] };
@@ -30,7 +31,8 @@ export function TreasurySelect({ treasury, label }: { treasury: Treasury[]; labe
 /**
  * SPEC-finance FC1: the owner registers an asset, acquired or in the opening balance. No life is prefilled, and land
  * has none. The id is made once per asset, so sending the form again registers and posts once; the invoice goes up
- * afterwards through the upload route (ADR-011).
+ * afterwards through the upload route (ADR-011). In its sheet (tasks/plan-ui-cleanup.md §2.7), saved, it closes: the asset
+ * shows in the register.
  */
 export function AssetForm(props: { today: string; openingDay: string; groups: { group: string; categories: string[] }[]; farms: Farm[]; treasury: Treasury[] }) {
   const t = useTranslations();
@@ -41,6 +43,7 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
   const [state, setState] = useState<AssetState>({});
   const [pending, startTransition] = useTransition();
   const online = useOnline();
+  const close = useCloseSheet();
   const landCategories = props.groups.find((g) => g.group === "land")?.categories ?? [];
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -66,6 +69,7 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
       setId(uuidv7());
       setLand(false);
       setOpening(false);
+      close();
     });
   };
 
@@ -178,17 +182,22 @@ export function AssetForm(props: { today: string; openingDay: string; groups: { 
 
 const ACTIONS = { update: updateAssetAction, pay: payAssetAction, dispose: disposeAssetAction };
 
-/** One asset's change, payment or disposal: the server-rendered fields, sent to the owner's server action. */
+/** One asset's change, payment or disposal: the server-rendered fields, sent to the owner's server action. Saved, its sheet closes. */
 export function AssetActionForm({ kind, submit, children }: { kind: keyof typeof ACTIONS; submit: string; children: ReactNode }) {
   const t = useTranslations();
-  const [state, action, pending] = useActionState(ACTIONS[kind], {});
+  const close = useCloseSheet();
+  const [state, action, pending] = useActionState(async (prev: AssetState, data: FormData) => {
+    const next = await ACTIONS[kind](prev, data);
+    if (next.ok) close();
+    return next;
+  }, {});
   const online = useOnline();
   return (
     <form action={action} className="flex flex-col gap-3">
       {children}
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
       <OfflineHint online={online} />
-      <button type="submit" disabled={pending || !online} className={secondary}>{submit}</button>
+      <button type="submit" disabled={pending || !online} className={primary}>{submit}</button>
     </form>
   );
 }

@@ -12,8 +12,8 @@ test("the owner previews and posts the year's depreciation, finds it in the jour
   await query(`UPDATE "LegalEntity" SET books = 'ledger' WHERE "organizationId" = ${orgOf}`, [e164]);
 
   await page.goto("/fr/assets");
-  await page.getByText("Ajouter une immobilisation", { exact: true }).click();
-  const form = page.locator("details").first();
+  await page.getByRole("button", { name: "Ajouter une immobilisation" }).click(); // a sheet (tasks/plan-ui-cleanup.md §2.7)
+  const form = page.getByRole("dialog", { name: "Ajouter une immobilisation" });
   await form.getByLabel("Désignation").fill("Groupe électrogène");
   await form.getByLabel("Catégorie").selectOption("equipment");
   await form.getByLabel("Date d’acquisition").fill("2026-09-18");
@@ -22,7 +22,8 @@ test("the owner previews and posts the year's depreciation, finds it in the jour
   await form.getByLabel("Durée d’utilisation, en mois").fill("84");
   await form.getByLabel("Paiement").selectOption("cash");
   await form.getByRole("button", { name: "Enregistrer l’immobilisation" }).click();
-  await expect(form.getByText("Immobilisation enregistrée.")).toBeVisible();
+  await expect(form).toBeHidden(); // saved, the sheet closes on the register
+  await expect(page.getByRole("region", { name: "Groupe électrogène" })).toBeVisible();
 
   // FCX2: "Plus" › Argent, next to the count sheet.
   await page.goto("/fr/more");

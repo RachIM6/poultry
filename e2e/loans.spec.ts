@@ -20,8 +20,8 @@ test("the owner creates a loan, confirms its schedule, marks the first installme
   await expect(page.getByText("Aucun emprunt.")).toBeVisible();
 
   // §7.1 B, a year earlier: 100 000,00 at 5,55 % over 6 quarters, from 31 March.
-  await page.getByText("Ajouter un emprunt", { exact: true }).click();
-  const form = page.locator("details").first();
+  await page.getByRole("button", { name: "Ajouter un emprunt" }).click(); // a sheet (tasks/plan-ui-cleanup.md §2.7)
+  const form = page.getByRole("dialog", { name: "Ajouter un emprunt" });
   await form.getByLabel("Prêteur").fill("Crédit Agricole du Maroc");
   await form.getByLabel("Compte bancaire du déblocage et des échéances").selectOption({ label: "Banque Populaire" });
   await form.getByLabel("Capital emprunté").fill("100 000");
@@ -32,7 +32,7 @@ test("the owner creates a loan, confirms its schedule, marks the first installme
   await form.getByLabel("Date de la première échéance").fill("2026-03-31");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // the form fits the phone
   await form.getByRole("button", { name: "Calculer l’échéancier" }).click();
-  await expect(form.getByText(/^Échéancier calculé/)).toBeVisible();
+  await expect(form).toBeHidden(); // saved, the sheet closes on the draft, its schedule open to adjust
 
   const loan = page.getByRole("region", { name: "Crédit Agricole du Maroc" });
   const schedule = loan.getByRole("table", { name: "Échéancier · Crédit Agricole du Maroc" });
@@ -50,6 +50,9 @@ test("the owner creates a loan, confirms its schedule, marks the first installme
   await loan.getByRole("button", { name: "Confirmer l’échéancier" }).click();
   await expect(loan.getByText(/^Capital restant dû :/)).toContainText(/100\s000,00\sDH/);
   await expect(loan.getByLabel("Capital de l’échéance 1")).toHaveCount(0); // fixed
+  await expect(loan).toContainText(/Prochaine échéance : 31 mars 2026 · 18\s054,17\sDH/);
+  const showSchedule = () => loan.getByText("Échéancier", { exact: true }).click(); // confirmed, the schedule folds
+  await showSchedule();
 
   // Installment 1, debited on its due day (the default).
   const first = schedule.getByRole("row").nth(1);
@@ -70,6 +73,7 @@ test("the owner creates a loan, confirms its schedule, marks the first installme
   // The accountant reads the schedule without its forms; a worker gets nothing (FX2).
   await query(`UPDATE "Membership" SET role = 'accountant' WHERE "organizationId" = ${orgOf}`, [e164]);
   await page.goto("/fr/loans");
+  await showSchedule();
   await expect(schedule.getByRole("row").nth(1)).toContainText("Payée le 31 mars 2026");
   await expect(page.getByRole("button", { name: "Marquer payée" })).toHaveCount(0);
   await expect(page.getByText("Ajouter un emprunt", { exact: true })).toHaveCount(0);

@@ -7,10 +7,12 @@ import { Link } from "@/i18n/navigation";
 import { useBatchResults } from "@/components/batch-results";
 import type { Write } from "@/components/daily-entry";
 import { useFieldError, useInline } from "@/components/focus";
+import { formActions, sectionTitle } from "@/components/layout";
+import { Sheet } from "@/components/sheet";
 import { formatDay, formatKg, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { Batch, FLOCK_MUTATIONS as M, TRANSFER_REASON, ageOfBatch, type BatchCostDto, type BatchDto } from "@/modules/flock/shared";
-import { danger, field, link, primary, secondary } from "@/components/ui";
+import { danger, field, ghost, link, primary, secondarySm } from "@/components/ui";
 
 // SPEC B6 on the batch screen: its other costs (read-only, FN13), closing by hand with a reason, and the figures once
 // closed. The last sale closes the batch by itself (sales); until the next sync after closing, the phone shows the batch
@@ -74,7 +76,7 @@ export function BatchCosts({ batch, costs, manage }: { batch: BatchDto; costs: B
     <section className="flex flex-col gap-3" aria-labelledby={costs.length > 0 ? "cost-title" : undefined}>
       {costs.length > 0 && (
         <>
-          <h3 id="cost-title" className="text-[17px] font-semibold text-ink-2">{t("Closing.costs")}</h3>
+          <h2 id="cost-title" className={sectionTitle}>{t("Closing.costs")}</h2>
           <ul className="flex flex-col gap-1" aria-labelledby="cost-title">
             {[...costs].sort((a, b) => a.day.localeCompare(b.day)).map((c) => (
               <li key={c.id}>{t("Closing.costLine", { date: formatDay(c.day as FarmDay, locale), label: c.label, amount: formatMoney(BigInt(c.amountCentimes ?? 0)) })}</li>
@@ -91,7 +93,6 @@ export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write
   const t = useTranslations();
   const { open, opener, close } = useInline<"close">();
   const { id: errorId, error, set: setError, field: bad } = useFieldError();
-  if (!open) return <button type="button" {...opener("close")} className={secondary}>{t("Closing.close")}</button>;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -106,17 +107,23 @@ export function CloseBatchForm({ batch, write }: { batch: BatchDto; write: Write
     await write({ type: M.closeBatch, payload }, [{ entity: "batch", id: batch.id, data: closedLocally(batch, day, payload.reason) }]);
   };
 
+  // tasks/plan-ui-cleanup.md §2.7: an occasional form, in a sheet.
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
-      <p>{t("Closing.warning")}</p>
-      <Field label={t("Closing.reason")}>{(id) => <input id={id} name="reason" required maxLength={200} autoFocus {...bad("reason")} className={field} />}</Field>
-      <Field label={t("Closing.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required {...bad("day")} className={field} />}</Field>
-      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
-        <button type="submit" className={primary}>{t("Closing.confirm")}</button>
-        <button type="button" onClick={close} className={secondary}>{t("Closing.cancel")}</button>
-      </div>
-    </form>
+    <>
+      <button type="button" aria-haspopup="dialog" {...opener("close")} className={secondarySm}>{t("Closing.close")}</button>
+      <Sheet open={open === "close"} onClose={close} title={t("Closing.close")}>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <p>{t("Closing.warning")}</p>
+          <Field label={t("Closing.reason")}>{(id) => <input id={id} name="reason" required maxLength={200} autoFocus {...bad("reason")} className={field} />}</Field>
+          <Field label={t("Closing.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required {...bad("day")} className={field} />}</Field>
+          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+          <div className={formActions}>
+            <button type="submit" className={primary}>{t("Closing.confirm")}</button>
+            <button type="button" onClick={close} className={ghost}>{t("Closing.cancel")}</button>
+          </div>
+        </form>
+      </Sheet>
+    </>
   );
 }
 
@@ -127,7 +134,6 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
   const [hens, setHens] = useState(String(onHand));
   const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const free = houses.filter((h) => h.free);
-  if (!open) return <button type="button" {...opener("transfer")} className={secondary}>{t("Transfer.title")}</button>;
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -168,34 +174,38 @@ export function TransferForm({ batch, onHand, houses, write }: { batch: BatchDto
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3" aria-labelledby="transfer-title">
-      <h3 id="transfer-title" className="text-lg font-semibold">{t("Transfer.title")}</h3>
-      {free.length === 0 ? (
-        <>
-          <p>{t("Transfer.noHouse")}</p>
-          <button type="button" onClick={close} autoFocus className={`${secondary} self-start`}>{t("Closing.cancel")}</button>
-        </>
-      ) : (
-        <>
-          <Field label={t("Transfer.house")}>
-            {(id) => (
-              <select id={id} name="houseId" autoFocus className={field}>
-                {free.map((h) => <option key={h.id} value={h.id}>{h.id === batch.houseId ? t("Transfer.sameHouse", { house: h.label }) : h.label}</option>)}
-              </select>
-            )}
-          </Field>
-          <Field label={t("Transfer.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required {...bad("day")} className={field} />}</Field>
-          <Field label={t("Transfer.hens")}>
-            {(id) => <input id={id} name="hens" {...bad("hens")} value={hens} onChange={(e) => setHens(e.target.value)} inputMode="numeric" pattern="\d+" required dir="ltr" className={field} />}
-          </Field>
-          {/^\d+$/.test(hens) && Number(hens) < onHand && <p>{t("Transfer.left", { birds: String(onHand - Number(hens)) })}</p>}
-          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-          <div className="flex gap-3">
-            <button type="submit" className={primary}>{t("Transfer.save")}</button>
-            <button type="button" onClick={close} className={secondary}>{t("Closing.cancel")}</button>
-          </div>
-        </>
-      )}
-    </form>
+    <>
+      <button type="button" aria-haspopup="dialog" {...opener("transfer")} className={secondarySm}>{t("Transfer.title")}</button>
+      <Sheet open={open === "transfer"} onClose={close} title={t("Transfer.title")}>
+        <form onSubmit={submit} className="flex flex-col gap-3" aria-label={t("Transfer.title")}>
+          {free.length === 0 ? (
+            <>
+              <p>{t("Transfer.noHouse")}</p>
+              <button type="button" onClick={close} autoFocus className={ghost}>{t("Closing.cancel")}</button>
+            </>
+          ) : (
+            <>
+              <Field label={t("Transfer.house")}>
+                {(id) => (
+                  <select id={id} name="houseId" autoFocus className={field}>
+                    {free.map((h) => <option key={h.id} value={h.id}>{h.id === batch.houseId ? t("Transfer.sameHouse", { house: h.label }) : h.label}</option>)}
+                  </select>
+                )}
+              </Field>
+              <Field label={t("Transfer.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={today()} required {...bad("day")} className={field} />}</Field>
+              <Field label={t("Transfer.hens")}>
+                {(id) => <input id={id} name="hens" {...bad("hens")} value={hens} onChange={(e) => setHens(e.target.value)} inputMode="numeric" pattern="\d+" required dir="ltr" className={field} />}
+              </Field>
+              {/^\d+$/.test(hens) && Number(hens) < onHand && <p>{t("Transfer.left", { birds: String(onHand - Number(hens)) })}</p>}
+              {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+              <div className={formActions}>
+                <button type="submit" className={primary}>{t("Transfer.save")}</button>
+                <button type="button" onClick={close} className={ghost}>{t("Closing.cancel")}</button>
+              </div>
+            </>
+          )}
+        </form>
+      </Sheet>
+    </>
   );
 }

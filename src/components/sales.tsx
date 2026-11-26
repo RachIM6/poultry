@@ -12,8 +12,10 @@ import { parseCentimes } from "@/lib/kernel/money";
 import { Batch, type BatchDto, type SoldBirdsDto } from "@/modules/flock/shared";
 import { withdrawalUntil, type TreatmentDto } from "@/modules/health/shared";
 import { parseQuantity } from "@/modules/inventory/shared";
-import { card, danger, field, link, primary, secondary } from "@/components/ui";
+import { card, danger, field, ghost, link, primary, secondary, secondarySm } from "@/components/ui";
 import { useInline } from "@/components/focus";
+import { formActions, sectionHead, sectionTitle } from "@/components/layout";
+import { Sheet } from "@/components/sheet";
 import {
   BUYER_TYPES,
   PAYMENT_METHODS,
@@ -75,7 +77,7 @@ export function Sales({
 }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [adding, setAdding] = useState(false);
+  const { open, opener, close } = useInline<"add">();
   const buyerName = (id: string | null) => buyers.find((b) => b.id === id)?.name ?? "—";
   // A worker sees the consumptions only, not the farm's sales and buyers; egg sales are recorded on /eggs.
   const list = sales.filter((s) => s.batchId === batch.id && (seller || (s.takenBy && s.kind !== "eggs"))).sort((a, b) => b.day.localeCompare(a.day));
@@ -90,7 +92,13 @@ export function Sales({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="sale-title">
-      <h3 id="sale-title" className="text-[17px] font-semibold text-ink-2">{t("Sale.title")}</h3>
+      {/* tasks/plan-ui-cleanup.md §2.3, §2.7: the section's action beside its title; the form in a sheet */}
+      <div className={sectionHead}>
+        <h2 id="sale-title" className={sectionTitle}>{t("Sale.title")}</h2>
+        {batch.status === "open" && (
+          <button type="button" aria-haspopup="dialog" {...opener("add")} className={secondarySm}>{t(seller ? "Sale.add" : "Sale.addConsumption")}</button>
+        )}
+      </div>
       {list.length === 0 ? (
         <p>{t("Sale.none")}</p>
       ) : (
@@ -136,11 +144,9 @@ export function Sales({
           })}
         </ul>
       )}
-      {batch.status !== "open" ? null : adding ? (
-        <SaleForm batch={batch} sales={sales} buyers={buyers} treatments={treatments} birdsOnHand={birdsOnHand} seller={seller} write={write} onDone={() => setAdding(false)} />
-      ) : (
-        <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={secondary}>{t(seller ? "Sale.add" : "Sale.addConsumption")}</button>
-      )}
+      <Sheet open={open === "add"} onClose={close} title={t(seller ? "Sale.add" : "Sale.addConsumption")}>
+        <SaleForm batch={batch} sales={sales} buyers={buyers} treatments={treatments} birdsOnHand={birdsOnHand} seller={seller} write={write} onDone={close} />
+      </Sheet>
     </section>
   );
 }
@@ -195,9 +201,9 @@ function SaleActions({ sale, label, cancellable, write }: { sale: SaleDto; label
         )}
         {!sale.takenBy && <Input label={t("Sale.vat")} name="vat" defaultValue={sale.vatCentimes && sale.vatCentimes !== "0" ? typedPrice(BigInt(sale.vatCentimes)) : ""} inputMode="decimal" dir="ltr" />}
         {error && <p role="alert" className={danger}>{t(error)}</p>}
-        <div className="flex gap-3">
+        <div className={formActions}>
           <button type="submit" className={primary}>{t("Sale.saveCorrection")}</button>
-          <button type="button" onClick={close} className={secondary}>{t("Sale.cancel")}</button>
+          <button type="button" onClick={close} className={ghost}>{t("Sale.cancel")}</button>
         </div>
       </form>
     );
@@ -530,9 +536,9 @@ function SaleForm({
         </p>
       )}
       {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t(takenBy ? "Sale.saveConsumption" : "Sale.save")}</button>
-        <button type="button" onClick={onDone} className={secondary}>{t("Sale.cancel")}</button>
+        <button type="button" onClick={onDone} className={ghost}>{t("Sale.cancel")}</button>
       </div>
     </form>
   );

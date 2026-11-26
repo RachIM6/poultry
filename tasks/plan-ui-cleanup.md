@@ -135,7 +135,7 @@ No new colour token. Every rule below changes the wide screen (`lg:`) and leaves
   them to the precache's ignored URL parameters in `src/sw.ts` (Serwist precache option `ignoreURLParametersMatching`;
   confirm the option name in the Serwist 9 docs before writing it) and add an offline e2e check on `/fr/batches?tab=…`.
 
-### 2.5 Pagination (`src/components/pager.tsx` + pure `pager.ts`, new)
+### 2.5 Pagination (`src/components/pager.tsx` + pure `paging.ts`, new)
 - `pageWindow(current, pageCount)` (pure, unit-tested): `1 … 4 5 6 … 12`. The component renders « 26–50 sur 132 », « ‹
   Précédent », the numbers, « Suivant › », as links (`?page=`), `aria-label="Pagination"`, `aria-current="page"` on the
   current number, targets `min-h-11 lg:min-h-8`. Page size 25 rows for tables, 20 for card lists.
@@ -198,7 +198,7 @@ No new colour token. Every rule below changes the wide screen (`lg:`) and leaves
 | Page header, `PeriodNav` | in-house, extend `page.tsx` | exists; server-safe |
 | Buttons, fields | in-house, `ui.ts` strings | root-cause fix in one file, < 0.5 KB |
 | Tabs | in-house links (`tabs.tsx`), no JS | URL state for free, no tablist ARIA to get wrong |
-| Pagination | in-house links (`pager.tsx`, `pager.ts`) | ~40 lines; same for server and Dexie lists |
+| Pagination | in-house links (`pager.tsx`, `paging.ts`) | ~40 lines; same for server and Dexie lists |
 | Tables | in-house class strings (`layout.ts`) | three systems exist already; converge, don't add a fourth |
 | Sheet / dialog | in-house native `<dialog>` (`sheet.tsx`, client) | focus, Escape, inert background are native; ~1 KB |
 | Row « ⋯ » menu | in-house `<details>` | no JS, works with the `disclosure` utility |
@@ -301,29 +301,58 @@ with the audit's.
 **Order**: batch 0 alone, merged first. Then wave A (batches 1, 2, 4) and wave B (3, 5, 6) in parallel, 2–3 builders,
 each in its own worktree and E2E port. Batch 7 last, alone.
 
-### Batch 0: shared components (lands first)
+### Batch 0: shared components (lands first) — done
 - Goal: the patterns of §2, used nowhere yet except where a one-line change in `ui.ts` already fixes every page
   (button and field sizes, `lg:w-fit`, hovers).
-- Owns: `src/components/ui.ts`, `src/components/layout.ts` (`dataTable`, `num`, `empty`, `formActions`),
-  `src/components/page.tsx` (+ `PeriodNav`), new `tabs.tsx`, `pager.ts` + `pager.test.ts`, `pager.tsx`, `sheet.tsx`,
-  `src/sw.ts` (ignored URL parameters), `src/app/[locale]/globals.css` (dialog backdrop only if a utility can't),
-  `messages/fr.json` and `messages/ar.json` (**every** new key of batches 1–7, listed per batch below, so the JSON files
-  are never edited in parallel), `src/i18n` message lists if needed.
-- Acceptance: no button on any wide screenshot is wider than its label + padding except phone submits; `pageWindow`
-  unit-tested (1, 2, 7 and 50 pages, current at ends and middle); `Sheet` keyboard-tested (open, Tab stays inside,
-  Escape closes, focus back on the opener) in one small e2e on an existing page behind no flag; offline e2e: a
-  precached shell with `?tab=x` opens offline; `/fr/batches` budget ≤ 200 KB with the number reported.
-- E2E likely affected: `a11y.spec.ts` (target sizes on wide), `wide-screens.spec.ts`, `no-overflow.spec.ts`,
-  `budget.spec.ts`, `pwa.spec.ts`, `sw-claim.spec.ts`.
-- Risks: a page that relied on a stretched button (rows in the home rail, the phone is unchanged); Arabic keys need a
-  native speaker's review; the Serwist option name must be checked, not guessed.
+- Owns: `src/components/ui.ts`, `src/components/layout.ts`, `src/components/page.tsx` (+ `PeriodNav`), new `tabs.tsx`,
+  `paging.ts` + `paging.test.ts`, `pager.tsx`, `sheet.tsx`, `src/sw.ts`, the `Ui` namespace of `messages/*.json`.
+- **Message keys (decision at batch 0)**: each batch adds its own keys, in its own namespaces, in fr and ar (Arabic flagged
+  for a native speaker's review). The keys listed under each batch below are a guide, not something batch 0 added.
+- [x] `ui.ts`: `primary`, `secondary` with their `lg:` sizes, hovers and `lg:w-fit`; new `primarySm`, `secondarySm`,
+  `ghost`; `field` gains `lg:min-h-10 lg:rounded-xl lg:px-3 lg:text-base`; `link` gains `lg:w-fit` (the stretched
+  « Voir le bilan », « Ajouter une charge dans Dépense rapide » links). Phone unchanged (1 440 / 390 screenshots: every
+  phone screenshot byte-identical before and after; wide pages 0–264 px shorter).
+- [x] `pageWindow`, `pageOf`, `pickTab` unit-tested; `e2e/ui-kit.spec.ts`: tabs (URL, back and forward, unknown tab),
+  pager (range, links keep the tab, ends, `?page=99`), sheet (first field focused, Tab stays inside, Escape, « Fermer »,
+  the form closing it, focus back on the opener; bottom sheet on the phone, end-side sheet from lg in fr and ar), and a
+  precached shell (`/fr/batches?tab=sante&page=2`) opening offline while `?other=1` still gets the offline page.
+- [x] Budget: `/fr/batches` 193.9 → 194.2 KB, `/fr/login` 147.4 → 147.5 KB (of 200).
+- Deviation from the planned acceptance (« the sheet tested on an existing page behind no flag »): the components are
+  proved on an e2e-only page, `src/app/[locale]/(app)/ui-kit` (404 outside the e2e build, `STRICT_MESSAGES`), so batch 0
+  edits no page a later batch owns. The first batch that uses a sheet on a real page adds its own keyboard check.
+
+**Final API (use exactly these):**
+- `ui.ts`: `primary`, `secondary`, `primarySm`, `secondarySm`, `ghost`, `field`, `link` (class strings).
+- `layout.ts`: `sectionHead` + `sectionTitle` (section header row and its h2); `dataTableWrap` (the card around a
+  table) + `dataTable` (on `<table>`; sticky `thead th` from lg); `num` (on amount `td` and `th`, `text-end!` beats the
+  table's `th` alignment); `formActions` (submit first, « Annuler » `ghost`); `empty` (dashed box, one sentence, at most
+  one `secondarySm`).
+- `page.tsx`: `<Page width back title subtitle actions nav>` — `actions` wrapped in a `gap-2` row on the title's end
+  side, `nav` is the header's third row (`<PeriodNav>` then `<Tabs>`).
+  `<PeriodNav label period prev={{ href, label }} next={{ href, label }} end? />`: `period` is a node (`<span
+  dir="ltr">{year}</span>` for a year), the labels are the page's existing « mois / année précédent·e » keys, `end`
+  holds « Exporter » / « Imprimer ». Server-safe.
+- `paging.ts` (pure): `pickTab(keys, search.tab)` → a key (unknown or missing → the first); `pageOf(search.page, total,
+  size)` → 1…last; `pageWindow(current, pageCount)` → `(number | null)[]`; `TABLE_PAGE` = 25, `CARD_PAGE` = 20.
+- `tabs.tsx`: `<Tabs label current tabs={[{ key, label, href, count? }]} />`, links with `aria-current="page"` and
+  `scroll={false}`; `href` is any `Link` href (`{ pathname, query: { …shared, tab: key } }` for query tabs, the sibling
+  route for route tabs). Server-safe.
+- `pager.tsx`: `<Pager page size total href={(n) => ({ pathname, query: { …, page: n } })} />`; renders nothing on one
+  page. Server-safe; uses the `Ui` namespace (`pagination`, `previous`, `next`, `page`, `range`): a client screen lists
+  `"Ui"` in its `ClientMessages`.
+- `sheet.tsx` (`"use client"`): `<SheetButton label title className?>{form}</SheetButton>` (opener `secondarySm` by
+  default, focus back on it on close); `<Sheet open onClose title>` for a screen that already holds its own open state
+  (pair it with `useInline`, focus.ts); `useCloseSheet()` inside the form closes it once saved. The first field takes
+  the focus; uses `Ui.close`, so the page lists `"Ui"`.
+- `src/sw.ts`: `precacheOptions.ignoreURLParametersMatching` = Serwist's `utm_`/`fbclid` defaults + `tab` + `page`. A
+  new query key a client shell reads offline must be added there.
 
 ### Batch 1: the batch page and the batches list
 - Goal: §4 rows `/batches` and `/batches#<id>`.
 - Owns: `batches.tsx`, `batch-dashboard.tsx`, `daily-entry.tsx`, `weighing.tsx`, `vaccinations.tsx`, `treatments.tsx`,
   `sales.tsx`, `closing.tsx`, `correct-placement.tsx`, `notifiable-diseases.tsx`, `register-links.tsx`, `eggs.tsx`,
   `layer-dashboard.tsx`, `turkey-sexes.tsx`, `placement.tsx`, `reopen-batch.tsx`, `batches/page.tsx`.
-- Message keys (in batch 0): tab labels Saisie, Indicateurs, Santé, Ventes, Bande, Bilan; En cours, Clôturées.
+- Message keys: tab labels Saisie, Indicateurs, Santé, Ventes, Bande, Bilan; En cours, Clôturées.
 - Acceptance: phone and wide batch page show the strip + alerts + one tab; the default tab is Saisie; each tab is
   deep-linkable (`/fr/batches?tab=sante#<id>`) and works offline; no section, form, rule or permission lost (checklist of
   the 8 sections ticked); first-load JS of `/fr/batches` not higher than before batch 1 (tabs move code into the lazy

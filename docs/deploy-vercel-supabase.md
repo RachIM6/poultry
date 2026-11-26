@@ -65,12 +65,23 @@ export DATABASE_URL='postgresql://postgres.<ref>:<password>@<pooler host>:5432/p
 pnpm exec prisma migrate deploy   # every migration; reads DIRECT_URL (prisma.config.ts)
 pnpm exec prisma db seed          # strains, catalogues, chart of accounts; idempotent
 BETTER_AUTH_SECRET='<the value set in Vercel>' DEMO_PHONE=+2126XXXXXXXX DEMO_PASSWORD='<10+ characters>' pnpm db:seed:demo   # optional: the demo farms and their owner; the same secret as Vercel, or the printed invite codes never work
+# or, into an account that already signed up (it keeps its own password):
+BETTER_AUTH_SECRET='<the value set in Vercel>' DEMO_PHONE=+2126XXXXXXXX DEMO_INTO_EXISTING=1 pnpm db:seed:demo
 ```
 
-- `pnpm db:seed:demo` pushes about 400 writes through the app's own sync rules: it took 2 to 3 minutes against a local
-  database, so expect several more over the network to Supabase. Wait for its last lines: the vet's and the
-  accountant's invite codes (one for the farm, one for the SARL), then `demo: sign in with …`. Keep the codes for the
-  demo (`docs/demo-script-fr.md`, step 9). Run it the day before: the open batch ages one day per day.
+- `pnpm db:seed:demo` pushes about 900 writes through the app's own sync rules (every module: broilers, layers, pullets,
+  turkeys, beldi, stock, sales, money, loans, assets, bank statement, staff, compliance; `src/ops/demo`): 1 to 3 minutes
+  against a local database, so expect several more over the network to Supabase. Wait for its last lines: the members
+  who joined, the vet's and the accountant's invite codes (one for the farm, one for the SARL), then, for a new demo
+  owner, `demo: sign in with …`. Keep the codes for the demo (`docs/demo-script-fr.md`, step 9). Run it the day before:
+  the open batch ages one day per day.
+- **Into an existing account** (`DEMO_INTO_EXISTING=1`): the account with `DEMO_PHONE` must exist (signed up, with its
+  organisation created at onboarding); the seed refuses otherwise. It fills the organisation that account owns while
+  it has no farm (several owned: set `DEMO_ORGANIZATION_ID`, the seed lists them), and adds « SARL Démo Avicole »
+  (company, double-entry books, VAT-registered) co-owned by it, for the organisation switcher. It never reads or
+  changes that account's password or sessions; `DEMO_PASSWORD` is ignored. Run again: `demo: nothing added`.
+- The partners and staff get made-up numbers (`+2126000000xx`, downwards from 98) that no user, invitation or
+  employee has yet, so a second demo in the same database never collides.
 - Two URLs because the tools read TLS settings differently: Prisma's engine only knows `sslmode=require` (encrypted;
   it accepts any certificate unless told otherwise), while node-postgres reads `require` as "verify the certificate",
   which fails without Supabase's CA, hence `verify-full` with `sslrootcert`. `sslrootcert` is a path from the current
@@ -173,7 +184,7 @@ needed (SMS code login stays off, `AUTH_SMS_ENABLED` unset).
 - **The seeded demo owner** (`DEMO_PHONE`, section 2) signs in at `/fr/login` with that phone and `DEMO_PASSWORD`.
   Without `DEMO_PASSWORD` the seed generates a password and prints it once (`demo: sign in with … and the password …`).
   Run the seed again with `DEMO_PASSWORD` to change it (the farm isn't added twice), or use `pnpm user:reset
-  <DEMO_PHONE>` and `/reset`.
+  <DEMO_PHONE>` and `/reset`. Seeded with `DEMO_INTO_EXISTING=1`, the account keeps the password it signed up with.
 
 ## 6. Backups
 

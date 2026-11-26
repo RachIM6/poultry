@@ -56,7 +56,7 @@ export function BatchDashboard({
     batch.status === "closed" ? [t("Kpi.weightSold"), avgWeightGrams === null ? none : formatKg(Math.round(avgWeightGrams))] : [
       w ? t("Kpi.weight", { age: String(w.ageDays) }) : t("Kpi.weightNone"),
       w ? formatKg(w.averageGrams) : none,
-      w ? (standard ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(w.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) }) : t("Weighing.noStandard")) : undefined,
+      w && standard ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(w.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) }) : undefined,
     ],
     [t("Kpi.fcr"), fcr === null ? none : formatDecimal(fcr, 2)],
     [t("Kpi.epef"), epef === null ? none : formatDecimal(epef, 0)],
@@ -79,7 +79,7 @@ export function BatchDashboard({
     // WebBatch.dc.html: on wide screens the chart and the tiles sit side by side.
     <section className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-x-5" aria-labelledby="kpi-title">
       <h3 id="kpi-title" className="text-[17px] font-semibold text-ink-2 lg:col-span-full">{t("Kpi.title")}</h3>
-      {points.length > 0 && <GrowthChart points={points} curve={curve} />}
+      {points.length > 0 && <GrowthChart points={points} curve={curve} note={w && !standard ? t("Weighing.noStandard") : undefined} />}
       <dl className={`grid grid-cols-2 gap-2 ${points.length > 0 ? "" : "lg:col-span-full lg:grid-cols-4"}`}>
         {tiles.map(([label, value, note]) => (
           <div key={label} className="flex flex-col gap-0.5 rounded-[14px] bg-card px-3 py-2.5">
@@ -97,7 +97,8 @@ export function BatchDashboard({
 
 const W = 320, H = 180, L = 44, R = 10, T = 10, B = 24;
 
-function GrowthChart({ points, curve }: { points: { age: number; grams: number }[]; curve: readonly CurvePoint[] | null }) {
+/** `note`: no standard at the latest weighing's age, said once here (UX review B8). */
+function GrowthChart({ points, curve, note }: { points: { age: number; grams: number }[]; curve: readonly CurvePoint[] | null; note?: string }) {
   const t = useTranslations("Kpi");
   const maxAge = Math.max(7, ...points.map((p) => p.age));
   const std = (curve ?? []).filter((p) => p.day <= maxAge).map((p) => ({ age: p.day, grams: p.bodyWeightGrams }));
@@ -143,6 +144,7 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
           </g>
         ))}
       </svg>
+      {note && <p className="text-sm text-muted">{note}</p>}
     </figure>
   );
 }

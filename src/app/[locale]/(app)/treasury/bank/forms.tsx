@@ -190,7 +190,7 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
             {lines.map((l) => (
               <tr key={l.id}>
                 <td>
-                  <span className="block">{l.label}</span>
+                  <span className="block [overflow-wrap:anywhere]">{l.label}</span>
                   <span className="block text-ink-2">{l.day}</span>
                 </td>
                 <Num className="whitespace-nowrap">{l.amount}</Num>
@@ -275,7 +275,7 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
             {lines.map((l) => (
               <tr key={l.id}>
                 <td>
-                  <span className="block">{l.label}</span>
+                  <span className="block [overflow-wrap:anywhere]">{l.label}</span>
                   <span className="block text-ink-2">{l.day} · {l.journal}</span>
                 </td>
                 <Num className="whitespace-nowrap">{l.amount}</Num>

@@ -1262,7 +1262,11 @@
     "colInstrument": "Chèque ou effet",
     "colState": "État",
     "colBuyer": "Acheteur et solde",
-    "colDetail": "Ancienneté, plafond et échéances"
+    "colDetail": "Ancienneté, plafond et échéances",
+    "limitBuyer": "Acheteur",
+    "limitCol": "Plafond",
+    "limitCell": "<l>Plafond : </l>{amount}",
+    "edit": "Modifier"
   },
   "Origin": {
     "title": "Document d’origine des volailles",

@@ -1262,7 +1262,11 @@
     "colInstrument": "الشيك أو الكمبيالة",
     "colState": "الحالة",
     "colBuyer": "المشتري والرصيد",
-    "colDetail": "الأقدمية والسقف والآجال"
+    "colDetail": "الأقدمية والسقف والآجال",
+    "limitBuyer": "المشتري",
+    "limitCol": "السقف",
+    "limitCell": "<l>السقف: </l>⁨{amount}⁩",
+    "edit": "تعديل"
   },
   "Origin": {
     "title": "وثيقة مصدر الدواجن",

@@ -2,11 +2,12 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { v7 as uuidv7 } from "uuid";
 import { Field, FileUpload, Shell, of, useOnline, type Screen } from "@/components/local-screen";
 import { useInline } from "@/components/focus";
-import { empty, formActions, row, rowHead, rowTable, sectionHead, sectionTitle } from "@/components/layout";
+import { empty, formActions, row, rowHead, rowTable } from "@/components/layout";
 import { Sheet } from "@/components/sheet";
 import { danger, field, ghost, primary, primarySm, secondarySm } from "@/components/ui";
 import { formatDay } from "@/lib/format";
@@ -27,6 +28,12 @@ const STATE_STYLE: Record<DocumentState, string> = {
   none: "bg-line text-ink-2",
 };
 
+/** Into the page header's actions (the shell's `<span id="actions">`, as stock.tsx): the opener needs the screen's state. */
+function HeaderActions({ children }: { children: ReactNode }) {
+  const slot = document.getElementById("actions");
+  return slot && createPortal(children, slot);
+}
+
 export const DocumentsScreen = () => <Shell action="documents.manage" forbidden="Documents.forbidden" entities={["farm", "document"]} screen={Vault} />;
 
 function Vault({ records, save, db }: Parameters<Screen>[0]) {
@@ -37,7 +44,6 @@ function Vault({ records, save, db }: Parameters<Screen>[0]) {
   const queued = useLiveQuery(() => db.outbox.toArray(), [db]);
   const { open, opener, close } = useInline<string>(); // "new", or the id of the document being edited
   const [error, setError] = useState<string>();
-  const headId = useId();
   const today = farmDayOf(new Date());
   const farms = of<FarmDto>(records, "farm").sort((x, y) => x.name.localeCompare(y.name));
   const docs = of<DocumentDto>(records, "document").sort(byExpiry);
@@ -52,13 +58,13 @@ function Vault({ records, save, db }: Parameters<Screen>[0]) {
 
   // What the table's header already says is for screen readers only from lg (`<l>` in the message).
   const label = (chunks: ReactNode) => <span className="lg:sr-only">{chunks}</span>;
-  // tasks/plan-ui-cleanup.md §4: the vault full width, a table from lg (cards on the phone); adding and editing in a sheet.
+  // tasks/plan-ui-cleanup.md §4: the vault full width, a table from lg (cards on the phone); « Ajouter un document » is
+  // the page header's action; adding and editing open a sheet.
   return (
-    <section aria-labelledby={headId} className="flex flex-col gap-3">
-      <div className={sectionHead}>
-        <h2 id={headId} className={sectionTitle}>{t("list")}</h2>
+    <>
+      <HeaderActions>
         <button type="button" aria-haspopup="dialog" {...opener("new")} className={primarySm}>{t("add")}</button>
-      </div>
+      </HeaderActions>
       {error && <p role="alert" className={danger}>{tr(error)}</p>}
       {docs.length === 0 ? (
         <p className={empty}>{t("none")}</p>
@@ -120,7 +126,7 @@ function Vault({ records, save, db }: Parameters<Screen>[0]) {
           }}
         />
       </Sheet>
-    </section>
+    </>
   );
 }
 

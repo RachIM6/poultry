@@ -12,7 +12,8 @@ export default function DocumentsPage() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <Page width="wide" back="/more" title={t("Documents.titlePage")}>
+      {/* #actions: the screen puts « Ajouter un document » there (components/documents.tsx) */}
+      <Page width="wide" back="/more" title={t("Documents.titlePage")} actions={<span id="actions" className="contents" />}>
         <DocumentsScreen />
       </Page>
     </ClientMessages>

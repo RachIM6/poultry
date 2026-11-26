@@ -2072,7 +2072,8 @@
     "account": "Compte",
     "sync": "Synchronisation",
     "compliance": "Conformité",
-    "settings": "Langue et déconnexion"
+    "settings": "Langue et déconnexion",
+    "accounting": "Comptabilité de l’exercice"
   },
   "Strip": {
     "legendLabel": "Légende",

@@ -14,7 +14,7 @@ import type { Role } from "@/lib/tenant";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { ageOn, birdsOnHand, birdsStarted, houseFigure, houseWeight, layingVersusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
-import { layerKpis, type EggCollectionDto } from "@/modules/eggs/shared";
+import { eggsIn, layerKpis, type EggCollectionDto } from "@/modules/eggs/shared";
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
 import { SyncBadge } from "@/components/sync-status";
 import { cachedReference, currentScope, localDb, metaValue, scopeKey } from "@/offline/db";
@@ -67,7 +67,9 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   const scope = { userId, organizationId, role };
   const farming = pulls(role, "dailyEntry"); // SPEC-m5 §5: none on the accountant's phone, so no count, strip or figure
   const recording = can(scope, "flock.record"); // the day's entry and the days missing are the recorders' tasks
-  // A partner's phone holds no vaccination (accountant): no task to show, rather than an empty list that reads as fact.
+  // A partner's phone holds no egg collection (vet, accountant) or no vaccination (accountant): no figure or task to show,
+  // rather than a 0 or an empty list that reads as fact.
+  const counting = pulls(role, "eggCollection");
   const tasked = recording || pulls(role, "vaccination");
   const today = farmDayOf(new Date());
   const farms = of<FarmDto>("farm");
@@ -82,9 +84,10 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   const shortDay = (d: string) => short.format(new Date(`${d}T00:00:00Z`));
   const farm = farms.find((f) => f.id === open[0]?.farmId) ?? farms[0];
   const strainOf = (b: BatchDto) => strains.find((s) => s.id === b.strainId);
-  // SPEC-m3 D1 (P-Owner): layers show their latest laying rate vs the standard and that day's eggs, in the header only
-  // (UX review A10: a card below repeated the count).
+  // SPEC-m3 D1 (P-Owner): layers show their latest laying rate vs the standard; the headline counts yesterday's eggs.
   const collectionsOf = (b: BatchDto) => ofBatch<EggCollectionDto>("eggCollection", b.id);
+  const yesterday = addFarmDays(today, -1);
+  const eggsYesterday = open.flatMap((b) => collectionsOf(b).filter((c) => c.day === yesterday)).reduce((n, c) => n + eggsIn(c.counts), 0);
   const laying = (b: BatchDto) =>
     layerKpis(
       { placedOn: b.placedOn as FarmDay, ageAtPlacementDays: b.ageAtPlacementDays, hensHoused: birdsStarted(b) },
@@ -161,7 +164,11 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
               const last = laying(b);
               if (last?.layingRate == null) return null;
               const vs = layingVersusStandard(b, last.day, last.layingRate, strainOf(b)?.layingCurves ?? []); // a cache from before M3 has none
-              const text = t("Today.laying", { rate: formatPercent(last.layingRate), eggs: formatCount(last.eggs) });
+              // UX review A10: a count the headline card already gives (yesterday, this house alone) isn't repeated here.
+              const repeats = counting && last.day === yesterday && last.eggs === eggsYesterday;
+              const text = repeats
+                ? t("Today.layingRate", { rate: formatPercent(last.layingRate) })
+                : t("Today.laying", { rate: formatPercent(last.layingRate), eggs: formatCount(last.eggs) });
               return <span className="text-sm text-sand">{vs ? `${text} · ${t("Today.layingStandard", { gap: formatPercent(vs.gapPoints, true), standard: formatPercent(vs.standardPercent) })}` : text}</span>;
             })()}
             {weight && <span className="text-sm text-sand">{weight}</span>}
@@ -178,6 +185,12 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
       <main className={`mx-auto grid w-full max-w-xl flex-1 content-start gap-6 p-5 lg:max-w-none lg:items-start lg:px-0 lg:pb-0 ${money ? "lg:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
         <div className="flex flex-col gap-3.5">
         {alert}
+        {counting && open.some((b) => b.species === "layer") && (
+          <p className={`${card} flex-row items-baseline justify-between`}>
+            <span className="text-ink-2">{t("Today.eggsYesterday")}</span>
+            <b className="text-[22px] font-semibold">{formatCount(eggsYesterday)}</b>
+          </p>
+        )}
         {tasked && <h2 className="text-[17px] font-semibold text-ink-2">{t("Today.tasks")}</h2>}
         {batches.length === 0 && pulled && (
           <div className={card}>

@@ -2110,7 +2110,8 @@
     "weight": "Poids moyen {weight}",
     "fcr": "Indice de consommation {fcr}",
     "eggsYesterday": "Œufs ramassés hier",
-    "left": "Cette exploitation a quitté la plateforme le {day}. Elle est en lecture seule : vous pouvez consulter ses données, mais plus rien ne peut y être enregistré. Ses données seront supprimées 30 jours après son départ, sauf la comptabilité, conservée dix ans. Pour recevoir l’export complet de ses données, le propriétaire le demande à l’équipe de la plateforme."
+    "left": "Cette exploitation a quitté la plateforme le {day}. Elle est en lecture seule : vous pouvez consulter ses données, mais plus rien ne peut y être enregistré. Ses données seront supprimées 30 jours après son départ, sauf la comptabilité, conservée dix ans. Pour recevoir l’export complet de ses données, le propriétaire le demande à l’équipe de la plateforme.",
+    "layingRate": "Ponte {rate} %"
   },
   "Staff": {
     "title": "Personnel",

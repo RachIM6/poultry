@@ -1558,6 +1558,10 @@
     "forbidden": "Les résultats des bandes sont réservés au propriétaire, au gérant et au comptable.",
     "title": "Résultats des bandes",
     "open": "Résultats des bandes",
+    "section": "Résultats et budget",
+    "tabResults": "Résultats",
+    "tabBudget": "Budget",
+    "tabThreshold": "Seuil d’exonération",
     "none": "Aucune bande pour l’instant.",
     "batch": "Bande",
     "sales": "Ventes",
@@ -1589,7 +1593,6 @@
   },
   "Budget": {
     "forbidden": "Le budget d’une bande est réservé au propriétaire, au gérant et au comptable.",
-    "title": "Budget d’une bande",
     "open": "Budget d’une bande",
     "basedOn": "Copié de la bande",
     "blank": "Partir de zéro",
@@ -3099,6 +3102,9 @@
   "Accounting": {
     "open": "Paramètres comptables",
     "title": "Paramètres comptables",
+    "tabProfile": "Profil",
+    "tabChart": "Plan de comptes",
+    "tabOverrides": "Comptes remplacés",
     "none": "Aucune entité juridique.",
     "books": "Tenue des livres",
     "booksOptions": {
@@ -3190,6 +3196,14 @@
     "cgnc": "PCGE",
     "override": "Remplacé",
     "review": "Ces imputations sont celles proposées à l’expert-comptable, à valider avant la clôture.",
+    "groups": {
+      "charges": "Charges (classe 6)",
+      "revenue": "Produits (classe 7)",
+      "thirdParties": "Tiers (classes 3 et 4)",
+      "cash": "Trésorerie (classe 5)",
+      "capital": "Capitaux (classe 1)",
+      "other": "Autres comptes"
+    },
     "ops": {
       "chicks": "Achat de poussins",
       "feed": "Achat d’aliment",
@@ -3220,7 +3234,6 @@
     }
   },
   "Overrides": {
-    "open": "Remplacer un compte",
     "title": "Remplacer un compte",
     "intro": "Chaque opération est imputée à un compte par défaut. Vous pouvez choisir un autre compte de détail de la même classe, par exemple pour une catégorie de dépense. Le changement vaut pour les nouvelles écritures seulement : les écritures déjà passées, et leurs corrections, gardent leur compte.",
     "rule": "Opération",
@@ -3231,6 +3244,8 @@
     "reset": "Revenir au compte par défaut",
     "resetOf": "Revenir au compte par défaut : {rule}",
     "save": "Enregistrer",
-    "saved": "Compte enregistré pour les nouvelles écritures."
+    "saved": "Compte enregistré pour les nouvelles écritures.",
+    "replace": "Remplacer",
+    "replaceOf": "Remplacer : {rule}"
   }
 }

@@ -10,7 +10,7 @@ import { parseQuantity } from "@/modules/inventory/shared";
 import { OfflineHint, unsent, useOnline } from "@/components/online";
 import { danger, field, primary } from "@/components/ui";
 import { BudgetCashView } from "@/components/budget-cash";
-import { splitAside } from "@/components/layout";
+import { sectionTitle, splitAside } from "@/components/layout";
 
 // SPEC-finance FN15: a planned batch's budget, copied from a closed batch, with its feed and sale prices as what-if
 // inputs. The figures recompute on every keystroke with the same pure function the server uses; a screen reader hears
@@ -178,7 +178,7 @@ export function BudgetPlanner({ bases, batches, delays, save }: { bases: Base[];
 
         {/* SPEC-finance FN15, §9 "Budget cash need": the batch's cash week by week, from the base batch's timing or the plain rule */}
         <section className="flex flex-col gap-2" aria-labelledby="budget-cash">
-          <h2 id="budget-cash" className="text-[17px] font-semibold text-ink-2">{t("cash")}</h2>
+          <h2 id="budget-cash" className={sectionTitle}>{t("cash")}</h2>
           <div className="grid grid-cols-2 gap-3">
             {DELAYS.map(([k, name, label]) => (
               <Field key={k} label={t(label)}>

@@ -100,7 +100,8 @@ test("the chart screen shows where each operation is posted", async ({ page }) =
   await ownerWithFarm(page, "Élevage du Plan");
   await scopeRemembered(page);
   await page.goto("/fr/more");
-  await page.getByRole("link", { name: "Plan de comptes" }).click();
+  await page.getByRole("link", { name: "Paramètres comptables" }).click();
+  await page.getByRole("navigation", { name: "Paramètres comptables" }).getByRole("link", { name: "Plan de comptes" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres comptables");
   const tabs = page.getByRole("navigation", { name: "Paramètres comptables" });
   await expect(tabs.getByRole("link", { name: "Plan de comptes" })).toHaveAttribute("aria-current", "page");

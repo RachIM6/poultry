@@ -663,7 +663,16 @@
     "yourName": "اسمك",
     "nameHint": "يظهر أعلى الشاشة، ولباقي أعضاء الضيعة.",
     "nameSaved": "تم حفظ الاسم.",
-    "save": "حفظ"
+    "save": "حفظ",
+    "syncLabel": "المزامنة",
+    "syncDone": "تم إرسال كل شيء",
+    "syncPending": "{n} في الانتظار",
+    "syncRefused": "{count, plural, one {كتابة مرفوضة للمراجعة} other {{n} كتابات مرفوضة}}",
+    "syncOffline": "غير متصل",
+    "panelTitle": "الإشعارات",
+    "markAllRead": "تحديد الكل كمقروء",
+    "noUnread": "لا توجد إشعارات غير مقروءة.",
+    "allNotifications": "كل الإشعارات"
   },
   "Inbox": {
     "title": "الإشعارات",
@@ -2226,7 +2235,8 @@
     "withdrawalUntil": "مدة الانتظار حتى {date} (ضمنه)",
     "fcrShort": "م.ت.غ",
     "fcrName": "معامل التحويل الغذائي",
-    "entryDoneShort": "تمّ"
+    "entryDoneShort": "تمّ",
+    "seeAll": "عرض الكل"
   },
   "Staff": {
     "title": "العمال",

@@ -45,7 +45,7 @@ const uncovered = (l: Locator) =>
   });
 
 test("wide screens, unfolded: the role's groups open under their headings and mark the current page", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const e164 = await ownerWithFarm(page, "Élevage de la Barre");
   await scopeRemembered(page);
   await page.setViewportSize(WIDE);
@@ -72,10 +72,19 @@ test("wide screens, unfolded: the role's groups open under their headings and ma
   const account = nav(page).getByRole("list", { name: "Compte" });
   // U20: the language and the sign-out are in the header's menu; « Mes exploitations » is the last link.
   await expect(account.getByRole("link")).toHaveText(["Membres", "Mes exploitations"]);
+  // tasks/plan-ui-cleanup.md §3: the notifications and the sync are the header's bell and chip on wide screens.
+  for (const name of ["Notifications", "Synchronisation"]) await expect(nav(page).getByRole("link", { name })).toHaveCount(0);
 
-  // Every group open: 44 px targets, no label cut at 288 px (« Cadavres, fumier et nuisibles », « Inventaire de fin d’exercice »).
+  // Every group open: 44 px targets, no label cut at 288 px (« Cadavres, fumier et nuisibles », « Clôture de l’exercice »).
   for (const name of ["Élevage", "Comptabilité de l’exercice"]) await heading(name).click();
   expect(await fits(nav(page))).toEqual([]);
+  // One entry per topic, its other pages as the page's tabs: 25 links in the groups, not 34.
+  const counts = { Élevage: 8, Argent: 4, "Comptabilité de l’exercice": 6, Conformité: 5, Compte: 2 };
+  for (const [name, n] of Object.entries(counts)) await expect(nav(page).getByRole("list", { name }).getByRole("link"), name).toHaveCount(n);
+  await expect(nav(page).locator("ul[aria-labelledby] a")).toHaveCount(25);
+  await expect(nav(page).getByRole("list", { name: "Comptabilité de l’exercice" }).getByRole("link")).toHaveText([
+    "Livres comptables", "Résultats et budget", "Clôture de l’exercice", "Immobilisations", "Emprunts et subventions", "Paramètres comptables",
+  ]);
   // The sidebar scrolls on its own: the page doesn't move with it.
   expect(await nav(page).evaluate((el) => el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === "auto")).toBe(true);
   // « Replier le menu » stays pinned at its foot, whole and on top, at either end of the scroll; nothing ends up under it.
@@ -104,12 +113,28 @@ test("wide screens, unfolded: the role's groups open under their headings and ma
   await expect(heading("Argent")).toHaveAttribute("aria-current", "true");
   await expect(heading("Argent").locator(".rounded-full")).toBeVisible();
 
-  // Loaded straight on a page: its group opens, with only the deepest match current (/closing/count, not /closing).
+  // Loaded straight on a page: its group opens; a merged entry is current on every page of its tabs, the one entry so.
   await page.goto("/fr/closing/count");
   await expect(heading("Comptabilité de l’exercice")).toHaveAttribute("aria-expanded", "true");
   await expect(heading("Argent")).toHaveAttribute("aria-expanded", "false");
-  await expect(nav(page).getByRole("link", { name: "Inventaire de fin d’exercice" })).toHaveAttribute("aria-current", "page");
-  await expect(nav(page).getByRole("link", { name: "Préparer la clôture" })).not.toHaveAttribute("aria-current", "page");
+  await expect(nav(page).getByRole("link", { name: "Clôture de l’exercice" })).toHaveAttribute("href", "/fr/closing/count"); // step 1
+  const merged: [string, string, string][] = [
+    ["/fr/closing/count", "Comptabilité de l’exercice", "Clôture de l’exercice"],
+    ["/fr/closing", "Comptabilité de l’exercice", "Clôture de l’exercice"],
+    ["/fr/closing/statements", "Comptabilité de l’exercice", "Clôture de l’exercice"],
+    ["/fr/treasury/bank", "Argent", "Trésorerie"],
+    ["/fr/budget", "Comptabilité de l’exercice", "Résultats et budget"],
+    ["/fr/threshold", "Comptabilité de l’exercice", "Résultats et budget"],
+    ["/fr/settings/chart", "Comptabilité de l’exercice", "Paramètres comptables"],
+    ["/fr/settings/posting", "Comptabilité de l’exercice", "Paramètres comptables"],
+    ["/fr/climate/targets", "Élevage", "Climat des bâtiments"],
+  ];
+  for (const [path, group, name] of merged) {
+    if (page.url() !== `${new URL(page.url()).origin}${path}`) await page.goto(path);
+    await expect(heading(group), path).toHaveAttribute("aria-expanded", "true");
+    await expect(nav(page).getByRole("link", { name }), path).toHaveAttribute("aria-current", "page");
+    await expect(nav(page).locator("ul[aria-labelledby] a[aria-current]"), path).toHaveCount(1);
+  }
 
   // A worker never sees the money screens (I5); the phone forgets the role's links with the role.
   await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);
@@ -124,7 +149,7 @@ test("wide screens, unfolded: the role's groups open under their headings and ma
 });
 
 test("wide screens, folded: a 72 px rail whose group icons open a side panel, remembered without a shift", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   const e164 = await ownerWithFarm(page, "Élevage du Rail");
   await scopeRemembered(page);
   await page.setViewportSize(WIDE);
@@ -206,6 +231,13 @@ test("wide screens, folded: a 72 px rail whose group icons open a side panel, re
   expect(await page.evaluate(() => (window as unknown as { navAtStart: number }).navAtStart)).toBe(72);
   expect(await page.evaluate(() => (window as unknown as { shifts: number }).shifts)).toBe(0);
   await expect(nav(page).locator("[data-panel]:visible")).toHaveCount(0); // a panel opens only when asked
+  // A merged entry: its group's icon and, in the panel, the entry itself are current on any page of its tabs.
+  for (const [path, name] of [["/fr/closing/statements", "Clôture de l’exercice"], ["/fr/settings/posting", "Paramètres comptables"]]) {
+    await page.goto(path);
+    await expect(icon("Comptabilité de l’exercice"), path).toHaveAttribute("aria-current", "true");
+    await icon("Comptabilité de l’exercice").click();
+    await expect(nav(page).locator("[data-panel]:visible").getByRole("link", { name }), path).toHaveAttribute("aria-current", "page");
+  }
 
   // A worker's rail has no money icons either.
   await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);
@@ -250,7 +282,7 @@ test("wide screens in Arabic: the sidebar on the right, the rail's panel to its 
   }
 });
 
-test("the phone: the « Plus » tab still opens /more", async ({ page }) => {
+test("the phone: the « Plus » tab still opens /more, the notifications and the sync under « Compte »", async ({ page }) => {
   test.setTimeout(90_000);
   await ownerWithFarm(page, "Élevage du Pouce");
   await scopeRemembered(page);
@@ -259,6 +291,11 @@ test("the phone: the « Plus » tab still opens /more", async ({ page }) => {
   await nav(page).getByRole("link", { name: "Plus", exact: true }).click();
   await page.waitForURL(/\/fr\/more$/);
   await expect(page.getByRole("heading", { name: "Plus", level: 1 })).toBeVisible();
+  // The sidebar's 25 entries, and the two the wide header holds (tasks/plan-ui-cleanup.md §3).
+  const more = page.getByRole("main");
+  await expect(more.getByRole("region", { name: "Compte" }).getByRole("link")).toHaveText(["Membres", "Mes exploitations", "Notifications", "Synchronisation"]);
+  await expect(more.getByRole("link")).toHaveCount(27);
+  await expect(more.getByRole("link", { name: "Clôture de l’exercice" })).toHaveAttribute("href", "/fr/closing/count");
   await page.getByRole("main").getByRole("link", { name: "Trésorerie" }).click();
   await page.getByRole("main").getByRole("link", { name: "Retour" }).click(); // the phone's way back to « Plus »
   await page.waitForURL(/\/fr\/more$/);

@@ -6,7 +6,7 @@ import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
 const HEADER_MESSAGES: MessagePath[] = [
-  "Header.notifications", "Header.yourName", "Members.roles", "Organizations.title", "LocaleSwitcher",
+  "Header", "Members.roles", "Notifications.templates", "Organizations.title", "LocaleSwitcher",
   "Account.logout", "Account.logoutEverywhere", "Account.everywhereConfirm", "Account.unsyncedConfirm", "errors.NETWORK",
 ];
 

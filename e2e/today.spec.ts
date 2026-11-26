@@ -20,4 +20,6 @@ test("the home screen works offline with the batch's strip and today's tasks", a
   await expect(page.getByRole("img", { name: /Jour 5 de la bande, 4 jour\(s\) non saisi\(s\)/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Saisie du jour · Bâtiment 1/ })).toBeVisible();
   await expect(page.getByRole("link", { name: "Aujourd’hui" })).toHaveAttribute("aria-current", "page");
+  // What waits to be sent: the header's chip on the offline shell too (tasks/plan-ui-cleanup.md §3).
+  await expect(page.getByRole("link", { name: "Synchronisation : Hors ligne" })).toBeVisible();
 });

@@ -6,7 +6,7 @@ import type { MessagePath } from "@/i18n/pick";
 
 // What this page's client components read (src/i18n/client-messages.tsx).
 const MESSAGES: MessagePath[] = [
-  "Advances", "Attendance", "Expenses.note", "Farms.none", "Farms.saveFailed", "Farms.saved", "Pay",
+  "Advances", "Attendance", "Expenses.note", "Farms.none", "Farms.saveFailed", "Farms.saved", "Nav", "Pay",
   "Receivables.cancel", "Records", "Staff", "Sync.login", "Sync.signedOut", "errors.DEDUCT_BEFORE_ADVANCE",
   "errors.INVALID_INPUT", "errors.INVALID_QUANTITY", "errors.LEFT_BEFORE_START",
 ];
@@ -16,7 +16,7 @@ export default function StaffPage() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <Page width="wide" title={t("Staff.title")}>
+      <Page width="wide" back="/more" title={t("Staff.title")}>
         <StaffScreen />
       </Page>
     </ClientMessages>

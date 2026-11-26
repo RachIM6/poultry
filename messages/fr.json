@@ -2151,7 +2151,8 @@
     "housed": "logé sur la ferme",
     "leftOn": "parti le {date}",
     "usesApp": "utilise l’application",
-    "noApp": "sans compte"
+    "noApp": "sans compte",
+    "colDetail": "Affectation et salaire"
   },
   "Tasks": {
     "title": "Tâches du jour",

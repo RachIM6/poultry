@@ -36,7 +36,7 @@ test("hens placed at 18 weeks show their age in weeks, and beldi bands share a r
   };
   await place("Pondeuse", ids.house, "6000", "18");
   await expect(page.getByText("18 sem.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Pondeuse · Ferme Atlas · Bâtiment P1 · Lohmann Brown")).toBeVisible();
+  await expect(page.getByText("Bâtiment P1 · Lohmann Brown", { exact: true })).toBeVisible();
   await place("Beldi / plein air", ids.run, "140", "22");
   await place("Beldi / plein air", ids.run, "130", "3");
   await expect(page.getByText("22 sem.", { exact: true })).toBeVisible();
@@ -109,8 +109,8 @@ test("turkeys placed by sex become two batches side by side", async ({ page, con
   await page.getByLabel("N° de bon de livraison").fill("BL-26-4471");
   await page.getByLabel("Prix d’un poussin (DH)").fill("12,00");
   await page.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(page.getByText("Dinde · femelles · Ferme Sidi Hajjaj · Bâtiment D1 · BUT 6")).toBeVisible();
-  await expect(page.getByText("Dinde · mâles · Ferme Sidi Hajjaj · Bâtiment D1 · BUT 6")).toBeVisible();
+  await expect(page.getByText("Dinde · femelles · Ferme Sidi Hajjaj", { exact: true })).toBeVisible();
+  await expect(page.getByText("Dinde · mâles · Ferme Sidi Hajjaj", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "Saisir le jour" }).first().click();
   // Both sexes side by side with their birds and cumulative FCR (none before a weighing); the other sex opens its day.
@@ -229,7 +229,7 @@ test("pullets move to the laying house and become a layer batch", async ({ page,
   await expect(page.getByText("100 non transférées seront réformées ce jour-là.")).toBeVisible();
   await page.getByRole("button", { name: "Transférer" }).click();
   await page.getByRole("link", { name: "Toutes les bandes" }).click();
-  await expect(page.getByText("Pondeuse · Ferme Sidi Hajjaj · Bâtiment P1 · Lohmann Brown")).toBeVisible();
+  await expect(page.getByText("Pondeuse · Ferme Sidi Hajjaj", { exact: true })).toBeVisible();
   await expect(page.getByText("17 sem.", { exact: true })).toBeVisible();
 
   await context.unroute("**");

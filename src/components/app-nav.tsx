@@ -66,14 +66,20 @@ export function AppNav() {
   );
 }
 
-/** The round back button of the mockups (Batch.dc.html), for screens reached from "Plus". */
-export function BackLink({ href }: { href: string }) {
+/**
+ * The round back button of the mockups (Batch.dc.html), for screens reached from "Plus". A hash (`#`: a batch's day
+ * back to the list) is a plain link, so the hash the screen reads changes.
+ */
+export function BackLink({ href, label }: { href: string; label?: string }) {
   const t = useTranslations("Nav");
-  return (
-    <Link href={href} aria-label={t("back")} className="grid size-11 place-items-center rounded-[14px] border border-line bg-card print:hidden">
+  const props = {
+    "aria-label": label ?? t("back"),
+    className: "grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card print:hidden",
+    children: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
         <path d="M15 6l-6 6 6 6" />
       </svg>
-    </Link>
-  );
+    ),
+  };
+  return href.startsWith("#") ? <a href={href} {...props} /> : <Link href={href} {...props} />;
 }

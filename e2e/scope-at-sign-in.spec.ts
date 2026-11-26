@@ -23,7 +23,7 @@ const storedFarm = (page: Page) =>
       }),
   );
 
-const BATCH = "Poulet de chair · Ferme Atlas · Bâtiment 1 · Ross 308";
+const BATCH = "Poulet de chair · Ferme Atlas"; // a list card's type and farm (its title: house and strain)
 const SIGNED_OUT = "Connectez-vous pour synchroniser ce téléphone.";
 
 async function batchesShow(page: Page, text: string) {

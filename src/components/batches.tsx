@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { Fragment, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Fragment, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { formatCount } from "@/lib/format";
 import { farmDayOf } from "@/lib/kernel/farm-day";
@@ -26,7 +26,9 @@ import { groupRecords } from "@/offline/group";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { BatchStrip, batchStrip } from "@/components/batch-strip";
-import { card, link, primary } from "@/components/ui";
+import { BackLink } from "@/components/app-nav";
+import { Page } from "@/components/page";
+import { card, link, primary, secondary } from "@/components/ui";
 
 // SPEC §9.3 budget (ADR-009, T25): the day's entry loads with the page; the rest of the batch screen comes in its own
 // chunks right after. The service worker precaches every chunk, so they load offline too.
@@ -47,7 +49,6 @@ const EggCollections = dynamic(() => import("@/components/eggs").then((m) => m.E
 const Vaccinations = dynamic(() => import("@/components/vaccinations").then((m) => m.Vaccinations));
 const NotifiableDiseases = dynamic(() => import("@/components/notifiable-diseases").then((m) => m.NotifiableDiseases));
 const Weighings = dynamic(() => import("@/components/weighing").then((m) => m.Weighings));
-const BatchHeader = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchHeader));
 const BatchNotes = dynamic(() => import("@/components/batch-dashboard").then((m) => m.BatchNotes));
 const OpenBatchCard = dynamic(() => import("@/components/batch-dashboard").then((m) => m.OpenBatchCard));
 const RegisterLinks = dynamic(() => import("@/components/register-links").then((m) => m.RegisterLinks));
@@ -67,21 +68,27 @@ const onHashChange = (cb: () => void) => {
 };
 const useHash = () => useSyncExternalStore(onHashChange, () => decodeURIComponent(window.location.hash.slice(1)), () => "");
 
+// UX review B2: one title per screen, through Page: the list's, or the batch's own on its day. Until the phone's
+// storage is read, the list's title (the static shell's), none on a batch's day.
 export function BatchesScreen() {
-  const t = useTranslations("Sync");
+  const t = useTranslations();
   const scope = useLiveQuery(() => currentScope().then((s) => s ?? null), [], undefined);
-  if (scope === undefined) return null;
+  const openId = useHash();
+  const waiting = <Page width="wide" title={openId ? undefined : t("Batches.title")} />;
+  if (scope === undefined) return waiting;
   if (scope === null) {
     return (
-      <p>
-        {t("signedOut")} <Link href="/login" className="underline underline-offset-4">{t("login")}</Link>
-      </p>
+      <Page width="wide" title={t("Batches.title")}>
+        <p>
+          {t("Sync.signedOut")} <Link href="/login" className="underline underline-offset-4">{t("Sync.login")}</Link>
+        </p>
+      </Page>
     );
   }
-  return <Batches key={scopeKey(scope)} {...scope} />;
+  return <Batches key={scopeKey(scope)} {...scope} openId={openId} waiting={waiting} />;
 }
 
-function Batches(scope: Scope) {
+function Batches({ openId, waiting, ...scope }: Scope & { openId: string; waiting: ReactNode }) {
   const { userId, organizationId, role } = scope;
   const t = useTranslations();
   const locale = useLocale();
@@ -91,9 +98,8 @@ function Batches(scope: Scope) {
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<string>();
-  const openId = useHash();
   const { of, ofBatch } = useMemo(() => groupRecords(records ?? []), [records]); // once per read, not per card
-  if (!records || reference === undefined) return null;
+  if (!records || reference === undefined) return waiting;
 
   const farms = new Map(of<FarmDto>("farm").map((f) => [f.id, f]));
   const houses = of<HouseDto>("house");
@@ -141,6 +147,22 @@ function Batches(scope: Scope) {
   const strainName = (id: string) => (id.startsWith("unspecified-") ? t("Batches.unspecifiedStrain") : (strains.find((s) => s.id === id)?.name ?? id));
   const sexOf = (b: BatchDto) => (b.sex && b.sex !== "mixed" ? ` · ${t(`Batches.sexes.${b.sex}`)}` : ""); // SPEC-m3 B9
   const title = (b: BatchDto) => `${t(`Types.${b.species}`)}${sexOf(b)} · ${t("Batches.summary", { farm: farms.get(b.farmId)?.name ?? "", house: houseName(b.houseId), strain: strainName(b.strainId) })}`;
+  // UX review B2, B3: a batch is named by its house and strain, its type and farm under it; typed names in <bdi> (B9).
+  const heading = (b: BatchDto) => (
+    <>
+      <bdi>{houseName(b.houseId)}</bdi> · <bdi>{strainName(b.strainId)}</bdi>
+    </>
+  );
+  const kind = (b: BatchDto) => (
+    <>
+      {t(`Types.${b.species}`)}{sexOf(b)} · <bdi>{farms.get(b.farmId)?.name ?? ""}</bdi>
+    </>
+  );
+  const dayPage = (b: BatchDto, children: ReactNode) => (
+    <Page width="wide" back={<BackLink href="#" label={t("Day.back")} />} title={heading(b)} subtitle={kind(b)} actions={<RegisterLinks batchId={b.id} scope={scope} />}>
+      {children}
+    </Page>
+  );
   const collectionsOf = (batchId: string) => ofBatch<EggCollectionDto>("eggCollection", batchId);
   const layingCurve = (b: BatchDto) => strains.find((s) => s.id === b.strainId)?.layingCurves?.at(-1)?.points ?? null; // latest version (R7)
   const nextVaccine = (batchId: string) => {
@@ -153,10 +175,9 @@ function Batches(scope: Scope) {
   if (shown?.status === "closed") {
     // B6: read-only, with the locked figures; its sales stay listed for their origin documents (V5).
     const curves = strains.find((s) => s.id === shown.strainId)?.curves ?? [];
-    return (
+    return dayPage(
+      shown,
       <>
-        <BatchHeader title={title(shown)} />
-        <RegisterLinks batchId={shown.id} scope={scope} />
         {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
         <ClosedSummary batch={shown} money={can(scope, "money.read")} />
         {can(scope, "finance.manage") && <ReopenBatchForm batch={shown} batches={batches} cleanouts={of<CleanoutDto>("cleanout")} write={write} />}
@@ -175,28 +196,19 @@ function Batches(scope: Scope) {
             </div>
           )}
         </div>
-      </>
+      </>,
     );
   }
 
   const open = shown;
-  if (open && !farming) {
-    return (
-      <>
-        <BatchHeader title={title(open)} />
-        <RegisterLinks batchId={open.id} scope={scope} />
-        <p className="text-sm text-ink-2">{t("Batches.noFarming")}</p>
-      </>
-    );
-  }
+  if (open && !farming) return dayPage(open, <p className="text-sm text-ink-2">{t("Batches.noFarming")}</p>);
   if (open) {
     const weighings = ofBatch<WeighingDto>("weighing", open.id);
     const curves = strains.find((s) => s.id === open.strainId)?.curves ?? []; // its sex's is picked where shown (OQ5, R6)
     const treatments = ofBatch<TreatmentDto>("treatment", open.id);
-    return (
+    return dayPage(
+      open,
       <>
-        <BatchHeader title={title(open)} />
-        <RegisterLinks batchId={open.id} scope={scope} />
         <OpenBatchCard
           strip={stripOf(open)}
           ageLabel={open.species === "broiler" ? undefined : ageText(open)} // SPEC-m3: weeks for the long cycles
@@ -295,7 +307,7 @@ function Batches(scope: Scope) {
           )}
           {can(scope, "flock.manage") && <CloseBatchForm batch={open} write={write} />}
         </div>
-      </>
+      </>,
     );
   }
 
@@ -305,73 +317,87 @@ function Batches(scope: Scope) {
     if (ok) setPlacing(false);
   };
 
+  // UX review A5: placing a batch is the screen's secondary action, beside its title; each card's entry stays primary.
+  const placeable = can(scope, "flock.manage") && houses.length > 0 && strains.length > 0;
   return (
-    <>
+    <Page
+      width="wide"
+      title={t("Batches.title")}
+      actions={placeable && !placing && <button type="button" aria-expanded={false} onClick={() => setPlacing(true)} className={secondary}>{t("Batches.place")}</button>}
+    >
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
+      {/* the placement form takes its fields two by two from lg (placement.tsx) */}
+      {placeable && placing && (
+        <div className="flex flex-col gap-5 lg:max-w-4xl">
+          <PlacementForm
+            houses={houses.map((h) => ({
+              ...h,
+              label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
+              busy: busy.has(h.id),
+              open: batches.filter((b) => b.status === "open" && b.houseId === h.id),
+            }))}
+            downtime={{ batches, cleanouts: of<CleanoutDto>("cleanout"), rules: of<DowntimeRule>("downtimeRule") }}
+            strains={strains.map((s) => ({ id: s.id, name: strainName(s.id), productionTypes: s.productionTypes ?? ["broiler"] }))}
+            protocols={protocols}
+            db={db}
+            cashBoxes={can(scope, "finance.record") ? of<TreasuryAccountDto>("treasuryAccount").filter((a) => a.kind === "cash") : undefined} // SPEC-finance §9
+            onPlaced={placed}
+            onCancel={() => setPlacing(false)}
+          />
+        </div>
+      )}
       {!farming && batches.length > 0 && <p className="text-sm text-ink-2">{t("Batches.noFarming")}</p>}
       {batches.length === 0 ? (
         <p>{t("Batches.none")}</p>
       ) : (
         <ul className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
-          {batches.map((b, i) => (
-            <Fragment key={b.id}>
-            {farming && band(b) && (i === 0 || band(batches[i - 1]) !== band(b)) ? (
-              <li className="pt-2 font-semibold lg:col-span-full">
-                {(() => {
-                  const run = batches.filter((x) => band(x) === band(b));
-                  return t("Batches.run", { house: houseName(b.houseId), bands: String(run.length), birds: formatCount(run.reduce((n, x) => n + onHand(x), 0)) });
-                })()}
-              </li>
-            ) : null}
-            <li className={card}>
-              <span className="font-semibold">
-                {b.status === "open" ? ageText(b) : t("Batches.status.closed")}
-              </span>
-              {farming && b.status === "open" && <BatchStrip {...stripOf(b)} />}
-              <span>{title(b)}</span>
-              <span className="text-sm text-muted">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
-              {farming && <span>{t("Day.onHand", { birds: formatCount(onHand(b)) })}</span>}
-              {b.status === "open" && can(scope, "flock.record") ? (
-                <a href={`#${b.id}`} className={`${primary} mt-2`}>{t("Day.open")}</a>
-              ) : b.status === "open" ? (
-                <a href={`#${b.id}`} className={link}>{t("Batches.view")}</a> // a vet or an accountant reads it, enters no day
-              ) : (
-                <a href={`#${b.id}`} className={link}>{t("Closing.open")}</a>
-              )}
-            </li>
-            </Fragment>
-          ))}
+          {batches.map((b, i) => {
+            const strip = farming && b.status === "open" ? stripOf(b) : null;
+            return (
+              <Fragment key={b.id}>
+                {farming && band(b) && (i === 0 || band(batches[i - 1]) !== band(b)) ? (
+                  <li className="pt-2 font-semibold lg:col-span-full">
+                    {(() => {
+                      const run = batches.filter((x) => band(x) === band(b));
+                      return t("Batches.run", { house: houseName(b.houseId), bands: String(run.length), birds: formatCount(run.reduce((n, x) => n + onHand(x), 0)) });
+                    })()}
+                  </li>
+                ) : null}
+                <li className={card}>
+                  <span className="text-[17px] font-semibold">{heading(b)}</span>
+                  <span className="text-sm text-ink-2">{kind(b)}</span>
+                  {b.status === "open" ? (
+                    // B3: the day beside the strip, « Jour 24 / 42 » (weeks for the long cycles, SPEC-m3)
+                    <span className="flex items-center gap-3">
+                      {strip && <span className="min-w-0 flex-1"><BatchStrip {...strip} /></span>}
+                      <span className="shrink-0 font-semibold">{strip && b.species === "broiler" ? `${ageText(b)} / ${strip.days.length}` : ageText(b)}</span>
+                    </span>
+                  ) : (
+                    <span className="font-semibold">{t("Batches.status.closed")}</span>
+                  )}
+                  <span className="text-sm text-muted">{t("Batches.chicks", { chicks: formatCount(b.chicksPlaced), doa: formatCount(b.deadOnArrival) })}</span>
+                  {farming && b.status === "open" && <span>{t("Day.onHand", { birds: formatCount(onHand(b)) })}</span>}
+                  {b.status === "open" && can(scope, "flock.record") ? (
+                    <a href={`#${b.id}`} className={`${primary} mt-2`}>{t("Day.open")}</a>
+                  ) : b.status === "open" ? (
+                    <a href={`#${b.id}`} className={link}>{t("Batches.view")}</a> // a vet or an accountant reads it, enters no day
+                  ) : (
+                    <a href={`#${b.id}`} className={link}>{t("Closing.open")}</a>
+                  )}
+                </li>
+              </Fragment>
+            );
+          })}
         </ul>
       )}
-      {/* the placement form takes its fields two by two from lg (placement.tsx) */}
-      <div className={`flex flex-col gap-5 empty:hidden ${placing ? "lg:max-w-4xl" : "lg:max-w-xl"}`}>
-        {can(scope, "flock.manage") &&
-          (houses.length === 0 ? (
-            <p>
-              {t("Batches.noHouse")} <Link href="/farms" className="underline underline-offset-4">{t("Farms.title")}</Link>
-            </p>
-          ) : strains.length === 0 ? (
-            <p>{t("Protocol.noReference")}</p> // strains come with the reference data, after one sync online
-          ) : placing ? (
-            <PlacementForm
-              houses={houses.map((h) => ({
-                ...h,
-                label: `${farms.get(h.farmId)?.name ?? ""} · ${h.name}`,
-                busy: busy.has(h.id),
-                open: batches.filter((b) => b.status === "open" && b.houseId === h.id),
-              }))}
-              downtime={{ batches, cleanouts: of<CleanoutDto>("cleanout"), rules: of<DowntimeRule>("downtimeRule") }}
-              strains={strains.map((s) => ({ id: s.id, name: strainName(s.id), productionTypes: s.productionTypes ?? ["broiler"] }))}
-              protocols={protocols}
-              db={db}
-              cashBoxes={can(scope, "finance.record") ? of<TreasuryAccountDto>("treasuryAccount").filter((a) => a.kind === "cash") : undefined} // SPEC-finance §9
-              onPlaced={placed}
-              onCancel={() => setPlacing(false)}
-            />
-          ) : (
-            <button type="button" aria-expanded={false} onClick={() => setPlacing(true)} className={primary}>{t("Batches.place")}</button>
-          ))}
-      </div>
-    </>
+      {can(scope, "flock.manage") &&
+        (houses.length === 0 ? (
+          <p>
+            {t("Batches.noHouse")} <Link href="/farms" className="underline underline-offset-4">{t("Farms.title")}</Link>
+          </p>
+        ) : strains.length === 0 ? (
+          <p>{t("Protocol.noReference")}</p> // strains come with the reference data, after one sync online
+        ) : null)}
+    </Page>
   );
 }

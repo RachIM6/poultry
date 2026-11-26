@@ -12,15 +12,16 @@ import { link } from "@/components/ui";
 export function RegisterLinks({ batchId, scope }: { batchId: string; scope: TenantContext }) {
   const t = useTranslations();
   return (
-    <span className="flex gap-4">
+    // UX review B2: in the batch's Page actions; a link never breaks inside, the row wraps between them on the phone.
+    <span className="flex flex-wrap gap-x-4">
       {wholeRegister(scope) &&
         (["fr", "ar"] as const).map((l) => (
-          <Link key={l} href={`/register#${batchId}`} locale={l} className={link}>
+          <Link key={l} href={`/register#${batchId}`} locale={l} className={`${link} whitespace-nowrap`}>
             {t("Register.link", { language: t(`LocaleSwitcher.${l}`) })}
           </Link>
         ))}
       {can(scope, "money.read") && (
-        <Link href={`/report?batch=${batchId}`} className={link}>
+        <Link href={`/report?batch=${batchId}`} className={`${link} whitespace-nowrap`}>
           {t("Report.link")}
         </Link>
       )}

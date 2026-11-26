@@ -147,21 +147,7 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
   );
 }
 
-// Batch.dc.html: a round back button and the batch's name, then a dark card with its day and strip.
-export function BatchHeader({ title }: { title: string }) {
-  const t = useTranslations("Day");
-  return (
-    <div className="flex items-center gap-3">
-      <a href="#" aria-label={t("back")} className="grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
-          <path d="M15 6l-6 6 6 6" />
-        </svg>
-      </a>
-      <h2 className="text-[21px] font-semibold leading-tight">{title}</h2>
-    </div>
-  );
-}
-
+// Batch.dc.html: under the batch's title (batches.tsx), a dark card with its day and strip.
 export function OpenBatchCard({ strip, ageLabel, birds, next }: { strip: { age: number; days: StripDay[]; label: string }; ageLabel?: string; birds: string; next: string | null }) {
   const t = useTranslations();
   return (

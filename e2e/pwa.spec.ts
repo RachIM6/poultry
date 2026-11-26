@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("after the first visit, the shell reloads offline", async ({ page, context }) => {
-  await page.goto("/ar");
+  await page.goto("/ar/today");
   // ready resolves once the worker is active, i.e. after the shell is precached.
   await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
 
@@ -10,7 +10,7 @@ test("after the first visit, the shell reloads offline", async ({ page, context 
   await context.route("**", (route) => route.abort("internetdisconnected"));
   const reload = await page.reload();
   expect(reload?.fromServiceWorker()).toBe(true);
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText("سجّل الدخول لمزامنة هذا الهاتف.")).toBeVisible(); // the start screen, nobody signed in
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 
   // A page never opened online falls back to the offline page, in its own language.
@@ -23,7 +23,7 @@ test("after the first visit, the shell reloads offline", async ({ page, context 
 // Lighthouse 12 dropped its PWA/installable audit, and Page.getInstallabilityErrors returns [] even without a
 // manifest. So: Chrome must find and parse our manifest cleanly, and the next test checks the install fields.
 test("Chrome parses the manifest without errors", async ({ page }) => {
-  await page.goto("/ar");
+  await page.goto("/ar/login");
   const cdp = await page.context().newCDPSession(page);
   const { url, errors } = await cdp.send("Page.getAppManifest");
   expect(url).toMatch(/\/ar\/manifest\.webmanifest$/);
@@ -31,7 +31,7 @@ test("Chrome parses the manifest without errors", async ({ page }) => {
 });
 
 test("each locale links its own manifest, starting on that locale", async ({ page, request }) => {
-  await page.goto("/fr");
+  await page.goto("/fr/login");
   const href = await page.locator('link[rel="manifest"]').getAttribute("href");
   expect(href).toBe("/fr/manifest.webmanifest");
   const manifest = await (await request.get(href!)).json();

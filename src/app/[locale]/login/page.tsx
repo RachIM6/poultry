@@ -3,6 +3,7 @@ import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BrandLockup } from "@/components/brand";
+import { InstallEntry } from "@/components/install-entry";
 import { BrandPanel } from "@/components/landing";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { PasswordLoginForm } from "@/components/password-login-form";
@@ -41,6 +42,8 @@ export default function Login() {
               <SmsLink />
             </Suspense>
           </nav>
+          {/* The browser's install dialog when it offered one, else the install page's steps; nothing in the installed app. */}
+          <InstallEntry />
         </main>
       </div>
     </ClientMessages>

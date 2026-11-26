@@ -20,6 +20,16 @@ export const CAPTURE_SCRIPT =
   'addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.installPrompt=e});' +
   'addEventListener("appinstalled",function(){window.installPrompt=null})';
 
+// useSyncExternalStore sources, shared by the install page and the login's install entry (install-entry.tsx).
+// CAPTURE_SCRIPT listens first, so window.installPrompt is already set when onChange runs.
+export const onPrompt = (onChange: () => void) => {
+  addEventListener("beforeinstallprompt", onChange);
+  return () => removeEventListener("beforeinstallprompt", onChange);
+};
+export const getPrompt = () => window.installPrompt ?? null;
+export const isInstalled = () =>
+  matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
+
 export function detectPlatform(ua: string, maxTouchPoints: number): Platform {
   // iPadOS reports itself as a Mac; touch points tell them apart.
   if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && maxTouchPoints > 1)) return "ios";

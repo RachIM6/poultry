@@ -51,9 +51,10 @@ test("a vet who joins with a code, then joins and opens other farms, has each fa
   const vetPhone = randomMobile();
   const invite = async (owner: Page) => {
     await owner.goto("/fr/settings/members");
+    await owner.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
     await owner.getByLabel("Numéro de téléphone").fill(vetPhone);
     await owner.getByLabel("Rôle", { exact: true }).selectOption("vet");
-    await owner.getByRole("button", { name: "Inviter" }).click();
+    await owner.getByRole("button", { name: "Inviter", exact: true }).click();
     return inviteCode(owner);
   };
   await ownerWithFarm(page, "Élevage Alpha");

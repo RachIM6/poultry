@@ -11,13 +11,14 @@ test("an advance recorded offline is pending, survives a reload and syncs once",
     { type: "workforce.createEmployee", payload: { id: crypto.randomUUID(), farmId: ids.farm, name: "Said A.", job: "worker", phone: null, housedOnFarm: true, startedOn: farmDaysAgo(30), leftOn: null, dailyWageCentimes: "13846", cnssNumber: null, houseIds: [] } },
   ]);
 
-  await page.goto("/fr/staff");
+  await page.goto("/fr/staff?tab=advances");
   await controlled(page);
-  const form = page.getByRole("form", { name: "Enregistrer une avance" });
-  await expect(form).toBeVisible();
+  await expect(page.getByText("Aucune avance en cours.")).toBeVisible();
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
+  await page.getByRole("button", { name: "Enregistrer une avance" }).click(); // the form opens in a sheet
+  const form = page.getByRole("form", { name: "Enregistrer une avance" });
   await form.getByLabel("Montant (DH)").fill("1000");
   await form.getByRole("button", { name: "Enregistrer l’avance" }).click();
   const pending = page.getByRole("list", { name: "Avances en cours" }).getByRole("listitem");

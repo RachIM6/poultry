@@ -180,6 +180,10 @@ export async function realisticOwner(page: Page) {
     "/farms",
     "/protocol",
     "/climate",
+    "/climate/targets", // tasks/plan-ui-cleanup.md batch 6: the Cibles tab, each tab of /staff and /inbox
+    ...["presence", "advances", "records", "pay"].map((tab) => `/staff?tab=${tab}`),
+    "/inbox?tab=all",
+    "/inbox?tab=settings",
     "/inbox",
     "/more",
     `/register#${ids.closed}`,

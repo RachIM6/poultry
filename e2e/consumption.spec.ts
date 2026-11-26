@@ -90,9 +90,10 @@ test("a worker records a consumption without seeing a price, an amount or the bu
   // The owner invites the worker, who signs in once (the invitation becomes a membership).
   const phone = randomMobile();
   await page.goto("/fr/settings/members");
+  await page.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
   await page.getByLabel("Numéro de téléphone").fill(phone);
   await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
-  await page.getByRole("button", { name: "Inviter" }).click();
+  await page.getByRole("button", { name: "Inviter", exact: true }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
   const code = await inviteCode(page);
   const workerContext = await browser.newContext({ ...test.info().project.use });

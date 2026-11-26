@@ -14,20 +14,21 @@ test("pay without labour figures shows gross only, says so, and is validated by 
     { type: "workforce.createEmployee", payload: { id: said, farmId: ids.farm, name: "Said A.", job: "worker", phone: null, housedOnFarm: true, startedOn: farmDaysAgo(60), leftOn: null, dailyWageCentimes: "15000", cnssNumber: null, houseIds: [] } },
   ]);
 
-  await page.goto("/fr/staff");
+  await page.goto("/fr/staff?tab=presence");
   // Today present, through the attendance form (an id per employee and day).
   const attendance = page.getByRole("form", { name: "Modifier la présence" });
   await attendance.getByRole("button", { name: "Enregistrer la présence" }).click();
 
+  await page.getByRole("navigation", { name: "Personnel" }).getByRole("link", { name: "Paie" }).click(); // the page's tabs
   const pay = page.getByRole("region", { name: "Paie" });
   await expect(pay.getByRole("row", { name: /Said A\./ })).toContainText(/1\s*150,00\sDH\s*—\s*0,00\sDH\s*150,00\sDH/);
   await expect(pay.getByRole("note")).toContainText("aucune cotisation n’est calculée");
 
   // The month in words in both languages, not 2026-11.
   const month = (locale: string) => new Intl.DateTimeFormat(locale, { numberingSystem: "latn", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${today.slice(0, 7)}-01T00:00:00Z`));
-  await page.goto("/ar/staff");
+  await page.goto("/ar/staff?tab=pay");
   await expect(page.getByRole("button", { name: `المصادقة على أجور ${month("ar-MA")}` })).toBeVisible();
-  await page.goto("/fr/staff");
+  await page.goto("/fr/staff?tab=pay");
   await pay.getByRole("button", { name: `Valider la paie de ${month("fr")}` }).click();
   await expect(pay).toContainText("Paie validée le"); // saved on the phone
   await outboxEmpty(page);

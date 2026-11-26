@@ -101,9 +101,10 @@ test("a full-books entity sees its draft income statement and balance sheet", as
   // The accountant (read-only, SPEC-m5 PA5) reads the same balance sheet.
   const phone = randomMobile();
   await page.goto("/fr/settings/members");
+  await page.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
   await page.getByLabel("Numéro de téléphone").fill(phone);
   await page.getByLabel("Rôle", { exact: true }).selectOption("accountant");
-  await page.getByRole("button", { name: "Inviter" }).click();
+  await page.getByRole("button", { name: "Inviter", exact: true }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
   const code = await inviteCode(page);
   const accountantContext = await browser.newContext({ ...test.info().project.use });

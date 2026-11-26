@@ -11,11 +11,12 @@ test("the owner invites a vet with an end day; the vet signs in and is listed un
 
   const phone = randomMobile();
   await page.goto("/fr/settings/members");
+  await page.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
   await page.getByLabel("Numéro de téléphone").fill(phone);
   await expect(page.getByLabel("Accès jusqu’au (facultatif)")).toHaveCount(0); // staff have no end day
   await page.getByLabel("Rôle", { exact: true }).selectOption("vet");
   await page.getByLabel("Accès jusqu’au (facultatif)").fill(until);
-  await page.getByRole("button", { name: "Inviter" }).click();
+  await page.getByRole("button", { name: "Inviter", exact: true }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
   const code = await inviteCode(page);
   await expect(page.getByRole("listitem").filter({ hasText: "Vétérinaire" })).toContainText("jusqu’au");
@@ -77,8 +78,10 @@ test("the accountant reads money without production figures; the vet records hea
   await page.goto("/fr/receivables");
   await expect(page.getByText("Aucun acheteur ne doit d’argent.")).toBeVisible();
   await page.goto("/fr/staff");
-  await expect(page.getByText("Mois pas encore validé par le propriétaire.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ouvriers" })).toBeVisible(); // the team, read only
   await expect(page.getByRole("button", { name: "Ajouter un ouvrier" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Paie", exact: true }).click(); // the pay is a tab of its own
+  await expect(page.getByText("Mois pas encore validé par le propriétaire.")).toBeVisible();
 
   await becomes(page, e164, "vet");
   await expect(page.getByRole("link", { name: /Saisie du jour/ })).toHaveCount(0); // not the vet's to enter

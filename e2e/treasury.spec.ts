@@ -75,7 +75,7 @@ test("« Payer » and « Apport ou retrait » open their forms in a sheet", asyn
 
   await pay.click();
   await expect(sheet.getByLabel("Montant payé")).toHaveValue("800,00");
-  await sheet.getByLabel("Paiement", { exact: true }).selectOption({ label: "Espèces" });
+  await sheet.getByRole("combobox", { name: /^Paiement/ }).selectOption({ label: "Espèces" });
   await sheet.getByLabel("Caisse ou compte bancaire (facultatif)").selectOption({ label: "Caisse ferme" });
   await sheet.getByRole("button", { name: "Enregistrer le paiement" }).click();
   await expect(page.getByRole("status")).toHaveText("Paiement enregistré.");
@@ -86,7 +86,7 @@ test("« Payer » and « Apport ou retrait » open their forms in a sheet", asyn
   await page.getByRole("button", { name: "Apport ou retrait" }).click();
   const apport = page.getByRole("dialog", { name: "Apport ou retrait de l’exploitant" });
   await apport.getByLabel("Montant (DH)").fill("1000");
-  await apport.getByLabel("Caisse ou compte bancaire", { exact: true }).selectOption({ label: "Caisse · Caisse ferme" });
+  await apport.getByRole("combobox", { name: /^Caisse ou compte bancaire/ }).selectOption({ label: "Caisse · Caisse ferme" });
   await apport.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByRole("status")).toHaveText("Opération enregistrée.");
   await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").filter({ hasText: "Caisse ferme" })).toContainText(/200,00\sDH/);

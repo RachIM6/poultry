@@ -13,13 +13,13 @@ import { can } from "@/lib/permissions";
 import { associateAccount, cashForecast, catchUpBooks, creditExpensesToPay, placementsToPay, treasuryOverview } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { card, field, secondarySm } from "@/components/ui";
-import { dataTable, dataTableWrap, empty, num, sectionHead, sectionTitle, split } from "@/components/layout";
+import { dataTable, dataTableWrap, empty, num, sectionHead, sectionTitle } from "@/components/layout";
 import { Page, PeriodNav } from "@/components/page";
 import { Pager } from "@/components/pager";
 import { pageOf, TABLE_PAGE } from "@/components/paging";
 import { SheetButton } from "@/components/sheet";
 import { payCreditExpenseAction, payPlacementAction, recordAssociateAction, setDefaultTreasuryAction } from "./actions";
-import { TreasuryForm, TreasuryNotices } from "./pay-form";
+import { TreasuryForm, TreasuryNotice, TreasuryNotices } from "./pay-form";
 import { TreasuryTabs } from "./treasury-tabs";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
@@ -179,9 +179,10 @@ async function Treasury({ searchParams }: { searchParams: Search }) {
     ) : null;
 
   return (
-    <Page width="wide" back="/more" title={t("Treasury.title")} actions={associate} nav={<TreasuryTabs current="overview" />}>
-      <TreasuryNotices>
-        <div className={split}>
+    <TreasuryNotices>
+      <Page width="wide" back="/more" title={t("Treasury.title")} actions={associate} nav={<TreasuryTabs current="overview" />}>
+        <TreasuryNotice />
+        <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-x-8">
           <div className="flex flex-col gap-2">
             <ul className={`${card} gap-0 py-1`} aria-label={t("Treasury.balances")}>
               {accounts.map((a) => (
@@ -305,13 +306,13 @@ async function Treasury({ searchParams }: { searchParams: Search }) {
         <section className="flex flex-col gap-2" aria-labelledby="movements">
           <div className={sectionHead}>
             <h2 id="movements" className={sectionTitle}>{t("Treasury.movements")}</h2>
+            <PeriodNav
+              label={t("Treasury.month")}
+              period={formatMonth(month, lang)}
+              prev={{ href: { pathname: "/treasury", query: { month: shift(month, -1) } }, label: t("Treasury.previousMonth") }}
+              next={{ href: { pathname: "/treasury", query: { month: shift(month, 1) } }, label: t("Treasury.nextMonth") }}
+            />
           </div>
-          <PeriodNav
-            label={t("Treasury.month")}
-            period={formatMonth(month, lang)}
-            prev={{ href: { pathname: "/treasury", query: { month: shift(month, -1) } }, label: t("Treasury.previousMonth") }}
-            next={{ href: { pathname: "/treasury", query: { month: shift(month, 1) } }, label: t("Treasury.nextMonth") }}
-          />
           {movements.length === 0 ? (
             <p className={empty}>{t("Treasury.none")}</p>
           ) : (
@@ -321,11 +322,9 @@ async function Treasury({ searchParams }: { searchParams: Search }) {
                   <thead>
                     <tr>
                       <th className={wide}>{t("Treasury.day")}</th>
-                      <th className={wide}>{t("Treasury.journal")}</th>
                       <th>{t("Treasury.label")}</th>
                       <th className={wide}>{t("Treasury.account")}</th>
                       <th className={wide}>{t("Treasury.counterAccount")}</th>
-                      <th className={wide}>{t("Treasury.batch")}</th>
                       <th className={`${num} ${wide}`}>{t("Treasury.in")}</th>
                       <th className={`${num} ${wide}`}>{t("Treasury.out")}</th>
                       <th className={`${num} lg:hidden`}>{t("Bank.amount")}</th>
@@ -335,27 +334,30 @@ async function Treasury({ searchParams }: { searchParams: Search }) {
                   <tbody>
                     {shown.map((m, i) => {
                       const counter = m.counterAccounts.map((c) => c.label || c.number).join(", "); // FN10, as the cash book shows them (FN16)
+                      const batch = m.batch && `${m.batch.house} · ${formatDayShort(m.batch.placedOn, lang, today)}`;
                       return (
                         <tr key={i}>
-                          <td className={`whitespace-nowrap ${wide}`}>{formatDayShort(m.day, lang, today)}</td>
-                          <td className={wide}>
-                            <abbr title={t(`Treasury.journals.${m.journal}`)} className="rounded-md bg-shell px-1.5 py-0.5 text-xs font-medium no-underline">{m.journal}</abbr>
+                          <td className={`whitespace-nowrap ${wide}`}>
+                            {dayMonth(m.day, lang)}{" "}
+                            <abbr title={t(`Treasury.journals.${m.journal}`)} className="ms-1 rounded-md bg-shell px-1.5 py-0.5 text-xs font-medium no-underline">{m.journal}</abbr>
                           </td>
                           <td>
-                            {/* wide screens: one line per movement, the whole text in its title */}
-                            <span title={m.label} className="lg:block lg:max-w-60 lg:truncate">{m.label}</span>
+                            {/* wide screens: one line per movement (its batch after the label), the whole text in its title */}
+                            <span title={[m.label, batch].filter(Boolean).join(" · ")} className="lg:block lg:max-w-56 lg:truncate">
+                              {m.label}
+                              {batch && <span className="hidden text-ink-2 lg:inline"> · {batch}</span>}
+                            </span>
                             {/* the phone: the columns it leaves out, under the label */}
                             <span className="block text-xs text-ink-2 lg:hidden">
-                              {[formatDayShort(m.day, lang, today), m.journal, nameOf(m.treasuryId), counter].filter(Boolean).join(" · ")}
+                              {[formatDayShort(m.day, lang, today), m.journal, nameOf(m.treasuryId), counter, batch].filter(Boolean).join(" · ")}
                             </span>
                             {m.receipt !== undefined && <span className="block text-xs lg:hidden">{t("Treasury.receipt")} : {receipt(m)}</span>}
                           </td>
-                          <td className={`whitespace-nowrap ${wide}`}>{nameOf(m.treasuryId)}</td>
                           <td className={wide}>
-                            <span title={counter} className="block max-w-48 truncate">{counter}</span>
+                            <span title={nameOf(m.treasuryId)} className="block max-w-36 truncate">{nameOf(m.treasuryId)}</span>
                           </td>
                           <td className={wide}>
-                            {m.batch && <span title={`${m.batch.house} · ${formatDayShort(m.batch.placedOn, lang, today)}`} className="block max-w-48 truncate">{`${m.batch.house} · ${formatDayShort(m.batch.placedOn, lang, today)}`}</span>}
+                            <span title={counter} className="block max-w-40 truncate">{counter}</span>
                           </td>
                           <td className={`${num} ${wide}`}>{m.debitCentimes > 0n && money(m.debitCentimes)}</td>
                           <td className={`${num} ${wide}`}>{m.creditCentimes > 0n && money(m.creditCentimes)}</td>
@@ -378,7 +380,7 @@ async function Treasury({ searchParams }: { searchParams: Search }) {
             </>
           )}
         </section>
-      </TreasuryNotices>
-    </Page>
+      </Page>
+    </TreasuryNotices>
   );
 }

@@ -41,7 +41,19 @@ test("the inspection pack opens offline, lists the missing pieces and prints", a
   await expect(pack).toContainText("Appâts posés");
   await expect(page.getByRole("heading", { level: 2, name: "Registre de suivi sanitaire" })).toHaveCount(1); // the open batch's register
 
+  // tasks/plan-ui-cleanup.md §4: a table of contents on screen; a link scrolls to its part without changing the hash (the farm's).
+  const contents = page.getByRole("navigation", { name: "Sommaire" });
+  await expect(contents.getByRole("link")).toHaveText([
+    "Points de contrôle", "Documents", "Nettoyage et vide sanitaire", "Registre des visiteurs", "Cadavres éliminés", "Fumier",
+    "Dératisation", /^Registre, bande Bâtiment 1 du /,
+  ]);
+  const url = page.url();
+  await contents.getByRole("link", { name: "Dératisation" }).click();
+  await expect(page.locator("#rodents")).toBeFocused();
+  expect(page.url()).toBe(url);
+
   await page.emulateMedia({ media: "print" });
+  await expect(contents).toBeHidden(); // paper: the document alone
   await page.setViewportSize({ width: 794, height: 1123 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.pdf({ format: "A4", preferCSSPageSize: true, path: test.info().outputPath("inspection-fr.pdf") });

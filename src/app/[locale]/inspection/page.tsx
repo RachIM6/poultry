@@ -24,7 +24,7 @@ export default function InspectionPage() {
         <Link href="/more" className={link}>{t("Nav.more")}</Link>
         <LocaleSwitcher />
       </header>
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 print:max-w-none print:p-0">
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 lg:max-w-6xl print:max-w-none print:p-0">
         <InspectionScreen />
       </main>
     </ClientMessages>

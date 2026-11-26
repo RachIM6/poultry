@@ -26,7 +26,8 @@ test("disposal and manure are recorded offline, synced once, with the day's mort
   await expect(gaps.getByRole("row").nth(1)).toContainText(/6\s*6\s*0$/);
   await expect(page.getByRole("list", { name: "Dernières éliminations" }).getByRole("listitem")).toHaveText([/6\ssujets,\sFosse fermée, chaux vive\s·\s9,8\skg/]);
 
-  await page.getByRole("button", { name: "Fumier", exact: true }).click();
+  await page.getByRole("link", { name: "Fumier", exact: true }).click(); // a query tab (?tab=manure), offline too
+  await expect(page).toHaveURL(/\/fr\/disposal\?tab=manure$/);
   await page.getByLabel("Quantité (kg)").fill("18000");
   await page.getByLabel("Destination").selectOption({ label: "Stocké sur la ferme" });
   await page.getByRole("button", { name: "Enregistrer la sortie de fumier" }).click();
@@ -42,6 +43,8 @@ test("disposal and manure are recorded offline, synced once, with the day's mort
 
   const reload = await page.reload();
   expect(reload?.fromServiceWorker()).toBe(true);
+  await expect(manure).toHaveCount(2); // the tab is in the URL: the reload keeps it
+  await page.getByRole("link", { name: "Cadavres", exact: true }).click();
   await expect(gaps.getByRole("row").nth(1)).toContainText(/6\s*6\s*0$/);
 
   await context.unroute("**");

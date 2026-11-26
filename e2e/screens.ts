@@ -171,6 +171,8 @@ export async function realisticOwner(page: Page) {
     "/planning",
     "/visitors",
     "/disposal",
+    "/disposal?tab=manure", // tasks/plan-ui-cleanup.md batch 6: each log of the page
+    "/disposal?tab=rodents",
     "/cleanout",
     "/tasks",
     "/staff",

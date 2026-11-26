@@ -1,11 +1,13 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ownerWithFarm, query, scopeRemembered } from "./auth";
 import { orgOf } from "./screens";
 
-// Owner feedback: on a wide screen « Plus » opens in the sidebar, like a collapsible section, instead of leading to
-// /more. The phone keeps its « Plus » tab and the /more page.
+// tasks/plan-ui.md U19 (Menu4.dc.html, Menu4b.dc.html): on a wide screen the sidebar is unfolded (288 px, the « Plus »
+// groups as collapsible headings) or folded to a 72 px rail (a group's icon opens its links in a side panel), remembered
+// on this browser and applied before the first paint. The phone keeps its « Plus » tab and the /more page.
 const WIDE = { width: 1440, height: 900 };
-const nav = (page: Page) => page.getByRole("navigation", { name: "Navigation principale" });
+const nav = (page: Page, name = "Navigation principale") => page.getByRole("navigation", { name });
+const width = (l: Locator) => l.evaluate((el) => el.getBoundingClientRect().width);
 const phoneRole = (page: Page) =>
   page.evaluate(
     () =>
@@ -17,67 +19,210 @@ const phoneRole = (page: Page) =>
         };
       }),
   );
+/** SPEC X4: every link and button of the nav at least 44 px tall, no label cut (they never wrap), none pushed out. */
+const fits = (scope: Locator) =>
+  scope.evaluate((root) => {
+    const box = root.getBoundingClientRect();
+    return [...root.querySelectorAll("a, button")]
+      .filter((el) => el.checkVisibility())
+      .flatMap((el) => {
+        const r = el.getBoundingClientRect();
+        const cut = r.height < 43.5 || el.scrollWidth > el.clientWidth + 1 || r.left < box.left - 1 || r.right > box.right + 1;
+        return cut ? [`${el.textContent || el.getAttribute("aria-label")}: ${r.left}–${r.right} × ${r.height}, ${el.scrollWidth} wide`] : [];
+      });
+  });
+const GROUPS = ["Élevage", "Argent", "Comptabilité de l’exercice", "Conformité"];
 
-test("wide screens: « Plus » expands in the sidebar, shows the role's screens and marks the current one", async ({ page }) => {
+test("wide screens, unfolded: the role's groups open under their headings and mark the current page", async ({ page }) => {
   test.setTimeout(120_000);
   const e164 = await ownerWithFarm(page, "Élevage de la Barre");
   await scopeRemembered(page);
   await page.setViewportSize(WIDE);
   await page.goto("/fr/dashboard");
 
-  const plus = nav(page).getByRole("button", { name: "Plus" });
-  await expect(plus).toHaveAttribute("aria-expanded", "false");
-  await expect(nav(page).getByRole("link", { name: "Plus", exact: true })).toBeHidden(); // the button replaces the link
+  // The default on a first visit: unfolded, no « Plus » any more.
+  const fold = nav(page).getByRole("button", { name: "Replier le menu" });
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+  expect(await width(nav(page))).toBe(288);
+  await expect(nav(page).getByRole("link", { name: "Plus", exact: true })).toBeHidden();
+  await expect(nav(page).getByRole("button", { name: "Plus" })).toHaveCount(0);
+
+  const heading = (name: string) => nav(page).getByRole("heading", { name }).getByRole("button");
+  for (const name of GROUPS) await expect(heading(name)).toHaveAttribute("aria-expanded", "false");
   const treasury = nav(page).getByRole("link", { name: "Trésorerie" });
   await expect(treasury).toBeHidden();
-  // UX review A2: no shortcuts under the tabs: their screens are in « Plus », under their own names.
-  for (const name of ["Ventes", "Comptabilité", "Livres comptables"]) await expect(nav(page).getByRole("link", { name, exact: true })).toHaveCount(0);
 
-  await plus.press("Enter"); // the keyboard opens it
-  await expect(plus).toHaveAttribute("aria-expanded", "true");
-  const panel = page.locator(`#${await plus.getAttribute("aria-controls")}`);
-  await expect(panel.getByRole("heading", { name: "Argent" })).toBeVisible();
-  await expect(panel.getByRole("list", { name: "Argent" }).getByRole("link", { name: "Trésorerie" })).toBeVisible();
-  await expect(panel.getByRole("list", { name: "Comptabilité de l’exercice" }).getByRole("link", { name: "Livres comptables" })).toBeVisible(); // C5: the year-end screens apart
-  await expect(panel.getByRole("link", { name: "Langue et déconnexion" })).toHaveAttribute("href", "/fr/more"); // /more's language and sign-out
-  for (const h of await panel.getByRole("link").evaluateAll((all) => all.map((a) => a.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(43.5); // SPEC X4: 44 px targets
+  // The keyboard opens them, several at once.
+  await heading("Argent").press("Enter");
+  await heading("Conformité").press(" ");
+  for (const name of ["Argent", "Conformité"]) await expect(heading(name)).toHaveAttribute("aria-expanded", "true");
+  await expect(nav(page).getByRole("list", { name: "Argent" }).getByRole("link", { name: "Trésorerie" })).toBeVisible();
+  await expect(nav(page).getByRole("list", { name: "Conformité" }).getByRole("link", { name: "Registre des visiteurs" })).toBeVisible();
+  const account = nav(page).getByRole("list", { name: "Compte" });
+  for (const name of ["Membres", "Mes exploitations"]) await expect(account.getByRole("link", { name })).toBeVisible();
+  await expect(account.getByRole("link", { name: "Langue et déconnexion" })).toHaveAttribute("href", "/fr/more"); // /more's language and sign-out
+
+  // Every group open: 44 px targets, no label cut at 288 px (« Cadavres, fumier et nuisibles », « Inventaire de fin d’exercice »).
+  for (const name of ["Élevage", "Comptabilité de l’exercice"]) await heading(name).click();
+  expect(await fits(nav(page))).toEqual([]);
+  // The sidebar scrolls on its own: the page doesn't move with it.
+  expect(await nav(page).evaluate((el) => el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === "auto")).toBe(true);
 
   await treasury.click();
   await page.waitForURL(/\/fr\/treasury$/);
   await expect(treasury).toHaveAttribute("aria-current", "page");
-  await expect(plus).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("main").getByRole("link", { name: "Retour" })).toBeHidden(); // owner feedback: no back to the /more page
+  // Closed, the group holding the current page shows a dot.
+  await heading("Argent").click();
+  await expect(heading("Argent")).toHaveAttribute("aria-current", "true");
+  await expect(heading("Argent").locator(".rounded-full")).toBeVisible();
 
-  // Loaded straight on a page of the section: open, with only the deepest match current (/closing/count, not /closing).
-  await plus.click(); // closed, and remembered…
+  // Loaded straight on a page: its group opens, with only the deepest match current (/closing/count, not /closing).
   await page.goto("/fr/closing/count");
-  await expect(plus).toHaveAttribute("aria-expanded", "true"); // …but the current page's section opens
+  await expect(heading("Comptabilité de l’exercice")).toHaveAttribute("aria-expanded", "true");
+  await expect(heading("Argent")).toHaveAttribute("aria-expanded", "false");
   await expect(nav(page).getByRole("link", { name: "Inventaire de fin d’exercice" })).toHaveAttribute("aria-current", "page");
   await expect(nav(page).getByRole("link", { name: "Préparer la clôture" })).not.toHaveAttribute("aria-current", "page");
-  await page.goto("/fr/dashboard");
-  await expect(plus).toHaveAttribute("aria-expanded", "false");
-
-  // The sidebar scrolls on its own: the page doesn't move with it.
-  await plus.click();
-  const sidebar = nav(page);
-  expect(await sidebar.evaluate((el) => el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === "auto")).toBe(true);
 
   // A worker never sees the money screens (I5); the phone forgets the role's links with the role.
   await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);
   await page.goto("/fr/dashboard");
   await expect.poll(() => phoneRole(page)).toBe("worker");
   await page.goto("/fr/dashboard");
-  await expect(plus).toHaveAttribute("aria-expanded", "true"); // still remembered open
+  await expect(heading("Élevage")).toBeVisible();
+  await heading("Élevage").click();
   await expect(nav(page).getByRole("link", { name: "Fermes et bâtiments" })).toBeVisible();
   for (const name of ["Trésorerie", "Livres comptables", "Créances des acheteurs", "Membres"]) await expect(nav(page).getByRole("link", { name })).toHaveCount(0);
   for (const name of ["Argent", "Comptabilité de l’exercice"]) await expect(nav(page).getByRole("heading", { name })).toHaveCount(0);
+});
+
+test("wide screens, folded: a 72 px rail whose group icons open a side panel, remembered without a shift", async ({ page }) => {
+  test.setTimeout(120_000);
+  const e164 = await ownerWithFarm(page, "Élevage du Rail");
+  await scopeRemembered(page);
+  await page.setViewportSize(WIDE);
+  await page.goto("/fr/dashboard");
+
+  await nav(page).getByRole("button", { name: "Replier le menu" }).click();
+  const unfold = nav(page).getByRole("button", { name: "Déplier le menu" });
+  await expect(unfold).toHaveAttribute("aria-expanded", "false");
+  await expect(unfold).toBeFocused(); // the same button, its name changed
+  expect(await width(nav(page))).toBe(72);
+  await expect(nav(page).getByRole("heading", { name: "Argent" })).toHaveCount(0); // no headings: icons
+
+  // Icons named, 48 px, with a tooltip on hover and on keyboard focus.
+  const icon = (name: string) => nav(page).getByRole("button", { name, exact: true });
+  for (const name of [...GROUPS, "Compte"]) expect(await width(icon(name))).toBe(48);
+  const tip = (l: Locator) => l.locator("[data-tip]").evaluate((el) => getComputedStyle(el).opacity);
+  expect(await tip(icon("Argent"))).toBe("0");
+  await icon("Argent").hover();
+  await expect.poll(() => tip(icon("Argent"))).toBe("1");
+  await nav(page).getByRole("link", { name: "Stock" }).focus();
+  await page.keyboard.press("Tab"); // the next stop after the tabs: the first group
+  await expect(icon("Élevage")).toBeFocused();
+  await expect.poll(() => tip(icon("Élevage"))).toBe("1");
+
+  // A group's icon opens its panel, which widens the sidebar; the same icon closes it.
+  const books = icon("Comptabilité de l’exercice");
+  await books.press("Enter");
+  await expect(books).toHaveAttribute("aria-expanded", "true");
+  const panel = page.locator(`#${await books.getAttribute("aria-controls")}`);
+  await expect(panel.getByRole("heading", { name: "Comptabilité de l’exercice" })).toBeVisible();
+  await expect(panel.getByRole("list", { name: "Comptabilité de l’exercice" }).getByRole("link", { name: "Livres comptables" })).toBeVisible();
+  expect(await width(nav(page))).toBe(328);
+  expect(await width(panel)).toBe(256);
+  expect(await fits(panel)).toEqual([]);
+  await books.click();
+  await expect(panel).toBeHidden();
+  expect(await width(nav(page))).toBe(72);
+  // Escape closes it from inside, the focus back on its icon; so does « Fermer le panneau ».
+  await books.click();
+  await panel.getByRole("link", { name: "Livres comptables" }).focus();
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await expect(books).toBeFocused();
+  await icon("Compte").click();
+  const accountPanel = page.locator(`#${await icon("Compte").getAttribute("aria-controls")}`);
+  await expect(accountPanel.getByRole("link", { name: "Langue et déconnexion" })).toHaveAttribute("href", "/fr/more");
+  await accountPanel.getByRole("button", { name: "Fermer le panneau" }).click();
+  await expect(accountPanel).toBeHidden();
+  await expect(icon("Compte")).toBeFocused();
+  // One panel at a time: another icon replaces it.
+  await books.click();
+  await icon("Argent").click();
+  await expect(panel).toBeHidden();
+  for (const p of await nav(page).locator("[data-panel]:visible").all()) expect(await fits(p)).toEqual([]);
+
+  // A link in the panel: the page is marked in it, and its group's icon on the rail.
+  await nav(page).getByRole("link", { name: "Trésorerie" }).click();
+  await page.waitForURL(/\/fr\/treasury$/);
+  await expect(nav(page).getByRole("link", { name: "Trésorerie" })).toHaveAttribute("aria-current", "page");
+  await expect(icon("Argent")).toHaveAttribute("aria-current", "true");
+  await expect(icon("Conformité")).not.toHaveAttribute("aria-current", /./);
+
+  // Remembered on this browser, and laid out before the first paint: the rail is 72 px from the start, nothing shifts.
+  await page.addInitScript(() => {
+    const w = window as unknown as { shifts: number; navAtStart?: number };
+    w.shifts = 0;
+    new PerformanceObserver((list) => list.getEntries().forEach((e) => (w.shifts += (e as unknown as { value: number }).value))).observe({ type: "layout-shift", buffered: true });
+    document.addEventListener("DOMContentLoaded", () => (w.navAtStart = document.querySelector('nav[aria-label="Navigation principale"]')?.getBoundingClientRect().width));
+  });
+  await page.goto("/fr/closing/count", { waitUntil: "load" });
+  await expect(icon("Comptabilité de l’exercice")).toHaveAttribute("aria-current", "true");
+  await expect(unfold).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { navAtStart: number }).navAtStart)).toBe(72);
+  expect(await page.evaluate(() => (window as unknown as { shifts: number }).shifts)).toBe(0);
+  await expect(nav(page).locator("[data-panel]:visible")).toHaveCount(0); // a panel opens only when asked
+
+  // A worker's rail has no money icons either.
+  await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);
+  await page.goto("/fr/dashboard");
+  await expect.poll(() => phoneRole(page)).toBe("worker");
+  await page.goto("/fr/dashboard");
+  await expect(icon("Élevage")).toBeVisible();
+  for (const name of ["Argent", "Comptabilité de l’exercice"]) await expect(icon(name)).toHaveCount(0);
+
+  // Unfolded again, remembered too.
+  await unfold.click();
+  expect(await width(nav(page))).toBe(288);
+  await page.reload();
+  await expect(nav(page).getByRole("button", { name: "Replier le menu" })).toBeVisible();
+});
+
+test("wide screens in Arabic: the sidebar on the right, the rail's panel to its left, no label cut", async ({ page }) => {
+  test.setTimeout(120_000);
+  await ownerWithFarm(page, "Élevage de l’Est");
+  await scopeRemembered(page);
+  await page.setViewportSize(WIDE);
+  await page.goto("/ar/dashboard");
+  const sidebar = nav(page, "القائمة الرئيسية");
+
+  const headings = sidebar.getByRole("heading").getByRole("button");
+  await expect(headings).toHaveCount(4);
+  for (const b of await headings.all()) if ((await b.getAttribute("aria-expanded")) === "false") await b.click();
+  expect(await fits(sidebar)).toEqual([]);
+  const box = (await sidebar.boundingBox())!;
+  expect(box.x + box.width).toBe(WIDE.width);
+
+  await sidebar.getByRole("button", { name: "طي القائمة" }).click();
+  const ids = await sidebar.getByRole("list").nth(1).getByRole("button").evaluateAll((all) => all.map((b) => b.getAttribute("aria-controls")!));
+  expect(ids).toHaveLength(4);
+  for (const id of ids) {
+    const b = sidebar.locator(`[aria-controls="${id}"]`);
+    await b.click();
+    const panel = page.locator(`#${id}`);
+    expect(await fits(panel)).toEqual([]);
+    const [p, rail] = [(await panel.boundingBox())!, (await b.boundingBox())!];
+    expect(p.x + p.width).toBeLessThanOrEqual(rail.x); // to the rail's left
+  }
 });
 
 test("the phone: the « Plus » tab still opens /more", async ({ page }) => {
   test.setTimeout(90_000);
   await ownerWithFarm(page, "Élevage du Pouce");
   await scopeRemembered(page);
-  await expect(nav(page).getByRole("button", { name: "Plus" })).toBeHidden();
+  await expect(nav(page).getByRole("button", { name: "Replier le menu" })).toBeHidden();
+  await expect(nav(page).getByRole("button", { name: "Argent" })).toBeHidden();
   await nav(page).getByRole("link", { name: "Plus", exact: true }).click();
   await page.waitForURL(/\/fr\/more$/);
   await expect(page.getByRole("heading", { name: "Plus", level: 1 })).toBeVisible();

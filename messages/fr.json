@@ -2087,7 +2087,10 @@
     "back": "Retour",
     "sales": "Ventes",
     "finance": "Livres comptables",
-    "members": "Membres"
+    "members": "Membres",
+    "unfold": "Déplier le menu",
+    "fold": "Replier le menu",
+    "closePanel": "Fermer le panneau"
   },
   "More": {
     "farm": "Élevage",

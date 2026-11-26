@@ -63,11 +63,12 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
   await page.goto("/fr/dashboard");
   await expect(page.getByRole("region", { name: "Argent" })).toContainText(/Trésorerie disponible\s*−1.200,00\sDH/);
 
-  // The wide sidebar's « Plus » lists every screen in place (e2e/sidebar.spec.ts): no separate shortcuts any more.
+  // The wide sidebar lists the « Plus » groups itself (e2e/sidebar.spec.ts): no separate shortcuts any more (Membres is
+  // under Compte, with the « Plus » screens).
   const nav = page.getByRole("navigation", { name: "Navigation principale" });
   await page.setViewportSize({ width: 1280, height: 800 });
-  await expect(nav.getByRole("button", { name: /^Plus/ })).toBeVisible();
-  for (const name of ["Ventes", "Membres"]) await expect(nav.getByRole("link", { name, exact: true })).toHaveCount(0);
+  await expect(nav.getByRole("heading", { name: "Argent" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Ventes", exact: true })).toHaveCount(0);
 });
 
 // T119 (FC9): bank fees are paid from a bank account only; with none yet, the form says to add one first.

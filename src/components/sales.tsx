@@ -203,9 +203,9 @@ function SaleActions({ sale, label, cancellable, write }: { sale: SaleDto; label
     );
   }
   return (
-    <span className="mt-1 flex flex-wrap gap-2">
-      <button type="button" {...opener("price")} aria-label={t("Sale.correctOf", { sale: label })} className={`${secondary} text-sm`}>{t("Sale.correct")}</button>
-      {cancellable && <button type="button" onClick={cancel} aria-label={t("Sale.voidOf", { sale: label })} className={`${secondary} text-sm`}>{t("Sale.void")}</button>}
+    <span className="flex flex-wrap gap-x-4">
+      <button type="button" {...opener("price")} aria-label={t("Sale.correctOf", { sale: label })} className={`${link} text-sm`}>{t("Sale.correct")}</button>
+      {cancellable && <button type="button" onClick={cancel} aria-label={t("Sale.voidOf", { sale: label })} className={`${link} text-sm`}>{t("Sale.void")}</button>}
     </span>
   );
 }

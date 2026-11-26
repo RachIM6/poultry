@@ -15,12 +15,11 @@ const TABS = [
   { href: "/more", key: "more", icon: "M5 12h.01M12 12h.01M19 12h.01" },
 ] as const;
 
-// What the nav reads from the phone's database (the refused writes' count, the role's wide links) comes in its own
+// What the nav reads from the phone's database (the refused writes' count, the role's « Plus » screens) comes in its own
 // chunk, once the page has loaded: Dexie stays off the first load of the online-only pages (books, treasury, closing…).
-// Neither moves the layout when it arrives: the count is absolutely placed, the links come last in the sidebar, and the
-// wide "Plus" button takes the "Plus" link's place, same size, once the role is known (the link stays until then).
+// Neither moves the layout when it arrives: the count is absolutely placed, and the wide "Plus" button takes the "Plus"
+// link's place, same size, once the role is known (the link stays until then).
 const Refused = dynamic(() => import("@/components/app-nav-live").then((m) => m.Refused), { ssr: false });
-const WideLinks = dynamic(() => import("@/components/app-nav-live").then((m) => m.WideLinks), { ssr: false });
 const WideMore = dynamic(() => import("@/components/app-nav-live").then((m) => m.WideMore), { ssr: false });
 const onLoad = (cb: () => void) => {
   window.addEventListener("load", cb);
@@ -63,7 +62,6 @@ export function AppNav() {
           </li>
         ))}
       </ul>
-      {loaded && <WideLinks isIn={isIn} />}
     </nav>
   );
 }

@@ -30,6 +30,8 @@ test("wide screens: « Plus » expands in the sidebar, shows the role's screens 
   await expect(nav(page).getByRole("link", { name: "Plus", exact: true })).toBeHidden(); // the button replaces the link
   const treasury = nav(page).getByRole("link", { name: "Trésorerie" });
   await expect(treasury).toBeHidden();
+  // UX review A2: no shortcuts under the tabs: their screens are in « Plus », under their own names.
+  for (const name of ["Ventes", "Comptabilité", "Livres comptables"]) await expect(nav(page).getByRole("link", { name, exact: true })).toHaveCount(0);
 
   await plus.press("Enter"); // the keyboard opens it
   await expect(plus).toHaveAttribute("aria-expanded", "true");

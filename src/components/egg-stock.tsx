@@ -2,11 +2,17 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { v7 as uuidv7 } from "uuid";
 import dynamic from "next/dynamic";
-import { row, rowHead, rowTable, split } from "@/components/layout";
-import { card, danger, field, link, primary, secondary } from "@/components/ui";
+import { useSearchParams } from "next/navigation";
+import { dataTable, dataTableWrap, num, sectionTitle, split, formActions } from "@/components/layout";
+import { Pager } from "@/components/pager";
+import { pageOf, TABLE_PAGE } from "@/components/paging";
+import { useInline } from "@/components/focus";
+import { Sheet } from "@/components/sheet";
+import { card, danger, field, ghost, primary, primarySm, secondarySm } from "@/components/ui";
 import { can } from "@/lib/permissions";
 import { eggWithdrawalWindows, type TreatmentDto } from "@/modules/health/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
@@ -36,12 +42,21 @@ import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 
 // SPEC-m3 E2–E4 on the static /eggs shell (P-EggStock): the farm's eggs by item and by age, grading and discards,
-// computed on the phone from its records, offline.
+// computed on the phone from its records, offline. tasks/plan-ui-cleanup.md: « Vendre des œufs » is the page header's
+// action; the sale, a grading and a discard open in a sheet; the lots are a table, newest first, paged (`?page=`).
 
 const EggSaleForm = dynamic(() => import("@/components/egg-sale").then((m) => m.EggSaleForm));
 const today = () => farmDayOf(new Date());
 const TRAY = 30; // display only (MQ8): eggs are counted one by one
 const FOLD_AFTER = 7; // display only: downgraded eggs laid longer ago fold under the recent lots
+/** A cell shown from lg only: on the phone its content is in the row's first cell. */
+const wide = "hidden lg:table-cell";
+
+/** Into the page header's actions (the shell's `<span id="actions">`): the opener needs the screen's data and state. */
+function HeaderActions({ children }: { children: ReactNode }) {
+  const slot = document.getElementById("actions");
+  return slot && createPortal(children, slot);
+}
 
 export function EggStockScreen() {
   const t = useTranslations("Sync");
@@ -65,8 +80,10 @@ function EggStock({ userId, organizationId, role }: Scope) {
   const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "batch", "eggCollection", "eggGrading", "eggDiscard", "eggDraw", "buyer", "sale", "treatment").toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
   const [farmId, setFarmId] = useState<string>();
-  const [action, setAction] = useState<{ lot: string; kind: "grade" | "discard" | "sell" } | null>(null); // the lot's key
+  // "sell", or "grade:" / "discard:" and the lot's key: the open sheet; on close the focus goes back to its opener
+  const { open: action, opener, close } = useInline<string>();
   const [message, setMessage] = useState<string>();
+  const search = useSearchParams();
   if (!records || reference === undefined) return null;
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
@@ -81,7 +98,6 @@ function EggStock({ userId, organizationId, role }: Scope) {
     discards: of<EggDiscardDto>("eggDiscard").filter(mine),
     drawn: of<EggDrawDto>("eggDraw").filter(mine), // V6: sold
   });
-  const [selling, setSelling] = [action?.kind === "sell", (on: boolean) => setAction(on ? { lot: "", kind: "sell" } : null)];
   const grades = reference?.data.eggGrades ?? [];
   const byItem = stockByItem(lots);
   const total = lots.reduce((n, l) => n + l.eggs, 0);
@@ -100,7 +116,13 @@ function EggStock({ userId, organizationId, role }: Scope) {
   const keyOf = (l: Lot) => `${l.batchId}|${l.laidOn}|${l.item}`;
   const withholding = lots.some((l) => withheldUntil(l) !== undefined);
   const old = (l: Lot) => l.item === "downgraded" && daysBetween(l.laidOn as FarmDay, today()) > FOLD_AFTER;
-  const [recent, folded] = [lots.filter((l) => !old(l)), lots.filter(old)];
+  const newest = [...lots].sort((x, y) => y.laidOn.localeCompare(x.laidOn)); // sold oldest first, read newest first
+  const [recent, folded] = [newest.filter((l) => !old(l)), newest.filter(old)];
+  const page = pageOf(search.get("page") ?? undefined, recent.length, TABLE_PAGE);
+  const lotLine = (l: Lot) => t("EggStock.lot", { day: formatDayShort(l.laidOn, locale, today()), house: house(l.batchId), item: itemName(l.item), eggs: formatCount(l.eggs) });
+  const kind = action?.startsWith("grade:") ? "grade" : "discard";
+  const acted = lots.find((l) => action === `${kind}:${keyOf(l)}`);
+  const seller = can({ userId, organizationId, role }, "sales.manage");
   const foldedTitle = t("EggStock.folded", { days: String(FOLD_AFTER), n: formatCount(folded.reduce((n, l) => n + l.eggs, 0)) });
 
   const save = async (mutation: { type: string; payload: { id: string } }, entity: string, data: unknown) => saveAll(mutation, [{ entity, id: mutation.payload.id, data }]);
@@ -108,7 +130,7 @@ function EggStock({ userId, organizationId, role }: Scope) {
     try {
       await writeLocal(db, mutation, recs);
       setMessage("Farms.saved");
-      setAction(null);
+      close();
     } catch {
       setMessage("Farms.saveFailed");
     }
@@ -116,6 +138,37 @@ function EggStock({ userId, organizationId, role }: Scope) {
 
   return (
     <>
+      {/* SPEC-m3 V6; SPEC-finance FC7: workers record the eggs taken home, without a price (I5) */}
+      {can({ userId, organizationId, role }, "eggs.record") && total > 0 && (
+        <HeaderActions>
+          <button type="button" aria-haspopup="dialog" className={primarySm} {...opener("sell")}>{t(seller ? "EggSale.open" : "EggSale.consume")}</button>
+        </HeaderActions>
+      )}
+      <Sheet open={action === "sell"} onClose={close} title={t(seller ? "EggSale.open" : "EggSale.consume")}>
+        <EggSaleForm
+          batches={batches}
+          lots={lots}
+          buyers={of<BuyerDto>("buyer")}
+          sales={of<SaleDto>("sale")}
+          seller={seller}
+          treatments={treatments}
+          itemName={itemName}
+          onSave={saveAll}
+          onCancel={close}
+        />
+      </Sheet>
+      <Sheet
+        open={!!acted}
+        onClose={close}
+        title={acted && <>{t(kind === "grade" ? "EggStock.grade" : "EggStock.discard")}<span className="block text-sm font-normal text-ink-2">{lotLine(acted)}</span></>}
+      >
+        {acted && kind === "grade" && (
+          <GradeForm lot={acted} grades={grades} lots={lots} onCancel={close} onSave={(grading) => save({ type: M.gradeEggs, payload: grading }, "eggGrading", grading)} />
+        )}
+        {acted && kind === "discard" && (
+          <DiscardForm lot={acted} lots={lots} onCancel={close} onSave={(d) => save({ type: M.discardEggs, payload: d }, "eggDiscard", d)} />
+        )}
+      </Sheet>
       {farms.length > 1 && (
         <select aria-label={t("EggStock.farm")} value={farm?.id} onChange={(e) => setFarmId(e.target.value)} className={`${field} lg:max-w-sm`}>
           {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -123,30 +176,11 @@ function EggStock({ userId, organizationId, role }: Scope) {
       )}
       {message && <p role="status" className="rounded-2xl bg-olive-soft p-3 text-olive">{t(message)}</p>}
       <p className="text-xl font-semibold">{t("EggStock.headline", { eggs: formatCount(total), trays: trays(total) })}</p>
-      {/* SPEC-m3 V6; SPEC-finance FC7: workers record the eggs taken home, without a price (I5) */}
-      {can({ userId, organizationId, role }, "eggs.record") &&
-        (selling ? (
-          <div className="lg:max-w-xl">
-            <EggSaleForm
-              batches={batches}
-              lots={lots}
-              buyers={of<BuyerDto>("buyer")}
-              sales={of<SaleDto>("sale")}
-              seller={can({ userId, organizationId, role }, "sales.manage")}
-              treatments={treatments}
-              itemName={itemName}
-              onSave={saveAll}
-              onCancel={() => setSelling(false)}
-            />
-          </div>
-        ) : (
-          total > 0 && <button type="button" aria-expanded={false} className={`${primary} lg:self-start`} onClick={() => setSelling(true)}>{t(can({ userId, organizationId, role }, "sales.manage") ? "EggSale.open" : "EggSale.consume")}</button>
-        ))}
 
       {/* Wide screens: the two summaries side by side, then the lots as a table. */}
       <div className={split}>
         <section className={card} aria-labelledby="by-item">
-          <h2 id="by-item" className="text-lg font-semibold">{t("EggStock.byItem")}</h2>
+          <h2 id="by-item" className={sectionTitle}>{t("EggStock.byItem")}</h2>
           <ul className="flex flex-col gap-1">
             {/* A grade with no egg in stock says nothing: left out */}
             {(["ungraded", "downgraded", ...grades.map((g) => `grade:${g.id}` as const).filter((g) => (byItem[g] ?? 0) > 0)] as EggItem[]).map((item) => (
@@ -160,7 +194,7 @@ function EggStock({ userId, organizationId, role }: Scope) {
         </section>
 
         <section className={card} aria-labelledby="by-age">
-          <h2 id="by-age" className="text-lg font-semibold">{t("EggStock.byAge")}</h2>
+          <h2 id="by-age" className={sectionTitle}>{t("EggStock.byAge")}</h2>
           <ul className="flex flex-col gap-1">
             {AGE_BUCKETS.map((b) => (
               <li key={b} className="flex justify-between gap-3">
@@ -173,15 +207,16 @@ function EggStock({ userId, organizationId, role }: Scope) {
       </div>
 
       <section className="flex flex-col gap-3" aria-labelledby="lots">
-        <h2 id="lots" className="text-lg font-semibold">{t("EggStock.lots")}</h2>
+        <h2 id="lots" className={sectionTitle}>{t("EggStock.lots")}</h2>
         {lots.length === 0 ? <p>{t("EggStock.none")}</p> : (
           <>
-            {recent.length > 0 && lotList(recent, { "aria-labelledby": "lots" })}
+            {recent.length > 0 && lotTable(recent.slice((page - 1) * TABLE_PAGE, page * TABLE_PAGE), { "aria-labelledby": "lots" })}
+            <Pager page={page} size={TABLE_PAGE} total={recent.length} href={(n) => ({ pathname: "/eggs", query: { page: n } })} />
             {/* The downgraded eggs of more than a week ago, still to sell or discard: folded, not row after row */}
             {folded.length > 0 && (
               <details className="flex flex-col gap-3">
                 <summary className="disclosure text-ink-2">{foldedTitle}</summary>
-                {lotList(folded, { "aria-label": foldedTitle })}
+                {lotTable(folded, { "aria-label": foldedTitle })}
               </details>
             )}
           </>
@@ -190,51 +225,51 @@ function EggStock({ userId, organizationId, role }: Scope) {
     </>
   );
 
-  function lotList(list: Lot[], name: { "aria-labelledby": string } | { "aria-label": string }) {
+  function lotTable(list: Lot[], name: { "aria-labelledby": string } | { "aria-label": string }) {
+    const badge = (until: FarmDay) => <span className="inline-block rounded-xl bg-alert-soft px-2 py-0.5 text-sm font-semibold text-alert-fg">{t("EggStock.withheld", { day: formatDay(until, locale) })}</span>;
     return (
-      <ul className={`${rowTable} ${withholding ? "lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto_minmax(0,1.6fr)_auto]" : "lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto_auto]"}`} {...name}>
-        <li aria-hidden="true" className={rowHead}>
-          <span>{t("EggStock.colDay")}</span>
-          <span>{t("EggStock.colHouse")}</span>
-          <span>{t("EggStock.colItem")}</span>
-          <span className="text-end">{t("EggStock.colEggs")}</span>
-          {/* Only while a lot is in a withdrawal: an always-empty column says nothing */}
-          {withholding && <span>{t("EggStock.colWithheld")}</span>}
-        </li>
-        {list.map((l) => {
-          const until = withheldUntil(l);
-          const day = formatDayShort(l.laidOn, locale, today()); // a dense list: "19 novembre"
-          return (
-          <li key={keyOf(l)} className={row}>
-            {/* The phone's line, read whole by screen readers; its parts in columns from lg. */}
-            <span className="lg:sr-only">{t("EggStock.lot", { day, house: house(l.batchId), item: itemName(l.item), eggs: formatCount(l.eggs) })}</span>
-            <span aria-hidden="true" className="hidden whitespace-nowrap lg:block">{day}</span>
-            <span aria-hidden="true" className="hidden lg:block">{house(l.batchId)}</span>
-            <span aria-hidden="true" className="hidden lg:block">{itemName(l.item)}</span>
-            <span aria-hidden="true" className="hidden text-end tabular-nums lg:block">{formatCount(l.eggs)}</span>
-            {until ? (
-              <span className="self-start rounded-2xl bg-alert-soft px-3 py-1 text-sm font-semibold text-alert-fg lg:self-center">{t("EggStock.withheld", { day: formatDay(until, locale) })}</span>
-            ) : (
-              withholding && <span className="hidden lg:block" />
-            )}
-            <span className="flex items-center gap-4 lg:justify-end">
-              {l.item === "ungraded" && grades.length > 0 && <button type="button" aria-expanded={action?.lot === keyOf(l) && action.kind === "grade"} className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "grade" })}>{t("EggStock.grade")}</button>}
-              <button type="button" aria-expanded={action?.lot === keyOf(l) && action.kind === "discard"} className={link} onClick={() => setAction({ lot: keyOf(l), kind: "discard" })}>{t("EggStock.discard")}</button>
-            </span>
-            {action?.lot === keyOf(l) && action.kind === "grade" && (
-              <div className="lg:col-span-full lg:max-w-md">
-                <GradeForm lot={l} grades={grades} lots={lots} onCancel={() => setAction(null)} onSave={(grading) => save({ type: M.gradeEggs, payload: grading }, "eggGrading", grading)} />
-              </div>
-            )}
-            {action?.lot === keyOf(l) && action.kind === "discard" && (
-              <div className="lg:col-span-full lg:max-w-md">
-                <DiscardForm lot={l} lots={lots} onCancel={() => setAction(null)} onSave={(d) => save({ type: M.discardEggs, payload: d }, "eggDiscard", d)} />
-              </div>
-            )}
-          </li>
-          );
-        })}
-      </ul>
+      <div className={dataTableWrap}>
+        <table className={dataTable} {...name}>
+          <thead>
+            <tr>
+              <th>{t("EggStock.colDay")}</th>
+              <th className={wide}>{t("EggStock.colHouse")}</th>
+              <th className={wide}>{t("EggStock.colItem")}</th>
+              <th className={num}>{t("EggStock.colEggs")}</th>
+              {/* Only while a lot is in a withdrawal: an always-empty column says nothing */}
+              {withholding && <th className={wide}>{t("EggStock.colWithheld")}</th>}
+              <th><span className="sr-only">{t("EggStock.colActions")}</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((l) => {
+              const until = withheldUntil(l);
+              return (
+                <tr key={keyOf(l)}>
+                  <td>
+                    <span className="whitespace-nowrap">{formatDayShort(l.laidOn, locale, today())}</span>
+                    {/* the phone: the house and the item under the day */}
+                    <span className="block text-ink-2 lg:hidden">{house(l.batchId)} · {itemName(l.item)}</span>
+                    {until && <span className="mt-1 block lg:hidden">{badge(until)}</span>}
+                  </td>
+                  <td className={wide}>{house(l.batchId)}</td>
+                  <td className={wide}>{itemName(l.item)}</td>
+                  <td className={num}>{formatCount(l.eggs)}</td>
+                  {withholding && <td className={wide}>{until && badge(until)}</td>}
+                  <td>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {l.item === "ungraded" && grades.length > 0 && (
+                        <button type="button" aria-haspopup="dialog" className={secondarySm} {...opener(`grade:${keyOf(l)}`)}>{t("EggStock.grade")}</button>
+                      )}
+                      <button type="button" aria-haspopup="dialog" className={`${ghost} min-w-11`} {...opener(`discard:${keyOf(l)}`)}>{t("EggStock.discard")}</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     );
   }
 }
@@ -260,9 +295,9 @@ function GradeForm({ lot, grades, lots, onSave, onCancel }: { lot: Lot; grades: 
         </label>
       ))}
       {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <span className="flex gap-2">
+      <span className={formActions}>
         <button type="submit" className={primary}>{t("EggStock.saveGrading")}</button>
-        <button type="button" className={secondary} onClick={onCancel}>{t("Closing.cancel")}</button>
+        <button type="button" className={`${ghost} min-w-11`} onClick={onCancel}>{t("Closing.cancel")}</button>
       </span>
     </form>
   );
@@ -292,9 +327,9 @@ function DiscardForm({ lot, lots, onSave, onCancel }: { lot: Lot; lots: Lot[]; o
         <input name="reason" required maxLength={200} className={field} />
       </label>
       {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <span className="flex gap-2">
+      <span className={formActions}>
         <button type="submit" className={primary}>{t("EggStock.saveDiscard")}</button>
-        <button type="button" className={secondary} onClick={onCancel}>{t("Closing.cancel")}</button>
+        <button type="button" className={`${ghost} min-w-11`} onClick={onCancel}>{t("Closing.cancel")}</button>
       </span>
     </form>
   );

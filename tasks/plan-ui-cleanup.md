@@ -435,7 +435,7 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   `Suspense` (it reads `?tab=`/`?page=`). Eight `Treasury.*` keys nothing reads any more (the old « Payer » cards',
   the movements' « Journal » and « Bande » headers) are removed. The new Arabic keys need a native speaker's review.
 
-### Batch 3: stock, eggs and the small Élevage screens
+### Batch 3: stock, eggs and the small Élevage screens — done
 - Goal: §4 rows `/stock`, `/eggs`, `/farms`, `/compare`, `/protocol`, `/planning`.
 - Owns: `stock.tsx`, `egg-stock.tsx`, `egg-sale.tsx`, `farms.tsx`, `compare.tsx`, `protocol.tsx`, `planning.tsx`.
 - Message keys: Articles, Achats, Fournisseurs, Modèles de référence, Copier, Planifier une bande.
@@ -444,6 +444,44 @@ each in its own worktree and E2E port. Batch 7 last, alone.
 - E2E: `stock`, `supplier-payments`, `eggs`, `farms`, `protocol`, `planning`, `place-from-plan`, `production-types`.
 - Risks: tests that select « Modifier la bande prévue le … » by name still pass only if the aria-label keeps that exact
   text; keep it.
+- [x] Header actions of a client screen: the static shell passes `actions={<span id="actions" className="contents" />}`
+  to `Page`, and the screen portals its openers there (`HeaderActions`, `createPortal`), since they need its data and
+  state; the title stays in the precached shell.
+- [x] `/stock`: « Corriger le stock », « Ajouter un article » (`secondarySm`) and « Enregistrer un achat » (`primarySm`)
+  are header actions, their forms in a sheet; for those who manage stock, query tabs **Articles** · **Achats** ·
+  **Fournisseurs** (`?tab=`). Achats: newest first, `Pager` 25 (`?page=`), filtered by item (a select, kept in the
+  screen's state: a new query key would need `src/sw.ts`); the silent `.slice(0, 10)` is gone. Fournisseurs (§2.9):
+  one row per supplier, the soonest due first: dues, cheques and bills not yet debited (« Débité » `secondarySm`),
+  « Reste dû », « Payer » (`secondarySm`, accessible name « Payer <fournisseur> ») opening the unchanged pay form in a
+  sheet with what is owed filled in. A worker still sees the items only, no tabs. The items list is unchanged.
+- [x] `/eggs`: « Vendre des œufs » (or « Consommation d'œufs ») a header `primarySm`; the sale, a grading and a discard
+  open in a sheet (focus back on the opener); the lots are a `dataTable` (Pondus le, Bâtiment, Article, Œufs, Délai
+  d'attente while one applies), newest first, `Pager` 25; on the phone the house and item go under the day. The old
+  downgraded lots stay folded.
+- [x] `/farms`: « Ajouter une ferme » and « Ajouter un bâtiment » (the « Bâtiments » section's action) open sheets;
+  « Modifier » is `secondarySm`; no farm yet: the `empty` box with « Ajouter une ferme ». The edits stay in place.
+- [x] `/protocol`: « Vos programmes » first, full width, each programme a `dataTable` (Âge, Vaccin, Mode, « Retirer »
+  `ghost` named « Retirer : Jour … ») with « Ajouter un vaccin » in its header row → sheet. « Modèles de référence »:
+  one compact list (name, « Copier » named « Copier pour mon exploitation : <modèle> »); what every template shares
+  (not checked by a vet, no vaccine yet) is said once above it, else per row.
+- [x] `/planning`: one `dataTable` per farm, a `tbody` per house (« Bandes de <bâtiment> »): Bâtiment, Bande (state,
+  gap, warnings), Mise en place le, Poussins, Couvoir, Vente vers le, actions; the phone keeps the whole line under the
+  house. « Prévoir une bande » (`primarySm`) and « Saisir le vide sanitaire minimum » (`secondarySm`) are header
+  actions; new plan, edit, placement and rule open in a sheet, which closes once saved. Row actions « Mettre en place »,
+  « Modifier », « Annuler » keep « … la bande prévue le <date> » as their accessible name.
+- [x] `/compare`: no change (shared fixes only).
+- [x] Budget: `/fr/batches` 194.2 KB, `/fr/login` 147.5 KB (of 200).
+- Heights at 1 440, demo seed, before → after: individual `/stock` 2 069 → 948, `/eggs` 1 822 → 1 366, `/protocol`
+  1 006 → 1 019, `/planning` 1 198 → 900, `/farms` and `/compare` 900 → 900; SARL `/stock` 996 → 900, others 900. At 390,
+  individual: `/stock` 3 825 → 1 980, `/eggs` 3 100 → 2 254, `/protocol` 2 219 → 1 643, `/planning` 2 309 → 1 422;
+  SARL `/stock` 1 627 → 938, `/protocol` 1 849 → 1 260, `/planning` 1 247 → 844.
+- Deviations: the opener label « Prévoir une bande » (existing key) instead of « Planifier une bande »; stock purchases
+  are filtered by a select in the section header, not chips; planning row actions are three small buttons rather than a
+  « ⋯ » menu (as batch 1); the forms that moved into sheets lost the coverage `a11y.spec.ts` gave them as inline forms
+  (it opens `aria-expanded` disclosures, not dialogs). New Arabic strings (`Stock.tabs`, `Stock.allItems`,
+  `Stock.noPurchases`, `Stock.noSuppliers`, `Stock.colOwed`, `Stock.payOpen`, `Stock.owed`, `EggStock.colActions`,
+  `Protocol.templates/notReviewed/notReviewedAll/emptyTemplates/copy/copyOf/addItemTo/removeOf/colActions/none`,
+  `Planning.colBatch/colSale/colActions/stateBatch/statePlan/editShort/cancelShort`) need a native speaker's review.
 
 ### Batch 4: year end — done
 - Goal: §4 rows `/closing/count`, `/closing`, `/closing/statements`, `/books`, `/assets`, `/loans`; the « Clôture de
@@ -491,7 +529,7 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   (`Close.steps`, `Close.howCalculated`, `Close.closeYearFirst`, `Statements.tabs`, `Statements.showEmpty/hideEmpty`,
   `Assets.scheduleShow`, `Loans.scheduleShow/next/tabs`, `Subsidies.releaseShow`) to check with a native speaker.
 
-### Batch 5: analysis and accounting settings
+### Batch 5: analysis and accounting settings — done
 - Goal: §4 rows `/results`, `/budget`, `/threshold`, `/settings/accounting`, `/settings/chart`, `/settings/posting`; the
   « Résultats et budget » and « Paramètres comptables » route tabs.
 - Owns: `results/**`, `budget/**`, `budget.tsx`, `budget-cash.tsx`, `threshold/**`, `settings/accounting/**`,
@@ -500,6 +538,37 @@ each in its own worktree and E2E port. Batch 7 last, alone.
 - Acceptance: `/settings/accounting` has no empty half; the chart is grouped; `/settings/posting` reachable by tab.
 - E2E: `accounting-settings`, `budget`, `budget-plan`, `threshold`, `report`, `expenses` (results link).
 - Risks: the accountant's read-only view of `/settings/accounting` must keep hiding the forms.
+- [x] Route tabs « Résultats et budget » (`results/results-tabs.tsx`): Résultats · Budget · Seuil d'exonération, and
+  « Paramètres comptables » (`settings/accounting/settings-tabs.tsx`): Profil · Plan de comptes · Comptes remplacés, the
+  last one for the owner only (`finance.manage`, the page redirects anyone else). One h1 per section, as « Trésorerie »:
+  « Résultats et budget » and « Paramètres comptables ». The links card of `/settings/accounting` (owner's and
+  read-only view) is gone; `/settings/posting` lost its back link to `/settings/accounting` (the phone keeps `back="/more"`).
+- [x] `/results`: `dataTable` with `num` headers; the per-mille column writes U+2212, as `formatMoney`; « Aucune bande » as
+  `empty`.
+- [x] `/budget`: the saved budgets are a table (name, seuil, marge), each budget a row group whose second row folds its
+  weekly cash (« Besoin de trésorerie par semaine »); `sectionTitle` headings; the planner unchanged otherwise.
+- [x] `/threshold`: tabs; the threshold « Seuil d'exonération : 5 000 000,00 DH » is the content's first h2 (the page
+  streams under the static title and tabs now).
+- [x] `/settings/accounting`: one column: identity card (five fields three by three from lg, its save a `secondary`, so
+  the choices' « Enregistrer » is the one primary), the lock as one `warn` line above the choices, the choices two by two
+  from lg (Tenue · Plan, Début d'exercice + TVA · Poules), the shared costs' key on its own row with its three choices
+  side by side. The accountant's read-only view still has no form, field or button.
+- [x] `/settings/chart`: one `dataTable` grouped by class (Charges 6, Produits 7, Tiers 3 et 4, Trésorerie 5, Capitaux 1,
+  an « Autres comptes » group if a class ever falls outside), class rows sticky under the sticky header from lg; the
+  entity's chart column first and in bold, the other muted; the phone lists the accounts under the operation.
+- [x] `/settings/posting`: a `dataTable` (Opération, Par défaut, Remplacé par, « Remplacer ») ; « Remplacer » (`secondarySm`,
+  name « Remplacer : <opération> ») opens the rule's form in a sheet with « Revenir au compte par défaut » as a `ghost` when
+  replaced; saved, the sheet closes and the page says « Compte enregistré… ». New e2e: sheet focus, Escape, save, back to
+  the default.
+- Heights (demo seed, full page, before → after): 1 440, individual farm: `/results` 900 → 951, `/budget` 1 292 → 1 351,
+  `/threshold` 900 → 900, `/settings/accounting` 1 944 → 1 478, `/settings/chart` 2 244 → 1 897, `/settings/posting`
+  1 399 → 1 079; SARL: `/settings/accounting` 1 882 → 1 478, `/budget` 1 088 → 1 191. 390, individual farm: `/results`
+  1 599 → 1 639, `/budget` 2 382 → 2 533, `/settings/accounting` 3 152 → 3 006, `/settings/chart` 5 068 → 3 857,
+  `/settings/posting` 2 264 → 1 807. The small gains on `/results` and `/budget` are the tab row.
+- Deviations: `/results` keeps its 7 columns on the phone in its scrolling region (no `rowTable`); the sidebar entries are
+  not merged (batch 7). `e2e/screens.ts` (not a batch file) now waits for the saved budget's row group instead of its list
+  item. `Budget.title` and `Overrides.open`, read by nothing any more, are removed. New Arabic keys (`Results.section`,
+  `Results.tab*`, `Accounting.tab*`, `Chart.groups`, `Overrides.replace/replaceOf`) to check with a native speaker.
 
 ### Batch 6: operations, compliance, members
 - Goal: §4 rows `/climate`, `/climate/targets`, `/tasks`, `/staff`, `/inbox`, `/sync`, `/visitors`, `/disposal`,

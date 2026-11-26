@@ -5,6 +5,14 @@
     "description": "Gestion des élevages avicoles",
     "tagline": "L’élevage avicole, jour après jour."
   },
+  "Ui": {
+    "close": "Fermer",
+    "pagination": "Pagination",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "page": "Page {n}",
+    "range": "{from}–{to} sur {total}"
+  },
   "Landing": {
     "headline": "Le carnet de bord de votre élevage.",
     "subline": "Saisie du jour, santé, stock, ventes, paie et comptabilité dans une seule application, en arabe et en français, qui marche aussi sans réseau à la ferme.",

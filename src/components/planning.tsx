@@ -107,7 +107,7 @@ function Planning(scope: Scope) {
         title={
           open === "add" ? t("Planning.add")
           : open === "downtime" ? t("Planning.enterDowntime")
-          : sheetPlan && t(open?.startsWith("place:") ? "Planning.place" : "Planning.edit", { date: day(sheetPlan.placeOn) })
+          : sheetPlan && t(open === `edit:${sheetPlan.id}` ? "Planning.edit" : "Planning.place", { date: day(sheetPlan.placeOn) })
         }
       >
         {open === "add" && <PlanForm houses={houses} strains={strains} today={today} onSave={(p) => savePlan(p).then(close)} onCancel={close} />}
@@ -165,8 +165,8 @@ function Planning(scope: Scope) {
                               {i === 0 && name}
                               <td>
                                 {line.gapDays !== null && line.gapDays >= 0 && <span className="block text-[13px] text-ink-2">{t("Planning.gap", { days: String(line.gapDays) })}</span>}
-                                <span className="font-medium">{t(line.kind === "batch" ? "Planning.stateBatch" : "Planning.statePlan")}</span>
-                                {/* the phone: the plan's figures under its state */}
+                                <span className="hidden font-medium lg:inline">{t(line.kind === "batch" ? "Planning.stateBatch" : "Planning.statePlan")}</span>
+                                {/* the phone: the whole line, which says the state too */}
                                 <span className="block text-ink-2 lg:hidden">
                                   {line.kind === "batch" ? t("Planning.batch", { date: day(line.placeOn) }) : t("Planning.plan", { date: day(line.placeOn), chicks: String(chicks ?? 0), hatchery: hatchery ?? "" })}
                                 </span>

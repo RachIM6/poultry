@@ -7,6 +7,7 @@ import { useEffect, useId, useState, type FormEvent, type ReactNode } from "reac
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
+import { formatDayShort } from "@/lib/format-day";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
@@ -15,10 +16,11 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { FileUpload, useOnline } from "@/components/local-screen";
+import { addMonths, MonthSelect } from "@/components/month-select";
 import { useFieldError, useInline } from "@/components/focus";
 import { fields2, rowTable, splitAside, splitNarrow } from "@/components/layout";
 import { cardRow, tightHead } from "@/components/layout-tight";
-import { card, danger, field, primary, secondary } from "@/components/ui";
+import { card, danger, field, link, primary, secondary } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
 // crew, bank fees) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts
@@ -121,14 +123,14 @@ function Expenses(scope: Scope) {
                 <span>{t("Expenses.colReceipt")}</span>
               </li>
               {recent.map((e) => (
-                <li key={e.id} className={`flex flex-col gap-2 rounded-2xl border border-line bg-card p-3 ${cardRow}`}>
+                <li key={e.id} className={`flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-line bg-card p-3 ${cardRow}`}>
                   {/* The phone's line, read whole by screen readers; its parts in columns from lg. */}
-                  <span className="lg:sr-only">{line(e)}</span>
-                  <span aria-hidden="true" className="hidden whitespace-nowrap lg:block">{formatDay(e.day as FarmDay, locale)}</span>
+                  <span className="basis-full lg:sr-only">{line(e)}</span>
+                  <span aria-hidden="true" className="hidden whitespace-nowrap lg:block">{formatDayShort(e.day, locale, today())}</span>
                   <span aria-hidden="true" className="hidden lg:block">{t(`Expenses.categories.${e.category}`)}</span>
                   <span aria-hidden="true" className="hidden text-end tabular-nums whitespace-nowrap lg:block"><bdi dir="ltr">{formatMoney(BigInt(e.amountCentimes))}</bdi></span>
                   {correcting === e.id ? (
-                    <div className="lg:order-1 lg:col-span-full">
+                    <div className="basis-full lg:order-1 lg:col-span-full">
                       <ExpenseForm
                         prefill={fieldsOf(e)}
                         accounts={accounts}
@@ -142,13 +144,13 @@ function Expenses(scope: Scope) {
                       />
                     </div>
                   ) : (
-                    <span className="flex flex-wrap gap-2 lg:order-1 lg:justify-end">
-                      <button type="button" {...corrector(e.id)} aria-label={t("Expenses.correctOf", { expense: line(e) })} className={`${secondary} text-sm`}>{t("Expenses.correct")}</button>
+                    <span className="flex flex-wrap gap-x-4 lg:order-1 lg:flex-nowrap lg:justify-end">
+                      <button type="button" {...corrector(e.id)} aria-label={t("Expenses.correctOf", { expense: line(e) })} className={`${link} text-sm`}>{t("Expenses.correct")}</button>
                       <button
                         type="button"
                         onClick={() => confirm(t("Expenses.voidConfirm", { expense: line(e) })) && write({ type: F.cancelExpense, payload: { expenseId: e.id } }, "expense", e, null)}
                         aria-label={t("Expenses.voidOf", { expense: line(e) })}
-                        className={`${secondary} text-sm`}
+                        className={`${link} text-sm`}
                       >
                         {t("Expenses.void")}
                       </button>
@@ -158,11 +160,11 @@ function Expenses(scope: Scope) {
                       Below the buttons on the phone, before them from lg. */}
                   <div className="contents lg:block">
                     {e.receiptFileId ? (
-                      <a href={`/api/files/${e.receiptFileId}`} aria-label={t("Expenses.receiptOf", { expense: line(e) })} className="underline underline-offset-4">{t("Expenses.receipt")}</a>
+                      <a href={`/api/files/${e.receiptFileId}`} aria-label={t("Expenses.receiptOf", { expense: line(e) })} className={`${link} self-start text-sm`}>{t("Expenses.receipt")}</a>
                     ) : unsent.has(`expense:${e.id}`) || !online ? (
                       <span className="text-sm text-ink-2">{t("Expenses.receiptMissing")}</span>
                     ) : (
-                      <FileUpload url={`/api/files?purpose=receipt&expense=${e.id}`} accept="image/jpeg,image/png,image/webp,application/pdf" camera label={t("Expenses.receiptAdd")} onError={setUploadError} />
+                      <FileUpload url={`/api/files?purpose=receipt&expense=${e.id}`} accept="image/jpeg,image/png,image/webp,application/pdf" camera label={t("Expenses.receiptAdd")} look={`${link} self-start whitespace-nowrap text-sm`} onError={setUploadError} />
                     )}
                   </div>
                 </li>
@@ -220,6 +222,8 @@ function ExpenseForm({
   const pre = (name: string) => (key === 0 ? (prefill.get(name) ?? undefined) : undefined); // the first form only
   const [bank, setBank] = useState(() => bankOnly(pre("category") ?? "")); // FC9 (T119): bank fees are paid from a bank account only
   const sources = bank ? accounts.filter((a) => a.kind === "bank") : accounts;
+  const now = today().slice(0, 7);
+  const month = pre("month") ?? (pre("day") ?? today()).slice(0, 7); // a correction keeps its own month, however old
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -288,7 +292,7 @@ function ExpenseForm({
           </select>
         )}
       </Field>
-      <Field label={t("Expenses.month")}>{(id) => <input id={id} name="month" type="month" defaultValue={pre("month") ?? (pre("day") ?? today()).slice(0, 7)} max={today().slice(0, 7)} className={field} />}</Field>
+      <Field label={t("Expenses.month")}>{(id) => <MonthSelect id={id} name="month" defaultValue={month} from={[month, addMonths(now, -23)].sort()[0]} to={now} className={field} />}</Field>
       <Field label={t("Expenses.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={pre("day") ?? today()} max={today()} required {...bad("day")} className={field} />}</Field>
       <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" defaultValue={pre("note")} maxLength={200} className={field} />}</Field>
       {error && <p id={errorId} role="alert" className={`${danger} lg:col-span-full`}>{t(error)}</p>}

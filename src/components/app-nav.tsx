@@ -68,13 +68,14 @@ export function AppNav() {
 
 /**
  * The round back button of the mockups (Batch.dc.html), for screens reached from "Plus". A hash (`#`: a batch's day
- * back to the list) is a plain link, so the hash the screen reads changes.
+ * back to the list) is a plain link, so the hash the screen reads changes. Back to "Plus" is phone-only: on wide screens
+ * the sidebar opens "Plus" in place, so the /more page is not where these screens were reached from.
  */
 export function BackLink({ href, label }: { href: string; label?: string }) {
   const t = useTranslations("Nav");
   const props = {
     "aria-label": label ?? t("back"),
-    className: "grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card print:hidden",
+    className: `grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card print:hidden${href === "/more" ? " lg:hidden" : ""}`,
     children: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
         <path d="M15 6l-6 6 6 6" />

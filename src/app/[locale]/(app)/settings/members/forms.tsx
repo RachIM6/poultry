@@ -50,7 +50,7 @@ export function InviteForm({ roles, partners }: { roles: readonly string[]; part
   );
 }
 
-export function MemberRow({ membershipId, phone, role, roles, until }: { membershipId: string; phone: string; role: string; roles: readonly string[]; until: string | null }) {
+export function MemberRow({ membershipId, name, phone, role, roles, until }: { membershipId: string; name: string | null; phone: string; role: string; roles: readonly string[]; until: string | null }) {
   const t = useTranslations("Members");
   const [roleState, roleAction, rolePending] = useActionState(updateRole, {});
   const [removeState, removeAction, removePending] = useActionState(remove, {});
@@ -61,7 +61,8 @@ export function MemberRow({ membershipId, phone, role, roles, until }: { members
     // the other actions; a message or a code takes the whole row below.
     <li className={row}>
       <span className={cell}>
-        <bdi dir="ltr" className="font-semibold">{phone}</bdi>
+        {name && <span className="font-semibold">{name}</span>}
+        <bdi dir="ltr" className={name ? "text-sm text-ink-2" : "font-semibold"}>{phone}</bdi>
         {until && <span className="text-sm text-ink-2">{t("accessUntil", { date: until })}</span>}
       </span>
       <form action={roleAction} className="flex gap-2">

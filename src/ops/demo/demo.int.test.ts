@@ -20,7 +20,7 @@ describe("demo seed into an existing account", () => {
     vi.stubEnv("APP_ORIGIN", ORIGIN);
     execFileSync("node", ["prisma/seed.ts"], { env: process.env, stdio: "ignore" }); // strains, catalogue, charts, as `pnpm db:seed`
     for (const p of taken) await db.user.create({ data: { phoneNumber: p, name: p, email: `${p.slice(1)}@phone.invalid` } });
-    const signedUp = await post(signUpRoute, "auth/sign-up", { phone: "0652793289", password: "a local test phrase", locale: "fr" });
+    const signedUp = await post(signUpRoute, "auth/sign-up", { phone: "0652793289", firstName: "Amine", lastName: "Test", password: "a local test phrase", locale: "fr" });
     expect(signedUp.status).toBe(201);
     const cookie = signedUp.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
     expect((await post(onboardingRoute, "onboarding", { name: "LPRI", form: "individual", locale: "fr" }, cookie)).status).toBe(201);
@@ -31,6 +31,7 @@ describe("demo seed into an existing account", () => {
   const snapshot = async () => ({
     password: (await db.account.findMany({ where: { userId }, select: { password: true, updatedAt: true } })),
     sessions: (await db.session.findMany({ where: { userId }, select: { id: true, expiresAt: true } })),
+    names: await db.user.findUnique({ where: { id: userId }, select: { name: true, firstName: true, lastName: true } }), // the account's own name stays
     rows: await Promise.all([db.batch.count(), db.sale.count(), db.journalEntry.count(), db.auditEvent.count(), db.user.count(), db.organization.count(), db.invitation.count()]),
   });
 
@@ -47,12 +48,16 @@ describe("demo seed into an existing account", () => {
     const after = await snapshot();
     expect(after.password).toEqual(before.password);
     expect(after.sessions).toEqual(before.sessions);
+    expect(after.names).toEqual({ name: "Amine Test", firstName: "Amine", lastName: "Test" });
 
     const owned = await db.membership.findMany({ where: { userId, role: "owner" }, select: { organizationId: true, organization: { select: { name: true } } } });
     expect(owned.map((o) => o.organization.name).sort()).toEqual(["LPRI", SARL_NAME]);
     const lpri = owned.find((o) => o.organization.name === "LPRI")!.organizationId;
     const sarl = owned.find((o) => o.organization.name === SARL_NAME)!.organizationId;
     expect(await db.farm.count({ where: { organizationId: lpri } })).toBe(2);
+    const staff = await db.user.findMany({ where: { memberships: { some: { organizationId: lpri, role: { in: ["manager", "worker"] } } } }, select: { name: true, firstName: true, lastName: true } });
+    expect(staff.map((u) => u.name).sort()).toEqual(["Saïd Démo", "Youssef Démo"]); // made-up members, named as made up
+    expect(staff.every((u) => u.name === `${u.firstName} ${u.lastName}`)).toBe(true);
     expect(await db.farm.count({ where: { organizationId: sarl } })).toBe(1);
     const species = await db.batch.groupBy({ by: ["species", "status"], where: { organizationId: lpri }, _count: true });
     expect(species.map((s) => `${s.species}:${s.status}`).sort()).toEqual(["beldi:closed", "broiler:closed", "broiler:open", "layer:open", "pullet:open", "turkey:open"]);

@@ -4,22 +4,27 @@ Données fictives uniquement (ADR-016). Tout ce qui est affiché est inventé po
 
 ## Avant la séance (la veille)
 
-- Base vide, puis `pnpm db:seed` et `pnpm db:seed:demo` avec `DEMO_PHONE`, `DEMO_PASSWORD` et le même `BETTER_AUTH_SECRET` que sur Vercel (sinon les codes d'invitation affichés ne fonctionnent pas). La bande en cours vieillit d'un jour chaque jour : semer la veille.
+- Base vide, puis `pnpm db:seed` et `pnpm db:seed:demo` avec `DEMO_PHONE`, `DEMO_PASSWORD` et le même `BETTER_AUTH_SECRET` que sur Vercel (sinon les codes d’invitation affichés ne fonctionnent pas). La bande en cours vieillit d’un jour chaque jour : semer la veille.
 - Connexion du propriétaire démo : le numéro `DEMO_PHONE` (par défaut `+212600000099`, soit `0600000099`) et le mot de passe `DEMO_PASSWORD`. Sans `DEMO_PASSWORD`, le script imprime un mot de passe généré, une seule fois. Relancer le script avec `DEMO_PASSWORD` change le mot de passe sans toucher aux données.
-- `DEMO_MODE=1` sur le serveur : le bandeau « Démonstration — données fictives uniquement » s'affiche sur chaque page.
-- Le script imprime aussi les codes d'invitation du vétérinaire (`0600000097`) et du comptable (`0600000096`). Les garder pour l'étape 9.
+- **Présenter depuis son propre compte** : créer le compte dans l’application (inscription, puis l’exploitation à l’accueil, sans ferme), puis `DEMO_PHONE=<son numéro> DEMO_INTO_EXISTING=1 pnpm db:seed:demo` (avec le même `BETTER_AUTH_SECRET`). Le script remplit cette exploitation et ajoute la SARL démo, sans jamais toucher au mot de passe du compte. Relancé, il n’ajoute rien.
+- `DEMO_MODE=1` sur le serveur : le bandeau « Démonstration — données fictives uniquement » s’affiche sur chaque page.
+- Le script imprime aussi les numéros fictifs des membres et les codes d’invitation du vétérinaire et du comptable (dans une base vide : vétérinaire `0600000097`, comptable `0600000096` ; sinon les numéros libres suivants, imprimés). Les garder pour l’étape 9.
 - Un téléphone Android avec Chrome : se connecter une fois en ligne, ouvrir « Aujourd'hui », un lot et « Stock », puis installer l'application (étape 10). L'ordinateur pour l'écran large et les PDF.
 
 Ce que contient la démo :
 
-- **Ferme Démo Ben Ahmed** (exploitant individuel, livre des recettes et des dépenses) :
-  - une bande de chair clôturée (42 jours, vendue à trois acheteurs, nettoyage et désinfection ensuite) ;
-  - une bande en cours au jour 24 (traitement en délai d'attente, visite vétérinaire, budget) ;
-  - une bande planifiée dans 12 jours ;
-  - un lot de 5 000 pondeuses avec trois semaines de ramassage ;
-  - deux employés et la paie du mois dernier ;
-  - les documents ONSSA, dont l'autorisation qui expire dans 25 jours.
-- **SARL Démo Avicole** (société, comptabilité complète et états de synthèse) : une bande clôturée, une bande en cours.
+- **Exploitant individuel** (livre des recettes et des dépenses : « Ferme Démo Ben Ahmed », ou, avec `DEMO_INTO_EXISTING=1`, l’exploitation du compte sous son nom), deux fermes :
+  - Ben Ahmed : deux bandes de chair clôturées (vendues au comptant, par chèque, par traite, à crédit ; un chèque revenu impayé qui bloque le crédit de la boucherie ; des poulets pris par l’exploitant), puis nettoyage et désinfection (un terminé, un en cours dans le bâtiment 2) ;
+  - une bande en cours au jour 24 : un jour non saisi, pesées, vaccins faits et le rappel Gumboro dans 2 jours, traitement en délai d’attente, visites vétérinaires, budget, poussins payés en partie ;
+  - un lot de 5 000 pondeuses : trois semaines de ramassage, calibrage, ventes d’œufs (non calibrés, calibrés, déclassés), œufs écartés ;
+  - Tiflet : une bande de poulettes (10 semaines), une bande de dindes en bâtiment ouvert (7 semaines), un lot beldi clôturé vendu à la tête ;
+  - deux bandes planifiées, deux budgets, des prix du marché sur deux mois, le programme de vaccination et les cibles de climat de l’éleveur (fictifs), des relevés dans et hors cible, une coupure de courant ;
+  - stock : aliments, vaccins et antibiotique avec lot et péremption, deux articles en stock bas, une correction, des achats à crédit (un en retard), un chèque émis débité et une traite acceptée ;
+  - argent : caisse et banque, virements, dépenses payées et à crédit, apport et retrait de l’exploitant, un emprunt et ses échéances payées, trois immobilisations dont une subventionnée, un relevé bancaire importé et pointé en partie ;
+  - trois employés (deux liés aux membres gérant et ouvrier qui ont rejoint), présences, avances, la paie du mois dernier validée et payée, celle du mois en cours ouverte, formations, un accident, tâches régulières et ponctuelles ;
+  - visiteurs (dont un aujourd’hui), cadavres, fumier, dératisation, documents dont trois à renouveler bientôt ou expirés, notifications ;
+  - membres : gérant et ouvrier ont rejoint ; vétérinaire et comptable invités.
+- **SARL Démo Avicole** (société, comptabilité en partie double, assujettie à la TVA, états de synthèse) : capital social, une bande clôturée, une bande en cours, deux immobilisations (une à crédit, payée en partie), un emprunt trimestriel, un relevé bancaire, le comptable invité.
 
 La saisie du jour de la bande en cours et le ramassage du jour des pondeuses sont laissés vides exprès : ce sont eux qu'on saisit devant le client.
 

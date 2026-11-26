@@ -352,7 +352,8 @@
     "resetOf": "Réinitialiser le mot de passe de {phone}",
     "resetConfirm": "Créer un code de réinitialisation pour {phone} ?",
     "resetCode": "Code de réinitialisation",
-    "resetCodeHint": "Donnez ce code à la personne : elle choisit un nouveau mot de passe dans « Mot de passe oublié ». Il ne sera plus affiché."
+    "resetCodeHint": "Donnez ce code à la personne : elle choisit un nouveau mot de passe dans « Mot de passe oublié ». Il ne sera plus affiché.",
+    "expires": "Expire le {date}"
   },
   "Sync": {
     "title": "Synchronisation",
@@ -666,7 +667,8 @@
     "to": "À",
     "save": "Enregistrer",
     "saved": "Enregistré.",
-    "needsNetwork": "Disponible avec du réseau."
+    "needsNetwork": "Disponible avec du réseau.",
+    "pushInboxOnly": "Les notifications s’affichent dans la liste de cette page."
   },
   "Stock": {
     "title": "Stock",

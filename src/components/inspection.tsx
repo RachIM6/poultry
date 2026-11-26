@@ -2,10 +2,10 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore, type MouseEvent } from "react";
 import { REGISTER_ENTITIES } from "@/components/register-access";
 import { RegisterDocument, Section, Table, registerOf } from "@/components/register-document";
-import { danger, done, field, primary } from "@/components/ui";
+import { danger, done, field, secondarySm } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDateTime, formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -102,113 +102,156 @@ function Pack(scope: Scope) {
       : m.key === "rodentProof" ? t("Inspection.missing.rodentProof", { date: day(m.day) })
       : t(`Inspection.missing.${m.key}`);
 
+  const registers = batches.flatMap((b) => {
+    const register = registerOf(b.id, records, reference?.data ?? null, locale);
+    return register ? [{ id: `register-${b.id}`, batch: b, register }] : [];
+  });
+  // tasks/plan-ui-cleanup.md §4: a table of contents on screen (each part one click away in a long document); paper
+  // prints every part, as before. Its links scroll without touching the hash, which holds the farm.
+  const parts = [
+    { id: "checklist", label: t("Inspection.checklist") },
+    { id: "documents", label: t("Inspection.documents") },
+    { id: "cleanouts", label: t("Cleanout.title") },
+    { id: "visitors", label: t("Visitors.open") },
+    { id: "disposals", label: t("Register.disposals") },
+    { id: "manure", label: t("Disposal.tab.manure") },
+    { id: "rodents", label: t("Inspection.rodents") },
+    ...registers.map((r) => ({ id: r.id, label: t("Inspection.registerOf", { batch: batchLabel(r.batch.id) }) })),
+  ];
+  const go = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({ block: "start" });
+    target.focus({ preventScroll: true });
+  };
+
   return (
-    <article className="flex flex-col gap-6">
+    <>
       {farms.length > 1 && (
         <label className="flex flex-col gap-1 print:hidden">
           {t("Biosecurity.farm")}
           {/* the farm goes in the hash: a reload or a language switch keeps it */}
-          <select value={farm.id} onChange={(e) => window.location.replace(`#${encodeURIComponent(e.target.value)}`)} className={field}>
+          <select value={farm.id} onChange={(e) => window.location.replace(`#${encodeURIComponent(e.target.value)}`)} className={`${field} lg:max-w-xs`}>
             {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
         </label>
       )}
-      <header className="border-b-2 border-ink pb-2">
-        <h1 className="text-2xl font-semibold">{t("Inspection.title", { farm: farm.name })}</h1>
-        <p>{t("Inspection.period", { from: day(since), to: day(today) })}</p>
-        <p>{farm.onssa ? t("Inspection.authorization", { number: farm.onssa.number, date: day(farm.onssa.expiresOn) }) : t("Inspection.noAuthorization")}</p>
-      </header>
+      {/* Wide screens: the contents beside the document, in view while it scrolls; the phone: a row of links above it. */}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-8 print:block">
+        <nav aria-label={t("Inspection.contents")} className="print:hidden lg:sticky lg:top-4">
+          <p className="mb-2 hidden text-sm font-semibold text-ink-2 lg:block" aria-hidden="true">{t("Inspection.contents")}</p>
+          <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-0 lg:overflow-visible lg:border-s lg:border-line">
+            {parts.map((p) => (
+              <li key={p.id} className="shrink-0">
+                <a
+                  href={`#${p.id}`}
+                  onClick={(e) => go(e, p.id)}
+                  className="inline-flex min-h-11 items-center whitespace-nowrap rounded-full border border-line bg-card px-3 text-sm hover:bg-shell lg:min-h-8 lg:w-full lg:whitespace-normal lg:rounded-none lg:border-0 lg:bg-transparent lg:py-1 lg:ps-3 lg:text-ink-2 lg:hover:text-ink"
+                >
+                  {p.label}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+        <article className="flex min-w-0 flex-col gap-6">
+          <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b-2 border-ink pb-2">
+            <div>
+              <h1 className="text-2xl font-semibold">{t("Inspection.title", { farm: farm.name })}</h1>
+              <p>{t("Inspection.period", { from: day(since), to: day(today) })}</p>
+              <p>{farm.onssa ? t("Inspection.authorization", { number: farm.onssa.number, date: day(farm.onssa.expiresOn) }) : t("Inspection.noAuthorization")}</p>
+            </div>
+            <button type="button" onClick={() => window.print()} className={`${secondarySm} print:hidden`}>{t("Register.print")}</button>
+          </header>
 
-      <Section title={t("Inspection.checklist")}>
-        <Table
-          none={t("Register.none")}
-          head={[t("Inspection.point"), t("Inspection.state"), t("Inspection.source")]}
-          rows={checklist.map((l) => [t(`Inspection.lines.${l.key}`), t(`Inspection.states.${l.state}`), l.source])}
-        />
-        <p className="text-sm text-ink-2 print:text-black">{t("Inspection.selfDeclared")}</p>
-        <p className="text-sm text-ink-2 print:text-black">{t("Inspection.threshold")}</p>
-        <p className="text-sm text-ink-2 print:text-black">{t("Inspection.declaration")}</p>
-        {missing.length === 0 ? (
-          <p className={done}>{t("Inspection.complete")}</p>
-        ) : (
-          <ul className={`${danger} flex list-disc flex-col gap-1 ps-8`} aria-label={t("Inspection.toComplete")}>
-            {missing.map((m, i) => <li key={i}>{missingText(m)}</li>)}
-          </ul>
-        )}
-      </Section>
+          <Section id="checklist" title={t("Inspection.checklist")}>
+            <Table
+              none={t("Register.none")}
+              head={[t("Inspection.point"), t("Inspection.state"), t("Inspection.source")]}
+              rows={checklist.map((l) => [t(`Inspection.lines.${l.key}`), t(`Inspection.states.${l.state}`), l.source])}
+            />
+            <p className="text-sm text-ink-2 print:text-black">{t("Inspection.selfDeclared")}</p>
+            <p className="text-sm text-ink-2 print:text-black">{t("Inspection.threshold")}</p>
+            <p className="text-sm text-ink-2 print:text-black">{t("Inspection.declaration")}</p>
+            {missing.length === 0 ? (
+              <p className={done}>{t("Inspection.complete")}</p>
+            ) : (
+              <ul className={`${danger} flex list-disc flex-col gap-1 ps-8`} aria-label={t("Inspection.toComplete")}>
+                {missing.map((m, i) => <li key={i}>{missingText(m)}</li>)}
+              </ul>
+            )}
+          </Section>
 
-      <Section title={t("Inspection.documents")}>
-        <Table
-          none={t("Register.none")}
-          head={[t("Documents.title"), t("Documents.category"), t("Inspection.expires"), t("Inspection.state"), t("Inspection.file")]}
-          rows={documents.map((d) => [
-            d.title,
-            t(`Documents.categories.${d.category}`),
-            d.expiresOn ? day(d.expiresOn) : "—",
-            t(`Documents.states.${documentState(d.expiresOn, today)}`),
-            d.fileId ? <a href={`/api/files/${d.fileId}`} className="underline underline-offset-4">{t("Documents.file")}</a> : t("Inspection.noFile"),
-          ])}
-        />
-      </Section>
+          <Section id="documents" title={t("Inspection.documents")}>
+            <Table
+              none={t("Register.none")}
+              head={[t("Documents.title"), t("Documents.category"), t("Inspection.expires"), t("Inspection.state"), t("Inspection.file")]}
+              rows={documents.map((d) => [
+                d.title,
+                t(`Documents.categories.${d.category}`),
+                d.expiresOn ? day(d.expiresOn) : "—",
+                t(`Documents.states.${documentState(d.expiresOn, today)}`),
+                d.fileId ? <a href={`/api/files/${d.fileId}`} className="underline underline-offset-4">{t("Documents.file")}</a> : t("Inspection.noFile"),
+              ])}
+            />
+          </Section>
 
-      <Section title={t("Cleanout.title")}>
-        <Table
-          none={t("Register.none")}
-          head={[t("Disposal.house"), t("Inspection.after"), t("Inspection.steps"), t("Cleanout.steps.disinfection")]}
-          rows={cleanouts.map((c) => {
-            const disinfection = c.steps.find((s) => s.step === "disinfection");
-            return [houseName(c.houseId), batchLabel(c.afterBatchId), `${c.steps.length} / ${CLEANOUT_STEPS.length}`, disinfection ? `${day(disinfection.day)} · ${disinfection.product ?? ""}` : "—"];
-          })}
-        />
-      </Section>
+          <Section id="cleanouts" title={t("Cleanout.title")}>
+            <Table
+              none={t("Register.none")}
+              head={[t("Disposal.house"), t("Inspection.after"), t("Inspection.steps"), t("Cleanout.steps.disinfection")]}
+              rows={cleanouts.map((c) => {
+                const disinfection = c.steps.find((s) => s.step === "disinfection");
+                return [houseName(c.houseId), batchLabel(c.afterBatchId), `${c.steps.length} / ${CLEANOUT_STEPS.length}`, disinfection ? `${day(disinfection.day)} · ${disinfection.product ?? ""}` : "—"];
+              })}
+            />
+          </Section>
 
-      <Section title={t("Visitors.open")}>
-        <Table
-          none={t("Register.none")}
-          head={[t("Register.date"), t("Visitors.visitor"), t("Visitors.purpose"), t("Inspection.recentFarm"), t("Visitors.zone")]}
-          rows={visits.map((v) => [formatDateTime(v.enteredAt, locale), v.visitor, t(`Visitors.purposes.${v.purpose}`), v.recentFarm ? t("Inspection.yes") : t("Inspection.no"), t(`Visitors.zones.${v.zone}`)])}
-        />
-      </Section>
+          <Section id="visitors" title={t("Visitors.open")}>
+            <Table
+              none={t("Register.none")}
+              head={[t("Register.date"), t("Visitors.visitor"), t("Visitors.purpose"), t("Inspection.recentFarm"), t("Visitors.zone")]}
+              rows={visits.map((v) => [formatDateTime(v.enteredAt, locale), v.visitor, t(`Visitors.purposes.${v.purpose}`), v.recentFarm ? t("Inspection.yes") : t("Inspection.no"), t(`Visitors.zones.${v.zone}`)])}
+            />
+          </Section>
 
-      <Section title={t("Register.disposals")}>
-        <Table
-          none={t("Register.none")}
-          head={[t("Register.date"), t("Register.birds"), t("Register.disposalMethod")]}
-          rows={of<{ farmId: string; day: string; birds: number; method: string; methodNote: string | null }>("disposal").map((d) => [day(d.day), formatCount(d.birds), d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`)])}
-        />
-      </Section>
+          <Section id="disposals" title={t("Register.disposals")}>
+            <Table
+              none={t("Register.none")}
+              head={[t("Register.date"), t("Register.birds"), t("Register.disposalMethod")]}
+              rows={of<{ farmId: string; day: string; birds: number; method: string; methodNote: string | null }>("disposal").map((d) => [day(d.day), formatCount(d.birds), d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`)])}
+            />
+          </Section>
 
-      <Section title={t("Disposal.tab.manure")}>
-        <Table
-          none={t("Register.none")}
-          head={[t("Register.date"), t("Disposal.quantity"), t("Disposal.destination"), t("Disposal.recipient")]}
-          rows={of<ManureRemovalDto>("manureRemoval").map((r) => [day(r.day), formatCount(r.quantityKg), t(`Disposal.destinations.${r.destination}`), r.recipient ?? ""])}
-        />
-      </Section>
+          <Section id="manure" title={t("Disposal.tab.manure")}>
+            <Table
+              none={t("Register.none")}
+              head={[t("Register.date"), t("Disposal.quantity"), t("Disposal.destination"), t("Disposal.recipient")]}
+              rows={of<ManureRemovalDto>("manureRemoval").map((r) => [day(r.day), formatCount(r.quantityKg), t(`Disposal.destinations.${r.destination}`), r.recipient ?? ""])}
+            />
+          </Section>
 
-      <Section title={t("Inspection.rodents")}>
-        <Table
-          none={t("Register.none")}
-          head={[t("Register.date"), t("Disposal.rodentAction"), t("Disposal.house"), t("Inspection.proof")]}
-          rows={rodentChecks.sort((x, y) => y.day.localeCompare(x.day)).map((r) => [
-            day(r.day),
-            t(`Disposal.rodentActions.${r.action}`),
-            houseName(r.houseId),
-            r.proofFileId ? <a href={`/api/files/${r.proofFileId}`} className="underline underline-offset-4">{t("Disposal.proof")}</a> : t("Inspection.noFile"),
-          ])}
-        />
-      </Section>
+          <Section id="rodents" title={t("Inspection.rodents")}>
+            <Table
+              none={t("Register.none")}
+              head={[t("Register.date"), t("Disposal.rodentAction"), t("Disposal.house"), t("Inspection.proof")]}
+              rows={rodentChecks.sort((x, y) => y.day.localeCompare(x.day)).map((r) => [
+                day(r.day),
+                t(`Disposal.rodentActions.${r.action}`),
+                houseName(r.houseId),
+                r.proofFileId ? <a href={`/api/files/${r.proofFileId}`} className="underline underline-offset-4">{t("Disposal.proof")}</a> : t("Inspection.noFile"),
+              ])}
+            />
+          </Section>
 
-      {batches.map((b) => {
-        const register = registerOf(b.id, records, reference?.data ?? null, locale);
-        return register && (
-          <section key={b.id} className="break-before-page">
-            <RegisterDocument register={register} embedded />
-          </section>
-        );
-      })}
-
-      <button type="button" onClick={() => window.print()} className={`${primary} print:hidden`}>{t("Register.print")}</button>
-    </article>
+          {registers.map((r) => (
+            <section key={r.id} id={r.id} tabIndex={-1} className="scroll-mt-4 break-before-page outline-none">
+              <RegisterDocument register={r.register} embedded />
+            </section>
+          ))}
+        </article>
+      </div>
+    </>
   );
 }

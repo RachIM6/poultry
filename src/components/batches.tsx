@@ -343,7 +343,8 @@ function Batches(scope: Scope) {
           ))}
         </ul>
       )}
-      <div className="flex flex-col gap-5 empty:hidden lg:max-w-xl">
+      {/* the placement form takes its fields two by two from lg (placement.tsx) */}
+      <div className={`flex flex-col gap-5 empty:hidden ${placing ? "lg:max-w-4xl" : "lg:max-w-xl"}`}>
         {can(scope, "flock.manage") &&
           (houses.length === 0 ? (
             <p>

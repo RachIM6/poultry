@@ -1438,7 +1438,18 @@
     "into": "Caisse ou compte bancaire",
     "associateName": "Associé (facultatif)",
     "associateSave": "Enregistrer",
-    "associateSaved": "Opération enregistrée."
+    "associateSaved": "Opération enregistrée.",
+    "journals": {
+      "AC": "achats",
+      "VT": "ventes",
+      "CA": "caisse",
+      "BQ": "banque",
+      "EF": "effets",
+      "OD": "opérations diverses"
+    },
+    "journalLegend": "Journaux : {journals}",
+    "exploitantHintPlain": "L’argent que vous apportez à la ferme ou en retirez pour vous (capital personnel).",
+    "associateHintPlain": "L’argent qu’un associé apporte à la ferme ou en retire."
   },
   "Bank": {
     "forbidden": "Le rapprochement bancaire est réservé au propriétaire, au gérant et au comptable.",

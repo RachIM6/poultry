@@ -25,7 +25,7 @@ import { monthPeriod } from "@/modules/finance/domain/batch";
 import { OPENING_PREFIX } from "@/modules/finance/domain/close";
 import { firstOpenMonth, monthOf, reversalOf } from "@/modules/finance/domain/entry";
 import { cashSchedule } from "@/modules/finance/domain/cash-schedule";
-import { batchOf } from "@/modules/finance/domain/export";
+import type { EntryTags } from "@/modules/finance/domain/export";
 import { chartOf, leafAccounts } from "@/modules/finance/domain/chart";
 import { inChart, type Posting } from "@/modules/finance/domain/posting";
 import { bankOnly, expensePosting, transferPostings, type ExpenseCategory, type TreasuryKind } from "@/modules/finance/domain/treasury";
@@ -277,8 +277,8 @@ export type TreasuryOverview = {
   // The cash and bank posted on no account: before a cash box or bank account existed, or before §9's defaults (sale
   // receipts, wages, supplier payments…, FN6). With the accounts' balances, the forecast's start.
   unassignedCentimes: bigint;
-  // counterAccounts: the entry's other lines' accounts, as the cash book shows them (FN16); batch: its house and
-  // placement day, as the books show it, or "". receipt: an expense's photo id, null when it has none yet; undefined
+  // counterAccounts: the entry's other lines' accounts, as the cash book shows them (FN16); batch: the batch the books
+  // show (its house and placement day), or null. receipt: an expense's photo id, null when it has none yet; undefined
   // for a movement that isn't an expense.
   movements: {
     day: string;
@@ -287,7 +287,7 @@ export type TreasuryOverview = {
     account: string;
     treasuryId: string | null;
     counterAccounts: { number: string; label: string }[];
-    batch: string;
+    batch: { house: string; placedOn: string } | null; // placedOn: YYYY-MM-DD, the screen writes it in its own format
     debitCentimes: bigint;
     creditCentimes: bigint;
     receipt?: string | null;
@@ -348,12 +348,18 @@ export async function treasuryOverview(ctx: TenantContext, month: string): Promi
       account: l.account,
       treasuryId: l.treasuryId,
       counterAccounts: counters(l).map((number) => ({ number, label: labels.get(number) ?? "" })),
-      batch: batchOf(tags, l.entryId),
+      batch: batchTag(tags, l.entryId),
       debitCentimes: l.debitCentimes,
       creditCentimes: l.creditCentimes,
       receipt: l.entry.sourceId ? receipt.get(l.entry.sourceId) : undefined,
     })),
   });
+}
+
+/** FN16's batch of an entry (batchOf's), as data: the tags carry the export's "01/03/2026", the screen formats its own. */
+function batchTag(tags: EntryTags, entryId: string) {
+  const [, , house, day] = tags.get(entryId) ?? [];
+  return day ? { house: house ?? "", placedOn: day.split("/").reverse().join("-") } : null;
 }
 
 const nextMonth = (month: string) => {

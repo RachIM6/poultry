@@ -67,6 +67,10 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   const scope = { userId, organizationId, role };
   const farming = pulls(role, "dailyEntry"); // SPEC-m5 §5: none on the accountant's phone, so no count, strip or figure
   const recording = can(scope, "flock.record"); // the day's entry and the days missing are the recorders' tasks
+  // A partner's phone holds no egg collection (vet, accountant) or no vaccination (accountant): no figure or task to show,
+  // rather than a 0 or an empty list that reads as fact.
+  const counting = pulls(role, "eggCollection");
+  const tasked = recording || pulls(role, "vaccination");
   const today = farmDayOf(new Date());
   const farms = of<FarmDto>("farm");
   const houses = of<HouseDto>("house");
@@ -176,13 +180,13 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
       <main className="mx-auto grid w-full max-w-xl flex-1 content-start gap-6 p-5 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:px-0 lg:pb-0">
         <div className="flex flex-col gap-3.5">
         {alert}
-        {open.some((b) => b.species === "layer") && (
+        {counting && open.some((b) => b.species === "layer") && (
           <p className={`${card} flex-row items-baseline justify-between`}>
             <span className="text-ink-2">{t("Today.eggsYesterday")}</span>
             <b className="text-[22px] font-semibold">{formatCount(eggsYesterday)}</b>
           </p>
         )}
-        <h2 className="text-[17px] font-semibold text-ink-2">{t("Today.tasks")}</h2>
+        {tasked && <h2 className="text-[17px] font-semibold text-ink-2">{t("Today.tasks")}</h2>}
         {batches.length === 0 && pulled && (
           <div className={card}>
             <p>{farms.length === 0 ? t("Farms.none") : t("Today.none")}</p>
@@ -193,7 +197,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
             )}
           </div>
         )}
-        {batches.map(({ b, house, until, due, enteredToday, missing }) => (
+        {tasked && batches.map(({ b, house, until, due, enteredToday, missing }) => (
           <section key={b.id} aria-label={house} className="flex flex-col gap-3.5">
             {until && (
               <p role="status" className="rounded-2xl bg-alert-soft p-4 text-alert-fg">

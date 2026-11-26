@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies, headers } from "next/headers";
-import { acceptInvitation, chooseOrganization, ORG_COOKIE, redeemInvite } from "@/modules/identity";
+import { acceptInvitation, chooseOrganization, ORG_COOKIE, redeemInvite, saveName } from "@/modules/identity";
 
 // SPEC-m5 PA2. Server actions get Next's Origin check; identity checks the membership, the invite code (ADR-015) or,
 // with SMS login on, the invitation's verified phone.
@@ -32,4 +32,10 @@ export async function acceptAndOpen(form: FormData) {
   if (!accepted.ok) return false;
   await open(accepted.value);
   return true;
+}
+
+/** « Votre nom »: the user's own first and last name. */
+export async function saveMyName(form: FormData): Promise<{ messageKey: string; saved?: true }> {
+  const saved = await saveName(await headers(), { firstName: form.get("firstName"), lastName: form.get("lastName") });
+  return saved.ok ? { messageKey: "Header.nameSaved", saved: true } : { messageKey: `errors.${saved.error}` };
 }

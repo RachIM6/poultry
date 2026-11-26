@@ -323,3 +323,16 @@ describe("a role change on this phone (T25 S5)", () => {
     expect((await currentScope())?.role).toBe("worker");
   });
 });
+
+describe("the name the header shows", () => {
+  it("is kept when the dashboard remembers the scope without it, and dropped for another user", async () => {
+    const me = scope();
+    await rememberScope({ ...me, name: "Karim Ben Ahmed" });
+    await rememberScope(me); // the dashboard's SyncBadge: no name
+    expect((await currentScope())?.name).toBe("Karim Ben Ahmed");
+    await rememberScope({ ...me, name: "Karim Alaoui" }); // changed on « Mes exploitations »
+    expect((await currentScope())?.name).toBe("Karim Alaoui");
+    await rememberScope({ ...me, userId: "someone-else" });
+    expect((await currentScope())?.name).toBeUndefined();
+  });
+});

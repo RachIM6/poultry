@@ -32,6 +32,17 @@ const fits = (scope: Locator) =>
       });
   });
 const GROUPS = ["Élevage", "Argent", "Comptabilité de l’exercice", "Conformité"];
+/**
+ * U20: whole, in view and on top (nothing over its top, middle or bottom), so the sticky « Replier le menu » never
+ * covers it, scrolled to the end at any height.
+ */
+const uncovered = (l: Locator) =>
+  l.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const nav = el.closest("nav")!.getBoundingClientRect();
+    const onTop = [r.top + 2, r.top + r.height / 2, r.bottom - 2].every((y) => el.contains(document.elementFromPoint(r.x + r.width / 2, y)));
+    return r.top >= nav.top && r.bottom <= Math.min(innerHeight, nav.bottom) && onTop;
+  });
 
 test("wide screens, unfolded: the role's groups open under their headings and mark the current page", async ({ page }) => {
   test.setTimeout(120_000);
@@ -59,8 +70,8 @@ test("wide screens, unfolded: the role's groups open under their headings and ma
   await expect(nav(page).getByRole("list", { name: "Argent" }).getByRole("link", { name: "Trésorerie" })).toBeVisible();
   await expect(nav(page).getByRole("list", { name: "Conformité" }).getByRole("link", { name: "Registre des visiteurs" })).toBeVisible();
   const account = nav(page).getByRole("list", { name: "Compte" });
-  for (const name of ["Membres", "Mes exploitations"]) await expect(account.getByRole("link", { name })).toBeVisible();
-  await expect(account.getByRole("link", { name: "Langue et déconnexion" })).toHaveAttribute("href", "/fr/more"); // /more's language and sign-out
+  // U20: the language and the sign-out are in the header's menu; « Mes exploitations » is the last link.
+  await expect(account.getByRole("link")).toHaveText(["Membres", "Mes exploitations"]);
 
   // Every group open: 44 px targets, no label cut at 288 px (« Cadavres, fumier et nuisibles », « Inventaire de fin d’exercice »).
   for (const name of ["Élevage", "Comptabilité de l’exercice"]) await heading(name).click();
@@ -74,9 +85,14 @@ test("wide screens, unfolded: the role's groups open under their headings and ma
       return r.bottom <= innerHeight && el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
     });
   expect(await onTop(fold)).toBe(true);
-  await nav(page).evaluate((el) => el.scrollTo(0, el.scrollHeight));
-  expect(await onTop(fold)).toBe(true);
-  expect(await onTop(account.getByRole("link", { name: "Langue et déconnexion" }))).toBe(true);
+  const farms = account.getByRole("link", { name: "Mes exploitations" });
+  for (const size of [WIDE, { width: 1280, height: 720 }]) {
+    await page.setViewportSize(size);
+    await nav(page).evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    expect(await onTop(fold), `${size.width}×${size.height}`).toBe(true);
+    expect(await uncovered(farms), `${size.width}×${size.height}`).toBe(true);
+  }
+  await page.setViewportSize(WIDE);
   await nav(page).evaluate((el) => el.scrollTo(0, 0));
 
   await treasury.click();
@@ -154,10 +170,16 @@ test("wide screens, folded: a 72 px rail whose group icons open a side panel, re
   await expect(books).toBeFocused();
   await icon("Compte").click();
   const accountPanel = page.locator(`#${await icon("Compte").getAttribute("aria-controls")}`);
-  await expect(accountPanel.getByRole("link", { name: "Langue et déconnexion" })).toHaveAttribute("href", "/fr/more");
+  await expect(accountPanel.getByRole("link")).toHaveText(["Membres", "Mes exploitations"]); // U20: no « Langue et déconnexion »
   await accountPanel.getByRole("button", { name: "Fermer le panneau" }).click();
   await expect(accountPanel).toBeHidden();
   await expect(icon("Compte")).toBeFocused();
+  // The rail's last icon is never under « Déplier le menu », scrolled to the end, even where the rail scrolls (< 640 px).
+  for (const size of [{ width: 1280, height: 720 }, { width: 1280, height: 600 }, WIDE]) {
+    await page.setViewportSize(size);
+    await nav(page).evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    expect(await uncovered(icon("Compte")), `${size.width}×${size.height}`).toBe(true);
+  }
   // One panel at a time: another icon replaces it.
   await books.click();
   await icon("Argent").click();

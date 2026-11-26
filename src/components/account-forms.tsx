@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { postJson, rememberSignedIn } from "@/lib/api";
 import { CaptchaField } from "@/components/captcha-field";
+import { NameFields } from "@/components/name-form";
 import { danger, field, primary } from "@/components/ui";
 
 // ADR-015: create an account (an owner, or someone joining with an invite code) and set a new password with a reset
@@ -70,6 +71,8 @@ function useSubmit(url: string, always: boolean, body: (form: FormData) => Recor
 export function SignupForm({ invite = false }: { invite?: boolean }) {
   const t = useTranslations();
   const { submit, error, disabled, captchaField } = useSubmit("/api/auth/sign-up", true, (form) => ({
+    firstName: form.get("firstName"),
+    lastName: form.get("lastName"),
     phone: form.get("phone"),
     email: form.get("email"),
     inviteCode: invite ? form.get("code") : undefined,
@@ -77,6 +80,7 @@ export function SignupForm({ invite = false }: { invite?: boolean }) {
   return (
     <form onSubmit={submit} className="flex flex-col gap-2.5">
       {invite && <CodeField hint={t("Account.inviteCodeHint")} />}
+      <NameFields />
       <label htmlFor="phone" className={label}>{t("Account.phoneLabel")}</label>
       <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="06 12 34 56 78" aria-describedby="phone-hint" className={field} />
       <p id="phone-hint" className="text-sm text-muted">{t("Account.phoneHint")}</p>

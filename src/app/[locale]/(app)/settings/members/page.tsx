@@ -8,7 +8,7 @@ import { formatDay } from "@/lib/format";
 import { formatPhone } from "@/lib/format-phone";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { CancelInvitationButton, InviteForm, MemberRow } from "./forms";
-import { row, rowHead, rowTable, splitAside, splitNarrow } from "@/components/layout";
+import { cell, row, rowHead, rowTable, splitAside, splitNarrow } from "@/components/layout";
 import { Page } from "@/components/page";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
@@ -47,11 +47,14 @@ async function Content() {
             {members.map((m) =>
               m.userId === ctx.value.userId ? (
                 <li key={m.membershipId} className={row}>
-                  <bdi dir="ltr" className="font-semibold">{m.phone ? formatPhone(m.phone) : m.email}</bdi>
+                  <span className={cell}>
+                    {m.name && <span className="font-semibold">{m.name}</span>}
+                    <bdi dir="ltr" className={m.name ? "text-sm text-ink-2" : "font-semibold"}>{m.phone ? formatPhone(m.phone) : m.email}</bdi>
+                  </span>
                   <span className="lg:col-span-2">{t(`roles.${m.role}`)} ({t("you")})</span>
                 </li>
               ) : (
-                <MemberRow key={m.membershipId} membershipId={m.membershipId} phone={m.phone ? formatPhone(m.phone) : (m.email ?? "")} role={m.role} roles={ROLES} until={m.accessUntil && formatDay(m.accessUntil as FarmDay, lang)} />
+                <MemberRow key={m.membershipId} membershipId={m.membershipId} name={m.name} phone={m.phone ? formatPhone(m.phone) : (m.email ?? "")} role={m.role} roles={ROLES} until={m.accessUntil && formatDay(m.accessUntil as FarmDay, lang)} />
               ),
             )}
           </ul>

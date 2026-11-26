@@ -16,6 +16,7 @@ export type AuthAction =
   | "invite_issued"
   | "invite_accepted"
   | "invite_failed"
+  | "name_changed" // the user's own first and last name (never the name itself in the event)
   // member_export, member_delete: written by the operator tools (src/ops/member-data.ts), not here.
   | "member_export"
   | "member_delete";

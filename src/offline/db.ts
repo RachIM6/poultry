@@ -4,8 +4,11 @@ import type { ReferenceData } from "@/modules/reference-data/schema";
 
 // ADR-003 local store. Runs in pages and in the service worker (Background Sync), so no React or Next imports here.
 
-/** Who is signed in on this phone. Permissions only, never the credential (poultry-auth §9). */
-export type Scope = { userId: string; organizationId: string; role: Role };
+/**
+ * Who is signed in on this phone. Permissions only, never the credential (poultry-auth §9). `name`: what the header
+ * shows (« Prénom Nom », or the phone of an account made before names), from /api/sync/scope.
+ */
+export type Scope = { userId: string; organizationId: string; role: Role; name?: string };
 export const scopeKey = (s: Pick<Scope, "userId" | "organizationId">) => `${s.userId}:${s.organizationId}`;
 
 export type OutboxEntry = { id: string; type: string; payload: unknown; createdAt: string; recordKeys?: string[] };
@@ -80,7 +83,9 @@ export async function rememberScope(scope: Scope) {
     const db = localDb(scope);
     await db.transaction("rw", db.records, db.meta, () => Promise.all([db.records.clear(), db.meta.clear()]));
   }
-  await deviceDb().session.put({ key: "current", scope });
+  // The dashboard remembers the scope without the name: the same user keeps the one the phone has.
+  const name = scope.name ?? (before?.userId === scope.userId ? before.name : undefined);
+  await deviceDb().session.put({ key: "current", scope: { ...scope, ...(name !== undefined && { name }) } });
 }
 
 export const cachedReference = () => deviceDb().reference.get("current");

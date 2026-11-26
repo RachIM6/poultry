@@ -19,7 +19,9 @@ import {
   issueResetFor,
   listMembers,
   myOrganizations,
+  profileOf,
   redeemInvite,
+  saveName,
 } from "@/modules/identity";
 import { tenant, twoTenants } from "@/test/tenant";
 
@@ -43,7 +45,7 @@ const post = (route: (req: Request) => Promise<Response>, path: string, body: un
 const answer = async (res: Response) => ({ status: res.status, ...((await res.json()) as object) });
 const cookieOf = (res: Response) => new Headers({ cookie: res.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ") });
 
-const signUp = (body: Record<string, unknown>, ip?: string) => post(signUpRoute, "sign-up", { password: PASSWORD, locale: "fr", ...body }, ip);
+const signUp = (body: Record<string, unknown>, ip?: string) => post(signUpRoute, "sign-up", { firstName: "Karim", lastName: "Ben Ahmed", password: PASSWORD, locale: "fr", ...body }, ip);
 const signIn = (identifier: string, password = PASSWORD, extra: Record<string, unknown> = {}, ip?: string) =>
   post(signInRoute, "sign-in", { identifier, password, locale: "fr", ...extra }, ip);
 const reset = (identifier: string, code: unknown, password = "a new long phrase", extra: Record<string, unknown> = {}) =>
@@ -95,6 +97,38 @@ describe("sign-up and sign-in", () => {
     expect(await answer(await signUp({ phone: "0641000002", password: "short" }))).toMatchObject({ status: 400, messageKey: "errors.PASSWORD_TOO_SHORT" });
     expect(await answer(await signUp({ phone: "0641000002", password: "0641000002" }))).toMatchObject({ status: 400, messageKey: "errors.WEAK_PASSWORD" });
     expect(await db.user.count()).toBe(before);
+  });
+
+  it("keeps the first and last name, and « Prénom Nom » as the display name; refuses a missing or invalid one", async () => {
+    const res = await signUp({ phone: "0641000050", firstName: "  Youssef ", lastName: "El   Alaoui" });
+    expect(res.status).toBe(201);
+    const user = await db.user.findUniqueOrThrow({ where: { phoneNumber: "+212641000050" } });
+    expect(user).toMatchObject({ firstName: "Youssef", lastName: "El Alaoui", name: "Youssef El Alaoui" });
+    expect(await profileOf(user.id)).toEqual({ name: "Youssef El Alaoui", firstName: "Youssef", lastName: "El Alaoui" });
+
+    const before = await db.user.count();
+    for (const names of [{ firstName: "" }, { lastName: undefined }, { firstName: "<script>" }, { lastName: "x".repeat(51) }, { firstName: 42 }]) {
+      expect(await answer(await signUp({ phone: "0641000051", ...names })), JSON.stringify(names)).toMatchObject({ status: 400, messageKey: "errors.INVALID_NAME" });
+    }
+    expect(await db.user.count()).toBe(before);
+  });
+
+  it("an existing account sets its name once signed in (audited), falls back to its phone until then", async () => {
+    const user = await db.user.create({ data: { phoneNumber: "+212641000060", name: "+212641000060", email: "212641000060@phone.invalid" } });
+    expect(await profileOf(user.id)).toEqual({ name: "+212641000060", firstName: null, lastName: null });
+    const res = await signUp({ phone: "0641000061" });
+    const headers = cookieOf(res);
+    const me = (await getSession(headers))!.userId;
+
+    expect(await saveName(headers, { firstName: "فاطمة", lastName: "الزهراء" })).toEqual({ ok: true, value: undefined });
+    expect(await profileOf(me)).toEqual({ name: "فاطمة الزهراء", firstName: "فاطمة", lastName: "الزهراء" });
+    expect((await events("name_changed")).at(-1)).toMatchObject({ userId: me, phone: "+2126•••••61" });
+    expect(JSON.stringify(await events("name_changed"))).not.toContain("فاطمة"); // the event says who, never the name
+
+    expect(await saveName(headers, { firstName: "Fatima", lastName: "" })).toEqual({ ok: false, error: "INVALID_NAME" });
+    expect(await saveName(new Headers(), { firstName: "Fatima", lastName: "Zahra" })).toEqual({ ok: false, error: "UNAUTHENTICATED" });
+    expect(await profileOf(me)).toMatchObject({ name: "فاطمة الزهراء" });
+    expect(await profileOf(user.id)).toMatchObject({ name: "+212641000060" }); // nobody else's changed
   });
 
   it("a wrong password and an unknown account get the same answer, and each an auth event", async () => {
@@ -209,6 +243,9 @@ describe("invite codes (ADR-015)", () => {
     const res = await signUp({ phone: "0643000001", inviteCode: code.toLowerCase().replace("-", " ") }); // typed loosely
     expect(await answer(res)).toEqual({ status: 201, ok: true, joined: true });
     expect(await getTenantContext(cookieOf(res))).toMatchObject({ ok: true, value: { organizationId: a.organizationId, role: "worker" } });
+    expect(await db.user.findUniqueOrThrow({ where: { phoneNumber: "+212643000001" } })).toMatchObject({ firstName: "Karim", lastName: "Ben Ahmed", name: "Karim Ben Ahmed" }); // an invited worker names themselves too
+    const listed = await listMembers(a);
+    expect(listed.ok && listed.value.members.map((m) => m.name)).toEqual([null, "Karim Ben Ahmed"]); // the owner made before names: none
     expect(await db.invitation.count({ where: { id: row.id } })).toBe(0);
     expect((await events("invite_accepted")).at(-1)).toMatchObject({ reason: "sign_up" });
 

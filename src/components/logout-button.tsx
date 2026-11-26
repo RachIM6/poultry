@@ -5,8 +5,8 @@ import { useRouter } from "@/i18n/navigation";
 import { postJson } from "@/lib/api";
 import { secondary } from "@/components/ui";
 
-/** `everywhere`: also logs out every other phone of this user (a lost phone, T25 S2). */
-export function LogoutButton({ everywhere = false }: { everywhere?: boolean }) {
+/** `everywhere`: also logs out every other phone of this user (a lost phone, T25 S2). `className`: the header menu's items. */
+export function LogoutButton({ everywhere = false, className = secondary }: { everywhere?: boolean; className?: string }) {
   const t = useTranslations("Account");
   const router = useRouter();
   return (
@@ -28,7 +28,7 @@ export function LogoutButton({ everywhere = false }: { everywhere?: boolean }) {
         await push?.unsubscribe().catch(() => {});
         router.replace("/login");
       }}
-      className={secondary}
+      className={className}
     >
       {t(everywhere ? "logoutEverywhere" : "logout")}
     </button>

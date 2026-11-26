@@ -51,9 +51,10 @@ describe("sync endpoints", () => {
     const res = await scope(new Request(`${origin}/api/sync/scope`, { headers: { cookie: auth.cookie } }));
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    const { userId, organizationId, role } = await res.json();
+    const { userId, organizationId, role, name } = await res.json();
     expect(`${userId}:${organizationId}`).toBe(auth[SCOPE_HEADER]);
     expect(role).toBe("owner");
+    expect(name).toBe((await db.user.findUniqueOrThrow({ where: { id: userId } })).name); // the header's: here the phone, no name set
   });
 
   it("validate the body and the cursor, and reject unknown mutation types per mutation", async () => {

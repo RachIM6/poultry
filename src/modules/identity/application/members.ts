@@ -21,7 +21,7 @@ type MemberError = "FORBIDDEN" | "INVALID_INPUT" | "NOT_FOUND" | "LAST_OWNER";
 export type ForgetDevices = (tx: Tx, userId: string) => Promise<unknown>;
 
 export type MembersDto = {
-  members: { membershipId: string; userId: string; phone: string | null; email: string | null; role: Role; accessUntil: string | null }[];
+  members: { membershipId: string; userId: string; name: string | null; phone: string | null; email: string | null; role: Role; accessUntil: string | null }[];
   invitations: { id: string; phone: string; role: Role; expiresAt: Date; accessUntil: string | null }[];
 };
 
@@ -136,7 +136,7 @@ export async function listMembers(ctx: TenantContext, clock: Clock = systemClock
   const [members, invitations] = await Promise.all([
     db.membership.findMany({
       where: { organizationId: ctx.organizationId },
-      include: { user: { select: { phoneNumber: true, email: true } } },
+      include: { user: { select: { name: true, firstName: true, phoneNumber: true, email: true } } },
       orderBy: { createdAt: "asc" },
     }),
     db.invitation.findMany({
@@ -148,6 +148,7 @@ export async function listMembers(ctx: TenantContext, clock: Clock = systemClock
     members: members.map((m) => ({
       membershipId: m.id,
       userId: m.userId,
+      name: m.user.firstName ? m.user.name : null, // an account made before names has only its phone as `name`
       phone: m.user.phoneNumber,
       email: m.user.email.endsWith(".invalid") ? null : m.user.email, // a phone-only account's placeholder isn't shown
       role: m.role,

@@ -13,6 +13,7 @@ import { getSession } from "@/modules/identity/application/session";
 import { recordAuthEvent, type AuthAction, type Client } from "@/modules/identity/infrastructure/auth-events";
 import { auth, phoneEmail } from "@/modules/identity/infrastructure/better-auth";
 import { codeHash, normalizeCode } from "@/modules/identity/infrastructure/codes";
+import { Names } from "@/modules/identity/schema";
 
 // ADR-015: password login with the phone or the email, one-time invite and reset codes. Better Auth hashes (scrypt)
 // and opens sessions; the rate limits, captcha, uniform answers and auth events are ours, as for the code login.
@@ -105,17 +106,17 @@ export async function signIn(
   return ok(session.headers);
 }
 
-type SignUpError = Gate | PasswordError | "IDENTIFIER_REQUIRED" | "INVALID_PHONE" | "INVALID_EMAIL" | "ACCOUNT_EXISTS" | "INVALID_INVITE_CODE";
+type SignUpError = Gate | PasswordError | "INVALID_NAME" | "IDENTIFIER_REQUIRED" | "INVALID_PHONE" | "INVALID_EMAIL" | "ACCOUNT_EXISTS" | "INVALID_INVITE_CODE";
 class InviteRefused extends Error {}
 
 /**
  * A new account with a phone and/or an email, and a password; it opens a session. Without an invite code the person
  * onboards a new organisation (an owner). With one, they join the invitation's organisation with its role, in the
- * same transaction: a refused code creates no account. Captcha always. Says when the phone or email is taken
+ * same transaction: a refused code creates no account. Everyone gives a first and a last name. Captcha always. Says when the phone or email is taken
  * (ACCOUNT_EXISTS): without SMS or email nothing else can tell the real owner (ADR-015, accepted).
  */
 export async function signUp(
-  input: { phone?: string; email?: string; password: string; inviteCode?: string },
+  input: { firstName?: unknown; lastName?: unknown; phone?: string; email?: string; password: string; inviteCode?: string },
   locale: Locale,
   client: Client,
   captcha?: unknown,
@@ -136,6 +137,8 @@ export async function signUp(
     return fail("TOO_MANY_REQUESTS");
   }
 
+  const names = Names.safeParse({ firstName: input.firstName, lastName: input.lastName });
+  if (!names.success) return fail("INVALID_NAME");
   const phone = input.phone?.trim() ? PhoneNumber.create(input.phone) : null;
   if (phone && !phone.ok) return phone;
   const email = input.email?.trim() ? parseEmail(input.email) : null;
@@ -161,7 +164,7 @@ export async function signUp(
   let joined: string | null = null;
   try {
     user = await db.$transaction(async (tx) => {
-      const created = await tx.user.create({ data: { phoneNumber: phone?.value.e164, email: loginEmail, name: phone?.value.e164 ?? loginEmail, locale } });
+      const created = await tx.user.create({ data: { phoneNumber: phone?.value.e164, email: loginEmail, ...names.data, locale } });
       await tx.account.create({ data: { userId: created.id, providerId: "credential", accountId: created.id, password: hash } });
       if (code !== null) {
         const claimed = await claimInvitation(tx, created.id, code, clock);

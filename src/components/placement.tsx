@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { fields2 } from "@/components/layout";
 import { danger, field, primary, secondary, warn } from "@/components/ui";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
@@ -169,7 +170,9 @@ export function PlacementForm({
         const data = new FormData(e.currentTarget);
         setDraft({ houseId: String(data.get("houseId")), placedOn: String(data.get("placedOn") || today()), total: read(data).total });
       }}
-      className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3"
+      // Wide screens: the fields two by two, the arrival block, the messages and the buttons across (tasks/plan-ui.md
+      // "Desktop rules"). A check box or the cash block takes one cell, so no cell is left empty before them.
+      className={`flex flex-col gap-3 rounded-2xl border border-line bg-card p-3 ${fields2}`}
     >
       <Select label={t("Batches.house")} name="houseId">
         {houses.map((h) => (
@@ -194,7 +197,7 @@ export function PlacementForm({
       <Field name="placedOn" label={t("Batches.placedOn")} type="date" defaultValue={today()} required />
       {type !== "broiler" && <Field name="ageWeeks" label={t("Batches.ageAtPlacement")} inputMode="numeric" pattern="\d+" defaultValue="0" dir="ltr" />}
       {type === "turkey" && (
-        <label className="flex min-h-11 items-center gap-3">
+        <label className="flex min-h-11 items-center gap-3 lg:self-end">
           <input type="checkbox" checked={bySex} onChange={(e) => setBySex(e.target.checked)} className="size-5" />
           {t("Batches.bySex")}
         </label>
@@ -236,21 +239,21 @@ export function PlacementForm({
         </div>
       )}
       <Field name="dayOldWeight" label={t("Batches.dayOldWeight")} inputMode="numeric" pattern="\d+" dir="ltr" />
-      <fieldset className="flex flex-col gap-3">
+      <fieldset className="flex flex-col gap-3 lg:col-span-full lg:grid lg:grid-cols-3 lg:gap-x-6">
         <legend className="mb-1 font-semibold">{t("Batches.arrival")}</legend>
         <Field name="parentFlock" label={t("Batches.parentFlock")} maxLength={60} dir="ltr" />
         {!sexed && <Field name="weakChicks" label={t("Batches.weakChicks")} inputMode="numeric" pattern="\d+" dir="ltr" />}
         <Field name="litterTemp" label={t("Batches.litterTemp")} inputMode="decimal" dir="ltr" />
       </fieldset>
       {warning && min && (
-        <p role="status" className={warn}>
+        <p role="status" className={`${warn} lg:col-span-full`}>
           {warning.kind === "short"
             ? t("Batches.downtimeWarning", { elapsed: warning.elapsedDays, min: warning.minDays, source: min.source })
             : t("Batches.downtimeOccupied", { house: farmHouses.find((h) => h.id === warning.houseId)?.name ?? "" })}
         </p>
       )}
-      {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      {error && <p role="alert" className={`${danger} lg:col-span-full`}>{t(error)}</p>}
+      <div className="flex gap-3 lg:col-span-full">
         <button type="submit" className={primary}>{t("Batches.save")}</button>
         <button type="button" onClick={onCancel} className={secondary}>{t("Batches.cancel")}</button>
       </div>

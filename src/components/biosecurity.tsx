@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { useFieldError, useInline } from "@/components/focus";
+import { split } from "@/components/layout";
 import { Field, FileUpload, Shell, of, useOnline, type Save, type Screen } from "@/components/local-screen";
 import { card, danger, field, primary, secondary, warn } from "@/components/ui";
 import { formatCount, formatDateTime, formatDay, formatKg } from "@/lib/format";
@@ -98,6 +99,21 @@ function Submit({ label, onCancel }: { label: string; onCancel?: () => void }) {
   );
 }
 
+// Wide screens (tasks/plan-ui.md "Desktop rules"): a log's form, under what tops it, beside its history, which starts at
+// the top. The second row takes what the history needs beyond the first, so the form stays right under its head. The
+// phone: one column, in this order.
+const logGrid = `${split} lg:grid-rows-[auto_1fr]`;
+
+/** A log's two columns, in a `logGrid`. */
+function Columns({ form, history }: { form: ReactNode; history: ReactNode }) {
+  return (
+    <>
+      <div className="flex flex-col gap-5">{form}</div>
+      <div className="flex flex-col gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">{history}</div>
+    </>
+  );
+}
+
 export const VisitorsScreen = () => <Shell {...log} entities={["farm", "visit"]} screen={Visitors} />;
 
 function Visitors({ records, save }: Parameters<Screen>[0]) {
@@ -111,27 +127,37 @@ function Visitors({ records, save }: Parameters<Screen>[0]) {
     .filter((v) => v.farmId === farm.id && farmDayOf(new Date(v.enteredAt)) === today)
     .sort((x, y) => y.enteredAt.localeCompare(x.enteredAt));
   return (
-    <>
-      <FarmPicker {...picker} />
-      <VisitForm key={farm.id} farmId={farm.id} onSave={(v) => save({ type: B.recordVisit, payload: v }, "visit", v)} />
-      <h2 className="text-lg font-semibold">{t("today")}</h2>
-      {visits.length === 0 ? (
-        <p>{t("none")}</p>
-      ) : (
-        <ul className="flex flex-col gap-2" aria-label={t("today")}>
-          {visits.map((v) => (
-            <li key={v.id} className={card}>
-              <Editable
-                name={v.visitor}
-                form={(close) => <VisitForm farmId={farm.id} visit={v} onCancel={close} onSave={async (n) => (await correct(save, B.editVisit, "visit", v, n)) && (close(), true)} />}
-              >
-                <span>{t("line", { visitor: v.visitor, time: formatDateTime(v.enteredAt, locale), zone: t(`zones.${v.zone}`) })}</span>
-              </Editable>
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
+    <div className={logGrid}>
+      <Columns
+        form={
+          <>
+            <FarmPicker {...picker} />
+            <VisitForm key={farm.id} farmId={farm.id} onSave={(v) => save({ type: B.recordVisit, payload: v }, "visit", v)} />
+          </>
+        }
+        history={
+          <>
+            <h2 className="text-lg font-semibold">{t("today")}</h2>
+            {visits.length === 0 ? (
+              <p>{t("none")}</p>
+            ) : (
+              <ul className="flex flex-col gap-2" aria-label={t("today")}>
+                {visits.map((v) => (
+                  <li key={v.id} className={card}>
+                    <Editable
+                      name={v.visitor}
+                      form={(close) => <VisitForm farmId={farm.id} visit={v} onCancel={close} onSave={async (n) => (await correct(save, B.editVisit, "visit", v, n)) && (close(), true)} />}
+                    >
+                      <span>{t("line", { visitor: v.visitor, time: formatDateTime(v.enteredAt, locale), zone: t(`zones.${v.zone}`) })}</span>
+                    </Editable>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        }
+      />
+    </div>
   );
 }
 
@@ -247,10 +273,13 @@ function Disposal({ records, save, db }: Parameters<Screen>[0]) {
   };
   const choices: Choice[] = batches.filter((b) => b.status === "open").map((b) => ({ id: b.id, label: batchLabel(b.id)! }));
 
+  // The farm and the tabs top the form's column; they stay mounted when the tab changes (the pressed button keeps focus).
   return (
-    <>
-      <FarmPicker {...picker} />
-      <Tabs tab={tab} setTab={setTab} />
+    <div className={logGrid}>
+      <div className="flex flex-col gap-5">
+        <FarmPicker {...picker} />
+        <Tabs tab={tab} setTab={setTab} />
+      </div>
       {tab === "dead" ? (
         <DeadBirds farmId={farm.id} records={records} batches={choices} batchLabel={batchLabel} day={day} save={save} />
       ) : tab === "manure" ? (
@@ -258,7 +287,7 @@ function Disposal({ records, save, db }: Parameters<Screen>[0]) {
       ) : (
         <Rodents farmId={farm.id} records={records} houses={houses} day={day} save={save} db={db} />
       )}
-    </>
+    </div>
   );
 }
 
@@ -281,55 +310,62 @@ function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps
   const recent = disposals.sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 20);
 
   return (
-    <>
-      <DisposalForm farmId={farmId} batches={batches} onSave={(d) => save({ type: B.recordDisposal, payload: d }, "disposal", d)} />
+    <Columns
+      form={
+        <>
+          <DisposalForm farmId={farmId} batches={batches} onSave={(d) => save({ type: B.recordDisposal, payload: d }, "disposal", d)} />
+        </>
+      }
+      history={
+        <>
+          <h2 className="text-lg font-semibold">{t("Disposal.gaps", { days: GAP_DAYS })}</h2>
+          {gaps.length === 0 ? (
+            <p>{t("Disposal.noGaps")}</p>
+          ) : (
+            <table className="w-full" aria-label={t("Disposal.gaps", { days: GAP_DAYS })}>
+              <thead>
+                <tr>
+                  <th className="text-start">{t("Disposal.day")}</th>
+                  <th className="text-end">{t("Disposal.dead")}</th>
+                  <th className="text-end">{t("Disposal.disposed")}</th>
+                  <th className="text-end">{t("Disposal.gap")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gaps.map((g) => (
+                  <tr key={g.day} className={g.gap > 0 ? "font-semibold text-alert-fg" : ""}>
+                    <td>{day(g.day)}</td>
+                    <td className="text-end">{formatCount(g.dead)}</td>
+                    <td className="text-end">{formatCount(g.disposed)}</td>
+                    <td className="text-end">{formatCount(g.gap)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
-      <h2 className="text-lg font-semibold">{t("Disposal.gaps", { days: GAP_DAYS })}</h2>
-      {gaps.length === 0 ? (
-        <p>{t("Disposal.noGaps")}</p>
-      ) : (
-        <table className="w-full" aria-label={t("Disposal.gaps", { days: GAP_DAYS })}>
-          <thead>
-            <tr>
-              <th className="text-start">{t("Disposal.day")}</th>
-              <th className="text-end">{t("Disposal.dead")}</th>
-              <th className="text-end">{t("Disposal.disposed")}</th>
-              <th className="text-end">{t("Disposal.gap")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {gaps.map((g) => (
-              <tr key={g.day} className={g.gap > 0 ? "font-semibold text-alert-fg" : ""}>
-                <td>{day(g.day)}</td>
-                <td className="text-end">{formatCount(g.dead)}</td>
-                <td className="text-end">{formatCount(g.disposed)}</td>
-                <td className="text-end">{formatCount(g.gap)}</td>
-              </tr>
+          <h2 className="text-lg font-semibold">{t("Disposal.recent")}</h2>
+          <ul className="flex flex-col gap-2" aria-label={t("Disposal.recent")}>
+            {recent.map((d) => (
+              <li key={d.id} className={card}>
+                <Editable
+                  name={day(d.day)}
+                  form={(close) => (
+                    <DisposalForm farmId={farmId} batches={withBatch(batches, d.batchId, batchLabel)} disposal={d} onCancel={close} onSave={async (n) => (await correct(save, B.editDisposal, "disposal", d, n)) && (close(), true)} />
+                  )}
+                >
+                  <span>
+                    {t("Disposal.line", { date: day(d.day), birds: formatCount(d.birds), method: d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`) })}
+                    {d.weightGrams !== null && <> · <bdi dir="ltr">{formatKg(d.weightGrams)}</bdi></>}
+                    {d.batchId && ` · ${batchLabel(d.batchId) ?? ""}`}
+                  </span>
+                </Editable>
+              </li>
             ))}
-          </tbody>
-        </table>
-      )}
-
-      <h2 className="text-lg font-semibold">{t("Disposal.recent")}</h2>
-      <ul className="flex flex-col gap-2" aria-label={t("Disposal.recent")}>
-        {recent.map((d) => (
-          <li key={d.id} className={card}>
-            <Editable
-              name={day(d.day)}
-              form={(close) => (
-                <DisposalForm farmId={farmId} batches={withBatch(batches, d.batchId, batchLabel)} disposal={d} onCancel={close} onSave={async (n) => (await correct(save, B.editDisposal, "disposal", d, n)) && (close(), true)} />
-              )}
-            >
-              <span>
-                {t("Disposal.line", { date: day(d.day), birds: formatCount(d.birds), method: d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`) })}
-                {d.weightGrams !== null && <> · <bdi dir="ltr">{formatKg(d.weightGrams)}</bdi></>}
-                {d.batchId && ` · ${batchLabel(d.batchId) ?? ""}`}
-              </span>
-            </Editable>
-          </li>
-        ))}
-      </ul>
-    </>
+          </ul>
+        </>
+      }
+    />
   );
 }
 
@@ -400,27 +436,35 @@ function Manure({ farmId, records, houses, batches, batchLabel, day, save }: Log
     .slice(0, 20);
 
   return (
-    <>
-      <ManureForm farmId={farmId} houses={houses} batches={batches} onSave={(r) => save({ type: B.recordManure, payload: r }, "manureRemoval", r)} />
-      <h2 className="text-lg font-semibold">{t("Disposal.recentManure")}</h2>
-      <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentManure")}>
-        {recent.map((r) => (
-          <li key={r.id} className={card}>
-            <Editable
-              name={day(r.day)}
-              form={(close) => (
-                <ManureForm farmId={farmId} houses={houses} batches={withBatch(batches, r.batchId, batchLabel)} removal={r} onCancel={close} onSave={async (n) => (await correct(save, B.editManure, "manureRemoval", r, n)) && (close(), true)} />
-              )}
-            >
-              <span>
-                {t("Disposal.manureLine", { date: day(r.day), kg: formatCount(r.quantityKg), destination: t(`Disposal.destinations.${r.destination}`) })}
-                {r.recipient && ` · ${r.recipient}`}
-              </span>
-            </Editable>
-          </li>
-        ))}
-      </ul>
-    </>
+    <Columns
+      form={
+        <>
+          <ManureForm farmId={farmId} houses={houses} batches={batches} onSave={(r) => save({ type: B.recordManure, payload: r }, "manureRemoval", r)} />
+        </>
+      }
+      history={
+        <>
+          <h2 className="text-lg font-semibold">{t("Disposal.recentManure")}</h2>
+          <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentManure")}>
+            {recent.map((r) => (
+              <li key={r.id} className={card}>
+                <Editable
+                  name={day(r.day)}
+                  form={(close) => (
+                    <ManureForm farmId={farmId} houses={houses} batches={withBatch(batches, r.batchId, batchLabel)} removal={r} onCancel={close} onSave={async (n) => (await correct(save, B.editManure, "manureRemoval", r, n)) && (close(), true)} />
+                  )}
+                >
+                  <span>
+                    {t("Disposal.manureLine", { date: day(r.day), kg: formatCount(r.quantityKg), destination: t(`Disposal.destinations.${r.destination}`) })}
+                    {r.recipient && ` · ${r.recipient}`}
+                  </span>
+                </Editable>
+              </li>
+            ))}
+          </ul>
+        </>
+      }
+    />
   );
 }
 
@@ -535,7 +579,7 @@ function Cleanouts(props: Parameters<Screen>[0]) {
                 <p>{t("after", { date: day(last.placedOn) })}</p>
                 <button
                   type="button"
-                  className={primary}
+                  className={`${primary} lg:self-start`}
                   onClick={() => {
                     const payload = { id: uuidv7(), houseId: house.id, afterBatchId: last.id, startedOn: today };
                     const local: CleanoutDto = { ...payload, farmId: farm.id, steps: [] };
@@ -587,7 +631,7 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
   };
 
   return (
-    <ol className="flex flex-col gap-2">
+    <ol className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
       {CLEANOUT_STEPS.map((key, i) => {
         const done = cleanout.steps.find((s) => s.step === key);
         return (
@@ -645,39 +689,47 @@ function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "bat
   const unsent = new Set((queued ?? []).flatMap((e) => e.recordKeys ?? []));
 
   return (
-    <>
-      <RodentForm
-        farmId={farmId}
-        houses={houses}
-        onError={setError}
-        onSave={(r) => save({ type: B.recordRodentCheck, payload: { ...r, proofFileId: undefined } }, "rodentCheck", r)} // the photo comes online, later
-      />
-      {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <h2 className="text-lg font-semibold">{t("Disposal.recentRodents")}</h2>
-      <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentRodents")}>
-        {checks.map((r) => (
-          <li key={r.id} className={card}>
-            <Editable
-              name={day(r.day)}
-              form={(close) => <RodentForm farmId={farmId} houses={houses} check={r} onError={setError} onCancel={close} onSave={async (n) => (await correct(save, B.editRodentCheck, "rodentCheck", r, n)) && (close(), true)} />}
-            >
-              <span>
-                {t("Disposal.rodentLine", { date: day(r.day), action: t(`Disposal.rodentActions.${r.action}`) })}
-                {r.product && ` · ${r.product}`}
-                {r.houseId && ` · ${houses.find((h) => h.id === r.houseId)?.name ?? ""}`}
-              </span>
-              {r.proofFileId ? (
-                <a href={`/api/files/${r.proofFileId}`} className="underline underline-offset-4">{t("Disposal.proof")}</a>
-              ) : unsent.has(`rodentCheck:${r.id}`) || !online ? (
-                <span className={warn}>{t("Disposal.proofMissing")}</span>
-              ) : (
-                <FileUpload url={`/api/files?purpose=proof&rodentCheck=${r.id}`} accept="image/jpeg,image/png,image/webp" camera label={t("Disposal.proofAdd")} onError={setError} />
-              )}
-            </Editable>
-          </li>
-        ))}
-      </ul>
-    </>
+    <Columns
+      form={
+        <>
+          <RodentForm
+            farmId={farmId}
+            houses={houses}
+            onError={setError}
+            onSave={(r) => save({ type: B.recordRodentCheck, payload: { ...r, proofFileId: undefined } }, "rodentCheck", r)} // the photo comes online, later
+          />
+          {error && <p role="alert" className={danger}>{t(error)}</p>}
+        </>
+      }
+      history={
+        <>
+          <h2 className="text-lg font-semibold">{t("Disposal.recentRodents")}</h2>
+          <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentRodents")}>
+            {checks.map((r) => (
+              <li key={r.id} className={card}>
+                <Editable
+                  name={day(r.day)}
+                  form={(close) => <RodentForm farmId={farmId} houses={houses} check={r} onError={setError} onCancel={close} onSave={async (n) => (await correct(save, B.editRodentCheck, "rodentCheck", r, n)) && (close(), true)} />}
+                >
+                  <span>
+                    {t("Disposal.rodentLine", { date: day(r.day), action: t(`Disposal.rodentActions.${r.action}`) })}
+                    {r.product && ` · ${r.product}`}
+                    {r.houseId && ` · ${houses.find((h) => h.id === r.houseId)?.name ?? ""}`}
+                  </span>
+                  {r.proofFileId ? (
+                    <a href={`/api/files/${r.proofFileId}`} className="underline underline-offset-4">{t("Disposal.proof")}</a>
+                  ) : unsent.has(`rodentCheck:${r.id}`) || !online ? (
+                    <span className={warn}>{t("Disposal.proofMissing")}</span>
+                  ) : (
+                    <FileUpload url={`/api/files?purpose=proof&rodentCheck=${r.id}`} accept="image/jpeg,image/png,image/webp" camera label={t("Disposal.proofAdd")} onError={setError} />
+                  )}
+                </Editable>
+              </li>
+            ))}
+          </ul>
+        </>
+      }
+    />
   );
 }
 

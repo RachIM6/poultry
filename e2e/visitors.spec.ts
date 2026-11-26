@@ -38,7 +38,7 @@ test("a visitor is recorded offline, kept to the dirty zone, and synced once", a
   await context.setOffline(false);
   // The sync screen renders once it has read the outbox: "all sent" means the server applied the visit (a refusal
   // would show under "À vérifier"). Waiting for it first keeps the server check from racing the push.
-  await page.getByRole("link", { name: "Synchronisation" }).click();
+  await page.goto("/fr/sync"); // the page's own sync link went with its old header (tasks/plan-ui.md "Desktop rules")
   await expect(page.getByText("Tout est envoyé.")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "À vérifier" })).toHaveCount(0);
   const server = async () =>

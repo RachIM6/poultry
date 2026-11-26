@@ -12,6 +12,7 @@ const MESSAGES: MessagePath[] = ["LocaleSwitcher"];
 
 // The public entry page: what the app does today, from the screens themselves. Static, server-only: the locale
 // switcher is its one piece of client code. No numbers, customers or quotes: there are none to show yet.
+// Off for now: next.config.ts redirects /ar and /fr to the login (or the dashboard), so this page is built but never served.
 const FRAME = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
 const H2 = "text-[26px] font-semibold leading-tight tracking-[-0.015em] lg:text-[38px]";
 const SECTION = "py-14 lg:py-24";

@@ -14,7 +14,7 @@ export default function Offline() {
       </svg>
       <h1 className="text-[26px] font-semibold leading-snug">{t("title")}</h1>
       <p className="text-ink-2">{t("body")}</p>
-      <Link href="/" className={`${primary} mt-auto`}>
+      <Link href="/today" className={`${primary} mt-auto`}>
         {t("home")}
       </Link>
     </main>

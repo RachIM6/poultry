@@ -45,7 +45,7 @@ const uncovered = (l: Locator) =>
   });
 
 test("wide screens, unfolded: the role's groups open under their headings and mark the current page", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(120_000);
   const e164 = await ownerWithFarm(page, "Élevage de la Barre");
   await scopeRemembered(page);
   await page.setViewportSize(WIDE);
@@ -149,7 +149,7 @@ test("wide screens, unfolded: the role's groups open under their headings and ma
 });
 
 test("wide screens, folded: a 72 px rail whose group icons open a side panel, remembered without a shift", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(120_000);
   const e164 = await ownerWithFarm(page, "Élevage du Rail");
   await scopeRemembered(page);
   await page.setViewportSize(WIDE);

@@ -194,9 +194,11 @@ function Bell({ userId, organizationId }: Scope) {
             ))}
           </ul>
         )}
-        <Link ref={all} href="/inbox" className={`${item} border-t border-line font-medium`}>
-          {t("Header.allNotifications")}
-        </Link>
+        <div className="border-t border-line pt-1">
+          <Link ref={all} href="/inbox" className={`${item} font-medium`}>
+            {t("Header.allNotifications")}
+          </Link>
+        </div>
       </div>
     </div>
   );

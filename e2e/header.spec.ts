@@ -273,8 +273,9 @@ test("the bell: the 5 latest unread in a panel, by keyboard, all marked read at 
   await bell(page).click();
   const items = bellPanel(page).getByRole("listitem");
   await expect(items).toHaveCount(5);
-  await expect(items.first()).toContainText("09:06");
-  await expect(items.last()).toContainText("09:02");
+  const time = (m: number) => new Intl.DateTimeFormat("fr", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Casablanca" }).format(new Date(at(m)));
+  await expect(items.first()).toContainText(time(6));
+  await expect(items.last()).toContainText(time(2));
   await bellPanel(page).getByRole("link", { name: "Toutes les notifications" }).click();
   await page.waitForURL(/\/fr\/inbox$/);
 });

@@ -10,8 +10,10 @@ test("the vaccination template is available offline, and a farm's copy is edited
   await page.goto("/fr/protocol");
   await controlled(page); // shells precached
   await expect(page.getByText("Programme de vaccination poulet de chair")).toBeVisible(); // reference data cached
-  const broiler = page.getByText("Programme de vaccination poulet de chair").locator(".."); // one template per type (SPEC-m3 R9)
-  await expect(broiler.getByText(/Pas encore vérifié par un vétérinaire/)).toBeVisible();
+  // one template per type (SPEC-m3 R9), in one list; what they all share (not checked by a vet, no vaccine) said once
+  const broiler = page.getByRole("list", { name: "Modèles de référence" }).getByRole("listitem").filter({ hasText: "Programme de vaccination poulet de chair" });
+  await expect(page.getByText(/Pas encore vérifiés par un vétérinaire/)).toHaveCount(1);
+  await expect(page.getByText(/Ces modèles ne contiennent encore aucun vaccin/)).toBeVisible();
   await expect(page.getByText("Programme de vaccination pondeuse")).toBeVisible();
 
   await context.setOffline(true);
@@ -21,17 +23,19 @@ test("the vaccination template is available offline, and a farm's copy is edited
   await expect(page.getByText("Programme de vaccination poulet de chair")).toBeVisible(); // from IndexedDB
 
   await broiler.getByRole("button", { name: "Copier pour mon exploitation" }).click();
-  await page.getByRole("button", { name: "Ajouter un vaccin" }).click();
+  await page.getByRole("button", { name: /^Ajouter un vaccin/ }).click(); // its sheet
   await page.getByLabel("Âge (jours)").fill("14");
   await page.getByLabel("Vaccin", { exact: true }).selectOption({ label: "Vaccin Gumboro" });
   await page.getByLabel("Mode d’administration").selectOption({ label: "Eau de boisson" });
   await page.getByRole("button", { name: "Ajouter", exact: true }).click();
-  await expect(page.getByText("Jour 14 · Vaccin Gumboro · Eau de boisson")).toBeVisible();
+  const line = page.getByRole("table", { name: "Programme de vaccination poulet de chair" }).getByRole("row").nth(1);
+  await expect(line).toHaveText(/^14\s*Vaccin Gumboro\s*Eau de boisson\s*Retirer$/);
+  await expect(line.getByRole("button", { name: "Retirer : Jour 14 · Vaccin Gumboro · Eau de boisson" })).toBeVisible();
   // OQ4: no Newcastle line yet, a warning citing the arrêté, not a block
   await expect(page.getByText(/Aucune vaccination contre la maladie de Newcastle dans ce programme.*Arrêté n° 3308-17, art\. 13/)).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("Jour 14 · Vaccin Gumboro · Eau de boisson")).toBeVisible();
+  await expect(line).toHaveText(/^14\s*Vaccin Gumboro\s*Eau de boisson/);
 
   await context.unroute("**");
   await context.setOffline(false);

@@ -74,17 +74,18 @@ for (const locale of ["fr", "ar"] as const) {
 
     // 4. Grading and an egg sale on /eggs.
     await page.goto(`/${locale}/eggs`);
-    const ungraded = page.getByRole("listitem").filter({ hasText: t("EggStock", "items.ungraded") });
+    const ungraded = page.getByRole("row").filter({ hasText: t("EggStock", "items.ungraded") });
     await ungraded.getByRole("button", { name: t("EggStock", "grade"), exact: true }).click();
-    await ungraded.getByLabel(t("EggStock", "gradeCount", { grade: "M" }), { exact: true }).fill("1500");
-    await ungraded.getByRole("button", { name: t("EggStock", "saveGrading"), exact: true }).click();
+    const sheet = page.getByRole("dialog"); // the grading opens in a sheet
+    await sheet.getByLabel(t("EggStock", "gradeCount", { grade: "M" }), { exact: true }).fill("1500");
+    await sheet.getByRole("button", { name: t("EggStock", "saveGrading"), exact: true }).click();
     await button("EggSale", "open").click();
     await page.getByRole("combobox", { name: t("EggSale", "item"), exact: true }).selectOption({ label: "M" });
     await label(page, "EggSale", "trays").fill("30");
     await label(page, "EggSale", "price").fill("33");
     await page.getByRole("combobox", { name: t("Sale", "method"), exact: true }).selectOption({ label: t("Sale", "methods.credit") });
     await button("EggSale", "save").click();
-    await expect(button("EggSale", "open")).toBeVisible(); // the form closed: saved
+    await expect(page.getByRole("dialog")).toHaveCount(0); // the sheet closed: saved
 
     const reload = await page.reload(); // still offline
     expect(reload?.fromServiceWorker()).toBe(true);

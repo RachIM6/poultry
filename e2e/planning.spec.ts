@@ -26,17 +26,19 @@ test("batches planned offline show overlaps and a short downtime, survive a relo
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   const form = page.getByRole("form", { name: "Prévoir une bande" });
-  const lines = page.getByRole("list", { name: "Bandes de Bâtiment 1" }).getByRole("listitem");
+  const lines = page.getByRole("rowgroup", { name: "Bandes de Bâtiment 1" }).getByRole("row");
   let shown = 1; // the open batch
   // +30 sold at 35 days (+65); +60 placed before that sale; +105 placed 10 days after +60's sale (+95).
   for (const [inDays, chicks, age] of [[30, "10000", "35"], [60, "9000", "35"], [105, "8000", ""]] as const) {
+    await page.getByRole("button", { name: "Prévoir une bande" }).click(); // the header's action opens the form in a sheet
     await form.getByLabel("Mise en place le").fill(farmDaysAgo(-inDays));
     await form.getByLabel("Poussins").fill(chicks);
     await form.getByLabel("Couvoir").fill("Couvoir X");
     await form.getByLabel("Âge de vente prévu (jours, facultatif)").fill(age);
     await form.getByRole("button", { name: "Enregistrer la bande prévue" }).click();
-    // the status reads the same after each save: wait for the plan itself, or the next fill races the form's reset
+    // the status reads the same after each save: wait for the plan itself, which closes the sheet
     await expect(lines).toHaveCount(++shown);
+    await expect(form).toHaveCount(0);
   }
   await expect(lines).toHaveCount(4);
   await expect(lines.nth(2)).toContainText("Mise en place avant la vente de la bande précédente.");

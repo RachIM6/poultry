@@ -21,7 +21,7 @@ test("a farm and two houses created offline survive a reload, sync, and reach a 
   await page.getByLabel("Commune").fill("Ben Ahmed");
   await page.getByLabel("Numéro d’autorisation").fill("ONSSA/26/0412");
   await page.getByLabel("Valable jusqu’au").fill("2027-03-31");
-  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click(); // the form opens in a sheet
   await expect(page.getByRole("heading", { name: "Ferme du Plateau" })).toBeVisible();
   await expect(page.getByRole("status")).toHaveText("Enregistré sur ce téléphone. L’envoi se fait dès qu’il y a du réseau.");
 
@@ -31,7 +31,7 @@ test("a farm and two houses created offline survive a reload, sync, and reach a 
     await page.getByLabel("Surface (m²)").fill("1200");
     await page.getByLabel("Capacité (oiseaux)").fill("12000");
     await page.getByLabel("Type").selectOption(type);
-    await page.getByRole("button", { name: "Enregistrer" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
     await expect(page.getByText(name)).toBeVisible();
   }
 

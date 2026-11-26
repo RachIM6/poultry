@@ -400,9 +400,9 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   form stays inline.
 - [x] Section headings use `sectionTitle` on these pages (one heading style).
 - Heights (demo seed, full page, before → after; after includes develop's new 64 px header bar): 1 440, individual
-  farm: `/treasury` 3 727 → 1 787, `/treasury/bank` 4 171 → 1 418, `/receivables` 1 599 → 1 638, `/expenses` 1 049 →
+  farm: `/treasury` 3 727 → 1 787, `/treasury/bank` 4 171 → 1 438, `/receivables` 1 599 → 1 638, `/expenses` 1 049 →
   1 054, `/prices` 2 340 → 1 681; SARL: `/treasury` 1 777 → 974, `/treasury/bank` 2 227 → 1 093. 390, individual farm:
-  `/treasury` 4 697 → 4 109, `/treasury/bank` 6 812 → 2 907, `/prices` 3 783 → 2 908.
+  `/treasury` 4 697 → 4 109, `/treasury/bank` 6 812 → 3 139, `/prices` 3 783 → 2 908.
 - Deviations: the « Plafonds de crédit » section of `/receivables` stays (merging it into the buyers table would drop the
   limits of buyers who owe nothing); its « Modifier » opens a sheet. The page shells `receivables/page.tsx`,
   `expenses/page.tsx`, `prices/page.tsx` (not listed above) gained `"Ui"` in their `ClientMessages`, and `/prices` a

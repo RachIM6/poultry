@@ -94,19 +94,64 @@ test("the owner records the registration numbers and they head the statements", 
   await expect(main.getByRole("button")).toHaveCount(0);
 });
 
-// U15 (mockup F-Chart, SPEC-finance FN2, FN6): what each operation is posted to, in both charts.
+// U15 (mockup F-Chart, SPEC-finance FN2, FN6): what each operation is posted to, in both charts, grouped by account
+// class (tasks/plan-ui-cleanup.md §4), the « Plan de comptes » tab of « Paramètres comptables ».
 test("the chart screen shows where each operation is posted", async ({ page }) => {
   await ownerWithFarm(page, "Élevage du Plan");
   await scopeRemembered(page);
   await page.goto("/fr/more");
   await page.getByRole("link", { name: "Plan de comptes" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Plan de comptes");
-  const feed = page.getByRole("listitem").filter({ hasText: "Achat d’aliment" });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paramètres comptables");
+  const tabs = page.getByRole("navigation", { name: "Paramètres comptables" });
+  await expect(tabs.getByRole("link", { name: "Plan de comptes" })).toHaveAttribute("aria-current", "page");
+  const chart = page.getByRole("table", { name: "Plan de comptes" });
+  await expect(chart.getByRole("columnheader", { name: "Charges (classe 6)" })).toBeAttached();
+  const feed = chart.getByRole("row").filter({ hasText: "Achat d’aliment" });
   await expect(feed).toContainText("612122");
   await expect(feed).toContainText("6121");
   await expect(page.getByText("Votre entité utilise le plan comptable agricole (en gras).")).toBeVisible();
 
+  // the owner's tabs: the profile, the chart and the replaced accounts (/settings/posting, in no menu before)
+  await tabs.getByRole("link", { name: "Comptes remplacés" }).click();
+  await expect(page).toHaveURL(/\/fr\/settings\/posting$/);
+  await expect(tabs.getByRole("link", { name: "Comptes remplacés" })).toHaveAttribute("aria-current", "page");
+  await tabs.getByRole("link", { name: "Profil" }).click();
+  await expect(page).toHaveURL(/\/fr\/settings\/accounting$/);
+  await expect(page.getByRole("link", { name: "Remplacer un compte" })).toHaveCount(0); // the old links card is gone
+
   await page.goto("/ar/settings/chart");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("مخطط الحسابات");
-  await expect(page.getByRole("listitem").filter({ hasText: "شراء الأعلاف" })).toContainText("612122");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("الإعدادات المحاسبية");
+  await expect(page.getByRole("row").filter({ hasText: "شراء الأعلاف" })).toContainText("612122");
+});
+
+// FN8: the owner replaces a rule's account in a sheet, then goes back to the default (tasks/plan-ui-cleanup.md §4).
+test("the owner replaces an account in a sheet and goes back to the default", async ({ page }) => {
+  test.setTimeout(90_000);
+  await ownerWithFarm(page, "Élevage des Comptes Remplacés");
+  await scopeRemembered(page);
+  await page.goto("/fr/settings/posting");
+  const water = page.getByRole("row").filter({ has: page.getByRole("rowheader", { name: /^Eau/ }) });
+  const open = water.getByRole("button", { name: "Remplacer : Eau" });
+  await open.click();
+  const sheet = page.getByRole("dialog", { name: "Remplacer : Eau" });
+  const account = sheet.getByLabel("Nouveau compte");
+  await expect(account).toBeFocused();
+  await page.keyboard.press("Escape"); // closes, the focus back on the row's button
+  await expect(sheet).toBeHidden();
+  await expect(open).toBeFocused();
+
+  await open.click();
+  // another leaf of class 6 than the default, so going back shows it gone
+  const byDefault = (await sheet.locator("bdi").first().textContent())!;
+  const choice = (await account.locator("option").filter({ hasNotText: byDefault }).first().textContent())!;
+  await account.selectOption({ label: choice });
+  await sheet.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByRole("main").getByRole("status")).toHaveText("Compte enregistré pour les nouvelles écritures.");
+  await expect(sheet).toBeHidden();
+  await expect(water).toContainText(choice);
+
+  await open.click();
+  await sheet.getByRole("button", { name: "Revenir au compte par défaut : Eau" }).click();
+  await expect(sheet).toBeHidden();
+  await expect(water).not.toContainText(choice);
 });

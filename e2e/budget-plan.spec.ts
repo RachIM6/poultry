@@ -72,8 +72,9 @@ test("a budget copied from a closed batch recomputes its break-even and margin a
 
   await page.getByLabel("Nom du budget").fill("Bande de janvier");
   await page.getByRole("button", { name: "Enregistrer le budget" }).click();
-  const saved = page.getByRole("list", { name: "Budgets enregistrés" }).getByRole("listitem");
-  await expect(saved.locator("p").first()).toHaveText(/^Bande de janvier · seuil 10,25\sDH \/ kg, marge 3.500,00\sDH$/);
+  // tasks/plan-ui-cleanup.md §4: a row per saved budget, its weekly cash folded in the row under it
+  const saved = page.getByRole("table", { name: "Budgets enregistrés" }).locator(":scope > tbody");
+  await expect(saved.filter({ hasText: "Bande de janvier" }).getByRole("row").first()).toHaveText(/^Bande de janvier\s*10,25\sDH \/ kg\s*3.500,00\sDH$/);
   // §9 "Budget cash need": a saved budget's weeks, collapsed until asked for, from its base batch's timing
   const janvier = page.getByRole("table", { name: "Besoin de trésorerie par semaine · Bande de janvier" });
   await expect(janvier).toBeHidden();

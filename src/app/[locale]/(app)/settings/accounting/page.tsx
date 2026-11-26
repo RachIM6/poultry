@@ -3,16 +3,16 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { EntityHeader } from "@/components/entity-header";
-import { split, splitAside } from "@/components/layout";
 import { Page } from "@/components/page";
-import { card, link } from "@/components/ui";
-import { Link, redirect } from "@/i18n/navigation";
+import { card, warn } from "@/components/ui";
+import { redirect } from "@/i18n/navigation";
 import { formatDay } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { accountingSettings } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { AccountingForm } from "./form";
 import { LegalIdsForm } from "./ids-form";
+import { SettingsTabs } from "./settings-tabs";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
@@ -21,7 +21,8 @@ const MESSAGES: MessagePath[] = ["Accounting", "LegalIds", "Nav", "Offline", "Sy
 
 // SPEC-finance FN1, FN9, FC6, FN14, mockup F-Profile: the owner's accounting choices. Online. The owner changes them
 // (finance.manage); the accountant and the manager read them and the registration numbers, with no form (SPEC-m5 PA5).
-// Wide screens: the entity and its registration numbers on one side, the accounting choices on the other.
+// tasks/plan-ui-cleanup.md §4: one column, the registration numbers then the choices, two by two from lg; the other
+// accounting screens are the section's tabs.
 export default function AccountingSettings() {
   return (
     <ClientMessages paths={MESSAGES}>
@@ -37,10 +38,12 @@ async function Content() {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const settings = await accountingSettings(ctx.value);
   if (!settings.ok) return redirect({ href: "/dashboard", locale: lang }); // no money.read; the actions re-check can()
-  if (!settings.value) return <Page width="wide" back="/more"><p>{t("Accounting.none")}</p></Page>;
+  const owner = can(ctx.value, "finance.manage");
+  const shell = { width: "wide", back: "/more", title: t("Accounting.title"), nav: <SettingsTabs current="profile" owner={owner} /> } as const;
+  if (!settings.value) return <Page {...shell}><p>{t("Accounting.none")}</p></Page>;
   const { entity, books, locked, nextYearFrom } = settings.value;
   const months = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat(lang === "ar" ? "ar-MA" : "fr", { month: "long", timeZone: "UTC" }).format(Date.UTC(2026, i, 1)));
-  if (!can(ctx.value, "finance.manage")) {
+  if (!owner) {
     const p = entity.accountingProfile;
     const chart = p.overlays.includes("pca") ? "pca" : "cgnc";
     const rows = [
@@ -52,7 +55,7 @@ async function Content() {
       [t("Accounting.allocation"), t(`Accounting.allocationKeys.${entity.allocationKey}.title`)],
     ];
     return (
-      <Page width="wide" back="/more" title={t("Accounting.title")} subtitle={t("Accounting.readOnly")}>
+      <Page {...shell} subtitle={t("Accounting.readOnly")}>
         <EntityHeader name={entity.name} form={entity.form} ids={settings.value.ids} />
         <dl className={`${card} gap-3 lg:grid lg:grid-cols-3 lg:gap-x-8`}>
           {rows.map(([label, value]) => (
@@ -62,50 +65,36 @@ async function Content() {
             </div>
           ))}
         </dl>
-        <ul className={`${card} gap-0 py-2 lg:max-w-md`}>
-          <li><Link href="/settings/chart" className={link}>{t("Chart.open")}</Link></li>
-          <li><Link href="/threshold" className={link}>{t("Threshold.open")}</Link></li>
-        </ul>
       </Page>
     );
   }
   return (
-    <Page width="wide" back="/more" title={t("Accounting.title")}>
-      <div className={split}>
-        <div className={`flex flex-col gap-5 ${splitAside}`}>
-          <p>
-            <span className="font-semibold">{entity.name}</span> · {t(`Onboarding.forms.${entity.form}`)}
-          </p>
-          {entity.form === "cooperative" && <p className="text-sm text-ink-2">{t("Accounting.coop")}</p>}
-          <LegalIdsForm legalEntityId={entity.id} ids={settings.value.ids} />
-        </div>
-        <div className="flex flex-col gap-5">
-          {locked && (
-            <div role="note" className="flex flex-col gap-2 rounded-lg border border-line p-3">
-              <p>{t("errors.FISCAL_YEAR_HAS_ENTRIES")}</p>
-              <p>{t("Accounting.lockedHow", { day: formatDay(nextYearFrom, lang) })}</p>
-            </div>
-          )}
-          <AccountingForm
-            legalEntityId={entity.id}
-            books={entity.accountingProfile.books}
-            booksAllowed={books}
-            pca={entity.accountingProfile.overlays.includes("pca")}
-            month={entity.fiscalYearStartMonth}
-            months={months}
-            vatRegistered={entity.vatRegistered}
-            hensMethod={entity.hensMethod}
-            allocationKey={entity.allocationKey}
-            locked={locked}
-          />
-        </div>
+    <Page {...shell}>
+      <div className="flex flex-col gap-1">
+        <p>
+          <span className="font-semibold">{entity.name}</span> · {t(`Onboarding.forms.${entity.form}`)}
+        </p>
+        {entity.form === "cooperative" && <p className="text-sm text-ink-2">{t("Accounting.coop")}</p>}
       </div>
-      {/* The accounting screens this page leads to, together (C6) */}
-      <ul className={`${card} gap-0 py-2 lg:max-w-md`}>
-        <li><Link href="/settings/chart" className={link}>{t("Chart.open")}</Link></li>
-        <li><Link href="/settings/posting" className={link}>{t("Overrides.open")}</Link></li>
-        <li><Link href="/threshold" className={link}>{t("Threshold.open")}</Link></li>
-      </ul>
+      <LegalIdsForm legalEntityId={entity.id} ids={settings.value.ids} />
+      {/* The registration numbers never lock; the choices do, once the year has an entry */}
+      {locked && (
+        <p role="note" className={warn}>
+          {t("errors.FISCAL_YEAR_HAS_ENTRIES")} {t("Accounting.lockedHow", { day: formatDay(nextYearFrom, lang) })}
+        </p>
+      )}
+      <AccountingForm
+        legalEntityId={entity.id}
+        books={entity.accountingProfile.books}
+        booksAllowed={books}
+        pca={entity.accountingProfile.overlays.includes("pca")}
+        month={entity.fiscalYearStartMonth}
+        months={months}
+        vatRegistered={entity.vatRegistered}
+        hensMethod={entity.hensMethod}
+        allocationKey={entity.allocationKey}
+        locked={locked}
+      />
     </Page>
   );
 }

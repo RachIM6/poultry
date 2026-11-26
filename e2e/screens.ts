@@ -127,7 +127,7 @@ export async function realisticOwner(page: Page) {
   await page.goto("/fr/budget");
   await page.getByLabel("Nom du budget").fill("Bande de janvier");
   await page.getByRole("button", { name: "Enregistrer le budget" }).click();
-  await expect(page.getByRole("list", { name: "Budgets enregistrés" }).getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByRole("table", { name: "Budgets enregistrés" }).locator(":scope > tbody")).toHaveCount(1); // a row group per saved budget
 
   await page.goto("/fr/treasury/bank");
   await page.getByRole("button", { name: "Ajouter un relevé" }).click();

@@ -65,19 +65,29 @@ const BAR: Record<StripDay["state"], [string, string]> = {
 
 // UX review A6: the withdrawal period is a thin line under its days, not a red fill (too close to "missing"), so
 // today stays yellow. The vaccine ring and the line are box-shadows (whole class names, for Tailwind to find them);
-// the strip keeps room under it for the line.
+// the strip keeps room under it for the line. WCAG 1.4.11 (3:1 for a graphic that carries meaning) against the ground
+// it sits on: on the ink strips, alert #b3261e is only 2.45:1, so a lighter alert tint #ef5350 (4.60:1 on ink #24211c),
+// red rather than the orange « Manquant » brick #c4541d; on the white cards, alert #b3261e (6.54:1 on #ffffff).
 const SHADOW = {
-  vv: "shadow-[inset_0_0_0_2px_var(--color-chick),0_4px_0_-1px_var(--color-alert)]",
-  v: "shadow-[inset_0_0_0_2px_var(--color-chick)]",
-  w: "shadow-[0_4px_0_-1px_var(--color-alert)]",
+  dark: {
+    vv: "shadow-[inset_0_0_0_2px_var(--color-chick),0_4px_0_-1px_#ef5350]",
+    v: "shadow-[inset_0_0_0_2px_var(--color-chick)]",
+    w: "shadow-[0_4px_0_-1px_#ef5350]",
+  },
+  light: {
+    vv: "shadow-[inset_0_0_0_2px_var(--color-chick),0_4px_0_-1px_var(--color-alert)]",
+    v: "shadow-[inset_0_0_0_2px_var(--color-chick)]",
+    w: "shadow-[0_4px_0_-1px_var(--color-alert)]",
+  },
 };
 
 export function BatchStrip({ days, onDark = false, label }: { days: StripDay[]; onDark?: boolean; label: string }) {
   const line = days.some((d) => d.withdrawal);
+  const shadows = SHADOW[onDark ? "dark" : "light"];
   return (
     <div role="img" aria-label={label} className={`flex items-end gap-0.5 ${onDark ? "h-11" : "h-[30px]"} ${line ? "mb-1" : ""}`}>
       {days.map((d) => {
-        const shadow = d.vaccine && d.withdrawal ? SHADOW.vv : d.vaccine ? SHADOW.v : d.withdrawal ? SHADOW.w : "";
+        const shadow = d.vaccine && d.withdrawal ? shadows.vv : d.vaccine ? shadows.v : d.withdrawal ? shadows.w : "";
         return <div key={d.age} className={`flex-1 rounded-[2px] ${BAR[d.state][onDark ? 0 : 1]} ${shadow}`} />;
       })}
     </div>
@@ -90,7 +100,7 @@ const LEGEND = {
   missing: "size-3.5 rounded-[3px] bg-brick",
   today: "size-3.5 rounded-[3px] bg-chick",
   vaccine: "size-3.5 rounded-[3px] bg-shell/15 shadow-[inset_0_0_0_2px_var(--color-chick)]",
-  withdrawal: "h-1 w-3.5 rounded-full bg-alert",
+  withdrawal: "h-1 w-3.5 rounded-full bg-[#ef5350]", // the dark strips' line (SHADOW.dark): 4.60:1 on ink
   upcoming: "size-3.5 rounded-[3px] bg-shell/15",
 } as const;
 

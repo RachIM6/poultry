@@ -12,7 +12,7 @@ const MESSAGES: MessagePath[] = ["Install", "LocaleSwitcher", "Nav", "Sync.refus
 
 // A public page, framed like the sign-in: the lockup and the locale switcher, then on wide screens the three platforms
 // side by side (install-guide.tsx). CSS only: the guide is the page's one client component, as before.
-const FRAME = "mx-auto w-full max-w-6xl px-6 lg:px-8";
+const FRAME = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8"; // 16 px on a 320 px phone, as the auth pages
 
 export default function Install() {
   const t = useTranslations();

@@ -4,9 +4,11 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { split } from "@/components/layout";
+import { useInline } from "@/components/focus";
+import { empty, formActions, sectionHead, sectionTitle, split } from "@/components/layout";
 import { Scoped } from "@/components/scoped";
-import { card, danger, done, field, primary, secondary } from "@/components/ui";
+import { Sheet } from "@/components/sheet";
+import { card, danger, done, field, ghost, primary, secondarySm } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDay } from "@/lib/format";
 import { farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -100,7 +102,7 @@ function Tasks(scope: Scope) {
   return (
     <>
       {farms.length > 1 && (
-        <select aria-label={t("Staff.farm")} value={farm.id} onChange={(e) => setFarmId(e.target.value)} className={field}>
+        <select aria-label={t("Staff.farm")} value={farm.id} onChange={(e) => setFarmId(e.target.value)} className={`${field} lg:max-w-xs`}>
           {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
       )}
@@ -110,7 +112,7 @@ function Tasks(scope: Scope) {
           {arrived ? (
             <span className="rounded-full bg-olive-soft px-3 py-1.5 text-[13px] font-medium text-olive">{t("Attendance.arrivedAt", { time: arrived })}</span>
           ) : (
-            <button type="button" onClick={checkIn} className={secondary}>{t("Attendance.checkIn")}</button>
+            <button type="button" onClick={checkIn} className={secondarySm}>{t("Attendance.checkIn")}</button>
           )}
         </div>
       )}
@@ -159,8 +161,9 @@ function Tasks(scope: Scope) {
                   return write({ type: W.assignTask, payload: a }, "taskAssignment", a.id, a);
                 };
                 return (
-                  <li key={task.key} className="flex flex-col border-t border-line py-1 first:border-t-0">
-                    <span className="flex min-h-[62px] items-center gap-3">
+                  // From lg the assignee select sits at the row's end, compact (tasks/plan-ui-cleanup.md §4).
+                  <li key={task.key} className="flex flex-col border-t border-line py-1 first:border-t-0 lg:flex-row lg:items-center lg:gap-4">
+                    <span className="flex min-h-[62px] items-center gap-3 lg:min-h-12 lg:flex-1">
                     {tickable(task.key) ? (
                       <>
                         <span className="flex flex-1 items-center gap-3">{body}</span>
@@ -181,7 +184,7 @@ function Tasks(scope: Scope) {
                         aria-label={t("Tasks.assign", { task: label(task) })}
                         value={task.assignees.length === 1 ? task.assignees[0] : ""}
                         onChange={(e) => e.target.value && assign(e.target.value)}
-                        className={`${field} mb-2 min-h-11 text-base`}
+                        className={`${field} mb-2 min-h-11 text-base lg:mb-0 lg:w-40 lg:shrink-0`}
                       >
                         <option value="">{t("Tasks.assignTo")}</option>
                         {staff.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -198,11 +201,15 @@ function Tasks(scope: Scope) {
         {manage && (
           <div className="flex flex-col gap-5">
             <OneOffs
+              farm={farm}
+              houses={houses}
+              employees={employees}
+              today={today}
               tasks={of<OneOffTask>("oneOffTask").filter((o) => o.farmId === farm.id && o.day >= today && !o.cancelled)}
               house={house}
               onCancel={(o) => write({ type: W.cancelTask, payload: { id: o.id } }, "oneOffTask", o.id, { ...o, cancelled: true })}
+              onSave={(o) => write({ type: W.addTask, payload: o }, "oneOffTask", o.id, o)}
             />
-            <OneOffForm farm={farm} houses={houses} employees={employees} today={today} onSave={(o) => write({ type: W.addTask, payload: o }, "oneOffTask", o.id, o)} />
             <Routines farm={farm} routines={routines} houses={houses} employees={employees} today={today} house={house} onSave={(r) => write({ type: W.saveRoutine, payload: r }, "routine", r.id, r)} />
           </div>
         )}
@@ -257,24 +264,45 @@ const placeOf = (data: FormData, farmId: string) => ({
   employeeId: String(data.get("employeeId") || "") || null,
 });
 
-/** WF5: the one-off tasks still to come, each cancelled after a confirmation (it then leaves the day's list). */
-function OneOffs({ tasks, house, onCancel }: { tasks: OneOffTask[]; house: (id: string | null) => string; onCancel: (o: OneOffTask) => Promise<boolean> }) {
+// The planned tasks and the routines: dense rows in one card, each with its short actions (the title in their names).
+const rows = `${card} gap-0 py-1`;
+const rowLine = "flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-line py-2 first:border-t-0";
+
+/**
+ * WF5: the one-off tasks still to come, each cancelled after a confirmation (it then leaves the day's list); a new one
+ * is added in a sheet (tasks/plan-ui-cleanup.md §2.7).
+ */
+function OneOffs({ tasks, house, today, onCancel, onSave, ...place }: Place & { tasks: OneOffTask[]; house: (id: string | null) => string; today: string; onCancel: (o: OneOffTask) => Promise<boolean>; onSave: (o: OneOffTask) => Promise<boolean> }) {
   const t = useTranslations();
-  if (tasks.length === 0) return null;
+  const locale = useLocale();
+  const id = useId();
+  const { open, opener, close } = useInline<"add">();
   return (
-    <section aria-label={t("Tasks.planned")} className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Tasks.planned")}</h2>
-      <ul className="flex flex-col gap-2">
-        {tasks.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? "").localeCompare(b.time ?? "")).map((o) => (
-          <li key={o.id} className={card}>
-            <b className="font-semibold">{o.title} · {house(o.houseId)}</b>
-            <span className="text-sm text-ink-2">{o.day}{o.time ? ` · ${o.time}` : ""}</span>
-            <button type="button" onClick={() => confirm(t("Tasks.cancelConfirm", { title: o.title })) && onCancel(o)} className={`${secondary} self-start`}>
-              {t("Tasks.cancelTask", { title: o.title })}
-            </button>
-          </li>
-        ))}
-      </ul>
+    <section aria-labelledby={id} className="flex flex-col gap-3">
+      <div className={sectionHead}>
+        <h2 id={id} className={sectionTitle}>{t("Tasks.planned")}</h2>
+        <button type="button" aria-haspopup="dialog" {...opener("add")} className={secondarySm}>{t("Tasks.add")}</button>
+      </div>
+      {tasks.length === 0 ? (
+        <p className={empty}>{t("Tasks.noPlanned")}</p>
+      ) : (
+        <ul aria-label={t("Tasks.planned")} className={rows}>
+          {tasks.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? "").localeCompare(b.time ?? "")).map((o) => (
+            <li key={o.id} className={rowLine}>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <b className="font-semibold">{o.title} · {house(o.houseId)}</b>
+                <span className="text-sm text-ink-2">{formatDay(o.day as FarmDay, locale)}{o.time ? ` · ${o.time}` : ""}</span>
+              </span>
+              <button type="button" onClick={() => confirm(t("Tasks.cancelConfirm", { title: o.title })) && onCancel(o)} aria-label={t("Tasks.cancelTask", { title: o.title })} className={ghost}>
+                {t("Tasks.cancelShort")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Sheet open={open === "add"} onClose={close} title={t("Tasks.add")}>
+        <OneOffForm {...place} today={today} onSave={(o) => onSave(o).then((saved) => (saved && close(), saved))} />
+      </Sheet>
     </section>
   );
 }
@@ -289,12 +317,11 @@ function OneOffForm({ today, onSave, ...place }: Place & { today: string; onSave
     if (saved) setKey((k) => k + 1);
   };
   return (
-    <form key={key} onSubmit={submit} className={card} aria-label={t("Tasks.add")}>
-      <h2 className="text-[17px] font-semibold">{t("Tasks.add")}</h2>
+    <form key={key} onSubmit={submit} className="flex flex-col gap-3" aria-label={t("Tasks.add")}>
       <Field label={t("Tasks.task")}>{(id) => <input id={id} name="title" required maxLength={120} className={field} />}</Field>
       <Field label={t("Tasks.day")}>{(id) => <input id={id} name="day" type="date" required min={today} defaultValue={today} className={field} />}</Field>
       <PlaceFields {...place} />
-      <button type="submit" className={primary}>{t("Tasks.addSave")}</button>
+      <div className={formActions}><button type="submit" className={primary}>{t("Tasks.addSave")}</button></div>
     </form>
   );
 }
@@ -302,38 +329,40 @@ function OneOffForm({ today, onSave, ...place }: Place & { today: string; onSave
 function Routines({ routines, today, house, onSave, ...place }: Place & { routines: Routine[]; today: string; house: (id: string | null) => string; onSave: (r: Routine) => Promise<boolean> }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [editing, setEditing] = useState<Routine | "new" | null>(null);
+  const id = useId();
+  const { open, opener, close } = useInline<string>(); // "new", or the id of the routine being edited
   const active = routines.filter((r) => r.farmId === place.farm.id && (r.stopOn === null || r.stopOn > today)).sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
+  const editing = active.find((r) => r.id === open) ?? null;
 
   return (
-    <section aria-label={t("Tasks.routines")} className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Tasks.routines")}</h2>
-      <ul className="flex flex-col gap-2" aria-label={t("Tasks.routines")}>
-        {active.map((r) => (
-          <li key={r.id} className={card}>
-            <b className="font-semibold">{r.time ? `${r.time} · ` : ""}{r.title} · {house(r.houseId)}</b>
-            <span className="text-sm text-ink-2">
-              {t("Tasks.every", { count: r.everyDays })} · {r.fromAge !== null ? t("Tasks.fromAge", { day: String(r.fromAge) }) : t("Tasks.fromDay", { date: r.startOn ? formatDay(r.startOn as FarmDay, locale) : "" })}
-            </span>
-            <span className="flex flex-wrap gap-2">
-              <button type="button" aria-expanded={editing !== null && editing !== "new" && editing.id === r.id} onClick={() => setEditing(r)} className={secondary}>{t("Tasks.edit", { title: r.title })}</button>
-              <button type="button" onClick={() => onSave({ ...r, stopOn: today })} className={secondary}>{t("Tasks.stop", { title: r.title })}</button>
-            </span>
-          </li>
-        ))}
-      </ul>
-      {editing ? (
-        <RoutineForm
-          key={editing === "new" ? "new" : editing.id}
-          routine={editing === "new" ? null : editing}
-          today={today}
-          place={place}
-          onSave={(r) => onSave(r).then((saved) => saved && setEditing(null))}
-          onCancel={() => setEditing(null)}
-        />
+    <section aria-labelledby={id} className="flex flex-col gap-3">
+      <div className={sectionHead}>
+        <h2 id={id} className={sectionTitle}>{t("Tasks.routines")}</h2>
+        <button type="button" aria-haspopup="dialog" {...opener("new")} className={secondarySm}>{t("Tasks.addRoutine")}</button>
+      </div>
+      {active.length === 0 ? (
+        <p className={empty}>{t("Tasks.noRoutines")}</p>
       ) : (
-        <button type="button" aria-expanded={false} onClick={() => setEditing("new")} className={secondary}>{t("Tasks.addRoutine")}</button>
+        <ul className={rows} aria-label={t("Tasks.routines")}>
+          {active.map((r) => (
+            <li key={r.id} className={rowLine}>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <b className="font-semibold">{r.time ? `${r.time} · ` : ""}{r.title} · {house(r.houseId)}</b>
+                <span className="text-sm text-ink-2">
+                  {t("Tasks.every", { count: r.everyDays })} · {r.fromAge !== null ? t("Tasks.fromAge", { day: String(r.fromAge) }) : t("Tasks.fromDay", { date: r.startOn ? formatDay(r.startOn as FarmDay, locale) : "" })}
+                </span>
+              </span>
+              <span className="flex flex-wrap gap-2">
+                <button type="button" aria-haspopup="dialog" aria-label={t("Tasks.edit", { title: r.title })} {...opener(r.id)} className={secondarySm}>{t("Tasks.editShort")}</button>
+                <button type="button" aria-label={t("Tasks.stop", { title: r.title })} onClick={() => onSave({ ...r, stopOn: today })} className={ghost}>{t("Tasks.stopShort")}</button>
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
+      <Sheet open={open !== undefined} onClose={close} title={editing ? t("Tasks.edit", { title: editing.title }) : t("Tasks.addRoutine")}>
+        <RoutineForm key={open} routine={editing} today={today} place={place} onSave={(r) => onSave(r).then((saved) => saved && close())} onCancel={close} />
+      </Sheet>
     </section>
   );
 }
@@ -361,8 +390,7 @@ function RoutineForm({ routine, today, place, onSave, onCancel }: { routine: Rou
   };
   const label = routine ? t("Tasks.edit", { title: routine.title }) : t("Tasks.addRoutine");
   return (
-    <form onSubmit={submit} className={card} aria-label={label}>
-      <h3 className="font-semibold">{label}</h3>
+    <form onSubmit={submit} className="flex flex-col gap-3" aria-label={label}>
       <Field label={t("Tasks.task")}>{(id) => <input id={id} name="title" required maxLength={120} defaultValue={routine?.title} className={field} />}</Field>
       <Field label={t("Tasks.everyDays")}>{(id) => <input id={id} name="everyDays" type="number" min={1} max={365} required defaultValue={routine?.everyDays ?? 1} className={field} />}</Field>
       <fieldset className="flex flex-col gap-1">
@@ -378,9 +406,9 @@ function RoutineForm({ routine, today, place, onSave, onCancel }: { routine: Rou
       <PlaceFields {...place} value={routine ?? undefined} />
       {from === "age" && <p className="text-sm text-ink-2">{t("Tasks.needsHouse")}</p>}
       {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Tasks.saveRoutine")}</button>
-        <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
+        <button type="button" onClick={onCancel} className={ghost}>{t("Receivables.cancel")}</button>
       </div>
     </form>
   );

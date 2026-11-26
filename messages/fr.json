@@ -363,7 +363,8 @@
     "resetConfirm": "Créer un code de réinitialisation pour {phone} ?",
     "resetCode": "Code de réinitialisation",
     "resetCodeHint": "Donnez ce code à la personne : elle choisit un nouveau mot de passe dans « Mot de passe oublié ». Il ne sera plus affiché.",
-    "expires": "Expire le {date}"
+    "expires": "Expire le {date}",
+    "moreOf": "Autres actions : {phone}"
   },
   "Sync": {
     "title": "Synchronisation",
@@ -508,7 +509,10 @@
         "createDocument": "Nouveau document",
         "updateDocument": "Modification d’un document"
       }
-    }
+    },
+    "colWhat": "Écriture",
+    "colWhy": "Motif",
+    "colWhen": "Date"
   },
   "Pwa": {
     "updateAvailable": "Une nouvelle version de l’application est prête.",
@@ -699,7 +703,11 @@
     "save": "Enregistrer",
     "saved": "Enregistré.",
     "needsNetwork": "Disponible avec du réseau.",
-    "pushInboxOnly": "Les notifications s’affichent dans la liste de cette page."
+    "pushInboxOnly": "Les notifications s’affichent dans la liste de cette page.",
+    "tabUnread": "Non lues",
+    "tabAll": "Toutes",
+    "tabSettings": "Réglages",
+    "noUnread": "Aucune notification non lue."
   },
   "Stock": {
     "title": "Stock",
@@ -2284,7 +2292,16 @@
     "leftOn": "parti le {date}",
     "usesApp": "utilise l’application",
     "noApp": "sans compte",
-    "colDetail": "Affectation et salaire"
+    "colDetail": "Affectation et salaire",
+    "tabs": {
+      "team": "Équipe",
+      "presence": "Présence",
+      "advances": "Avances",
+      "records": "Formations et accidents",
+      "pay": "Paie"
+    },
+    "editShort": "Modifier",
+    "none": "Aucun ouvrier pour l’instant : ils s’ajoutent dans l’onglet Équipe."
   },
   "Tasks": {
     "title": "Tâches du jour",
@@ -2333,7 +2350,12 @@
     "doneOf": "{done} faites sur {total}",
     "tick": "Faite : {task}",
     "assign": "Confier « {task} » à",
-    "assignTo": "Confier à…"
+    "assignTo": "Confier à…",
+    "noPlanned": "Aucune tâche ponctuelle prévue.",
+    "noRoutines": "Aucune tâche régulière pour l’instant.",
+    "cancelShort": "Annuler",
+    "editShort": "Modifier",
+    "stopShort": "Arrêter"
   },
   "Attendance": {
     "title": "Présence",
@@ -2368,7 +2390,8 @@
     "amount": "Montant (DH)",
     "day": "Donnée le",
     "deductMonth": "Retenue sur la paie de",
-    "save": "Enregistrer l’avance"
+    "save": "Enregistrer l’avance",
+    "none": "Aucune avance en cours."
   },
   "Pay": {
     "notValidated": "Mois pas encore validé par le propriétaire.",
@@ -2406,12 +2429,9 @@
     }
   },
   "Climate": {
-    "targetsTitle": "Cibles de climat",
-    "targetsOpen": "Cibles de climat",
     "currentTargets": "Cibles en vigueur",
     "inForce": "En vigueur depuis le {date}. Source : {source}.",
     "bands": "Tranches d’âge",
-    "bandLine": "J{from} à J{to} : {tmin} à {tmax} °C · humidité {hmin} à {hmax} % · ammoniac max {nh3} ppm",
     "noTargets": "Aucune cible saisie : les relevés sont enregistrés sans verdict ni alerte. Le propriétaire saisit les cibles de sa source (guide de la souche, vétérinaire).",
     "enterTargets": "Saisir les cibles",
     "targetsHint": "Saisissez les cibles de votre source, par tranche d’âge de la bande ; laissez vide ce qu’elle ne donne pas. Températures en °C (une décimale).",
@@ -2476,7 +2496,12 @@
     "cutMinutes": "{minutes} min",
     "generatorLine": "groupe en {seconds} s · {litres} L de gasoil",
     "allTypes": "Toutes les productions sans cibles propres",
-    "productionType": "Production"
+    "productionType": "Production",
+    "tabReadings": "Relevés",
+    "tabTargets": "Cibles",
+    "colAge": "Âge",
+    "colAmmonia": "Ammoniac max (ppm)",
+    "olderCuts": "Coupures précédentes ({count})"
   },
   "Records": {
     "title": "Formations et accidents",
@@ -2500,7 +2525,8 @@
     "day": "Date",
     "what": "Ce qui s’est passé",
     "daysOff": "Jours d’arrêt (si connus)",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "none": "Aucune formation ni aucun accident enregistré."
   },
   "Organizations": {
     "title": "Mes exploitations",
@@ -2510,7 +2536,9 @@
     "invitations": "Invitations reçues",
     "invitedAs": "{name} vous invite comme {role}.",
     "accept": "Accepter l’invitation de {name}",
-    "link": "Mes exploitations"
+    "link": "Mes exploitations",
+    "openShort": "Ouvrir",
+    "acceptShort": "Accepter"
   },
   "Prices": {
     "title": "Prix du marché",

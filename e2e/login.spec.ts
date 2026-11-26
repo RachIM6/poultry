@@ -90,9 +90,10 @@ test("the owner's reset code lets a worker set a new password, and signs out the
   await ownerWithFarm(page, "Élevage du Mot de Passe");
   const phone = randomMobile();
   await page.goto("/fr/settings/members");
+  await page.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
   await page.getByLabel("Numéro de téléphone").fill(phone);
   await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
-  await page.getByRole("button", { name: "Inviter" }).click();
+  await page.getByRole("button", { name: "Inviter", exact: true }).click();
   const code = await inviteCode(page);
 
   const workerContext = await browser.newContext({ ...test.info().project.use });
@@ -103,7 +104,9 @@ test("the owner's reset code lets a worker set a new password, and signs out the
   await page.reload();
   page.once("dialog", (d) => void d.accept());
   // The members screen writes the number as people do ("06 12 34 56 78"), in its labels too
-  await page.getByRole("button", { name: `Réinitialiser le mot de passe de ${phone.replace(/(\d{2})(?=\d)/g, "$1 ")}` }).click();
+  const written = phone.replace(/(\d{2})(?=\d)/g, "$1 ");
+  await page.getByLabel(`Autres actions : ${written}`).click(); // the rarer actions sit in the row's « ⋯ »
+  await page.getByRole("button", { name: `Réinitialiser le mot de passe de ${written}` }).click();
   const shown = page.locator("output").filter({ hasText: /^[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$/ });
   await expect(shown).toBeVisible();
   const resetCode = (await shown.textContent())!;

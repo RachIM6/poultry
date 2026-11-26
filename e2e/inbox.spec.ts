@@ -10,14 +10,19 @@ test("a test notification reaches the inbox and can be marked read", async ({ pa
   await page.goto("/fr/inbox");
   await expect(page.getByText("Aucune notification.")).toBeVisible();
 
+  const tabs = page.getByRole("navigation", { name: "Notifications" });
+  await tabs.getByRole("link", { name: "Réglages" }).click(); // the push settings and the test are a tab of their own
+  await expect(page).toHaveURL(/\/fr\/inbox\?tab=settings$/);
   await page.getByRole("button", { name: "M’envoyer une notification de test" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Envoyée" })).toBeVisible();
+  await tabs.getByRole("link", { name: /^Non lues/ }).click();
   const item = page.getByRole("button", { name: /Notification de test/ });
   await expect(item).toBeVisible(); // pulled into the phone's inbox
   await expect(item).toContainText("Non lue");
 
   await item.click();
-  await expect(item).not.toContainText("Non lue");
+  await expect(item).not.toContainText("Non lue"); // read, it stays in « Non lues » until the tab is left
+  await expect(tabs.getByRole("link", { name: /^Non lues/ })).toContainText("0");
   await outboxEmpty(page);
   const readAt = async () =>
     (

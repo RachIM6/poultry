@@ -570,7 +570,7 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   item. `Budget.title` and `Overrides.open`, read by nothing any more, are removed. New Arabic keys (`Results.section`,
   `Results.tab*`, `Accounting.tab*`, `Chart.groups`, `Overrides.replace/replaceOf`) to check with a native speaker.
 
-### Batch 6: operations, compliance, members
+### Batch 6: operations, compliance, members — done
 - Goal: §4 rows `/climate`, `/climate/targets`, `/tasks`, `/staff`, `/inbox`, `/sync`, `/visitors`, `/disposal`,
   `/cleanout`, `/documents`, `/inspection`, `/settings/members`, `/organizations`.
 - Owns: `climate.tsx`, `climate-targets.tsx`, `climate/**`, `tasks.tsx`, `staff.tsx`, `inbox.tsx`, `inbox/page.tsx`,
@@ -612,6 +612,51 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   the day's visits, as before); `Documents.colState` (the state now sits under the expiry day) is removed. New Arabic
   keys (`Visitors.earlier/colWhen`, `Disposal.noManure/noRodents`, `Documents.editShort/colFile`,
   `Inspection.contents/registerOf`) to check with a native speaker.
+- [x] Part 2 (operations and members, own PR, stacked on part 1): `/climate` and `/climate/targets` route tabs **Relevés**
+  · **Cibles** (`climate/climate-tabs.tsx`, server-safe), one h1 « Climat des bâtiments » as « Trésorerie »; the
+  « Cibles de climat » link and the targets' back link are gone (the phone keeps `back="/more"`). `/climate`: the house
+  select (`lg:max-w-xs`) and « Coupure de courant » (`secondarySm`, brick) on one row above the entry; a cut still starts
+  in one tap, an open cut is one line whose « Courant revenu » opens the end form in a sheet; the readings are paged
+  (`?page=`, 25) instead of cut at 10, the last 5 power cuts in view and the older ones folded (no new query key, so
+  nothing to add to `src/sw.ts`). `/climate/targets`: width `wide`, each set a `dataTable` (Âge, Température, Humidité,
+  Ammoniac max), « Saisir les cibles » a `primarySm` beside « Cibles en vigueur », its form in a sheet.
+- [x] `/tasks`: farm select `lg:max-w-xs`; the day's rows keep the assignee select at their end from lg (compact);
+  « Tâches ponctuelles prévues » and « Tâches régulières » are sections with their openers (`secondarySm`) beside the
+  title, dense rows in one card; « Ajouter une tâche », « Ajouter une tâche régulière » and « Modifier » open sheets;
+  the visible labels are « Modifier », « Arrêter », « Annuler », the task's title in their accessible names.
+- [x] `/staff`: query tabs **Équipe** · **Présence** · **Avances** · **Formations et accidents** · **Paie** (`?tab=`); the
+  accountant sees Équipe, Avances and Paie. One form at most is open: the presence entry (inline, it is that tab's
+  job); « Ajouter un ouvrier », « Modifier » (named « Modifier <ouvrier> »), « Enregistrer une avance », « Enregistrer une
+  formation ou un accident » and « Saisir les taux » open sheets. The records are paged (`?page=`) instead of cut at 10;
+  the pay is a `dataTable` with `num` columns; each empty tab says so (`empty`).
+- [x] `/inbox`: query tabs **Non lues** (with its count, the default) · **Toutes** · **Réglages** (push, the test, quiet
+  hours, as cards); one dense row per notification in one card, paged by 25; a notification read on this visit stays in
+  « Non lues » until the page is left. The bell panel stays batch 7's.
+- [x] `/sync`: « Synchroniser maintenant » is a `secondarySm` inside the status card; the refused writes read as a table
+  from lg (Écriture, Motif, Date, actions), cards on the phone; `secondarySm` « Saisir à nouveau » and « J'ai compris ».
+  Width `wide`, the status card `lg:max-w-xl`. `SyncBadge` untouched (batch 7).
+- [x] `/settings/members`: the role select keeps its width (`min-w-40`, the audit's P1: it collapsed to 34 px) and shows
+  its value; its « Enregistrer » appears once another role is chosen; « Retirer » and « Réinitialiser le mot de passe »
+  sit in a « ⋯ » `<details>` menu (named « Autres actions : <numéro> », as `/receivables`), which folds once an action
+  is confirmed; « Inviter un membre » is a header `primarySm` opening the invite form in a sheet (it stays open to show
+  the code once). The members' table is full width, the pending invitations one card of rows.
+- [x] `/organizations`: « Ouvrir » and « Accepter » short, the farm's name in their accessible names; `sectionTitle`
+  headings. `join-code-form.tsx` unchanged.
+- Part 2 heights (demo seed, full page, before → after): 1 440, individual farm: `/tasks` 1 343 → 900, `/staff`
+  2 169 → 900 (Équipe; every tab 900), `/inbox` 934 → 900, `/climate`, `/climate/targets`, `/sync`,
+  `/settings/members`, `/organizations` 900 → 900; SARL: 900 → 900 everywhere. 390, individual farm: `/climate`
+  1 714 → 1 692, `/tasks` 2 567 → 1 944, `/staff` 3 959 → 968 (Présence 1 122, Paie 885), `/inbox` 1 585 → 1 128,
+  `/settings/members` 1 543 → 1 093, `/organizations` 1 125 → 1 134, `/climate/targets` and `/sync` 844 → 844; SARL:
+  `/tasks` 1 203 → 892, `/settings/members` 1 125 → 844.
+- Part 2 deviations: the power cut still starts in one tap (no sheet before an emergency); only its end opens a sheet.
+  The older power cuts fold under a `<details>` rather than a second pager (a new query key would need `src/sw.ts`, batch
+  0's). `/staff`'s, `/tasks`' and `/climate/targets`' openers sit beside their section's title, not in the page header
+  (each belongs to one tab or section). Routine rows have « Modifier » (`secondarySm`) and « Arrêter » (`ghost`), not a
+  « ⋯ » menu, as batches 1 and 3. Every invite in the e2e suite now opens the sheet first (11 specs, mechanical). The
+  removed keys `Climate.targetsTitle/targetsOpen/bandLine` are read by nothing any more. New Arabic keys
+  (`Climate.tabReadings/tabTargets/colAge/colAmmonia/olderCuts`, `Tasks.noPlanned/noRoutines/cancelShort/editShort/stopShort`,
+  `Staff.tabs/editShort/none`, `Advances.none`, `Records.none`, `Inbox.tabUnread/tabAll/tabSettings/noUnread`,
+  `Sync.colWhat/colWhy/colWhen`, `Members.moreOf`, `Organizations.openShort/acceptShort`) to check with a native speaker.
 
 ### Batch 7: navigation and grouping (last, alone) — done
 - Goal: §3. Sidebar and `/more` regrouped; the header's sync chip and bell panel; merged entries active on all their

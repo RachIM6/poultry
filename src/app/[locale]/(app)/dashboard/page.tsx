@@ -21,7 +21,7 @@ import { ChoicesBanner } from "./choices-banner";
 const MESSAGES: MessagePath[] = [
   "Accounting.choicesFirst", "Accounting.later", "Accounting.open", "Accounting.title", "App.name", "Batches.age",
   "Batches.ageWeeks", "Batches.ageWeeksDays", "Batches.place", "Batches.sexes", "Farms.none", "Farms.title",
-  "Protocol.methods", "Sync.pending", "Sync.refused", "Sync.upToDate", "Today", "Treatment.withdrawal", "Types",
+  "Protocol.methods", "Strip", "Sync.pending", "Sync.refused", "Sync.upToDate", "Today", "Treatment.withdrawal", "Types",
   "Vaccination.status", "Weighing.uniformity", "Weighing.versusStandard",
 ];
 

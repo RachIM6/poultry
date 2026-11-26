@@ -9,7 +9,7 @@ import { curveFor, standardAt } from "@/modules/reference-data/shared";
 
 type StrainCurves = ReferenceData["strains"][number]["curves"];
 import { card, warn } from "@/components/ui";
-import { BatchStrip, type StripDay } from "@/components/batch-strip";
+import { BatchStrip, StripLegend, type StripDay } from "@/components/batch-strip";
 import { useBatchResults } from "@/components/batch-results";
 
 // SPEC B4 on the phone: the batch's KPIs from its local records, so they work offline and change as soon as a day or
@@ -177,6 +177,7 @@ export function OpenBatchCard({ strip, ageLabel, birds, next }: { strip: { age: 
         <span className="text-sm text-sand">{birds}</span>
       </div>
       <BatchStrip days={strip.days} onDark label={strip.label} />
+      <StripLegend days={strip.days} />
       {next && <span className="text-sm text-sand">{t("Batches.nextVaccine", { vaccine: next })}</span>}
     </section>
   );

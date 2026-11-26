@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, type ReactNode } from "react";
 import { ageText } from "@/components/batch-age";
-import { BatchStrip, stripDays } from "@/components/batch-strip";
+import { BatchStrip, StripLegend, stripDays } from "@/components/batch-strip";
 import { card } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatDecimal, formatKg, formatPercent } from "@/lib/format";
@@ -175,6 +175,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
             </span>
           </Link>
         ))}
+        {farming && batches.length > 0 && <StripLegend days={batches.flatMap((x) => x.days)} />}
       </header>
 
       <main className="mx-auto grid w-full max-w-xl flex-1 content-start gap-6 p-5 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:px-0 lg:pb-0">

@@ -145,8 +145,8 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm text-sand">{new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span>
-            <h1 className="text-[22px] font-semibold">{title ?? farm?.name ?? t("App.name")}</h1>
-            {title && farm && farm.name !== title && <span className="text-sm text-sand">{farm.name}</span>}
+            <h1 className="text-[22px] font-semibold"><bdi>{title ?? farm?.name ?? t("App.name")}</bdi></h1>
+            {title && farm && farm.name !== title && <span className="text-sm text-sand"><bdi>{farm.name}</bdi></span>}
           </div>
           {sync}
         </div>
@@ -193,7 +193,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
           <section key={b.id} aria-label={house} className="flex flex-col gap-3.5">
             {until && (
               <p role="status" className="rounded-2xl bg-alert-soft p-4 text-alert-fg">
-                <b className="font-semibold">{house} : </b>
+                <b className="font-semibold"><bdi>{house}</bdi> : </b>
                 {t("Treatment.withdrawal", { date: day(until) })}
               </p>
             )}
@@ -219,7 +219,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
                     <span className="flex flex-1 flex-col gap-0.5">
                       <span className="text-[17px] font-semibold">{product ? (locale === "ar" ? product.nameAr : product.nameFr) : v.productId}</span>
                       <span className="text-[15px] text-ink-2">
-                        {t(`Vaccination.status.${status}`, { date: day(v.dueOn) })} · {house} · {t(`Protocol.methods.${v.method}`)}
+                        {t(`Vaccination.status.${status}`, { date: day(v.dueOn) })} · <bdi>{house}</bdi> · {t(`Protocol.methods.${v.method}`)}
                       </span>
                     </span>
                   </Link>

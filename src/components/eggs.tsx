@@ -6,6 +6,7 @@ import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
 import { useInline } from "@/components/focus";
 import { card, danger, field, secondary } from "@/components/ui";
+import { sectionTitle } from "@/components/layout";
 import { formatCount, formatPercent } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { EGG_CATEGORIES, EGG_MUTATIONS as M, EMPTY_COUNTS, checkCollection, downgradedIn, eggsIn, type EggCategory, type EggCollectionDto, type EggCounts } from "@/modules/eggs/shared";
@@ -51,7 +52,7 @@ export function EggCollections({ batch, collections, write }: { batch: BatchDto;
   const number = editing ? ofDay.findIndex((c) => c.id === editing.id) + 1 : ofDay.length + 1;
   return (
     <section className="flex flex-col gap-3" aria-labelledby="eggs-title">
-      <h3 id="eggs-title" className="text-lg font-semibold">{t("Eggs.title")}</h3>
+      <h2 id="eggs-title" className={sectionTitle}>{t("Eggs.title")}</h2>
       <div className="flex flex-col gap-1">
         <label htmlFor={ids.day}>{t("Eggs.day")}</label>
         <input id={ids.day} type="date" value={day} max={today()} onChange={(e) => (setDay(e.target.value), reset())} className={field} />

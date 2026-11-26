@@ -24,7 +24,7 @@ test("an offline home consumption is refused during a withdrawal, then recorded 
     },
   ]);
 
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=ventes#${ids.batch}`);
   await controlled(page);
   await referenceCached(page);
   await expect(page.getByText("Oiseaux présents : 900")).toBeVisible();
@@ -101,7 +101,7 @@ test("a worker records a consumption without seeing a price, an amount or the bu
   await expect(worker).toHaveURL(/\/fr\/dashboard$/);
   await scopeRemembered(worker);
 
-  await worker.goto(`/fr/batches#${ids.batch}`);
+  await worker.goto(`/fr/batches?tab=ventes#${ids.batch}`);
   await expect(worker.getByText("Oiseaux présents : 900")).toBeVisible();
   await expect(worker.getByText("Aucune vente.")).toBeVisible(); // the sale to Abattoir Atlas isn't the worker's
   await expect(worker.getByRole("button", { name: "Nouvelle vente" })).toHaveCount(0);

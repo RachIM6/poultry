@@ -347,7 +347,7 @@ each in its own worktree and E2E port. Batch 7 last, alone.
 - `src/sw.ts`: `precacheOptions.ignoreURLParametersMatching` = Serwist's `utm_`/`fbclid` defaults + `tab` + `page`. A
   new query key a client shell reads offline must be added there.
 
-### Batch 1: the batch page and the batches list
+### Batch 1: the batch page and the batches list — done
 - Goal: §4 rows `/batches` and `/batches#<id>`.
 - Owns: `batches.tsx`, `batch-dashboard.tsx`, `daily-entry.tsx`, `weighing.tsx`, `vaccinations.tsx`, `treatments.tsx`,
   `sales.tsx`, `closing.tsx`, `correct-placement.tsx`, `notifiable-diseases.tsx`, `register-links.tsx`, `eggs.tsx`,
@@ -363,6 +363,32 @@ each in its own worktree and E2E port. Batch 7 last, alone.
 - Risks: the highest. Tests that `getByRole("button", { name: "Ajouter un vaccin" })` then fill fields still work if the
   sheet keeps the same labels; tests that scroll to a section heading now need the tab click. The hash `#<id>` and
   `?tab=` must coexist (`useSyncExternalStore` on both). Budget margin.
+- [x] Open batch: the dark strip card, the turkey sexes, the hatchery claim and the withdrawal banner stay above the
+  tabs, then one tab: **Saisie du jour** (daily entry, egg collections, weighings; the default) · **Santé**
+  (vaccinations, treatments, vet visits, notifiable diseases) · **Ventes** (sales, other costs and the « Dépense
+  rapide » link) · **Indicateurs** (density, chart, KPI tiles) · **Gestion** (« Passage en ponte », « Corriger la mise
+  en place », « Clôturer la bande »). Closed batch: **Bilan** · **Ventes**. A tab shows only when the role has
+  something in it (a vet: Santé first, the weighings read with the figures; no Gestion without `flock.manage`).
+- [x] Tabs are `<Tabs>` links (`?tab=<key>#<id>`), followed in place with `pushState` (no RSC round trip, offline
+  too); the screen reads `?tab=` and `#<id>` from one `useSyncExternalStore` (hashchange, popstate and its own
+  event). A batch opened from the list starts on its first tab; a reload or a deep link keeps the tab.
+- [x] Sheets: « Ajouter un vaccin », « Ajouter un traitement », « Ajouter une visite », « Nouvelle vente / consommation
+  », « Corriger la mise en place », « Passage en ponte », « Clôturer la bande », « Rouvrir la bande ». The section's
+  opener sits beside its `h2` (`sectionHead`); forms end in `formActions` with « Annuler » as `ghost`. Batch-page
+  sections are `h2` `sectionTitle` (were grey `h3`). Keyboard check on a real page: `e2e/treatment.spec.ts`.
+- [x] List: « En cours (n) / Clôturées (n) » tabs (only once a batch is closed); closed batches one line each with
+  « Voir le bilan »; « Saisir le jour » `primarySm`; « Mettre en place une bande » `secondarySm`.
+- [x] Every section, form, rule and permission kept: daily entry, eggs, weighings, vaccinations (plan, done, move,
+  remove, apply protocol), treatments, vet visits, notifiable diseases, sales (sale, consumption, price correction,
+  cancel, origin documents), other costs, transfer, correction, close, reopen, KPIs, layer KPIs, density, claim,
+  withdrawal, turkey sexes, registers and report.
+- [x] Budget: `/fr/batches` 194.2 → 194.1 KB (of 200); `/fr/login` 147.6 KB.
+- [x] `e2e/screens.ts` opens every tab of the realistic batches (and the closed list), so `a11y` and `no-overflow`
+  check each panel.
+- Deviations: « Marquer comme fait / Changer le jour / Retirer du plan » are `secondarySm` + two `ghost` buttons, not a
+  « ⋯ » menu (a `<details>` menu would lose the focus return of the inline forms); the registers and the report stay as
+  links in the header (`RegisterLinks`) rather than in a menu; a closed batch has no Santé tab (its health records were
+  never shown on the closed screen; adding them is new scope).
 
 ### Batch 2: money, day to day — done
 - Goal: §4 rows `/treasury`, `/treasury/bank`, `/receivables`, `/expenses`, `/prices`; the « Payer » pattern §2.9.

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T15 acceptance: a batch placed offline counts its age from the placement day; a second open batch in the same house
 // is refused with a clear message (the two-phones case is tested on the server: src/modules/flock/batches.int.test.ts).
@@ -84,6 +84,7 @@ test("the placement correction is refused offline after a vet visit or a treatme
   const refused = async (placedOn: string) => {
     await controlled(page);
     await referenceCached(page);
+    await batchTab(page, "Gestion");
     const open = page.getByRole("button", { name: /^Corriger la mise en place/ });
     await expect(open).toBeVisible(); // its own chunk, loaded online
     await context.setOffline(true);
@@ -97,7 +98,7 @@ test("the placement correction is refused offline after a vet visit or a treatme
     await context.unroute("**");
     await context.setOffline(false);
   };
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=sante#${ids.batch}`);
   await expect(async () => {
     await page.reload();
     await expect(page.getByRole("list", { name: "Visites vétérinaires" }).getByRole("listitem")).toHaveCount(1, { timeout: 2_000 }); // pulled
@@ -110,6 +111,7 @@ test("the placement correction is refused offline after a vet visit or a treatme
     { type: "health.recordTreatment", payload: { id: uuidv7(), batchId: ids.batch, stockItemId: medicine, quantity: 100, dose: "1 ml/L", startOn: farmDaysAgo(6), endOn: farmDaysAgo(5), reason: "Toux", prescriber: "Dr Alaoui", withdrawalDays: 0 } },
   ]);
   await expect(async () => {
+    await page.goto(`/fr/batches?tab=sante#${ids.batch}`);
     await page.reload();
     await expect(page.getByRole("list", { name: "Traitements" }).getByRole("listitem")).toHaveCount(1, { timeout: 2_000 }); // pulled
   }).toPass();

@@ -39,7 +39,7 @@ test("a sale's origin document prints offline on one A4 page, in French and in A
     },
   ]);
 
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=ventes#${ids.batch}`);
   await controlled(page);
   await referenceCached(page);
   await expect(page.getByRole("link", { name: "Document d’origine (Français)" })).toBeVisible(); // pulled

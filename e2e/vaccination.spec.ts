@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T19 acceptance (browser part): a batch placed offline gets its vaccination plan from the farm's protocol, and a
 // vaccine marked done offline takes its doses out of the lot. The dates and the reminders are checked on the server:
@@ -38,6 +38,7 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
   await page.getByLabel("Prix d’un poussin (DH)").fill("4,50");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await page.getByRole("link", { name: "Saisir le jour" }).click();
+  await batchTab(page, "Santé"); // offline: the tab opens in place
 
   const plan = page.getByRole("list", { name: "Vaccinations" }).getByRole("listitem");
   await expect(plan).toHaveCount(2);
@@ -57,8 +58,9 @@ test("placing a batch offline plans its vaccinations, and marking one done deduc
   await page.getByRole("button", { name: "Enregistrer la vaccination" }).click();
   await expect(plan.nth(0)).toContainText("lot NDV-26 · 990 doses");
 
-  const reload = await page.reload(); // still offline: the shell and the data come from the phone
+  const reload = await page.reload(); // still offline: the shell and the data come from the phone, on the same tab
   expect(reload?.fromServiceWorker()).toBe(true);
+  expect(new URL(page.url()).searchParams.get("tab")).toBe("sante");
   await expect(page.getByRole("list", { name: "Vaccinations" }).getByRole("listitem").nth(0)).toContainText("lot NDV-26 · 990 doses");
 
   await context.unroute("**");

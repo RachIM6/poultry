@@ -21,7 +21,7 @@ const ERRORS = `
 const MESSAGES: MessagePath[] = [
   "Batches", "Closing", "Correct", "Day", "EggStock", "Eggs", "Farms.saveFailed", "Farms.saved", "Farms.title", "Kpi",
   "Layers", "LocaleSwitcher", "Nav", "Notifiable", "Protocol", "Register.link", "Report.link", "Sale", "Stock.invalid", "Stock.units", "Strip",
-  "Sync.login", "Sync.signedOut", "Today", "Transfer", "Treatment", "Types", "Vaccination", "VetVisit", "Weighing",
+  "Sync.login", "Sync.signedOut", "Today", "Transfer", "Treatment", "Types", "Ui", "Vaccination", "VetVisit", "Weighing",
   ...ERRORS,
 ];
 

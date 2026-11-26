@@ -37,7 +37,7 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
     },
   ]);
 
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=ventes#${ids.batch}`);
   await controlled(page);
   await referenceCached(page);
   await expect(page.getByRole("link", { name: "Registre de suivi sanitaire (Français)" })).toBeVisible();

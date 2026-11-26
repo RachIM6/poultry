@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T59 acceptance (SPEC-m3 E1): collections recorded offline on a layer batch, one corrected, kept across a reload,
 // synced; the Arabic screen shows them too.
@@ -139,6 +139,7 @@ test("layer KPIs: hens, laying rate, eggs per hen housed, downgraded, weekly tab
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.getByRole("link", { name: "Saisir le jour" }).click();
+  await batchTab(page, "Indicateurs");
 
   const tile = (label: string) => page.locator("dl > div").filter({ hasText: label });
   await expect(tile("Poules présentes")).toContainText("99");
@@ -149,7 +150,7 @@ test("layer KPIs: hens, laying rate, eggs per hen housed, downgraded, weekly tab
   await expect(tile("Œufs déclassés")).toContainText("2,2 %");
   await expect(page.getByRole("table", { name: "Dernières semaines" })).toContainText("20");
 
-  await page.goto(`/ar/batches#${ids.batch}`);
+  await page.goto(`/ar/batches?tab=indicateurs#${ids.batch}`);
   await expect(page.locator("dl > div").filter({ hasText: "نسبة الوضع" })).toContainText("92,9 %");
 });
 
@@ -177,6 +178,7 @@ test("a layer batch's treatment withholds its eggs until the egg withdrawal ends
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.getByRole("link", { name: "Saisir le jour" }).click();
+  await batchTab(page, "Santé");
 
   await page.getByRole("button", { name: "Ajouter un traitement" }).click();
   await page.getByLabel("Quantité utilisée (ml)").fill("250");

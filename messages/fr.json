@@ -1276,7 +1276,8 @@
     "limitBuyer": "Acheteur",
     "limitCol": "Plafond",
     "limitCell": "<l>Plafond : </l>{amount}",
-    "edit": "Modifier"
+    "edit": "Modifier",
+    "moreOf": "Autres actions : {instrument}"
   },
   "Origin": {
     "title": "Document d’origine des volailles",
@@ -1424,16 +1425,10 @@
     "receipt": "Reçu",
     "receiptView": "Voir",
     "receiptMissing": "Manquant",
-    "placements": "Poussins et poulettes à payer",
-    "placementsHint": "Ce qui reste dû pour chaque mise en place, avec le couvoir saisi à la mise en place.",
-    "placedOn": "Mise en place du {day}",
-    "owed": "Reste dû : {amount}",
     "pay": "Payer",
     "payOf": "Payer : {name}",
     "receiptViewOf": "Voir le reçu : {line}",
     "paid": "Paiement enregistré.",
-    "creditExpenses": "Dépenses à crédit à payer",
-    "creditExpensesHint": "Les dépenses rapides enregistrées « à payer plus tard », avec ce qui reste dû pour chacune.",
     "associate": "Apport ou retrait de l’associé",
     "exploitant": "Apport ou retrait de l’exploitant",
     "associateHint": "L’argent qu’un associé apporte à la ferme ou en retire, au compte {account}.",
@@ -1459,7 +1454,23 @@
     },
     "journalLegend": "Journaux : {journals}",
     "exploitantHintPlain": "L’argent que vous apportez à la ferme ou en retirez pour vous (capital personnel).",
-    "associateHintPlain": "L’argent qu’un associé apporte à la ferme ou en retire."
+    "associateHintPlain": "L’argent qu’un associé apporte à la ferme ou en retire.",
+    "tabOverview": "Vue d’ensemble",
+    "tabBank": "Rapprochement",
+    "toPay": "À payer",
+    "toPayHint": "Poussins et poulettes au jour de leur mise en place, dépenses à crédit à leur date, les plus anciens d’abord.",
+    "colDue": "Échéance",
+    "colType": "Type",
+    "colWhat": "Fournisseur · objet",
+    "colOwed": "Reste dû",
+    "types": {
+      "placement": "Mise en place",
+      "expense": "Dépense à crédit"
+    },
+    "associateOpen": "Apport ou retrait",
+    "month": "Mois",
+    "previousMonth": "Mois précédent",
+    "nextMonth": "Mois suivant"
   },
   "Bank": {
     "forbidden": "Le rapprochement bancaire est réservé au propriétaire, au gérant et au comptable.",
@@ -1529,7 +1540,11 @@
     "importedToTick": "Dans les livres",
     "importedMissing": "Absente des livres",
     "bookFees": "Enregistrer en frais bancaires",
-    "bookManual": "Passer une écriture manuelle"
+    "bookManual": "Passer une écriture manuelle",
+    "filter": "Opérations à afficher",
+    "toTick": "À pointer",
+    "all": "Toutes",
+    "allTicked": "Tout est pointé : rien à pointer ici."
   },
   "Results": {
     "forbidden": "Les résultats des bandes sont réservés au propriétaire, au gérant et au comptable.",
@@ -2455,7 +2470,9 @@
       "egg": "{amount} / œuf"
     },
     "up": "+{amount} depuis le précédent",
-    "down": "−{amount} depuis le précédent"
+    "down": "−{amount} depuis le précédent",
+    "filter": "Produits",
+    "all": "Tous"
   },
   "Planning": {
     "title": "Planning des bandes",

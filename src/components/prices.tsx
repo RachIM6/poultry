@@ -1,10 +1,14 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { rowHead, splitAside } from "@/components/layout";
+import { rowHead, sectionTitle, splitAside } from "@/components/layout";
+import { Pager } from "@/components/pager";
+import { pageOf, pickTab, TABLE_PAGE } from "@/components/paging";
+import { Tabs } from "@/components/tabs";
 import { Scoped } from "@/components/scoped";
 import { card, done, field, primary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -33,11 +37,17 @@ function Prices(scope: Scope) {
   const [message, setMessage] = useState<string>();
   const [key, setKey] = useState(0); // a new key empties the form after a save
   const ids = { product: useId(), price: useId(), day: useId(), seenOn: useId() };
+  const search = useSearchParams();
   if (!can(scope, "money.read")) return <p>{t("Prices.forbidden")}</p>;
   if (!prices) return null;
   const all = prices.map((r) => r.data as PriceDto);
   const perUnit = (p: { product: Product; priceCentimes: string }) => t(`Prices.per.${UNIT[p.product]}`, { amount: formatMoney(BigInt(p.priceCentimes)) });
   const today = farmDayOf(new Date());
+  // The history by product (?tab=, the products noted, « Tous » first), newest first, paged (?page=): §2.5
+  const noted = PRODUCTS.filter((p) => all.some((x) => x.product === p));
+  const tab = pickTab(["all", ...noted], search.get("tab"));
+  const rows = all.filter((p) => tab === "all" || p.product === tab).sort((a, b) => b.day.localeCompare(a.day) || b.id.localeCompare(a.id));
+  const page = pageOf(search.get("page") ?? undefined, rows.length, TABLE_PAGE);
 
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
@@ -59,7 +69,7 @@ function Prices(scope: Scope) {
       {message && <p role="status" className={done}>{t(message)}</p>}
       <div className={columns}>
         <section aria-label={t("Prices.latest")} className="flex flex-col gap-2 lg:col-start-1">
-          <h2 className="text-[17px] font-semibold text-ink-2">{t("Prices.latest")}</h2>
+          <h2 className={sectionTitle}>{t("Prices.latest")}</h2>
           {all.length === 0 ? (
             <p className="text-ink-2">{t("Prices.none")}</p>
           ) : (
@@ -98,7 +108,19 @@ function Prices(scope: Scope) {
         )}
         {all.length > 0 && (
           <section aria-label={t("Prices.history")} className="flex flex-col gap-2 lg:col-start-1">
-            <h2 className="text-[17px] font-semibold text-ink-2">{t("Prices.history")}</h2>
+            <h2 className={sectionTitle}>{t("Prices.history")}</h2>
+            {noted.length > 1 && (
+              <Tabs
+                label={t("Prices.filter")}
+                current={tab}
+                tabs={["all" as const, ...noted].map((key) => ({
+                  key,
+                  label: key === "all" ? t("Prices.all") : t(`Prices.products.${key}`),
+                  count: key === "all" ? all.length : all.filter((x) => x.product === key).length,
+                  href: { pathname: "/prices", query: { tab: key } },
+                }))}
+              />
+            )}
             <ul aria-label={t("Prices.history")} className={history}>
               <li aria-hidden="true" className={rowHead}>
                 <span>{t("Prices.day")}</span>
@@ -106,7 +128,7 @@ function Prices(scope: Scope) {
                 <span>{t("Prices.where")}</span>
                 <span className="text-end">{t("Prices.price")}</span>
               </li>
-              {[...all].sort((a, b) => b.day.localeCompare(a.day) || b.id.localeCompare(a.id)).map((p) => (
+              {rows.slice((page - 1) * TABLE_PAGE, page * TABLE_PAGE).map((p) => (
                 <li key={p.id} className={line}>
                   {/* the phone: one line, "day · product · where"; from lg each part in its column */}
                   <span className="lg:contents">
@@ -120,6 +142,7 @@ function Prices(scope: Scope) {
                 </li>
               ))}
             </ul>
+            <Pager page={page} size={TABLE_PAGE} total={rows.length} href={(n) => ({ pathname: "/prices", query: { tab, page: n } })} />
           </section>
         )}
       </div>

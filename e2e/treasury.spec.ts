@@ -48,3 +48,46 @@ test("cash and bank paid with no account named go on the default cash box and ba
   await expect(balances.filter({ hasText: "Banque A" })).toContainText(/−4.500,00\sDH/);
   await expect(page.getByText("Non affecté à un compte")).toHaveCount(0);
 });
+
+// tasks/plan-ui-cleanup.md §2.7, §2.9: a credit expense is one row of « À payer »; its « Payer » opens the pay form in a
+// sheet (first field focused, Escape closes it, the focus back on « Payer »), the amount prefilled with what is owed.
+// Saved, the sheet closes and the page says so. « Apport ou retrait » opens in a sheet too.
+test("« Payer » and « Apport ou retrait » open their forms in a sheet", async ({ page }) => {
+  test.setTimeout(120_000);
+  await ownerWithFarm(page, "Élevage des Dettes");
+  await scopeRemembered(page);
+  const box = crypto.randomUUID();
+  await pushAs(page, [
+    { type: "finance.createTreasuryAccount", payload: { id: box, kind: "cash", name: "Caisse ferme" } },
+    { type: "finance.recordExpense", payload: { id: crypto.randomUUID(), day: farmDaysAgo(3), category: "vet_fees", amountCentimes: "80000", paidFrom: "credit", treasuryId: null, note: "Visite", batchId: null, serviceMonth: null } },
+  ]);
+
+  await page.goto("/fr/treasury");
+  const owed = page.getByRole("table", { name: "À payer" }).getByRole("row").filter({ hasText: "Visite" });
+  await expect(owed).toContainText(/800,00\sDH/);
+  const pay = owed.getByRole("button", { name: /^Payer : Honoraires du vétérinaire/ });
+  await pay.click();
+  const sheet = page.getByRole("dialog", { name: /^Payer : Honoraires du vétérinaire/ });
+  await expect(sheet.getByLabel("Date du paiement")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  await expect(pay).toBeFocused();
+
+  await pay.click();
+  await expect(sheet.getByLabel("Montant payé")).toHaveValue("800,00");
+  await sheet.getByLabel("Paiement", { exact: true }).selectOption({ label: "Espèces" });
+  await sheet.getByLabel("Caisse ou compte bancaire (facultatif)").selectOption({ label: "Caisse ferme" });
+  await sheet.getByRole("button", { name: "Enregistrer le paiement" }).click();
+  await expect(page.getByRole("status")).toHaveText("Paiement enregistré.");
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "À payer" })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").filter({ hasText: "Caisse ferme" })).toContainText(/−800,00\sDH/);
+
+  await page.getByRole("button", { name: "Apport ou retrait" }).click();
+  const apport = page.getByRole("dialog", { name: "Apport ou retrait de l’exploitant" });
+  await apport.getByLabel("Montant (DH)").fill("1000");
+  await apport.getByLabel("Caisse ou compte bancaire", { exact: true }).selectOption({ label: "Caisse · Caisse ferme" });
+  await apport.getByRole("button", { name: "Enregistrer" }).click();
+  await expect(page.getByRole("status")).toHaveText("Opération enregistrée.");
+  await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").filter({ hasText: "Caisse ferme" })).toContainText(/200,00\sDH/);
+});

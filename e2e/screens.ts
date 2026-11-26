@@ -130,6 +130,7 @@ export async function realisticOwner(page: Page) {
   await expect(page.getByRole("list", { name: "Budgets enregistrés" }).getByRole("listitem")).toHaveCount(1);
 
   await page.goto("/fr/treasury/bank");
+  await page.getByRole("button", { name: "Ajouter un relevé" }).click();
   await page.getByLabel("Date de fin du relevé").fill(farmDaysAgo(0));
   await page.getByLabel("Solde final du relevé (DH)").fill("8 800,00");
   await page.getByRole("button", { name: "Enregistrer le relevé" }).click();

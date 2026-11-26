@@ -364,7 +364,7 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   sheet keeps the same labels; tests that scroll to a section heading now need the tab click. The hash `#<id>` and
   `?tab=` must coexist (`useSyncExternalStore` on both). Budget margin.
 
-### Batch 2: money, day to day
+### Batch 2: money, day to day — done
 - Goal: §4 rows `/treasury`, `/treasury/bank`, `/receivables`, `/expenses`, `/prices`; the « Payer » pattern §2.9.
 - Owns: `treasury/page.tsx`, `treasury/pay-form.tsx`, `treasury/bank/page.tsx`, `treasury/bank/forms.tsx`,
   `receivables.tsx`, `expenses.tsx`, `prices.tsx` (actions files read-only).
@@ -375,6 +375,39 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   (treasury side), `screens.ts` users.
 - Risks: server-action forms inside a client sheet (keep `useActionState` behaviour and error focus); the supplier pay
   form on `/stock` is batch 3's, reuse the same sheet pattern without touching `pay-form.tsx` there.
+- [x] `/treasury` and `/treasury/bank`: route tabs « Vue d'ensemble · Rapprochement » (`treasury/treasury-tabs.tsx`, new,
+  server-safe), one h1 « Trésorerie »; the bank page's back button and the « Rapprochement bancaire » link are gone
+  (the phone keeps `back="/more"`, hidden from lg).
+- [x] `/treasury`: balances (one card) beside the 4-week forecast; one « À payer » table (Échéance, Type, Fournisseur ·
+  objet, Reste dû, « Payer »), the placements and the credit expenses together, oldest due first; « Payer »
+  (`secondarySm`, accessible name « Payer : <name> ») opens the unchanged pay form in a sheet, amount prefilled with
+  what is owed; « Apport ou retrait » is a header action opening its form in a sheet; « Mouvements du mois » is a
+  `dataTable` of 7 columns, one line per movement (the date with its journal code as a badge; the batch after the
+  label; label, account and counter-account truncated with the full text in `title`), `PeriodNav` over `?month=`
+  (`treasuryOverview` already took a month) in the section's header row, `Pager` 25. Phone: the tables keep 2–4 columns,
+  the others go under the first cell (no table cut at the edge). Saved, a sheet's form closes it and the page shows
+  « Paiement enregistré. » / « Opération enregistrée. » (`TreasuryNotices`, `pay-form.tsx`).
+- [x] `/treasury/bank`: the statement's four figures in one card on top; « Ajouter un relevé » and « Importer un relevé
+  (fichier) » header actions → sheets (each keyed on the account and its statements, so the action's redirect closes
+  it); filter tabs « À pointer (n) / Toutes » (`?tab=`, default « À pointer »: not ticked here nor on a later
+  statement); the imported lines beside the book lines from lg, each paged (`?ipage=`, `?page=`); « Pointer /
+  Dépointer » `secondarySm`.
+- [x] `/receivables`: a cheque or bill row shows its next state as a button, the other states in a « ⋯ » `<details>`
+  menu (« Autres actions : <instrument> »); « Enregistrer un paiement » and « Modifier » (credit limit) open sheets.
+- [x] `/expenses`: the list is sorted and paged (`?page=`, 25) instead of cut at 20; « Ajouter une caisse ou un
+  compte » is the section's action, its form in a sheet.
+- [x] `/prices`: product tabs (`?tab=`, « Tous » + the products noted, with counts) and a pager over the history; the
+  form stays inline.
+- [x] Section headings use `sectionTitle` on these pages (one heading style).
+- Heights (demo seed, full page, before → after; after includes develop's new 64 px header bar): 1 440, individual
+  farm: `/treasury` 3 727 → 1 787, `/treasury/bank` 4 171 → 1 438, `/receivables` 1 599 → 1 638, `/expenses` 1 049 →
+  1 054, `/prices` 2 340 → 1 681; SARL: `/treasury` 1 777 → 974, `/treasury/bank` 2 227 → 1 093. 390, individual farm:
+  `/treasury` 4 697 → 4 109, `/treasury/bank` 6 812 → 3 139, `/prices` 3 783 → 2 908.
+- Deviations: the « Plafonds de crédit » section of `/receivables` stays (merging it into the buyers table would drop the
+  limits of buyers who owe nothing); its « Modifier » opens a sheet. The page shells `receivables/page.tsx`,
+  `expenses/page.tsx`, `prices/page.tsx` (not listed above) gained `"Ui"` in their `ClientMessages`, and `/prices` a
+  `Suspense` (it reads `?tab=`/`?page=`). Eight `Treasury.*` keys nothing reads any more (the old « Payer » cards',
+  the movements' « Journal » and « Bande » headers) are removed. The new Arabic keys need a native speaker's review.
 
 ### Batch 3: stock, eggs and the small Élevage screens
 - Goal: §4 rows `/stock`, `/eggs`, `/farms`, `/compare`, `/protocol`, `/planning`.

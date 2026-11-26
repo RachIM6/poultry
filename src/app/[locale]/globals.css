@@ -66,6 +66,38 @@ html {
   }
 }
 
+/* Every <details>' summary: the wide sidebar's chevron ("Plus", app-nav-live.tsx), turned up when open, instead of the
+   browser's black triangle; 44 px tall (X4). A utility, so a page's own classes (font-semibold, text-ink-2) still apply. */
+@utility disclosure {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding-block: 0.625rem;
+  cursor: pointer;
+  list-style: none;
+  &::-webkit-details-marker {
+    display: none;
+  }
+  &::after {
+    content: "";
+    flex: none;
+    width: 18px;
+    height: 18px;
+    background-color: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+    transition: rotate 150ms;
+  }
+  details[open] > &::after {
+    rotate: 180deg;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      transition: none;
+    }
+  }
+}
+
 /* T23: documents print black on white on A4, whatever the screen theme. */
 @page {
   size: A4;

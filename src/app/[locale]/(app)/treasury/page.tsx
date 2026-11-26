@@ -71,7 +71,7 @@ async function Treasury() {
   // A debt's pay form (placement, credit expense): day, amount, how, from which cash box or bank account.
   const payForm = (action: typeof payPlacementAction, name: string, hidden: ReactNode) => (
     <details className="rounded-2xl border border-line p-3">
-      <summary aria-label={t("Treasury.payOf", { name })} className="min-h-11 cursor-pointer py-2.5">{t("Treasury.pay")}</summary>
+      <summary aria-label={t("Treasury.payOf", { name })} className="disclosure">{t("Treasury.pay")}</summary>
       <div className="pt-3">
         <TreasuryForm action={action} submit={t("Assets.paySave")}>
           {hidden}

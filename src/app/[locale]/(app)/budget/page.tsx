@@ -67,7 +67,7 @@ async function Budget() {
                 </p>
                 {cash && (
                   <details className="flex flex-col gap-2">
-                    <summary className="min-h-11 cursor-pointer content-center text-ink-2">{t("Budget.cash")}</summary>
+                    <summary className="disclosure text-ink-2">{t("Budget.cash")}</summary>
                     <BudgetCashView cash={cash} label={`${t("Budget.cash")} · ${s.name}`} fromBase={s.basedOn !== null} />
                   </details>
                 )}

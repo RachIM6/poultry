@@ -1,14 +1,19 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
 import { addMonths, MonthSelect } from "@/components/month-select";
 import { useFieldError, useInline } from "@/components/focus";
-import { fields2, row, rowHead, rowTable, split } from "@/components/layout";
-import { card, danger, done, field, primary, secondary } from "@/components/ui";
+import { dataTable, dataTableWrap, empty, fields2, formActions, num, row, rowHead, rowTable, sectionHead, sectionTitle } from "@/components/layout";
+import { Pager } from "@/components/pager";
+import { pageOf, pickTab, TABLE_PAGE } from "@/components/paging";
+import { Sheet } from "@/components/sheet";
+import { Tabs } from "@/components/tabs";
+import { card, danger, done, field, ghost, primary, primarySm, secondary, secondarySm } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
 import { formatMonth } from "@/lib/format-month";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -25,6 +30,11 @@ import { writeLocal } from "@/offline/outbox";
 export const StaffScreen = () => <Scoped>{(scope) => <Staff {...scope} />}</Scoped>;
 
 const HISTORY = 23; // the attendance and pay month selects go back two years, this month included
+// tasks/plan-ui-cleanup.md §4: one part of the page at a time, as query tabs (?tab=); the accountant reads the team,
+// the advances and the pay (no attendance or records reach their phone).
+const TABS = ["team", "presence", "advances", "records", "pay"] as const;
+type Tab = (typeof TABS)[number];
+const READ_TABS: readonly [Tab, ...Tab[]] = ["team", "advances", "pay"];
 const EDITABLE =["name", "job", "phone", "housedOnFarm", "startedOn", "leftOn", "houseIds", "dailyWageCentimes", "cnssNumber"] as const;
 
 function Staff(scope: Scope) {
@@ -34,8 +44,12 @@ function Staff(scope: Scope) {
   const records = useLiveQuery(() => db.records.where("entity").anyOf("farm", "house", "employee", "attendance", "advance", "labourRules", "payMonth", "payPayment", "staffRecord").toArray(), [scope.userId, scope.organizationId]);
   const { open, opener, close } = useInline<string>(); // an employee's id, or "new"
   const [message, setMessage] = useState<string>();
+  const search = useSearchParams();
+  const teamId = useId();
   if (!can(scope, "money.read")) return <p>{t("Staff.forbidden")}</p>;
   const manage = can(scope, "workforce.manage"); // the accountant reads: no attendance or records reach their phone
+  const keys = manage ? TABS : READ_TABS;
+  const tab = pickTab(keys, search.get("tab"));
   if (!records) return null;
 
   const of = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
@@ -58,46 +72,54 @@ function Staff(scope: Scope) {
     }
   };
 
+  const editing = employees.find((e) => e.id === open) ?? null;
   return (
     <>
+      <Tabs label={t("Staff.title")} current={tab} tabs={keys.map((k) => ({ key: k, label: t(`Staff.tabs.${k}`), href: { pathname: "/staff", query: { tab: k } } }))} />
       {message && <p role="status" className={done}>{t(message)}</p>}
-      {farms.map((farm) => (
-        <section key={farm.id} aria-label={farm.name} className="flex flex-col gap-3">
-          {farms.length > 1 && <h2 className="text-[17px] font-semibold text-ink-2">{farm.name}</h2>}
-          <ul className={`${rowTable.replace("gap-3", "gap-2")} lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2.5fr)_auto]`} aria-label={t("Staff.list")}>
-            <li aria-hidden="true" className={rowHead}><span>{t("Staff.name")}</span><span>{t("Staff.job")}</span><span>{t("Staff.colDetail")}</span></li>
-            {employees.filter((e) => e.farmId === farm.id).map((e) => (
-              <li key={e.id} className={row}>
-                <span className="flex items-baseline justify-between gap-3 lg:contents">
-                  <b className="text-lg font-semibold">{e.name}</b>
-                  <span className="text-ink-2">{t(`Staff.jobs.${e.job}`)}</span>
-                </span>
-                <span className="text-sm text-ink-2">
-                  {[
-                    e.houseIds.map((h) => houses.find((x) => x.id === h)?.name).filter(Boolean).join(", ") || t("Staff.wholeFarm"),
-                    e.dailyWageCentimes && t("Staff.wagePerDay", { amount: formatMoney(BigInt(e.dailyWageCentimes)) }),
-                    e.housedOnFarm && t("Staff.housed"),
-                    e.leftOn ? t("Staff.leftOn", { date: formatDay(e.leftOn as FarmDay, locale) }) : e.userId ? t("Staff.usesApp") : t("Staff.noApp"),
-                  ].filter(Boolean).join(" · ")}
-                </span>
-                {manage && <button type="button" {...opener(e.id)} className={`${secondary} self-start lg:self-center`}>{t("Staff.edit", { name: e.name })}</button>}
-              </li>
-            ))}
-          </ul>
+      {tab === "team" && (
+        <section aria-labelledby={teamId} className="flex flex-col gap-3">
+          <div className={sectionHead}>
+            <h2 id={teamId} className={sectionTitle}>{t("Staff.list")}</h2>
+            {manage && <button type="button" aria-haspopup="dialog" {...opener("new")} className={primarySm}>{t("Staff.add")}</button>}
+          </div>
+          {farms.map((farm) => (
+            <section key={farm.id} aria-label={farm.name} className="flex flex-col gap-3">
+              {farms.length > 1 && <h3 className="font-semibold text-ink-2">{farm.name}</h3>}
+              <ul className={`${rowTable.replace("gap-3", "gap-2")} lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2.5fr)_auto]`} aria-label={t("Staff.list")}>
+                <li aria-hidden="true" className={rowHead}><span>{t("Staff.name")}</span><span>{t("Staff.job")}</span><span>{t("Staff.colDetail")}</span></li>
+                {employees.filter((e) => e.farmId === farm.id).map((e) => (
+                  <li key={e.id} className={row}>
+                    <span className="flex items-baseline justify-between gap-3 lg:contents">
+                      <b className="text-lg font-semibold">{e.name}</b>
+                      <span className="text-ink-2">{t(`Staff.jobs.${e.job}`)}</span>
+                    </span>
+                    <span className="text-sm text-ink-2">
+                      {[
+                        e.houseIds.map((h) => houses.find((x) => x.id === h)?.name).filter(Boolean).join(", ") || t("Staff.wholeFarm"),
+                        e.dailyWageCentimes && t("Staff.wagePerDay", { amount: formatMoney(BigInt(e.dailyWageCentimes)) }),
+                        e.housedOnFarm && t("Staff.housed"),
+                        e.leftOn ? t("Staff.leftOn", { date: formatDay(e.leftOn as FarmDay, locale) }) : e.userId ? t("Staff.usesApp") : t("Staff.noApp"),
+                      ].filter(Boolean).join(" · ")}
+                    </span>
+                    {/* The name is in the accessible name, not in the visible label (§1.5). */}
+                    {manage && <button type="button" aria-haspopup="dialog" aria-label={t("Staff.edit", { name: e.name })} {...opener(e.id)} className={`${secondarySm} self-start lg:self-center`}>{t("Staff.editShort")}</button>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
         </section>
-      ))}
-      {!manage ? null : open ? (
-        <EmployeeForm key={open} employee={employees.find((e) => e.id === open) ?? null} farms={farms} houses={houses} onSave={save} onCancel={close} />
-      ) : (
-        <button type="button" {...opener("new")} className={`${secondary} lg:self-start`}>{t("Staff.add")}</button>
       )}
-      {manage && <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
-      {/* Wide screens: the advances and the records side by side, each with its form. */}
-      <div className={split}>
-        <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={manage ? (a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed")) : undefined} />
-        {manage && <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
-      </div>
-      <Pay scope={scope} farms={farms} employees={employees} attendance={of<AttendanceDto>("attendance")} advances={of<AdvanceDto>("advance")} rules={of<LabourRules>("labourRules")} months={of<PayMonthDto>("payMonth")} payments={of<PayPaymentDto>("payPayment")} write={(type, entity, data) => writeLocal(db, { type, payload: data }, { entity, id: data.id, data }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />
+      {manage && (
+        <Sheet open={open !== undefined} onClose={close} title={editing ? t("Staff.edit", { name: editing.name }) : t("Staff.add")}>
+          <EmployeeForm key={open} employee={editing} farms={farms} houses={houses} onSave={save} onCancel={close} />
+        </Sheet>
+      )}
+      {tab === "presence" && <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
+      {tab === "advances" && <Advances employees={employees} advances={of<AdvanceDto>("advance")} onSave={manage ? (a) => writeLocal(db, { type: W.recordAdvance, payload: a }, { entity: "advance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed")) : undefined} />}
+      {tab === "records" && <Records employees={employees} records={of<StaffRecordDto>("staffRecord")} onSave={(r) => writeLocal(db, { type: W.addStaffRecord, payload: r }, { entity: "staffRecord", id: r.id, data: r }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
+      {tab === "pay" && <Pay scope={scope} farms={farms} employees={employees} attendance={of<AttendanceDto>("attendance")} advances={of<AdvanceDto>("advance")} rules={of<LabourRules>("labourRules")} months={of<PayMonthDto>("payMonth")} payments={of<PayPaymentDto>("payPayment")} write={(type, entity, data) => writeLocal(db, { type, payload: data }, { entity, id: data.id, data }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
     </>
   );
 }
@@ -149,7 +171,7 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
 
   const wage = employee?.dailyWageCentimes;
   return (
-    <form onSubmit={submit} className={`${card} ${fields2}`} aria-label={employee ? t("Staff.edit", { name: employee.name }) : t("Staff.add")}>
+    <form onSubmit={submit} className="flex flex-col gap-3" aria-label={employee ? t("Staff.edit", { name: employee.name }) : t("Staff.add")}>
       {!employee && farms.length > 1 && (
         <div className="flex flex-col lg:col-span-full">
           <Field label={t("Staff.farm")}>
@@ -188,10 +210,10 @@ function EmployeeForm({ employee, farms, houses, onSave, onCancel }: FormProps) 
         ))}
       </fieldset>
       {employee && <Field label={t("Staff.leftOnLabel")}>{(id) => <input id={id} name="leftOn" type="date" defaultValue={employee.leftOn ?? ""} {...bad("leftOn")} className={field} />}</Field>}
-      {error && <p id={errorId} role="alert" className={`${danger} lg:col-span-full`}>{t(error)}</p>}
-      <div className="flex gap-3 lg:col-span-full">
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Staff.save")}</button>
-        <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
+        <button type="button" onClick={onCancel} className={ghost}>{t("Receivables.cancel")}</button>
       </div>
     </form>
   );
@@ -208,7 +230,7 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
   const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
   const days = Array.from({ length: last }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`).filter((d) => d <= today);
   const working = employees.filter((e) => e.startedOn <= `${month}-31` && (!e.leftOn || e.leftOn > `${month}-01`));
-  if (working.length === 0) return null;
+  if (working.length === 0) return <p className={empty}>{t("Staff.none")}</p>;
 
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
@@ -220,7 +242,7 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
 
   return (
     <section aria-label={t("Attendance.title")} className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Attendance.title")}</h2>
+      <h2 className={sectionTitle}>{t("Attendance.title")}</h2>
       <MonthSelect aria-label={t("Attendance.month")} value={month} from={addMonths(today.slice(0, 7), -HISTORY)} to={today.slice(0, 7)} onChange={(e) => setMonth(e.target.value)} className={`${field} lg:max-w-xs`} />
       {/* Wide screens: the whole month without scrolling, 31 days of 28 px beside the names. */}
       <div className="overflow-x-auto rounded-[18px] bg-card lg:pe-3">
@@ -277,10 +299,10 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
   const t = useTranslations();
   const locale = useLocale();
   const { id: errorId, error, set: setError, field: bad } = useFieldError();
-  const [key, setKey] = useState(0); // a new key empties the form after a save
+  const { open, opener, close } = useInline<"add">();
   const today = farmDayOf(new Date());
   const active = employees.filter((e) => !e.leftOn);
-  if (active.length === 0) return null;
+  if (active.length === 0) return <p className={empty}>{t("Staff.none")}</p>;
   const pending = advances.filter((a) => a.deductMonth >= today.slice(0, 7)).sort((x, y) => x.day.localeCompare(y.day));
   const name = (id: string) => employees.find((e) => e.id === id)?.name ?? "";
 
@@ -295,37 +317,47 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
     setError(undefined);
     const employee = active.find((e) => e.id === data.get("employee"))!;
     await onSave?.({ id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day, amountCentimes: String(amount), deductMonth, note: String(data.get("note") ?? "").trim() || null });
-    setKey((k) => k + 1);
+    close();
   };
 
   return (
     <section aria-label={t("Advances.title")} className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Advances.title")}</h2>
-      {pending.length > 0 && (
-        <ul aria-label={t("Advances.pending")} className="flex flex-col gap-2">
+      <div className={sectionHead}>
+        <h2 className={sectionTitle}>{t("Advances.title")}</h2>
+        {onSave && <button type="button" aria-haspopup="dialog" {...opener("add")} className={primarySm}>{t("Advances.add")}</button>}
+      </div>
+      {pending.length > 0 ? (
+        <ul aria-label={t("Advances.pending")} className={`${card} gap-0 py-1`}>
           {pending.map((a) => (
-            <li key={a.id} className="rounded-[18px] bg-chick-soft p-4">
+            <li key={a.id} className="border-t border-line py-2 first:border-t-0">
               {t("Advances.line", { name: name(a.employeeId), amount: formatMoney(BigInt(a.amountCentimes)), date: formatDay(a.day as FarmDay, locale), month: formatMonth(a.deductMonth, locale) })}
             </li>
           ))}
         </ul>
+      ) : (
+        <p className={empty}>{t("Advances.none")}</p>
       )}
       {onSave && (
-        <form key={key} onSubmit={submit} className={card} aria-label={t("Advances.add")}>
-          <Field label={t("Attendance.employee")}>
-            {(id) => (
-              <select id={id} name="employee" className={field}>
-                {active.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-            )}
-          </Field>
-          <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required {...bad("amount")} className={field} />}</Field>
-          <Field label={t("Advances.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
-          <Field label={t("Advances.deductMonth")}>{(id) => <MonthSelect id={id} name="deductMonth" required defaultValue={today.slice(0, 7)} from={addMonths(today.slice(0, 7), -12)} to={addMonths(today.slice(0, 7), 12)} {...bad("deductMonth")} className={field} />}</Field>
-          <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
-          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-          <button type="submit" className={secondary}>{t("Advances.save")}</button>
-        </form>
+        <Sheet open={open === "add"} onClose={close} title={t("Advances.add")}>
+          <form onSubmit={submit} className="flex flex-col gap-3" aria-label={t("Advances.add")}>
+            <Field label={t("Attendance.employee")}>
+              {(id) => (
+                <select id={id} name="employee" className={field}>
+                  {active.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              )}
+            </Field>
+            <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required {...bad("amount")} className={field} />}</Field>
+            <Field label={t("Advances.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
+            <Field label={t("Advances.deductMonth")}>{(id) => <MonthSelect id={id} name="deductMonth" required defaultValue={today.slice(0, 7)} from={addMonths(today.slice(0, 7), -12)} to={addMonths(today.slice(0, 7), 12)} {...bad("deductMonth")} className={field} />}</Field>
+            <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
+            {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+            <div className={formActions}>
+              <button type="submit" className={primary}>{t("Advances.save")}</button>
+              <button type="button" onClick={close} className={ghost}>{t("Receivables.cancel")}</button>
+            </div>
+          </form>
+        </Sheet>
       )}
     </section>
   );
@@ -337,11 +369,14 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
   const locale = useLocale();
   const [kind, setKind] = useState<StaffRecordDto["kind"]>("training");
   const { id: errorId, error, set: setError, field: bad } = useFieldError();
-  const [key, setKey] = useState(0); // a new key empties the form after a save
+  const { open, opener, close } = useInline<"add">();
+  const search = useSearchParams();
   const today = farmDayOf(new Date());
-  if (employees.length === 0) return null;
+  if (employees.length === 0) return <p className={empty}>{t("Staff.none")}</p>;
   const name = (id: string) => employees.find((e) => e.id === id)?.name ?? "";
-  const last = [...records].sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 10);
+  const all = [...records].sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id));
+  const page = pageOf(search.get("page") ?? undefined, all.length, TABLE_PAGE);
+  const last = all.slice((page - 1) * TABLE_PAGE, page * TABLE_PAGE);
 
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
@@ -354,14 +389,20 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
     const employee = employees.find((e) => e.id === data.get("employee"))!;
     const base = { id: uuidv7(), farmId: employee.farmId, employeeId: employee.id, day: get("day"), kind };
     await onSave(kind === "training" ? { ...base, topic: get("topic") as StaffRecordDto["topic"], note: get("note") || null, daysOff: null } : { ...base, topic: null, note: get("note"), daysOff });
-    setKey((k) => k + 1);
+    close();
+    setKind("training");
   };
 
   return (
     <section aria-label={t("Records.title")} className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Records.title")}</h2>
+      <div className={sectionHead}>
+        <h2 className={sectionTitle}>{t("Records.title")}</h2>
+        <button type="button" aria-haspopup="dialog" {...opener("add")} className={primarySm}>{t("Records.add")}</button>
+      </div>
       <p className="text-[13px] text-ink-2">{t("Records.private")}</p>
-      {last.length > 0 && (
+      {last.length === 0 ? (
+        <p className={empty}>{t("Records.none")}</p>
+      ) : (
         <ul aria-label={t("Records.list")} className={`${card} gap-2`}>
           {last.map((r) => {
             const date = formatDay(r.day as FarmDay, locale);
@@ -374,43 +415,49 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
           })}
         </ul>
       )}
-      <form key={key} onSubmit={submit} className={card} aria-label={t("Records.add")}>
-        <Field label={t("Records.kind")}>
-          {(id) => (
-            <select id={id} value={kind} onChange={(e) => setKind(e.target.value as StaffRecordDto["kind"])} className={field}>
-              <option value="training">{t("Records.kinds.training")}</option>
-              <option value="accident">{t("Records.kinds.accident")}</option>
-            </select>
+      <Pager page={page} size={TABLE_PAGE} total={all.length} href={(n) => ({ pathname: "/staff", query: { tab: "records", page: n } })} />
+      <Sheet open={open === "add"} onClose={close} title={t("Records.add")}>
+        <form onSubmit={submit} className="flex flex-col gap-3" aria-label={t("Records.add")}>
+          <Field label={t("Records.kind")}>
+            {(id) => (
+              <select id={id} value={kind} onChange={(e) => setKind(e.target.value as StaffRecordDto["kind"])} className={field}>
+                <option value="training">{t("Records.kinds.training")}</option>
+                <option value="accident">{t("Records.kinds.accident")}</option>
+              </select>
+            )}
+          </Field>
+          <Field label={t("Attendance.employee")}>
+            {(id) => (
+              <select id={id} name="employee" className={field}>
+                {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            )}
+          </Field>
+          <Field label={t("Records.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
+          {kind === "training" ? (
+            <>
+              <Field label={t("Records.topic")}>
+                {(id) => (
+                  <select id={id} name="topic" className={field}>
+                    {TRAINING_TOPICS.map((x) => <option key={x} value={x}>{t(`Records.topics.${x}`)}</option>)}
+                  </select>
+                )}
+              </Field>
+              <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={500} className={field} />}</Field>
+            </>
+          ) : (
+            <>
+              <Field label={t("Records.what")}>{(id) => <textarea id={id} name="note" required maxLength={500} rows={3} {...bad("note")} className={field} />}</Field>
+              <Field label={t("Records.daysOff")}>{(id) => <input id={id} name="daysOff" inputMode="numeric" dir="ltr" {...bad("daysOff")} className={field} />}</Field>
+            </>
           )}
-        </Field>
-        <Field label={t("Attendance.employee")}>
-          {(id) => (
-            <select id={id} name="employee" className={field}>
-              {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
-          )}
-        </Field>
-        <Field label={t("Records.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
-        {kind === "training" ? (
-          <>
-            <Field label={t("Records.topic")}>
-              {(id) => (
-                <select id={id} name="topic" className={field}>
-                  {TRAINING_TOPICS.map((x) => <option key={x} value={x}>{t(`Records.topics.${x}`)}</option>)}
-                </select>
-              )}
-            </Field>
-            <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={500} className={field} />}</Field>
-          </>
-        ) : (
-          <>
-            <Field label={t("Records.what")}>{(id) => <textarea id={id} name="note" required maxLength={500} rows={3} {...bad("note")} className={field} />}</Field>
-            <Field label={t("Records.daysOff")}>{(id) => <input id={id} name="daysOff" inputMode="numeric" dir="ltr" {...bad("daysOff")} className={field} />}</Field>
-          </>
-        )}
-        {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-        <button type="submit" className={secondary}>{t("Records.save")}</button>
-      </form>
+          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+          <div className={formActions}>
+            <button type="submit" className={primary}>{t("Records.save")}</button>
+            <button type="button" onClick={close} className={ghost}>{t("Receivables.cancel")}</button>
+          </div>
+        </form>
+      </Sheet>
     </section>
   );
 }
@@ -460,7 +507,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
 
   return (
     <section aria-label={t("Pay.title")} className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Pay.title")}</h2>
+      <h2 className={sectionTitle}>{t("Pay.title")}</h2>
       <div className="flex gap-2 lg:max-w-md">
         <MonthSelect aria-label={t("Attendance.month")} value={month} from={addMonths(today.slice(0, 7), -HISTORY)} to={today.slice(0, 7)} onChange={(e) => setMonth(e.target.value)} className={`${field} flex-1`} />
         {farms.length > 1 && (
@@ -473,39 +520,39 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
       {!frozen && !computed ? (
         <p className="text-ink-2">{t("Pay.notValidated")}</p>
       ) : (
-        <div className="overflow-x-auto rounded-[18px] bg-card">
-          <table className="w-full text-sm" aria-label={t("Pay.table")}>
+        <div className={dataTableWrap}>
+          <table className={dataTable} aria-label={t("Pay.table")}>
             <thead>
-              <tr className="text-ink-2">
-                <th scope="col" className="px-3 py-2 text-start font-medium">{t("Attendance.employee")}</th>
-                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.days")}</th>
-                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.gross")}</th>
-                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.contribution")}</th>
-                <th scope="col" className="px-2 py-2 text-end font-medium">{t("Pay.advances")}</th>
-                <th scope="col" className="px-3 py-2 text-end font-medium">{t("Pay.net")}</th>
+              <tr>
+                <th scope="col">{t("Attendance.employee")}</th>
+                <th scope="col" className={num}>{t("Pay.days")}</th>
+                <th scope="col" className={num}>{t("Pay.gross")}</th>
+                <th scope="col" className={num}>{t("Pay.contribution")}</th>
+                <th scope="col" className={num}>{t("Pay.advances")}</th>
+                <th scope="col" className={num}>{t("Pay.net")}</th>
               </tr>
             </thead>
             <tbody>
               {lines.map((l) => (
-                <tr key={l.employeeId} className="border-t border-line">
-                  <th scope="row" className="px-3 py-2 text-start font-semibold">
+                <tr key={l.employeeId}>
+                  <th scope="row" className="font-semibold!">
                     {name(l.employeeId)}
                     {l.belowSmag && <span className="block text-xs font-medium text-brick-fg">{t("Pay.belowSmag")}</span>}
                   </th>
-                  <td className="px-2 py-2 text-end">{l.paidDays}</td>
-                  <td className="whitespace-nowrap px-2 py-2 text-end">{cell(l.grossCentimes)}</td>
-                  <td className="whitespace-nowrap px-2 py-2 text-end">{cell(l.employeeContributionCentimes)}</td>
-                  <td className="whitespace-nowrap px-2 py-2 text-end">{cell(l.advancesCentimes)}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-end font-semibold">{cell(l.netCentimes)}</td>
+                  <td className={num}>{l.paidDays}</td>
+                  <td className={num}>{cell(l.grossCentimes)}</td>
+                  <td className={num}>{cell(l.employeeContributionCentimes)}</td>
+                  <td className={num}>{cell(l.advancesCentimes)}</td>
+                  <td className={`${num} font-semibold`}>{cell(l.netCentimes)}</td>
                 </tr>
               ))}
-              <tr className="border-t border-line bg-shell font-semibold">
-                <th scope="row" className="px-3 py-2 text-start">{t("Pay.total")}</th>
+              <tr className="bg-shell font-semibold">
+                <th scope="row" className="font-semibold!">{t("Pay.total")}</th>
                 <td />
-                <td className="whitespace-nowrap px-2 py-2 text-end">{cell(sum((l) => l.grossCentimes))}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{cell(sum((l) => l.employeeContributionCentimes))}</td>
-                <td className="whitespace-nowrap px-2 py-2 text-end">{cell(sum((l) => l.advancesCentimes))}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-end">{cell(sum((l) => l.netCentimes))}</td>
+                <td className={num}>{cell(sum((l) => l.grossCentimes))}</td>
+                <td className={num}>{cell(sum((l) => l.employeeContributionCentimes))}</td>
+                <td className={num}>{cell(sum((l) => l.advancesCentimes))}</td>
+                <td className={num}>{cell(sum((l) => l.netCentimes))}</td>
               </tr>
             </tbody>
           </table>
@@ -526,12 +573,14 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
         </button>
       )}
       {owner && frozen && <WagesPaid farmId={farmId} month={month} net={sum((l) => (BigInt(l.netCentimes) > 0n ? l.netCentimes : "0")) ?? "0"} paid={payments.find((p) => p.id === payPaymentId(farmId, month))} today={today} write={write} />}
-      {owner &&
-        (editingRules ? (
-          <RulesForm onCancel={close} onSave={(r) => write(W.saveLabourRules, "labourRules", r).then(close)} />
-        ) : (
-          <button type="button" {...opener("rules")} className={`${secondary} lg:self-start`}>{t("Pay.enterRules")}</button>
-        ))}
+      {owner && (
+        <>
+          <button type="button" aria-haspopup="dialog" {...opener("rules")} className={secondarySm}>{t("Pay.enterRules")}</button>
+          <Sheet open={editingRules === "rules"} onClose={close} title={t("Pay.enterRules")}>
+            <RulesForm onCancel={close} onSave={(r) => write(W.saveLabourRules, "labourRules", r).then(close)} />
+          </Sheet>
+        </>
+      )}
     </section>
   );
 }
@@ -581,8 +630,8 @@ function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<v
   };
   const pctField = (name: string, label: string) => <Field label={label}>{(id) => <input id={id} name={name} inputMode="decimal" dir="ltr" className={field} />}</Field>;
   return (
-    <form onSubmit={submit} className={`${card} ${fields2}`} aria-label={t("Pay.enterRules")}>
-      <p className="text-sm text-ink-2 lg:col-span-full">{t("Pay.rulesHint")}</p>
+    <form onSubmit={submit} className="flex flex-col gap-3" aria-label={t("Pay.enterRules")}>
+      <p className="text-sm text-ink-2">{t("Pay.rulesHint")}</p>
       <Field label={t("Pay.source")}>{(id) => <input id={id} name="source" required minLength={3} maxLength={300} autoFocus className={field} />}</Field>
       <Field label={t("Pay.validFrom")}>{(id) => <input id={id} name="validFrom" type="date" required className={field} />}</Field>
       <Field label={t("Pay.smag")}>{(id) => <input id={id} name="smag" inputMode="decimal" dir="ltr" className={field} />}</Field>
@@ -591,10 +640,10 @@ function RulesForm({ onSave, onCancel }: { onSave: (r: LabourRules) => Promise<v
       {pctField("employerCapped", t("Pay.employerCapped"))}
       {pctField("employerUncapped", t("Pay.employerUncapped"))}
       <Field label={t("Pay.cap")}>{(id) => <input id={id} name="cap" inputMode="decimal" dir="ltr" className={field} />}</Field>
-      {error && <p id={errorId} role="alert" className={`${danger} lg:col-span-full`}>{t(error)}</p>}
-      <div className="flex gap-3 lg:col-span-full">
+      {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Pay.saveRules")}</button>
-        <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
+        <button type="button" onClick={onCancel} className={ghost}>{t("Receivables.cancel")}</button>
       </div>
     </form>
   );

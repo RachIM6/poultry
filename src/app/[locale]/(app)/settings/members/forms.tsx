@@ -1,11 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useActionState, useState } from "react";
+import { useActionState, useState, type FormEvent } from "react";
 import { cancel, invite, remove, resetPassword, updateRole, type ActionState } from "./actions";
 import { OfflineHint, useOnline } from "@/components/online";
-import { cell, row } from "@/components/layout";
-import { danger, done, field, primary, secondary } from "@/components/ui";
+import { cell, formActions, row } from "@/components/layout";
+import { danger, done, field, ghost, primary, secondarySm } from "@/components/ui";
 
 
 const ErrorText = ({ state }: { state: ActionState }) => {
@@ -45,45 +45,56 @@ export function InviteForm({ roles, partners }: { roles: readonly string[]; part
       {state.code && <CodeShown code={state.code} label={t("inviteCode")} hint={t("inviteCodeHint")} />}
       <ErrorText state={state} />
       <OfflineHint online={online} />
-      <button type="submit" disabled={pending || !online} className={primary}>{t("invite")}</button>
+      <div className={formActions}><button type="submit" disabled={pending || !online} className={primary}>{t("invite")}</button></div>
     </form>
   );
 }
+
+/** Confirmed, a « ⋯ » action folds its menu: the message or code it brings shows under the row. */
+const closeMenu = (e: FormEvent<HTMLFormElement>) => e.currentTarget.closest("details")?.removeAttribute("open");
 
 export function MemberRow({ membershipId, name, phone, role, roles, until }: { membershipId: string; name: string | null; phone: string; role: string; roles: readonly string[]; until: string | null }) {
   const t = useTranslations("Members");
   const [roleState, roleAction, rolePending] = useActionState(updateRole, {});
   const [removeState, removeAction, removePending] = useActionState(remove, {});
   const [resetState, resetAction, resetPending] = useActionState(resetPassword, {});
+  const [chosen, setChosen] = useState(role);
   const online = useOnline();
   return (
-    // Wide screens, one row of the members' table (settings/members/page.tsx): the number, the role under "Rôle", then
-    // the other actions; a message or a code takes the whole row below.
+    // Wide screens, one row of the members' table (settings/members/page.tsx): the number, the role under "Rôle" (its
+    // « Enregistrer » once another role is chosen), then « ⋯ » with the rarer actions; a message or a code takes the
+    // whole row below.
     <li className={row}>
       <span className={cell}>
         {name && <span className="font-semibold">{name}</span>}
         <bdi dir="ltr" className={name ? "text-sm text-ink-2" : "font-semibold"}>{phone}</bdi>
         {until && <span className="text-sm text-ink-2">{t("accessUntil", { date: until })}</span>}
       </span>
-      <form action={roleAction} className="flex gap-2">
+      {/* The select keeps a width of its own (it collapsed to 34 px beside three buttons, the audit's P1). */}
+      <form action={roleAction} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="membershipId" value={membershipId} />
-        <select name="role" defaultValue={role} aria-label={t("roleOf", { phone })} className={`${field} min-w-0 flex-1 py-2 text-base`}>
+        <select name="role" value={chosen} onChange={(e) => setChosen(e.target.value)} aria-label={t("roleOf", { phone })} className={`${field} min-w-40 py-2 text-base lg:w-48`}>
           {roles.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
         </select>
-        <button type="submit" disabled={rolePending || !online} aria-label={t("saveRoleOf", { phone })} className={secondary}>{t("saveRole")}</button>
+        {chosen !== role && <button type="submit" disabled={rolePending || !online} aria-label={t("saveRoleOf", { phone })} className={secondarySm}>{t("saveRole")}</button>}
       </form>
-      <div className="flex flex-wrap gap-2 lg:justify-end">
-        <form action={removeAction} onSubmit={(e) => !confirm(t("removeConfirm", { phone })) && e.preventDefault()}>
-          <input type="hidden" name="membershipId" value={membershipId} />
-          <button type="submit" disabled={removePending || !online} aria-label={t("removeOf", { phone })} className={`${secondary} text-alert`}>{t("remove")}</button>
-        </form>
-        {role !== "owner" && ( // an owner's password: the operator's pnpm user:reset (ADR-015)
-          <form action={resetAction} onSubmit={(e) => !confirm(t("resetConfirm", { phone })) && e.preventDefault()}>
+      <details className="relative lg:justify-self-end">
+        <summary aria-label={t("moreOf", { phone })} className={`${secondarySm} min-w-11 cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+          <span aria-hidden="true">⋯</span>
+        </summary>
+        <div className="absolute end-0 top-full z-10 mt-1 flex min-w-60 flex-col rounded-xl border border-line bg-card p-1 shadow-[0_6px_18px_rgba(36,33,28,.12)]">
+          <form action={removeAction} onSubmit={(e) => (confirm(t("removeConfirm", { phone })) ? closeMenu(e) : e.preventDefault())}>
             <input type="hidden" name="membershipId" value={membershipId} />
-            <button type="submit" disabled={resetPending || !online} aria-label={t("resetOf", { phone })} className={secondary}>{t("reset")}</button>
+            <button type="submit" disabled={removePending || !online} aria-label={t("removeOf", { phone })} className={`${ghost} w-full justify-start text-alert-fg! lg:w-full`}>{t("remove")}</button>
           </form>
-        )}
-      </div>
+          {role !== "owner" && ( // an owner's password: the operator's pnpm user:reset (ADR-015)
+            <form action={resetAction} onSubmit={(e) => (confirm(t("resetConfirm", { phone })) ? closeMenu(e) : e.preventDefault())}>
+              <input type="hidden" name="membershipId" value={membershipId} />
+              <button type="submit" disabled={resetPending || !online} aria-label={t("resetOf", { phone })} className={`${ghost} w-full justify-start text-ink! lg:w-full`}>{t("reset")}</button>
+            </form>
+          )}
+        </div>
+      </details>
       <div className="contents empty:hidden lg:col-span-full lg:flex lg:flex-col lg:gap-2">
         <ErrorText state={roleState} />
         <ErrorText state={removeState} />
@@ -101,7 +112,7 @@ export function CancelInvitationButton({ invitationId, phone }: { invitationId: 
   return (
     <form action={action}>
       <input type="hidden" name="invitationId" value={invitationId} />
-      <button type="submit" disabled={pending || !online} aria-label={t("cancelOf", { phone })} className={secondary}>{t("cancel")}</button>
+      <button type="submit" disabled={pending || !online} aria-label={t("cancelOf", { phone })} className={secondarySm}>{t("cancel")}</button>
       <ErrorText state={state} />
     </form>
   );

@@ -18,7 +18,7 @@ export default function Sync() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <Page width="form" back="/dashboard" title={t("Sync.title")} actions={<LocaleSwitcher />}>
+      <Page width="wide" back="/dashboard" title={t("Sync.title")} actions={<LocaleSwitcher />}>
         <SyncPanel />
       </Page>
     </ClientMessages>

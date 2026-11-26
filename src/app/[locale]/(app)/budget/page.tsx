@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { locale } from "next/root-params";
+import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BudgetPlanner } from "@/components/budget";
@@ -10,7 +11,7 @@ import { can } from "@/lib/permissions";
 import { budgetBases, budgetBatches, budgetCash, budgetPaymentDelays, budgetOf, listBudgets, plainTiming, type CashTiming } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { saveBudgetAction } from "./actions";
-import { BackLink } from "@/components/app-nav";
+import { Page } from "@/components/page";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
@@ -19,16 +20,14 @@ const MESSAGES: MessagePath[] = ["Budget", "Nav", "Offline", "Sync.refused", "er
 
 // SPEC-finance FN15: plan the next batch from a closed one, with what-if feed and sale prices. Online, owner and manager.
 export default function BudgetPage() {
+  const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <header className="px-4 pt-4">
-        <BackLink href="/more" />
-      </header>
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4">
+      <Page width="wide" back="/more" title={t("Budget.title")}>
         <Suspense>
           <Budget />
         </Suspense>
-      </main>
+      </Page>
     </ClientMessages>
   );
 }
@@ -46,7 +45,6 @@ async function Budget() {
   const timingOf = new Map(bases.value.map((b) => [b.batchId, b.timing]));
   return (
     <>
-      <h1 className="text-2xl font-semibold">{t("Budget.title")}</h1>
       <BudgetPlanner bases={bases.value.map((b) => ({ batchId: b.batchId, label: b.label, inputs: asText(b.inputs), timing: timingText(b.timing) }))} batches={batches.value} delays={own} save={can(ctx.value, "finance.record") ? saveBudgetAction : undefined} />
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Budget.saved")}</h2>
       {saved.value.length === 0 ? (

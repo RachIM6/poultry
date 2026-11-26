@@ -57,6 +57,7 @@ test("a laying flock's schedule typed on /results depreciates its hens", async (
   await page.goto("/fr/results");
   const hens = page.getByText(/^Poules : prix d’entrée/);
   await expect(hens).toContainText(/Compté ici .*550,00/);
+  await page.getByText("Détail", { exact: true }).click(); // the batch's detail and its schedule form fold under its row
   await page.getByLabel(/^Durée de ponte \(mois\) :/).fill("10");
   await page.getByLabel(/^Valeur de réforme :/).fill("5000");
   await page.getByRole("button", { name: "Enregistrer la durée et la réforme" }).click();

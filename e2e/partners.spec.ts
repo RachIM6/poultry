@@ -62,6 +62,7 @@ test("the accountant reads money without production figures; the vet records hea
 
   await becomes(page, e164, "accountant");
   await expect(page.getByRole("link", { name: /Saisie du jour/ })).toHaveCount(0); // no daily entry on their phone
+  await expect(page.getByRole("heading", { name: "Tâches du jour" })).toHaveCount(0); // no task of theirs, so no empty list
   await expect(page.getByRole("img", { name: /non saisi/ })).toHaveCount(0);
   await page.goto(`/fr/batches#${ids.batch}`);
   await expect(page.getByText("Effectifs, saisies du jour et chiffres d’élevage : non transmis à votre rôle.")).toBeVisible();
@@ -81,6 +82,7 @@ test("the accountant reads money without production figures; the vet records hea
 
   await becomes(page, e164, "vet");
   await expect(page.getByRole("link", { name: /Saisie du jour/ })).toHaveCount(0); // not the vet's to enter
+  await expect(page.getByRole("heading", { name: "Tâches du jour" })).toBeVisible(); // the vaccinations due are the vet's
   await page.goto("/fr/batches");
   await expect(page.getByRole("link", { name: "Voir la bande" })).toBeVisible(); // the card opens the batch, not a day entry
   await expect(page.getByRole("link", { name: "Saisir le jour" })).toHaveCount(0);

@@ -13,7 +13,7 @@ import type { ReferenceData } from "@/modules/reference-data/schema";
 import { curveFor, standardAt } from "@/modules/reference-data/shared";
 
 type StrainCurves = ReferenceData["strains"][number]["curves"];
-import { danger, field, primary } from "@/components/ui";
+import { danger, field, secondary } from "@/components/ui";
 
 // SPEC B3 on the phone: type the sample, see the average, uniformity (CV%) and the gap to the strain standard at once.
 // Without a published curve for the strain (OQ5) the gap is not shown: a standard is never guessed.
@@ -113,7 +113,7 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
           )}
           <p aria-live="polite">{sample ? describe(sample, day) : ""}</p>
           {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-          <button type="submit" className={primary}>{t("Weighing.save")}</button>
+          <button type="submit" className={secondary}>{t("Weighing.save")}</button>
         </form>
       )}
       {past.length > 0 && (

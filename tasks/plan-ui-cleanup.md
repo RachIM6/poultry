@@ -529,7 +529,7 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   (`Close.steps`, `Close.howCalculated`, `Close.closeYearFirst`, `Statements.tabs`, `Statements.showEmpty/hideEmpty`,
   `Assets.scheduleShow`, `Loans.scheduleShow/next/tabs`, `Subsidies.releaseShow`) to check with a native speaker.
 
-### Batch 5: analysis and accounting settings
+### Batch 5: analysis and accounting settings — done
 - Goal: §4 rows `/results`, `/budget`, `/threshold`, `/settings/accounting`, `/settings/chart`, `/settings/posting`; the
   « Résultats et budget » and « Paramètres comptables » route tabs.
 - Owns: `results/**`, `budget/**`, `budget.tsx`, `budget-cash.tsx`, `threshold/**`, `settings/accounting/**`,
@@ -538,6 +538,37 @@ each in its own worktree and E2E port. Batch 7 last, alone.
 - Acceptance: `/settings/accounting` has no empty half; the chart is grouped; `/settings/posting` reachable by tab.
 - E2E: `accounting-settings`, `budget`, `budget-plan`, `threshold`, `report`, `expenses` (results link).
 - Risks: the accountant's read-only view of `/settings/accounting` must keep hiding the forms.
+- [x] Route tabs « Résultats et budget » (`results/results-tabs.tsx`): Résultats · Budget · Seuil d'exonération, and
+  « Paramètres comptables » (`settings/accounting/settings-tabs.tsx`): Profil · Plan de comptes · Comptes remplacés, the
+  last one for the owner only (`finance.manage`, the page redirects anyone else). One h1 per section, as « Trésorerie »:
+  « Résultats et budget » and « Paramètres comptables ». The links card of `/settings/accounting` (owner's and
+  read-only view) is gone; `/settings/posting` lost its back link to `/settings/accounting` (the phone keeps `back="/more"`).
+- [x] `/results`: `dataTable` with `num` headers; the per-mille column writes U+2212, as `formatMoney`; « Aucune bande » as
+  `empty`.
+- [x] `/budget`: the saved budgets are a table (name, seuil, marge), each budget a row group whose second row folds its
+  weekly cash (« Besoin de trésorerie par semaine »); `sectionTitle` headings; the planner unchanged otherwise.
+- [x] `/threshold`: tabs; the threshold « Seuil d'exonération : 5 000 000,00 DH » is the content's first h2 (the page
+  streams under the static title and tabs now).
+- [x] `/settings/accounting`: one column: identity card (five fields three by three from lg, its save a `secondary`, so
+  the choices' « Enregistrer » is the one primary), the lock as one `warn` line above the choices, the choices two by two
+  from lg (Tenue · Plan, Début d'exercice + TVA · Poules), the shared costs' key on its own row with its three choices
+  side by side. The accountant's read-only view still has no form, field or button.
+- [x] `/settings/chart`: one `dataTable` grouped by class (Charges 6, Produits 7, Tiers 3 et 4, Trésorerie 5, Capitaux 1,
+  an « Autres comptes » group if a class ever falls outside), class rows sticky under the sticky header from lg; the
+  entity's chart column first and in bold, the other muted; the phone lists the accounts under the operation.
+- [x] `/settings/posting`: a `dataTable` (Opération, Par défaut, Remplacé par, « Remplacer ») ; « Remplacer » (`secondarySm`,
+  name « Remplacer : <opération> ») opens the rule's form in a sheet with « Revenir au compte par défaut » as a `ghost` when
+  replaced; saved, the sheet closes and the page says « Compte enregistré… ». New e2e: sheet focus, Escape, save, back to
+  the default.
+- Heights (demo seed, full page, before → after): 1 440, individual farm: `/results` 900 → 951, `/budget` 1 292 → 1 351,
+  `/threshold` 900 → 900, `/settings/accounting` 1 944 → 1 478, `/settings/chart` 2 244 → 1 897, `/settings/posting`
+  1 399 → 1 079; SARL: `/settings/accounting` 1 882 → 1 478, `/budget` 1 088 → 1 191. 390, individual farm: `/results`
+  1 599 → 1 639, `/budget` 2 382 → 2 533, `/settings/accounting` 3 152 → 3 006, `/settings/chart` 5 068 → 3 857,
+  `/settings/posting` 2 264 → 1 807. The small gains on `/results` and `/budget` are the tab row.
+- Deviations: `/results` keeps its 7 columns on the phone in its scrolling region (no `rowTable`); the sidebar entries are
+  not merged (batch 7). `e2e/screens.ts` (not a batch file) now waits for the saved budget's row group instead of its list
+  item. `Budget.title` and `Overrides.open`, read by nothing any more, are removed. New Arabic keys (`Results.section`,
+  `Results.tab*`, `Accounting.tab*`, `Chart.groups`, `Overrides.replace/replaceOf`) to check with a native speaker.
 
 ### Batch 6: operations, compliance, members
 - Goal: §4 rows `/climate`, `/climate/targets`, `/tasks`, `/staff`, `/inbox`, `/sync`, `/visitors`, `/disposal`,

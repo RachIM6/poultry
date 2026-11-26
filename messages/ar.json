@@ -2536,7 +2536,8 @@
     "colHouse": "المبنى",
     "colItem": "الصنف",
     "colEggs": "البيض",
-    "colWithheld": "مدة السحب"
+    "colWithheld": "مدة السحب",
+    "folded": "مستبعدة وُضعت منذ أكثر من {days} أيام: {n} بيضة"
   },
   "Layers": {
     "hens": "الدجاجات الحاضرة",

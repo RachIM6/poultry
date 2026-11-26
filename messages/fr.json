@@ -2536,7 +2536,8 @@
     "colHouse": "Bâtiment",
     "colItem": "Article",
     "colEggs": "Œufs",
-    "colWithheld": "Délai d’attente"
+    "colWithheld": "Délai d’attente",
+    "folded": "Déclassés pondus il y a plus de {days} jours : {n} œufs"
   },
   "Layers": {
     "hens": "Poules présentes",

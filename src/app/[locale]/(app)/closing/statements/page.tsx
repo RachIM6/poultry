@@ -182,8 +182,8 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
         <p className="text-sm font-semibold">{t("unmapped", { accounts: [...s.bilan.unmapped, ...s.cpc.unmapped].join(", ") })}</p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-x-4 print:hidden">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-col gap-1 print:hidden lg:flex-row lg:items-center lg:gap-4">
+        <div className="min-w-0 lg:flex-1">
           <Tabs
             label={t("tabs.label")}
             current={tab}

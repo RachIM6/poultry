@@ -40,6 +40,7 @@ test("the statements show one part per tab, keep the year across the closing's s
 
   // Lines with nothing in them wait behind « Afficher les lignes vides » on screen.
   await parts.getByRole("link", { name: "Bilan actif" }).click();
+  await expect(actif).toBeVisible();
   const shown = await actif.getByRole("row").count();
   await page.getByRole("link", { name: "Afficher les lignes vides" }).click();
   await expect(page).toHaveURL(/empty=1/);

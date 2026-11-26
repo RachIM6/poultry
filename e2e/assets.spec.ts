@@ -67,6 +67,7 @@ test("the owner registers an asset, reads its schedule by year and disposes of i
   await asset.getByLabel("Encaissé").selectOption("bank");
   await asset.getByRole("button", { name: "Enregistrer la cession" }).click();
   await expect(asset).toContainText(/Cédée le 15 novembre 2026 pour 30\s000,00\sDH/);
+  if (!(await asset.getByRole("table").isVisible())) await showSchedule(); // the page streams in again once saved
   await expect(schedule).toHaveCount(2);
   await expect(schedule.nth(1)).toContainText(/2026 · jusqu’à la cession\s*2\s*1\s127,38\sDH/);
   await expect(asset.getByText("Céder ou mettre au rebut", { exact: true })).toHaveCount(0);

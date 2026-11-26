@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* tasks/plan-ui.md U19: the wide sidebar folded to its rail, set on <html> before the first paint (src/components/nav-mode.ts). */
+@custom-variant rail (&:where([data-nav="rail"] *));
+
 /* Dawra / DigiAtlas-VOLAILLE palette (design canvas, 2026-10-29). Colour only for what needs action; done stays neutral.
    Light only, like the mockups. */
 @theme {
@@ -7,6 +10,7 @@
   --color-card: #ffffff;
   --color-ink: #24211c; /* Charbon: text, menu */
   --color-ink-2: #55504a; /* Ardoise chaude: secondary text */
+  --color-ink-raised: #2e2a25; /* the wide sidebar rail's side panel (Menu4b) */
   --color-muted: #6b655c;
   --color-line: #e2ded3;
   --color-sand: #cfc6b4; /* done days on dark */
@@ -59,6 +63,46 @@ input[type="checkbox"] {
   }
 }
 
+/* The rail (U19): each icon's name becomes its tooltip, beside the rail, on hover and on keyboard focus. It stays the
+   control's accessible name. An open side panel widens the sidebar, so the page beside it makes room. */
+[data-nav="rail"] [data-tip] {
+  @variant lg {
+    position: absolute;
+    inset-inline-start: calc(100% + 1.25rem);
+    top: 50%;
+    translate: 0 -50%;
+    z-index: 20;
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.5rem;
+    background: var(--color-ink);
+    box-shadow: 0 0 0 1px rgb(245 243 238 / 0.25);
+    color: var(--color-shell);
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.25rem;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+  }
+}
+[data-nav="rail"] :is(:hover, :focus-visible) > [data-tip] {
+  @variant lg {
+    opacity: 1;
+  }
+}
+/* Not over the panel the icon has just opened: its heading names it. */
+[data-nav="rail"] [aria-expanded="true"] > [data-tip] {
+  @variant lg {
+    opacity: 0;
+  }
+}
+[data-nav="rail"] nav:has([data-panel]:not([hidden])) {
+  @variant lg {
+    width: 328px;
+    padding-inline-end: 268px; /* the rail keeps its 48 px column; the panel takes the rest */
+  }
+}
+
 /* WCAG 2.4.11: below lg the fixed bottom tab bar (77 px) must not cover the field that has focus. */
 html {
   @variant max-lg {
@@ -66,8 +110,8 @@ html {
   }
 }
 
-/* Every <details>' summary: the wide sidebar's chevron ("Plus", app-nav-live.tsx), turned up when open, instead of the
-   browser's black triangle; 44 px tall (X4). A utility, so a page's own classes (font-semibold, text-ink-2) still apply. */
+/* Every <details>' summary: a chevron turned up when open, instead of the browser's black triangle; 44 px tall (X4).
+   A utility, so a page's own classes (font-semibold, text-ink-2) still apply. */
 @utility disclosure {
   display: flex;
   align-items: center;

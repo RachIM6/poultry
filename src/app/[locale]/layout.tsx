@@ -4,6 +4,7 @@ import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { CAPTURE_SCRIPT } from "@/components/install-prompt";
 import { PwaProvider } from "@/components/pwa-provider";
+import { NAV_SCRIPT } from "@/components/nav-mode";
 import { ClientMessages } from "@/i18n/client-messages";
 import { dirOf, routing } from "@/i18n/routing";
 import { StrictMessages } from "@/i18n/strict-messages";
@@ -31,10 +32,13 @@ export const viewport: Viewport = { themeColor: "#24211c" };
 export default async function RootLayout({ children }: LayoutProps<"/[locale]">) {
   const lang = await locale();
   return (
-    <html lang={lang} dir={dirOf(lang)} className={`${readex.variable} h-full antialiased`}>
+    // suppressHydrationWarning: NAV_SCRIPT may set data-nav on <html> before React hydrates it (this element only).
+    <html lang={lang} dir={dirOf(lang)} className={`${readex.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         {/* Inline, not a client component: catches the install offer even before hydration (no JS bundle cost). */}
         <script dangerouslySetInnerHTML={{ __html: CAPTURE_SCRIPT }} />
+        {/* The folded sidebar, before the first paint (nav-mode.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: NAV_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
         {/* What the layouts' client components read (PwaProvider, AppNav, the error boundary); pages add theirs. */}

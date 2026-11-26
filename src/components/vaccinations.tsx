@@ -12,7 +12,7 @@ import type { Product, ProtocolDto } from "@/modules/reference-data/schema";
 import { VACCINATION_METHODS } from "@/modules/reference-data/shared";
 import type { Write } from "@/components/daily-entry";
 import { useFieldError, useInline } from "@/components/focus";
-import { danger, field, primary, secondary } from "@/components/ui";
+import { danger, field, primary, secondary, warn } from "@/components/ui";
 
 // SPEC H2 on the batch screen, offline: the batch's plan, and "mark done" with the lot it came from. The phone runs the
 // same check as the server and shows the stock leaving the lot at once (S4). Whoever manages health (the vet, the owner,
@@ -60,10 +60,10 @@ export function Vaccinations({
   return (
     <section className="flex flex-col gap-3" aria-labelledby="vaccination-title">
       <h3 id="vaccination-title" className="text-[17px] font-semibold text-ink-2">{t("Vaccination.title")}</h3>
-      {/* OQ4: a warning, never a block (arrêté 3308-17 art. 13) */}
+      {/* OQ4: a warning, never a block (arrêté 3308-17 art. 13); brick, as warnings are (yellow is for actions) */}
       {batch.status === "open" &&
         missingRequiredVaccines(plan).map((r) => (
-          <p key={r.disease} className="rounded-xl bg-chick-soft p-2 text-sm text-chick-fg">{t(`Vaccination.required.${r.disease}`, { source: r.source })}</p>
+          <p key={r.disease} className={`${warn} text-sm`}>{t(`Vaccination.required.${r.disease}`, { source: r.source })}</p>
         ))}
       {plan.length === 0 ? (
         <>

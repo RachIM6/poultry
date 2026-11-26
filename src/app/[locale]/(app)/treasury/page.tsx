@@ -6,6 +6,7 @@ import { Suspense, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
+import { formatDayShort } from "@/lib/format-day";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import { associateAccount, cashForecast, catchUpBooks, creditExpensesToPay, placementsToPay, treasuryOverview } from "@/modules/finance";
@@ -71,7 +72,7 @@ async function Treasury() {
   // A debt's pay form (placement, credit expense): day, amount, how, from which cash box or bank account.
   const payForm = (action: typeof payPlacementAction, name: string, hidden: ReactNode) => (
     <details className="rounded-2xl border border-line p-3">
-      <summary aria-label={t("Treasury.payOf", { name })} className="min-h-11 cursor-pointer py-2.5">{t("Treasury.pay")}</summary>
+      <summary aria-label={t("Treasury.payOf", { name })} className="disclosure">{t("Treasury.pay")}</summary>
       <div className="pt-3">
         <TreasuryForm action={action} submit={t("Assets.paySave")}>
           {hidden}
@@ -145,11 +146,12 @@ async function Treasury() {
                 </thead>
                 <tbody>
                   {forecast.value.weeks.map((w) => (
-                    <tr key={w.from} className={`border-t border-line ${w.afterCentimes < 0n ? "font-semibold text-brick-fg" : ""}`}>
+                    <tr key={w.from} className="border-t border-line">
                       <td className="whitespace-nowrap p-2">{dayMonth(w.from, lang)}</td>
                       <Num>{w.inCentimes === 0n ? "" : formatMoney(w.inCentimes)}</Num>
                       <Num>{w.outCentimes === 0n ? "" : formatMoney(w.outCentimes)}</Num>
-                      <Num>{formatMoney(w.afterCentimes)}</Num>
+                      {/* Colour only for what needs action: the balance that goes below zero, not its whole week */}
+                      <Num className={w.afterCentimes < 0n ? "font-semibold text-brick-fg" : ""}>{formatMoney(w.afterCentimes)}</Num>
                     </tr>
                   ))}
                 </tbody>
@@ -168,7 +170,8 @@ async function Treasury() {
               {toPay.value.map((p) => (
                 <article key={p.batchId} className={card}>
                   <p className="font-semibold">{p.hatchery}</p>
-                  <p className="text-sm text-ink-2">{p.place} · {t("Treasury.placedOn", { day: formatDay(p.placedOn, lang) })} · <bdi dir="ltr">{p.account}</bdi></p>
+                  {/* No account number here (B5): it stays on /books and /settings/chart */}
+                  <p className="text-sm text-ink-2">{p.place} · {t("Treasury.placedOn", { day: formatDay(p.placedOn, lang) })}</p>
                   <p>{t("Treasury.owed", { amount: formatMoney(p.owed) })}</p>
                   {canPay && payForm(payPlacementAction, p.hatchery, <input type="hidden" name="batchId" value={p.batchId} />)}
                 </article>
@@ -183,7 +186,7 @@ async function Treasury() {
               {expensesToPay.value.map((e) => (
                 <article key={e.expenseId} className={card}>
                   <p className="font-semibold">{t(`Expenses.categories.${e.category}`)}</p>
-                  <p className="text-sm text-ink-2">{formatDay(e.day, lang)}{e.note && <> · {e.note}</>} · <bdi dir="ltr">{e.account}</bdi></p>
+                  <p className="text-sm text-ink-2">{formatDay(e.day, lang)}{e.note && <> · {e.note}</>}</p>
                   <p>{t("Treasury.owed", { amount: formatMoney(e.owed) })}</p>
                   {canPay && payForm(payCreditExpenseAction, `${t(`Expenses.categories.${e.category}`)} · ${formatDay(e.day, lang)}`, <input type="hidden" name="expenseId" value={e.expenseId} />)}
                 </article>
@@ -194,7 +197,7 @@ async function Treasury() {
           {owners.ok && (
             <section className="flex flex-col gap-2" aria-labelledby="associate">
               <h2 id="associate" className="text-[17px] font-semibold text-ink-2">{t(owners.value.individual ? "Treasury.exploitant" : "Treasury.associate")}</h2>
-              <p className="text-sm text-ink-2">{t(owners.value.individual ? "Treasury.exploitantHint" : "Treasury.associateHint", { account: owners.value.account })}</p>
+              <p className="text-sm text-ink-2">{t(owners.value.individual ? "Treasury.exploitantHintPlain" : "Treasury.associateHintPlain")}</p>
               {accounts.length === 0 ? (
                 <p>{t("Treasury.associateNoAccount")}</p>
               ) : (
@@ -246,13 +249,13 @@ async function Treasury() {
             <tbody>
               {movements.map((m, i) => (
                 <tr key={i} className="border-t border-line">
-                  <td className="whitespace-nowrap p-2">{formatDay(m.day as FarmDay, lang)}</td>
-                  <td className="p-2">{m.journal}</td>
+                  <td className="whitespace-nowrap p-2">{formatDayShort(m.day, lang, today)}</td>
+                  <td className="p-2"><abbr title={t(`Treasury.journals.${m.journal}`)} className="no-underline">{m.journal}</abbr></td>
                   <td className="p-2">{m.label}</td>
                   <td className="p-2">{nameOf(m.treasuryId)}</td>
                   {/* FN10, as the cash book shows them (FN16): the account's label, its number when the chart has none */}
                   <td className="p-2">{m.counterAccounts.map((c) => c.label || c.number).join(", ")}</td>
-                  <td className="p-2">{m.batch}</td>
+                  <td className="whitespace-nowrap p-2">{m.batch && `${m.batch.house} · ${formatDayShort(m.batch.placedOn, lang, today)}`}</td>
                   <Num className="whitespace-nowrap">{m.debitCentimes > 0n ? formatMoney(m.debitCentimes) : ""}</Num>
                   <Num className="whitespace-nowrap">{m.creditCentimes > 0n ? formatMoney(m.creditCentimes) : ""}</Num>
                   {/* FN10: an expense's receipt; other movements have none to attach */}
@@ -268,6 +271,12 @@ async function Treasury() {
             </tbody>
           </table>
         </Scroll>
+      )}
+      {/* The journals' codes, said once in words: BQ banque, CA caisse… (the cells also carry it as a title) */}
+      {movements.length > 0 && (
+        <p className="text-sm text-ink-2">
+          {t("Treasury.journalLegend", { journals: [...new Set(movements.map((m) => m.journal))].sort().map((j) => `${j} ${t(`Treasury.journals.${j}`)}`).join(" · ") })}
+        </p>
       )}
     </>
   );

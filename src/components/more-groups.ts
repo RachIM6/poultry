@@ -36,9 +36,15 @@ const GROUPS: { title: string; links: { href: string; label: string; show?: Rule
       { href: "/treasury", label: "Treasury.open", show: money },
       { href: "/treasury/bank", label: "Bank.open", show: money }, // SPEC-finance FC9, FCX2
       { href: "/prices", label: "Prices.open", show: money },
+    ],
+  },
+  // UX review C5: the daily money above, the books and the year's closing here, so neither list runs to 16 links.
+  {
+    title: "More.accounting",
+    links: [
+      { href: "/books", label: "Books.open", show: money },
       { href: "/results", label: "Results.open", show: money },
       { href: "/budget", label: "Budget.open", show: money },
-      { href: "/books", label: "Books.open", show: money },
       { href: "/threshold", label: "Threshold.open", show: money },
       { href: "/closing/count", label: "Count.open", show: money }, // SPEC-finance FC3, FCX2
       { href: "/closing", label: "Close.open", show: money }, // SPEC-finance FCX4
@@ -64,8 +70,7 @@ const GROUPS: { title: string; links: { href: string; label: string; show?: Rule
     title: "More.account",
     links: [
       { href: "/settings/members", label: "Members.title", show: (ctx) => can(ctx, "members.manage") },
-      // SPEC-m5 PA2: switch farms, accept an invitation, or join another farm with an invite code (ADR-015). The /more
-      // page names it by what the account has; the sidebar can't tell offline, so it keeps this neutral label.
+      // SPEC-m5 PA2: switch farms, accept an invitation, or join another farm with an invite code (ADR-015).
       { href: "/organizations", label: "Organizations.title" },
     ],
   },

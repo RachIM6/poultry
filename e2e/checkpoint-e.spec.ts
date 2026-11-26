@@ -40,8 +40,8 @@ test("checkpoint E: 10 days entered offline give the hand-computed KPIs and sync
     await expect(tile(page, "Mortalité")).toContainText("2,4 %");
     await expect(tile(page, "Aliment par oiseau")).toContainText("0,261 kg");
     await expect(tile(page, "Poids moyen (jour 10)")).toContainText("0,29 kg");
-    await expect(tile(page, "IC")).toContainText("0,90");
-    await expect(tile(page, "EPEF")).toContainText("314");
+    await expect(tile(page, "IC (indice de consommation)")).toContainText("0,90");
+    await expect(tile(page, "IEP")).toContainText("314");
     await expect(tile(page, "GMQ")).toContainText("29,0 g/jour");
   };
   await check();

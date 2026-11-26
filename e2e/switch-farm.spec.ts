@@ -49,7 +49,7 @@ test("a vet accepts a second farm's invitation, switches between the farms, each
   const betaCode = await invite(ownerB, vetPhone);
 
   await vet.goto("/fr/more");
-  await vet.getByRole("link", { name: /^Rejoindre une exploitation avec un code/ }).click(); // one farm yet: nothing to switch
+  await vet.getByRole("link", { name: "Mes exploitations" }).click(); // one farm yet: the page joins another with a code
   const farms = vet.getByRole("list", { name: "Mes exploitations" }).getByRole("listitem");
   await expect(farms.filter({ hasText: "Élevage Alpha" })).toContainText("Ouverte");
   await expect(vet.getByText("Élevage Beta vous invite comme Vétérinaire.")).toHaveCount(0); // a typed phone lists nothing

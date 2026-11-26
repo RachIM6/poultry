@@ -78,8 +78,9 @@ export function AccountingForm(p: Props) {
         ))}
       </fieldset>
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{tAll(state.messageKey)}</p>}
+      {/* Locked: nothing to save, and the page says why (no greyed-out primary) */}
       {!p.locked && <OfflineHint online={online} />}
-      <button type="submit" disabled={off || !online} className={primary}>{t("save")}</button>
+      {!p.locked && <button type="submit" disabled={off || !online} className={primary}>{t("save")}</button>}
     </form>
   );
 }

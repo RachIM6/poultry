@@ -13,7 +13,7 @@ import type { ReferenceData } from "@/modules/reference-data/schema";
 import { curveFor, standardAt } from "@/modules/reference-data/shared";
 
 type StrainCurves = ReferenceData["strains"][number]["curves"];
-import { danger, field, primary } from "@/components/ui";
+import { danger, field, secondary } from "@/components/ui";
 
 // SPEC B3 on the phone: type the sample, see the average, uniformity (CV%) and the gap to the strain standard at once.
 // Without a published curve for the strain (OQ5) the gap is not shown: a standard is never guessed.
@@ -45,7 +45,8 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
   const ids = { day: useId(), weights: useId(), total: useId(), count: useId() };
   const sample = readSample(group, weights, total, count);
 
-  const describe = (s: Sample, onDay: string) => {
+  // UX review B8: a past weighing without a standard says nothing of it; the chart says it once (batch-dashboard.tsx).
+  const describe = (s: Sample, onDay: string, live = false) => {
     const stats = sampleStats(s);
     const standard = curve && standardAt(curve, ageOfBatch(batch, onDay as FarmDay));
     return [
@@ -55,7 +56,7 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
       batch.species === "broiler" || uniformityPercent(s) === null ? null : t("Weighing.uniformity", { percent: formatPercent(uniformityPercent(s)!) }),
       standard
         ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(stats.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) })
-        : t("Weighing.noStandard"),
+        : live ? t("Weighing.noStandard") : null,
     ].filter(Boolean).join(" · ");
   };
 
@@ -111,9 +112,9 @@ export function Weighings({ batch, weighings, curves, write }: { batch: BatchDto
               <textarea id={ids.weights} name="weights" {...bad("weights")} value={weights} onChange={(e) => setWeights(e.target.value)} rows={3} inputMode="decimal" dir="ltr" className={field} />
             </div>
           )}
-          <p aria-live="polite">{sample ? describe(sample, day) : ""}</p>
+          <p aria-live="polite">{sample ? describe(sample, day, true) : ""}</p>
           {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-          <button type="submit" className={primary}>{t("Weighing.save")}</button>
+          <button type="submit" className={secondary}>{t("Weighing.save")}</button>
         </form>
       )}
       {past.length > 0 && (

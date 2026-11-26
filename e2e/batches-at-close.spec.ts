@@ -72,6 +72,6 @@ test("the owner reads an open batch at cost in the close preview, types its curr
   // Arabic, right to left: the tables scroll, not the page.
   await page.goto("/ar/closing?year=2025");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByRole("region", { name: "الأفواج قيد الإنتاج (حيوانات)" })).toContainText("31322");
+  await expect(page.getByRole("region", { name: "الدفعات قيد الإنتاج (حيوانات)" })).toContainText("31322");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

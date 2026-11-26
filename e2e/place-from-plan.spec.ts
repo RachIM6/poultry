@@ -17,26 +17,26 @@ test("a planned batch is placed offline from its plan, and the batch keeps the p
   await page.goto("/fr/planning");
   await controlled(page);
   await referenceCached(page);
-  const lines = page.getByRole("list", { name: "Lots de Bâtiment 1" }).getByRole("listitem");
+  const lines = page.getByRole("list", { name: "Bandes de Bâtiment 1" }).getByRole("listitem");
   await expect(lines).toHaveCount(1);
   await expect(lines).toContainText("10000 poussins · Couvoir X");
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
-  await lines.getByRole("button", { name: /^Mettre en place le lot prévu le/ }).click();
-  const form = page.getByRole("form", { name: /^Mettre en place le lot prévu le/ });
+  await lines.getByRole("button", { name: /^Mettre en place la bande prévue le/ }).click();
+  const form = page.getByRole("form", { name: /^Mettre en place la bande prévue le/ });
   await expect(form.getByLabel("Prix d’un poussin (DH)")).toHaveValue("4,50"); // from the booking
   await form.getByLabel("Morts à l’arrivée").fill("12");
   await form.getByLabel("N° de bon de livraison").fill("BL-77");
   await form.getByRole("button", { name: "Mettre en place", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText(/^Enregistré sur ce téléphone/);
   await expect(lines).toHaveCount(1);
-  await expect(lines).toContainText("Lot en place depuis le");
+  await expect(lines).toContainText("Bande en place depuis le");
   await expect(lines).toContainText("Vente vers le"); // the plan's sale age, kept by the batch
 
   const reload = await page.reload(); // still offline: kept on the phone
   expect(reload?.fromServiceWorker()).toBe(true);
-  await expect(lines).toContainText("Lot en place depuis le");
+  await expect(lines).toContainText("Bande en place depuis le");
 
   await context.unroute("**");
   await context.setOffline(false);

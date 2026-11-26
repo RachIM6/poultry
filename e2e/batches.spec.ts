@@ -42,7 +42,8 @@ test("a batch placed offline starts at day 0, and a second one in the same house
   };
   await place();
   await expect(page.getByText("Jour 0")).toBeVisible();
-  await expect(page.getByText("Poulet de chair · Ferme Atlas · Bâtiment 1 · Ross 308")).toBeVisible();
+  await expect(page.getByText("Bâtiment 1 · Ross 308", { exact: true })).toBeVisible(); // UX review B3: house and strain, then type and farm
+  await expect(page.getByText("Poulet de chair · Ferme Atlas", { exact: true })).toBeVisible();
 
   // SPEC-m3 R5: the production type first, then only its strains.
   await page.getByRole("button", { name: "Mettre en place une bande" }).click();

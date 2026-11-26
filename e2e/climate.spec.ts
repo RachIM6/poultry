@@ -12,7 +12,7 @@ test("a climate reading recorded offline without targets says so, survives a rel
   await page.getByRole("link", { name: "Plus", exact: true }).click();
   await page.getByRole("link", { name: "Climat des bâtiments" }).click();
   await controlled(page);
-  await expect(page.getByText("Lot en place : J0")).toBeVisible();
+  await expect(page.getByText("Bande en place : J0")).toBeVisible();
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
@@ -25,7 +25,7 @@ test("a climate reading recorded offline without targets says so, survives a rel
   await expect(page.getByText(/Hors des cibles/)).toHaveCount(0); // no target, no verdict
   const reload = await page.reload(); // still offline: kept on the phone, in the outbox
   expect(reload?.fromServiceWorker()).toBe(true);
-  await expect(page.getByText("Lot en place : J0")).toBeVisible();
+  await expect(page.getByText("Bande en place : J0")).toBeVisible();
 
   await context.unroute("**");
   await context.setOffline(false);

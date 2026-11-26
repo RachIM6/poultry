@@ -52,7 +52,7 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
   await expect(recent.getByRole("link", { name: "Voir le reçu" })).toBeVisible({ timeout: 20_000 });
 
   await page.goto("/fr/treasury");
-  await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").first()).toContainText(/Caisse · Caisse ferme\s*-1.200,00\sDH/);
+  await expect(page.getByRole("list", { name: "Soldes" }).getByRole("listitem").first()).toContainText(/Caisse · Caisse ferme\s*−1.200,00\sDH/);
   await expect(page.getByRole("row").filter({ hasText: "Dépense" }).getByRole("link", { name: /^Voir le reçu : / })).toBeVisible(); // WCAG 2.4.6: which receipt
 
   // T34: shared across this month's batches (the default), it is all this batch's.
@@ -61,13 +61,13 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
 
   // tasks/plan-ui.md U11: the owner's home shows the cash at hand in its "Argent" card.
   await page.goto("/fr/dashboard");
-  await expect(page.getByRole("region", { name: "Argent" })).toContainText(/Trésorerie disponible\s*-1.200,00\sDH/);
+  await expect(page.getByRole("region", { name: "Argent" })).toContainText(/Trésorerie disponible\s*−1.200,00\sDH/);
 
-  // tasks/plan-ui.md U13: on a wide screen the owner's sidebar also lists Ventes, Comptabilité and Membres.
+  // The wide sidebar's « Plus » lists every screen in place (e2e/sidebar.spec.ts): no separate shortcuts any more.
   const nav = page.getByRole("navigation", { name: "Navigation principale" });
-  await expect(nav.getByRole("link", { name: "Comptabilité" })).toBeHidden();
   await page.setViewportSize({ width: 1280, height: 800 });
-  for (const name of ["Ventes", "Comptabilité", "Membres"]) await expect(nav.getByRole("link", { name })).toBeVisible();
+  await expect(nav.getByRole("button", { name: /^Plus/ })).toBeVisible();
+  for (const name of ["Ventes", "Membres"]) await expect(nav.getByRole("link", { name, exact: true })).toHaveCount(0);
 });
 
 // T119 (FC9): bank fees are paid from a bank account only; with none yet, the form says to add one first.

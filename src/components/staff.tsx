@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Scoped } from "@/components/scoped";
+import { addMonths, MonthSelect } from "@/components/month-select";
 import { useFieldError, useInline } from "@/components/focus";
 import { fields2, row, rowHead, rowTable, split } from "@/components/layout";
 import { card, danger, done, field, primary, secondary } from "@/components/ui";
@@ -23,7 +24,8 @@ import { writeLocal } from "@/offline/outbox";
 
 export const StaffScreen = () => <Scoped>{(scope) => <Staff {...scope} />}</Scoped>;
 
-const EDITABLE = ["name", "job", "phone", "housedOnFarm", "startedOn", "leftOn", "houseIds", "dailyWageCentimes", "cnssNumber"] as const;
+const HISTORY = 23; // the attendance and pay month selects go back two years, this month included
+const EDITABLE =["name", "job", "phone", "housedOnFarm", "startedOn", "leftOn", "houseIds", "dailyWageCentimes", "cnssNumber"] as const;
 
 function Staff(scope: Scope) {
   const t = useTranslations();
@@ -63,7 +65,7 @@ function Staff(scope: Scope) {
         <section key={farm.id} aria-label={farm.name} className="flex flex-col gap-3">
           {farms.length > 1 && <h2 className="text-[17px] font-semibold text-ink-2">{farm.name}</h2>}
           <ul className={`${rowTable.replace("gap-3", "gap-2")} lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2.5fr)_auto]`} aria-label={t("Staff.list")}>
-            <li aria-hidden="true" className={rowHead}><span>{t("Staff.name")}</span><span>{t("Staff.job")}</span></li>
+            <li aria-hidden="true" className={rowHead}><span>{t("Staff.name")}</span><span>{t("Staff.job")}</span><span>{t("Staff.colDetail")}</span></li>
             {employees.filter((e) => e.farmId === farm.id).map((e) => (
               <li key={e.id} className={row}>
                 <span className="flex items-baseline justify-between gap-3 lg:contents">
@@ -87,7 +89,7 @@ function Staff(scope: Scope) {
       {!manage ? null : open ? (
         <EmployeeForm key={open} employee={employees.find((e) => e.id === open) ?? null} farms={farms} houses={houses} onSave={save} onCancel={close} />
       ) : (
-        <button type="button" {...opener("new")} className={`${primary} lg:self-start`}>{t("Staff.add")}</button>
+        <button type="button" {...opener("new")} className={`${secondary} lg:self-start`}>{t("Staff.add")}</button>
       )}
       {manage && <Attendance employees={employees} attendance={of<AttendanceDto>("attendance")} onSave={(a) => writeLocal(db, { type: W.setAttendance, payload: a }, { entity: "attendance", id: a.id, data: a }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))} />}
       {/* Wide screens: the advances and the records side by side, each with its form. */}
@@ -219,7 +221,7 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
   return (
     <section aria-label={t("Attendance.title")} className="flex flex-col gap-3">
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Attendance.title")}</h2>
-      <input type="month" aria-label={t("Attendance.month")} value={month} max={today.slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className={`${field} lg:max-w-xs`} />
+      <MonthSelect aria-label={t("Attendance.month")} value={month} from={addMonths(today.slice(0, 7), -HISTORY)} to={today.slice(0, 7)} onChange={(e) => setMonth(e.target.value)} className={`${field} lg:max-w-xs`} />
       {/* Wide screens: the whole month without scrolling, 31 days of 28 px beside the names. */}
       <div className="overflow-x-auto rounded-[18px] bg-card lg:pe-3">
         <table className="text-sm lg:w-full">
@@ -264,7 +266,7 @@ function Attendance({ employees, attendance, onSave }: { employees: EmployeeDto[
           )}
         </Field>
         {status === "present" && <Field label={t("Attendance.arrivedAtLabel")}>{(id) => <input id={id} name="arrivedAt" type="time" className={field} />}</Field>}
-        <button type="submit" className={primary}>{t("Attendance.save")}</button>
+        <button type="submit" className={`${secondary} whitespace-nowrap`}>{t("Attendance.save")}</button>
       </form>
     </section>
   );
@@ -319,10 +321,10 @@ function Advances({ employees, advances, onSave }: { employees: EmployeeDto[]; a
           </Field>
           <Field label={t("Advances.amount")}>{(id) => <input id={id} name="amount" inputMode="decimal" dir="ltr" required {...bad("amount")} className={field} />}</Field>
           <Field label={t("Advances.day")}>{(id) => <input id={id} name="day" type="date" required max={today} defaultValue={today} className={field} />}</Field>
-          <Field label={t("Advances.deductMonth")}>{(id) => <input id={id} name="deductMonth" type="month" required defaultValue={today.slice(0, 7)} {...bad("deductMonth")} className={field} />}</Field>
+          <Field label={t("Advances.deductMonth")}>{(id) => <MonthSelect id={id} name="deductMonth" required defaultValue={today.slice(0, 7)} from={addMonths(today.slice(0, 7), -12)} to={addMonths(today.slice(0, 7), 12)} {...bad("deductMonth")} className={field} />}</Field>
           <Field label={t("Expenses.note")}>{(id) => <input id={id} name="note" maxLength={200} className={field} />}</Field>
           {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-          <button type="submit" className={primary}>{t("Advances.save")}</button>
+          <button type="submit" className={secondary}>{t("Advances.save")}</button>
         </form>
       )}
     </section>
@@ -407,7 +409,7 @@ function Records({ employees, records, onSave }: { employees: EmployeeDto[]; rec
           </>
         )}
         {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-        <button type="submit" className={primary}>{t("Records.save")}</button>
+        <button type="submit" className={secondary}>{t("Records.save")}</button>
       </form>
     </section>
   );
@@ -460,7 +462,7 @@ function Pay({ scope, farms, employees, attendance, advances, rules, months, pay
     <section aria-label={t("Pay.title")} className="flex flex-col gap-3">
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Pay.title")}</h2>
       <div className="flex gap-2 lg:max-w-md">
-        <input type="month" aria-label={t("Attendance.month")} value={month} max={today.slice(0, 7)} onChange={(e) => e.target.value && setMonth(e.target.value)} className={`${field} flex-1`} />
+        <MonthSelect aria-label={t("Attendance.month")} value={month} from={addMonths(today.slice(0, 7), -HISTORY)} to={today.slice(0, 7)} onChange={(e) => setMonth(e.target.value)} className={`${field} flex-1`} />
         {farms.length > 1 && (
           <select aria-label={t("Staff.farm")} value={farmId} onChange={(e) => setFarmId(e.target.value)} className={`${field} flex-1`}>
             {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}

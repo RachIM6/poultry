@@ -62,8 +62,10 @@ async function Content() {
             </div>
           ))}
         </dl>
-        <Link href="/settings/chart" className={link}>{t("Chart.open")}</Link>
-        <Link href="/threshold" className={link}>{t("Threshold.open")}</Link>
+        <ul className={`${card} gap-0 py-2 lg:max-w-md`}>
+          <li><Link href="/settings/chart" className={link}>{t("Chart.open")}</Link></li>
+          <li><Link href="/threshold" className={link}>{t("Threshold.open")}</Link></li>
+        </ul>
       </Page>
     );
   }
@@ -98,9 +100,12 @@ async function Content() {
           />
         </div>
       </div>
-      <Link href="/settings/chart" className={link}>{t("Chart.open")}</Link>
-      <Link href="/settings/posting" className={link}>{t("Overrides.open")}</Link>
-      <Link href="/threshold" className={link}>{t("Threshold.open")}</Link>
+      {/* The accounting screens this page leads to, together (C6) */}
+      <ul className={`${card} gap-0 py-2 lg:max-w-md`}>
+        <li><Link href="/settings/chart" className={link}>{t("Chart.open")}</Link></li>
+        <li><Link href="/settings/posting" className={link}>{t("Overrides.open")}</Link></li>
+        <li><Link href="/threshold" className={link}>{t("Threshold.open")}</Link></li>
+      </ul>
     </Page>
   );
 }

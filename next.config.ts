@@ -46,6 +46,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // The landing page (src/app/[locale]/page.tsx) is off for now: home opens the dashboard with a session cookie (an
+  // expired one ends on the login there), the login without. To bring the landing back, delete these two entries and
+  // put "" back in the service worker's precache list (src/app/serwist/[path]/route.ts).
+  async redirects() {
+    return [
+      { source: "/:locale(ar|fr)", has: [{ type: "cookie", key: "__Secure-sid" }], destination: "/:locale/dashboard", permanent: false },
+      { source: "/:locale(ar|fr)", destination: "/:locale/login", permanent: false },
+    ];
+  },
   partialPrefetching: true,
   turbopack: {
     rules: {

@@ -64,5 +64,5 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
   await page.goto("/fr/treasury");
   const week = page.getByRole("table", { name: "Les 4 prochaines semaines" }).getByRole("row").nth(1);
   await expect(week).toContainText(/7.000,00.DH/);
-  await expect(week).toContainText(/-9.000,00.DH/);
+  await expect(week).toContainText(/−9.000,00.DH/);
 });

@@ -2,21 +2,21 @@ import { expect, test } from "@playwright/test";
 
 test("/ redirects to Arabic, rendered right-to-left", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveURL(/\/ar$/);
+  await expect(page).toHaveURL(/\/ar\/login$/); // home is the sign-in while the landing page is off (next.config.ts)
   await expect(page.locator("html")).toHaveAttribute("lang", "ar");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleName("DigiAtlas-VOLAILLE"); // the Latin wordmark, no Arabic name yet
+  await expect(page.getByRole("img", { name: "DigiAtlas-VOLAILLE" }).first()).toBeVisible(); // the Latin wordmark, no Arabic name yet
 });
 
 test("the switcher moves between Arabic (RTL) and French (LTR) on the same page", async ({ page }) => {
-  await page.goto("/ar");
+  await page.goto("/ar/login");
   await page.getByRole("link", { name: "Français" }).click();
-  await expect(page).toHaveURL(/\/fr$/);
+  await expect(page).toHaveURL(/\/fr\/login$/);
   await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
-  await expect(page.getByText("L’élevage avicole, jour après jour.")).toBeVisible();
+  await expect(page.getByRole("main").getByText("L’élevage avicole, jour après jour.")).toBeVisible();
 
   await page.getByRole("link", { name: "العربية" }).click();
-  await expect(page).toHaveURL(/\/ar$/);
+  await expect(page).toHaveURL(/\/ar\/login$/);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 });
 
@@ -35,6 +35,6 @@ test("an unknown page says so in the page's language, with a way home", async ({
     await expect(page.locator("html")).toHaveAttribute("dir", dir);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
     await page.getByRole("link", { name: home }).click();
-    await expect(page).toHaveURL(new RegExp(`/${path.slice(1, 3)}$`));
+    await expect(page).toHaveURL(new RegExp(`/${path.slice(1, 3)}/login$`)); // home, i.e. the sign-in
   }
 });

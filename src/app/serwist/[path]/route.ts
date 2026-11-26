@@ -13,7 +13,7 @@ const serwist = createSerwistRoute({
   // Serwist's defaults, plus the font files next/font preloads (the ".p." ones), so the first offline launch has fonts.
   globPatterns: [".next/static/**/*.{js,css,html,ico,apng,png,avif,jpg,jpeg,jfif,pjpeg,pjp,gif,svg,webp,json,webmanifest}", ".next/static/media/*.p.*.woff2", "public/**/*"],
   // Public, static shells only (poultry-pwa §0.3). /sync reads the signed-in user's data from IndexedDB, not the HTML.
-  additionalPrecacheEntries: ["", "/offline", "/sync", "/farms", "/batches", "/protocol", "/inbox", "/stock", "/eggs", "/compare", "/receivables", "/origin", "/expenses", "/today", "/staff", "/tasks", "/climate/targets", "/climate", "/prices", "/planning", "/visitors", "/disposal", "/cleanout", "/documents", "/register", "/inspection"].flatMap((path) => ["ar", "fr"].map((l) => ({ url: `/${l}${path}`, revision }))),
+  additionalPrecacheEntries: ["/offline", "/sync", "/farms", "/batches", "/protocol", "/inbox", "/stock", "/eggs", "/compare", "/receivables", "/origin", "/expenses", "/today", "/staff", "/tasks", "/climate/targets", "/climate", "/prices", "/planning", "/visitors", "/disposal", "/cleanout", "/documents", "/register", "/inspection"].flatMap((path) => ["ar", "fr"].map((l) => ({ url: `/${l}${path}`, revision }))),
 });
 
 // The helper also returns `dynamic`, `dynamicParams` and `revalidate` segment configs, which cacheComponents

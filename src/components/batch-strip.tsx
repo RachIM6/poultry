@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { addFarmDays, type FarmDay } from "@/lib/kernel/farm-day";
 import { ageOn } from "@/modules/flock/shared";
 
@@ -62,14 +63,59 @@ const BAR: Record<StripDay["state"], [string, string]> = {
   upcoming: ["h-4 bg-shell/15", "h-3 bg-line"],
 };
 
+// UX review A6: the withdrawal period is a thin line under its days, not a red fill (too close to "missing"), so
+// today stays yellow. The vaccine ring and the line are box-shadows (whole class names, for Tailwind to find them);
+// the strip keeps room under it for the line. WCAG 1.4.11 (3:1 for a graphic that carries meaning) against the ground
+// it sits on: on the ink strips, alert #b3261e is only 2.45:1, so a lighter alert tint #ef5350 (4.60:1 on ink #24211c),
+// red rather than the orange « Manquant » brick #c4541d; on the white cards, alert #b3261e (6.54:1 on #ffffff).
+const SHADOW = {
+  dark: {
+    vv: "shadow-[inset_0_0_0_2px_var(--color-chick),0_4px_0_-1px_#ef5350]",
+    v: "shadow-[inset_0_0_0_2px_var(--color-chick)]",
+    w: "shadow-[0_4px_0_-1px_#ef5350]",
+  },
+  light: {
+    vv: "shadow-[inset_0_0_0_2px_var(--color-chick),0_4px_0_-1px_var(--color-alert)]",
+    v: "shadow-[inset_0_0_0_2px_var(--color-chick)]",
+    w: "shadow-[0_4px_0_-1px_var(--color-alert)]",
+  },
+};
+
 export function BatchStrip({ days, onDark = false, label }: { days: StripDay[]; onDark?: boolean; label: string }) {
+  const line = days.some((d) => d.withdrawal);
+  const shadows = SHADOW[onDark ? "dark" : "light"];
   return (
-    <div role="img" aria-label={label} className={`flex items-end gap-0.5 ${onDark ? "h-11" : "h-[30px]"}`}>
+    <div role="img" aria-label={label} className={`flex items-end gap-0.5 ${onDark ? "h-11" : "h-[30px]"} ${line ? "mb-1" : ""}`}>
       {days.map((d) => {
-        let bar = BAR[d.state][onDark ? 0 : 1];
-        if (d.withdrawal) bar = `${bar.split(" ")[0]} ${d.state === "upcoming" ? "bg-alert-soft" : "bg-alert"}`;
-        return <div key={d.age} className={`flex-1 rounded-[2px] ${bar} ${d.vaccine ? "shadow-[inset_0_0_0_2px_var(--color-chick)]" : ""}`} />;
+        const shadow = d.vaccine && d.withdrawal ? shadows.vv : d.vaccine ? shadows.v : d.withdrawal ? shadows.w : "";
+        return <div key={d.age} className={`flex-1 rounded-[2px] ${BAR[d.state][onDark ? 0 : 1]} ${shadow}`} />;
       })}
     </div>
+  );
+}
+
+// The landing's legend swatches (landing.tsx), on the same dark ground, plus the withdrawal line.
+const LEGEND = {
+  done: "size-3.5 rounded-[3px] bg-sand",
+  missing: "size-3.5 rounded-[3px] bg-brick",
+  today: "size-3.5 rounded-[3px] bg-chick",
+  vaccine: "size-3.5 rounded-[3px] bg-shell/15 shadow-[inset_0_0_0_2px_var(--color-chick)]",
+  withdrawal: "h-1 w-3.5 rounded-full bg-[#ef5350]", // the dark strips' line (SHADOW.dark): 4.60:1 on ink
+  upcoming: "size-3.5 rounded-[3px] bg-shell/15",
+} as const;
+
+/** Under a dark strip: what its colours mean, only those it shows (one legend for several strips: all their days). */
+export function StripLegend({ days }: { days: StripDay[] }) {
+  const t = useTranslations("Strip");
+  const shown = (k: keyof typeof LEGEND) => days.some((d) => (k === "vaccine" ? d.vaccine : k === "withdrawal" ? d.withdrawal : d.state === k));
+  return (
+    <ul aria-label={t("legendLabel")} className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-sand">
+      {(Object.keys(LEGEND) as (keyof typeof LEGEND)[]).filter(shown).map((k) => (
+        <li key={k} className="flex items-center gap-2">
+          <span aria-hidden="true" className={LEGEND[k]} />
+          {t(`legend.${k}`)}
+        </li>
+      ))}
+    </ul>
   );
 }

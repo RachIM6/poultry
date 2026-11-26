@@ -15,12 +15,11 @@ const TABS = [
   { href: "/more", key: "more", icon: "M5 12h.01M12 12h.01M19 12h.01" },
 ] as const;
 
-// What the nav reads from the phone's database (the refused writes' count, the role's wide links) comes in its own
+// What the nav reads from the phone's database (the refused writes' count, the role's « Plus » screens) comes in its own
 // chunk, once the page has loaded: Dexie stays off the first load of the online-only pages (books, treasury, closing…).
-// Neither moves the layout when it arrives: the count is absolutely placed, the links come last in the sidebar, and the
-// wide "Plus" button takes the "Plus" link's place, same size, once the role is known (the link stays until then).
+// Neither moves the layout when it arrives: the count is absolutely placed, and the wide "Plus" button takes the "Plus"
+// link's place, same size, once the role is known (the link stays until then).
 const Refused = dynamic(() => import("@/components/app-nav-live").then((m) => m.Refused), { ssr: false });
-const WideLinks = dynamic(() => import("@/components/app-nav-live").then((m) => m.WideLinks), { ssr: false });
 const WideMore = dynamic(() => import("@/components/app-nav-live").then((m) => m.WideMore), { ssr: false });
 const onLoad = (cb: () => void) => {
   window.addEventListener("load", cb);
@@ -63,19 +62,24 @@ export function AppNav() {
           </li>
         ))}
       </ul>
-      {loaded && <WideLinks isIn={isIn} />}
     </nav>
   );
 }
 
-/** The round back button of the mockups (Batch.dc.html), for screens reached from "Plus". */
-export function BackLink({ href }: { href: string }) {
+/**
+ * The round back button of the mockups (Batch.dc.html), for screens reached from "Plus". A hash (`#`: a batch's day
+ * back to the list) is a plain link, so the hash the screen reads changes.
+ */
+export function BackLink({ href, label }: { href: string; label?: string }) {
   const t = useTranslations("Nav");
-  return (
-    <Link href={href} aria-label={t("back")} className="grid size-11 place-items-center rounded-[14px] border border-line bg-card print:hidden">
+  const props = {
+    "aria-label": label ?? t("back"),
+    className: "grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card print:hidden",
+    children: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
         <path d="M15 6l-6 6 6 6" />
       </svg>
-    </Link>
-  );
+    ),
+  };
+  return href.startsWith("#") ? <a href={href} {...props} /> : <Link href={href} {...props} />;
 }

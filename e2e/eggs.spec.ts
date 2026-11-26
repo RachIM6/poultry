@@ -87,7 +87,7 @@ test("egg stock: grade a day's eggs, discard some, offline", async ({ page, cont
   await ungraded.getByRole("button", { name: "Calibrer" }).click();
   await ungraded.getByLabel("Calibre M").fill("2701");
   await ungraded.getByRole("button", { name: "Enregistrer le calibrage" }).click();
-  await expect(ungraded.getByRole("alert")).toHaveText("Pas assez d’œufs dans ce lot.");
+  await expect(ungraded.getByRole("alert")).toHaveText("Pas assez d’œufs dans ce ramassage.");
   await ungraded.getByLabel("Calibre M").fill("2000");
   await ungraded.getByLabel("Calibre L").fill("650");
   await ungraded.getByRole("button", { name: "Enregistrer le calibrage" }).click();

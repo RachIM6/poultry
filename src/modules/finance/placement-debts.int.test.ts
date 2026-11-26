@@ -114,7 +114,7 @@ describe("placement debts (SPEC-finance §9, FN6, FC6)", () => {
   it("shows the payment on the treasury with its batch (FN10, FN18)", async () => {
     const treasury = await treasuryOverview(owner, "2026-04");
     if (!treasury.ok) throw new Error(treasury.error);
-    expect(treasury.value.movements.find((mv) => mv.label === "Paiement fournisseur : Élevage Souss")).toMatchObject({ creditCentimes: 1_000_000n, treasuryId: o.bank, batch: "B2 · 05/03/2026" });
+    expect(treasury.value.movements.find((mv) => mv.label === "Paiement fournisseur : Élevage Souss")).toMatchObject({ creditCentimes: 1_000_000n, treasuryId: o.bank, batch: { house: "B2", placedOn: "2026-03-05" } }); // the screen writes the day
   });
 
   it("refuses, writing nothing: nothing owed, the wrong kind of account, another's account, a future day, a locked month, bad input", async () => {

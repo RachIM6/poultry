@@ -203,9 +203,9 @@ function SaleActions({ sale, label, cancellable, write }: { sale: SaleDto; label
     );
   }
   return (
-    <span className="mt-1 flex flex-wrap gap-2">
-      <button type="button" {...opener("price")} aria-label={t("Sale.correctOf", { sale: label })} className={`${secondary} text-sm`}>{t("Sale.correct")}</button>
-      {cancellable && <button type="button" onClick={cancel} aria-label={t("Sale.voidOf", { sale: label })} className={`${secondary} text-sm`}>{t("Sale.void")}</button>}
+    <span className="flex flex-wrap gap-x-4">
+      <button type="button" {...opener("price")} aria-label={t("Sale.correctOf", { sale: label })} className={`${link} text-sm`}>{t("Sale.correct")}</button>
+      {cancellable && <button type="button" onClick={cancel} aria-label={t("Sale.voidOf", { sale: label })} className={`${link} text-sm`}>{t("Sale.void")}</button>}
     </span>
   );
 }
@@ -465,7 +465,7 @@ function SaleForm({
             <Input key={buyerId} label={t("Sale.buyerAddress")} name="buyerAddress" defaultValue={buyer?.address ?? ""} maxLength={200} />
           </div>
           <details className="col-span-2">
-            <summary className="min-h-11 py-2.5">{t("Sale.destination")}</summary>
+            <summary className="disclosure">{t("Sale.destination")}</summary>
             <div className="mt-2 flex flex-col gap-2.5">
               <Input label={t("Sale.destinationName")} name="destinationName" maxLength={120} />
               <Input label={t("Sale.destinationAddress")} name="destinationAddress" maxLength={200} />

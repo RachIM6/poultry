@@ -30,12 +30,15 @@ test("wide screens: « Plus » expands in the sidebar, shows the role's screens 
   await expect(nav(page).getByRole("link", { name: "Plus", exact: true })).toBeHidden(); // the button replaces the link
   const treasury = nav(page).getByRole("link", { name: "Trésorerie" });
   await expect(treasury).toBeHidden();
+  // UX review A2: no shortcuts under the tabs: their screens are in « Plus », under their own names.
+  for (const name of ["Ventes", "Comptabilité", "Livres comptables"]) await expect(nav(page).getByRole("link", { name, exact: true })).toHaveCount(0);
 
   await plus.press("Enter"); // the keyboard opens it
   await expect(plus).toHaveAttribute("aria-expanded", "true");
   const panel = page.locator(`#${await plus.getAttribute("aria-controls")}`);
   await expect(panel.getByRole("heading", { name: "Argent" })).toBeVisible();
   await expect(panel.getByRole("list", { name: "Argent" }).getByRole("link", { name: "Trésorerie" })).toBeVisible();
+  await expect(panel.getByRole("list", { name: "Comptabilité de l’exercice" }).getByRole("link", { name: "Livres comptables" })).toBeVisible(); // C5: the year-end screens apart
   await expect(panel.getByRole("link", { name: "Langue et déconnexion" })).toHaveAttribute("href", "/fr/more"); // /more's language and sign-out
   for (const h of await panel.getByRole("link").evaluateAll((all) => all.map((a) => a.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(43.5); // SPEC X4: 44 px targets
 
@@ -65,8 +68,8 @@ test("wide screens: « Plus » expands in the sidebar, shows the role's screens 
   await page.goto("/fr/dashboard");
   await expect(plus).toHaveAttribute("aria-expanded", "true"); // still remembered open
   await expect(nav(page).getByRole("link", { name: "Fermes et bâtiments" })).toBeVisible();
-  for (const name of ["Trésorerie", "Comptabilité", "Créances des acheteurs", "Membres"]) await expect(nav(page).getByRole("link", { name })).toHaveCount(0);
-  await expect(nav(page).getByRole("heading", { name: "Argent" })).toHaveCount(0);
+  for (const name of ["Trésorerie", "Livres comptables", "Créances des acheteurs", "Membres"]) await expect(nav(page).getByRole("link", { name })).toHaveCount(0);
+  for (const name of ["Argent", "Comptabilité de l’exercice"]) await expect(nav(page).getByRole("heading", { name })).toHaveCount(0);
 });
 
 test("the phone: the « Plus » tab still opens /more", async ({ page }) => {

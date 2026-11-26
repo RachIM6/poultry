@@ -20,7 +20,7 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
 
   await page.goto("/fr/dashboard");
   await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
-  await page.getByRole("link", { name: "Comptabilité" }).click();
+  await page.getByRole("link", { name: "Livres comptables" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Livre des recettes et dépenses");
   // WCAG 4.1.2: the month's arrows have a name
   const months = page.getByRole("navigation", { name: "Mois", exact: true });
@@ -83,7 +83,7 @@ test("a full-books entity sees its draft income statement and balance sheet", as
   const cpc = page.getByRole("table", { name: "Produits et charges" });
   await expect(cpc.getByRole("row").filter({ hasText: "Charges d’exploitation" })).toContainText(/650,00/);
   await expect(cpc.getByRole("row").filter({ hasText: /^612 / })).toContainText(/450,00/);
-  await expect(cpc.getByRole("row").filter({ hasText: "Résultat net" })).toContainText(/-650,00/);
+  await expect(cpc.getByRole("row").filter({ hasText: "Résultat net" })).toContainText(/−650,00/);
 
   // T110: cash 1 000 − 650 = 350 on the assets; the overdrawn bank (1 000) and the loss (−650) on the liabilities.
   const bilan = async (p: Page) => {
@@ -94,7 +94,7 @@ test("a full-books entity sees its draft income statement and balance sheet", as
     await expect(sheet.getByRole("row").filter({ hasText: /^516 / })).toContainText(/350,00/);
     await expect(sheet.getByRole("row").filter({ hasText: /^Passif/ })).toContainText(/350,00/);
     await expect(sheet.getByRole("row").filter({ hasText: /^514 / })).toContainText(/1\s?000,00/);
-    await expect(sheet.getByRole("row").filter({ hasText: "Résultat net" })).toContainText(/-650,00/);
+    await expect(sheet.getByRole("row").filter({ hasText: "Résultat net" })).toContainText(/−650,00/);
   };
   await bilan(page);
 

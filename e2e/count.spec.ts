@@ -59,6 +59,6 @@ test("the year-end count sheet lists every open batch and stock item, prints wit
   await page.goto("/ar/closing/count");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("جرد نهاية السنة المالية");
-  await expect(page.getByRole("table", { name: "الأفواج الجارية" }).getByRole("row").nth(1)).toContainText("−5");
+  await expect(page.getByRole("table", { name: "الدفعات الجارية" }).getByRole("row").nth(1)).toContainText("−5");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // the tables scroll, not the page
 });

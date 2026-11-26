@@ -5,7 +5,8 @@ import { Suspense } from "react";
 import { redirect } from "@/i18n/navigation";
 import { getTenantContext, listMembers, PARTNER_ROLES, ROLES } from "@/modules/identity";
 import { formatDay } from "@/lib/format";
-import type { FarmDay } from "@/lib/kernel/farm-day";
+import { formatPhone } from "@/lib/format-phone";
+import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { CancelInvitationButton, InviteForm, MemberRow } from "./forms";
 import { row, rowHead, rowTable, splitAside, splitNarrow } from "@/components/layout";
 import { Page } from "@/components/page";
@@ -37,7 +38,8 @@ async function Content() {
     <Page width="wide" back="/more" title={t("title")}>
       <div className={splitNarrow}>
         <div className="flex flex-col gap-5">
-          <ul className={`${rowTable} lg:grid-cols-[auto_minmax(0,1fr)]`} aria-label={t("title")}>
+          {/* From lg: the number, the role, then the other actions, each under its header */}
+          <ul className={`${rowTable} lg:grid-cols-[auto_minmax(0,1fr)_auto]`} aria-label={t("title")}>
             <li aria-hidden="true" className={rowHead}>
               <span>{t("phoneLabel")}</span>
               <span>{t("roleLabel")}</span>
@@ -45,10 +47,11 @@ async function Content() {
             {members.map((m) =>
               m.userId === ctx.value.userId ? (
                 <li key={m.membershipId} className={row}>
-                  <p className="lg:col-span-full"><bdi dir="ltr" className="font-semibold">{m.phone ?? m.email}</bdi> · {t(`roles.${m.role}`)} ({t("you")})</p>
+                  <bdi dir="ltr" className="font-semibold">{m.phone ? formatPhone(m.phone) : m.email}</bdi>
+                  <span className="lg:col-span-2">{t(`roles.${m.role}`)} ({t("you")})</span>
                 </li>
               ) : (
-                <MemberRow key={m.membershipId} membershipId={m.membershipId} phone={m.phone ?? m.email ?? ""} role={m.role} roles={ROLES} until={m.accessUntil && formatDay(m.accessUntil as FarmDay, lang)} />
+                <MemberRow key={m.membershipId} membershipId={m.membershipId} phone={m.phone ? formatPhone(m.phone) : (m.email ?? "")} role={m.role} roles={ROLES} until={m.accessUntil && formatDay(m.accessUntil as FarmDay, lang)} />
               ),
             )}
           </ul>
@@ -58,11 +61,15 @@ async function Content() {
               <ul className="flex flex-col gap-3">
                 {invitations.map((i) => (
                   <li key={i.id} className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-line p-3">
-                    <span>
-                      <bdi dir="ltr">{i.phone}</bdi> · {t(`roles.${i.role}`)}
-                      {i.accessUntil && ` · ${t("accessUntil", { date: formatDay(i.accessUntil as FarmDay, lang) })}`}
+                    <span className="flex flex-col gap-1">
+                      <span>
+                        <bdi dir="ltr">{formatPhone(i.phone)}</bdi> · {t(`roles.${i.role}`)}
+                        {i.accessUntil && ` · ${t("accessUntil", { date: formatDay(i.accessUntil as FarmDay, lang) })}`}
+                      </span>
+                      {/* C3: every pending invitation says until when its code works */}
+                      <span className="text-sm text-ink-2">{t("expires", { date: formatDay(farmDayOf(i.expiresAt), lang) })}</span>
                     </span>
-                    <CancelInvitationButton invitationId={i.id} phone={i.phone} />
+                    <CancelInvitationButton invitationId={i.id} phone={formatPhone(i.phone)} />
                   </li>
                 ))}
               </ul>

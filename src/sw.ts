@@ -26,7 +26,8 @@ let deadUntil = 0;
 const watchLink: SerwistPlugin = { handlerDidRespond: async ({ response }) => void (deadUntil = response ? 0 : Date.now() + 10_000) };
 
 const serwist = new Serwist({
-  // Next's static assets plus the public shells: home, offline and sync pages per locale. Served before the rules below.
+  // Next's static assets plus the public shells (src/app/serwist/[path]/route.ts): offline, sync and the screens that
+  // open offline, per locale; not home, which redirects. Served before the rules below.
   precacheEntries: self.__SW_MANIFEST,
   // Three downloads at a time (default 10), so the first install doesn't saturate a 3G link.
   precacheOptions: { concurrency: 3 },

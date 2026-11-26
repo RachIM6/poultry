@@ -30,7 +30,7 @@ test("the owner invites a vet with an end day; the vet signs in and is listed un
   await vetContext.close();
 
   await page.reload();
-  await expect(page.getByRole("listitem").filter({ hasText: e164 })).toContainText("jusqu’au"); // now a member
+  await expect(page.getByRole("listitem").filter({ hasText: phone.replace(/(\d{2})(?=\d)/g, "$1 ") })).toContainText("jusqu’au"); // now a member, "06 12 34 56 78"
 });
 
 /** The role the phone remembers, once the dashboard has seen the new one (a new role pulls everything again, T25 S5). */
@@ -71,7 +71,7 @@ test("the accountant reads money without production figures; the vet records hea
   await expect(page.getByRole("link", { name: /Registre de suivi sanitaire/ })).toHaveCount(0); // not all of it on their phone
   await page.goto("/fr/more");
   for (const name of [/^Créances des acheteurs/, /^Personnel/]) await expect(page.getByRole("link", { name })).toBeVisible(); // "›" ends each name
-  for (const name of ["Stock d’œufs", "Comparer les lots", "Tâches du jour", "Climat des bâtiments", "Planning des lots", "Registre des visiteurs"]) {
+  for (const name of ["Stock d’œufs", "Comparer les bandes", "Tâches du jour", "Climat des bâtiments", "Planning des bandes", "Registre des visiteurs"]) {
     await expect(page.getByRole("link", { name })).toHaveCount(0);
   }
   await page.goto("/fr/receivables");

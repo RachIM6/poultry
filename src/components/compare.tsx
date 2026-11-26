@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useBatchResults } from "@/components/batch-results";
+import { Num } from "@/components/num";
 import { field } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatDecimal, formatKg, formatMoney, formatPercent } from "@/lib/format";
@@ -34,6 +35,9 @@ export function CompareScreen() {
 }
 
 const COLUMNS = ["hatchery", "livability", "weight", "age", "fcr", "epef", "costPerKg", "dayOld", "day7"] as const;
+// The figures sit at their column's end (Num); the hatchery is a name. The age keeps its own direction: in Arabic its
+// unit is a word ("42 ي"), which a left-to-right isolate would put on the wrong side of the number.
+const text = (c: string) => c === "hatchery";
 
 function Compare({ userId, organizationId, role }: Scope) {
   const t = useTranslations();
@@ -93,19 +97,25 @@ function Compare({ userId, organizationId, role }: Scope) {
             <thead>
               <tr className="text-muted">
                 <th scope="col" className="p-2 text-start font-medium">{t("Compare.cols.batch")}</th>
-                {COLUMNS.map((c) => <th key={c} scope="col" className="p-2 text-start font-medium">{t(`Compare.cols.${c}`)}</th>)}
+                {COLUMNS.map((c) => <th key={c} scope="col" className={`p-2 font-medium ${text(c) ? "text-start" : "text-end"}`}>{t(`Compare.cols.${c}`)}</th>)}
               </tr>
             </thead>
             <tbody>
               {rows.map(({ b, cells, house }) => (
                 <tr key={b.id} className="border-t border-line">
                   <th scope="row" className="p-2 text-start font-semibold">{house} · {formatDay(b.closedOn as FarmDay, locale)}</th>
-                  {COLUMNS.map((c) => <td key={c} className="p-2"><bdi>{cells[c]}</bdi></td>)}
+                  {COLUMNS.map((c) =>
+                    text(c) || c === "age" ? (
+                      <td key={c} className={`p-2 ${text(c) ? "" : "text-end"}`}><bdi>{cells[c]}</bdi></td>
+                    ) : (
+                      <Num key={c}>{cells[c]}</Num>
+                    ),
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-sm text-muted">{t("Compare.epef")}</p>
+          <p className="mt-2 max-w-prose text-sm text-muted">{t("Compare.epef")}</p>
           {can({ userId, organizationId, role }, "money.read") && !results && <p className="text-sm text-muted">{t("Compare.costOnline")}</p>}
         </div>
       )}
@@ -115,22 +125,22 @@ function Compare({ userId, organizationId, role }: Scope) {
             <caption className="mb-2 text-start font-semibold">{t("Compare.hatcheries")}</caption>
             <thead>
               <tr className="text-muted">
-                {(["hatchery", "batches", "dayOld", "day7", "claims"] as const).map((c) => <th key={c} scope="col" className="p-2 text-start font-medium">{t(`Compare.hatcheryCols.${c}`)}</th>)}
+                {(["hatchery", "batches", "dayOld", "day7", "claims"] as const).map((c) => <th key={c} scope="col" className={`p-2 font-medium ${text(c) ? "text-start" : "text-end"}`}>{t(`Compare.hatcheryCols.${c}`)}</th>)}
               </tr>
             </thead>
             <tbody>
               {hatcheries.map((h) => (
                 <tr key={h.hatchery} className="border-t border-line">
                   <th scope="row" className="p-2 text-start font-semibold">{h.hatchery}</th>
-                  <td className="p-2">{h.batches}</td>
-                  <td className="p-2">{h.dayOldWeightGrams === null ? none : `${h.dayOldWeightGrams} g`}</td>
-                  <td className="p-2">{formatPercent(h.day7MortalityPercent)} %</td>
-                  <td className="p-2">{h.claims}</td>
+                  <Num>{h.batches}</Num>
+                  <Num>{h.dayOldWeightGrams === null ? none : `${h.dayOldWeightGrams} g`}</Num>
+                  <Num>{formatPercent(h.day7MortalityPercent)} %</Num>
+                  <Num>{h.claims}</Num>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-sm text-muted">{t("Compare.hatcheriesNote")}</p>
+          <p className="mt-2 max-w-prose text-sm text-muted">{t("Compare.hatcheriesNote")}</p>
         </div>
       )}
     </>

@@ -32,6 +32,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Radios and checkboxes in the palette, not the browser's blue. */
+input[type="radio"],
+input[type="checkbox"] {
+  accent-color: var(--color-ink);
+}
+
 ::selection {
   background: var(--color-chick);
   color: var(--color-ink);

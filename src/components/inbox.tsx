@@ -10,6 +10,7 @@ import { NOTIFICATION_MUTATIONS as M, type NotificationDto } from "@/modules/not
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { requestSync, startSync } from "@/offline/sync";
+import { splitAside, splitNarrow } from "@/components/layout";
 import { field, primary, secondary } from "@/components/ui";
 
 // SPEC N1–N2 on the static /inbox shell: the list comes from the phone's database (synced like the farms);
@@ -44,8 +45,9 @@ function Inbox({ userId, organizationId, role }: Scope) {
       ? undefined
       : writeLocal(db, { type: M.markRead, payload: { id: n.id } }, { entity: "notification", id: n.id, data: { ...n, readAt: new Date().toISOString() } });
 
+  // Wide screens: the notifications, and the push and quiet-hours settings beside them.
   return (
-    <>
+    <div className={splitNarrow}>
       {items.length === 0 ? (
         <p>{t("Inbox.empty")}</p>
       ) : (
@@ -64,9 +66,11 @@ function Inbox({ userId, organizationId, role }: Scope) {
           ))}
         </ul>
       )}
-      <PushControls />
-      <QuietHours />
-    </>
+      <div className={`flex flex-col gap-5 ${splitAside}`}>
+        <PushControls />
+        <QuietHours />
+      </div>
+    </div>
   );
 }
 

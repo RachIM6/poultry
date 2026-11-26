@@ -2,7 +2,8 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { BackLink } from "@/components/app-nav";
+import { splitNarrow } from "@/components/layout";
+import { Page } from "@/components/page";
 import { redirect } from "@/i18n/navigation";
 import { postingOverrides } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
@@ -14,14 +15,13 @@ import type { MessagePath } from "@/i18n/pick";
 const MESSAGES: MessagePath[] = ["Chart.ops", "Expenses.categories", "Nav", "Offline", "Overrides", "Sync.refused", "errors"];
 
 // SPEC-finance FN8: the owner replaces the account of a default posting rule for the entity. Online, owner only (finance.manage).
+// Wide screens: the rules as a table, the form beside it.
 export default function PostingOverridesPage() {
   return (
     <ClientMessages paths={MESSAGES}>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
-        <Suspense>
-          <Content />
-        </Suspense>
-      </main>
+      <Suspense fallback={<Page width="wide" back="/settings/accounting" />}>
+        <Content />
+      </Suspense>
     </ClientMessages>
   );
 }
@@ -31,13 +31,13 @@ async function Content() {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const view = await postingOverrides(ctx.value);
   if (!view.ok) return redirect({ href: "/dashboard", locale: lang }); // not the owner; the action re-checks can()
-  if (!view.value) return <p>{t("Accounting.none")}</p>;
+  if (!view.value) return <Page width="wide" back="/settings/accounting"><p>{t("Accounting.none")}</p></Page>;
   return (
-    <>
-      <BackLink href="/settings/accounting" />
-      <h1 className="text-2xl font-semibold">{t("Overrides.title")}</h1>
-      <p>{t("Overrides.intro")}</p>
-      <OverridesForm rows={view.value.rows} choices={view.value.choices} />
-    </>
+    <Page width="wide" back="/settings/accounting" title={t("Overrides.title")}>
+      <p className="max-w-prose">{t("Overrides.intro")}</p>
+      <div className={splitNarrow}>
+        <OverridesForm rows={view.value.rows} choices={view.value.choices} />
+      </div>
+    </Page>
   );
 }

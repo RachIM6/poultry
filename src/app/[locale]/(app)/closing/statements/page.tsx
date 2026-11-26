@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Fragment, Suspense } from "react";
-import { BackLink } from "@/components/app-nav";
+import { Page } from "@/components/page";
 import { EntityHeader } from "@/components/entity-header";
 import { Num, Scroll } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
@@ -25,14 +25,9 @@ type Ledger = Extract<OfficialStatements, { books: "ledger" }>;
 export default function StatementsPage({ searchParams }: { searchParams: Search }) {
   return (
     <ClientMessages paths={MESSAGES}>
-      <header className="px-4 pt-4 print:hidden">
-        <BackLink href="/more" />
-      </header>
-      <main className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 print:max-w-none print:p-0">
-        <Suspense>
-          <StatementsView searchParams={searchParams} />
-        </Suspense>
-      </main>
+      <Suspense fallback={<Page width="doc" back="/more" />}>
+        <StatementsView searchParams={searchParams} />
+      </Suspense>
     </ClientMessages>
   );
 }
@@ -44,7 +39,7 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations("Statements"), searchParams]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await officialStatements(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
-  if (!result.ok) return <p>{t("forbidden")}</p>;
+  if (!result.ok) return <Page width="doc" back="/more"><p>{t("forbidden")}</p></Page>;
   const s = result.value;
   const nav = (
     <nav className="flex flex-wrap items-center gap-3 print:hidden" aria-label={t("year")}>
@@ -56,11 +51,10 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
   );
   if (s.books === "cash_book")
     return (
-      <>
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+      <Page width="doc" back="/more" title={t("title")}>
         {nav}
         <p>{t("cashBook")}</p>
-      </>
+      </Page>
     );
 
   const label = (x: { fr: string; ar: string }) => (lang === "ar" ? x.ar : x.fr);
@@ -150,13 +144,12 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
     );
 
   return (
-    <>
+    <Page width="doc" back="/more" title={t("title")}>
       {!s.closedOn && (
         <p aria-hidden className="pointer-events-none fixed inset-0 z-10 flex items-center justify-center text-8xl font-bold text-ink-2/15 print:text-black/10 -rotate-30 select-none">
           {t("draft")}
         </p>
       )}
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
       {nav}
       <EntityHeader {...s.entity} />
       <p className="font-semibold">{s.closedOn ? t("closed", { day: day(s.closedOn) }) : t("draftCaption")}</p>
@@ -222,6 +215,6 @@ async function StatementsView({ searchParams }: { searchParams: Search }) {
         {etic("s1_1", s.etic.s1_1)}
         {etic("s1ter", s.etic.s1ter)}
       </section>
-    </>
+    </Page>
   );
 }

@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { useFieldError, useInline } from "@/components/focus";
+import { split, splitAside } from "@/components/layout";
 import { Scoped } from "@/components/scoped";
 import { card, danger, done, field, primary, secondary } from "@/components/ui";
 import { formatDay } from "@/lib/format";
@@ -75,71 +76,81 @@ function Planning(scope: Scope) {
     }
   };
 
+  const forms = manage || can(scope, "organization.manage");
   return (
     <>
       {message && <p role="status" className={done}>{t(message)}</p>}
-      {farms.map((farm) => {
-        const min = downtimeOn(rules, farm.id, today);
-        return (
-          <section key={farm.id} aria-label={farm.name} className="flex flex-col gap-3">
-            {farms.length > 1 && <h2 className="text-[17px] font-semibold text-ink-2">{farm.name}</h2>}
-            <p className="text-[13px] text-ink-2">{t("Planning.downtime", { days: String(min.minDays), source: min.source })}</p>
-            {houses.filter((h) => h.farmId === farm.id).map((house) => {
-              const slots: Slot[] = [
-                ...batches.filter((b) => b.houseId === house.id).map((b) => {
-                  const from = plans.find((p) => p.batchId === b.id); // the plan it was placed from knows its sale age
-                  return { kind: "batch" as const, id: b.id, placeOn: b.placedOn, saleDay: from ? saleDay(b.placedOn, from.saleAge) : null };
-                }),
-                ...plans.filter((p) => p.houseId === house.id && p.status === "planned").map((p) => ({ kind: "plan" as const, id: p.id, placeOn: p.placeOn, saleDay: saleDay(p.placeOn, p.saleAge) })),
-              ];
-              return (
-                <div key={house.id} className={card}>
-                  <h3 className="font-semibold">{house.name}</h3>
-                  {slots.length === 0 ? (
-                    <p className="text-ink-2">{t("Planning.empty")}</p>
-                  ) : (
-                    <ol aria-label={t("Planning.of", { house: house.name })} className="flex flex-col gap-2">
-                      {houseTimeline(slots, min.minDays).map((line) => {
-                        const plan = plans.find((p) => p.id === line.id);
-                        return (
-                          <li key={line.id} className="border-t border-line pt-2 first:border-t-0 first:pt-0">
-                            {line.gapDays !== null && line.gapDays >= 0 && <span className="block text-[13px] text-ink-2">{t("Planning.gap", { days: String(line.gapDays) })}</span>}
-                            <span className="block">
-                              {line.kind === "batch" ? t("Planning.batch", { date: day(line.placeOn) }) : t("Planning.plan", { date: day(line.placeOn), chicks: String(plan?.chicks ?? 0), hatchery: plan?.hatchery ?? "" })}
-                            </span>
-                            <span className="block text-sm text-ink-2">{line.saleDay ? t("Planning.sale", { date: day(line.saleDay) }) : t("Planning.saleUnknown")}</span>
-                            {line.overlaps && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.overlaps")}</span>}
-                            {line.shortDowntime && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.short", { days: String(min.minDays) })}</span>}
-                            {plan && manage && open === `place:${plan.id}` && (
-                              <PlaceForm plan={plan} today={today} protocols={of<ProtocolDto>("protocol")} onSave={(batch, sent, protocol) => place(plan, batch, sent, protocol)} onCancel={close} />
-                            )}
-                            {plan && manage && open === `edit:${plan.id}` && (
-                              <PlanForm plan={plan} houses={houses} strains={strains} today={today} onSave={(p) => savePlan(p).then(close)} onCancel={close} />
-                            )}
-                            {plan && manage && !open?.endsWith(plan.id) && (
-                              <span className="mt-2 flex flex-wrap gap-2">
-                                {plan.placeOn <= nextFarmDay(today) && (
-                                  <button type="button" {...opener(`place:${plan.id}`)} className={primary}>{t("Planning.place", { date: day(plan.placeOn) })}</button>
+      {/* Wide screens: the houses' timelines, and the planned-batch form beside them. */}
+      <div className={forms ? split : "flex flex-col gap-5"}>
+        <div className="flex flex-col gap-5">
+          {farms.map((farm) => {
+            const min = downtimeOn(rules, farm.id, today);
+            return (
+              <section key={farm.id} aria-label={farm.name} className="flex flex-col gap-3">
+                {farms.length > 1 && <h2 className="text-[17px] font-semibold text-ink-2">{farm.name}</h2>}
+                <p className="text-[13px] text-ink-2">{t("Planning.downtime", { days: String(min.minDays), source: min.source })}</p>
+                {houses.filter((h) => h.farmId === farm.id).map((house) => {
+                  const slots: Slot[] = [
+                    ...batches.filter((b) => b.houseId === house.id).map((b) => {
+                      const from = plans.find((p) => p.batchId === b.id); // the plan it was placed from knows its sale age
+                      return { kind: "batch" as const, id: b.id, placeOn: b.placedOn, saleDay: from ? saleDay(b.placedOn, from.saleAge) : null };
+                    }),
+                    ...plans.filter((p) => p.houseId === house.id && p.status === "planned").map((p) => ({ kind: "plan" as const, id: p.id, placeOn: p.placeOn, saleDay: saleDay(p.placeOn, p.saleAge) })),
+                  ];
+                  return (
+                    <div key={house.id} className={card}>
+                      <h3 className="font-semibold">{house.name}</h3>
+                      {slots.length === 0 ? (
+                        <p className="text-ink-2">{t("Planning.empty")}</p>
+                      ) : (
+                        <ol aria-label={t("Planning.of", { house: house.name })} className="flex flex-col gap-2">
+                          {houseTimeline(slots, min.minDays).map((line) => {
+                            const plan = plans.find((p) => p.id === line.id);
+                            return (
+                              <li key={line.id} className="border-t border-line pt-2 first:border-t-0 first:pt-0">
+                                {line.gapDays !== null && line.gapDays >= 0 && <span className="block text-[13px] text-ink-2">{t("Planning.gap", { days: String(line.gapDays) })}</span>}
+                                <span className="block">
+                                  {line.kind === "batch" ? t("Planning.batch", { date: day(line.placeOn) }) : t("Planning.plan", { date: day(line.placeOn), chicks: String(plan?.chicks ?? 0), hatchery: plan?.hatchery ?? "" })}
+                                </span>
+                                <span className="block text-sm text-ink-2">{line.saleDay ? t("Planning.sale", { date: day(line.saleDay) }) : t("Planning.saleUnknown")}</span>
+                                {line.overlaps && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.overlaps")}</span>}
+                                {line.shortDowntime && <span role="note" className="block text-sm font-medium text-brick-fg">{t("Planning.short", { days: String(min.minDays) })}</span>}
+                                {plan && manage && open === `place:${plan.id}` && (
+                                  <PlaceForm plan={plan} today={today} protocols={of<ProtocolDto>("protocol")} onSave={(batch, sent, protocol) => place(plan, batch, sent, protocol)} onCancel={close} />
                                 )}
-                                <button type="button" {...opener(`edit:${plan.id}`)} className={secondary}>{t("Planning.edit", { date: day(plan.placeOn) })}</button>
-                                <button type="button" onClick={() => write(P.cancelPlan, "plannedBatch", { ...plan, status: "cancelled" }, { id: plan.id })} className={secondary}>
-                                  {t("Planning.cancel", { date: day(plan.placeOn) })}
-                                </button>
-                              </span>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  )}
-                </div>
-              );
-            })}
-          </section>
-        );
-      })}
-      {manage && <PlanForm houses={houses} strains={strains} today={today} onSave={savePlan} />}
-      {can(scope, "organization.manage") && <DowntimeForm farms={farms} today={today} onSave={(r) => write(P.saveDowntime, "downtimeRule", r)} />}
+                                {plan && manage && open === `edit:${plan.id}` && (
+                                  <PlanForm plan={plan} houses={houses} strains={strains} today={today} onSave={(p) => savePlan(p).then(close)} onCancel={close} />
+                                )}
+                                {plan && manage && !open?.endsWith(plan.id) && (
+                                  <span className="mt-2 flex flex-wrap gap-2">
+                                    {plan.placeOn <= nextFarmDay(today) && (
+                                      <button type="button" {...opener(`place:${plan.id}`)} className={primary}>{t("Planning.place", { date: day(plan.placeOn) })}</button>
+                                    )}
+                                    <button type="button" {...opener(`edit:${plan.id}`)} className={secondary}>{t("Planning.edit", { date: day(plan.placeOn) })}</button>
+                                    <button type="button" onClick={() => write(P.cancelPlan, "plannedBatch", { ...plan, status: "cancelled" }, { id: plan.id })} className={secondary}>
+                                      {t("Planning.cancel", { date: day(plan.placeOn) })}
+                                    </button>
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
+            );
+          })}
+        </div>
+        {forms && (
+          <div className={`flex flex-col gap-5 ${splitAside}`}>
+            {manage && <PlanForm houses={houses} strains={strains} today={today} onSave={savePlan} />}
+            {can(scope, "organization.manage") && <DowntimeForm farms={farms} today={today} onSave={(r) => write(P.saveDowntime, "downtimeRule", r)} />}
+          </div>
+        )}
+      </div>
     </>
   );
 }
@@ -263,7 +274,7 @@ function DowntimeForm({ farms, today, onSave }: { farms: FarmDto[]; today: strin
   const { open, opener, close } = useInline<"downtime">();
   const { id: errorId, error, set: setError, field: bad } = useFieldError();
   const id = { farm: useId(), days: useId(), source: useId(), from: useId() };
-  if (!open) return <button type="button" {...opener("downtime")} className={secondary}>{t("Planning.enterDowntime")}</button>;
+  if (!open) return <button type="button" {...opener("downtime")} className={`${secondary} lg:self-start`}>{t("Planning.enterDowntime")}</button>;
   const submit = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault();
     const data = new FormData(ev.currentTarget);

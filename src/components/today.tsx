@@ -136,9 +136,11 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
     return { b, age, days, birds, house, strain, weight: weight(b), figure: figure(b), until, due, enteredToday: own.some((e) => e.day === today), missing: days.filter((d) => d.state === "missing") };
   });
 
+  // Wide screens: the dark header and the grid share one centred column, so their edges line up (tasks/plan-ui.md
+  // "Desktop rules"). The phone: the header edge to edge, the grid under it, as before.
   return (
-    <>
-      <header className="flex flex-col gap-[18px] rounded-b-3xl bg-ink px-5 pb-[22px] pt-5 text-shell print:hidden lg:mx-5 lg:mt-5 lg:rounded-3xl">
+    <div className="flex w-full flex-1 flex-col lg:mx-auto lg:max-w-5xl lg:p-5">
+      <header className="flex flex-col gap-[18px] rounded-b-3xl bg-ink px-5 pb-[22px] pt-5 text-shell print:hidden lg:rounded-3xl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm text-sand">{new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span>
@@ -171,7 +173,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
         ))}
       </header>
 
-      <main className="mx-auto grid w-full max-w-xl flex-1 content-start gap-6 p-5 lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <main className="mx-auto grid w-full max-w-xl flex-1 content-start gap-6 p-5 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:px-0 lg:pb-0">
         <div className="flex flex-col gap-3.5">
         {alert}
         {open.some((b) => b.species === "layer") && (
@@ -241,6 +243,6 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
         </div>
         {money}
       </main>
-    </>
+    </div>
   );
 }

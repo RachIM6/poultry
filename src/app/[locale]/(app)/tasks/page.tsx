@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { Page } from "@/components/page";
 import { TasksScreen } from "@/components/tasks";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
@@ -11,10 +12,13 @@ export default function TasksPage() {
   const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 p-4">
-        <h1 className="text-2xl font-semibold">{t("Tasks.title")}</h1>
-        <TasksScreen />
-      </main>
+      {/* A form-wide page for the worker; from lg, as wide as a `wide` page when the screen holds the tasks to assign
+          ([data-assign], components/tasks.tsx). CSS only: the role is the phone's, known once IndexedDB is read. */}
+      <div className="contents lg:[&>main:has([data-assign])]:max-w-6xl">
+        <Page width="form" title={t("Tasks.title")}>
+          <TasksScreen />
+        </Page>
+      </div>
     </ClientMessages>
   );
 }

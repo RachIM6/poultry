@@ -2,9 +2,10 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { BackLink } from "@/components/app-nav";
 import { EntityHeader } from "@/components/entity-header";
-import { card } from "@/components/ui";
+import { split, splitAside } from "@/components/layout";
+import { Page } from "@/components/page";
+import { card, link } from "@/components/ui";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatDay } from "@/lib/format";
 import { can } from "@/lib/permissions";
@@ -20,14 +21,13 @@ const MESSAGES: MessagePath[] = ["Accounting", "LegalIds", "Nav", "Offline", "Sy
 
 // SPEC-finance FN1, FN9, FC6, FN14, mockup F-Profile: the owner's accounting choices. Online. The owner changes them
 // (finance.manage); the accountant and the manager read them and the registration numbers, with no form (SPEC-m5 PA5).
+// Wide screens: the entity and its registration numbers on one side, the accounting choices on the other.
 export default function AccountingSettings() {
   return (
     <ClientMessages paths={MESSAGES}>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4">
-        <Suspense>
-          <Content />
-        </Suspense>
-      </main>
+      <Suspense fallback={<Page width="wide" back="/more" />}>
+        <Content />
+      </Suspense>
     </ClientMessages>
   );
 }
@@ -37,7 +37,7 @@ async function Content() {
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const settings = await accountingSettings(ctx.value);
   if (!settings.ok) return redirect({ href: "/dashboard", locale: lang }); // no money.read; the actions re-check can()
-  if (!settings.value) return <p>{t("Accounting.none")}</p>;
+  if (!settings.value) return <Page width="wide" back="/more"><p>{t("Accounting.none")}</p></Page>;
   const { entity, books, locked, nextYearFrom } = settings.value;
   const months = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat(lang === "ar" ? "ar-MA" : "fr", { month: "long", timeZone: "UTC" }).format(Date.UTC(2026, i, 1)));
   if (!can(ctx.value, "finance.manage")) {
@@ -52,12 +52,9 @@ async function Content() {
       [t("Accounting.allocation"), t(`Accounting.allocationKeys.${entity.allocationKey}.title`)],
     ];
     return (
-      <>
-        <BackLink href="/more" />
-        <h1 className="text-2xl font-semibold">{t("Accounting.title")}</h1>
-        <p className="text-sm text-ink-2">{t("Accounting.readOnly")}</p>
+      <Page width="wide" back="/more" title={t("Accounting.title")} subtitle={t("Accounting.readOnly")}>
         <EntityHeader name={entity.name} form={entity.form} ids={settings.value.ids} />
-        <dl className={`${card} gap-3`}>
+        <dl className={`${card} gap-3 lg:grid lg:grid-cols-3 lg:gap-x-8`}>
           {rows.map(([label, value]) => (
             <div key={label}>
               <dt className="text-sm text-ink-2">{label}</dt>
@@ -65,41 +62,45 @@ async function Content() {
             </div>
           ))}
         </dl>
-        <Link href="/settings/chart" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Chart.open")}</Link>
-        <Link href="/threshold" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Threshold.open")}</Link>
-      </>
+        <Link href="/settings/chart" className={link}>{t("Chart.open")}</Link>
+        <Link href="/threshold" className={link}>{t("Threshold.open")}</Link>
+      </Page>
     );
   }
   return (
-    <>
-      <BackLink href="/more" />
-      <h1 className="text-2xl font-semibold">{t("Accounting.title")}</h1>
-      <p>
-        <span className="font-semibold">{entity.name}</span> · {t(`Onboarding.forms.${entity.form}`)}
-      </p>
-      {entity.form === "cooperative" && <p className="text-sm text-ink-2">{t("Accounting.coop")}</p>}
-      <LegalIdsForm legalEntityId={entity.id} ids={settings.value.ids} />
-      {locked && (
-        <div role="note" className="flex flex-col gap-2 rounded-lg border border-line p-3">
-          <p>{t("errors.FISCAL_YEAR_HAS_ENTRIES")}</p>
-          <p>{t("Accounting.lockedHow", { day: formatDay(nextYearFrom, lang) })}</p>
+    <Page width="wide" back="/more" title={t("Accounting.title")}>
+      <div className={split}>
+        <div className={`flex flex-col gap-5 ${splitAside}`}>
+          <p>
+            <span className="font-semibold">{entity.name}</span> · {t(`Onboarding.forms.${entity.form}`)}
+          </p>
+          {entity.form === "cooperative" && <p className="text-sm text-ink-2">{t("Accounting.coop")}</p>}
+          <LegalIdsForm legalEntityId={entity.id} ids={settings.value.ids} />
         </div>
-      )}
-      <AccountingForm
-        legalEntityId={entity.id}
-        books={entity.accountingProfile.books}
-        booksAllowed={books}
-        pca={entity.accountingProfile.overlays.includes("pca")}
-        month={entity.fiscalYearStartMonth}
-        months={months}
-        vatRegistered={entity.vatRegistered}
-        hensMethod={entity.hensMethod}
-        allocationKey={entity.allocationKey}
-        locked={locked}
-      />
-      <Link href="/settings/chart" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Chart.open")}</Link>
-      <Link href="/settings/posting" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Overrides.open")}</Link>
-      <Link href="/threshold" className="inline-flex min-h-11 items-center underline underline-offset-4">{t("Threshold.open")}</Link>
-    </>
+        <div className="flex flex-col gap-5">
+          {locked && (
+            <div role="note" className="flex flex-col gap-2 rounded-lg border border-line p-3">
+              <p>{t("errors.FISCAL_YEAR_HAS_ENTRIES")}</p>
+              <p>{t("Accounting.lockedHow", { day: formatDay(nextYearFrom, lang) })}</p>
+            </div>
+          )}
+          <AccountingForm
+            legalEntityId={entity.id}
+            books={entity.accountingProfile.books}
+            booksAllowed={books}
+            pca={entity.accountingProfile.overlays.includes("pca")}
+            month={entity.fiscalYearStartMonth}
+            months={months}
+            vatRegistered={entity.vatRegistered}
+            hensMethod={entity.hensMethod}
+            allocationKey={entity.allocationKey}
+            locked={locked}
+          />
+        </div>
+      </div>
+      <Link href="/settings/chart" className={link}>{t("Chart.open")}</Link>
+      <Link href="/settings/posting" className={link}>{t("Overrides.open")}</Link>
+      <Link href="/threshold" className={link}>{t("Threshold.open")}</Link>
+    </Page>
   );
 }

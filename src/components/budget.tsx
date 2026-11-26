@@ -10,6 +10,7 @@ import { parseQuantity } from "@/modules/inventory/shared";
 import { OfflineHint, unsent, useOnline } from "@/components/online";
 import { danger, field, primary } from "@/components/ui";
 import { BudgetCashView } from "@/components/budget-cash";
+import { splitAside } from "@/components/layout";
 
 // SPEC-finance FN15: a planned batch's budget, copied from a closed batch, with its feed and sale prices as what-if
 // inputs. The figures recompute on every keystroke with the same pure function the server uses; a screen reader hears
@@ -116,87 +117,94 @@ export function BudgetPlanner({ bases, batches, delays, save }: { bases: Base[];
     setChecked({ bad: [], said: "" });
   };
 
+  // Wide screens: the inputs, then the name and the button, on one side; the figures and the weekly cash on the other,
+  // in view while the inputs scroll. The grid places the three blocks, the DOM (the phone's order) stays; the second
+  // row, 1fr, takes what the figures need beyond the inputs, so the button stays under them.
   return (
-    <form action={action} className="flex flex-col gap-4">
-      <Field label={t("basedOn")}>
-        {(id) => (
-          <select id={id} value={basedOn} onChange={(e) => pick(e.target.value)} className={field}>
-            {bases.map((x) => <option key={x.batchId} value={x.batchId}>{x.label}</option>)}
-            <option value="">{t("blank")}</option>
-          </select>
-        )}
-      </Field>
-      <input type="hidden" name="basedOn" value={basedOn} />
-      <input type="hidden" name="id" value={id} />
-      {/* FN17: a budget linked to an open batch plans only what it hasn't sold yet (SPEC-finance §9 FQ32). */}
-      <Field label={t("batch")}>
-        {(fieldId) => (
-          <select id={fieldId} name="batchId" defaultValue="" className={field}>
-            <option value="">{t("noBatch")}</option>
-            {batches.map((x) => <option key={x.batchId} value={x.batchId}>{x.label}</option>)}
-          </select>
-        )}
-      </Field>
-      <div className="grid grid-cols-2 gap-3" onBlur={check}>
-        {KEYS.map((k) => {
-          const bad = checked.bad.includes(k);
-          return (
-            <Field key={k} label={t(LABEL[k])}>
-              {(id) => (
-                <input id={id} value={text[k]} onChange={set(k)} inputMode={k === "chicks" ? "numeric" : "decimal"} dir="ltr" aria-invalid={bad || undefined} aria-describedby={bad ? errorId : undefined} className={`${field} aria-invalid:border-alert`} />
-              )}
-            </Field>
-          );
-        })}
-      </div>
-      {checked.bad.length > 0 && (
-        <p id={errorId} role="alert" className={danger}>
-          {t("check", { fields: list.format(checked.bad.map((k) => t(LABEL[k]))) })}
-        </p>
-      )}
-      <p role="status" className="sr-only">{checked.bad.length === 0 && checked.said}</p>
-
-      {b && inputs && (
-        <dl className="grid grid-cols-2 gap-2 rounded-2xl border border-line bg-card p-3" aria-label={t("figures")}>
-          <dt>{t("plannedCost")}</dt>
-          <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedCostCentimes)}</bdi></dd>
-          <dt>{t("breakEven")}</dt>
-          <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{b.breakEvenPerKgCentimes === null ? "—" : `${formatMoney(b.breakEvenPerKgCentimes)} / kg`}</bdi></dd>
-          <dt>{t("plannedSales")}</dt>
-          <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedSalesCentimes)} ({formatKg(Number(inputs.plannedGrams))})</bdi></dd>
-          <dt>{t("plannedMargin")}</dt>
-          <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedMarginCentimes)}</bdi></dd>
-        </dl>
-      )}
-
-      {/* SPEC-finance FN15, §9 "Budget cash need": the batch's cash week by week, from the base batch's timing or the plain rule */}
-      <section className="flex flex-col gap-2" aria-labelledby="budget-cash">
-        <h2 id="budget-cash" className="text-[17px] font-semibold text-ink-2">{t("cash")}</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {DELAYS.map(([k, name, label]) => (
-            <Field key={k} label={t(label)}>
-              {(id) => <input id={id} name={name} value={delayText[k]} onChange={(e) => setDelayText({ ...delayText, [k]: e.target.value })} inputMode="numeric" dir="ltr" aria-invalid={typedDelays[k] === null || undefined} aria-describedby={delayHint} className={`${field} aria-invalid:border-alert`} />}
-            </Field>
-          ))}
+    <form action={action} className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-8">
+      <div className="flex flex-col gap-4 lg:col-start-1">
+        <Field label={t("basedOn")}>
+          {(id) => (
+            <select id={id} value={basedOn} onChange={(e) => pick(e.target.value)} className={field}>
+              {bases.map((x) => <option key={x.batchId} value={x.batchId}>{x.label}</option>)}
+              <option value="">{t("blank")}</option>
+            </select>
+          )}
+        </Field>
+        <input type="hidden" name="basedOn" value={basedOn} />
+        <input type="hidden" name="id" value={id} />
+        {/* FN17: a budget linked to an open batch plans only what it hasn't sold yet (SPEC-finance §9 FQ32). */}
+        <Field label={t("batch")}>
+          {(fieldId) => (
+            <select id={fieldId} name="batchId" defaultValue="" className={field}>
+              <option value="">{t("noBatch")}</option>
+              {batches.map((x) => <option key={x.batchId} value={x.batchId}>{x.label}</option>)}
+            </select>
+          )}
+        </Field>
+        <div className="grid grid-cols-2 gap-3" onBlur={check}>
+          {KEYS.map((k) => {
+            const bad = checked.bad.includes(k);
+            return (
+              <Field key={k} label={t(LABEL[k])}>
+                {(id) => (
+                  <input id={id} value={text[k]} onChange={set(k)} inputMode={k === "chicks" ? "numeric" : "decimal"} dir="ltr" aria-invalid={bad || undefined} aria-describedby={bad ? errorId : undefined} className={`${field} aria-invalid:border-alert`} />
+                )}
+              </Field>
+            );
+          })}
         </div>
-        <p id={delayHint} className="text-sm text-ink-2">{t(delaysOk ? "delayHint" : "delayCheck")}</p>
-        {!base && <Field label={t("saleDay")}>{(id) => <input id={id} name="saleDay" value={saleDay} onChange={(e) => setSaleDay(e.target.value)} inputMode="numeric" dir="ltr" aria-invalid={(saleDay.trim() !== "" && !saleDayOk) || undefined} aria-describedby={cash || !delaysOk ? undefined : saleDayHint} className={`${field} aria-invalid:border-alert`} />}</Field>}
-        {cash ? (
-          <BudgetCashView cash={cash} label={t("cash")} fromBase={!!base} />
-        ) : (
-          inputs && delaysOk && <p id={saleDayHint} className="text-sm text-ink-2">{t("saleDayMissing")}</p>
+        {checked.bad.length > 0 && (
+          <p id={errorId} role="alert" className={danger}>
+            {t("check", { fields: list.format(checked.bad.map((k) => t(LABEL[k]))) })}
+          </p>
         )}
-      </section>
+        <p role="status" className="sr-only">{checked.bad.length === 0 && checked.said}</p>
+      </div>
+
+      <div className={`flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 ${splitAside}`}>
+        {b && inputs && (
+          <dl className="grid grid-cols-2 gap-2 rounded-2xl border border-line bg-card p-3" aria-label={t("figures")}>
+            <dt>{t("plannedCost")}</dt>
+            <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedCostCentimes)}</bdi></dd>
+            <dt>{t("breakEven")}</dt>
+            <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{b.breakEvenPerKgCentimes === null ? "—" : `${formatMoney(b.breakEvenPerKgCentimes)} / kg`}</bdi></dd>
+            <dt>{t("plannedSales")}</dt>
+            <dd className="text-end tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedSalesCentimes)} ({formatKg(Number(inputs.plannedGrams))})</bdi></dd>
+            <dt>{t("plannedMargin")}</dt>
+            <dd className="text-end font-semibold tabular-nums"><bdi dir="ltr">{formatMoney(b.plannedMarginCentimes)}</bdi></dd>
+          </dl>
+        )}
+
+        {/* SPEC-finance FN15, §9 "Budget cash need": the batch's cash week by week, from the base batch's timing or the plain rule */}
+        <section className="flex flex-col gap-2" aria-labelledby="budget-cash">
+          <h2 id="budget-cash" className="text-[17px] font-semibold text-ink-2">{t("cash")}</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {DELAYS.map(([k, name, label]) => (
+              <Field key={k} label={t(label)}>
+                {(id) => <input id={id} name={name} value={delayText[k]} onChange={(e) => setDelayText({ ...delayText, [k]: e.target.value })} inputMode="numeric" dir="ltr" aria-invalid={typedDelays[k] === null || undefined} aria-describedby={delayHint} className={`${field} aria-invalid:border-alert`} />}
+              </Field>
+            ))}
+          </div>
+          <p id={delayHint} className="text-sm text-ink-2">{t(delaysOk ? "delayHint" : "delayCheck")}</p>
+          {!base && <Field label={t("saleDay")}>{(id) => <input id={id} name="saleDay" value={saleDay} onChange={(e) => setSaleDay(e.target.value)} inputMode="numeric" dir="ltr" aria-invalid={(saleDay.trim() !== "" && !saleDayOk) || undefined} aria-describedby={cash || !delaysOk ? undefined : saleDayHint} className={`${field} aria-invalid:border-alert`} />}</Field>}
+          {cash ? (
+            <BudgetCashView cash={cash} label={t("cash")} fromBase={!!base} />
+          ) : (
+            inputs && delaysOk && <p id={saleDayHint} className="text-sm text-ink-2">{t("saleDayMissing")}</p>
+          )}
+        </section>
+      </div>
 
       {/* What the server saves: the parsed inputs, in centimes and grams. */}
       {inputs && Object.entries(inputs).map(([k, v]) => <input key={k} type="hidden" name={k} value={String(v)} />)}
       {save && (
-        <>
+        <div className="flex flex-col gap-4 lg:col-start-1">
           <Field label={t("name")}>{(id) => <input id={id} name="name" required maxLength={80} className={field} />}</Field>
           {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{tr(state.messageKey)}</p>}
           <OfflineHint online={online} />
           <button type="submit" disabled={!inputs || pending || !online} className={primary}>{t("save")}</button>
-        </>
+        </div>
       )}
     </form>
   );

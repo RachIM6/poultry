@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { BackLink } from "@/components/app-nav";
+import { Page } from "@/components/page";
 import { card, done, link, table, warn } from "@/components/ui";
 import { Num } from "@/components/num";
 import { Link, redirect } from "@/i18n/navigation";
@@ -38,14 +38,9 @@ type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 export default function ClosingPage({ searchParams }: { searchParams: Search }) {
   return (
     <ClientMessages paths={MESSAGES}>
-      <header className="px-4 pt-4">
-        <BackLink href="/more" />
-      </header>
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4">
-        <Suspense>
-          <CloseView searchParams={searchParams} />
-        </Suspense>
-      </main>
+      <Suspense fallback={<Page width="doc" back="/more" />}>
+        <CloseView searchParams={searchParams} />
+      </Suspense>
     </ClientMessages>
   );
 }
@@ -54,7 +49,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);
   if (!ctx.ok) return redirect({ href: ctx.error === "NO_MEMBERSHIP" ? "/onboarding" : "/login", locale: lang });
   const result = await closePreview(ctx.value, typeof search.year === "string" && /^\d{4}$/.test(search.year) ? Number(search.year) : null);
-  if (!result.ok) return <p>{t("Close.forbidden")}</p>;
+  if (!result.ok) return <Page width="doc" back="/more"><p>{t("Close.forbidden")}</p></Page>;
   const { year, day, books, locked, closedOn, frozen, opening, entries, stocks, batches, eggs, hens } = result.value;
   const todo = entries.some((e) => e.action === "post" || e.action === "repost" || e.action === "reverse");
   const money = (c: bigint) => (c === 0n ? "" : formatMoney(c));
@@ -273,15 +268,14 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
     );
 
   return (
-    <>
-      <h1 className="text-2xl font-semibold">{t("Close.title")}</h1>
+    <Page width="doc" back="/more" title={t("Close.title")}>
       <nav className="flex flex-wrap items-center gap-3" aria-label={t("Count.year")}>
         <Link href={{ pathname: "/closing", query: { year: year - 1 } }} aria-label={t("Count.previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
         <span className="font-semibold" dir="ltr">{year}</span>
         <Link href={{ pathname: "/closing", query: { year: year + 1 } }} aria-label={t("Count.nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
         <Link href={{ pathname: "/closing/count", query: { year } }} className={`${link} ms-auto`}>{t("Count.open")}</Link>
       </nav>
-      <p className="text-sm text-ink-2">{t("Close.hint", { day: formatDay(day, lang) })}</p>
+      <p className="max-w-prose text-sm text-ink-2">{t("Close.hint", { day: formatDay(day, lang) })}</p>
       {books !== "ledger" && <p className={warn}>{t("Close.cashBook")}</p>}
       {closedOn && <p className={done}>{t("Close.closedOn", { day: formatDay(closedOn, lang) })}</p>}
       {locked && !closedOn && <p className={warn}>{t("Close.locked")}</p>}
@@ -333,6 +327,6 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
           <YearForm year={year} closed={closedOn !== null} hint={closedOn ? t("Close.reopenHint") : t("Close.closeYearHint", { next: formatDay(addFarmDays(day, 1), lang) })} />
         </>
       )}
-    </>
+    </Page>
   );
 }

@@ -28,6 +28,7 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useFieldError, useInline } from "@/components/focus";
+import { cell, row, rowHead, rowTable } from "@/components/layout";
 import { card, danger, field, primary, secondary } from "@/components/ui";
 
 // SPEC V4 on the static /receivables shell, offline: what each buyer owes, their cheques and bills with due dates, and
@@ -36,13 +37,8 @@ import { card, danger, field, primary, secondary } from "@/components/ui";
 
 const today = () => farmDayOf(new Date());
 
-// WebSales.dc.html: on wide screens each list reads as a table, one row per buyer or cheque, its parts in columns that
-// every row shares (subgrid), under a header row hidden from screen readers (each cell says what it is); on the phone,
-// cards (`contents` leaves a card's parts as they were).
-const table = "flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)_auto] lg:gap-0 lg:overflow-hidden lg:rounded-[18px] lg:bg-card lg:shadow-[0_1px_2px_rgba(36,33,28,.06),0_6px_18px_rgba(36,33,28,.05)]";
-const head = "hidden px-4 py-2.5 text-sm font-medium text-ink-2 lg:col-span-full lg:grid lg:grid-cols-subgrid lg:gap-x-6 lg:bg-shell";
-const row = `${card} lg:col-span-full lg:grid lg:grid-cols-subgrid lg:items-center lg:gap-x-6 lg:rounded-none lg:border-t lg:border-line lg:shadow-none`;
-const cell = "contents lg:flex lg:flex-col lg:gap-1";
+// WebSales.dc.html: on wide screens each list reads as a table, one row per buyer or cheque; on the phone, cards.
+const table = `${rowTable} lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)_auto]`;
 
 export function ReceivablesScreen() {
   const t = useTranslations("Sync");
@@ -152,7 +148,7 @@ function Receivables(scope: Scope) {
         <p>{t("Receivables.portfolioNone")}</p>
       ) : (
         <ul className={table} aria-label={t("Receivables.portfolio")}>
-          <li aria-hidden="true" className={head}>
+          <li aria-hidden="true" className={rowHead}>
             <span>{t("Receivables.colInstrument")}</span>
             <span>{t("Receivables.colState")}</span>
           </li>
@@ -194,7 +190,7 @@ function Receivables(scope: Scope) {
         <p>{t("Receivables.none")}</p>
       ) : (
         <ul className={table} aria-label={t("Receivables.title")}>
-          <li aria-hidden="true" className={head}>
+          <li aria-hidden="true" className={rowHead}>
             <span>{t("Receivables.colBuyer")}</span>
             <span>{t("Receivables.colDetail")}</span>
           </li>

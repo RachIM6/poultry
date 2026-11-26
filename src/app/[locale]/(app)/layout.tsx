@@ -1,5 +1,7 @@
 import { AppNav } from "@/components/app-nav";
 import { DemoBanner } from "@/components/demo-banner";
+import { MORE_MESSAGES } from "@/components/more-groups";
+import { ClientMessages } from "@/i18n/client-messages";
 
 // The signed-in screens: bottom tabs on the phone, a sidebar on wide screens (tasks/plan-ui.md U2). A route group, so
 // the URLs (and the service worker's precached shells) don't change. The nav comes after the content in the DOM, so the
@@ -12,7 +14,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <DemoBanner />
         {children}
       </div>
-      <AppNav />
+      {/* The nav's own messages: the wide sidebar lists the "Plus" screens (more-groups.ts). The page's provider doesn't reach here. */}
+      <ClientMessages paths={["Nav", "Sync.refused", "More.settings", ...MORE_MESSAGES]}>
+        <AppNav />
+      </ClientMessages>
     </div>
   );
 }

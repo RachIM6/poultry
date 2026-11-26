@@ -11,7 +11,7 @@ const save = (locale: string) =>
   navigator.onLine &&
   fetch("/api/locale", { method: "POST", keepalive: true, headers: { "content-type": "application/json", "x-requested-with": "poultry" }, body: JSON.stringify({ locale }) }).catch(() => {});
 
-// The documents name their record in the URL (/origin#sale, /register#batch, /inspection#farm, /report?batch=): keep it.
+// The documents name their record in the URL (/origin#sale, /register#batch, /inspection#farm): keep it.
 const onHashChange = (notify: () => void) => (window.addEventListener("hashchange", notify), () => window.removeEventListener("hashchange", notify));
 const useSearchAndHash = () => useSyncExternalStore(onHashChange, () => window.location.search + window.location.hash, () => "");
 

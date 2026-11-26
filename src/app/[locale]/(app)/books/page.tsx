@@ -8,9 +8,9 @@ import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
 import { batchOf, readBooks, type IncomeStatement } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
-import { BackLink } from "@/components/app-nav";
 import { card, link, table } from "@/components/ui";
 import { Num, Scroll } from "@/components/num";
+import { Page } from "@/components/page";
 import { ManualEntryForm, PeriodLockForm, ReverseEntryForm } from "./form";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
@@ -28,17 +28,13 @@ const MESSAGES: MessagePath[] = ["Books", "Files", "Nav", "Offline", "Sync.refus
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 const VIEWS = ["cash", "journals", "ledger", "trial", "cpc", "bilan"] as const;
 
+// The title says which books the entity keeps (data): the whole Page streams in, its fallback keeps the back link.
 export default function BooksPage({ searchParams }: { searchParams: Search }) {
   return (
     <ClientMessages paths={MESSAGES}>
-      <header className="px-4 pt-4">
-        <BackLink href="/more" />
-      </header>
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4">
-        <Suspense>
-          <BooksView searchParams={searchParams} />
-        </Suspense>
-      </main>
+      <Suspense fallback={<Page width="wide" back="/more" />}>
+        <BooksView searchParams={searchParams} />
+      </Suspense>
     </ClientMessages>
   );
 }
@@ -55,7 +51,13 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
   const today = farmDayOf(new Date());
   const month = typeof search.month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.month) ? search.month : today.slice(0, 7);
   const result = await readBooks(ctx.value, month);
-  if (!result.ok) return <p>{t("Books.forbidden")}</p>;
+  if (!result.ok) {
+    return (
+      <Page width="wide" back="/more">
+        <p>{t("Books.forbidden")}</p>
+      </Page>
+    );
+  }
   const books = result.value;
   const bilan = books.balanceSheet;
   const views = books.books === "ledger" ? VIEWS : (["cash"] as const);
@@ -74,8 +76,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
   const monthName = (m: string) => new Intl.DateTimeFormat(lang === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${m}-01T00:00:00Z`));
 
   return (
-    <>
-      <h1 className="text-2xl font-semibold">{t(books.books === "ledger" ? "Books.titleLedger" : "Books.titleCashBook")}</h1>
+    <Page width="wide" back="/more" title={t(books.books === "ledger" ? "Books.titleLedger" : "Books.titleCashBook")}>
       <nav className="flex flex-wrap items-center gap-3" aria-label={t("Books.month")}>
         <Link href={href(view, shift(month, -1))} aria-label={t("Books.previousMonth")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
         <span className="font-semibold">{monthName(month)}</span>
@@ -111,7 +112,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       {manage && (
         <details open={!!prefill} className={card}>
           <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">{t("Books.manual")}</summary>
-          <p className="text-sm text-ink-2">{t(books.books === "ledger" ? "Books.manualOpening" : "Books.manualCashBook", { from: day(books.fiscalYear.from) })}</p>
+          <p className="max-w-prose text-sm text-ink-2">{t(books.books === "ledger" ? "Books.manualOpening" : "Books.manualCashBook", { from: day(books.fiscalYear.from) })}</p>
           <datalist id="ledger-accounts">
             {books.postingAccounts?.map((a) => <option key={a.number} value={a.number}>{`${a.number} ${a.label}`}</option>)}
           </datalist>
@@ -139,7 +140,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
       {books.unpostedDeliveries.length > 0 && (
         <section className={card} aria-labelledby="unposted-deliveries-title">
           <h2 id="unposted-deliveries-title" className="font-semibold">{t("Books.unpostedDeliveries")}</h2>
-          <p className="text-sm text-ink-2">{t("Books.unpostedDeliveriesHint")}</p>
+          <p className="max-w-prose text-sm text-ink-2">{t("Books.unpostedDeliveriesHint")}</p>
           <ul className="flex flex-col gap-1">
             {books.unpostedDeliveries.map((u) => (
               <li key={u.batchId}>{t("Books.unpostedDeliveryLine", { date: day(u.placedOn), hatchery: u.hatchery, amount: formatMoney(u.amountCentimes) })}</li>
@@ -173,7 +174,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
             <tbody>
               {books.cashBook.rows.map((r, i) => (
                 <tr key={i} className="border-t border-line">
-                  <td className="p-2">{day(r.day)}</td>
+                  <td className="whitespace-nowrap p-2">{day(r.day)}</td>
                   <td className="p-2">{r.label}{r.counterAccounts.length > 0 && <span className="text-muted"> · {r.counterAccounts.map((a) => books.labels[a] ?? a).join(", ")}</span>}</td>
                   <td className="p-2"><bdi dir="ltr">{account(r.account)}</bdi></td>
                   <td className="p-2">{batchOf(books.tags, r.entryId)}</td>
@@ -247,7 +248,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
               <tbody>
                 {a.lines.map((l, i) => (
                   <tr key={i} className="border-t border-line">
-                    <td className="p-2">{day(l.day)}</td>
+                    <td className="whitespace-nowrap p-2">{day(l.day)}</td>
                     <td className="p-2">{l.journal} · {l.label}</td>
                     <Num>{money(l.debit)}</Num>
                     <Num>{money(l.credit)}</Num>
@@ -333,7 +334,7 @@ async function BooksView({ searchParams }: { searchParams: Search }) {
           </table>
         </Scroll>
       )}
-    </>
+    </Page>
   );
 }
 

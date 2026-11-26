@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pulled, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pulled, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T53 acceptance (SPEC-m3 B7, B8): a layer batch placed at 18 weeks counts its age in weeks, and two beldi bands share a
 // run, offline, then synced; the Arabic screen shows the same age.
@@ -168,8 +168,9 @@ test("chick arrival: supplement, density and the hatchery claim above the farm's
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await page.getByRole("link", { name: "Saisir le jour" }).click();
   await expect(page.getByText(/Oiseaux présents : 10.186/).first()).toBeVisible();
-  await expect(page.getByText("Densité : 10,2 sujets/m²")).toBeVisible();
-  await expect(page.getByRole("alert").filter({ hasText: "réclamation au couvoir" })).toBeVisible(); // 14 of 10 200 > 1 ‰
+  await expect(page.getByRole("alert").filter({ hasText: "réclamation au couvoir" })).toBeVisible(); // 14 of 10 200 > 1 ‰, above the tabs
+  await batchTab(page, "Indicateurs");
+  await expect(page.getByText("Densité : 10,2 sujets/m²")).toBeVisible(); // with the figures
 });
 
 // T57 acceptance (SPEC-m3 B12): a pullet weighing shows its uniformity next to the CV, offline.
@@ -223,6 +224,7 @@ test("pullets move to the laying house and become a layer batch", async ({ page,
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.getByRole("link", { name: "Saisir le jour" }).click();
+  await batchTab(page, "Gestion"); // offline: the tab opens in place
   await page.getByRole("button", { name: "Passage en ponte" }).click();
   await page.getByLabel("Bâtiment de ponte").selectOption({ label: "Ferme Sidi Hajjaj · Bâtiment P1" });
   await page.getByLabel("Poules transférées").fill("4700");
@@ -268,6 +270,7 @@ test("a beldi band sold by the head: 6 roosters and 4 hens, 790,00 DH", async ({
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.getByRole("link", { name: "Saisir le jour" }).click();
 
+  await batchTab(page, "Ventes");
   await page.getByRole("button", { name: "Nouvelle vente" }).click();
   await expect(page.getByLabel("À la tête")).toBeChecked(); // beldi: per head by default
   await page.getByLabel("Nom de l’acheteur").fill("Client de passage");

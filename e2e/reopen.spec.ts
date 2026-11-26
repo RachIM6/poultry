@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // SPEC B6 "Reopening": the last sale was typed with the wrong weight and closed the batch. The owner reopens it with a
 // reason, cancels the sale, types it again; the batch closes again and its cost per kg follows the right weight.
@@ -35,6 +35,7 @@ test("the owner reopens a closed batch, fixes its last sale and it closes again"
   await outboxEmpty(page);
   await expect.poll(server).toEqual([{ status: "open", soldGrams: null }]);
 
+  await batchTab(page, "Ventes");
   const sales = page.getByRole("list", { name: "Ventes" }).getByRole("listitem");
   page.once("dialog", (dialog) => dialog.accept());
   await sales.nth(0).getByRole("button", { name: /^Annuler la vente : .*Abattoir Atlas/ }).click();
@@ -47,6 +48,8 @@ test("the owner reopens a closed batch, fixes its last sale and it closes again"
   await page.getByLabel("Prix au kg (DH)").fill("15");
   await page.getByLabel("Montant reçu maintenant (DH)").fill("31500");
   await page.getByRole("button", { name: "Enregistrer la vente" }).click();
+  await expect(sales).toHaveCount(1); // closed by its last sale: the tab stays on its sales
+  await batchTab(page, "Bilan");
   await expect(summary).toContainText("Tous les oiseaux ont été vendus."); // closed again by its last sale
 
   await outboxEmpty(page);

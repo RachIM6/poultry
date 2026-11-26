@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T21 acceptance (browser part): offline, a sale on a day under withdrawal is refused with the explanation; the same
 // sale dated before the treatment began is recorded, with its amount and weighing gap, and lowers birds on hand while
@@ -28,6 +28,7 @@ test("an offline sale is refused during a withdrawal, then recorded for a day be
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
 
+  await batchTab(page, "Ventes"); // offline: the tab opens in place
   await page.getByRole("button", { name: "Nouvelle vente" }).click();
   await page.getByLabel("Nom de l’acheteur").fill("Abattoir Atlas");
   await page.getByLabel("Type d’acheteur").selectOption({ label: "Abattoir" });

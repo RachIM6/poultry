@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // Checkpoint G (SPEC §9.2): the M1 offline journey, in each language on a phone: create a batch → 3 daily entries →
 // weighing → vaccine done → reload → online → synced → visible on a second device. Every label comes from the app's
@@ -78,6 +78,7 @@ for (const locale of ["fr", "ar"] as const) {
     const weighings = page.getByRole("list", { name: t("Weighing", "past"), exact: true }).getByRole("listitem");
     await expect(weighings).toHaveCount(1);
 
+    await batchTab(page, t("Batches", "tabs.sante")); // offline: the tab opens in place
     const vaccine = page.getByRole("list", { name: t("Vaccination", "title"), exact: true }).getByRole("listitem");
     await vaccine.getByRole("button", { name: t("Vaccination", "markDone") }).click(); // named "…: vaccine, day" (WCAG 2.4.6)
     await expect(label(page, "Vaccination", "doses")).toHaveValue("996"); // the birds on hand
@@ -89,8 +90,9 @@ for (const locale of ["fr", "ar"] as const) {
     const reload = await page.reload(); // still offline: the shell and the data come from the phone
     expect(reload?.fromServiceWorker()).toBe(true);
     await expect(page.getByText(onHand)).toBeVisible();
+    await expect(vaccine).toContainText("NDV-26"); // the reload stays on its tab
+    await batchTab(page, t("Batches", "tabs.saisie"));
     await expect(weighings).toHaveCount(1);
-    await expect(vaccine).toContainText("NDV-26");
 
     // Online: everything reaches the server.
     await context.unroute("**");
@@ -123,6 +125,7 @@ for (const locale of ["fr", "ar"] as const) {
     await other.goto(`/${locale}/batches#${batchId}`);
     await expect(other.getByText(onHand)).toBeVisible({ timeout: 30_000 });
     await expect(other.getByRole("list", { name: t("Weighing", "past"), exact: true }).getByRole("listitem")).toHaveCount(1);
+    await batchTab(other, t("Batches", "tabs.sante"));
     await expect(other.getByRole("list", { name: t("Vaccination", "title"), exact: true }).getByRole("listitem")).toContainText("NDV-26");
     await second.close();
   });

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, farmWithBatch, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T20 acceptance (browser part): the withdrawal banner shows while a withdrawal runs and is gone once it has ended; a
 // treatment and a vet visit recorded offline. The dates themselves are unit-tested (src/modules/health/domain).
@@ -21,7 +21,7 @@ test("a treatment recorded offline shows the withdrawal banner; an ended withdra
     },
   ]);
 
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=sante#${ids.batch}`); // the Santé tab, linked
   await controlled(page);
   await referenceCached(page);
   const treatments = page.getByRole("list", { name: "Traitements" }).getByRole("listitem");
@@ -30,9 +30,29 @@ test("a treatment recorded offline shows the withdrawal banner; an ended withdra
   const banner = page.getByText("Délai d’attente en cours");
   await expect(banner).toHaveCount(0); // ended: no banner
 
+  // The tabs are history entries: back and forward move between them, and the URL says which one is open.
+  await batchTab(page, "Indicateurs");
+  await expect(page.getByRole("heading", { name: "Indicateurs" })).toBeVisible();
+  await expect(treatments).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.get("tab")).toBe("indicateurs");
+  await page.goBack();
+  await expect(treatments).toHaveCount(1);
+  expect(new URL(page.url()).searchParams.get("tab")).toBe("sante");
+  await page.goForward();
+  await expect(page.getByRole("heading", { name: "Indicateurs" })).toBeVisible();
+  await page.goBack();
+  await expect(treatments).toHaveCount(1);
+
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
-  await page.getByRole("button", { name: "Ajouter un traitement" }).click();
+  // The form opens in a sheet: its first field takes the focus, Escape closes it and the focus is back on its opener.
+  const add = page.getByRole("button", { name: "Ajouter un traitement" });
+  await add.click();
+  await expect(page.getByRole("dialog", { name: "Ajouter un traitement" }).getByLabel("Médicament")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(add).toBeFocused();
+  await add.click();
   await expect(page.getByLabel("Médicament")).toContainText("Amoxicilline · lot AMX-1");
   await page.getByLabel("Quantité utilisée (ml)").fill("250");
   await page.getByLabel("Dose prescrite").fill("1 ml par litre d’eau");
@@ -41,6 +61,7 @@ test("a treatment recorded offline shows the withdrawal banner; an ended withdra
   await page.getByLabel("Délai d’attente viande (jours)").fill("3");
   await page.getByRole("button", { name: "Enregistrer le traitement" }).click();
   await expect(treatments).toHaveCount(2);
+  await expect(page.getByRole("dialog")).toHaveCount(0); // saved: the sheet closed
   await expect(banner).toBeVisible(); // today + 3 days
 
   await page.getByRole("button", { name: "Ajouter une visite" }).click();

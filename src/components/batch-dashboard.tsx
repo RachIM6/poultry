@@ -11,6 +11,7 @@ type StrainCurves = ReferenceData["strains"][number]["curves"];
 import { card, warn } from "@/components/ui";
 import { BatchStrip, StripLegend, type StripDay } from "@/components/batch-strip";
 import { useBatchResults } from "@/components/batch-results";
+import { sectionTitle } from "@/components/layout";
 
 // SPEC B4 on the phone: the batch's KPIs from its local records, so they work offline and change as soon as a day or
 // a weighing is saved. Weight-based KPIs wait for a weighing; the standard is shown only when the strain has a curve.
@@ -78,7 +79,7 @@ export function BatchDashboard({
   return (
     // WebBatch.dc.html: on wide screens the chart and the tiles sit side by side.
     <section className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-x-5" aria-labelledby="kpi-title">
-      <h3 id="kpi-title" className="text-[17px] font-semibold text-ink-2 lg:col-span-full">{t("Kpi.title")}</h3>
+      <h2 id="kpi-title" className={`${sectionTitle} lg:col-span-full`}>{t("Kpi.title")}</h2>
       {points.length > 0 && <GrowthChart points={points} curve={curve} note={w && !standard ? t("Weighing.noStandard") : undefined} />}
       <dl className={`grid grid-cols-2 gap-2 ${points.length > 0 ? "" : "lg:col-span-full lg:grid-cols-4"}`}>
         {tiles.map(([label, value, note]) => (

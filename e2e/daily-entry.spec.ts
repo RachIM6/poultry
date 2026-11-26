@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, queuedWrites, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmWithBatch, outboxEmpty, ownerWithFarm, query, queuedWrites, scopeRemembered } from "./auth";
 
 // T16 acceptance (browser part): the daily entry offline, its feed as one consumption movement, edited not duplicated.
 // The two-phones merge is tested on the server (src/modules/flock/daily-entries.int.test.ts). "Under 60 s" is timed
@@ -62,6 +62,7 @@ test("the day's entry in Arabic, right to left", async ({ page }) => {
   await page.getByLabel("العلف", { exact: true }).selectOption({ label: "بدون علف هذا اليوم" });
   await page.getByRole("button", { name: "حفظ اليوم" }).click();
   await expect(page.getByText(/الطيور الموجودة: 998/)).toBeVisible();
+  await batchTab(page, "الصحة");
   await page.getByText("الأمراض الواجب التصريح بها", { exact: true }).click(); // V1, in Arabic
   await expect(page.getByText("مرض الجمبورو", { exact: true })).toBeVisible();
   await expect(page.getByText("الظهير بمثابة قانون رقم 1-75-292، الفصلان 1 و3؛ القرارات رقم 3308-17 و2466-17 و2836-17، المادة 1", { exact: true })).toBeVisible();

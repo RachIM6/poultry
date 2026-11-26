@@ -137,7 +137,7 @@ export async function realisticOwner(page: Page) {
   await expect(page.getByRole("status").filter({ hasText: /rapproché/i })).toBeVisible();
 
   // The phone holds the pushed records before the screens that read them from its storage open.
-  await page.goto(`/fr/batches#${ids.closed}`);
+  await page.goto(`/fr/batches?tab=ventes#${ids.closed}`);
   await expect(page.getByText("Abattoir Doukkala Avicole").first()).toBeVisible();
 
   const screens = [
@@ -146,6 +146,11 @@ export async function realisticOwner(page: Page) {
     `/batches#${ids.open}`,
     `/batches#${ids.closed}`,
     `/batches#${ids.layers}`,
+    // tasks/plan-ui-cleanup.md batch 1: each tab of a batch's screen, and the closed batches' list
+    "/batches?tab=closed",
+    ...["sante", "ventes", "indicateurs", "gestion"].map((tab) => `/batches?tab=${tab}#${ids.open}`),
+    `/batches?tab=ventes#${ids.closed}`,
+    `/batches?tab=indicateurs#${ids.layers}`,
     "/eggs",
     "/stock",
     "/receivables",
@@ -193,5 +198,5 @@ export async function openScreen(tab: Page, url: string) {
   await tab.goto(url); // "load": the server's streamed sections are in
   await tab.locator("h1").first().waitFor();
   // A batch's details render from the phone's storage after the list's heading.
-  if (url.includes("/batches#")) await tab.locator('a[href*="/register#"]').first().waitFor();
+  if (/\/batches(\?[^#]*)?#/.test(url)) await tab.locator('a[href*="/register#"]').first().waitFor();
 }

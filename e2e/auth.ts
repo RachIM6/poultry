@@ -16,6 +16,14 @@ export async function query<T>(sql: string, params: unknown[]): Promise<T[]> {
 // A fresh number per run: rate limits persist in the database between runs.
 export const randomMobile = () => `06${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
 
+/**
+ * A section of a batch's screen (tasks/plan-ui-cleanup.md batch 1): its tab, by its visible name in either language
+ * (« Santé », « Ventes », « Indicateurs », « Gestion », « Bilan », « Saisie du jour »).
+ */
+export async function batchTab(page: Page, name: string) {
+  await page.getByRole("navigation", { name: /^(Sections de la bande|أقسام الدفعة)$/ }).getByRole("link", { name, exact: true }).click();
+}
+
 /** Every e2e account's password (ADR-015). */
 export const PASSWORD = "e2e long password 2026";
 

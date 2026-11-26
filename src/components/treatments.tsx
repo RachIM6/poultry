@@ -4,6 +4,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import type { Write } from "@/components/daily-entry";
+import { useInline } from "@/components/focus";
+import { formActions, sectionHead, sectionTitle } from "@/components/layout";
+import { Sheet } from "@/components/sheet";
 import { formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { BatchDto } from "@/modules/flock/shared";
@@ -21,7 +24,7 @@ import {
   type VetVisitDto,
 } from "@/modules/health/shared";
 import { parseQuantity, type MovementDto, type StockItemDto } from "@/modules/inventory/shared";
-import { danger, field, primary, secondary } from "@/components/ui";
+import { danger, field, ghost, primary, secondarySm } from "@/components/ui";
 
 // SPEC H3–H5 on the batch screen, offline: the withdrawal banner, treatments with the lot they came from, vet visits.
 // The phone runs the same checks and the same withdrawal rule as the server.
@@ -71,14 +74,17 @@ export function Treatments({
 }) {
   const t = useTranslations("Treatment");
   const locale = useLocale();
-  const [adding, setAdding] = useState(false);
+  const { open, opener, close } = useInline<"add">();
   const day = (d: string) => formatDay(d as FarmDay, locale);
   const name = (id: string) => medicines.find((m) => m.id === id)?.name ?? "—";
   const list = [...treatments].sort((a, b) => b.startOn.localeCompare(a.startOn));
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="treatment-title">
-      <h3 id="treatment-title" className="text-[17px] font-semibold text-ink-2">{t("title")}</h3>
+      <div className={sectionHead}>
+        <h2 id="treatment-title" className={sectionTitle}>{t("title")}</h2>
+        <button type="button" aria-haspopup="dialog" {...opener("add")} className={secondarySm}>{t("add")}</button>
+      </div>
       {list.length === 0 ? (
         <p>{t("none")}</p>
       ) : (
@@ -93,17 +99,9 @@ export function Treatments({
           ))}
         </ul>
       )}
-      {adding ? (
-        <TreatmentForm
-          batch={batch}
-          medicines={medicines.filter((m) => !m.expiresOn || m.expiresOn >= today())}
-          userId={userId}
-          write={write}
-          onDone={() => setAdding(false)}
-        />
-      ) : (
-        <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={secondary}>{t("add")}</button>
-      )}
+      <Sheet open={open === "add"} onClose={close} title={t("add")}>
+        <TreatmentForm batch={batch} medicines={medicines.filter((m) => !m.expiresOn || m.expiresOn >= today())} userId={userId} write={write} onDone={close} />
+      </Sheet>
     </section>
   );
 }
@@ -207,9 +205,9 @@ function TreatmentForm({
         </Labelled>
       )}
       {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Treatment.save")}</button>
-        <button type="button" onClick={onDone} className={secondary}>{t("Treatment.cancel")}</button>
+        <button type="button" onClick={onDone} className={ghost}>{t("Treatment.cancel")}</button>
       </div>
     </form>
   );
@@ -218,7 +216,7 @@ function TreatmentForm({
 export function VetVisits({ batch, visits, userId, write }: { batch: BatchDto; visits: VetVisitDto[]; userId: string; write: Write }) {
   const t = useTranslations();
   const locale = useLocale();
-  const [adding, setAdding] = useState(false);
+  const { open, opener, close } = useInline<"add">();
   const [error, setError] = useState<string>();
   const list = [...visits].sort((a, b) => b.on.localeCompare(a.on));
 
@@ -232,12 +230,15 @@ export function VetVisits({ batch, visits, userId, write }: { batch: BatchDto; v
     if (!checked.ok) return setError(`errors.${checked.error}`);
     setError(undefined);
     const visit: VetVisitDto = { ...payload, byUserId: userId };
-    if (await write({ type: H.recordVetVisit, payload }, [{ entity: "vetVisit", id: payload.id, data: visit }])) setAdding(false);
+    if (await write({ type: H.recordVetVisit, payload }, [{ entity: "vetVisit", id: payload.id, data: visit }])) close();
   };
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="visit-title">
-      <h3 id="visit-title" className="text-[17px] font-semibold text-ink-2">{t("VetVisit.title")}</h3>
+      <div className={sectionHead}>
+        <h2 id="visit-title" className={sectionTitle}>{t("VetVisit.title")}</h2>
+        <button type="button" aria-haspopup="dialog" {...opener("add")} className={secondarySm}>{t("VetVisit.add")}</button>
+      </div>
       {list.length === 0 ? (
         <p>{t("VetVisit.none")}</p>
       ) : (
@@ -250,20 +251,18 @@ export function VetVisits({ batch, visits, userId, write }: { batch: BatchDto; v
           ))}
         </ul>
       )}
-      {adding ? (
+      <Sheet open={open === "add"} onClose={() => (setError(undefined), close())} title={t("VetVisit.add")}>
         <form onSubmit={submit} className="flex flex-col gap-3">
           <Labelled label={t("VetVisit.on")}>{(id) => <input id={id} name="on" type="date" defaultValue={today()} required className={field} />}</Labelled>
           <Labelled label={t("VetVisit.vet")}>{(id) => <input id={id} name="vetName" required maxLength={120} className={field} />}</Labelled>
           <Labelled label={t("VetVisit.notes")}>{(id) => <textarea id={id} name="notes" rows={3} maxLength={2000} className={field} />}</Labelled>
           {error && <p role="alert" className={danger}>{t(error)}</p>}
-          <div className="flex gap-3">
+          <div className={formActions}>
             <button type="submit" className={primary}>{t("VetVisit.save")}</button>
-            <button type="button" onClick={() => setAdding(false)} className={secondary}>{t("VetVisit.cancel")}</button>
+            <button type="button" onClick={() => (setError(undefined), close())} className={ghost}>{t("VetVisit.cancel")}</button>
           </div>
         </form>
-      ) : (
-        <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={secondary}>{t("VetVisit.add")}</button>
-      )}
+      </Sheet>
     </section>
   );
 }

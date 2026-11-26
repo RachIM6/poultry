@@ -142,3 +142,47 @@ test("WebBatch and WebSales in Arabic: the same columns, right to left", async (
   await beside(cheque.getByText(/0012345/), cheque.getByText(ar.Receivables.states.in_portfolio), true);
   expect(await noSideScroll(page)).toBe(true);
 });
+
+// tasks/plan-ui.md U18, Main.dc.html « A · Cockpit »: from lg the home puts its figures on top, the batches as rows
+// beside the day's checklist and the money; the phone keeps its dark header and big task cards. A worker sees no money.
+test("the wide home: figures on top, the batches beside the checklist, no money for a worker, the phone as before", async ({ page }) => {
+  test.setTimeout(120_000);
+  const e164 = await ownerWithFarm(page, "Élevage du Cockpit");
+  await scopeRemembered(page);
+  await farmWithBatch(page, "ross-308", farmDaysAgo(5)); // 1 000 chicks, no entry: days 1 to 4 missing
+
+  await page.setViewportSize(WIDE);
+  await page.goto("/fr/dashboard");
+  const figures = page.getByRole("region", { name: "Chiffres du jour" });
+  await expect(figures).toContainText(/Sujets vivants\s*1.000\s*1 bande en cours/, { timeout: 30_000 });
+  await expect(figures).toContainText(/Tâches restantes\s*5\s*dont 4 saisies manquantes/); // 4 missing days + today's entry
+  await expect(figures).toContainText(/Trésorerie disponible\s*−?[\d.\s]+,\d\d\sDH/, { timeout: 30_000 }); // streamed in (FX2)
+  await expect(figures).not.toContainText("Œufs ramassés hier"); // no laying batch: no egg figure (SPEC-m3 D1)
+
+  const batches = page.getByRole("region", { name: "Bandes en cours" });
+  const tasks = page.getByRole("region", { name: "Tâches du jour" });
+  await expect(batches.getByRole("img", { name: /Jour 5 de la bande, 4 jour\(s\) non saisi\(s\)/ })).toBeVisible();
+  await expect(batches).toContainText(/Bâtiment 1\s*Ross 308 · Jour 5 sur 42/);
+  await expect(tasks.getByRole("link", { name: /^4 saisies manquantes, dès le/ })).toBeVisible(); // the missing days first
+  await expect(tasks.getByRole("link", { name: "Saisir · Bâtiment 1" })).toHaveAttribute("href", /\/fr\/batches#/);
+  await expect(page.getByRole("link", { name: /Saisie du jour · Bâtiment 1/ })).toHaveCount(0); // the phone's card is hidden
+  await below(figures, batches);
+  await beside(batches, tasks);
+  await below(tasks, page.getByRole("region", { name: "Argent" }));
+  expect(await noSideScroll(page)).toBe(true);
+
+  await page.setViewportSize(PHONE); // the phone: as before
+  await expect(figures).toBeHidden();
+  await expect(batches).toBeHidden();
+  await expect(page.getByRole("link", { name: /Saisie du jour · Bâtiment 1/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tâches du jour" })).toBeVisible();
+
+  // A worker: the same tasks, no cash figure, no money card (I5).
+  await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);
+  await page.setViewportSize(WIDE);
+  await page.goto("/fr/dashboard");
+  await expect(tasks.getByRole("link", { name: "Saisir · Bâtiment 1" })).toBeVisible({ timeout: 30_000 });
+  await expect(figures).toContainText(/Tâches restantes\s*5/);
+  await expect(figures).not.toContainText("Trésorerie");
+  await expect(page.getByRole("region", { name: "Argent" })).toHaveCount(0);
+});

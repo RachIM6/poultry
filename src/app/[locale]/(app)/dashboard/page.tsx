@@ -1,9 +1,10 @@
 import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import { SyncBadge } from "@/components/sync-status";
 import { Today } from "@/components/today";
+import { Figure } from "@/components/today-wide";
 import { ClientMessages } from "@/i18n/client-messages";
 import { Link, redirect } from "@/i18n/navigation";
 import type { MessagePath } from "@/i18n/pick";
@@ -49,6 +50,14 @@ async function Content() {
       organizationId={organizationId}
       role={role}
       sync={<SyncBadge userId={userId} organizationId={organizationId} role={role} />}
+      // The wide home's cash tile (U18): the same read as the money card's first row, done once (cashAtHand).
+      cash={
+        can(ctx.value, "money.read") && (
+          <Suspense fallback={<Figure label={t("Today.cash")} busy />}>
+            <CashFigure ctx={ctx.value} />
+          </Suspense>
+        )
+      }
       money={
         can(ctx.value, "money.read") && (
           <Suspense fallback={<MoneyCard title={t("Today.money")} busy />}>
@@ -83,10 +92,21 @@ function MoneyCard({ title, busy, children }: { title: string; busy?: boolean; c
   );
 }
 
+// The cash at hand, read once per request for the money card and the wide home's tile (React cache, same ctx object).
+const cashAtHand = cache(async (ctx: TenantContext) => {
+  const treasury = await treasuryOverview(ctx, farmDayOf(new Date()).slice(0, 7));
+  return treasury.ok ? treasury.value.accounts.reduce((sum, a) => sum + a.balanceCentimes, treasury.value.unassignedCentimes) : null;
+});
+
+async function CashFigure({ ctx }: { ctx: TenantContext }) {
+  const [t, cash] = await Promise.all([getTranslations(), cashAtHand(ctx)]);
+  if (cash === null) return null; // not read: no tile rather than a made-up figure
+  return <Figure href="/treasury" label={t("Today.cash")} value={<span dir="ltr">{formatMoney(cash)}</span>} note={t("Today.seeCash")} />;
+}
+
 async function Money({ ctx }: { ctx: TenantContext }) {
   // Each read catches the books up first (SPEC-finance §9); catchUpBooks runs once for the page (React cache).
-  const [t, treasury, results] = await Promise.all([getTranslations(), treasuryOverview(ctx, farmDayOf(new Date()).slice(0, 7)), batchResults(ctx)]);
-  const cash = treasury.ok ? treasury.value.accounts.reduce((sum, a) => sum + a.balanceCentimes, treasury.value.unassignedCentimes) : null;
+  const [t, cash, results] = await Promise.all([getTranslations(), cashAtHand(ctx), batchResults(ctx)]);
   const last = results.ok ? results.value.filter((r) => r.closedOn).sort((a, b) => b.closedOn!.localeCompare(a.closedOn!))[0] : undefined;
   const row = "flex items-baseline justify-between gap-3 border-t border-shell/15 py-2.5 first:border-t-0";
   return (

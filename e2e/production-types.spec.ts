@@ -334,13 +334,22 @@ test("the home shows a broiler batch, a layer batch with yesterday's eggs and a 
   // D1: the latest weighing's average; no curve is seeded (OQ5), so no gap to the standard.
   await expect(page.getByText("Poids moyen 0,1 kg", { exact: true })).toBeVisible(); // broilers: 10 kg ÷ 100 birds
   await expect(page.getByText("Poids moyen 1 kg", { exact: true })).toBeVisible(); // pullets: 6 000 g ÷ 6
-  await expect(page.getByText(/Œufs ramassés hier/).locator("..")).toContainText(/1.713/);
+  // The wide home's copies (U18) stay in the page, hidden on the phone: the phone's own are the visible ones.
+  await expect(page.getByText(/Œufs ramassés hier/).filter({ visible: true }).locator("..")).toContainText(/1.713/);
   // 1 713 ÷ 6 000 = 28,549…; UX review A10: the one layer house's count is the headline's, so its line gives the rate only
-  await expect(page.getByText("Ponte 28,5 %", { exact: true })).toBeVisible();
+  await expect(page.getByText("Ponte 28,5 %", { exact: true }).filter({ visible: true })).toBeVisible();
   await expect(page.getByText(/œufs le dernier jour ramassé/)).toHaveCount(0);
-  await expect(page.getByText("Jour 3 sur 42")).toBeVisible();
+  await expect(page.getByText("Jour 3 sur 42").filter({ visible: true })).toBeVisible();
   await expect(page.getByText("38 sem. 3 j", { exact: true })).toBeVisible(); // layers: 266 + 3 days
   await expect(page.getByText("21 sem. 3 j", { exact: true })).toBeVisible(); // the beldi band: 147 + 3 days
+
+  // The wide home (U18): yesterday's eggs as a top figure, each batch's figures inline on its row.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(page.getByRole("region", { name: "Chiffres du jour" })).toContainText(/Œufs ramassés hier\s*1.713\s*Bâtiment P1/);
+  const rows = page.getByRole("region", { name: "Bandes en cours" }).getByRole("listitem");
+  await expect(rows.filter({ hasText: "Bâtiment 2" })).toContainText(/0,1\skg · IC 0,50/);
+  await expect(rows.filter({ hasText: "Bâtiment P2" })).toContainText(/1\skg · Homogénéité 83,3 %/);
+  await expect(rows.filter({ hasText: "Bâtiment P1" })).toContainText("Ponte 28,5 %");
 });
 
 // T67 acceptance (SPEC-m3 D2, P-Compare): two closed broiler batches side by side with their figures, offline. The cost

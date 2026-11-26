@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { formatDateTime, formatDay, formatKg, formatKgValue, formatMoney } from "@/lib/format";
+import { formatCount, formatDateTime, formatDay, formatDecimal, formatKg, formatKgValue, formatMoney, formatPercent } from "@/lib/format";
 
 const NNBSP = " "; // narrow no-break space: French thousands separator
 const NBSP = " "; // keeps the unit on the same line as the number
@@ -33,8 +33,24 @@ describe("formatKg", () => {
     expect(formatKgValue(24_407_142)).toBe(`24${NNBSP}407`);
     expect(formatKgValue(165)).toBe("0,165"); // a chick's weight keeps its grams
     expect(formatKgValue(99_999.6)).toBe("100"); // rounds up across the threshold
-    expect(formatKgValue(-24_407_142)).toBe(`-24${NNBSP}407`);
-    expect(formatKgValue(-165)).toBe("-0,165");
+    expect(formatKgValue(-24_407_142)).toBe(`−24${NNBSP}407`);
+    expect(formatKgValue(-165)).toBe("−0,165");
+  });
+
+  it("keeps the grams at any size when exact (the year-end count and close)", () => {
+    expect(formatKg(24_407_142, true)).toBe(`24${NNBSP}407,142${NBSP}kg`);
+    expect(formatKgValue(2_450_500, true)).toBe(`2${NNBSP}450,5`);
+    expect(formatKgValue(-2_450_500, true)).toBe(`−2${NNBSP}450,5`);
+  });
+});
+
+describe("negative numbers", () => {
+  it("start with the true minus sign, U+2212, in every formatter", () => {
+    expect(formatPercent(-5, true)).toBe("−5,0");
+    expect(formatPercent(3.14, true)).toBe("+3,1");
+    expect(formatPercent(-1.25)).toBe("−1,3");
+    expect(formatCount(-1200)).toBe(`−1${NNBSP}200`);
+    expect(formatDecimal(-1.5, 2)).toBe("−1,50");
   });
 });
 

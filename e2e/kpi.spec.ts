@@ -43,7 +43,7 @@ test("the batch dashboard works offline and follows each entry", async ({ page, 
     // Day 2, 85 g. Standard 40 + 160 × 2/7 = 86 g → −1,2 %. FCR 75 / (980 × 0,085) = 0,90.
     // EPEF 98 × 0,085 / (2 × 0,9004) × 100 = 463. Gain 85 g / 2 days (no day-old weight) = 42,5 g.
     await expect(tile(page, "Poids moyen (jour 2)")).toContainText("0,085 kg");
-    await expect(tile(page, "Poids moyen (jour 2)")).toContainText("-1,2 % par rapport au standard (0,086 kg)");
+    await expect(tile(page, "Poids moyen (jour 2)")).toContainText("−1,2 % par rapport au standard (0,086 kg)");
     await expect(tile(page, "IC (indice de consommation)")).toContainText("0,90");
     await expect(tile(page, "IEP")).toContainText("463");
     await expect(tile(page, "GMQ")).toContainText("42,5 g/jour");

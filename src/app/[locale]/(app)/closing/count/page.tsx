@@ -49,12 +49,12 @@ async function CountView({ searchParams }: { searchParams: Search }) {
 
   const kg = (l: CountLine) => l.kind === "stock" && l.unit === "kg";
   const unit = (l: CountLine) => (l.kind === "batch" ? t("Count.birdUnit") : l.kind === "eggs" ? t("Count.eggUnit") : t(`Stock.units.${l.unit}`));
-  const quantity = (n: number, l: CountLine) => <bdi>{kg(l) ? formatKg(n) : `${formatCount(n)} ${unit(l)}`}</bdi>; // as the stock screen; "kg" stays after its number in Arabic
+  const quantity = (n: number, l: CountLine) => <bdi>{kg(l) ? formatKg(n, true) : `${formatCount(n)} ${unit(l)}`}</bdi>; // to the gram: compared with the count; "kg" stays after its number in Arabic
   // The sign stays with its number in Arabic too.
   const gap = (l: CountLine) =>
     l.gap !== null && (
       <>
-        <bdi dir="ltr">{l.gap > 0 ? "+" : l.gap < 0 ? "−" : ""}{kg(l) ? formatKgValue(Math.abs(l.gap)) : formatCount(Math.abs(l.gap))}</bdi> {kg(l) ? "kg" : unit(l)}
+        <bdi dir="ltr">{l.gap > 0 ? "+" : l.gap < 0 ? "−" : ""}{kg(l) ? formatKgValue(Math.abs(l.gap), true) : formatCount(Math.abs(l.gap))}</bdi> {kg(l) ? "kg" : unit(l)}
       </>
     );
   const typed = (l: CountLine) => (l.counted === null ? "" : kg(l) ? String(l.counted / 1000) : String(l.counted));

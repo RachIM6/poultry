@@ -753,7 +753,13 @@
     "purchaseLine": "{date} · \u2068{item}\u2069 · \u2068{quantity}\u2069 · \u2068{amount}\u2069",
     "void": "إلغاء الشراء",
     "voidOf": "إلغاء الشراء: {purchase}",
-    "voidConfirm": "إلغاء الشراء {purchase}؟ يعود المخزون إلى كميته السابقة ويُلغى قيده المحاسبي."
+    "voidConfirm": "إلغاء الشراء {purchase}؟ يعود المخزون إلى كميته السابقة ويُلغى قيده المحاسبي.",
+    "thresholdEdit": "<l>تنبيه تحت </l><e>⁨{quantity}⁩</e>",
+    "thresholdSet": "<l>حد التنبيه: </l><e>تحديد</e>",
+    "thresholdEditOf": "تعديل حد التنبيه لـ {item}: ⁨{quantity}⁩",
+    "thresholdSetOf": "تحديد حد التنبيه لـ {item}",
+    "colQuantity": "الكمية",
+    "colAmount": "المبلغ"
   },
   "Batches": {
     "noFarming": "عدد الطيور والتسجيل اليومي وأرقام التربية: لا تصل إلى دورك.",

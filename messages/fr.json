@@ -753,7 +753,13 @@
     "purchaseLine": "{date} · {item} · {quantity} · {amount}",
     "void": "Annuler l’achat",
     "voidOf": "Annuler l’achat : {purchase}",
-    "voidConfirm": "Annuler l’achat {purchase} ? Le stock reprend sa quantité d’avant et son écriture est contre-passée."
+    "voidConfirm": "Annuler l’achat {purchase} ? Le stock reprend sa quantité d’avant et son écriture est contre-passée.",
+    "thresholdEdit": "<l>Alerte sous </l><e>{quantity}</e>",
+    "thresholdSet": "<l>Seuil d’alerte : </l><e>Définir</e>",
+    "thresholdEditOf": "Modifier le seuil d’alerte de {item} : {quantity}",
+    "thresholdSetOf": "Définir le seuil d’alerte de {item}",
+    "colQuantity": "Quantité",
+    "colAmount": "Montant"
   },
   "Batches": {
     "noFarming": "Effectifs, saisies du jour et chiffres d’élevage : non transmis à votre rôle.",

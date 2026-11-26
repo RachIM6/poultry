@@ -103,7 +103,10 @@ async function Money({ ctx }: { ctx: TenantContext }) {
             <span className="text-sm">{t("Today.lastBatch", { house: last.houseName })}</span>
             <span className="text-xs text-sand">{t("Today.margin", { margin: formatMoney(last.marginCentimes) })}</span>
           </span>
-          <b className="whitespace-nowrap text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
+          <span className="flex flex-col items-end">
+            <span className="text-xs text-sand">{t("Today.costPerKgLabel")}</span>
+            <b className="whitespace-nowrap text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
+          </span>
         </Link>
       )}
     </MoneyCard>

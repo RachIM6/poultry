@@ -83,9 +83,15 @@ export async function rememberScope(scope: Scope) {
     const db = localDb(scope);
     await db.transaction("rw", db.records, db.meta, () => Promise.all([db.records.clear(), db.meta.clear()]));
   }
-  // The dashboard remembers the scope without the name: the same user keeps the one the phone has.
-  const name = scope.name ?? (before?.userId === scope.userId ? before.name : undefined);
-  await deviceDb().session.put({ key: "current", scope: { ...scope, ...(name !== undefined && { name }) } });
+  // The dashboard remembers the scope without the name: the same user keeps the one the phone has. Read and written in
+  // one transaction: the header may store the name (rememberSignedIn) while the dashboard stores the scope, and a
+  // read-then-write outside one put the nameless scope back over it (the header then showed the role alone).
+  const device = deviceDb();
+  await device.transaction("rw", device.session, async () => {
+    const now = (await device.session.get("current"))?.scope;
+    const name = scope.name ?? (now?.userId === scope.userId ? now.name : undefined);
+    await device.session.put({ key: "current", scope: { ...scope, ...(name !== undefined && { name }) } });
+  });
 }
 
 export const cachedReference = () => deviceDb().reference.get("current");

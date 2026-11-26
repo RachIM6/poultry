@@ -46,6 +46,7 @@ test("wide screens: « Plus » expands in the sidebar, shows the role's screens 
   await page.waitForURL(/\/fr\/treasury$/);
   await expect(treasury).toHaveAttribute("aria-current", "page");
   await expect(plus).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("main").getByRole("link", { name: "Retour" })).toBeHidden(); // owner feedback: no back to the /more page
 
   // Loaded straight on a page of the section: open, with only the deepest match current (/closing/count, not /closing).
   await plus.click(); // closed, and remembered…
@@ -80,5 +81,7 @@ test("the phone: the « Plus » tab still opens /more", async ({ page }) => {
   await nav(page).getByRole("link", { name: "Plus", exact: true }).click();
   await page.waitForURL(/\/fr\/more$/);
   await expect(page.getByRole("heading", { name: "Plus", level: 1 })).toBeVisible();
-  await expect(page.getByRole("main").getByRole("link", { name: "Trésorerie" })).toBeVisible();
+  await page.getByRole("main").getByRole("link", { name: "Trésorerie" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Retour" }).click(); // the phone's way back to « Plus »
+  await page.waitForURL(/\/fr\/more$/);
 });

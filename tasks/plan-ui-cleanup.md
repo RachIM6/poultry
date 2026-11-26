@@ -587,7 +587,7 @@ each in its own worktree and E2E port. Batch 7 last, alone.
 - Risks: biggest file count; split in two builders if needed along `biosecurity.tsx`/`documents.tsx`/`inspection.tsx`
   vs the rest (no shared file between the halves).
 
-### Batch 7: navigation and grouping (last, alone)
+### Batch 7: navigation and grouping (last, alone) — done
 - Goal: §3. Sidebar and `/more` regrouped; the header's sync chip and bell panel; merged entries active on all their
   routes; « Langue et déconnexion » off the wide sidebar.
 - Owns: `more-groups.ts`, `app-nav-live.tsx`, `app-nav.tsx`, `nav-mode.ts`, `more/page.tsx`, `today.tsx` (badge
@@ -599,6 +599,43 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   `compliance-worker` (worker's menu).
 - Risks: `sidebar.spec.ts` counts and names links; the worker and accountant menus differ (`show` rules stay as they
   are, only the grouping changes).
+- [x] Sidebar (`more-groups.ts`, still the one list for the sidebar and `/more`): one entry per topic, its other pages
+  reached by the route tabs batches 2, 4 and 5 added. « Trésorerie » (`/treasury`, and `/treasury/bank`), « Résultats et
+  budget » (`/results`, `/budget`, `/threshold`), « Clôture de l'exercice » (`/closing/count`, step 1, then `/closing`,
+  `/closing/statements`), « Paramètres comptables » (`/settings/accounting`, `/settings/chart`, `/settings/posting`),
+  « Climat des bâtiments » (`/climate`, `/climate/targets`). A link's `routes` say what else marks it current; the
+  deepest match wins (`app-nav-live.tsx`), unfolded and on the rail (its group's icon and the link in the panel). Owner:
+  Élevage 8, Argent 4, Comptabilité 6, Conformité 5, Compte 2: 25 links instead of 34. The role rules are unchanged.
+- [x] « Notifications » and « Synchronisation » are `phone` links: under « Compte » on `/more` (after « Membres » and
+  « Mes exploitations »), not in the wide sidebar. The sidebar's refused-writes count on « Élevage » went with them (the
+  header's chip says it; the phone's « Plus » tab keeps its count).
+- [x] Header (`app-header-live.tsx`, slots in `app-header.tsx`): the sync chip, then the bell, then the profile. The chip
+  (« Tout est envoyé » / « N en attente » / « Hors ligne » / « N refus à vérifier », refused first, then no network,
+  then waiting; its name « Synchronisation : … ») links to `/sync`, in a fixed 160 × 44 box, so no state moves anything.
+  The home's badge is gone: `SyncBadge` became `SyncStart` (`sync-status.tsx`), which still remembers who is signed in
+  and runs the sync loop on `/dashboard` and `/today`, and renders nothing.
+- [x] The bell is a disclosure (the profile menu's pattern, one `useDisclosure` for both: Enter/Space, Escape with the
+  focus back, a click outside, tabbing out): the unread count stays on it; its panel lists the 5 latest unread from the
+  phone's database (title, body on two lines, time), each a link to `/inbox` that marks it read; « Tout marquer lu »
+  (the existing `notifications.markRead`, one queued write per notification; no new mutation), then the focus on
+  « Toutes les notifications » → `/inbox`. From lg the panel hangs from the bell (384 px); on the phone from the bar,
+  inside the 16 px gutters.
+- [x] Home: the rail's « Tâches du jour » heading has « Tout voir » → `/tasks`, the « Tâches restantes » tile links to
+  `/tasks` (both only for the roles whose phone holds the routines; a vet keeps the tile on the checklist, `#taches`);
+  the rail's « Saisir » are `primarySm`.
+- E2E: `sidebar` (counts per group and 25 in all, every merged entry current on each of its routes unfolded, on the rail
+  for two, `/more`'s « Compte » with the two phone links, 27 links), `header` (the bell's panel by keyboard, Escape,
+  focus, click outside, 5 of 7, « Tout marquer lu » synced; the chip's four states in the same box; the phone's panel in
+  the gutters), `sync`, `today` (« Hors ligne » offline), `wide-screens` (« Tout voir », the tile, `primarySm`, the chip in
+  the header only); `close-run`, `count`, `threshold`, `accounting-settings` reach their page through the merged entry
+  and its tab.
+- [x] Budget: `/fr/batches` 194.2 → 194.3 KB of 200 (the chip's slot in the header shell; the panel and the chip load
+  after `load`, with the header's live part), `/fr/login` 147.6 KB unchanged.
+- Deviations: the climate entry keeps its label « Climat des bâtiments » (an existing key; §3 wrote « Climat »);
+  « Clôture de l'exercice » opens step 1, `/closing/count`; the bell's items are links to `/inbox` that mark the one
+  opened as read (the plan said nothing of them); the chip's refused state (« N refus à vérifier ») is a fourth state
+  beside the three of §3, as the old badge had it. New Arabic strings (`Header.sync*`, `Header.panelTitle`,
+  `Header.markAllRead`, `Header.noUnread`, `Header.allNotifications`, `Today.seeAll`) to check with a native speaker.
 
 ## 6. Top 10 worst screens (to do first within each batch)
 1. Batch page `/batches#<id>`: 8 sections and 2 open forms on one scroll, 12 full-width buttons (3 124 px; phone 4 979).

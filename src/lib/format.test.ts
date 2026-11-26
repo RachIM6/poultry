@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { formatDateTime, formatDay, formatKg, formatMoney } from "@/lib/format";
+import { formatCount, formatDateTime, formatDay, formatDecimal, formatKg, formatKgValue, formatMoney, formatPercent } from "@/lib/format";
 
 const NNBSP = " "; // narrow no-break space: French thousands separator
 const NBSP = " "; // keeps the unit on the same line as the number
@@ -9,7 +9,9 @@ describe("formatMoney", () => {
   it("formats centimes as dirhams with Western digits", () => {
     expect(formatMoney(123450n)).toBe(`1${NNBSP}234,50${NBSP}DH`);
     expect(formatMoney(5n)).toBe(`0,05${NBSP}DH`);
-    expect(formatMoney(-123450n)).toBe(`-1${NNBSP}234,50${NBSP}DH`);
+    expect(formatMoney(-123450n)).toBe(`−1${NNBSP}234,50${NBSP}DH`); // the true minus sign, U+2212
+    expect(formatMoney(-5n)).toBe(`−0,05${NBSP}DH`);
+    expect(formatMoney(0n)).toBe(`0,00${NBSP}DH`);
   });
 
   it("stays exact beyond Number precision", () => {
@@ -20,9 +22,35 @@ describe("formatMoney", () => {
 });
 
 describe("formatKg", () => {
-  it("formats grams as kilograms, up to 3 decimals", () => {
-    expect(formatKg(1_234_500)).toBe(`1${NNBSP}234,5${NBSP}kg`);
+  it("formats grams as kilograms", () => {
+    expect(formatKg(1_234_500)).toBe(`1${NNBSP}235${NBSP}kg`);
     expect(formatKg(42)).toBe(`0,042${NBSP}kg`);
+  });
+
+  it("drops the decimals from 100 kg up, keeps up to 3 below", () => {
+    expect(formatKgValue(99_999)).toBe("99,999");
+    expect(formatKgValue(100_000)).toBe("100");
+    expect(formatKgValue(24_407_142)).toBe(`24${NNBSP}407`);
+    expect(formatKgValue(165)).toBe("0,165"); // a chick's weight keeps its grams
+    expect(formatKgValue(99_999.6)).toBe("100"); // rounds up across the threshold
+    expect(formatKgValue(-24_407_142)).toBe(`−24${NNBSP}407`);
+    expect(formatKgValue(-165)).toBe("−0,165");
+  });
+
+  it("keeps the grams at any size when exact (the year-end count and close)", () => {
+    expect(formatKg(24_407_142, true)).toBe(`24${NNBSP}407,142${NBSP}kg`);
+    expect(formatKgValue(2_450_500, true)).toBe(`2${NNBSP}450,5`);
+    expect(formatKgValue(-2_450_500, true)).toBe(`−2${NNBSP}450,5`);
+  });
+});
+
+describe("negative numbers", () => {
+  it("start with the true minus sign, U+2212, in every formatter", () => {
+    expect(formatPercent(-5, true)).toBe("−5,0");
+    expect(formatPercent(3.14, true)).toBe("+3,1");
+    expect(formatPercent(-1.25)).toBe("−1,3");
+    expect(formatCount(-1200)).toBe(`−1${NNBSP}200`);
+    expect(formatDecimal(-1.5, 2)).toBe("−1,50");
   });
 });
 

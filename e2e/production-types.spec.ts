@@ -114,10 +114,10 @@ test("turkeys placed by sex become two batches side by side", async ({ page, con
 
   await page.getByRole("link", { name: "Saisir le jour" }).first().click();
   // Both sexes side by side with their birds and cumulative FCR (none before a weighing); the other sex opens its day.
-  const sexes = page.getByRole("region", { name: "Même lot, par sexe" });
+  const sexes = page.getByRole("region", { name: "Même bande, par sexe" });
   await expect(sexes.getByText(/^1.500 sujets$/)).toBeVisible();
   await expect(sexes.getByText(/^1.496 sujets$/)).toBeVisible();
-  await expect(sexes.getByText("IC —")).toHaveCount(2);
+  await expect(sexes.getByText("Indice de consommation —")).toHaveCount(2);
   const other = sexes.getByRole("link");
   const before = (await other.textContent())!;
   await other.click();
@@ -162,7 +162,7 @@ test("chick arrival: supplement, density and the hatchery claim above the farm's
   await page.getByLabel("Couvoir").fill("Couvoir Chaouia");
   await page.getByLabel("N° de bon de livraison").fill("BL 26-4471");
   await page.getByLabel("Prix d’un poussin (DH)").fill("5,20");
-  await page.getByLabel("Lot reproducteur").fill("PS-12");
+  await page.getByLabel("Bande reproductrice").fill("PS-12");
   await page.getByLabel("Poussins faibles").fill("22");
   await page.getByLabel("Température litière (°C)").fill("31");
   await page.getByRole("button", { name: "Enregistrer" }).click();
@@ -329,7 +329,7 @@ test("the home shows a broiler batch, a layer batch with yesterday's eggs and a 
     { type: "flock.recordWeighing", payload: { id: uuidv7(), batchId: ids.pullets, day: farmDaysAgo(1), sample: { weightsGrams: [950, 1000, 1050, 1100, 880, 1020] } } },
   ]);
   await page.goto("/fr/dashboard");
-  await expect(page.getByText("IC 0,50", { exact: true })).toBeVisible();
+  await expect(page.getByText("Indice de consommation 0,50", { exact: true })).toBeVisible();
   await expect(page.getByText("Homogénéité 83,3 %", { exact: true })).toBeVisible();
   // D1: the latest weighing's average; no curve is seeded (OQ5), so no gap to the standard.
   await expect(page.getByText("Poids moyen 0,1 kg", { exact: true })).toBeVisible(); // broilers: 10 kg ÷ 100 birds
@@ -373,15 +373,15 @@ test("closed broiler batches compared side by side", async ({ page, context }) =
   ]);
   await page.goto("/fr/compare");
   await controlled(page);
-  await expect(page.getByRole("table", { name: "Indicateurs par lot clôturé" })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Indicateurs par bande clôturée" })).toBeVisible();
   // Online, FN13's cost per kg, as /results: chicks 500 + feed 1 890 (+ the vet bill 245) DH over the kg sold.
-  const online = page.getByRole("table", { name: "Indicateurs par lot clôturé" }).getByRole("row");
+  const online = page.getByRole("table", { name: "Indicateurs par bande clôturée" }).getByRole("row");
   await expect(online.filter({ hasText: "Couvoir Chaouia" })).toContainText(/10,76\sDH/); // 2 635 ÷ 245; B6 locked 9,76 (no vet bill)
   await expect(online.filter({ hasText: "Couvoir B" })).toContainText(/10,39\sDH/); // 2 390 ÷ 230
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.reload();
-  const rows = page.getByRole("table", { name: "Indicateurs par lot clôturé" }).getByRole("row");
+  const rows = page.getByRole("table", { name: "Indicateurs par bande clôturée" }).getByRole("row");
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(1)).toContainText("Couvoir B");
   await expect(rows.nth(1)).toContainText("96,0 %");

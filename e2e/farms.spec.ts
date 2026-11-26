@@ -38,8 +38,8 @@ test("a farm and two houses created offline survive a reload, sync, and reach a 
   const reload = await page.reload();
   expect(reload?.fromServiceWorker()).toBe(true); // the static shell, from the precache
   await expect(page.getByRole("heading", { name: "Ferme du Plateau" })).toBeVisible();
-  await expect(page.getByText(/m² · .* oiseaux · Fermé/)).toBeVisible();
-  await expect(page.getByText(/m² · .* oiseaux · Ouvert/)).toBeVisible();
+  await expect(page.getByText(/m² · .* oiseaux · Bâtiment fermé \(ambiance contrôlée\)/)).toBeVisible();
+  await expect(page.getByText(/m² · .* oiseaux · Bâtiment ouvert/)).toBeVisible();
 
   await context.unroute("**");
   await context.setOffline(false); // the "online" event starts a sync

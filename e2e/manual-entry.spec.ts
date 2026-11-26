@@ -51,7 +51,7 @@ test("the owner types a three-line opening entry; it shows in the journal and th
   const trial = page.getByRole("table", { name: "Balance" });
   await expect(trial.getByRole("row").filter({ hasText: /^2340 / })).toContainText(/80\s000,00/);
   await expect(trial.getByRole("row").filter({ hasText: /^5141 / })).toContainText(/20\s000,00/);
-  await expect(trial.getByRole("row").filter({ hasText: /^1111 / })).toContainText(/-100\s000,00/);
+  await expect(trial.getByRole("row").filter({ hasText: /^1111 / })).toContainText(/−100\s000,00/);
   await expect(trial.getByRole("row").last()).toContainText("Balance équilibrée");
 
   // FN10: the opening bank balance is the bank account's balance on /treasury.

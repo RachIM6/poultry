@@ -56,7 +56,7 @@ async function CloseView({ searchParams }: { searchParams: Search }) {
   const manage = can(ctx.value, "finance.manage");
   const owner = manage && !frozen; // the manager and the accountant read (FCX1)
   const typeable = (l: { missing: boolean }) => owner || (manage && l.missing); // after the run: a value still missing (FCX4)
-  const quantity = (l: CloseStockView) => (l.unit === "kg" ? formatKg(l.quantity) : `${formatCount(l.quantity)} ${t(`Stock.units.${l.unit}`)}`);
+  const quantity = (l: CloseStockView) => (l.unit === "kg" ? formatKg(l.quantity, true) : `${formatCount(l.quantity)} ${t(`Stock.units.${l.unit}`)}`);
   const label = (l: CloseStockView) => `${t(`Stock.kinds.${l.kind}`)} · ${l.name}${l.lot ? ` · ${l.lot}` : ""}`;
   const typed = (c: bigint | null) => (c === null ? "" : typedCentimes(c));
   const stockTable = stocks.length > 0 && (

@@ -34,4 +34,20 @@ test("a document is added offline, shows as due soon, then gets its PDF", async 
   await expect(file).toBeVisible({ timeout: 20_000 });
   const download = await page.request.get((await file.getAttribute("href"))!);
   expect(download.headers()["content-type"]).toBe("application/pdf");
+
+  // tasks/plan-ui-cleanup.md §2.7: the edit opens in a sheet; the visible label is short, the name says which document.
+  const edit = doc.getByRole("button", { name: "Modifier « Assurance multirisque élevage »" });
+  await expect(edit).toHaveText("Modifier");
+  await edit.click();
+  const sheet = page.getByRole("dialog", { name: "Modifier « Assurance multirisque élevage »" });
+  await expect(sheet.getByLabel("Intitulé")).toBeFocused(); // the first field takes the focus
+  await expect(sheet.getByLabel("Intitulé")).toHaveValue("Assurance multirisque élevage");
+  await sheet.getByLabel("Note (facultatif)").fill("Police n° 2026-118");
+  await sheet.getByRole("button", { name: "Enregistrer le document" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(edit).toBeFocused(); // back on the row's button
+  await expect(doc).toContainText("Police n° 2026-118");
+  await edit.click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });

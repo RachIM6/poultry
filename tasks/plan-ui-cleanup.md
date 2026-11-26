@@ -586,6 +586,32 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   `partners`.
 - Risks: biggest file count; split in two builders if needed along `biosecurity.tsx`/`documents.tsx`/`inspection.tsx`
   vs the rest (no shared file between the halves).
+- [x] Part 1 (compliance and documents, own PR): `/visitors`, `/disposal`, `/cleanout`: farm select `lg:max-w-xs`; the
+  inline forms (the page's job) in a card, the visitor form two by two from lg with its checks and zones side by side;
+  each log's history one card of dense rows with « Modifier » (`secondarySm`, named « Modifier : <record> ») opening the
+  correction in a sheet; `/disposal`'s segmented buttons became query tabs (`?tab=dead|manure|rodents`, links, offline
+  too), the 14-day table a `dataTable` with `num` columns, eliminations, manure and rodent checks paged by 25 (`?page=`)
+  instead of cut at 20, with an `empty` box when there is nothing; `/visitors` lists the earlier visits as a paged table
+  under today's (read only); `/cleanout`: « Commencer le nettoyage » `primarySm`, each step's « Noter / Modifier »
+  (`secondarySm`) opens its form in a sheet.
+- [x] `/documents`: full width; a table from lg (Document with its note, Catégorie, Ferme, Échéance with the state badge
+  under it, Fichier, « Modifier »), cards on the phone; « Ajouter un document » is a header `primarySm` (the shell's
+  `#actions` slot, as batch 3's `/stock`); adding and editing open a sheet; « Modifier » is short, the title stays in
+  its accessible name. E2E: the edit sheet (focus, save, focus back, Escape).
+- [x] `/inspection`: a « Sommaire » beside the document from lg (sticky; a row of links above it on the phone) whose links
+  scroll to each part and focus it without touching the hash (it holds the farm); « Imprimer » is a `secondarySm` in the
+  document's header (the button at the bottom is gone); paper prints every part as before (`print:block`, the contents
+  hidden). E2E: the contents, a link's target focused with the URL unchanged, the contents hidden in print.
+- Part 1 heights (demo seed, full page, before → after): 1 440, individual farm: `/visitors` 924 → 900, `/disposal`
+  900 → 1 050 (the tab row and a ruled 14-day table), `/cleanout` 900 → 900, `/documents` 1 331 → 900, `/inspection`
+  20 438 → 19 954; SARL: `/inspection` 9 009 → 8 837, the others 900 → 900. 390, individual farm: `/visitors`
+  1 276 → 1 587 (the earlier visits, new), `/disposal` 1 704 → 1 914, `/cleanout` 1 215 → 1 223, `/documents`
+  2 344 → 2 176, `/inspection` 29 730 → 29 774.
+- Part 1 deviations: `/documents` keeps the file upload as a visible cell rather than in a « ⋯ » menu (its label says
+  what is missing, and a `<details>` would hide the file input); the earlier visits are read only (corrections stay with
+  the day's visits, as before); `Documents.colState` (the state now sits under the expiry day) is removed. New Arabic
+  keys (`Visitors.earlier/colWhen`, `Disposal.noManure/noRodents`, `Documents.editShort/colFile`,
+  `Inspection.contents/registerOf`) to check with a native speaker.
 
 ### Batch 7: navigation and grouping (last, alone) — done
 - Goal: §3. Sidebar and `/more` regrouped; the header's sync chip and bell panel; merged entries active on all their

@@ -30,7 +30,7 @@ test("the owner invites a vet with an end day; the vet signs in and is listed un
   await vetContext.close();
 
   await page.reload();
-  await expect(page.getByRole("listitem").filter({ hasText: e164 })).toContainText("jusqu’au"); // now a member
+  await expect(page.getByRole("listitem").filter({ hasText: phone.replace(/(\d{2})(?=\d)/g, "$1 ") })).toContainText("jusqu’au"); // now a member, "06 12 34 56 78"
 });
 
 /** The role the phone remembers, once the dashboard has seen the new one (a new role pulls everything again, T25 S5). */

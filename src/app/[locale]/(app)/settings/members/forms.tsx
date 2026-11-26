@@ -57,33 +57,35 @@ export function MemberRow({ membershipId, phone, role, roles, until }: { members
   const [resetState, resetAction, resetPending] = useActionState(resetPassword, {});
   const online = useOnline();
   return (
-    // Wide screens, one row of the members' table (settings/members/page.tsx): who, then the role and the actions on
-    // one line while they fit; a message or a code takes its own line.
+    // Wide screens, one row of the members' table (settings/members/page.tsx): the number, the role under "Rôle", then
+    // the other actions; a message or a code takes the whole row below.
     <li className={row}>
       <span className={cell}>
         <bdi dir="ltr" className="font-semibold">{phone}</bdi>
         {until && <span className="text-sm text-ink-2">{t("accessUntil", { date: until })}</span>}
       </span>
-      <div className="contents lg:flex lg:flex-wrap lg:items-center lg:gap-2 lg:[&>div]:basis-full lg:[&>p]:basis-full">
-        <form action={roleAction} className="flex gap-2 lg:grow lg:basis-72 lg:flex-wrap">
-          <input type="hidden" name="membershipId" value={membershipId} />
-          <select name="role" defaultValue={role} aria-label={t("roleOf", { phone })} className={`${field} min-w-0 flex-1 py-2 text-base`}>
-            {roles.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
-          </select>
-          <button type="submit" disabled={rolePending || !online} aria-label={t("saveRoleOf", { phone })} className={secondary}>{t("saveRole")}</button>
-        </form>
-        <ErrorText state={roleState} />
+      <form action={roleAction} className="flex gap-2">
+        <input type="hidden" name="membershipId" value={membershipId} />
+        <select name="role" defaultValue={role} aria-label={t("roleOf", { phone })} className={`${field} min-w-0 flex-1 py-2 text-base`}>
+          {roles.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}
+        </select>
+        <button type="submit" disabled={rolePending || !online} aria-label={t("saveRoleOf", { phone })} className={secondary}>{t("saveRole")}</button>
+      </form>
+      <div className="flex flex-wrap gap-2 lg:justify-end">
         <form action={removeAction} onSubmit={(e) => !confirm(t("removeConfirm", { phone })) && e.preventDefault()}>
           <input type="hidden" name="membershipId" value={membershipId} />
           <button type="submit" disabled={removePending || !online} aria-label={t("removeOf", { phone })} className={`${secondary} text-alert`}>{t("remove")}</button>
         </form>
-        <ErrorText state={removeState} />
         {role !== "owner" && ( // an owner's password: the operator's pnpm user:reset (ADR-015)
           <form action={resetAction} onSubmit={(e) => !confirm(t("resetConfirm", { phone })) && e.preventDefault()}>
             <input type="hidden" name="membershipId" value={membershipId} />
             <button type="submit" disabled={resetPending || !online} aria-label={t("resetOf", { phone })} className={secondary}>{t("reset")}</button>
           </form>
         )}
+      </div>
+      <div className="contents empty:hidden lg:col-span-full lg:flex lg:flex-col lg:gap-2">
+        <ErrorText state={roleState} />
+        <ErrorText state={removeState} />
         {resetState.code && <CodeShown code={resetState.code} label={t("resetCode")} hint={t("resetCodeHint")} />}
         <ErrorText state={resetState} />
       </div>

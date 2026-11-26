@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { parseTenths, tenths } from "@/components/climate-targets";
+import { rowHead, split } from "@/components/layout";
 import { Scoped } from "@/components/scoped";
 import { card, danger, done, field, link, primary } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
@@ -76,48 +77,53 @@ function Climate(scope: Scope) {
   const savedVerdicts = saved && band && verdicts(saved, band);
   const off = savedVerdicts ? (["temperature", "humidity", "ammonia"] as const).filter((k) => savedVerdicts[k] === "below" || savedVerdicts[k] === "above") : [];
 
+  // Wide screens: the entry beside the history (tasks/plan-ui.md "Desktop rules"); the phone: one column, in this order.
   return (
-    <>
-      <select aria-label={t("Climate.house")} value={house.id} onChange={(e) => (setHouseId(e.target.value), setSaved(null))} className={field}>
-        {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-      </select>
-      <p className="text-sm text-ink-2">{age === null ? t("Climate.noBatch") : t("Climate.age", { day: String(age) })}</p>
-      {message && <p role="status" className={done}>{t(message)}</p>}
-      {savedVerdicts && outOfRange(savedVerdicts) && (
-        <p role="alert" className={danger}>{t("Climate.outOfRange", { values: off.map((k) => t(`Climate.offValue.${k}.${savedVerdicts[k]}`)).join(", ") })}</p>
-      )}
-      {can(scope, "climate.record") && (
-        <>
-          <form onSubmit={submit} className={`${card} grid grid-cols-2 gap-3`} aria-label={t("Climate.reading")}>
-            <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
-              {t("Climate.temperature")}
-              <input inputMode="decimal" dir="ltr" required value={values.temperature} onChange={(e) => setValues({ ...values, temperature: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
-              {hint("temperature", values.temperature.trim() !== "")}
-            </label>
-            <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
-              {t("Climate.humidity")}
-              <input inputMode="numeric" dir="ltr" required value={values.humidity} onChange={(e) => setValues({ ...values, humidity: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
-              {hint("humidity", values.humidity.trim() !== "")}
-            </label>
-            <label className="col-span-2 flex flex-col gap-1 text-sm font-medium text-ink-2">
-              {t("Climate.ammonia")}
-              <input inputMode="numeric" dir="ltr" value={values.ammonia} onChange={(e) => setValues({ ...values, ammonia: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
-              {hint("ammonia", values.ammonia.trim() !== "")}
-            </label>
-            <label className="flex flex-col gap-1 text-sm">{t("Climate.day")}<input name="day" type="date" required max={today} defaultValue={today} className={field} /></label>
-            <label className="flex flex-col gap-1 text-sm">{t("Climate.time")}<input name="time" type="time" required defaultValue={now()} className={field} /></label>
-            <button type="submit" className={`${primary} col-span-2`}>{t("Climate.save")}</button>
-          </form>
-          <PowerCuts
-            farmId={house.farmId}
-            cuts={of<PowerCutDto>("powerCut")}
-            save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
-          />
-        </>
-      )}
-      <History house={house} readings={of<ReadingDto>("climateReading")} cuts={of<PowerCutDto>("powerCut")} batches={of<BatchDto>("batch")} sets={sets} />
-      <Link href="/climate/targets" className={`${link} text-sm`}>{t("Climate.targetsOpen")}</Link>
-    </>
+    <div className={split}>
+      <div className="flex flex-col gap-5">
+        <select aria-label={t("Climate.house")} value={house.id} onChange={(e) => (setHouseId(e.target.value), setSaved(null))} className={field}>
+          {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+        </select>
+        <p className="text-sm text-ink-2">{age === null ? t("Climate.noBatch") : t("Climate.age", { day: String(age) })}</p>
+        {message && <p role="status" className={done}>{t(message)}</p>}
+        {savedVerdicts && outOfRange(savedVerdicts) && (
+          <p role="alert" className={danger}>{t("Climate.outOfRange", { values: off.map((k) => t(`Climate.offValue.${k}.${savedVerdicts[k]}`)).join(", ") })}</p>
+        )}
+        {can(scope, "climate.record") && (
+          <>
+            <form onSubmit={submit} className={`${card} grid grid-cols-2 gap-3`} aria-label={t("Climate.reading")}>
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
+                {t("Climate.temperature")}
+                <input inputMode="decimal" dir="ltr" required value={values.temperature} onChange={(e) => setValues({ ...values, temperature: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
+                {hint("temperature", values.temperature.trim() !== "")}
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
+                {t("Climate.humidity")}
+                <input inputMode="numeric" dir="ltr" required value={values.humidity} onChange={(e) => setValues({ ...values, humidity: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
+                {hint("humidity", values.humidity.trim() !== "")}
+              </label>
+              <label className="col-span-2 flex flex-col gap-1 text-sm font-medium text-ink-2">
+                {t("Climate.ammonia")}
+                <input inputMode="numeric" dir="ltr" value={values.ammonia} onChange={(e) => setValues({ ...values, ammonia: e.target.value })} className={`${field} text-end text-xl font-semibold`} />
+                {hint("ammonia", values.ammonia.trim() !== "")}
+              </label>
+              <label className="flex flex-col gap-1 text-sm">{t("Climate.day")}<input name="day" type="date" required max={today} defaultValue={today} className={field} /></label>
+              <label className="flex flex-col gap-1 text-sm">{t("Climate.time")}<input name="time" type="time" required defaultValue={now()} className={field} /></label>
+              <button type="submit" className={`${primary} col-span-2`}>{t("Climate.save")}</button>
+            </form>
+            <PowerCuts
+              farmId={house.farmId}
+              cuts={of<PowerCutDto>("powerCut")}
+              save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
+            />
+          </>
+        )}
+      </div>
+      <div className="flex flex-col gap-5">
+        <History house={house} readings={of<ReadingDto>("climateReading")} cuts={of<PowerCutDto>("powerCut")} batches={of<BatchDto>("batch")} sets={sets} />
+        <Link href="/climate/targets" className={`${link} text-sm`}>{t("Climate.targetsOpen")}</Link>
+      </div>
+    </div>
   );
 }
 
@@ -175,6 +181,12 @@ function PowerCuts({ farmId, cuts, save }: { farmId: string; cuts: PowerCutDto[]
   );
 }
 
+// CL6 as a table from lg (tasks/plan-ui.md "Desktop rules"), one card of rows on the phone as before. The header row is
+// hidden there, so the first reading has no top border (nth-2). Each reading's cells sit in the list's columns (subgrid).
+const readingsTable = `${card} lg:grid lg:grid-cols-[auto_auto_minmax(0,1fr)] lg:gap-0 lg:overflow-hidden lg:p-0`;
+const readingRow =
+  "flex justify-between gap-3 border-t border-line py-2 nth-2:border-t-0 lg:col-span-full lg:grid lg:grid-cols-subgrid lg:items-center lg:gap-x-6 lg:px-4 lg:py-2.5";
+
 /** CL6: the house's last readings with their verdicts, and the farm's last power cuts with their duration. */
 function History({ house, readings, cuts, batches, sets }: { house: HouseDto; readings: ReadingDto[]; cuts: PowerCutDto[]; batches: BatchDto[]; sets: TargetSet[] }) {
   const t = useTranslations();
@@ -192,15 +204,20 @@ function History({ house, readings, cuts, batches, sets }: { house: HouseDto; re
     <section aria-label={t("Climate.history")} className="flex flex-col gap-3">
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Climate.history")}</h2>
       {last.length > 0 && (
-        <ul aria-label={t("Climate.lastReadings")} className={card}>
+        <ul aria-label={t("Climate.lastReadings")} className={readingsTable}>
+          <li aria-hidden="true" className={rowHead}>
+            <span>{t("Climate.colWhen")}</span>
+            <span>{t("Climate.colValues")}</span>
+            <span>{t("Climate.colVerdict")}</span>
+          </li>
           {last.map((r) => {
             const on = ageOn(r.day);
             const v = verdicts(r, on === null ? null : targetFor(sets, r.day, on.age, on.type));
             const off = (["temperature", "humidity", "ammonia"] as const).filter((k) => v[k] === "below" || v[k] === "above");
             return (
-              <li key={r.id} className="flex justify-between gap-3 border-t border-line py-2 first:border-t-0">
-                <span>
-                  {day(r.day)} · {r.time}
+              <li key={r.id} className={readingRow}>
+                <span className="lg:contents">
+                  <span>{day(r.day)} · {r.time}</span>
                   <span className="block text-sm text-ink-2">{tenths(r.temperatureTenths)} °C · {r.humidity} %{r.ammonia === null ? "" : ` · ${r.ammonia} ppm`}</span>
                 </span>
                 <span className={`text-sm ${off.length ? "text-brick-fg" : "text-ink-2"}`}>

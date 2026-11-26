@@ -15,7 +15,7 @@ const docs: Rule = (ctx) => can(ctx, "documents.manage");
 const GROUPS: { title: string; icon: string; links: { href: string; label: string; icon?: string; show?: Rule }[] }[] = [
   {
     title: "More.farm",
-    icon: "M3 21V9l9-6 9 6v12M9 21v-6h6v6",
+    icon: "M3 21V10l4-6h10l4 6v11zM9 21v-7h6v7M9 14l6 7M15 14l-6 7", // a barn (gambrel roof, crossed door): not Aujourd'hui's house
     links: [
       { href: "/farms", label: "Farms.title" },
       { href: "/eggs", label: "EggStock.title", show: holds("eggCollection") }, // SPEC-m3 E4

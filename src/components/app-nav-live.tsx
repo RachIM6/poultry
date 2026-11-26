@@ -194,11 +194,15 @@ export function WideGroups({ isIn }: { isIn: (href: string) => boolean }) {
               <h2 id="nav-account-t" className="px-2 py-1 text-xs font-semibold text-shell/70">
                 {t(account.title)}
               </h2>
-              <ul aria-labelledby="nav-account-t" className="flex flex-col gap-0.5 pb-2">
+              <ul aria-labelledby="nav-account-t" className="flex flex-col gap-0.5">
                 {account.links.map((l) => link(l, "px-2"))}
               </ul>
             </>
           ))}
+      </div>
+      {/* Pinned at the sidebar's foot while it scrolls (the nav's scroll-padding keeps a focused link above it); a child
+          of this column, which spans the whole list, so it can stay in view. */}
+      <div className="sticky bottom-0 z-10 -mb-4 w-full bg-ink pb-4 pt-2">
         <button
           type="button"
           aria-expanded={!rail}

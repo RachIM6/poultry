@@ -67,6 +67,17 @@ test("wide screens, unfolded: the role's groups open under their headings and ma
   expect(await fits(nav(page))).toEqual([]);
   // The sidebar scrolls on its own: the page doesn't move with it.
   expect(await nav(page).evaluate((el) => el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === "auto")).toBe(true);
+  // « Replier le menu » stays pinned at its foot, whole and on top, at either end of the scroll; nothing ends up under it.
+  const onTop = (l: Locator) =>
+    l.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.bottom <= innerHeight && el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+    });
+  expect(await onTop(fold)).toBe(true);
+  await nav(page).evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  expect(await onTop(fold)).toBe(true);
+  expect(await onTop(account.getByRole("link", { name: "Langue et déconnexion" }))).toBe(true);
+  await nav(page).evaluate((el) => el.scrollTo(0, 0));
 
   await treasury.click();
   await page.waitForURL(/\/fr\/treasury$/);

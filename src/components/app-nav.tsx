@@ -37,7 +37,7 @@ export function AppNav() {
   return (
     <nav
       aria-label={t("label")}
-      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-card print:hidden lg:sticky lg:top-0 lg:order-first lg:flex lg:h-dvh lg:w-72 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:overscroll-contain lg:border-0 lg:bg-ink lg:px-2 lg:py-4 lg:text-shell lg:rail:w-[72px] lg:rail:items-center lg:rail:px-3 lg:overflow-x-hidden lg:rail:[@media(min-height:640px)]:overflow-visible"
+      className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-card print:hidden lg:sticky lg:top-0 lg:order-first lg:flex lg:h-dvh lg:w-72 lg:shrink-0 lg:flex-col lg:scroll-pb-20 lg:overflow-y-auto lg:overscroll-contain lg:border-0 lg:bg-ink lg:px-2 lg:py-4 lg:text-shell lg:rail:w-[72px] lg:rail:items-center lg:rail:px-3 lg:overflow-x-hidden lg:rail:[@media(min-height:640px)]:overflow-visible"
     >
       <div className="hidden px-2 pb-5 pt-2 lg:block lg:rail:px-0 lg:rail:pb-3.5 lg:rail:pt-0 lg:rail:[&>span>span]:hidden [&_span]:text-shell">
         <BrandLockup />

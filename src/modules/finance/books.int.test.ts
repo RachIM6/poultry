@@ -88,14 +88,15 @@ describe("books (SPEC-finance FN16, T36)", () => {
     if (!overview.ok) throw new Error(overview.error);
     if (!books.ok) throw new Error(books.error);
     const movements = overview.value.movements;
-    const treasury = movements.map((x) => JSON.stringify([x.day, x.account, x.counterAccounts.map((c) => c.number), x.batch]));
+    const asBooks = (b: (typeof movements)[number]["batch"]) => (b ? `${b.house} · ${b.placedOn.split("-").reverse().join("/")}` : "");
+    const treasury = movements.map((x) => JSON.stringify([x.day, x.account, x.counterAccounts.map((c) => c.number), asBooks(x.batch)]));
     const cash = books.value.cashBook.rows.map((r) => JSON.stringify([r.day, r.account, [...new Set(r.counterAccounts)], batchOf(books.value.tags, r.entryId)]));
     expect(treasury.sort()).toEqual(cash.sort());
     // The sale: the buyer's account with its label, and its batch; the transfer's two legs go through 5115 only.
     const sale = movements.find((x) => x.day === "2026-03-20");
     expect(sale?.counterAccounts).toContainEqual({ number: "3421", label: "Clients" });
-    expect(sale?.batch).toBe("B1 · 01/03/2026");
-    expect(movements.filter((x) => x.day === "2026-03-22").map((x) => [x.account, x.counterAccounts, x.batch]).sort()).toEqual([["5141", [], ""], ["5161", [], ""]]);
+    expect(sale?.batch).toEqual({ house: "B1", placedOn: "2026-03-01" }); // the screen formats the day
+    expect(movements.filter((x) => x.day === "2026-03-22").map((x) => [x.account, x.counterAccounts, x.batch]).sort()).toEqual([["5141", [], null], ["5161", [], null]]);
     expect(movements.flatMap((x) => x.counterAccounts).every((c) => c.label !== "")).toBe(true);
   });
 

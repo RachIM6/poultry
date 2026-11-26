@@ -41,7 +41,7 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
   await expect(page.getByText(/Reste dû : 6.000,00.DH/)).toBeVisible();
   await expect(page.getByText(/Valeur : 9.000,00.DH/)).toBeVisible(); // T14: weighted average cost
 
-  await page.getByRole("button", { name: "Seuil d’alerte" }).click();
+  await page.getByRole("button", { name: /^Définir le seuil d’alerte/ }).click(); // the row's "Définir", no button per row (A4)
   await page.getByLabel("Seuil d’alerte (kg)").fill("2500");
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click(); // not "Enregistrer un achat"
   await expect(page.getByText("Stock bas")).toBeVisible(); // 2 000 kg < 2 500 kg

@@ -78,7 +78,7 @@ async function Results() {
                     <div className="font-semibold">{r.houseName} · {formatDay(r.placedOn as FarmDay, lang)}</div>
                     <div className="text-muted">{r.closedOn ? t("Results.closed", { date: formatDay(r.closedOn as FarmDay, lang) }) : t("Results.open_")}</div>
                     <details>
-                      <summary aria-label={t("Results.detailOf", { batch: `${r.houseName} · ${formatDay(r.placedOn as FarmDay, lang)}` })} className="min-h-11 cursor-pointer content-center text-ink-2">{t("Results.detail")}</summary>
+                      <summary aria-label={t("Results.detailOf", { batch: `${r.houseName} · ${formatDay(r.placedOn as FarmDay, lang)}` })} className="disclosure text-ink-2">{t("Results.detail")}</summary>
                       <div className="flex max-w-prose flex-col gap-1">
                         <div>{kpis(r.comparison)}</div>
                         {r.byBirdDays && <div className="text-muted">{t("Results.byBirdDays")}</div>}

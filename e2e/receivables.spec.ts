@@ -147,7 +147,8 @@ test("the owner sees what a buyer owes by age, approves a credit past the limit 
   await page.getByRole("button", { name: "Modifier le plafond" }).click();
   await page.getByLabel("Plafond (DH, vide = sans plafond)").fill("5000");
   await page.getByRole("button", { name: "Enregistrer le plafond" }).click();
-  await expect(page.getByText(/^Karim Volailles · Plafond de crédit : 5.000,00\sDH$/)).toBeVisible();
+  const limit = page.getByRole("list", { name: "Plafonds de crédit" }).getByRole("listitem").filter({ hasText: "Karim Volailles" });
+  await expect(limit).toContainText(/Plafond : 5.000,00\sDH/); // the row's limit cell
 
   await context.unroute("**");
   await context.setOffline(false);

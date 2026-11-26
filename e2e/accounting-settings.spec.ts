@@ -43,7 +43,8 @@ test("the owner changes the accounting choices until the year has an entry", asy
     .toBe(1);
   await page.reload();
   await expect(page.getByRole("note")).toContainText("L’exercice a déjà des écritures");
-  await expect(page.getByRole("button", { name: "Enregistrer", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Enregistrer", exact: true })).toHaveCount(0); // locked: no save, the note says why
+  await expect(page.getByLabel(/Plan comptable général des entreprises/)).toBeDisabled();
 
   await page.goto("/ar/settings/accounting");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");

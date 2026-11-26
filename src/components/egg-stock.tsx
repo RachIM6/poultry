@@ -6,13 +6,14 @@ import { useEffect, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import dynamic from "next/dynamic";
 import { row, rowHead, rowTable, split } from "@/components/layout";
-import { card, danger, field, primary, secondary } from "@/components/ui";
+import { card, danger, field, link, primary, secondary } from "@/components/ui";
 import { can } from "@/lib/permissions";
 import { eggWithdrawalWindows, type TreatmentDto } from "@/modules/health/shared";
 import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay } from "@/lib/format";
-import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
+import { formatDayShort } from "@/lib/format-day";
+import { daysBetween, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import {
   AGE_BUCKETS,
   EGG_MUTATIONS as M,
@@ -40,6 +41,7 @@ import { startSync } from "@/offline/sync";
 const EggSaleForm = dynamic(() => import("@/components/egg-sale").then((m) => m.EggSaleForm));
 const today = () => farmDayOf(new Date());
 const TRAY = 30; // display only (MQ8): eggs are counted one by one
+const FOLD_AFTER = 7; // display only: downgraded eggs laid longer ago fold under the recent lots
 
 export function EggStockScreen() {
   const t = useTranslations("Sync");
@@ -96,6 +98,10 @@ function EggStock({ userId, organizationId, role }: Scope) {
       .sort()
       .at(-1);
   const keyOf = (l: Lot) => `${l.batchId}|${l.laidOn}|${l.item}`;
+  const withholding = lots.some((l) => withheldUntil(l) !== undefined);
+  const old = (l: Lot) => l.item === "downgraded" && daysBetween(l.laidOn as FarmDay, today()) > FOLD_AFTER;
+  const [recent, folded] = [lots.filter((l) => !old(l)), lots.filter(old)];
+  const foldedTitle = t("EggStock.folded", { days: String(FOLD_AFTER), n: formatCount(folded.reduce((n, l) => n + l.eggs, 0)) });
 
   const save = async (mutation: { type: string; payload: { id: string } }, entity: string, data: unknown) => saveAll(mutation, [{ entity, id: mutation.payload.id, data }]);
   const saveAll = async (mutation: { type: string; payload: unknown }, recs: { entity: string; id: string; data: unknown }[]) => {
@@ -142,7 +148,8 @@ function EggStock({ userId, organizationId, role }: Scope) {
         <section className={card} aria-labelledby="by-item">
           <h2 id="by-item" className="text-lg font-semibold">{t("EggStock.byItem")}</h2>
           <ul className="flex flex-col gap-1">
-            {(["ungraded", "downgraded", ...grades.map((g) => `grade:${g.id}` as const)] as EggItem[]).map((item) => (
+            {/* A grade with no egg in stock says nothing: left out */}
+            {(["ungraded", "downgraded", ...grades.map((g) => `grade:${g.id}` as const).filter((g) => (byItem[g] ?? 0) > 0)] as EggItem[]).map((item) => (
               <li key={item} className="flex justify-between gap-3">
                 <span>{itemName(item)}</span>
                 <span>{t("EggStock.eggsTrays", { eggs: formatCount(byItem[item] ?? 0), trays: trays(byItem[item] ?? 0) })}</span>
@@ -168,52 +175,68 @@ function EggStock({ userId, organizationId, role }: Scope) {
       <section className="flex flex-col gap-3" aria-labelledby="lots">
         <h2 id="lots" className="text-lg font-semibold">{t("EggStock.lots")}</h2>
         {lots.length === 0 ? <p>{t("EggStock.none")}</p> : (
-          <ul className={`${rowTable} lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto_minmax(0,1.6fr)_auto]`} aria-labelledby="lots">
-            <li aria-hidden="true" className={rowHead}>
-              <span>{t("EggStock.colDay")}</span>
-              <span>{t("EggStock.colHouse")}</span>
-              <span>{t("EggStock.colItem")}</span>
-              <span className="text-end">{t("EggStock.colEggs")}</span>
-              <span>{t("EggStock.colWithheld")}</span>
-            </li>
-            {lots.map((l) => {
-              const until = withheldUntil(l);
-              const day = formatDay(l.laidOn as FarmDay, locale);
-              return (
-              <li key={keyOf(l)} className={row}>
-                {/* The phone's line, read whole by screen readers; its parts in columns from lg. */}
-                <span className="lg:sr-only">{t("EggStock.lot", { day, house: house(l.batchId), item: itemName(l.item), eggs: formatCount(l.eggs) })}</span>
-                <span aria-hidden="true" className="hidden whitespace-nowrap lg:block">{day}</span>
-                <span aria-hidden="true" className="hidden lg:block">{house(l.batchId)}</span>
-                <span aria-hidden="true" className="hidden lg:block">{itemName(l.item)}</span>
-                <span aria-hidden="true" className="hidden text-end tabular-nums lg:block">{formatCount(l.eggs)}</span>
-                {until ? (
-                  <span className="self-start rounded-2xl bg-alert-soft px-3 py-1 text-sm font-semibold text-alert-fg lg:self-center">{t("EggStock.withheld", { day: formatDay(until, locale) })}</span>
-                ) : (
-                  <span className="hidden lg:block" />
-                )}
-                <span className="flex gap-2 lg:justify-end">
-                  {l.item === "ungraded" && grades.length > 0 && <button type="button" aria-expanded={action?.lot === keyOf(l) && action.kind === "grade"} className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "grade" })}>{t("EggStock.grade")}</button>}
-                  <button type="button" aria-expanded={action?.lot === keyOf(l) && action.kind === "discard"} className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "discard" })}>{t("EggStock.discard")}</button>
-                </span>
-                {action?.lot === keyOf(l) && action.kind === "grade" && (
-                  <div className="lg:col-span-full lg:max-w-md">
-                    <GradeForm lot={l} grades={grades} lots={lots} onCancel={() => setAction(null)} onSave={(grading) => save({ type: M.gradeEggs, payload: grading }, "eggGrading", grading)} />
-                  </div>
-                )}
-                {action?.lot === keyOf(l) && action.kind === "discard" && (
-                  <div className="lg:col-span-full lg:max-w-md">
-                    <DiscardForm lot={l} lots={lots} onCancel={() => setAction(null)} onSave={(d) => save({ type: M.discardEggs, payload: d }, "eggDiscard", d)} />
-                  </div>
-                )}
-              </li>
-              );
-            })}
-          </ul>
+          <>
+            {recent.length > 0 && lotList(recent, { "aria-labelledby": "lots" })}
+            {/* The downgraded eggs of more than a week ago, still to sell or discard: folded, not row after row */}
+            {folded.length > 0 && (
+              <details className="flex flex-col gap-3">
+                <summary className="disclosure text-ink-2">{foldedTitle}</summary>
+                {lotList(folded, { "aria-label": foldedTitle })}
+              </details>
+            )}
+          </>
         )}
       </section>
     </>
   );
+
+  function lotList(list: Lot[], name: { "aria-labelledby": string } | { "aria-label": string }) {
+    return (
+      <ul className={`${rowTable} ${withholding ? "lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto_minmax(0,1.6fr)_auto]" : "lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto_auto]"}`} {...name}>
+        <li aria-hidden="true" className={rowHead}>
+          <span>{t("EggStock.colDay")}</span>
+          <span>{t("EggStock.colHouse")}</span>
+          <span>{t("EggStock.colItem")}</span>
+          <span className="text-end">{t("EggStock.colEggs")}</span>
+          {/* Only while a lot is in a withdrawal: an always-empty column says nothing */}
+          {withholding && <span>{t("EggStock.colWithheld")}</span>}
+        </li>
+        {list.map((l) => {
+          const until = withheldUntil(l);
+          const day = formatDayShort(l.laidOn, locale, today()); // a dense list: "19 novembre"
+          return (
+          <li key={keyOf(l)} className={row}>
+            {/* The phone's line, read whole by screen readers; its parts in columns from lg. */}
+            <span className="lg:sr-only">{t("EggStock.lot", { day, house: house(l.batchId), item: itemName(l.item), eggs: formatCount(l.eggs) })}</span>
+            <span aria-hidden="true" className="hidden whitespace-nowrap lg:block">{day}</span>
+            <span aria-hidden="true" className="hidden lg:block">{house(l.batchId)}</span>
+            <span aria-hidden="true" className="hidden lg:block">{itemName(l.item)}</span>
+            <span aria-hidden="true" className="hidden text-end tabular-nums lg:block">{formatCount(l.eggs)}</span>
+            {until ? (
+              <span className="self-start rounded-2xl bg-alert-soft px-3 py-1 text-sm font-semibold text-alert-fg lg:self-center">{t("EggStock.withheld", { day: formatDay(until, locale) })}</span>
+            ) : (
+              withholding && <span className="hidden lg:block" />
+            )}
+            <span className="flex items-center gap-4 lg:justify-end">
+              {l.item === "ungraded" && grades.length > 0 && <button type="button" aria-expanded={action?.lot === keyOf(l) && action.kind === "grade"} className={secondary} onClick={() => setAction({ lot: keyOf(l), kind: "grade" })}>{t("EggStock.grade")}</button>}
+              <button type="button" aria-expanded={action?.lot === keyOf(l) && action.kind === "discard"} className={link} onClick={() => setAction({ lot: keyOf(l), kind: "discard" })}>{t("EggStock.discard")}</button>
+            </span>
+            {action?.lot === keyOf(l) && action.kind === "grade" && (
+              <div className="lg:col-span-full lg:max-w-md">
+                <GradeForm lot={l} grades={grades} lots={lots} onCancel={() => setAction(null)} onSave={(grading) => save({ type: M.gradeEggs, payload: grading }, "eggGrading", grading)} />
+              </div>
+            )}
+            {action?.lot === keyOf(l) && action.kind === "discard" && (
+              <div className="lg:col-span-full lg:max-w-md">
+                <DiscardForm lot={l} lots={lots} onCancel={() => setAction(null)} onSave={(d) => save({ type: M.discardEggs, payload: d }, "eggDiscard", d)} />
+              </div>
+            )}
+          </li>
+          );
+        })}
+      </ul>
+    );
+  }
 }
 
 function GradeForm({ lot, grades, lots, onSave, onCancel }: { lot: Lot; grades: { id: string; label: string }[]; lots: Lot[]; onSave: (g: EggGradingDto) => void; onCancel: () => void }) {

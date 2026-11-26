@@ -137,7 +137,7 @@ test("WebBatch and WebSales in Arabic: the same columns, right to left", async (
   const owing = page.getByRole("list", { name: ar.Receivables.title, exact: true });
   await expect(owing.getByRole("listitem")).toHaveCount(1);
   await expect(page.getByText(ar.Receivables.colBuyer)).toBeVisible();
-  await beside(owing.getByText(/^على Abattoir Atlas/), owing.getByText(/0012345/), true);
+  await beside(owing.getByText(/^على ⁨Abattoir Atlas⁩/), owing.getByText(/0012345/), true);
   const cheque = page.getByRole("list", { name: ar.Receivables.portfolio }).getByRole("listitem");
   await beside(cheque.getByText(/0012345/), cheque.getByText(ar.Receivables.states.in_portfolio), true);
   expect(await noSideScroll(page)).toBe(true);

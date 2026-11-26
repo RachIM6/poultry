@@ -77,7 +77,8 @@ export { useOnline } from "@/components/online";
  * ADR-011: sends one file to POST /api/files, which attaches it to its record; the record then comes back by sync.
  * Shown only once the record is on the server and the phone is online.
  */
-export function FileUpload({ url, accept, label, camera = false, onError }: { url: string; accept: string; label: string; camera?: boolean; onError: (messageKey: string | undefined) => void }) {
+/** `look`: the label's classes, a button (`secondary`) unless a list row wants a link. */
+export function FileUpload({ url, accept, label, camera = false, look = secondary, onError }: { url: string; accept: string; label: string; camera?: boolean; look?: string; onError: (messageKey: string | undefined) => void }) {
   const t = useTranslations();
   const [sending, setSending] = useState(false);
   const upload = async (file: File | undefined) => {
@@ -96,7 +97,7 @@ export function FileUpload({ url, accept, label, camera = false, onError }: { ur
   };
   return (
     // The input is sr-only, so the label shows its focus ring (WCAG 2.4.7).
-    <label className={`${secondary} has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink`}>
+    <label className={`${look} cursor-pointer has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink`}>
       {sending ? t("Files.sending") : label}
       <input type="file" accept={accept} capture={camera ? "environment" : undefined} className="sr-only" disabled={sending} onChange={(e) => upload(e.target.files?.[0])} />
     </label>

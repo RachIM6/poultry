@@ -5,7 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { Link } from "@/i18n/navigation";
 import { postJson } from "@/lib/api";
-import { formatDateTime } from "@/lib/format";
+import { formatMomentShort } from "@/lib/format-day";
+import { farmDayOf } from "@/lib/kernel/farm-day";
 import { NOTIFICATION_MUTATIONS as M, type NotificationDto } from "@/modules/notifications/shared";
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
@@ -39,6 +40,7 @@ function Inbox({ userId, organizationId, role }: Scope) {
   const records = useLiveQuery(() => db.records.where("entity").equals("notification").toArray(), [userId, organizationId]);
   if (!records) return null;
   const items = records.map((r) => r.data as NotificationDto).sort((x, y) => y.createdAt.localeCompare(x.createdAt));
+  const today = farmDayOf(new Date()); // "26 novembre à 01:25": the year only for last year's
 
   const markRead = (n: NotificationDto) =>
     n.readAt
@@ -60,7 +62,7 @@ function Inbox({ userId, organizationId, role }: Scope) {
                   {t(`Notifications.templates.${n.templateKey}.title`, n.params)}
                 </span>
                 <span>{t(`Notifications.templates.${n.templateKey}.body`, n.params)}</span>
-                <span className="text-sm text-muted">{formatDateTime(n.createdAt, locale)}</span>
+                <span className="text-sm text-muted">{formatMomentShort(n.createdAt, locale, today)}</span>
               </button>
             </li>
           ))}
@@ -121,7 +123,8 @@ function PushControls() {
     setBusy(false);
   };
 
-  const status: Partial<Record<PushState, string>> = { unsupported: "pushUnsupported", off: "pushOff", denied: "pushDenied", on: "pushOn" };
+  // Push not set up on this server ("off"): a plain fact for the farmer, not the operator's to-do (the inbox works)
+  const status: Partial<Record<PushState, string>> = { unsupported: "pushUnsupported", off: "pushInboxOnly", denied: "pushDenied", on: "pushOn" };
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-[17px] font-semibold text-ink-2">{t("push")}</h2>

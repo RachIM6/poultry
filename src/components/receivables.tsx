@@ -29,7 +29,8 @@ import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useFieldError, useInline } from "@/components/focus";
 import { cell, row, rowHead, rowTable } from "@/components/layout";
-import { card, danger, field, primary, secondary } from "@/components/ui";
+import { cardRow, tightHead } from "@/components/layout-tight";
+import { danger, field, link, primary, secondary } from "@/components/ui";
 
 // SPEC V4 on the static /receivables shell, offline: what each buyer owes, their cheques and bills with due dates, and
 // later payments, checked with the same rule as the server. Owners and managers act, the accountant reads (SPEC-m5 PA5);
@@ -82,6 +83,9 @@ function Receivables(scope: Scope) {
     instruments.filter((i) => i.state === "unpaid"),
   );
   const nameOf = (id: string | null) => buyers.find((b) => b.id === id)?.name ?? "—";
+  // A Latin name in an Arabic line ("Abattoir Démo Settat: …") keeps its punctuation on the right side inside FSI … PDI,
+  // what <bdi> does (rtl.test.ts). A French line orders it right already.
+  const isolated = (name: string) => (locale === "ar" ? `⁨${name}⁩` : name);
   const owing = buyers
     .filter((b) => (balances.get(b.id) ?? 0n) > 0n)
     .sort((x, y) => x.name.localeCompare(y.name));
@@ -155,7 +159,7 @@ function Receivables(scope: Scope) {
           {pending.map((i) => (
             <li key={i.id} className={row}>
               <span>
-                {t("Receivables.instrument", { kind: i.kind, number: i.number ?? "none", buyer: nameOf(i.buyerId), amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
+                {t("Receivables.instrument", { kind: i.kind, number: i.number ?? "none", buyer: isolated(nameOf(i.buyerId)), amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
               </span>
               <span className="text-muted">{t(`Receivables.states.${i.state}`)}</span>
               <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -171,7 +175,7 @@ function Receivables(scope: Scope) {
       )}
       {buyers.filter((b) => b.creditBlocked).map((b) => (
         <p key={b.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-alert-soft p-3 text-alert-fg">
-          {t("Receivables.blocked", { buyer: b.name })}
+          {t("Receivables.blocked", { buyer: isolated(b.name) })}
           {can(scope, "finance.manage") && <button type="button" onClick={() => unblock(b)} className={secondary}>{t("Receivables.unblock")}</button>}
         </p>
       ))}
@@ -179,7 +183,7 @@ function Receivables(scope: Scope) {
         <ul className="flex flex-col gap-2" aria-label={t("Receivables.awaiting")}>
           {awaiting.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-brick-soft p-3 text-brick-fg">
-              {t("Receivables.awaitingLine", { buyer: nameOf(s.buyerId), amount: formatMoney(BigInt(s.amountCentimes ?? 0) - BigInt(s.paidCentimes ?? 0)), date: formatDay(s.day as FarmDay, locale) })}
+              {t("Receivables.awaitingLine", { buyer: isolated(nameOf(s.buyerId)), amount: formatMoney(BigInt(s.amountCentimes ?? 0) - BigInt(s.paidCentimes ?? 0)), date: formatDay(s.day as FarmDay, locale) })}
               {owner && <button type="button" onClick={() => approve(s.id)} className={secondary}>{t("Receivables.approve")}</button>}
             </li>
           ))}
@@ -199,7 +203,7 @@ function Receivables(scope: Scope) {
             const instruments = sales.filter((s) => s.buyerId === b.id && s.instrument).sort((x, y) => x.instrument!.dueOn.localeCompare(y.instrument!.dueOn));
             return (
               <li key={b.id} className={row}>
-                <span className="font-semibold">{t("Receivables.owes", { buyer: b.name, amount: formatMoney(balance) })}</span>
+                <span className="font-semibold">{t("Receivables.owes", { buyer: isolated(b.name), amount: formatMoney(balance) })}</span>
                 <span className={cell}>
                   <span className="text-sm text-muted">
                     {AGEING_BUCKETS.flatMap((bucket) => {
@@ -234,7 +238,12 @@ function Receivables(scope: Scope) {
       {owner && buyers.length > 0 && (
         <>
           <h2 className="text-[17px] font-semibold text-ink-2">{t("Receivables.limits")}</h2>
-          <ul className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
+          {/* A table from lg: the buyer, the limit at the column's end, a "Modifier" link (no full-width buttons). */}
+          <ul className={`${rowTable} lg:max-w-3xl lg:grid-cols-[minmax(0,1fr)_auto_auto]`} aria-label={t("Receivables.limits")}>
+            <li aria-hidden="true" className={tightHead}>
+              <span>{t("Receivables.limitBuyer")}</span>
+              <span className="text-end">{t("Receivables.limitCol")}</span>
+            </li>
             {[...buyers].sort((x, y) => x.name.localeCompare(y.name)).map((b) => <LimitRow key={b.id} buyer={b} onSave={(limit) => setLimit(b, limit)} />)}
           </ul>
         </>
@@ -260,10 +269,13 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
     close();
   };
   return (
-    <li className={card}>
-      <span>{buyer.name} · {limit === null ? t("Receivables.noLimit") : t("Receivables.limit", { amount: formatMoney(limit) })}</span>
+    <li className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl border border-line bg-card p-3 ${cardRow}`}>
+      <bdi className="basis-full font-semibold lg:basis-auto">{buyer.name}</bdi>
+      <span className="lg:whitespace-nowrap lg:text-end">
+        {limit === null ? t("Receivables.noLimit") : t.rich("Receivables.limitCell", { amount: formatMoney(limit), l: (chunks) => <span className="lg:sr-only">{chunks}</span> })}
+      </span>
       {editing ? (
-        <form onSubmit={submit} className="flex flex-col gap-2">
+        <form onSubmit={submit} className="flex basis-full flex-col gap-2 lg:col-span-full lg:max-w-md">
           <Field label={t("Receivables.limitLabel")}>{(id) => <input id={id} name="limit" inputMode="decimal" dir="ltr" defaultValue={shown} autoFocus {...bad("limit")} className={field} />}</Field>
           {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
           <div className="flex gap-3">
@@ -272,7 +284,7 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
           </div>
         </form>
       ) : (
-        <button type="button" {...opener("limit")} aria-label={t("Receivables.editLimitNamed", { buyer: buyer.name })} className={secondary}>{t("Receivables.editLimit")}</button>
+        <button type="button" {...opener("limit")} aria-label={t("Receivables.editLimitNamed", { buyer: buyer.name })} className={`${link} lg:justify-self-end`}>{t("Receivables.edit")}</button>
       )}
     </li>
   );

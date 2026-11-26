@@ -15,7 +15,8 @@ test("the owner invites a worker, who joins without owner screens, then removes 
   await page.getByRole("button", { name: "Inviter" }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
   const code = await inviteCode(page);
-  await expect(page.getByText(`+212${workerPhone.slice(1)}`)).toBeVisible(); // pending
+  await expect(page.getByText(workerPhone.replace(/(\d{2})(?=\d)/g, "$1 "))).toBeVisible(); // pending, written "06 12 34 56 78"
+  await expect(page.getByText(/^Expire le \d{1,2} \p{L}+ \d{4}$/u)).toBeVisible(); // and until when its code works
 
   const workerContext = await browser.newContext({ ...test.info().project.use });
   const worker = await workerContext.newPage();

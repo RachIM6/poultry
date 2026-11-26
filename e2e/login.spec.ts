@@ -97,12 +97,13 @@ test("the owner's reset code lets a worker set a new password, and signs out the
 
   const workerContext = await browser.newContext({ ...test.info().project.use });
   const worker = await workerContext.newPage();
-  const e164 = await login(worker, "fr", phone, code);
+  await login(worker, "fr", phone, code);
   await expect(worker).toHaveURL(/\/fr\/dashboard$/);
 
   await page.reload();
   page.once("dialog", (d) => void d.accept());
-  await page.getByRole("button", { name: `Réinitialiser le mot de passe de ${e164}` }).click();
+  // The members screen writes the number as people do ("06 12 34 56 78"), in its labels too
+  await page.getByRole("button", { name: `Réinitialiser le mot de passe de ${phone.replace(/(\d{2})(?=\d)/g, "$1 ")}` }).click();
   const shown = page.locator("output").filter({ hasText: /^[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$/ });
   await expect(shown).toBeVisible();
   const resetCode = (await shown.textContent())!;

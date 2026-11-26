@@ -6,6 +6,7 @@ import { useEffect, useId, useMemo, useState, type FormEvent, type InputHTMLAttr
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney } from "@/lib/format";
+import { formatDayShort } from "@/lib/format-day";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
@@ -39,14 +40,14 @@ import { groupRecords } from "@/offline/group";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useFieldError, useInline } from "@/components/focus";
-import { cell, rowTable, split, splitAside, splitNarrow } from "@/components/layout";
+import { cell, rowTable, splitAside, splitNarrow } from "@/components/layout";
 import { cardRow, tightHead } from "@/components/layout-tight";
-import { danger, field, primary, secondary } from "@/components/ui";
+import { danger, field, link, primary, secondary } from "@/components/ui";
 
 // SPEC S1–S3 on the static /stock shell: everything from and to the phone's database (ADR-003). Workers get no money
 // from the server at all (I5), so the money parts only render for those allowed to manage stock.
-// Wide screens (tasks/plan-ui.md "Desktop rules"): the items as a table with the forms beside it, then the purchases and
-// the suppliers side by side. The phone keeps its cards, in the same order.
+// Wide screens (tasks/plan-ui.md "Desktop rules"): the items as a table with the forms beside it, then the purchases, then
+// the suppliers, each the page's width. The phone keeps its cards, in the same order.
 
 const card = "flex flex-col gap-1 rounded-2xl border border-line bg-card p-3";
 const DEFAULT_UNIT: Record<ItemKind, Unit> = { feed: "kg", vaccine: "dose", medicine: "ml", litter: "kg", gas: "unit", other: "unit" };
@@ -132,12 +133,12 @@ function Stock(scope: Scope) {
     <section className="flex flex-col gap-3">
       <h2 className="text-[17px] font-semibold text-ink-2">{t("Stock.items")}</h2>
       {items.length === 0 ? <p>{t("Stock.noItems")}</p> : (
-        <ul className={`${rowTable} ${manage ? "lg:grid-cols-[minmax(0,1fr)_repeat(5,auto)]" : "lg:grid-cols-[minmax(0,1fr)_repeat(3,auto)]"}`} aria-label={t("Stock.items")}>
+        <ul className={`${rowTable} ${manage ? "lg:grid-cols-[minmax(0,1fr)_repeat(4,auto)]" : "lg:grid-cols-[minmax(0,1fr)_repeat(3,auto)]"}`} aria-label={t("Stock.items")}>
           <li aria-hidden="true" className={tightHead}>
             <span>{t("Stock.item")}</span>
-            <span>{t("Stock.colOnHand")}</span>
-            {manage && <span>{t("Stock.colValue")}</span>}
-            <span>{t("Stock.editThreshold")}</span>
+            <span className="text-end">{t("Stock.colOnHand")}</span>
+            {manage && <span className="text-end">{t("Stock.colValue")}</span>}
+            <span className="text-end">{t("Stock.editThreshold")}</span>
             <span>{t("Stock.colState")}</span>
           </li>
           {items.map((item) => (
@@ -190,7 +191,8 @@ function Stock(scope: Scope) {
               )}
             </section>
           </div>
-          <div className={split}>
+          {/* The purchases' five columns need the page's width (B4): the suppliers below them, not beside */}
+          <div className="flex flex-col gap-5">
             <Purchases items={items} purchases={of<PurchaseDto>("purchase")} movements={movements} onHand={onHand} write={write} />
             <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} payments={of<SupplierPaymentDto>("supplierPayment")} debits={of<IssuedDebitDto>("issuedDebit")} write={write} />
           </div>
@@ -226,10 +228,17 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
   };
 
   // The cells come in the table's order. On the phone, `order` keeps the card as it was: the name and its badge on the
-  // first line, then the quantities, the lot, the button. A label the table's header already says is for screen
-  // readers only from lg (`<l>` in the message).
+  // first line, then the quantities, the lot. A label the table's header already says is for screen readers only from
+  // lg (`<l>` in the message). The threshold itself opens its edit (`<e>`): no button on every row.
   const label = (chunks: ReactNode) => <span className="lg:sr-only">{chunks}</span>;
   const threshold = item.lowStockThreshold;
+  const edit = (name: string, chunks: ReactNode) => (
+    <button type="button" {...opener("threshold")} aria-label={name} className={link}>
+      {chunks}
+    </button>
+  );
+  // From lg the figures sit at their column's end (B4).
+  const figure = "order-1 basis-full lg:order-none lg:text-end lg:whitespace-nowrap";
   return (
     <li className={`flex flex-wrap items-start gap-x-3 gap-y-1 rounded-2xl border border-line bg-card p-3 ${cardRow}`}>
       <span className={cell}>
@@ -238,38 +247,35 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
           <span className="order-2 basis-full text-sm text-muted">{t("lotUntil", { lot: item.lot, date: formatDay(item.expiresOn as FarmDay, locale) })}</span>
         )}
       </span>
-      <span className="order-1 basis-full text-xl font-semibold lg:order-none lg:text-base">{t.rich("onHand", { quantity: show(quantity, item.unit), l: label })}</span>
-      {value !== undefined && <span className="order-1 basis-full text-sm text-ink-2 lg:order-none">{t.rich("value", { amount: formatMoney(value), l: label })}</span>}
-      {threshold === null ? (
-        <>
-          <span className="hidden lg:block" />
-          <span className="hidden lg:block" />
-        </>
+      <span className={`${figure} text-xl font-semibold lg:text-base`}>{t.rich("onHand", { quantity: show(quantity, item.unit), l: label })}</span>
+      {value !== undefined && <span className={`${figure} text-sm text-ink-2`}>{t.rich("value", { amount: formatMoney(value), l: label })}</span>}
+      {threshold === null && !write ? (
+        <span className="hidden lg:block" />
       ) : (
-        <>
-          <span className="order-1 basis-full text-sm text-muted lg:order-none">{t.rich("alertBelow", { quantity: show(threshold, item.unit), l: label })}</span>
-          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium lg:justify-self-start ${low ? "bg-brick-soft text-brick-fg" : "bg-olive-soft text-olive"}`}>{t(low ? "low" : "enough")}</span>
-        </>
+        <span className={`${figure} text-sm text-muted`}>
+          {threshold === null
+            ? t.rich("thresholdSet", { l: label, e: (chunks) => edit(t("thresholdSetOf", { item: item.name }), chunks) })
+            : write
+              ? t.rich("thresholdEdit", { quantity: show(threshold, item.unit), l: label, e: (chunks) => edit(t("thresholdEditOf", { item: item.name, quantity: show(threshold, item.unit) }), chunks) })
+              : t.rich("alertBelow", { quantity: show(threshold, item.unit), l: label })}
+        </span>
       )}
-      {write &&
-        (editing ? (
-          <form onSubmit={saveThreshold} className="order-3 mt-2 flex basis-full flex-col gap-2 lg:order-none lg:col-span-full lg:max-w-md">
-            <Field
-              name="threshold"
-              label={`${t("editThreshold")} (${t(`units.${item.unit}`)})`}
-              defaultValue={threshold === null ? "" : item.unit === "kg" ? String(threshold / 1000) : String(threshold)}
-              inputMode="decimal"
-              dir="ltr"
-              autoFocus
-            />
-            <p className="text-sm text-muted">{t("thresholdHint")}</p>
-            <Buttons onCancel={close} />
-          </form>
-        ) : (
-          <button type="button" {...opener("threshold")} className={`${secondary} order-3 mt-1 self-start text-sm lg:order-none lg:mt-0 lg:self-center lg:justify-self-end`}>
-            {t("editThreshold")}
-          </button>
-        ))}
+      {/* Colour only for what needs action (B6): a chip for a low stock, nothing for the others. */}
+      {low ? <span className="shrink-0 rounded-full bg-brick-soft px-2.5 py-0.5 text-xs font-medium text-brick-fg lg:justify-self-start">{t("low")}</span> : <span className="hidden lg:block" />}
+      {write && editing && (
+        <form onSubmit={saveThreshold} className="order-3 mt-2 flex basis-full flex-col gap-2 lg:order-none lg:col-span-full lg:max-w-md">
+          <Field
+            name="threshold"
+            label={`${t("editThreshold")} (${t(`units.${item.unit}`)})`}
+            defaultValue={threshold === null ? "" : item.unit === "kg" ? String(threshold / 1000) : String(threshold)}
+            inputMode="decimal"
+            dir="ltr"
+            autoFocus
+          />
+          <p className="text-sm text-muted">{t("thresholdHint")}</p>
+          <Buttons onCancel={close} />
+        </form>
+      )}
     </li>
   );
 }
@@ -301,16 +307,27 @@ function Purchases({ items, purchases, movements, onHand, write }: { items: Stoc
     <section className="flex flex-col gap-3">
       <h2 id="purchases" className="text-[17px] font-semibold text-ink-2">{t("Stock.purchases")}</h2>
       {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <ul className={`${rowTable} lg:grid-cols-[minmax(0,1fr)_auto]`} aria-labelledby="purchases">
+      <ul className={`${rowTable} lg:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto]`} aria-labelledby="purchases">
         <li aria-hidden="true" className={tightHead}>
-          <span>{t("Stock.colPurchase")}</span>
+          <span>{t("Stock.day")}</span>
+          <span>{t("Stock.item")}</span>
+          <span className="text-end">{t("Stock.colQuantity")}</span>
+          <span className="text-end">{t("Stock.colAmount")}</span>
         </li>
-        {recent.map((p) => (
-          <li key={p.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-card p-3 ${cardRow}`}>
-            <span>{labelOf(p)}</span>
-            <button type="button" onClick={() => cancel(p)} aria-label={t("Stock.voidOf", { purchase: labelOf(p) })} className={`${secondary} text-sm`}>{t("Stock.void")}</button>
-          </li>
-        ))}
+        {recent.map((p) => {
+          const item = itemOf.get(p.stockItemId)!;
+          return (
+            <li key={p.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-card p-3 ${cardRow}`}>
+              {/* The phone's line, read whole by screen readers; its parts in columns from lg. */}
+              <span className="lg:sr-only">{labelOf(p)}</span>
+              <span aria-hidden="true" className="hidden whitespace-nowrap lg:block">{formatDayShort(p.day, locale, today())}</span>
+              <span aria-hidden="true" className="hidden lg:block">{item.name}</span>
+              <span aria-hidden="true" className="hidden whitespace-nowrap text-end lg:block">{show(p.quantity, item.unit)}</span>
+              <span aria-hidden="true" className="hidden whitespace-nowrap text-end lg:block"><bdi dir="ltr">{formatMoney(BigInt(p.amountCentimes ?? 0))}</bdi></span>
+              <button type="button" onClick={() => cancel(p)} aria-label={t("Stock.voidOf", { purchase: labelOf(p) })} className={`${link} text-sm lg:justify-self-end`}>{t("Stock.void")}</button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

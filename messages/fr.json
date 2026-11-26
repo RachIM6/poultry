@@ -352,7 +352,8 @@
     "resetOf": "Réinitialiser le mot de passe de {phone}",
     "resetConfirm": "Créer un code de réinitialisation pour {phone} ?",
     "resetCode": "Code de réinitialisation",
-    "resetCodeHint": "Donnez ce code à la personne : elle choisit un nouveau mot de passe dans « Mot de passe oublié ». Il ne sera plus affiché."
+    "resetCodeHint": "Donnez ce code à la personne : elle choisit un nouveau mot de passe dans « Mot de passe oublié ». Il ne sera plus affiché.",
+    "expires": "Expire le {date}"
   },
   "Sync": {
     "title": "Synchronisation",
@@ -666,7 +667,8 @@
     "to": "À",
     "save": "Enregistrer",
     "saved": "Enregistré.",
-    "needsNetwork": "Disponible avec du réseau."
+    "needsNetwork": "Disponible avec du réseau.",
+    "pushInboxOnly": "Les notifications s’affichent dans la liste de cette page."
   },
   "Stock": {
     "title": "Stock",
@@ -753,7 +755,13 @@
     "purchaseLine": "{date} · {item} · {quantity} · {amount}",
     "void": "Annuler l’achat",
     "voidOf": "Annuler l’achat : {purchase}",
-    "voidConfirm": "Annuler l’achat {purchase} ? Le stock reprend sa quantité d’avant et son écriture est contre-passée."
+    "voidConfirm": "Annuler l’achat {purchase} ? Le stock reprend sa quantité d’avant et son écriture est contre-passée.",
+    "thresholdEdit": "<l>Alerte sous </l><e>{quantity}</e>",
+    "thresholdSet": "<l>Seuil d’alerte : </l><e>Définir</e>",
+    "thresholdEditOf": "Modifier le seuil d’alerte de {item} : {quantity}",
+    "thresholdSetOf": "Définir le seuil d’alerte de {item}",
+    "colQuantity": "Quantité",
+    "colAmount": "Montant"
   },
   "Batches": {
     "noFarming": "Effectifs, saisies du jour et chiffres d’élevage : non transmis à votre rôle.",
@@ -1256,7 +1264,11 @@
     "colInstrument": "Chèque ou effet",
     "colState": "État",
     "colBuyer": "Acheteur et solde",
-    "colDetail": "Ancienneté, plafond et échéances"
+    "colDetail": "Ancienneté, plafond et échéances",
+    "limitBuyer": "Acheteur",
+    "limitCol": "Plafond",
+    "limitCell": "<l>Plafond : </l>{amount}",
+    "edit": "Modifier"
   },
   "Origin": {
     "title": "Document d’origine des volailles",
@@ -1428,7 +1440,18 @@
     "into": "Caisse ou compte bancaire",
     "associateName": "Associé (facultatif)",
     "associateSave": "Enregistrer",
-    "associateSaved": "Opération enregistrée."
+    "associateSaved": "Opération enregistrée.",
+    "journals": {
+      "AC": "achats",
+      "VT": "ventes",
+      "CA": "caisse",
+      "BQ": "banque",
+      "EF": "effets",
+      "OD": "opérations diverses"
+    },
+    "journalLegend": "Journaux : {journals}",
+    "exploitantHintPlain": "L’argent que vous apportez à la ferme ou en retirez pour vous (capital personnel).",
+    "associateHintPlain": "L’argent qu’un associé apporte à la ferme ou en retire."
   },
   "Bank": {
     "forbidden": "Le rapprochement bancaire est réservé au propriétaire, au gérant et au comptable.",
@@ -2141,7 +2164,8 @@
     "housed": "logé sur la ferme",
     "leftOn": "parti le {date}",
     "usesApp": "utilise l’application",
-    "noApp": "sans compte"
+    "noApp": "sans compte",
+    "colDetail": "Affectation et salaire"
   },
   "Tasks": {
     "title": "Tâches du jour",
@@ -2526,7 +2550,8 @@
     "colHouse": "Bâtiment",
     "colItem": "Article",
     "colEggs": "Œufs",
-    "colWithheld": "Délai d’attente"
+    "colWithheld": "Délai d’attente",
+    "folded": "Déclassés pondus il y a plus de {days} jours : {n} œufs"
   },
   "Layers": {
     "hens": "Poules présentes",

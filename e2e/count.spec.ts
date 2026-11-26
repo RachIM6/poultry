@@ -19,7 +19,7 @@ test("the year-end count sheet lists every open batch and stock item, prints wit
 
   await page.goto("/fr/dashboard");
   await page.getByRole("link", { name: "Plus", exact: true }).click(); // FCX2: "Plus" › Argent
-  await page.getByRole("link", { name: "Inventaire de fin d’exercice" }).click();
+  await page.getByRole("link", { name: "Clôture de l’exercice" }).click(); // its step 1 (tasks/plan-ui-cleanup.md §3)
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Inventaire de fin d’exercice");
   await expect(page.getByRole("heading", { level: 2 })).toHaveText(/^Ferme Atlas · inventaire au /);
   const batches = page.getByRole("table", { name: "Bandes en cours" }).getByRole("row");

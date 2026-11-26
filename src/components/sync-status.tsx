@@ -13,11 +13,10 @@ import { requestSync, startSync } from "@/offline/sync";
 import { primary } from "@/components/ui";
 
 /**
- * On signed-in (online) pages: remembers who is signed in on this phone for the offline pages and the service worker,
- * keeps the sync loop running, and shows what is waiting to be sent.
+ * On the home (online, and its offline twin /today): remembers who is signed in on this phone for the offline pages and
+ * the service worker, and keeps the sync loop running. What waits to be sent is the header's chip (app-header-live.tsx).
  */
-export function SyncBadge({ userId, organizationId, role }: { userId: string; organizationId: string; role: Role }) {
-  const t = useTranslations("Sync");
+export function SyncStart({ userId, organizationId, role }: { userId: string; organizationId: string; role: Role }) {
   useEffect(() => {
     const scope = { userId, organizationId, role };
     // After rememberScope: a role change clears local records first, so no pull lands before the clear (T25 S5).
@@ -31,17 +30,7 @@ export function SyncBadge({ userId, organizationId, role }: { userId: string; or
       stop?.();
     };
   }, [userId, organizationId, role]);
-  const [pending, refused] = useLiveQuery(() => {
-    const db = localDb({ userId, organizationId });
-    return Promise.all([db.outbox.count(), db.needsAttention.count()]);
-  }, [userId, organizationId], [0, 0]);
-  return (
-    // aria-live, not a role="status" child: a status region would drop out of the link's accessible name.
-    // A refused write comes first: it waits on the user, a pending one only on the network (ADR-003 §7).
-    <Link href="/sync" aria-live="polite" className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-3 text-sm font-medium ${refused > 0 ? "bg-alert text-white" : pending > 0 ? "bg-brick-soft text-brick-fg" : "bg-olive-soft text-olive"}`}>
-      {refused > 0 ? t("refused", { count: refused, n: String(refused) }) : pending > 0 ? t("pending", { count: String(pending) }) : t("upToDate")}
-    </Link>
-  );
+  return null;
 }
 
 /** The /sync shell: works offline from IndexedDB alone (poultry-pwa §0.12). */

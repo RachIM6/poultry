@@ -177,6 +177,13 @@ test("the wide home: figures on top, the batches beside the checklist, no money 
   // The cash is the top row's tile, not repeated in « Argent »: with no closed batch either, no card on a wide screen.
   await expect(page.getByRole("region", { name: "Argent" })).toBeHidden();
   await expect(tasks.getByRole("list", { name: /^Saisies du jour/ }).getByRole("listitem")).toHaveText([/^Bâtiment 1\s*Saisir/]); // the house alone
+  // tasks/plan-ui-cleanup.md §3: « Tout voir » and the tile open « Tâches du jour »; « Saisir » is the small primary;
+  // what waits to be sent is the header's chip, not the home's.
+  await expect(tasks.getByRole("link", { name: "Tout voir" })).toHaveAttribute("href", "/fr/tasks");
+  await expect(figures.getByRole("link", { name: /^Tâches restantes/ })).toHaveAttribute("href", "/fr/tasks");
+  expect((await box(tasks.getByRole("link", { name: "Saisir · Bâtiment 1" }))).height).toBe(32);
+  await expect(page.getByRole("banner").getByRole("link", { name: "Synchronisation : Tout est envoyé" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Tout est envoyé/ })).toHaveCount(1);
   expect(await noSideScroll(page)).toBe(true);
 
   await page.setViewportSize(PHONE); // the phone: as before

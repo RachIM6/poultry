@@ -27,7 +27,8 @@ test("the owner previews and posts the year's depreciation, finds it in the jour
 
   // FCX2: "Plus" › Argent, next to the count sheet.
   await page.goto("/fr/more");
-  await page.getByRole("link", { name: "Préparer la clôture" }).click();
+  await page.getByRole("link", { name: "Clôture de l’exercice" }).click(); // step 1, the count (tasks/plan-ui-cleanup.md §3)
+  await page.getByRole("navigation", { name: "Clôture de l’exercice" }).getByRole("link", { name: "2 Écritures de clôture" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Préparer la clôture");
   await page.goto("/fr/closing?year=2026");
   await expect(page.getByText(/^Les écritures de fin d’exercice, en opérations diverses \(OD\) au 31 décembre 2026/)).toBeVisible();

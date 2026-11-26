@@ -236,6 +236,7 @@ test("the bell: the 5 latest unread in a panel, by keyboard, all marked read at 
   await page.keyboard.press("Escape");
   await expect(bellPanel(page)).toBeHidden();
   await expect(bell(page)).toBeFocused();
+  await expect(bellPanel(page).locator("li, h2")).toHaveCount(0); // closed, it holds nothing a search could find
   // A click outside closes it; so does opening the account menu.
   await bell(page).click();
   await page.getByRole("main").click({ position: { x: 5, y: 5 } });

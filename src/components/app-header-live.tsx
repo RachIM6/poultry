@@ -165,40 +165,45 @@ function Bell({ userId, organizationId }: Scope) {
         )}
       </button>
       <div id={id} hidden={!open} onClick={onClick} className={`absolute inset-x-4 top-full mt-2 lg:start-auto lg:end-0 lg:w-96 ${popover}`}>
-        <div className="flex min-h-11 items-center justify-between gap-2 ps-3">
-          <h2 className="font-semibold">{t("Header.panelTitle")}</h2>
-          {unread.length > 0 && (
-            <button
-              type="button"
-              // The button goes with the last unread one: the focus moves on to « Toutes les notifications ».
-              onClick={() => void markRead(unread).then(() => all.current?.focus())}
-              className="min-h-11 rounded-xl px-3 text-sm font-medium text-ink-2 hover:bg-shell hover:text-ink"
-            >
-              {t("Header.markAllRead")}
-            </button>
-          )}
-        </div>
-        {unread.length === 0 ? (
-          <p className="px-3 pb-2 text-sm text-ink-2">{t("Header.noUnread")}</p>
-        ) : (
-          <ul className="flex flex-col gap-0.5">
-            {unread.slice(0, 5).map((n) => (
-              <li key={n.id}>
-                {/* Opening one reads it, on /inbox, where a push opens it too. */}
-                <Link href="/inbox" onClick={() => void markRead([n])} className="flex flex-col gap-0.5 rounded-xl px-3 py-2 hover:bg-shell">
-                  <span className="font-semibold">{t(`Notifications.templates.${n.templateKey}.title`, n.params)}</span>
-                  <span className="line-clamp-2 text-sm text-ink-2">{t(`Notifications.templates.${n.templateKey}.body`, n.params)}</span>
-                  <span className="text-xs text-muted">{formatMomentShort(n.createdAt, locale, today)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+        {/* Its content only while open: a closed panel holds nothing a search or a reader could find (the list is /inbox's). */}
+        {open && (
+          <>
+            <div className="flex min-h-11 items-center justify-between gap-2 ps-3">
+              <h2 className="font-semibold">{t("Header.panelTitle")}</h2>
+              {unread.length > 0 && (
+                <button
+                  type="button"
+                  // The button goes with the last unread one: the focus moves on to « Toutes les notifications ».
+                  onClick={() => void markRead(unread).then(() => all.current?.focus())}
+                  className="min-h-11 rounded-xl px-3 text-sm font-medium text-ink-2 hover:bg-shell hover:text-ink"
+                >
+                  {t("Header.markAllRead")}
+                </button>
+              )}
+            </div>
+            {unread.length === 0 ? (
+              <p className="px-3 pb-2 text-sm text-ink-2">{t("Header.noUnread")}</p>
+            ) : (
+              <ul className="flex flex-col gap-0.5">
+                {unread.slice(0, 5).map((n) => (
+                  <li key={n.id}>
+                    {/* Opening one reads it, on /inbox, where a push opens it too. */}
+                    <Link href="/inbox" onClick={() => void markRead([n])} className="flex flex-col gap-0.5 rounded-xl px-3 py-2 hover:bg-shell">
+                      <span className="font-semibold">{t(`Notifications.templates.${n.templateKey}.title`, n.params)}</span>
+                      <span className="line-clamp-2 text-sm text-ink-2">{t(`Notifications.templates.${n.templateKey}.body`, n.params)}</span>
+                      <span className="text-xs text-muted">{formatMomentShort(n.createdAt, locale, today)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="border-t border-line pt-1">
+              <Link ref={all} href="/inbox" className={`${item} font-medium`}>
+                {t("Header.allNotifications")}
+              </Link>
+            </div>
+          </>
         )}
-        <div className="border-t border-line pt-1">
-          <Link ref={all} href="/inbox" className={`${item} font-medium`}>
-            {t("Header.allNotifications")}
-          </Link>
-        </div>
       </div>
     </div>
   );

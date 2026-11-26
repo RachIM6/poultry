@@ -2,8 +2,9 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { moreGroups } from "@/components/more-groups";
+import { NAV_KEY } from "@/components/nav-mode";
 import { Link } from "@/i18n/navigation";
 import { currentScope, localDb } from "@/offline/db";
 
@@ -26,86 +27,191 @@ export function Refused({ spoken = false }: { spoken?: boolean }) {
   );
 }
 
-// Owner feedback: on wide screens "Plus" opens its screens in the sidebar, like a collapsible section, instead of
-// leading to /more; the phone keeps its tab. One section, its groups as headed lists: the button takes the link's place
-// with the same label, icon and count, and every screen is one click away. The sidebar scrolls when it is open.
-const OPEN = "nav-more-open"; // remembered on this browser; storage may be refused (private mode)
-const remembered = () => {
-  try {
-    return localStorage.getItem(OPEN) === "1";
-  } catch {
-    return false;
-  }
+// tasks/plan-ui.md U19 (Menu4.dc.html, Menu4b.dc.html): on wide screens the role's « Plus » groups are in the sidebar
+// itself; the phone keeps its tab and /more. Unfolded, each group is a heading that opens its links underneath (several
+// at once; the current page's group opens, a closed one holding it shows a dot). Folded to the rail, each group is an
+// icon opening its links in a 256 px side panel (one at a time; the same icon, « Fermer le panneau » or Escape closes it).
+// The fold is remembered on this browser and set on <html> before the first paint (nav-mode.ts), which sizes the sidebar.
+type Group = ReturnType<typeof moreGroups>[number];
+const SETTINGS = { href: "/more", label: "More.settings", icon: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" }; // /more's language and sign-out
+const PLUS = "M5 12h.01M12 12h.01M19 12h.01";
+const idOf = (title: string) => `nav-${title.split(".")[1]}`;
+const icon = (d: string, size: number, className = "shrink-0") => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+    <path d={d} />
+  </svg>
+);
+// When the panel closes with the focus in it, the focus goes back to its group's icon rather than to the page's top.
+const refocus = (id: string) => {
+  if (document.getElementById(id)?.contains(document.activeElement)) document.querySelector<HTMLElement>(`[aria-controls="${id}"]`)?.focus();
 };
+const railButton = "relative grid size-12 shrink-0 place-items-center rounded-[14px]";
+const item = "flex min-h-11 items-center gap-2.5 whitespace-nowrap rounded-xl text-sm text-shell hover:bg-shell/10";
+const current = "aria-[current=page]:bg-chick aria-[current=page]:font-semibold aria-[current=page]:text-ink";
 
-export function WideMore({ icon, isIn }: { icon: string; isIn: (href: string) => boolean }) {
+export function WideGroups({ isIn }: { isIn: (href: string) => boolean }) {
   const t = useTranslations();
-  const scope = useLiveQuery(() => currentScope(), []);
-  // No role yet (first offline load): nothing, and the "Plus" link to /more stays.
-  const groups = (scope ? moreGroups(scope) : []).map((g) =>
-    g.title === "More.account" ? { ...g, links: [...g.links, { href: "/more", label: "More.settings" }] } : g, // /more's language and sign-out
-  );
+  // null: no role on this phone yet (a first offline load), so a « Plus » link to /more instead; undefined: still reading.
+  const scope = useLiveQuery(async () => (await currentScope()) ?? null, []);
+  const groups = (scope ? moreGroups(scope) : []).map((g) => (g.title === "More.account" ? { ...g, links: [...g.links, SETTINGS] } : g));
   // The deepest match only: /closing/count, not /closing too.
   const here = groups.flatMap((g) => g.links.map((l) => l.href)).filter(isIn).sort((a, b) => b.length - a.length)[0];
-  const [open, setOpen] = useState(() => here !== undefined || remembered());
-  // Reaching a page of the section (a full load, a shortcut, the back button) opens it.
-  const [seen, setSeen] = useState(here);
+  const holder = groups.find((g) => g.links.some((l) => l.href === here))?.title;
+  const [rail, setRail] = useState(() => document.documentElement.dataset.nav === "rail");
+  const [panel, setPanel] = useState<string>();
+  const [open, setOpen] = useState<string[]>([]);
+  // Reaching a page of a group (a full load, a link in a page, the back button) opens that group.
+  const [seen, setSeen] = useState<string>();
   if (seen !== here) {
     setSeen(here);
-    if (here) setOpen(true);
+    if (holder && !open.includes(holder)) setOpen([...open, holder]);
   }
-  if (groups.length === 0) return null;
-  const toggle = () => {
-    setOpen(!open);
+  useEffect(() => {
+    if (!panel) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      refocus(idOf(panel));
+      setPanel(undefined);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [panel]);
+  if (scope === undefined) return null;
+
+  const fold = () => {
+    setRail(!rail);
+    setPanel(undefined);
+    if (rail) delete document.documentElement.dataset.nav;
+    else document.documentElement.dataset.nav = "rail";
     try {
-      localStorage.setItem(OPEN, open ? "0" : "1");
+      localStorage.setItem(NAV_KEY, rail ? "0" : "1");
     } catch {}
   };
-  return (
-    <div data-wide-more className="hidden lg:block">
+  const link = (l: Group["links"][number], className: string) => (
+    <li key={l.href}>
+      <Link href={l.href} aria-current={l.href === here ? "page" : undefined} className={`${item} ${current} ${className}`}>
+        {l.icon && !rail && icon(l.icon, 20)}
+        {t(l.label)}
+      </Link>
+    </li>
+  );
+  const group = (g: Group) => {
+    const id = idOf(g.title);
+    const shown = rail ? panel === g.title : open.includes(g.title);
+    const sync = g.links.some((l) => l.href === "/sync"); // the refused writes wait there (ADR-003 §7)
+    const button = (
       <button
         type="button"
-        aria-expanded={open}
-        aria-controls="nav-more"
-        onClick={toggle}
-        className="group flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-[15px] text-shell hover:bg-shell/10"
+        aria-expanded={shown}
+        aria-controls={id}
+        aria-current={g.title === holder || undefined} // the group holding the current page: marked on the rail, a dot when closed
+        onClick={() => (rail ? setPanel(shown ? undefined : g.title) : setOpen(shown ? open.filter((o) => o !== g.title) : [...open, g.title]))}
+        className={
+          rail
+            ? `${railButton} ${g.title === holder ? "bg-chick text-ink" : shown ? "bg-shell/15" : "hover:bg-shell/10"}`
+            : "flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap rounded-xl px-2 text-start text-sm font-semibold hover:bg-shell/10"
+        }
       >
-        <span className="relative grid h-[30px] place-items-center">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d={icon} />
-          </svg>
-          <Refused />
+        <span className="relative grid place-items-center">
+          {icon(g.icon, rail ? 22 : 20)}
+          {sync && <Refused />}
         </span>
-        {t("Nav.more")}
-        <Refused spoken />
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="ms-auto transition-transform group-aria-expanded:rotate-180 motion-reduce:transition-none">
-          <path d="M6 9l6 6 6-6" />
-        </svg>
+        <span data-tip className="flex-1">
+          {t(g.title)}
+        </span>
+        {sync && <Refused spoken />}
+        {!rail && g.title === holder && !shown && <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-chick" />}
+        {!rail && icon("M6 9l6 6 6-6", 16, `shrink-0 transition-transform motion-reduce:transition-none${shown ? " rotate-180" : ""}`)}
       </button>
-      <div id="nav-more" hidden={!open} className="pb-2">
-        {groups.map((g) => {
-          const id = `nav-${g.title.split(".")[1]}`;
-          return (
-            <div key={g.title}>
-              <h2 id={id} className="pb-1 pe-3 ps-[46px] pt-3 text-xs font-semibold text-shell/70">
+    );
+    return (
+      <>
+        {rail ? button : <h2 id={`${id}-t`}>{button}</h2>}
+        <div
+          id={id}
+          hidden={!shown}
+          data-panel={rail || undefined}
+          className={rail ? "absolute inset-y-0 start-[72px] z-10 flex w-64 flex-col overflow-y-auto overscroll-contain border-s border-shell/10 bg-ink-raised px-2 py-4" : "pb-1.5"}
+        >
+          {rail && (
+            <div className="flex min-h-14 items-center justify-between gap-2 pb-2 pe-1 ps-3">
+              {/* The one label that may wrap: « Comptabilité de l’exercice » is wider than the panel's heading. */}
+              <h2 id={`${id}-t`} className="min-w-0 font-semibold leading-snug">
                 {t(g.title)}
               </h2>
-              <ul aria-labelledby={id}>
-                {g.links.map((l) => (
-                  <li key={l.href}>
-                    <Link
-                      href={l.href}
-                      aria-current={l.href === here ? "page" : undefined}
-                      className="flex min-h-11 items-center rounded-xl pe-3 ps-[46px] text-sm text-shell hover:bg-shell/10 aria-[current=page]:bg-chick aria-[current=page]:font-semibold aria-[current=page]:text-ink"
-                    >
-                      {t(l.label)}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <button
+                type="button"
+                aria-label={t("Nav.closePanel")}
+                title={t("Nav.closePanel")}
+                onClick={() => {
+                  refocus(id);
+                  setPanel(undefined);
+                }}
+                className="grid size-11 shrink-0 place-items-center rounded-[14px] hover:bg-shell/10"
+              >
+                {icon("M15 6l-6 6 6 6", 20, "shrink-0 rtl:-scale-x-100")}
+              </button>
             </div>
-          );
-        })}
+          )}
+          <ul aria-labelledby={`${id}-t`} className="flex flex-col gap-0.5">
+            {g.links.map((l) => link(l, rail ? "px-3" : "pe-2 ps-[38px]"))}
+          </ul>
+        </div>
+      </>
+    );
+  };
+  const account = groups.find((g) => g.title === "More.account");
+  const others = groups.filter((g) => g !== account);
+  const rule = <div aria-hidden="true" className={`h-px shrink-0 bg-shell/15 ${rail ? "my-1 w-8" : "mx-2 my-2"}`} />;
+  return (
+    <div className={`hidden w-full flex-1 flex-col lg:flex ${rail ? "items-center gap-1.5" : "gap-0.5"}`}>
+      {rule}
+      {scope === null && (
+        <Link href="/more" className={rail ? `${railButton} hover:bg-shell/10` : `${item} px-2 text-[15px]`}>
+          {icon(PLUS, 22)}
+          <span data-tip>{t("Nav.more")}</span>
+        </Link>
+      )}
+      {rail ? (
+        <ul className="flex flex-col items-center gap-1.5">
+          {others.map((g) => (
+            <li key={g.title}>{group(g)}</li>
+          ))}
+        </ul>
+      ) : (
+        others.map((g) => <div key={g.title}>{group(g)}</div>)
+      )}
+      <div className={`mt-auto flex w-full flex-col pt-4 ${rail ? "items-center gap-1.5" : "gap-0.5"}`}>
+        {account &&
+          (rail ? (
+            <>
+              {group(account)}
+              {rule}
+            </>
+          ) : (
+            <>
+              {rule}
+              <h2 id="nav-account-t" className="px-2 py-1 text-xs font-semibold text-shell/70">
+                {t(account.title)}
+              </h2>
+              <ul aria-labelledby="nav-account-t" className="flex flex-col gap-0.5">
+                {account.links.map((l) => link(l, "px-2"))}
+              </ul>
+            </>
+          ))}
+      </div>
+      {/* Pinned at the sidebar's foot while it scrolls (the nav's scroll-padding keeps a focused link above it); a child
+          of this column, which spans the whole list, so it can stay in view. */}
+      <div className="sticky bottom-0 z-10 -mb-4 w-full bg-ink pb-4 pt-2">
+        <button
+          type="button"
+          aria-expanded={!rail}
+          onClick={fold}
+          className={rail ? `${railButton} hover:bg-shell/10` : "flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap rounded-xl border border-shell/20 px-2 text-sm hover:bg-shell/10"}
+        >
+          {icon(rail ? "M6 6l6 6-6 6M13 6l6 6-6 6" : "M18 6l-6 6 6 6M11 6l-6 6 6 6", rail ? 22 : 20, "shrink-0 rtl:-scale-x-100")}
+          <span data-tip>{t(rail ? "Nav.unfold" : "Nav.fold")}</span>
+        </button>
       </div>
     </div>
   );

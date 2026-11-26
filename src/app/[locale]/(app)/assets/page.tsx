@@ -4,7 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { Suspense, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Page } from "@/components/page";
-import { card, field, table, warn } from "@/components/ui";
+import { card, field, primarySm, secondarySm } from "@/components/ui";
+import { dataTable, sectionHead, sectionTitle } from "@/components/layout";
+import { SheetButton } from "@/components/sheet";
 import { Num } from "@/components/num";
 import { redirect } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -17,7 +19,7 @@ import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
 // What this page's client components read (src/i18n/client-messages.tsx).
-const MESSAGES: MessagePath[] = ["Assets", "Files", "Nav", "Offline", "Sync.refused", "errors"];
+const MESSAGES: MessagePath[] = ["Assets", "Files", "Nav", "Offline", "Sync.refused", "Ui", "errors"];
 
 // SPEC-finance FC1 (T102), FCX2: the fixed-asset register, online like /books. Per asset: cost, accumulated
 // depreciation and net book value, and its schedule by year. The owner writes; the manager and the accountant read.
@@ -47,14 +49,26 @@ async function AssetsView() {
   const money = (c: bigint) => <bdi dir="ltr" className="tabular-nums">{formatMoney(c)}</bdi>;
 
   return (
-    <Page width="wide" back="/more" title={t("Assets.title")} subtitle={<span className="block max-w-prose">{t("Assets.hint")}</span>}>
-      {register.books !== "ledger" && <p className={warn}>{t("Assets.cashBook")}</p>}
-      {owner && (
-        <details className={card}>
-          <summary className="disclosure font-semibold">{t("Assets.add")}</summary>
-          <AssetForm today={today} openingDay={register.fiscalYear.from} groups={GROUPS} farms={register.farms ?? []} treasury={register.treasury ?? []} />
+    <Page
+      width="wide"
+      back="/more"
+      title={t("Assets.title")}
+      actions={
+        owner && (
+          <SheetButton label={t("Assets.add")} title={t("Assets.add")} className={primarySm}>
+            <AssetForm today={today} openingDay={register.fiscalYear.from} groups={GROUPS} farms={register.farms ?? []} treasury={register.treasury ?? []} />
+          </SheetButton>
+        )
+      }
+    >
+      {/* tasks/plan-ui-cleanup.md §2.1: one short note, the method folded away. */}
+      <div className="flex max-w-prose flex-col gap-1 text-sm text-ink-2">
+        {register.books !== "ledger" && <p>{t("Assets.cashBook")}</p>}
+        <details>
+          <summary className="disclosure w-fit font-medium">{t("Close.howCalculated")}</summary>
+          <p className="pb-2">{t("Assets.hint")}</p>
         </details>
-      )}
+      </div>
       {register.assets.length === 0 ? (
         <p>{t("Assets.none")}</p>
       ) : (
@@ -67,25 +81,34 @@ async function AssetsView() {
     const yearEnd = day(register.fiscalYear.to);
     return (
       <section aria-label={a.label} className={card}>
-        <h2 className="text-xl font-semibold">{a.label}</h2>
+        <div className={sectionHead}>
+          <h2 className={sectionTitle}>{a.label}</h2>
+          {owner && a.disposedOn === null && <OwnerForms a={a} />}
+        </div>
         <p className="text-sm text-ink-2">
           {t(`Assets.categories.${a.category}`)} · <bdi dir="ltr">{t("Assets.accountOf", { account: a.account })}</bdi>
           {a.place && <> · {a.place}</>}
           {a.receiptFileId && <> · <a href={`/api/files/${a.receiptFileId}`} className="underline underline-offset-4">{t("Assets.receiptOf")}</a></>}
         </p>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-          <dt>{t("Assets.cost")}</dt>
-          <dd>{money(a.cost)}</dd>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 lg:flex lg:flex-wrap lg:gap-x-8 [&>div]:contents lg:[&>div]:flex lg:[&>div]:flex-col">
+          <div>
+            <dt className="lg:text-sm lg:text-ink-2">{t("Assets.cost")}</dt>
+            <dd className="lg:font-semibold">{money(a.cost)}</dd>
+          </div>
           {a.disposedOn === null && (
             <>
-              <dt>{t("Assets.accumulatedAt", { day: yearEnd })}</dt>
-              <dd>{money(a.accumulated)}</dd>
-              <dt>{t("Assets.netBookValue", { day: yearEnd })}</dt>
-              <dd>{money(a.cost - a.accumulated)}</dd>
+              <div>
+                <dt className="lg:text-sm lg:text-ink-2">{t("Assets.accumulatedAt", { day: yearEnd })}</dt>
+                <dd className="lg:font-semibold">{money(a.accumulated)}</dd>
+              </div>
+              <div>
+                <dt className="lg:text-sm lg:text-ink-2">{t("Assets.netBookValue", { day: yearEnd })}</dt>
+                <dd className="lg:font-semibold">{money(a.cost - a.accumulated)}</dd>
+              </div>
             </>
           )}
         </dl>
-        <ul className="text-sm">
+        <ul className="text-sm text-ink-2">
           <li>
             {t("Assets.inService", { day: day(a.inServiceOn) })} · {a.lifeMonths === null ? t("Assets.notDepreciated") : t("Assets.lifeOf", { months: a.lifeMonths })}
           </li>
@@ -100,22 +123,25 @@ async function AssetsView() {
           {a.owed > 0n && register.books === "ledger" && <li>{t("Assets.owed", { amount: formatMoney(a.owed) })}</li>}
           {a.disposedOn && <li className="font-semibold">{t("Assets.disposed", { day: day(a.disposedOn), amount: formatMoney(a.disposalPrice ?? 0n) })}</li>}
         </ul>
+        {/* §4 /assets: the schedule folded, no longer open on every asset. */}
         {a.schedule.length > 0 && (
-          <div className="relative overflow-x-auto">
-            <table className={table} aria-label={t("Assets.schedule", { label: a.label })}>
+          <details>
+            <summary className="disclosure w-fit text-sm font-medium">{t("Assets.scheduleShow")}</summary>
+            <div className="relative overflow-x-auto">
+            <table className={dataTable} aria-label={t("Assets.schedule", { label: a.label })}>
               <caption className="p-2 text-start font-semibold">{t("Assets.schedule", { label: a.label })}</caption>
               <thead>
                 <tr>
-                  <th className="p-2 text-start">{t("Assets.year")}</th>
-                  <th className="p-2 text-end">{t("Assets.months")}</th>
-                  <th className="p-2 text-end">{t("Assets.charge")}</th>
-                  <th className="p-2 text-end">{t("Assets.cumulative")}</th>
-                  <th className="p-2 text-end">{t("Assets.nbv")}</th>
+                  <th>{t("Assets.year")}</th>
+                  <th className="text-end!">{t("Assets.months")}</th>
+                  <th className="text-end!">{t("Assets.charge")}</th>
+                  <th className="text-end!">{t("Assets.cumulative")}</th>
+                  <th className="text-end!">{t("Assets.nbv")}</th>
                 </tr>
               </thead>
               <tbody>
                 {a.schedule.map((y) => (
-                  <tr key={y.from} className="border-t border-line">
+                  <tr key={y.from}>
                     <td className="p-2">
                       <bdi dir="ltr">{y.from.slice(0, 4) === y.to.slice(0, 4) ? y.from.slice(0, 4) : `${y.from.slice(0, 4)}–${y.to.slice(0, 4)}`}</bdi>
                       {y.toDisposal && <span className="text-muted"> · {t("Assets.byDisposal")}</span>}
@@ -128,14 +154,14 @@ async function AssetsView() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </details>
         )}
-        {owner && a.disposedOn === null && <OwnerForms a={a} />}
       </section>
     );
   }
 
-  // The owner's changes to one asset, each folded away (FC1: life and residual, a later payment, the disposal).
+  // The owner's changes to one asset, each in a sheet (FC1: life and residual, a later payment, the disposal).
   function OwnerForms({ a }: { a: AssetView }) {
     const treasury = register.treasury ?? [];
     const label = (text: string, input: ReactNode) => (
@@ -145,13 +171,10 @@ async function AssetsView() {
       </label>
     );
     const fold = (summary: string, body: ReactNode) => (
-      <details className="rounded-2xl border border-line p-3">
-        <summary className="disclosure">{summary}</summary>
-        <div className="pt-3">{body}</div>
-      </details>
+      <SheetButton label={summary} title={`${summary} · ${a.label}`} className={secondarySm}>{body}</SheetButton>
     );
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
         {a.lifeMonths !== null &&
           fold(
             t("Assets.edit"),

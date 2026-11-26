@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useActionState, useState, useTransition, type FormEvent } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatMoney } from "@/lib/format";
 import { parseCentimes } from "@/lib/kernel/money";
 import { OfflineHint, unsent, useOnline } from "@/components/online";
-import { danger, field, primary, secondary } from "@/components/ui";
+import { Sheet, useCloseSheet } from "@/components/sheet";
+import { danger, field, primary, secondarySm } from "@/components/ui";
 import { treasuryKindOfAccount, type TreasuryAccountDto } from "@/modules/finance/shared";
 import { periodLockAction, postManualEntryAction, reverseEntryAction, type PostState } from "./actions";
 
@@ -34,6 +35,7 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
   const [state, setState] = useState<PostState>({});
   const [pending, startTransition] = useTransition();
   const online = useOnline();
+  const close = useCloseSheet(); // the journal link leaves the sheet
 
   const sum = (form: HTMLFormElement) => {
     const data = new FormData(form);
@@ -110,7 +112,7 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
             <TreasurySelect kind={treasuryKindOfAccount(typed[i] ?? "")} row={i} treasuries={treasuries} selected={i === 0 ? pre?.bank : undefined} />
           </div>
         ))}
-        <button type="button" onClick={() => setRows((r) => r + 1)} className={secondary}>{t("Books.addLine")}</button>
+        <button type="button" onClick={() => setRows((r) => r + 1)} className={secondarySm}>{t("Books.addLine")}</button>
         <p className={diff === 0n ? "text-olive" : "text-brick-fg"}>
           {t("Books.difference")} <bdi dir="ltr" className="tabular-nums">{formatMoney(diff)}</bdi> · {balance}
         </p>
@@ -122,13 +124,33 @@ export function ManualEntryForm({ today, accounts, treasuries, prefill }: { toda
         {state.messageKey && (
           <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>
             {t(state.messageKey)}{" "}
-            {state.ok && state.month && <Link href={{ pathname: "/books", query: { view: "journals", month: state.month } }} className="underline underline-offset-4">{t("Books.manualSee")}</Link>}
+            {state.ok && state.month && <Link href={{ pathname: "/books", query: { view: "journals", month: state.month } }} onClick={close} className="underline underline-offset-4">{t("Books.manualSee")}</Link>}
           </p>
         )}
         <OfflineHint online={online} />
         <button type="submit" disabled={pending || !online} className={primary}>{t("Books.manualPost")}</button>
       </fieldset>
     </form>
+  );
+}
+
+/**
+ * tasks/plan-ui-cleanup.md §2.7: the manual entry in a sheet, open at once when /treasury/bank sends a line to book (FC9).
+ * It stays open once posted: the form says so, links to the journal, and takes the next entry.
+ */
+export function ManualEntrySheet({ label, open: initial, children }: { label: string; open: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(initial);
+  const opener = useRef<HTMLButtonElement>(null);
+  const was = useRef(initial);
+  useEffect(() => {
+    if (was.current && !open) opener.current?.focus(); // back on the button once the sheet has gone (WCAG 2.4.3)
+    was.current = open;
+  }, [open]);
+  return (
+    <>
+      <button ref={opener} type="button" aria-haspopup="dialog" onClick={() => setOpen(true)} className={secondarySm}>{label}</button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={label}>{children}</Sheet>
+    </>
   );
 }
 
@@ -154,7 +176,7 @@ export function ReverseEntryForm({ entryId, name, reversed }: { entryId: string;
   return (
     <form action={action} onSubmit={(e) => !confirm(t("Books.reverseConfirm", { name })) && e.preventDefault()} className="flex flex-col items-start gap-2">
       <input type="hidden" name="entryId" value={entryId} />
-      {!reversed && <button type="submit" disabled={pending || !online} aria-label={t("Books.reverseOf", { name })} className={secondary}>{t("Books.reverse")}</button>}
+      {!reversed && <button type="submit" disabled={pending || !online} aria-label={t("Books.reverseOf", { name })} className={secondarySm}>{t("Books.reverse")}</button>}
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
     </form>
   );
@@ -166,11 +188,11 @@ export function PeriodLockForm({ month, locked }: { month: string; locked: boole
   const [state, action, pending] = useActionState(periodLockAction, {});
   const online = useOnline();
   return (
-    <form action={action} className="flex flex-col items-start gap-2">
+    <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="month" value={month} />
       <input type="hidden" name="locked" value={locked ? "0" : "1"} />
       <OfflineHint online={online} />
-      <button type="submit" disabled={pending || !online} className={secondary}>{t(locked ? "Books.unlockMonth" : "Books.lockMonth")}</button>
+      <button type="submit" disabled={pending || !online} className={secondarySm}>{t(locked ? "Books.unlockMonth" : "Books.lockMonth")}</button>
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey)}</p>}
     </form>
   );

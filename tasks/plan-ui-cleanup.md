@@ -386,7 +386,7 @@ each in its own worktree and E2E port. Batch 7 last, alone.
 - Risks: tests that select « Modifier la bande prévue le … » by name still pass only if the aria-label keeps that exact
   text; keep it.
 
-### Batch 4: year end
+### Batch 4: year end — done
 - Goal: §4 rows `/closing/count`, `/closing`, `/closing/statements`, `/books`, `/assets`, `/loans`; the « Clôture de
   l'exercice » route tabs.
 - Owns: `closing/**`, `books/**`, `assets/**`, `loans/**` under `src/app/[locale]/(app)`, `entity-header.tsx`.
@@ -398,6 +398,39 @@ each in its own worktree and E2E port. Batch 7 last, alone.
   `manual-entry`, `period-lock`, `assets`, `loans`, `subsidies`, `vat`, `accounting-settings` (statements header).
 - Risks: these specs click « Comptabiliser les écritures de clôture » and « Clôturer l'exercice » by name: keep the
   names; `?year=` must survive tab switches.
+- [x] « Clôture de l'exercice » route tabs (`closing/steps.tsx`): 1 Inventaire · 2 Écritures de clôture · 3 États de
+  synthèse, each carrying `?year=`, on one row with the year's `PeriodNav` from lg. The « Inventaire de fin d'exercice »
+  link on `/closing` is gone.
+- [x] `/closing`: « Comptabiliser les écritures de clôture » the one primary; « Clôturer l'exercice » (or « Rouvrir ») a
+  `secondary` in its own card with « À faire d'abord : comptabiliser les écritures… » while the run has something to
+  post; each entry's status as a badge beside its title, the explanations under « Comment c'est calculé », entries with
+  nothing to pass on one line, the entries alone two by two from lg and the stock and batch entries beside the lines they
+  value. Cash-basis entity: the `empty` note instead of the brick box. Width `wide` (the page is not printed).
+- [x] `/closing/statements`: query tabs Bilan actif · Bilan passif · Produits et charges · Informations complémentaires,
+  all rendered, the others `hidden print:flex`, the PROJET watermark kept; all-zero postes and CPC lines
+  `hidden print:table-row` behind « Afficher les lignes vides » (`?empty=1`), so paper keeps every line. `e2e/statements.spec.ts`
+  (new): tabs, `?year=` across the steps, the empty lines, print media shows every part, `page.pdf()` A4, cash-basis notes.
+- [x] `/closing/count`: `PeriodNav` (« Imprimer » ghost), « Selon les registres » right-aligned, compact inputs, the save
+  sticky at the bottom from lg. The ruled sheet and its print stay.
+- [x] `/books`: `PeriodNav` with « Exporter » ghosts, the views as `Tabs`, « Écriture manuelle » a `secondarySm` opening a
+  sheet (open at once when `/treasury/bank` sends a line; it stays open after posting, its journal link closes it),
+  « Période » one row, `dataTable` everywhere, cash book, journals and ledger paged by 50 lines (in-memory slice,
+  `shortcut:` comment).
+- [x] `/assets`: one compact card per asset (figures in a row from lg), « Plan d'amortissement » folded, « Modifier la
+  durée… », « Payer la dette », « Céder… » as `secondarySm` sheets, « Ajouter une immobilisation » header `primarySm` →
+  sheet; forms close their sheet once saved.
+- [x] `/loans`: query tabs Emprunts · Subventions (`?tab=`), « Ajouter un emprunt / une subvention » header → sheet,
+  per loan capital restant dû + « Prochaine échéance », the confirmed schedule folded (a draft's stays open to adjust and
+  confirm), subsidies' « Reprise par exercice » folded.
+- Heights at 1 440 (demo seed, before → after): SARL `/closing` 2 487 → 1 725 (64 px of it the header bar merged since;
+  the 1 600 target is missed by the five non-empty entries of the demo SARL), `/closing/statements` 5 868 → 1 140,
+  `/assets` individual 3 264 → 1 048, `/loans` individual 3 054 → 900, `/books` individual 2 020 → 1 759,
+  `/closing/count` individual 1 738 → 1 678.
+- Deviations: statements tabs split the bilan in actif and passif (4 tabs, the owner's wish) instead of 3; `/assets` keeps
+  a card per asset (each a region with its figures, notes and actions) rather than one table with a « ⋯ » menu; the
+  manual entry sheet does not close once posted (its confirmation links to the journal). Arabic strings of the new keys
+  (`Close.steps`, `Close.howCalculated`, `Close.closeYearFirst`, `Statements.tabs`, `Statements.showEmpty/hideEmpty`,
+  `Assets.scheduleShow`, `Loans.scheduleShow/next/tabs`, `Subsidies.releaseShow`) to check with a native speaker.
 
 ### Batch 5: analysis and accounting settings
 - Goal: §4 rows `/results`, `/budget`, `/threshold`, `/settings/accounting`, `/settings/chart`, `/settings/posting`; the

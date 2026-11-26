@@ -97,8 +97,8 @@ export async function realisticOwner(page: Page) {
 
   // The forms that are server actions: a loan with its schedule, an asset, a budget and a bank statement.
   await page.goto("/fr/loans");
-  await page.getByText("Ajouter un emprunt", { exact: true }).click();
-  const loan = page.locator("details").first();
+  await page.getByRole("button", { name: "Ajouter un emprunt" }).click();
+  const loan = page.getByRole("dialog", { name: "Ajouter un emprunt" });
   await loan.getByLabel("Prêteur").fill("Crédit Agricole du Maroc");
   await loan.getByLabel("Compte bancaire du déblocage et des échéances").selectOption({ label: "Banque Populaire" });
   await loan.getByLabel("Capital emprunté").fill("100 000");
@@ -111,8 +111,8 @@ export async function realisticOwner(page: Page) {
   await expect(page.getByRole("table", { name: "Échéancier · Crédit Agricole du Maroc" })).toBeVisible();
 
   await page.goto("/fr/assets");
-  await page.getByText("Ajouter une immobilisation", { exact: true }).click();
-  const asset = page.locator("details").first();
+  await page.getByRole("button", { name: "Ajouter une immobilisation" }).click();
+  const asset = page.getByRole("dialog", { name: "Ajouter une immobilisation" });
   await asset.getByLabel("Désignation").fill("Groupe électrogène 60 kVA");
   await asset.getByLabel("Catégorie").selectOption("equipment");
   await asset.getByLabel("Date d’acquisition").fill("2026-09-18");
@@ -121,7 +121,7 @@ export async function realisticOwner(page: Page) {
   await asset.getByLabel("Durée d’utilisation, en mois").fill("84");
   await asset.getByLabel("Paiement").selectOption("cash");
   await asset.getByRole("button", { name: "Enregistrer l’immobilisation" }).click();
-  await expect(asset.getByText("Immobilisation enregistrée.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Groupe électrogène 60 kVA" })).toBeVisible();
 
   await expect.poll(async () => (await page.request.get("/fr/budget")).status()).toBe(200);
   await page.goto("/fr/budget");

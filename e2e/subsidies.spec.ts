@@ -15,8 +15,8 @@ test("the owner records a subsidy with the asset it finances, reads its release 
   await pushAs(page, [{ type: "finance.createTreasuryAccount", payload: { id: crypto.randomUUID(), kind: "bank", name: "Banque Populaire" } }]);
 
   await page.goto("/fr/assets");
-  await page.getByText("Ajouter une immobilisation", { exact: true }).click();
-  const asset = page.locator("details").first();
+  await page.getByRole("button", { name: "Ajouter une immobilisation" }).click(); // a sheet (tasks/plan-ui-cleanup.md §2.7)
+  const asset = page.getByRole("dialog", { name: "Ajouter une immobilisation" });
   await asset.getByLabel("Désignation").fill("Groupe électrogène");
   await asset.getByLabel("Catégorie").selectOption("equipment");
   await asset.getByLabel("Date d’acquisition").fill("2026-09-18");
@@ -25,12 +25,14 @@ test("the owner records a subsidy with the asset it finances, reads its release 
   await asset.getByLabel("Durée d’utilisation, en mois").fill("84");
   await asset.getByLabel("Paiement").selectOption("cash");
   await asset.getByRole("button", { name: "Enregistrer l’immobilisation" }).click();
-  await expect(asset.getByText("Immobilisation enregistrée.")).toBeVisible();
+  await expect(asset).toBeHidden(); // saved, the sheet closes on the register
+  await expect(page.getByRole("region", { name: "Groupe électrogène" })).toBeVisible();
 
   await page.goto("/fr/loans");
+  await page.getByRole("navigation", { name: "Emprunts et subventions" }).getByRole("link", { name: /^Subventions/ }).click(); // the subsidies' tab
   await expect(page.getByText("Aucune subvention.")).toBeVisible();
-  await page.getByText("Ajouter une subvention", { exact: true }).click();
-  const form = page.locator("details").filter({ hasText: "Ajouter une subvention" });
+  await page.getByRole("button", { name: "Ajouter une subvention" }).click();
+  const form = page.getByRole("dialog", { name: "Ajouter une subvention" });
   await form.getByLabel("Objet de la subvention").fill("Aide à l’équipement");
   await form.getByLabel("Organisme qui l’accorde").fill("Fonds de développement agricole");
   await form.getByLabel("Montant reçu").fill("14 205");
@@ -39,12 +41,14 @@ test("the owner records a subsidy with the asset it finances, reads its release 
   await form.getByRole("group", { name: "Immobilisations financées" }).getByLabel("Groupe électrogène").check();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // the form fits the phone
   await form.getByRole("button", { name: "Enregistrer la subvention" }).click();
-  await expect(form.getByText("Subvention enregistrée.")).toBeVisible();
+  await expect(form).toBeHidden(); // saved, the sheet closes on the subsidy
 
   // §7.1 A: 676,43 in 2026, 2 029,29 in 2027, 14 205,00 released by the end of the generator's life (2033).
   const subsidy = page.getByRole("region", { name: "Aide à l’équipement" });
   await expect(subsidy).toContainText(/Fonds de développement agricole · 14\s205,00\sDH · reçue le 5 octobre 2026 · Banque Populaire/);
   await expect(subsidy).toContainText("Immobilisations financées : Groupe électrogène");
+  const showYears = () => subsidy.getByText("Reprise par exercice", { exact: true }).click(); // folded by default
+  await showYears();
   const years = subsidy.getByRole("table", { name: "Reprise par exercice · Aide à l’équipement" }).getByRole("row");
   await expect(years).toHaveCount(9); // header, 2026 to 2033
   await expect(years.nth(1)).toContainText(/^2026\s*676,43\sDH\s*676,43\sDH\s*13\s528,57\sDH$/);
@@ -69,7 +73,8 @@ test("the owner records a subsidy with the asset it finances, reads its release 
 
   // The accountant reads the subsidy without the form (FCX1); a worker gets nothing (FX2).
   await query(`UPDATE "Membership" SET role = 'accountant' WHERE "organizationId" = ${orgOf}`, [e164]);
-  await page.goto("/fr/loans");
+  await page.goto("/fr/loans?tab=subsidies");
+  await showYears();
   await expect(years.nth(1)).toContainText("676,43");
   await expect(page.getByText("Ajouter une subvention", { exact: true })).toHaveCount(0);
   await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);

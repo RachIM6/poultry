@@ -15,8 +15,8 @@ test("the owner types a three-line opening entry; it shows in the journal and th
   await pushAs(page, [{ type: "finance.createTreasuryAccount", payload: { id: crypto.randomUUID(), kind: "bank", name: "Banque Populaire" } }]);
 
   await page.goto("/fr/books");
-  await page.getByText("Écriture manuelle", { exact: true }).click();
-  const form = page.locator("details");
+  await page.getByRole("button", { name: "Écriture manuelle" }).click(); // a sheet (tasks/plan-ui-cleanup.md §2.7)
+  const form = page.getByRole("dialog", { name: "Écriture manuelle" });
   await form.getByLabel("Date").fill(`${year}-01-01`);
   await form.getByLabel("Libellé").fill("Soldes d’ouverture");
   await form.getByLabel("N° de pièce").fill("Bilan 2025");
@@ -37,6 +37,7 @@ test("the owner types a three-line opening entry; it shows in the journal and th
   await expect(form.getByText("Écriture enregistrée.")).toBeVisible();
 
   await form.getByRole("link", { name: "Voir le journal du mois" }).click();
+  await expect(form).toBeHidden(); // the link closes the sheet on the journal
   await expect(page).toHaveURL(new RegExp(`view=journals&month=${year}-01`));
   const entry = page.getByRole("table").filter({ hasText: "Soldes d’ouverture" });
   await expect(entry.getByRole("caption")).toContainText("Soldes d’ouverture · pièce Bilan 2025 · justificatif");

@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { fiscalYearAction, openYearAction, runCloseAction, saveHensAction, saveValuesAction } from "./actions";
 import { OfflineHint, useOnline } from "@/components/online";
-import { danger, primary, secondary } from "@/components/ui";
+import { danger, primary, secondary, secondarySm } from "@/components/ui";
 
 /** SPEC-finance FCX4: the owner posts what the preview shows (again: FN7 posts only what changed); disabled while the month is locked. */
 export function CloseForm({ year, disabled }: { year: number; disabled: boolean }) {
@@ -48,7 +48,7 @@ export function UseSuggested({ name, value, label }: { name: string; value: stri
     }
   };
   return (
-    <button type="button" onClick={use} aria-label={label} className={`${secondary} ms-2`}>
+    <button type="button" onClick={use} aria-label={label} className={`${secondarySm} ms-2`}>
       {t("Close.useSuggested")}
     </button>
   );
@@ -70,7 +70,7 @@ export function HensForm({ year, write, children }: { year: number; write: boole
   );
 }
 
-/** SPEC-finance FCX6: the owner closes the year (the server refuses it while the run has something to post), or reopens it. */
+/** SPEC-finance FCX6 (a secondary: the page's one primary is the run, tasks/plan-ui-cleanup.md §2.2): the owner closes the year (the server refuses it while the run has something to post), or reopens it. */
 export function YearForm({ year, closed, hint }: { year: number; closed: boolean; hint: string }) {
   const t = useTranslations();
   const [state, action, pending] = useActionState(fiscalYearAction, {});
@@ -81,7 +81,7 @@ export function YearForm({ year, closed, hint }: { year: number; closed: boolean
       {closed && <input type="hidden" name="reopen" value="1" />}
       <p className="text-sm text-ink-2">{hint}</p>
       <OfflineHint online={online} />
-      <button type="submit" disabled={pending || !online} className={closed ? secondary : primary}>{t(closed ? "Close.reopen" : "Close.closeYear")}</button>
+      <button type="submit" disabled={pending || !online} className={secondary}>{t(closed ? "Close.reopen" : "Close.closeYear")}</button>
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{t(state.messageKey, { count: state.posted ?? 0 })}</p>}
     </form>
   );

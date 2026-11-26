@@ -216,6 +216,8 @@
     "back": "Retour",
     "open": "Ouvrir l'application",
     "others": "Autres appareils",
+    "about": "L'application s'ajoute à votre écran d'accueil ou à votre bureau : rien n'est téléchargé dans vos fichiers. Elle s'ouvre ensuite dans sa propre fenêtre, comme les autres applications, et marche sans réseau.",
+    "thisDevice": "Cet appareil",
     "firefox": "Firefox ne permet pas d'installer une application web sur ordinateur. Ouvrez cette page dans Chrome ou Edge.",
     "status": {
       "prompt": "Installez DigiAtlas-VOLAILLE sur cet appareil : elle s'ouvre comme une application, même sans connexion.",
@@ -239,8 +241,11 @@
     "desktop": {
       "title": "Ordinateur (Chrome ou Edge)",
       "step1": "Ouvrez cette page dans Chrome ou Edge.",
-      "step2": "Cliquez sur l'icône d'installation au bout de la barre d'adresse, ou ouvrez le menu puis « Installer DigiAtlas-VOLAILLE ».",
-      "step3": "Confirmez avec « Installer »."
+      "step2": "Cliquez sur l'icône « Installer » à droite de la barre d'adresse.",
+      "step3": "Confirmez avec « Installer ».",
+      "noIcon": "Pas d'icône ? Chrome ne l'affiche pas à chaque visite, ni pendant un moment après un refus. Passez alors par le menu :",
+      "chrome": "Chrome : menu ⋮ → « Caster, enregistrer et partager » → « Installer la page en tant qu'appli… ».",
+      "edge": "Edge : menu … → « Autres outils » → « Apps » → « Installer ce site en tant qu'application »."
     }
   },
   "Login": {
@@ -265,7 +270,8 @@
     "joinLink": "J’ai un code d’invitation",
     "resetLink": "Mot de passe oublié : j’ai un code",
     "smsLink": "Recevoir un code par SMS",
-    "backToSignIn": "Retour à la connexion"
+    "backToSignIn": "Retour à la connexion",
+    "install": "Installer l’application"
   },
   "Account": {
     "logout": "Se déconnecter",

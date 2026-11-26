@@ -672,7 +672,16 @@
     "yourName": "Votre nom",
     "nameHint": "Il s’affiche en haut de l’écran, et pour les autres membres de l’exploitation.",
     "nameSaved": "Nom enregistré.",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "syncLabel": "Synchronisation",
+    "syncDone": "Tout est envoyé",
+    "syncPending": "{n} en attente",
+    "syncRefused": "{count, plural, one {1 refus à vérifier} other {{n} refus à vérifier}}",
+    "syncOffline": "Hors ligne",
+    "panelTitle": "Notifications",
+    "markAllRead": "Tout marquer lu",
+    "noUnread": "Aucune notification non lue.",
+    "allNotifications": "Toutes les notifications"
   },
   "Inbox": {
     "title": "Notifications",
@@ -2249,7 +2258,8 @@
     "withdrawalUntil": "Délai d’attente jusqu’au {date} inclus",
     "fcrShort": "IC",
     "fcrName": "Indice de consommation",
-    "entryDoneShort": "Faite"
+    "entryDoneShort": "Faite",
+    "seeAll": "Tout voir"
   },
   "Staff": {
     "title": "Personnel",

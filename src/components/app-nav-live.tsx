@@ -52,9 +52,13 @@ export function WideGroups({ isIn }: { isIn: (href: string) => boolean }) {
   const t = useTranslations();
   // null: no role on this phone yet (a first offline load), so a « Plus » link to /more instead; undefined: still reading.
   const scope = useLiveQuery(async () => (await currentScope()) ?? null, []);
-  const groups = scope ? moreGroups(scope) : []; // the language and the sign-out are in the header's menu (U20)
-  // The deepest match only: /closing/count, not /closing too.
-  const here = groups.flatMap((g) => g.links.map((l) => l.href)).filter(isIn).sort((a, b) => b.length - a.length)[0];
+  // The language and the sign-out are in the header's menu (U20); the notifications and the sync, the header's bell and chip.
+  const groups = (scope ? moreGroups(scope) : []).map((g) => ({ ...g, links: g.links.filter((l) => !l.phone) })).filter((g) => g.links.length > 0);
+  // A merged entry is current on all its routes (tasks/plan-ui-cleanup.md §3); the deepest match wins: /closing/count is
+  // « Clôture de l'exercice », however another entry's routes are laid out.
+  const here = groups
+    .flatMap((g) => g.links.flatMap((l) => [l.href, ...(l.routes ?? [])].filter(isIn).map((route) => ({ route, href: l.href }))))
+    .sort((a, b) => b.route.length - a.route.length)[0]?.href;
   const holder = groups.find((g) => g.links.some((l) => l.href === here))?.title;
   const [rail, setRail] = useState(() => document.documentElement.dataset.nav === "rail");
   const [panel, setPanel] = useState<string>();
@@ -97,7 +101,6 @@ export function WideGroups({ isIn }: { isIn: (href: string) => boolean }) {
   const group = (g: Group) => {
     const id = idOf(g.title);
     const shown = rail ? panel === g.title : open.includes(g.title);
-    const sync = g.links.some((l) => l.href === "/sync"); // the refused writes wait there (ADR-003 §7)
     const button = (
       <button
         type="button"
@@ -111,14 +114,10 @@ export function WideGroups({ isIn }: { isIn: (href: string) => boolean }) {
             : "flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap rounded-xl px-2 text-start text-sm font-semibold hover:bg-shell/10"
         }
       >
-        <span className="relative grid place-items-center">
-          {icon(g.icon, rail ? 22 : 20)}
-          {sync && <Refused />}
-        </span>
+        {icon(g.icon, rail ? 22 : 20)}
         <span data-tip className="flex-1">
           {t(g.title)}
         </span>
-        {sync && <Refused spoken />}
         {!rail && g.title === holder && !shown && <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-chick" />}
         {!rail && icon("M6 9l6 6 6-6", 16, `shrink-0 transition-transform motion-reduce:transition-none${shown ? " rotate-180" : ""}`)}
       </button>

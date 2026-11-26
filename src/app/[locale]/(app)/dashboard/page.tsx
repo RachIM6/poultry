@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { cache, Suspense } from "react";
-import { SyncBadge } from "@/components/sync-status";
+import { SyncStart } from "@/components/sync-status";
 import { Today } from "@/components/today";
 import { Figure } from "@/components/today-wide";
 import { ClientMessages } from "@/i18n/client-messages";
@@ -17,12 +17,12 @@ import type { TenantContext } from "@/lib/tenant";
 import { getTenantContext } from "@/modules/identity";
 import { ChoicesBanner } from "./choices-banner";
 
-// What this page's client components read (src/i18n/client-messages.tsx): Today, its SyncBadge and the ChoicesBanner.
+// What this page's client components read (src/i18n/client-messages.tsx): Today and the ChoicesBanner.
 // The money card and the threshold alert are server-rendered. No error codes: nothing here submits.
 const MESSAGES: MessagePath[] = [
   "Accounting.choicesFirst", "Accounting.later", "Accounting.open", "Accounting.title", "App.name", "Batches.age",
   "Batches.ageWeeks", "Batches.ageWeeksDays", "Batches.place", "Batches.sexes", "Farms.none", "Farms.title",
-  "Protocol.methods", "Strip", "Sync.pending", "Sync.refused", "Sync.upToDate", "Today", "Treatment.withdrawal", "Types",
+  "Protocol.methods", "Strip", "Today", "Treatment.withdrawal", "Types",
   "Vaccination.status", "Weighing.uniformity", "Weighing.versusStandard",
 ];
 
@@ -44,41 +44,43 @@ async function Content() {
   const [entity] = await listLegalEntities(ctx.value); // one read, shared with the sections below (React cache)
   // The day's tasks first: the money and the alerts stream in after, each on its own (SPEC-finance §9's reads are slow).
   return (
-    <Today
-      title={entity?.name ?? t("App.name")}
-      userId={userId}
-      organizationId={organizationId}
-      role={role}
-      sync={<SyncBadge userId={userId} organizationId={organizationId} role={role} />}
-      // The wide home's cash tile (U18): the same read as the money card's first row, done once (cashAtHand).
-      cash={
-        can(ctx.value, "money.read") && (
-          <Suspense fallback={<Figure label={t("Today.cash")} busy />}>
-            <CashFigure ctx={ctx.value} />
-          </Suspense>
-        )
-      }
-      money={
-        can(ctx.value, "money.read") && (
-          <Suspense fallback={<MoneyCard title={t("Today.money")} busy />}>
-            <Money ctx={ctx.value} />
-          </Suspense>
-        )
-      }
-      alert={
-        <>
-          {/* docs/data-requests.md: a left organisation is read-only until its deletion; the export goes through the operator */}
-          {ctx.value.leftAt && (
-            <p role="status" className="rounded-2xl bg-alert-soft p-4 font-semibold text-alert-fg">
-              {t("Today.left", { day: formatDay(farmDayOf(new Date(ctx.value.leftAt)), lang) })}
-            </p>
-          )}
-          <Suspense>
-            <Alerts ctx={ctx.value} entity={entity} />
-          </Suspense>
-        </>
-      }
-    />
+    <>
+      <SyncStart userId={userId} organizationId={organizationId} role={role} />
+      <Today
+        title={entity?.name ?? t("App.name")}
+        userId={userId}
+        organizationId={organizationId}
+        role={role}
+        // The wide home's cash tile (U18): the same read as the money card's first row, done once (cashAtHand).
+        cash={
+          can(ctx.value, "money.read") && (
+            <Suspense fallback={<Figure label={t("Today.cash")} busy />}>
+              <CashFigure ctx={ctx.value} />
+            </Suspense>
+          )
+        }
+        money={
+          can(ctx.value, "money.read") && (
+            <Suspense fallback={<MoneyCard title={t("Today.money")} busy />}>
+              <Money ctx={ctx.value} />
+            </Suspense>
+          )
+        }
+        alert={
+          <>
+            {/* docs/data-requests.md: a left organisation is read-only until its deletion; the export goes through the operator */}
+            {ctx.value.leftAt && (
+              <p role="status" className="rounded-2xl bg-alert-soft p-4 font-semibold text-alert-fg">
+                {t("Today.left", { day: formatDay(farmDayOf(new Date(ctx.value.leftAt)), lang) })}
+              </p>
+            )}
+            <Suspense>
+              <Alerts ctx={ctx.value} entity={entity} />
+            </Suspense>
+          </>
+        }
+      />
+    </>
   );
 }
 

@@ -16,7 +16,7 @@ import type { FarmDto, HouseDto } from "@/modules/farm-registry/schema";
 import { ageOn, birdsOnHand, birdsStarted, houseFigure, houseWeight, layingVersusStandard, type BatchDto, type DailyEntryDto, type SoldBirdsDto, type WeighingDto } from "@/modules/flock/shared";
 import { eggsIn, layerKpis, type EggCollectionDto } from "@/modules/eggs/shared";
 import { statusOn, withdrawalUntil, type TreatmentDto, type VaccinationDto } from "@/modules/health/shared";
-import { SyncBadge } from "@/components/sync-status";
+import { SyncStart } from "@/components/sync-status";
 import { homeKpis } from "@/components/today-cockpit";
 import { CockpitBatches, CockpitFigures, CockpitTasks, type CockpitRow } from "@/components/today-wide";
 import { cachedReference, currentScope, localDb, metaValue, scopeKey } from "@/offline/db";
@@ -53,10 +53,15 @@ export function TodayShell() {
       </main>
     );
   }
-  return <Today key={scopeKey(scope)} userId={scope.userId} organizationId={scope.organizationId} role={scope.role} sync={<SyncBadge {...scope} />} alert={null} />;
+  return (
+    <>
+      <SyncStart {...scope} />
+      <Today key={scopeKey(scope)} userId={scope.userId} organizationId={scope.organizationId} role={scope.role} alert={null} />
+    </>
+  );
 }
 
-export function Today({ title, userId, organizationId, role, sync, alert, money = null, cash = null }: { title?: string; userId: string; organizationId: string; role: Role; sync: ReactNode; alert: ReactNode; money?: ReactNode; cash?: ReactNode }) {
+export function Today({ title, userId, organizationId, role, alert, money = null, cash = null }: { title?: string; userId: string; organizationId: string; role: Role; alert: ReactNode; money?: ReactNode; cash?: ReactNode }) {
   const t = useTranslations();
   const locale = useLocale();
   const db = localDb({ userId, organizationId });
@@ -194,6 +199,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   });
   const rows = batches.map((x) => x.row);
   const kpis = homeKpis(rows, { farming, counting, tasked, recording });
+  const routines = pulls(role, "routine") ? "/tasks" : undefined; // the « Tâches du jour » page, for the roles that have it
 
   // Wide screens (U18, Main.dc.html): the title over a row of figures, then the batches beside a rail with the tasks
   // and the money, in one centred column (tasks/plan-ui.md "Desktop rules"). The phone: the dark header edge to edge
@@ -208,7 +214,6 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
             <h1 className="text-[22px] font-semibold lg:text-[26px]"><bdi>{title ?? farm?.name ?? t("App.name")}</bdi></h1>
             {title && farm && farm.name !== title && <span className="text-sm text-sand lg:text-ink-2"><bdi>{farm.name}</bdi></span>}
           </div>
-          {sync}
         </div>
         {batches.map(({ b, age, days, birds, house, strain, weight, figure, laying, missing }) => (
           <Link key={b.id} href={{ pathname: "/batches", hash: b.id }} className="flex flex-col gap-3 lg:hidden">
@@ -229,7 +234,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
         {farming && batches.length > 0 && <div className="lg:hidden"><StripLegend days={batches.flatMap((x) => x.days)} /></div>}
       </header>
 
-      <CockpitFigures kpis={kpis} cash={cash} />
+      <CockpitFigures kpis={kpis} cash={cash} tasksHref={routines} />
       <CockpitBatches rows={rows} farming={farming} />
 
       {/* From lg, the rail beside the batches; with none, the whole width, the money beside the empty state (U12). */}
@@ -294,7 +299,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
             )}
           </section>
         ))}
-        {kpis.tasks && <CockpitTasks rows={rows} recording={recording} remaining={kpis.tasks.remaining} />}
+        {kpis.tasks && <CockpitTasks rows={rows} recording={recording} remaining={kpis.tasks.remaining} tasksHref={routines} />}
         </div>
         {money}
       </main>

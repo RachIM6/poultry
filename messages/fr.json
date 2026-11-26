@@ -572,12 +572,10 @@
   "Protocol": {
     "title": "Programme de vaccination",
     "open": "Programme de vaccination",
-    "template": "Modèle de référence",
-    "notReviewed": "Pas encore vérifié par un vétérinaire : à faire valider avant utilisation.",
-    "emptyTemplate": "Ce modèle ne contient encore aucun vaccin.",
-    "copy": "Copier pour mon exploitation",
+    "notReviewed": "Non vérifié",
+    "copy": "Copier",
     "yours": "Vos programmes",
-    "none": "Aucun programme pour l’instant.",
+    "none": "Aucun programme pour l’instant : copiez un modèle de référence ci-dessous, puis ajoutez-y vos vaccins.",
     "noItems": "Aucun vaccin prévu.",
     "required": {
       "newcastle": "Aucune vaccination contre la maladie de Newcastle dans ce programme. Elle est obligatoire pour toutes les volailles ({source}) et suit le programme validé par l’ONSSA pour votre élevage. Les poussins peuvent avoir été vaccinés au couvoir."
@@ -596,7 +594,14 @@
     "remove": "Retirer",
     "add": "Ajouter",
     "noReference": "Les données de référence ne sont pas encore sur ce téléphone. Ouvrez l’application une fois avec du réseau.",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "templates": "Modèles de référence",
+    "notReviewedAll": "Pas encore vérifiés par un vétérinaire : à faire valider avant utilisation.",
+    "emptyTemplates": "Ces modèles ne contiennent encore aucun vaccin.",
+    "copyOf": "Copier pour mon exploitation : {name}",
+    "addItemTo": "Ajouter un vaccin : {name}",
+    "removeOf": "Retirer : {item}",
+    "colActions": "Actions"
   },
   "Notifications": {
     "templates": {
@@ -742,7 +747,7 @@
     "adjustQuantity": "Écart ({unit}), négatif pour une perte",
     "reason": "Motif",
     "suppliers": "Fournisseurs",
-    "owed": "Reste dû : {amount}",
+    "owed": "<l>Reste dû : </l>{amount}",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "invalid": "Vérifiez les champs.",
@@ -777,7 +782,7 @@
     "debited": "Débité",
     "instrumentNumber": "N° du chèque ou de l’effet (facultatif)",
     "instrumentDueOn": "Date convenue",
-    "purchases": "Achats récents",
+    "purchases": "Achats",
     "purchaseLine": "{date} · {item} · {quantity} · {amount}",
     "void": "Annuler l’achat",
     "voidOf": "Annuler l’achat : {purchase}",
@@ -787,7 +792,17 @@
     "thresholdEditOf": "Modifier le seuil d’alerte de {item} : {quantity}",
     "thresholdSetOf": "Définir le seuil d’alerte de {item}",
     "colQuantity": "Quantité",
-    "colAmount": "Montant"
+    "colAmount": "Montant",
+    "tabs": {
+      "items": "Articles",
+      "purchases": "Achats",
+      "suppliers": "Fournisseurs"
+    },
+    "allItems": "Tous les articles",
+    "noPurchases": "Aucun achat pour l’instant. « Enregistrer un achat » les ajoute ici.",
+    "noSuppliers": "Aucun fournisseur pour l’instant : il s’ajoute avec un achat.",
+    "colOwed": "Reste dû",
+    "payOpen": "Payer"
   },
   "Batches": {
     "tabs": {
@@ -2562,7 +2577,14 @@
     "saveDowntime": "Enregistrer le minimum",
     "place": "Mettre en place la bande prévue le {date}",
     "placeSave": "Mettre en place",
-    "edit": "Modifier la bande prévue le {date}"
+    "edit": "Modifier la bande prévue le {date}",
+    "colBatch": "Bande",
+    "colSale": "Vente vers le",
+    "colActions": "Actions",
+    "stateBatch": "En place",
+    "statePlan": "Prévue",
+    "editShort": "Modifier",
+    "cancelShort": "Annuler"
   },
   "Types": {
     "broiler": "Poulet de chair",
@@ -2657,6 +2679,7 @@
     "colItem": "Article",
     "colEggs": "Œufs",
     "colWithheld": "Délai d’attente",
+    "colActions": "Actions",
     "folded": "Déclassés pondus il y a plus de {days} jours : {n} œufs"
   },
   "Layers": {

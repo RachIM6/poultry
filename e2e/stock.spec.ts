@@ -14,7 +14,7 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
   await page.getByLabel("Région").fill("Casablanca-Settat");
   await page.getByLabel("Province").fill("Settat");
   await page.getByLabel("Commune").fill("Ben Ahmed");
-  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
   // Leaving the page before the local write commits would abort it (flaky in CI).
   await expect(page.getByRole("status").filter({ hasText: "Enregistré sur ce téléphone." })).toBeVisible();
   await page.goto("/fr/stock");
@@ -27,7 +27,7 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
 
   await page.getByRole("button", { name: "Ajouter un article" }).click();
   await page.getByLabel("Produit du catalogue (facultatif)").selectOption({ label: "Aliment démarrage" });
-  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click(); // in the sheet
   await expect(page.getByText("En stock : 0 kg")).toBeVisible();
 
   await page.getByRole("button", { name: "Enregistrer un achat" }).click();
@@ -36,20 +36,23 @@ test("an offline feed purchase shows in stock and in the supplier's balance, the
   await page.getByLabel("Prix par kg (DH)").fill("4,50");
   await expect(page.getByText(/Montant : 9.000,00.DH/)).toBeVisible();
   await page.getByLabel("Payé maintenant (DH)").fill("3000");
-  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click(); // not the header's "Enregistrer un achat"
   await expect(page.getByText(/En stock : 2.000.kg/)).toBeVisible();
-  await expect(page.getByText(/Reste dû : 6.000,00.DH/)).toBeVisible();
   await expect(page.getByText(/Valeur : 9.000,00.DH/)).toBeVisible(); // T14: weighted average cost
 
   await page.getByRole("button", { name: /^Définir le seuil d’alerte/ }).click(); // the row's "Définir", no button per row (A4)
   await page.getByLabel("Seuil d’alerte (kg)").fill("2500");
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click(); // not "Enregistrer un achat"
   await expect(page.getByText("Stock bas")).toBeVisible(); // 2 000 kg < 2 500 kg
+  const tabs = page.getByRole("navigation", { name: "Stock", exact: true });
+  await tabs.getByRole("link", { name: "Fournisseurs" }).click(); // ?tab=suppliers, the same precached shell
+  await expect(page.getByText(/Reste dû : 6.000,00.DH/)).toBeVisible();
 
   const reload = await page.reload();
   expect(reload?.fromServiceWorker()).toBe(true);
-  await expect(page.getByText(/En stock : 2.000.kg/)).toBeVisible();
   await expect(page.getByText(/Reste dû : 6.000,00.DH/)).toBeVisible();
+  await tabs.getByRole("link", { name: "Articles" }).click();
+  await expect(page.getByText(/En stock : 2.000.kg/)).toBeVisible();
 
   await context.unroute("**");
   await context.setOffline(false);

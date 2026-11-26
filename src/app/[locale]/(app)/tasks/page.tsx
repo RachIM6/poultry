@@ -15,7 +15,7 @@ export default function TasksPage() {
       {/* A form-wide page for the worker; from lg, as wide as a `wide` page when the screen holds the tasks to assign
           ([data-assign], components/tasks.tsx). CSS only: the role is the phone's, known once IndexedDB is read. */}
       <div className="contents lg:[&>main:has([data-assign])]:max-w-6xl">
-        <Page width="form" title={t("Tasks.title")}>
+        <Page width="form" back="/more" title={t("Tasks.title")}>
           <TasksScreen />
         </Page>
       </div>

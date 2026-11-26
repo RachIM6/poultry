@@ -6,7 +6,7 @@ import type { MessagePath } from "@/i18n/pick";
 const MESSAGES: MessagePath[] = [
   "App", "Bank.amount", "Batches", "Close.quantity", "Compare", "Count.eggs", "Day", "EggSale",
   "Expenses.categories.water", "Farms.none", "Farms.title", "Origin", "Protocol.methods", "Sale.birds", "Sale.buyer",
-  "Sale.price", "Sale.pricing", "Stock.item", "Stock.supplier", "Sync", "Today", "Treatment.withdrawal", "Types",
+  "Sale.price", "Sale.pricing", "Stock.item", "Stock.supplier", "Strip", "Sync", "Today", "Treatment.withdrawal", "Types",
   "Vaccination.status", "VetVisit", "Weighing", "errors.EGGS_IN_WITHDRAWAL",
 ];
 

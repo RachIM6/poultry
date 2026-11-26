@@ -9,7 +9,7 @@ import { curveFor, standardAt } from "@/modules/reference-data/shared";
 
 type StrainCurves = ReferenceData["strains"][number]["curves"];
 import { card, warn } from "@/components/ui";
-import { BatchStrip, type StripDay } from "@/components/batch-strip";
+import { BatchStrip, StripLegend, type StripDay } from "@/components/batch-strip";
 import { useBatchResults } from "@/components/batch-results";
 
 // SPEC B4 on the phone: the batch's KPIs from its local records, so they work offline and change as soon as a day or
@@ -56,7 +56,7 @@ export function BatchDashboard({
     batch.status === "closed" ? [t("Kpi.weightSold"), avgWeightGrams === null ? none : formatKg(Math.round(avgWeightGrams))] : [
       w ? t("Kpi.weight", { age: String(w.ageDays) }) : t("Kpi.weightNone"),
       w ? formatKg(w.averageGrams) : none,
-      w ? (standard ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(w.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) }) : t("Weighing.noStandard")) : undefined,
+      w && standard ? t("Weighing.versusStandard", { gap: formatPercent(versusStandard(w.averageGrams, standard.bodyWeightGrams), true), standard: formatKg(standard.bodyWeightGrams) }) : undefined,
     ],
     [t("Kpi.fcr"), fcr === null ? none : formatDecimal(fcr, 2)],
     [t("Kpi.epef"), epef === null ? none : formatDecimal(epef, 0)],
@@ -79,7 +79,7 @@ export function BatchDashboard({
     // WebBatch.dc.html: on wide screens the chart and the tiles sit side by side.
     <section className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-x-5" aria-labelledby="kpi-title">
       <h3 id="kpi-title" className="text-[17px] font-semibold text-ink-2 lg:col-span-full">{t("Kpi.title")}</h3>
-      {points.length > 0 && <GrowthChart points={points} curve={curve} />}
+      {points.length > 0 && <GrowthChart points={points} curve={curve} note={w && !standard ? t("Weighing.noStandard") : undefined} />}
       <dl className={`grid grid-cols-2 gap-2 ${points.length > 0 ? "" : "lg:col-span-full lg:grid-cols-4"}`}>
         {tiles.map(([label, value, note]) => (
           <div key={label} className="flex flex-col gap-0.5 rounded-[14px] bg-card px-3 py-2.5">
@@ -97,7 +97,8 @@ export function BatchDashboard({
 
 const W = 320, H = 180, L = 44, R = 10, T = 10, B = 24;
 
-function GrowthChart({ points, curve }: { points: { age: number; grams: number }[]; curve: readonly CurvePoint[] | null }) {
+/** `note`: no standard at the latest weighing's age, said once here (UX review B8). */
+function GrowthChart({ points, curve, note }: { points: { age: number; grams: number }[]; curve: readonly CurvePoint[] | null; note?: string }) {
   const t = useTranslations("Kpi");
   const maxAge = Math.max(7, ...points.map((p) => p.age));
   const std = (curve ?? []).filter((p) => p.day <= maxAge).map((p) => ({ age: p.day, grams: p.bodyWeightGrams }));
@@ -143,25 +144,12 @@ function GrowthChart({ points, curve }: { points: { age: number; grams: number }
           </g>
         ))}
       </svg>
+      {note && <p className="text-sm text-muted">{note}</p>}
     </figure>
   );
 }
 
-// Batch.dc.html: a round back button and the batch's name, then a dark card with its day and strip.
-export function BatchHeader({ title }: { title: string }) {
-  const t = useTranslations("Day");
-  return (
-    <div className="flex items-center gap-3">
-      <a href="#" aria-label={t("back")} className="grid size-11 shrink-0 place-items-center rounded-[14px] border border-line bg-card">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="rtl:-scale-x-100">
-          <path d="M15 6l-6 6 6 6" />
-        </svg>
-      </a>
-      <h2 className="text-[21px] font-semibold leading-tight">{title}</h2>
-    </div>
-  );
-}
-
+// Batch.dc.html: under the batch's title (batches.tsx), a dark card with its day and strip.
 export function OpenBatchCard({ strip, ageLabel, birds, next }: { strip: { age: number; days: StripDay[]; label: string }; ageLabel?: string; birds: string; next: string | null }) {
   const t = useTranslations();
   return (
@@ -177,6 +165,7 @@ export function OpenBatchCard({ strip, ageLabel, birds, next }: { strip: { age: 
         <span className="text-sm text-sand">{birds}</span>
       </div>
       <BatchStrip days={strip.days} onDark label={strip.label} />
+      <StripLegend days={strip.days} />
       {next && <span className="text-sm text-sand">{t("Batches.nextVaccine", { vaccine: next })}</span>}
     </section>
   );

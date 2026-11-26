@@ -144,7 +144,7 @@ function FarmList({ farms, houses, manage, save, selected }: { farms: FarmDto[];
             }}
           />
         ) : (
-          <button type="button" {...opener("farm")} className={`${primary} lg:self-start`}>{t("add")}</button>
+          <button type="button" {...opener("farm")} className={`${secondary} lg:self-start`}>{t("add")}</button>
         ))}
     </>
   );
@@ -207,7 +207,7 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
             }}
           />
         ) : (
-          <button type="button" {...opener("house")} className={`${primary} lg:self-start`}>{t("addHouse")}</button>
+          <button type="button" {...opener("house")} className={`${secondary} lg:self-start`}>{t("addHouse")}</button>
         ))}
     </>
   );

@@ -21,7 +21,7 @@ import { ChoicesBanner } from "./choices-banner";
 const MESSAGES: MessagePath[] = [
   "Accounting.choicesFirst", "Accounting.later", "Accounting.open", "Accounting.title", "App.name", "Batches.age",
   "Batches.ageWeeks", "Batches.ageWeeksDays", "Batches.place", "Batches.sexes", "Farms.none", "Farms.title",
-  "Protocol.methods", "Sync.pending", "Sync.refused", "Sync.upToDate", "Today", "Treatment.withdrawal", "Types",
+  "Protocol.methods", "Strip", "Sync.pending", "Sync.refused", "Sync.upToDate", "Today", "Treatment.withdrawal", "Types",
   "Vaccination.status", "Weighing.uniformity", "Weighing.versusStandard",
 ];
 
@@ -103,7 +103,10 @@ async function Money({ ctx }: { ctx: TenantContext }) {
             <span className="text-sm">{t("Today.lastBatch", { house: last.houseName })}</span>
             <span className="text-xs text-sand">{t("Today.margin", { margin: formatMoney(last.marginCentimes) })}</span>
           </span>
-          <b className="whitespace-nowrap text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
+          <span className="flex flex-col items-end">
+            <span className="text-xs text-sand">{t("Today.costPerKgLabel")}</span>
+            <b className="whitespace-nowrap text-lg font-semibold">{t("Today.costPerKg", { cost: formatMoney(last.costPerKgCentimes) })}</b>
+          </span>
         </Link>
       )}
     </MoneyCard>

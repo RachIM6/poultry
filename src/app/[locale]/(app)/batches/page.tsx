@@ -1,4 +1,3 @@
-import { useTranslations } from "next-intl";
 import { BatchesScreen } from "@/components/batches";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
@@ -21,20 +20,17 @@ const ERRORS = `
 // What this page's client components read (src/i18n/client-messages.tsx).
 const MESSAGES: MessagePath[] = [
   "Batches", "Closing", "Correct", "Day", "EggStock", "Eggs", "Farms.saveFailed", "Farms.saved", "Farms.title", "Kpi",
-  "Layers", "LocaleSwitcher", "Notifiable", "Protocol", "Register.link", "Report.link", "Sale", "Stock.invalid", "Stock.units",
+  "Layers", "LocaleSwitcher", "Nav", "Notifiable", "Protocol", "Register.link", "Report.link", "Sale", "Stock.invalid", "Stock.units", "Strip",
   "Sync.login", "Sync.signedOut", "Today", "Transfer", "Treatment", "Types", "Vaccination", "VetVisit", "Weighing",
   ...ERRORS,
 ];
 
 // A static shell, precached by the service worker (src/app/serwist): batches come from IndexedDB (poultry-pwa §0.3).
+// The screen renders its own Page: the list's title, or a batch's on its day (/batches#<id>).
 export default function Batches() {
-  const t = useTranslations();
   return (
     <ClientMessages paths={MESSAGES}>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-5 p-4 lg:max-w-6xl">
-        <h1 className="text-2xl font-semibold">{t("Batches.title")}</h1>
-        <BatchesScreen />
-      </main>
+      <BatchesScreen />
     </ClientMessages>
   );
 }

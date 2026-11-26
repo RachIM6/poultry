@@ -17,6 +17,8 @@ test("the home streams the day's tasks before the money card's figures", async (
 
   await page.goto("/fr/dashboard");
   await expect(page.getByRole("link", { name: /Saisie du jour · Bâtiment 1/ })).toBeVisible({ timeout: 30_000 });
+  // UX review A6: the strip's legend names only the states it shows: placed today (day 0), only days to come.
+  await expect(page.getByRole("list", { name: "Légende" }).getByRole("listitem")).toHaveText(["À venir"]);
   await expect(page.getByRole("region", { name: "Argent" })).toContainText("Trésorerie disponible");
   await expect(page.getByRole("region", { name: "Argent" })).not.toHaveAttribute("aria-busy", "true");
 });

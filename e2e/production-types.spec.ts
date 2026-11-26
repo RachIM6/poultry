@@ -36,7 +36,7 @@ test("hens placed at 18 weeks show their age in weeks, and beldi bands share a r
   };
   await place("Pondeuse", ids.house, "6000", "18");
   await expect(page.getByText("18 sem.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Pondeuse · Ferme Atlas · Bâtiment P1 · Lohmann Brown")).toBeVisible();
+  await expect(page.getByText("Bâtiment P1 · Lohmann Brown", { exact: true })).toBeVisible();
   await place("Beldi / plein air", ids.run, "140", "22");
   await place("Beldi / plein air", ids.run, "130", "3");
   await expect(page.getByText("22 sem.", { exact: true })).toBeVisible();
@@ -109,8 +109,8 @@ test("turkeys placed by sex become two batches side by side", async ({ page, con
   await page.getByLabel("N° de bon de livraison").fill("BL-26-4471");
   await page.getByLabel("Prix d’un poussin (DH)").fill("12,00");
   await page.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(page.getByText("Dinde · femelles · Ferme Sidi Hajjaj · Bâtiment D1 · BUT 6")).toBeVisible();
-  await expect(page.getByText("Dinde · mâles · Ferme Sidi Hajjaj · Bâtiment D1 · BUT 6")).toBeVisible();
+  await expect(page.getByText("Dinde · femelles · Ferme Sidi Hajjaj", { exact: true })).toBeVisible();
+  await expect(page.getByText("Dinde · mâles · Ferme Sidi Hajjaj", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "Saisir le jour" }).first().click();
   // Both sexes side by side with their birds and cumulative FCR (none before a weighing); the other sex opens its day.
@@ -229,7 +229,7 @@ test("pullets move to the laying house and become a layer batch", async ({ page,
   await expect(page.getByText("100 non transférées seront réformées ce jour-là.")).toBeVisible();
   await page.getByRole("button", { name: "Transférer" }).click();
   await page.getByRole("link", { name: "Toutes les bandes" }).click();
-  await expect(page.getByText("Pondeuse · Ferme Sidi Hajjaj · Bâtiment P1 · Lohmann Brown")).toBeVisible();
+  await expect(page.getByText("Pondeuse · Ferme Sidi Hajjaj", { exact: true })).toBeVisible();
   await expect(page.getByText("17 sem.", { exact: true })).toBeVisible();
 
   await context.unroute("**");
@@ -335,7 +335,9 @@ test("the home shows a broiler batch, a layer batch with yesterday's eggs and a 
   await expect(page.getByText("Poids moyen 0,1 kg", { exact: true })).toBeVisible(); // broilers: 10 kg ÷ 100 birds
   await expect(page.getByText("Poids moyen 1 kg", { exact: true })).toBeVisible(); // pullets: 6 000 g ÷ 6
   await expect(page.getByText(/Œufs ramassés hier/).locator("..")).toContainText(/1.713/);
-  await expect(page.getByText(/Ponte 28,5 % · 1.713 œufs le dernier jour ramassé/)).toBeVisible(); // 1 713 ÷ 6 000 = 28,549…
+  // 1 713 ÷ 6 000 = 28,549…; UX review A10: the one layer house's count is the headline's, so its line gives the rate only
+  await expect(page.getByText("Ponte 28,5 %", { exact: true })).toBeVisible();
+  await expect(page.getByText(/œufs le dernier jour ramassé/)).toHaveCount(0);
   await expect(page.getByText("Jour 3 sur 42")).toBeVisible();
   await expect(page.getByText("38 sem. 3 j", { exact: true })).toBeVisible(); // layers: 266 + 3 days
   await expect(page.getByText("21 sem. 3 j", { exact: true })).toBeVisible(); // the beldi band: 147 + 3 days

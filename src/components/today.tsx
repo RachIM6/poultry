@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, type ReactNode } from "react";
 import { ageText } from "@/components/batch-age";
-import { BatchStrip, stripDays } from "@/components/batch-strip";
+import { BatchStrip, StripLegend, stripDays } from "@/components/batch-strip";
 import { card } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatDecimal, formatKg, formatPercent } from "@/lib/format";
@@ -143,13 +143,13 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
   // Wide screens: the dark header and the grid share one centred column, so their edges line up (tasks/plan-ui.md
   // "Desktop rules"). The phone: the header edge to edge, the grid under it, as before.
   return (
-    <div className="flex w-full flex-1 flex-col lg:mx-auto lg:max-w-5xl lg:p-5">
+    <div className="flex w-full flex-1 flex-col lg:mx-auto lg:max-w-6xl lg:p-4">
       <header className="flex flex-col gap-[18px] rounded-b-3xl bg-ink px-5 pb-[22px] pt-5 text-shell print:hidden lg:rounded-3xl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-sm text-sand">{new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span>
-            <h1 className="text-[22px] font-semibold">{title ?? farm?.name ?? t("App.name")}</h1>
-            {title && farm && farm.name !== title && <span className="text-sm text-sand">{farm.name}</span>}
+            <h1 className="text-[22px] font-semibold"><bdi>{title ?? farm?.name ?? t("App.name")}</bdi></h1>
+            {title && farm && farm.name !== title && <span className="text-sm text-sand"><bdi>{farm.name}</bdi></span>}
           </div>
           {sync}
         </div>
@@ -164,7 +164,11 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
               const last = laying(b);
               if (last?.layingRate == null) return null;
               const vs = layingVersusStandard(b, last.day, last.layingRate, strainOf(b)?.layingCurves ?? []); // a cache from before M3 has none
-              const text = t("Today.laying", { rate: formatPercent(last.layingRate), eggs: formatCount(last.eggs) });
+              // UX review A10: a count the headline card already gives (yesterday, this house alone) isn't repeated here.
+              const repeats = counting && last.day === yesterday && last.eggs === eggsYesterday;
+              const text = repeats
+                ? t("Today.layingRate", { rate: formatPercent(last.layingRate) })
+                : t("Today.laying", { rate: formatPercent(last.layingRate), eggs: formatCount(last.eggs) });
               return <span className="text-sm text-sand">{vs ? `${text} · ${t("Today.layingStandard", { gap: formatPercent(vs.gapPoints, true), standard: formatPercent(vs.standardPercent) })}` : text}</span>;
             })()}
             {weight && <span className="text-sm text-sand">{weight}</span>}
@@ -175,9 +179,10 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
             </span>
           </Link>
         ))}
+        {farming && batches.length > 0 && <StripLegend days={batches.flatMap((x) => x.days)} />}
       </header>
 
-      <main className="mx-auto grid w-full max-w-xl flex-1 content-start gap-6 p-5 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:px-0 lg:pb-0">
+      <main className={`mx-auto grid w-full max-w-xl flex-1 content-start gap-6 p-5 lg:max-w-none lg:items-start lg:px-0 lg:pb-0 ${money ? "lg:grid-cols-[minmax(0,1fr)_320px]" : ""}`}>
         <div className="flex flex-col gap-3.5">
         {alert}
         {counting && open.some((b) => b.species === "layer") && (
@@ -201,7 +206,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
           <section key={b.id} aria-label={house} className="flex flex-col gap-3.5">
             {until && (
               <p role="status" className="rounded-2xl bg-alert-soft p-4 text-alert-fg">
-                <b className="font-semibold">{house} : </b>
+                <b className="font-semibold"><bdi>{house}</bdi> : </b>
                 {t("Treatment.withdrawal", { date: day(until) })}
               </p>
             )}
@@ -227,7 +232,7 @@ export function Today({ title, userId, organizationId, role, sync, alert, money 
                     <span className="flex flex-1 flex-col gap-0.5">
                       <span className="text-[17px] font-semibold">{product ? (locale === "ar" ? product.nameAr : product.nameFr) : v.productId}</span>
                       <span className="text-[15px] text-ink-2">
-                        {t(`Vaccination.status.${status}`, { date: day(v.dueOn) })} · {house} · {t(`Protocol.methods.${v.method}`)}
+                        {t(`Vaccination.status.${status}`, { date: day(v.dueOn) })} · <bdi>{house}</bdi> · {t(`Protocol.methods.${v.method}`)}
                       </span>
                     </span>
                   </Link>

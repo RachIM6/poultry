@@ -149,7 +149,9 @@ model User {
   id                  String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
   phoneNumber         String?      @unique // E.164 +2126… / +2127…, a login identifier (ADR-015)
   phoneNumberVerified Boolean?     @default(false) // true only after an SMS code login (AUTH_SMS_ENABLED)
-  name                String // Better Auth requires it; the phone number (or the email)
+  name                String // Better Auth requires it: « Prénom Nom », or the phone number (or the email) of an account made before names
+  firstName           String? // typed at sign-up (identity/schema.ts Names); null for an account made before names
+  lastName            String?
   email               String       @unique // a login identifier, lowercase (CHECK); placeholder <digits>@phone.invalid when none
   emailVerified       Boolean      @default(false)
   image               String?

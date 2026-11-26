@@ -26,11 +26,13 @@ const onLoad = (cb: () => void) => {
   window.addEventListener("load", cb);
   return () => window.removeEventListener("load", cb);
 };
+/** True once the page has loaded: what reads the phone's database (Dexie) comes after, in its own chunk (app-header.tsx too). */
+export const useLoaded = () => useSyncExternalStore(onLoad, () => document.readyState === "complete", () => false);
 
 export function AppNav() {
   const t = useTranslations("Nav");
   const pathname = usePathname();
-  const loaded = useSyncExternalStore(onLoad, () => document.readyState === "complete", () => false);
+  const loaded = useLoaded();
   const isIn = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   // Everything that isn't one of the first three tabs is reached from "Plus".
   const current = pathname === "/today" ? "today" : (TABS.find((tab) => tab.key !== "more" && isIn(tab.href))?.key ?? (pathname === "/" ? undefined : "more"));

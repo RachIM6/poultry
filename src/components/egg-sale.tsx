@@ -3,7 +3,8 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
-import { card, danger, field, primary, secondary } from "@/components/ui";
+import { formActions } from "@/components/layout";
+import { danger, field, ghost, primary, secondary } from "@/components/ui";
 import { formatDay, formatMoney } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { parseCentimes } from "@/lib/kernel/money";
@@ -15,6 +16,7 @@ import { PAYMENT_METHODS, SALES_MUTATIONS as S, TAKERS, checkEggSale, eggLineAmo
 // SPEC-m3 V6 on /eggs (P-EggStock "Vendre des œufs"): eggs of a layer batch sold by the tray, offline. The phone draws them
 // oldest first and refuses withheld eggs with the server's own rules. SPEC-finance FC7: or taken home ("Consommation"),
 // with no buyer or payment, prefilled with the last sale's price per tray; a worker records the eggs only (I5).
+// It opens in a sheet (egg-stock.tsx), whose title names it.
 
 const today = () => farmDayOf(new Date());
 type Line = { item: EggItem; trays: string; eggsPerTray: string; price: string };
@@ -115,8 +117,7 @@ export function EggSaleForm({
   };
 
   return (
-    <form onSubmit={submit} className={card} aria-labelledby="egg-sale-title">
-      <h2 id="egg-sale-title" className="text-lg font-semibold">{t(takenBy ? "EggSale.consume" : "EggSale.title")}</h2>
+    <form onSubmit={submit} className="flex flex-col gap-3" aria-label={t(takenBy ? "EggSale.consume" : "EggSale.title")}>
       {seller && (
         <fieldset className="flex gap-2">
           <legend className="sr-only">{t("Sale.kind")}</legend>
@@ -229,9 +230,9 @@ export function EggSaleForm({
       )}
       {seller && amount !== null && <p className="text-xl font-semibold">{t(takenBy ? "Sale.value" : "EggSale.amount", { amount: formatMoney(amount) })}</p>}
       {error && <p role="alert" className={danger}>{t(error, { days })}</p>}
-      <span className="flex gap-2">
+      <span className={formActions}>
         <button type="submit" className={primary}>{t(takenBy ? "Sale.saveConsumption" : "EggSale.save")}</button>
-        <button type="button" className={secondary} onClick={onCancel}>{t("Closing.cancel")}</button>
+        <button type="button" className={`${ghost} min-w-11`} onClick={onCancel}>{t("Closing.cancel")}</button>
       </span>
     </form>
   );

@@ -16,7 +16,7 @@ test("a supplier paid by cheque offline owes less, after a reload and on the ser
     { type: "inventory.recordPurchase", payload: { id: crypto.randomUUID(), movementId: uuidv7(), supplierId: supplier, stockItemId: item, day: farmDaysAgo(1), quantity: 2_000_000, unitPriceCentimes: "450", paidCentimes: "0", dueOn: null } },
   ]);
 
-  await page.goto("/fr/stock");
+  await page.goto("/fr/stock?tab=suppliers");
   await controlled(page);
   await expect(page.getByText(/Reste dû : 9.000,00.DH/)).toBeVisible();
   const dues = page.getByRole("list", { name: "Échéances de Alf Sahel" }).getByRole("listitem");

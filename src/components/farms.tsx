@@ -13,10 +13,13 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useInline } from "@/components/focus";
-import { rowHead, rowTable } from "@/components/layout";
-import { danger, field, primary, secondary } from "@/components/ui";
+import { empty, formActions, rowHead, rowTable, sectionHead, sectionTitle } from "@/components/layout";
+import { Sheet } from "@/components/sheet";
+import { danger, field, ghost, primary, secondary, secondarySm } from "@/components/ui";
 
 // SPEC F2–F4. Runs on the static /farms shell: everything comes from and goes to the phone's database (ADR-003).
+// tasks/plan-ui-cleanup.md: « Ajouter une ferme » and « Ajouter un bâtiment » open their form in a sheet; the edits stay
+// in place.
 
 const card = "flex flex-col gap-1 rounded-2xl border border-line bg-card p-3";
 // Wide screens: the farms in a 360 px column, the open farm beside them (the first one until another is picked).
@@ -113,39 +116,43 @@ function Farms(scope: Scope) {
 function FarmList({ farms, houses, manage, save, selected }: { farms: FarmDto[]; houses: HouseDto[]; manage: boolean; save: Save; selected?: string }) {
   const t = useTranslations("Farms");
   const { open: adding, opener, close } = useInline<"farm">();
+  const add = manage && <button type="button" aria-haspopup="dialog" {...opener("farm")} className={secondarySm}>{t("add")}</button>;
   return (
     <>
       {farms.length === 0 ? (
-        <p>{t("none")}</p>
+        <div className={empty}>
+          <p>{t("none")}</p>
+          {add}
+        </div>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {farms.map((f) => (
-            <li key={f.id}>
-              <a href={`#${f.id}`} aria-current={f.id === selected || undefined} className={`${card} lg:aria-[current=true]:border-ink`}>
-                <span className="font-semibold">{f.name}</span>
-                <span className="text-sm text-muted">
-                  {t("farmSummary", { commune: f.commune, province: f.province, count: formatCount(houses.filter((h) => h.farmId === f.id).length) })}
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="flex flex-col gap-3">
+            {farms.map((f) => (
+              <li key={f.id}>
+                <a href={`#${f.id}`} aria-current={f.id === selected || undefined} className={`${card} lg:aria-[current=true]:border-ink`}>
+                  <span className="font-semibold">{f.name}</span>
+                  <span className="text-sm text-muted">
+                    {t("farmSummary", { commune: f.commune, province: f.province, count: formatCount(houses.filter((h) => h.farmId === f.id).length) })}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+          {add}
+        </>
       )}
-      {manage &&
-        (adding ? (
-          <FarmForm
-            onCancel={close}
-            onSubmit={async (fields) => {
-              const id = uuidv7();
-              if (await save({ type: M.createFarm, payload: { id, ...fields } }, { entity: "farm", id, data: { id, ...fields } })) {
-                close();
-                window.location.hash = id;
-              }
-            }}
-          />
-        ) : (
-          <button type="button" {...opener("farm")} className={`${secondary} lg:self-start`}>{t("add")}</button>
-        ))}
+      <Sheet open={manage && adding === "farm"} onClose={close} title={t("add")}>
+        <FarmForm
+          onCancel={close}
+          onSubmit={async (fields) => {
+            const id = uuidv7();
+            if (await save({ type: M.createFarm, payload: { id, ...fields } }, { entity: "farm", id, data: { id, ...fields } })) {
+              close();
+              window.location.hash = id;
+            }
+          }}
+        />
+      </Sheet>
     </>
   );
 }
@@ -183,11 +190,14 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
           {farm.onssa && (
             <p className="text-sm">{t("onssaUntil", { number: farm.onssa.number, date: formatDay(farm.onssa.expiresOn as FarmDay, locale) })}</p>
           )}
-          {manage && <button type="button" {...opener("farm")} aria-label={t("editNamed", { name: farm.name })} className={`${secondary} mt-2 self-start`}>{t("edit")}</button>}
+          {manage && <button type="button" {...opener("farm")} aria-label={t("editNamed", { name: farm.name })} className={`${secondarySm} mt-2`}>{t("edit")}</button>}
         </div>
       )}
 
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("houses")}</h2>
+      <div className={sectionHead}>
+        <h2 className={sectionTitle}>{t("houses")}</h2>
+        {manage && <button type="button" aria-haspopup="dialog" {...opener("house")} className={secondarySm}>{t("addHouse")}</button>}
+      </div>
       {houses.length === 0 ? (
         <p>{t("noHouses")}</p>
       ) : (
@@ -196,19 +206,16 @@ function FarmDetail({ farm, houses, manage, save }: { farm: FarmDto; houses: Hou
           {houses.map((h) => <HouseRow key={h.id} house={h} manage={manage} save={save} />)}
         </ul>
       )}
-      {manage &&
-        (open === "house" ? (
-          <HouseForm
-            onCancel={close}
-            onSubmit={async (fields) => {
-              const houseId = uuidv7();
-              const data = { id: houseId, farmId: id, ...fields };
-              if (await save({ type: M.createHouse, payload: data }, { entity: "house", id: houseId, data })) close();
-            }}
-          />
-        ) : (
-          <button type="button" {...opener("house")} className={`${secondary} lg:self-start`}>{t("addHouse")}</button>
-        ))}
+      <Sheet open={manage && open === "house"} onClose={close} title={t("addHouse")}>
+        <HouseForm
+          onCancel={close}
+          onSubmit={async (fields) => {
+            const houseId = uuidv7();
+            const data = { id: houseId, farmId: id, ...fields };
+            if (await save({ type: M.createHouse, payload: data }, { entity: "house", id: houseId, data })) close();
+          }}
+        />
+      </Sheet>
     </>
   );
 }
@@ -219,7 +226,7 @@ function HouseRow({ house, manage, save }: { house: HouseDto; manage: boolean; s
   const { id, farmId, ...current } = house;
   if (editing) {
     return (
-      <li className="lg:col-span-full lg:border-t lg:border-line lg:p-4">
+      <li className="rounded-2xl border border-line bg-card p-3 lg:col-span-full lg:rounded-none lg:border-0 lg:border-t lg:p-4">
         <HouseForm
           initial={current}
           onCancel={close}
@@ -238,7 +245,7 @@ function HouseRow({ house, manage, save }: { house: HouseDto; manage: boolean; s
       <span className="text-sm text-muted">
         {t("houseSummary", { area: formatCount(house.areaM2), capacity: formatCount(house.capacity), type: t(`types.${house.type}`) })}
       </span>
-      {manage && <button type="button" {...opener("house")} aria-label={t("editNamed", { name: house.name })} className={`${secondary} mt-1 self-start py-2 lg:mt-0 lg:self-center`}>{t("edit")}</button>}
+      {manage && <button type="button" {...opener("house")} aria-label={t("editNamed", { name: house.name })} className={`${secondarySm} mt-1 lg:mt-0 lg:justify-self-end`}>{t("edit")}</button>}
     </li>
   );
 }
@@ -340,9 +347,9 @@ function FarmForm({ initial, onSubmit, onCancel }: { initial?: FarmFields; onSub
         <button type="button" onClick={() => setKeepers((ks) => [...ks, { key: uuidv7() }])} className={`${secondary} self-start`}>{t("addKeeper")}</button>
       </fieldset>
       {invalid && <p role="alert" className={danger}>{t("invalid")}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("save")}</button>
-        <button type="button" onClick={onCancel} className={secondary}>{t("cancel")}</button>
+        <button type="button" onClick={onCancel} className={`${ghost} min-w-11`}>{t("cancel")}</button>
       </div>
     </form>
   );
@@ -360,7 +367,7 @@ function HouseForm({ initial, onSubmit, onCancel }: { initial?: HouseFields; onS
     if (parsed.success) onSubmit(parsed.data);
   };
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3">
       <Field name="houseName" label={t("houseName")} defaultValue={initial?.name} required maxLength={80} autoFocus />
       <Field name="areaM2" label={t("areaM2")} defaultValue={initial?.areaM2} required inputMode="numeric" pattern="\d+" dir="ltr" />
       <Field name="capacity" label={t("capacity")} defaultValue={initial?.capacity} required inputMode="numeric" pattern="\d+" dir="ltr" />
@@ -371,9 +378,9 @@ function HouseForm({ initial, onSubmit, onCancel }: { initial?: HouseFields; onS
         </select>
       </div>
       {invalid && <p role="alert" className={danger}>{t("invalid")}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("save")}</button>
-        <button type="button" onClick={onCancel} className={secondary}>{t("cancel")}</button>
+        <button type="button" onClick={onCancel} className={`${ghost} min-w-11`}>{t("cancel")}</button>
       </div>
     </form>
   );

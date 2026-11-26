@@ -4,8 +4,8 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useBatchResults } from "@/components/batch-results";
-import { Num } from "@/components/num";
-import { field } from "@/components/ui";
+import { Num, Scroll } from "@/components/num";
+import { field, table } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatDecimal, formatKg, formatMoney, formatPercent } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
@@ -38,6 +38,8 @@ const COLUMNS = ["hatchery", "livability", "weight", "age", "fcr", "epef", "cost
 // The figures sit at their column's end (Num); the hatchery is a name. The age keeps its own direction: in Arabic its
 // unit is a word ("42 ي"), which a left-to-right isolate would put on the wrong side of the number.
 const text = (c: string) => c === "hatchery";
+// /results' finance table (B4); its row headers (a batch, a hatchery) stay bold ink, not the column headers' grey.
+const tableCard = `${table} tabular-nums [&_tbody_th]:font-semibold [&_tbody_th]:text-ink`;
 
 function Compare({ userId, organizationId, role }: Scope) {
   const t = useTranslations();
@@ -91,11 +93,12 @@ function Compare({ userId, organizationId, role }: Scope) {
       {rows.length === 0 ? (
         <p>{t("Compare.none")}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm tabular-nums">
+        <div className="flex flex-col gap-2">
+          <Scroll label={t("Compare.caption")}>
+          <table className={`${tableCard} min-w-[760px]`}>
             <caption className="mb-2 text-start font-semibold">{t("Compare.caption")}</caption>
             <thead>
-              <tr className="text-muted">
+              <tr>
                 <th scope="col" className="p-2 text-start font-medium">{t("Compare.cols.batch")}</th>
                 {COLUMNS.map((c) => <th key={c} scope="col" className={`p-2 font-medium ${text(c) ? "text-start" : "text-end"}`}>{t(`Compare.cols.${c}`)}</th>)}
               </tr>
@@ -115,16 +118,18 @@ function Compare({ userId, organizationId, role }: Scope) {
               ))}
             </tbody>
           </table>
-          <p className="mt-2 max-w-prose text-sm text-muted">{t("Compare.epef")}</p>
+          </Scroll>
+          <p className="max-w-prose text-sm text-muted">{t("Compare.epef")}</p>
           {can({ userId, organizationId, role }, "money.read") && !results && <p className="text-sm text-muted">{t("Compare.costOnline")}</p>}
         </div>
       )}
       {hatcheries.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm tabular-nums">
+        <div className="flex flex-col gap-2">
+          <Scroll label={t("Compare.hatcheries")}>
+          <table className={tableCard}>
             <caption className="mb-2 text-start font-semibold">{t("Compare.hatcheries")}</caption>
             <thead>
-              <tr className="text-muted">
+              <tr>
                 {(["hatchery", "batches", "dayOld", "day7", "claims"] as const).map((c) => <th key={c} scope="col" className={`p-2 font-medium ${text(c) ? "text-start" : "text-end"}`}>{t(`Compare.hatcheryCols.${c}`)}</th>)}
               </tr>
             </thead>
@@ -140,7 +145,8 @@ function Compare({ userId, organizationId, role }: Scope) {
               ))}
             </tbody>
           </table>
-          <p className="mt-2 max-w-prose text-sm text-muted">{t("Compare.hatcheriesNote")}</p>
+          </Scroll>
+          <p className="max-w-prose text-sm text-muted">{t("Compare.hatcheriesNote")}</p>
         </div>
       )}
     </>

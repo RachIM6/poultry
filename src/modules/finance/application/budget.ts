@@ -16,7 +16,8 @@ import type { CashTiming } from "@/modules/finance/domain/budget-cash";
 import { medianDays, type PaymentDelays } from "@/modules/finance/domain/payment-delay";
 
 /** FN15: a closed batch as a budget's starting point: its figures as what-if inputs, and when its money moved. */
-export type BudgetBase = { batchId: string; label: string; inputs: BudgetInputs; timing: CashTiming };
+// houseName and placedOn (YYYY-MM-DD): the screen writes the batch with its own date format.
+export type BudgetBase = { batchId: string; houseName: string; placedOn: string; inputs: BudgetInputs; timing: CashTiming };
 
 const perKg = (centimes: bigint, grams: bigint) => (grams > 0n ? divHalfUp(centimes * 1000n, grams) : 0n);
 
@@ -65,7 +66,8 @@ export async function budgetBases(ctx: TenantContext): Promise<Result<BudgetBase
     const grams = BigInt(r.soldGrams);
     bases.push({
       batchId: r.id,
-      label: `${r.houseName} · ${r.placedOn}`,
+      houseName: r.houseName,
+      placedOn: r.placedOn,
       inputs: {
         chicks: BigInt(f.chicksPlaced),
         chickPriceCentimes: f.chickUnitPriceCentimes,
@@ -117,10 +119,10 @@ export async function budgetPaymentDelays(ctx: TenantContext): Promise<Result<Pa
 }
 
 /** FN17, SPEC-finance §9 FQ32: the open batches a budget can plan, for the form. */
-export async function budgetBatches(ctx: TenantContext): Promise<Result<{ batchId: string; label: string }[], "FORBIDDEN">> {
+export async function budgetBatches(ctx: TenantContext): Promise<Result<{ batchId: string; houseName: string; placedOn: string }[], "FORBIDDEN">> {
   if (!can(ctx, "money.read")) return fail("FORBIDDEN");
   const open = (await batchesForFinance(db, ctx)).filter((b) => b.status === "open");
-  return ok(open.map((b) => ({ batchId: b.id, label: `${b.houseName} · ${b.placedOn}` })));
+  return ok(open.map((b) => ({ batchId: b.id, houseName: b.houseName, placedOn: b.placedOn })));
 }
 
 const amount = z.string().regex(/^\d{1,15}$/).transform(BigInt);

@@ -12,7 +12,7 @@ test("batches planned offline show overlaps and a short downtime, survive a relo
   await page.goto("/fr/planning");
   await controlled(page);
   await referenceCached(page);
-  await expect(page.getByText("Lot en place depuis le", { exact: false })).toBeVisible();
+  await expect(page.getByText("Bande en place depuis le", { exact: false })).toBeVisible();
 
   await expect(page.getByText("Vide sanitaire minimum : 20 j (source : Arrêté n° 2127-05 du 15 décembre 2005, art. 4)")).toBeVisible();
   await page.getByRole("button", { name: "Saisir le vide sanitaire minimum" }).click();
@@ -25,8 +25,8 @@ test("batches planned offline show overlaps and a short downtime, survive a relo
 
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
-  const form = page.getByRole("form", { name: "Prévoir un lot" });
-  const lines = page.getByRole("list", { name: "Lots de Bâtiment 1" }).getByRole("listitem");
+  const form = page.getByRole("form", { name: "Prévoir une bande" });
+  const lines = page.getByRole("list", { name: "Bandes de Bâtiment 1" }).getByRole("listitem");
   let shown = 1; // the open batch
   // +30 sold at 35 days (+65); +60 placed before that sale; +105 placed 10 days after +60's sale (+95).
   for (const [inDays, chicks, age] of [[30, "10000", "35"], [60, "9000", "35"], [105, "8000", ""]] as const) {
@@ -34,12 +34,12 @@ test("batches planned offline show overlaps and a short downtime, survive a relo
     await form.getByLabel("Poussins").fill(chicks);
     await form.getByLabel("Couvoir").fill("Couvoir X");
     await form.getByLabel("Âge de vente prévu (jours, facultatif)").fill(age);
-    await form.getByRole("button", { name: "Enregistrer le lot prévu" }).click();
+    await form.getByRole("button", { name: "Enregistrer la bande prévue" }).click();
     // the status reads the same after each save: wait for the plan itself, or the next fill races the form's reset
     await expect(lines).toHaveCount(++shown);
   }
   await expect(lines).toHaveCount(4);
-  await expect(lines.nth(2)).toContainText("Mis en place avant la vente du lot précédent.");
+  await expect(lines.nth(2)).toContainText("Mise en place avant la vente de la bande précédente.");
   await expect(lines.nth(3)).toContainText("10 j de vide sanitaire");
   await expect(lines.nth(3)).toContainText("Vide sanitaire plus court que le minimum (30 j).");
   await expect(lines.nth(3)).toContainText("Âge de vente non décidé");

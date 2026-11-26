@@ -19,7 +19,7 @@ test("a reading above the target shows the banner and alerts the owner", async (
   await expect(form.getByText(/cible à J0 : 10,0 – 20,0 °C · trop haut/)).toBeVisible();
   await form.getByLabel("Humidité (%)").fill("68");
   await form.getByRole("button", { name: "Enregistrer le relevé" }).click();
-  await expect(page.getByText("Hors des cibles pour l’âge du lot : trop chaud.")).toBeVisible();
+  await expect(page.getByText("Hors des cibles pour l’âge de la bande : trop chaud.")).toBeVisible();
 
   await expect(async () => {
     await page.goto("/fr/inbox");

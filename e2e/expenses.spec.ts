@@ -63,11 +63,11 @@ test("a quick expense recorded offline is posted once after sync, and shows in t
   await page.goto("/fr/dashboard");
   await expect(page.getByRole("region", { name: "Argent" })).toContainText(/Trésorerie disponible\s*−1.200,00\sDH/);
 
-  // tasks/plan-ui.md U13: on a wide screen the owner's sidebar also lists Ventes, Comptabilité and Membres.
+  // tasks/plan-ui.md U13: on a wide screen the owner's sidebar also lists Ventes, Livres comptables and Membres.
   const nav = page.getByRole("navigation", { name: "Navigation principale" });
-  await expect(nav.getByRole("link", { name: "Comptabilité" })).toBeHidden();
+  await expect(nav.getByRole("link", { name: "Livres comptables" })).toBeHidden();
   await page.setViewportSize({ width: 1280, height: 800 });
-  for (const name of ["Ventes", "Comptabilité", "Membres"]) await expect(nav.getByRole("link", { name })).toBeVisible();
+  for (const name of ["Ventes", "Livres comptables", "Membres"]) await expect(nav.getByRole("link", { name })).toBeVisible();
 });
 
 // T119 (FC9): bank fees are paid from a bank account only; with none yet, the form says to add one first.

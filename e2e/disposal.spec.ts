@@ -11,7 +11,7 @@ test("disposal and manure are recorded offline, synced once, with the day's mort
   await pushAs(page, [{ type: "flock.recordDay", payload: { batchId: ids.batch, day: farmDaysAgo(0), changes: { dead: 5, deathCause: "unknown", culled: 1 } } }]);
   await page.goto("/fr/more");
 
-  await page.getByRole("link", { name: "Cadavres et fumier" }).click();
+  await page.getByRole("link", { name: "Cadavres, fumier et nuisibles" }).click();
   await controlled(page);
   const gaps = page.getByRole("table", { name: "Morts et éliminés, 14 derniers jours" });
   await expect(gaps.getByRole("row").nth(1)).toContainText(/6\s*0\s*6$/); // 5 dead + 1 culled, nothing disposed yet

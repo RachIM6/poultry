@@ -8,7 +8,7 @@ test("a power cut started and ended offline syncs once with the generator's deta
   await scopeRemembered(page);
   await farmWithBatch(page);
   await page.goto("/fr/climate");
-  await expect(page.getByText("Lot en place : J0")).toBeVisible(); // the farm reached the phone
+  await expect(page.getByText("Bande en place : J0")).toBeVisible(); // the farm reached the phone
   await controlled(page);
 
   await context.setOffline(true);

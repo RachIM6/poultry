@@ -83,7 +83,7 @@ test("WebSales: receivables and a batch's sales read as tables on a wide screen,
   await page.goto("/fr/receivables");
   const owes = page.getByText(/^Abattoir Atlas doit/);
   await expect(owes).toHaveText(/doit 2.500,00\sDH$/);
-  const owing = page.getByRole("list", { name: "Créances", exact: true });
+  const owing = page.getByRole("list", { name: "Créances des acheteurs", exact: true });
   await expect(owing.getByRole("listitem")).toHaveCount(1); // the header row is not an item
   const due = owing.getByText(/^Chèque n° 0012345/);
   await expect(page.getByText("Acheteur et solde")).toBeVisible();

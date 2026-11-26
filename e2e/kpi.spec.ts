@@ -21,7 +21,7 @@ test("the batch dashboard works offline and follows each entry", async ({ page, 
     await context.route("**", (route) => route.abort("internetdisconnected"));
     await page.getByRole("link", { name: "Saisir le jour" }).click();
     await expect(tile(page, "Mortalité")).toContainText("0,0 %");
-    await expect(page.getByText("Pesez un échantillon pour voir le poids, l’IC, l’EPEF et le GMQ.")).toBeVisible();
+    await expect(page.getByText("Pesez un échantillon pour voir le poids, l’IC, l’IEP et le GMQ.")).toBeVisible();
 
     const enter = async (daysAgo: number, dead: string, feedKg: string) => {
       await page.getByLabel("Jour", { exact: true }).fill(farmDaysAgo(daysAgo));
@@ -36,7 +36,7 @@ test("the batch dashboard works offline and follows each entry", async ({ page, 
     // 20 dead of 1 000 → 2,0 %; 75 kg / 980 birds = 76,5 g → 0,077 kg.
     await expect(tile(page, "Mortalité")).toContainText("2,0 %");
     await expect(tile(page, "Aliment par oiseau")).toContainText("0,077 kg");
-    await expect(tile(page, "IC")).toContainText("—");
+    await expect(tile(page, "IC (indice de consommation)")).toContainText("—");
 
     await page.getByLabel("Poids des oiseaux (kg), séparés par des espaces").fill("0,080 0,090 0,085");
     await page.getByRole("button", { name: "Enregistrer la pesée" }).click();
@@ -44,14 +44,14 @@ test("the batch dashboard works offline and follows each entry", async ({ page, 
     // EPEF 98 × 0,085 / (2 × 0,9004) × 100 = 463. Gain 85 g / 2 days (no day-old weight) = 42,5 g.
     await expect(tile(page, "Poids moyen (jour 2)")).toContainText("0,085 kg");
     await expect(tile(page, "Poids moyen (jour 2)")).toContainText("-1,2 % par rapport au standard (0,086 kg)");
-    await expect(tile(page, "IC")).toContainText("0,90");
-    await expect(tile(page, "EPEF")).toContainText("463");
+    await expect(tile(page, "IC (indice de consommation)")).toContainText("0,90");
+    await expect(tile(page, "IEP")).toContainText("463");
     await expect(tile(page, "GMQ")).toContainText("42,5 g/jour");
     await expect(page.getByRole("img", { name: /Poids moyen par âge : J2 0,085 kg/ })).toBeVisible();
 
     const reload = await page.reload(); // still offline: the shell and the data come from the phone
     expect(reload?.fromServiceWorker()).toBe(true);
-    await expect(tile(page, "EPEF")).toContainText("463");
+    await expect(tile(page, "IEP")).toContainText("463");
     await context.unroute("**");
     await context.setOffline(false);
   } finally {

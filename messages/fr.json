@@ -396,14 +396,14 @@
         "cancelPurchase": "Annulation d’un achat"
       },
       "flock": {
-        "placeBatch": "Mise en place d’un lot",
+        "placeBatch": "Mise en place d’une bande",
         "recordDay": "Saisie du jour",
         "recordWeighing": "Pesée",
-        "closeBatch": "Clôture d’un lot",
+        "closeBatch": "Clôture d’une bande",
         "transferToLaying": "Transfert en ponte",
-        "correctPlacement": "Correction de la mise en place d’un lot",
-        "reopenBatch": "Réouverture d’un lot",
-        "recordBatchCost": "Charge d’un lot"
+        "correctPlacement": "Correction de la mise en place d’une bande",
+        "reopenBatch": "Réouverture d’une bande",
+        "recordBatchCost": "Charge d’une bande"
       },
       "eggs": {
         "recordCollection": "Ramassage des œufs",
@@ -469,9 +469,9 @@
         "recordPrice": "Prix du marché"
       },
       "planning": {
-        "savePlan": "Lot prévu",
-        "cancelPlan": "Annulation d’un lot prévu",
-        "placeFromPlan": "Mise en place d’un lot prévu",
+        "savePlan": "Bande prévue",
+        "cancelPlan": "Annulation d’une bande prévue",
+        "placeFromPlan": "Mise en place d’une bande prévue",
         "saveDowntime": "Vide sanitaire prévu"
       },
       "biosecurity": {
@@ -529,8 +529,8 @@
     "capacity": "Capacité (oiseaux)",
     "type": "Type",
     "types": {
-      "open": "Ouvert",
-      "closed": "Fermé"
+      "open": "Bâtiment ouvert",
+      "closed": "Bâtiment fermé (ambiance contrôlée)"
     },
     "houseSummary": "{area} m² · {capacity} oiseaux · {type}",
     "farmSummary": "{commune}, {province} · bâtiments : {count}",
@@ -613,7 +613,7 @@
       },
       "climateOutOfRange": {
         "title": "Climat hors cible : {house}",
-        "body": "J{age} : {values}. Hors des cibles saisies pour l’âge du lot."
+        "body": "J{age} : {values}. Hors des cibles saisies pour l’âge de la bande."
       },
       "powerCut": {
         "title": "Coupure de courant",
@@ -800,10 +800,10 @@
       "female": "femelles",
       "male": "mâles"
     },
-    "sexPair": "Même lot, par sexe",
+    "sexPair": "Même bande, par sexe",
     "freeChicks": "Supplément gratuit (facultatif)",
     "arrival": "Qualité à l’arrivée (facultatif)",
-    "parentFlock": "Lot reproducteur",
+    "parentFlock": "Bande reproductrice",
     "weakChicks": "Poussins faibles",
     "litterTemp": "Température litière (°C)",
     "density": "Densité : {density} sujets/m²",
@@ -893,7 +893,7 @@
     "INVALID_TRANSITION": "Ce chèque ou cette traite ne peut pas passer à cet état.",
     "MEMBER_ALREADY_LINKED": "Ce numéro est déjà celui d’un autre ouvrier de la ferme.",
     "LEFT_BEFORE_START": "La date de départ est avant la date d’entrée.",
-    "HOUSE_REQUIRED": "Choisissez un bâtiment : la tâche suit l’âge de son lot.",
+    "HOUSE_REQUIRED": "Choisissez un bâtiment : la tâche suit l’âge de sa bande.",
     "TASK_DAY_PAST": "Une tâche d’un jour passé reste comme elle a été notée.",
     "EMPLOYEE_NOT_ACTIVE": "Cet ouvrier ne travaille pas à la ferme ce jour-là.",
     "DEDUCT_BEFORE_ADVANCE": "L’avance se retient sur la paie du mois où elle est donnée, ou d’un mois suivant.",
@@ -902,8 +902,8 @@
     "TARGET_BANDS_OVERLAP": "Deux tranches d’âge se chevauchent.",
     "POWER_CUT_OPEN": "Une coupure de courant est déjà en cours sur cette ferme.",
     "CUT_END_BEFORE_START": "Le courant ne peut pas revenir avant la coupure.",
-    "NOT_ENOUGH_EGGS": "Pas assez d’œufs dans ce lot.",
-    "EGG_WITHDRAWAL_REQUIRED": "Indiquez le délai d’attente des œufs : c’est un lot de pondeuses.",
+    "NOT_ENOUGH_EGGS": "Pas assez d’œufs dans ce ramassage.",
+    "EGG_WITHDRAWAL_REQUIRED": "Indiquez le délai d’attente des œufs : c’est une bande de pondeuses.",
     "EGGS_IN_WITHDRAWAL": "Des œufs pondus pendant un délai d’attente sont encore dans ce stock : écartez-les avant de vendre.",
     "VISIT_DIRTY_ZONE_ONLY": "Ce visiteur est passé par un autre élevage : zone sale uniquement.",
     "DISPOSAL_METHOD_NOTE_REQUIRED": "Décrivez la méthode d’élimination.",
@@ -1020,12 +1020,12 @@
     "weightNone": "Poids moyen",
     "weightSold": "Poids moyen vendu",
     "fcr": "IC (indice de consommation)",
-    "epef": "EPEF",
+    "epef": "IEP (indice d’efficacité de production)",
     "dailyGain": "GMQ (gain moyen quotidien)",
     "gramsPerDay": "{grams} g/jour",
-    "atWeighing": "IC, EPEF et GMQ au jour {age}, celui de la dernière pesée.",
-    "atClosing": "IC, EPEF et poids moyen à la clôture (jour {age}), sur les kg vendus. GMQ : dernière pesée.",
-    "weighFirst": "Pesez un échantillon pour voir le poids, l’IC, l’EPEF et le GMQ.",
+    "atWeighing": "IC, IEP et GMQ au jour {age}, celui de la dernière pesée.",
+    "atClosing": "IC, IEP et poids moyen à la clôture (jour {age}), sur les kg vendus. GMQ : dernière pesée.",
+    "weighFirst": "Pesez un échantillon pour voir le poids, l’IC, l’IEP et le GMQ.",
     "chart": "Croissance",
     "flock": "Bande",
     "standard": "Standard de la souche",
@@ -1202,7 +1202,7 @@
     "voidConfirm": "Annuler {sale} ? Les oiseaux ou les œufs reviennent et son écriture est contre-passée. Vous pourrez la ressaisir."
   },
   "Receivables": {
-    "title": "Créances",
+    "title": "Créances des acheteurs",
     "open": "Créances des acheteurs",
     "none": "Aucun acheteur ne doit d’argent.",
     "owes": "{buyer} doit {amount}",
@@ -1530,7 +1530,7 @@
   "Budget": {
     "forbidden": "Le budget d’une bande est réservé au propriétaire, au gérant et au comptable.",
     "title": "Budget d’une bande",
-    "open": "Budget et seuil de rentabilité",
+    "open": "Budget d’une bande",
     "basedOn": "Copié de la bande",
     "blank": "Partir de zéro",
     "batch": "Bande en cours prévue par ce budget",
@@ -1573,8 +1573,8 @@
   },
   "Books": {
     "forbidden": "La comptabilité est réservée au propriétaire, au gérant et au comptable.",
-    "open": "Comptabilité",
-    "titleLedger": "Comptabilité",
+    "open": "Livres comptables",
+    "titleLedger": "Livres comptables",
     "titleCashBook": "Livre des recettes et dépenses",
     "month": "Mois",
     "previousMonth": "Mois précédent",
@@ -1682,7 +1682,7 @@
   },
   "Threshold": {
     "forbidden": "Le seuil d’exonération est réservé au propriétaire, au gérant et au comptable.",
-    "open": "Seuil des 5 M DH",
+    "open": "Seuil d’exonération",
     "title": "Seuil d’exonération : {amount}",
     "none": "Aucun seuil configuré pour cette date.",
     "alert": "Vos ventes agricoles atteignent {percent} % du seuil d’exonération.",
@@ -1817,7 +1817,7 @@
     "notValuedFq7": "Voir « Poules pondeuses et poulettes »",
     "valueRequired": "Valeur à saisir : ni pesée ni vente pour la proposer.",
     "eggs": "Œufs en stock",
-    "eggsHint": "Les œufs comptés (sinon ceux des registres) au dernier jour de l’exercice, à la valeur par œuf que vous saisissez, en dirhams au centime. Le coût suggéré (règle à revoir avec le comptable) : les coûts de production des lots en ponte de la ferme sur l’exercice (aliment et soins consommés, charges de production, leur part de l’amortissement des bâtiments et du matériel d’élevage et des charges réparties, l’amortissement des poules en méthode classique ; sans le prix d’achat des poules ni frais bancaires ou d’enlèvement) ÷ les œufs pondus sur l’exercice, cassés exclus. « Utiliser » le copie dans le champ ; c’est la valeur saisie qui est comptabilisée.",
+    "eggsHint": "Les œufs comptés (sinon ceux des registres) au dernier jour de l’exercice, à la valeur par œuf que vous saisissez, en dirhams au centime. Le coût suggéré (règle à revoir avec le comptable) : les coûts de production des bandes en ponte de la ferme sur l’exercice (aliment et soins consommés, charges de production, leur part de l’amortissement des bâtiments et du matériel d’élevage et des charges réparties, l’amortissement des poules en méthode classique ; sans le prix d’achat des poules ni frais bancaires ou d’enlèvement) ÷ les œufs pondus sur l’exercice, cassés exclus. « Utiliser » le copie dans le champ ; c’est la valeur saisie qui est comptabilisée.",
     "eggCount": "Œufs",
     "farm": "Ferme",
     "perEgg": "Valeur par œuf",
@@ -1827,7 +1827,7 @@
     "eggsNotPosted": "Non comptabilisé (FQ25) : sans le Plan Comptable Agricole, 3152 n’a pas de compte CGNC où passer.",
     "suggestedCost": "Coût suggéré : {perEgg}/œuf — basé sur {total} de coûts de production de la ponte ÷ {eggs} œufs pondus, du {from} au {to}.",
     "suggestedParts": "Directs {direct}, amortissements des bâtiments et du matériel {depreciation}, indirects {indirect}, amortissement des poules {hens}",
-    "suggestedHensPending": "Sans l’amortissement des poules : saisissez la durée de ponte et la valeur de réforme du lot.",
+    "suggestedHensPending": "Sans l’amortissement des poules : saisissez la durée de ponte et la valeur de réforme de la bande.",
     "noSuggestion": {
       "NO_EGGS": "Pas de coût suggéré : aucun œuf pondu sur l’exercice.",
       "NO_COSTS": "Pas de coût suggéré : aucun coût de production de la ponte enregistré sur l’exercice."
@@ -1835,14 +1835,14 @@
     "useSuggested": "Utiliser",
     "useSuggestedOf": "Utiliser le coût suggéré : {farm}",
     "hens": "Poules pondeuses et poulettes",
-    "hensClassicHint": "Méthode classique : les poulettes en élevage sont immobilisées en cours à leur coût de l’exercice (23962), puis le lot passe en 23711 au transfert en ponte ; les poules achetées prêtes à pondre y entrent à leur prix. Chaque lot en ponte s’amortit en linéaire sur la durée de ponte, en mois entiers, base = valeur d’entrée − valeur de réforme. Saisissez la durée et la valeur de réforme du lot entier : elles sont requises avant de comptabiliser. Les réformes de l’exercice sortent la part vendue (6187) ou perdue (6513).",
+    "hensClassicHint": "Méthode classique : les poulettes en élevage sont immobilisées en cours à leur coût de l’exercice (23962), puis la bande passe en 23711 au transfert en ponte ; les poules achetées prêtes à pondre y entrent à leur prix. Chaque bande en ponte s’amortit en linéaire sur la durée de ponte, en mois entiers, base = valeur d’entrée − valeur de réforme. Saisissez la durée et la valeur de réforme de la bande entière : elles sont requises avant de comptabiliser. Les réformes de l’exercice sortent la part vendue (6187) ou perdue (6513).",
     "hensSimplifiedHint": "Méthode simplifiée : les sujets comptés au dernier jour × leur valeur d’entrée par sujet (prix d’achat, ou coût de revient des poulettes), en 23711 / 7151 pour les poules et 23712 / 7152 pour les poulettes ; la valeur de l’exercice précédent est annulée. Saisissez la valeur actuelle d’un sujet, requise : en dessous de la valeur d’entrée, la différence est provisionnée (2937). Pas d’amortissement.",
     "hensNotValued": "Non valorisés (FQ25) : sans le Plan Comptable Agricole, les comptes des animaux reproducteurs n’ont pas de compte CGNC où passer.",
     "hensEntry": "Valeur d’entrée",
     "hensLife": "Durée de ponte (mois)",
     "hensLifeOf": "Durée de ponte en mois : {line}",
     "hensCull": "Valeur de réforme",
-    "hensCullOf": "Valeur de réforme du lot : {line}",
+    "hensCullOf": "Valeur de réforme de la bande : {line}",
     "hensCharge": "Dotation",
     "hensValue": "Valeur d’entrée des sujets",
     "hensPerBird": "Valeur actuelle par sujet",
@@ -2052,12 +2052,12 @@
   "Nav": {
     "label": "Navigation principale",
     "today": "Aujourd’hui",
-    "batches": "Lots",
+    "batches": "Bandes",
     "stock": "Stock",
     "more": "Plus",
     "back": "Retour",
     "sales": "Ventes",
-    "finance": "Comptabilité",
+    "finance": "Livres comptables",
     "members": "Membres"
   },
   "More": {
@@ -2068,12 +2068,23 @@
     "compliance": "Conformité",
     "settings": "Langue et déconnexion"
   },
+  "Strip": {
+    "legendLabel": "Légende",
+    "legend": {
+      "done": "Saisi",
+      "missing": "Manquant",
+      "today": "Aujourd’hui",
+      "vaccine": "Vaccin prévu",
+      "withdrawal": "Délai d’attente",
+      "upcoming": "À venir"
+    }
+  },
   "Today": {
     "birds": "{count} sujets",
     "dayOf": "Jour {day} sur {total}",
     "stripLabel": "Jour {day} de la bande, {missing} jour(s) non saisi(s)",
     "missingOn": "Jour manquant : {date}",
-    "allEntered": "Tous les jours sont saisis",
+    "allEntered": "Jours précédents tous saisis",
     "tasks": "Tâches du jour",
     "none": "Aucune bande en cours.",
     "entry": "Saisie du jour · {house}",
@@ -2086,10 +2097,11 @@
     "lastBatch": "Dernière bande clôturée · {house}",
     "margin": "Marge : {margin}",
     "costPerKg": "{cost} / kg",
+    "costPerKgLabel": "Coût par kg",
     "laying": "Ponte {rate} % · {eggs} œufs le dernier jour ramassé",
     "layingStandard": "{gap} pt par rapport au standard ({standard} %)",
     "weight": "Poids moyen {weight}",
-    "fcr": "IC {fcr}",
+    "fcr": "Indice de consommation {fcr}",
     "eggsYesterday": "Œufs ramassés hier",
     "left": "Cette exploitation a quitté la plateforme le {day}. Elle est en lecture seule : vous pouvez consulter ses données, mais plus rien ne peut y être enregistré. Ses données seront supprimées 30 jours après son départ, sauf la comptabilité, conservée dix ans. Pour recevoir l’export complet de ses données, le propriétaire le demande à l’équipe de la plateforme."
   },
@@ -2130,7 +2142,7 @@
     "open": "Tâches du jour",
     "today": "Tâches d’aujourd’hui",
     "none": "Aucune tâche aujourd’hui.",
-    "source": "Les tâches viennent de l’âge des lots, du plan de vaccination et des tâches régulières. Le responsable peut en ajouter.",
+    "source": "Les tâches viennent de l’âge des bandes, du plan de vaccination et des tâches régulières. Le responsable peut en ajouter.",
     "entry": "Saisie du jour · {house}",
     "vaccine": "vaccin du plan",
     "late": "vaccin en retard",
@@ -2155,12 +2167,12 @@
     "everyDays": "Tous les combien de jours",
     "from": "À partir de",
     "fromCalendar": "Une date",
-    "fromBatch": "Un âge du lot du bâtiment",
+    "fromBatch": "Un âge de la bande du bâtiment",
     "startOn": "Date de début",
-    "fromAgeLabel": "Âge du lot (jours)",
+    "fromAgeLabel": "Âge de la bande (jours)",
     "fromAge": "à partir de J{day}",
     "fromDay": "à partir du {date}",
-    "needsHouse": "Une tâche qui suit l’âge du lot a besoin d’un bâtiment.",
+    "needsHouse": "Une tâche qui suit l’âge de la bande a besoin d’un bâtiment.",
     "stop": "Arrêter « {title} »",
     "edit": "Modifier « {title} »",
     "planned": "Tâches ponctuelles prévues",
@@ -2253,7 +2265,7 @@
     "bandLine": "J{from} à J{to} : {tmin} à {tmax} °C · humidité {hmin} à {hmax} % · ammoniac max {nh3} ppm",
     "noTargets": "Aucune cible saisie : les relevés sont enregistrés sans verdict ni alerte. Le propriétaire saisit les cibles de sa source (guide de la souche, vétérinaire).",
     "enterTargets": "Saisir les cibles",
-    "targetsHint": "Saisissez les cibles de votre source, par tranche d’âge du lot ; laissez vide ce qu’elle ne donne pas. Températures en °C (une décimale).",
+    "targetsHint": "Saisissez les cibles de votre source, par tranche d’âge de la bande ; laissez vide ce qu’elle ne donne pas. Températures en °C (une décimale).",
     "band": "Tranche {n}",
     "fields": {
       "fromAge": "De J",
@@ -2266,11 +2278,11 @@
     },
     "addBand": "Ajouter une tranche",
     "saveTargets": "Enregistrer les cibles",
-    "title": "Climat",
+    "title": "Climat des bâtiments",
     "open": "Climat des bâtiments",
     "house": "Bâtiment",
-    "age": "Lot en place : J{day}",
-    "noBatch": "Pas de lot en place dans ce bâtiment : le relevé n’est comparé à aucune cible.",
+    "age": "Bande en place : J{day}",
+    "noBatch": "Pas de bande en place dans ce bâtiment : le relevé n’est comparé à aucune cible.",
     "reading": "Relevé de climat",
     "temperature": "Température (°C)",
     "humidity": "Humidité (%)",
@@ -2284,7 +2296,7 @@
       "within": "dans la cible",
       "above": "trop haut"
     },
-    "outOfRange": "Hors des cibles pour l’âge du lot : {values}.",
+    "outOfRange": "Hors des cibles pour l’âge de la bande : {values}.",
     "offValue": {
       "temperature": {
         "below": "trop froid",
@@ -2349,7 +2361,7 @@
     "invitations": "Invitations reçues",
     "invitedAs": "{name} vous invite comme {role}.",
     "accept": "Accepter l’invitation de {name}",
-    "link": "Changer d’exploitation"
+    "link": "Mes exploitations"
   },
   "Prices": {
     "title": "Prix du marché",
@@ -2386,20 +2398,20 @@
     "down": "−{amount} depuis le précédent"
   },
   "Planning": {
-    "title": "Planning des lots",
-    "open": "Planning des lots",
+    "title": "Planning des bandes",
+    "open": "Planning des bandes",
     "downtime": "Vide sanitaire minimum : {days} j (source : {source})",
-    "empty": "Aucun lot en place ni prévu.",
-    "of": "Lots de {house}",
-    "batch": "Lot en place depuis le {date}",
+    "empty": "Aucune bande en place ni prévue.",
+    "of": "Bandes de {house}",
+    "batch": "Bande en place depuis le {date}",
     "plan": "Prévu le {date} · {chicks} poussins · {hatchery}",
     "sale": "Vente vers le {date}",
     "saleUnknown": "Âge de vente non décidé",
     "gap": "{days} j de vide sanitaire",
-    "overlaps": "Mis en place avant la vente du lot précédent.",
+    "overlaps": "Mise en place avant la vente de la bande précédente.",
     "short": "Vide sanitaire plus court que le minimum ({days} j).",
-    "cancel": "Annuler le lot prévu le {date}",
-    "add": "Prévoir un lot",
+    "cancel": "Annuler la bande prévue le {date}",
+    "add": "Prévoir une bande",
     "house": "Bâtiment",
     "placeOn": "Mise en place le",
     "chicks": "Poussins",
@@ -2407,14 +2419,14 @@
     "hatchery": "Couvoir",
     "price": "Prix réservé par poussin (DH, facultatif)",
     "saleAge": "Âge de vente prévu (jours, facultatif)",
-    "save": "Enregistrer le lot prévu",
+    "save": "Enregistrer la bande prévue",
     "enterDowntime": "Saisir le vide sanitaire minimum",
     "downtimeHint": "Le minimum officiel est de 20 jours (arrêté n° 2127-05, art. 4). Saisissez un minimum plus long seulement si votre vétérinaire ou l’ONSSA le demande, avec la source.",
     "minDays": "Jours minimum",
     "saveDowntime": "Enregistrer le minimum",
-    "place": "Mettre en place le lot prévu le {date}",
+    "place": "Mettre en place la bande prévue le {date}",
     "placeSave": "Mettre en place",
-    "edit": "Modifier le lot prévu le {date}"
+    "edit": "Modifier la bande prévue le {date}"
   },
   "Types": {
     "broiler": "Poulet de chair",
@@ -2493,7 +2505,7 @@
       "3-5": "Pondus il y a 3 à 5 jours",
       "6+": "Pondus il y a 6 jours ou plus"
     },
-    "lots": "Lots",
+    "lots": "Ramassages",
     "none": "Aucun œuf en stock.",
     "lot": "{day} · {house} · {item} : {eggs} œufs",
     "grade": "Calibrer",
@@ -2536,7 +2548,7 @@
     "title": "Vente d’œufs",
     "noBuyer": "Ajoutez d’abord un acheteur, depuis la vente d’une bande.",
     "buyer": "Acheteur",
-    "batch": "Lot de ponte (mis en place le)",
+    "batch": "Bande de ponte (mise en place le)",
     "day": "Date",
     "line": "Ligne {n}",
     "item": "Produit",
@@ -2551,27 +2563,27 @@
   },
   "Compare": {
     "costOnline": "Coût au kg visible en ligne.",
-    "title": "Comparer les lots",
-    "none": "Aucun lot clôturé de ce type.",
-    "caption": "Indicateurs par lot clôturé",
+    "title": "Comparer les bandes",
+    "none": "Aucune bande clôturée de ce type.",
+    "caption": "Indicateurs par bande clôturée",
     "days": "{days} j",
     "cols": {
-      "batch": "Lot",
+      "batch": "Bande",
       "hatchery": "Couvoir",
       "livability": "Viabilité",
       "weight": "Poids",
       "age": "Âge",
       "fcr": "IC",
-      "epef": "IEP (EPEF)",
+      "epef": "IEP",
       "costPerKg": "Coût / kg",
       "dayOld": "Poids J1",
       "day7": "Mortalité J7"
     },
-    "epef": "IEP = viabilité (%) × poids moyen (kg) ÷ (âge (j) × IC) × 100.",
+    "epef": "IEP (indice d’efficacité de production) = viabilité (%) × poids moyen (kg) ÷ (âge (j) × IC) × 100. IC : indice de consommation.",
     "hatcheries": "Couvoirs · qualité du poussin",
     "hatcheryCols": {
       "hatchery": "Couvoir",
-      "batches": "Lots",
+      "batches": "Bandes",
       "dayOld": "Poids J1",
       "day7": "Mortalité J7",
       "claims": "Réclamations"
@@ -2587,7 +2599,7 @@
     "cancel": "Annuler"
   },
   "Visitors": {
-    "title": "Entrée d’un visiteur",
+    "title": "Registre des visiteurs",
     "open": "Registre des visiteurs",
     "noFarm": "Créez d’abord une ferme.",
     "visitor": "Nom et société",
@@ -2620,8 +2632,8 @@
     "line": "{visitor} · {time} · {zone}"
   },
   "Disposal": {
-    "title": "Sorties de la ferme",
-    "open": "Cadavres et fumier",
+    "title": "Cadavres, fumier et nuisibles",
+    "open": "Cadavres, fumier et nuisibles",
     "noFarm": "Créez d’abord une ferme.",
     "tabs": "Registre",
     "tab": {
@@ -2713,7 +2725,7 @@
     "failed": "Le fichier n’a pas pu être envoyé. Réessayez avec du réseau."
   },
   "Documents": {
-    "titlePage": "Documents",
+    "titlePage": "Documents et échéances",
     "open": "Documents et échéances",
     "forbidden": "Les documents sont réservés au propriétaire et au gérant.",
     "add": "Ajouter un document",
@@ -2875,7 +2887,7 @@
     "fcr": "Indice de consommation",
     "weight": "Poids moyen (dernière pesée)",
     "weightSold": "Poids moyen vendu",
-    "epef": "EPEF",
+    "epef": "IEP (indice d’efficacité de production)",
     "health": "Santé",
     "vaccines": "Vaccins faits : {done} sur {planned}",
     "treatments": "{count, plural, =0 {aucun traitement} one {1 traitement} other {# traitements}}",

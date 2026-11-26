@@ -33,9 +33,9 @@ test("on a dead link, the tabs reach their offline shells and a slow sync still 
   await expect(page.getByRole("link", { name: /Saisie du jour · Bâtiment 1/ })).toBeVisible();
   expect(Date.now() - start).toBeLessThan(9_000);
 
-  // Lots: the RSC fetch fails, and the full load is the precached /fr/batches shell.
+  // Bandes: the RSC fetch fails, and the full load is the precached /fr/batches shell.
   start = Date.now();
-  await nav.getByRole("link", { name: "Lots" }).click();
+  await nav.getByRole("link", { name: "Bandes", exact: true }).click();
   await expect(page.getByRole("img", { name: /Jour 3 de la bande/ })).toBeVisible({ timeout: 7_000 });
   await expect(page).toHaveURL(/\/fr\/batches$/);
   expect(Date.now() - start).toBeLessThan(7_000);

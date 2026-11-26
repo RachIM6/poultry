@@ -20,7 +20,7 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
 
   await page.goto("/fr/dashboard");
   await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
-  await page.getByRole("link", { name: "Comptabilité" }).click();
+  await page.getByRole("link", { name: "Livres comptables" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Livre des recettes et dépenses");
   // WCAG 4.1.2: the month's arrows have a name
   const months = page.getByRole("navigation", { name: "Mois", exact: true });

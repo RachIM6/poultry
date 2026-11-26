@@ -65,7 +65,7 @@ test("wide screens: « Plus » expands in the sidebar, shows the role's screens 
   await page.goto("/fr/dashboard");
   await expect(plus).toHaveAttribute("aria-expanded", "true"); // still remembered open
   await expect(nav(page).getByRole("link", { name: "Fermes et bâtiments" })).toBeVisible();
-  for (const name of ["Trésorerie", "Comptabilité", "Créances des acheteurs", "Membres"]) await expect(nav(page).getByRole("link", { name })).toHaveCount(0);
+  for (const name of ["Trésorerie", "Livres comptables", "Créances des acheteurs", "Membres"]) await expect(nav(page).getByRole("link", { name })).toHaveCount(0);
   await expect(nav(page).getByRole("heading", { name: "Argent" })).toHaveCount(0);
 });
 

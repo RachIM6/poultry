@@ -199,6 +199,32 @@ export async function deleteUsers(tx: Tx, users: { id: string; phoneNumber: stri
   return ids;
 }
 
+/**
+ * Deletes the organisation's rows of the tables in `list` (`extra`: a table's added condition), a table before the
+ * tables it references (the catalogue's foreign keys). Returns the rows deleted per table. The ledger's immutability
+ * triggers still apply: a ledger table in `list` is the caller's to allow (src/ops/demo/history/reset.ts).
+ */
+export async function clearOrganizationData(tx: Tx, organizationId: string, list: string[], extra: Record<string, string> = {}): Promise<Record<string, number>> {
+  const deleted: Record<string, number> = {};
+  for (const table of await referencingFirst(tx, list)) deleted[table] = await tx.$executeRawUnsafe(`DELETE FROM "${table}" WHERE "organizationId" = $1::uuid ${extra[table] ?? ""}`, organizationId);
+  return deleted;
+}
+
+/** `list`, each table before the tables it references (the catalogue's foreign keys): the order to delete in. */
+export async function referencingFirst(tx: Tx, list: string[]): Promise<string[]> {
+  const keys = await tx.$queryRaw<{ child: string; parent: string }[]>`
+    SELECT c.relname AS child, p.relname AS parent FROM pg_constraint k
+    JOIN pg_class c ON c.oid = k.conrelid JOIN pg_class p ON p.oid = k.confrelid
+    WHERE k.contype = 'f' AND k.connamespace = 'public'::regnamespace`;
+  const order: string[] = [];
+  while (order.length < list.length) {
+    const next = list.find((t) => !order.includes(t) && keys.every((k) => k.parent !== t || k.child === t || !list.includes(k.child) || order.includes(k.child)));
+    if (!next) throw new Error("referencingFirst: the listed tables reference each other in a cycle");
+    order.push(next);
+  }
+  return order;
+}
+
 export type DeletionSummary = { deleted: Record<string, number>; scrubbed: Record<string, number>; users: number; kept: Record<string, number> };
 
 /**
@@ -223,10 +249,7 @@ export async function deleteOrganization(
       if (confirmName !== org.name) return fail("WRONG_NAME");
 
       const members = (await tx.membership.findMany({ where: { organizationId }, select: { userId: true } })).map((m) => m.userId);
-      const deleted: Record<string, number> = {};
-      for (const table of DELETED) {
-        deleted[table] = await tx.$executeRawUnsafe(`DELETE FROM "${table}" WHERE "organizationId" = $1::uuid ${PARTLY[table] ?? ""}`, organizationId);
-      }
+      const deleted = await clearOrganizationData(tx, organizationId, DELETED, PARTLY);
       const scrubbed: Record<string, number> = {};
       for (const [table, columns] of Object.entries(SCRUB)) {
         const set = columns.map((c) => `"${c}" = NULL`).join(", ");

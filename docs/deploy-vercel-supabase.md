@@ -82,6 +82,44 @@ BETTER_AUTH_SECRET='<the value set in Vercel>' DEMO_PHONE=+2126XXXXXXXX DEMO_INT
   changes that account's password or sessions; `DEMO_PASSWORD` is ignored. Run again: `demo: nothing added`.
 - The partners and staff get made-up numbers (`+2126000000xx`, downwards from 98) that no user, invitation or
   employee has yet, so a second demo in the same database never collides.
+- **The long history** (`src/ops/demo/history`): the same account, its organisation filled with every day since
+  `DEMO_HISTORY_FROM` (two farms, six houses, broilers back to back, two laying flocks and their pullets, turkeys,
+  beldi, stock, sales, money, staff and pay, compliance), and « SARL Avicole Al Amal » (double-entry books with VAT,
+  assets, a monthly loan, a subsidy, a bank statement reconciled every month, payroll, each past year closed in March
+  with its à-nouveaux), plus four members who sign in by email: `gerant@emsi.ma`, `ouvrier@emsi.ma`,
+  `veterinaire@emsi.ma`, `comptable@emsi.ma`. Told through the app's own rules it is some 220 000 queries one after
+  another: 7 minutes against a local database, but 2,5 hours at Supabase's 41 ms a round trip (measured from Morocco
+  to eu-west-3). So it is told on a local copy of the hosted database and moved in one transaction, the same day:
+
+  ```sh
+  # 1. A backup (section 6), restored into a local database migrated to the same release: the stage.
+  # 2. The history on the stage (local DATABASE_URL), then its rows to a file:
+  DEMO_PHONE=+2126XXXXXXXX DEMO_INTO_EXISTING=1 DEMO_RESET=1 DEMO_HISTORY_FROM=2025-01-01 \
+    DEMO_MEMBERS_FILE='C:\tmp\demo-members.txt' pnpm db:seed:demo
+  DEMO_PHONE=+2126XXXXXXXX DEMO_EXPORT='C:\tmp\demo-history.jsonl' pnpm db:seed:demo
+  # 3. Into Supabase (DATABASE_URL as above): the same reset and the stage's rows, in one transaction.
+  DEMO_PHONE=+2126XXXXXXXX DEMO_IMPORT='C:\tmp\demo-history.jsonl' pnpm db:seed:demo
+  ```
+
+  The import refuses when the hosted organisation changed since the backup (its sync counter moved: take a new backup
+  and tell it again), when the schemas differ, or when a member's email or number is already someone else's there; run
+  again, it adds nothing. The export file holds the members' password hashes: keep it local, delete it afterwards.
+  The same command without the stage (`DEMO_HISTORY_FROM` straight against Supabase) gives the same result, in hours.
+
+  - `DEMO_RESET=1` first empties the account's organisation (its row, the owner's membership, password, sessions and
+    own settings stay; phones get a deletion for every record they kept) and deletes the old scenario's SARL and its
+    made-up users. It is refused unless the account co-owns a company the seed made and every farm and member of
+    those organisations is the seed's: a customer's organisation is never wiped. The ledger's write-once triggers are
+    lifted inside that one transaction only, which holds the journal tables for its few seconds.
+  - The members' passwords are generated (16 characters) and written only to `DEMO_MEMBERS_FILE` (email, role, name,
+    password; default `C:\tmp\demo-members.txt`), never printed. A second run keeps them; `DEMO_MEMBERS_ROTATE=1` sets
+    new ones (a member missing from the file gets a new one too).
+  - The story is seeded: the same on every run, its "today" being the day it runs (the open batch at day 24, a day not
+    entered, a withdrawal running, the grower feed under its threshold, a post-dated cheque in the portfolio, a few
+    unread notifications; none of the history's notifications is pushed to phones). Run again: `nothing added`.
+  - From 2025-01-01: about 15 400 writes and 115 online actions on the stage, some 89 000 rows (a 37 MB file); the
+    import is a few hundred statements. A failure stops either with the refused write or statement, and changes nothing
+    on Supabase (one transaction): run the same command again.
 - Two URLs because the tools read TLS settings differently: Prisma's engine only knows `sslmode=require` (encrypted;
   it accepts any certificate unless told otherwise), while node-postgres reads `require` as "verify the certificate",
   which fails without Supabase's CA, hence `verify-full` with `sslrootcert`. `sslrootcert` is a path from the current

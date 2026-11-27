@@ -2,9 +2,9 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useSyncExternalStore, type MouseEvent } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { REGISTER_ENTITIES } from "@/components/register-access";
-import { RegisterDocument, Section, Table, registerOf } from "@/components/register-document";
+import { RegisterDocument, Section, Table, WithContents, registerOf } from "@/components/register-document";
 import { Page } from "@/components/page";
 import { danger, done, field, secondarySm } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
@@ -121,14 +121,6 @@ function Pack(scope: Scope) {
     { id: "rodents", label: t("Inspection.rodents") },
     ...registers.map((r) => ({ id: r.id, label: t("Inspection.registerOf", { batch: batchLabel(r.batch.id) }) })),
   ];
-  const go = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
-    const target = document.getElementById(id);
-    if (!target) return;
-    e.preventDefault();
-    target.scrollIntoView({ block: "start" });
-    target.focus({ preventScroll: true });
-  };
-
   return (
     <Page
       width="docAside"
@@ -153,25 +145,7 @@ function Pack(scope: Scope) {
         )
       }
     >
-      {/* Wide screens: the contents on the end side of the document, in view while it scrolls (the app's sidebar is on
-          the other); the phone: a row of links above it. First in the DOM, so the keyboard reaches it first. */}
-      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_11rem] lg:items-start lg:gap-6 print:block">
-        <nav aria-label={t("Inspection.contents")} className="print:hidden lg:sticky lg:top-4 lg:order-last">
-          <p className="mb-2 hidden text-sm font-semibold text-ink-2 lg:block" aria-hidden="true">{t("Inspection.contents")}</p>
-          <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-0 lg:overflow-visible lg:border-s lg:border-line">
-            {parts.map((p) => (
-              <li key={p.id} className="shrink-0">
-                <a
-                  href={`#${p.id}`}
-                  onClick={(e) => go(e, p.id)}
-                  className="inline-flex min-h-11 items-center whitespace-nowrap rounded-full border border-line bg-card px-3 text-sm hover:bg-shell lg:min-h-8 lg:w-full lg:whitespace-normal lg:rounded-none lg:border-0 lg:bg-transparent lg:py-1 lg:ps-3 lg:text-ink-2 lg:hover:text-ink"
-                >
-                  {p.label}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
+      <WithContents label={t("Inspection.contents")} parts={parts}>
         <article className="flex min-w-0 flex-col gap-6">
           <Section id="checklist" title={t("Inspection.checklist")}>
             <Table
@@ -259,7 +233,7 @@ function Pack(scope: Scope) {
             </section>
           ))}
         </article>
-      </div>
+      </WithContents>
     </Page>
   );
 }

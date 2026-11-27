@@ -3,10 +3,17 @@ import { controlled, farmDaysAgo, ownerWithFarm, pushAs, referenceCached, scopeR
 
 // T47 acceptance: a batch's ONSSA register prints offline in French and in Arabic, with its cover, daily rows, birds
 // out and disposals, the vet visa grid and the legal reference (arrêté n° 2126-05), and nothing wider than an A4 page. PDFs are kept in test-results/.
-async function printsOnA4(page: Page, name: string) {
+// Owner feedback (tasks/plan-ui.md): the page is in the app's shell; on paper, the register alone.
+const PARTS = ["cover", "supervision", "daily", "treatments", "vaccinations", "birdsOut", "disposals", "labReports", "visas", "annexes"];
+async function printsOnA4(page: Page, name: string, title: string) {
   await page.emulateMedia({ media: "print" });
   await page.setViewportSize({ width: 794, height: 1123 });
   await expect(page.getByRole("button", { name: /Imprimer|طباعة/ })).toBeHidden();
+  await expect(page.getByRole("banner")).toBeHidden();
+  await expect(page.getByRole("navigation", { name: "Navigation principale" })).toBeHidden();
+  await expect(page.getByRole("navigation", { name: "Sommaire" })).toBeHidden();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(title); // the register's own, not the page's
+  for (const part of PARTS) await expect(page.locator(`#${part}`)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.pdf({ format: "A4", preferCSSPageSize: true, path: test.info().outputPath(`${name}.pdf`) });
   await page.emulateMedia({ media: "screen" });
@@ -46,8 +53,13 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
   await context.route("**", (route) => route.abort("internetdisconnected"));
 
   await page.getByRole("link", { name: "Registre de suivi sanitaire (Français)" }).click();
+  await expect(page).toHaveURL(new RegExp(`/fr/register#${ids.batch}/fr$`));
   const doc = page.getByRole("article");
-  await expect(doc.getByRole("heading", { level: 1 })).toHaveText("Registre de suivi sanitaire");
+  const h1 = page.getByRole("heading", { level: 1 });
+  await expect(h1).toHaveText("Registre de suivi sanitaire · Bâtiment 1"); // the page's: the register's own h1 is for paper
+  await expect(page.getByRole("main")).toContainText(/Ferme El Kheir · Bande mise en place le /);
+  await page.reload(); // a precached shell: it opens offline
+  await expect(h1).toHaveText("Registre de suivi sanitaire · Bâtiment 1");
   for (const text of [
     "Ferme El Kheir",
     "Ouled Said, Settat, Casablanca-Settat",
@@ -69,19 +81,55 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
   const daily = doc.getByRole("table").first();
   await expect(daily.getByRole("row").nth(1)).toContainText(/35\s*993\s*4\s*1/); // 1 000 − 2 at arrival − 4 dead − 1 culled
   await expect(daily.getByRole("row").nth(2)).toContainText(/36\s*693\s*0\s*0/); // the sale's day, with no daily entry: 993 − 300 sold
-  await printsOnA4(page, "register-fr");
 
-  await page.goBack();
-  await page.getByRole("link", { name: "Registre de suivi sanitaire (العربية)" }).click();
-  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(doc.getByRole("heading", { level: 1 })).toHaveText("سجل التتبع الصحي");
-  await expect(doc).toContainText("القرار رقم 2126-05");
+  // The contents: a row of links on the phone, each part one click away, the hash (the batch) unchanged.
+  const contents = page.getByRole("navigation", { name: "Sommaire" });
+  await expect(contents.getByRole("link")).toHaveCount(PARTS.length);
+  const url = page.url();
+  await contents.getByRole("link", { name: "Visas du vétérinaire sanitaire (art. 7)" }).click();
+  await expect(page.locator("#visas")).toBeFocused();
+  expect(page.url()).toBe(url);
+
+  // Wide: the header bar and the sidebar, the contents beside the register and in view, the back link to the batch;
+  // nothing leads to /more, and no app language switch on the page (the header's menu has it): only the register's.
+  const sidebar = page.getByRole("navigation", { name: "Navigation principale" });
+  await expect(sidebar.getByRole("link", { name: "Plus", exact: true })).toBeVisible(); // the phone keeps its tab
+  await expect(sidebar.getByRole("link", { name: "Plus", exact: true })).not.toHaveAttribute("aria-current");
+  await expect(sidebar.getByRole("link", { name: "Bandes", exact: true })).toHaveAttribute("aria-current", "page"); // a batch's page
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.getByRole("banner")).toBeVisible();
+  await expect(sidebar).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "Bandes", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "Imprimer ou enregistrer en PDF" })).toBeVisible();
+  expect(await page.evaluate(() => [...document.querySelectorAll('a[href$="/more"]')].filter((a) => a.checkVisibility()).length)).toBe(0);
+  await expect(page.getByRole("navigation", { name: "Langue", exact: true })).toBeHidden();
+  const language = page.getByRole("navigation", { name: "Langue du registre" });
+  await expect(language.getByRole("link", { name: "Français" })).toHaveAttribute("aria-current", "true");
+  await page.locator("#annexes").scrollIntoViewIfNeeded();
+  await expect(contents).toBeInViewport();
+  await expect(page.getByRole("link", { name: "Retour" })).toHaveAttribute("href", `/fr/batches#${ids.batch}`);
+  await page.setViewportSize({ width: 412, height: 839 });
+  await printsOnA4(page, "register-fr", "Registre de suivi sanitaire");
+
+  // The register in Arabic, the app still in French: from the page's switch, then from the batch's link.
+  await language.getByRole("link", { name: "العربية" }).click();
+  const arabic = page.locator('[lang="ar"][dir="rtl"]');
+  await expect(arabic.getByRole("article")).toContainText("القرار رقم 2126-05");
+  await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+  await expect(h1).toHaveText("Registre de suivi sanitaire · Bâtiment 1");
   await expect(doc.locator('bdi[dir="ltr"]').first()).toHaveText("AV-2026-0412");
-  await printsOnA4(page, "register-ar");
+  await printsOnA4(page, "register-ar", "سجل التتبع الصحي");
+  await page.getByRole("link", { name: "Retour" }).click();
+  await expect(page).toHaveURL(new RegExp(`/fr/batches#${ids.batch}$`));
+  await page.getByRole("link", { name: "Registre de suivi sanitaire (العربية)" }).click();
+  await expect(page).toHaveURL(new RegExp(`/fr/register#${ids.batch}/ar$`));
+  await expect(arabic.getByRole("article")).toContainText("القرار رقم 2126-05");
 
-  // The header's language switch keeps the batch (#id): the same register, now in French.
-  await page.getByRole("navigation", { name: "اللغة" }).getByRole("link", { name: "Français" }).click();
-  await expect(page).toHaveURL(new RegExp(`/fr/register#${ids.batch}$`));
-  await expect(doc.getByRole("heading", { level: 1 })).toHaveText("Registre de suivi sanitaire");
-  await expect(doc).toContainText("Ferme El Kheir");
+  // The app in Arabic keeps the batch and the register's language (#id/lang): the page around it changes, not the register.
+  await page.goto(`/ar/register#${ids.batch}/fr`);
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(h1).toHaveText("سجل التتبع الصحي · Bâtiment 1");
+  await expect(page.locator('[lang="fr"][dir="ltr"]').getByRole("article")).toContainText("Ferme El Kheir");
+  await page.goto(`/ar/register#${ids.batch}`); // no language: the app's
+  await expect(page.locator('[lang="ar"][dir="rtl"]').getByRole("article")).toContainText("القرار رقم 2126-05");
 });

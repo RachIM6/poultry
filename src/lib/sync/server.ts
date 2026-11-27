@@ -102,7 +102,8 @@ function claimed(ctx: TenantContext, m: PushedMutation, decide: (tx: Tx) => Prom
   }, SYNC_TX);
 }
 
-async function decide(tx: Tx, ctx: TenantContext, m: PushedMutation, registry: SyncRegistry): Promise<MutationResult> {
+/** One mutation checked and applied in `tx`, as push does it (src/ops/demo batches many to a transaction). */
+export async function decide(tx: Tx, ctx: TenantContext, m: PushedMutation, registry: SyncRegistry): Promise<MutationResult> {
   const handler = Object.hasOwn(registry.mutations, m.type) ? registry.mutations[m.type] : undefined;
   if (ctx.leftAt) return rejected("ORGANIZATION_LEFT"); // read-only once it left (docs/data-requests.md)
   if (!handler) return rejected("UNKNOWN_MUTATION");

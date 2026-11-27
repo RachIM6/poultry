@@ -2106,7 +2106,7 @@
     "forbidden": "Les emprunts et subventions sont réservés au propriétaire, au gérant et au comptable.",
     "open": "Emprunts et subventions",
     "title": "Emprunts et subventions",
-    "hint": "Saisissez l’emprunt depuis le contrat : l’échéancier est calculé, les intérêts d’une période étant le taux annuel divisé par le nombre de périodes de l’année, sans compter les jours. Ajustez chaque ligne au tableau de la banque, au centime, puis confirmez : les lignes ne changent plus. Pas d’intérêts courus à la clôture : une écriture manuelle si l’expert-comptable le demande.",
+    "hint": "Saisissez l’emprunt depuis le contrat : l’échéancier est calculé, les intérêts d’une période étant le taux annuel divisé par le nombre de périodes de l’année, sans compter les jours. Ajustez chaque ligne au tableau de la banque, au centime, puis confirmez : les lignes ne changent plus. Les intérêts courus et non échus sont passés à la clôture de l’exercice, au prorata des jours écoulés depuis la dernière échéance, puis extournés à l’ouverture de l’exercice suivant.",
     "add": "Ajouter un emprunt",
     "lender": "Prêteur",
     "bank": "Compte bancaire du déblocage et des échéances",

@@ -154,7 +154,8 @@ function Stepper({ name, label, defaultValue, step, decimal = false, big = false
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <label htmlFor={id} className={`flex-1 ${big ? "text-lg font-semibold" : "text-base text-ink-2"}`}>{label}</label>
-      <div className="inline-flex items-center rounded-2xl border border-muted bg-shell">
+      {/* The typed value's focus ring goes round the whole control, as on a field: on the input alone it cut through − and + (WCAG 2.4.7). */}
+      <div className="inline-flex items-center rounded-2xl border border-muted bg-shell has-[input:focus-visible]:border-ink has-[input:focus-visible]:outline-3 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-ink">
         <button type="button" aria-label={t("minus", { step: String(step), label })} onClick={() => bump(-step)} className={button}>−</button>
         <input
           id={id}
@@ -165,7 +166,7 @@ function Stepper({ name, label, defaultValue, step, decimal = false, big = false
           pattern={decimal ? undefined : "\\d*"}
           dir="ltr"
           placeholder="0"
-          className={`${big ? "w-24 text-[28px]" : "w-20 text-xl"} min-w-0 self-stretch bg-transparent text-center font-semibold placeholder:text-muted`}
+          className={`${big ? "w-24 text-[28px]" : "w-20 text-xl"} min-w-0 self-stretch bg-transparent text-center font-semibold placeholder:text-muted focus-visible:outline-none!`}
         />
         <button type="button" aria-label={t("plus", { step: String(step), label })} onClick={() => bump(step)} className={button}>+</button>
       </div>

@@ -239,7 +239,7 @@ function Profile({ name = "", role }: { name?: string; role: string }) {
       </button>
       <div id={id} hidden={!open} onClick={onClick} className={`absolute end-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] ${popover}`}>
         <p className="px-3 pb-1 pt-2 lg:hidden">{who}</p>
-        <Link href="/organizations#name" className={item}>{t("Header.yourName")}</Link>
+        <Link href="/organizations#name" className={item}>{t("Header.personalInfo")}</Link>
         <Link href="/organizations" className={item}>{t("Organizations.title")}</Link>
         <div className="border-t border-line px-3 pt-1">
           <LocaleSwitcher />

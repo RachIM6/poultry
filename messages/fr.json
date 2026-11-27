@@ -307,7 +307,14 @@
     "create": "Créer le compte",
     "join": "Rejoindre",
     "setPassword": "Enregistrer le mot de passe",
-    "joinWithCode": "Rejoindre une exploitation avec un code"
+    "joinWithCode": "Rejoindre une exploitation avec un code",
+    "passwordTitle": "Mot de passe",
+    "passwordIntro": "Vos autres appareils seront déconnectés ; celui-ci reste connecté.",
+    "currentPasswordLabel": "Mot de passe actuel",
+    "newPasswordLabel": "Nouveau mot de passe",
+    "confirmNewPasswordLabel": "Confirmer le nouveau mot de passe",
+    "changePassword": "Changer le mot de passe",
+    "passwordChanged": "Mot de passe changé. Vos autres appareils sont déconnectés."
   },
   "Onboarding": {
     "title": "Créer votre exploitation",
@@ -669,7 +676,7 @@
   },
   "Header": {
     "notifications": "{count, plural, =0 {Notifications} one {Notifications, # non lue} other {Notifications, # non lues}}",
-    "yourName": "Votre nom",
+    "personalInfo": "Informations personnelles",
     "nameHint": "Il s’affiche en haut de l’écran, et pour les autres membres de l’exploitation.",
     "nameSaved": "Nom enregistré.",
     "save": "Enregistrer",
@@ -1070,6 +1077,7 @@
     "PASSWORD_TOO_LONG": "Le mot de passe doit faire au plus 128 caractères.",
     "WEAK_PASSWORD": "Ce mot de passe est trop facile à deviner. Choisissez-en un autre.",
     "PASSWORDS_DIFFER": "Les deux mots de passe ne sont pas identiques.",
+    "INVALID_CURRENT_PASSWORD": "Mot de passe actuel incorrect.",
     "RESET_NOT_ALLOWED": "Impossible ici : ce membre est propriétaire ou a accès à d’autres exploitations. Contactez le support."
   },
   "Weighing": {

@@ -158,3 +158,51 @@ test("log out of all devices ends every session of the user", async ({ page, bro
   await expect(lost).toHaveURL(/\/fr\/login$/);
   await lost.close();
 });
+
+test("« Informations personnelles »: a signed-in user changes their password, signs out, and signs in with the new one", async ({ page, browser }) => {
+  test.setTimeout(120_000);
+  const NEW = "e2e brand new phrase";
+  const e164 = await ownerWithFarm(page, "Élevage du Nouveau Mot de Passe");
+  const phone = `0${e164.slice(4)}`;
+  const other = await browser.newPage(); // another phone of the same user
+  await login(other, "fr", phone);
+  await other.waitForURL(/\/fr\/dashboard$/);
+
+  await page.goto("/fr/organizations");
+  const section = page.getByRole("region", { name: "Informations personnelles" });
+  const fill = async (current: string) => {
+    await section.getByLabel("Mot de passe actuel", { exact: true }).fill(current);
+    await section.getByLabel("Nouveau mot de passe", { exact: true }).fill(NEW);
+    await section.getByLabel("Confirmer le nouveau mot de passe", { exact: true }).fill(NEW);
+  };
+  const submit = section.getByRole("button", { name: "Changer le mot de passe" });
+
+  await page.context().setOffline(true); // online only: said, and nothing sent
+  await expect(section.getByText("Hors ligne : à faire une fois connecté.")).toBeVisible();
+  await expect(submit).toBeDisabled();
+  await page.context().setOffline(false);
+
+  await fill("not the password");
+  await submit.click();
+  await expect(section.getByRole("alert")).toHaveText("Mot de passe actuel incorrect.");
+  await fill(PASSWORD);
+  await submit.click();
+  await expect(section.getByRole("status")).toHaveText("Mot de passe changé. Vos autres appareils sont déconnectés.");
+
+  await other.goto("/fr/dashboard");
+  await expect(other).toHaveURL(/\/fr\/login$/); // the other phone's session ended
+  await other.close();
+  await page.goto("/fr/dashboard");
+  await expect(page).toHaveURL(/\/fr\/dashboard$/); // this one stayed
+
+  await page.getByRole("banner").getByRole("button", { name: "Nadia Testeur Propriétaire" }).click();
+  await page.getByRole("button", { name: "Se déconnecter", exact: true }).click();
+  await expect(page).toHaveURL(/\/fr\/login$/);
+  await page.getByLabel("Téléphone ou e-mail").fill(phone);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Se connecter", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Téléphone, e-mail ou mot de passe incorrect."); // the old one
+  await page.getByLabel("Mot de passe", { exact: true }).fill(NEW);
+  await page.getByRole("button", { name: "Se connecter", exact: true }).click();
+  await expect(page).toHaveURL(/\/fr\/dashboard$/);
+});

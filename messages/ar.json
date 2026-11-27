@@ -307,7 +307,14 @@
     "create": "إنشاء الحساب",
     "join": "انضمام",
     "setPassword": "حفظ كلمة المرور",
-    "joinWithCode": "الانضمام إلى ضيعة برمز"
+    "joinWithCode": "الانضمام إلى ضيعة برمز",
+    "passwordTitle": "كلمة المرور",
+    "passwordIntro": "سيتم تسجيل خروج أجهزتك الأخرى، ويبقى هذا الجهاز متصلًا.",
+    "currentPasswordLabel": "كلمة المرور الحالية",
+    "newPasswordLabel": "كلمة المرور الجديدة",
+    "confirmNewPasswordLabel": "تأكيد كلمة المرور الجديدة",
+    "changePassword": "تغيير كلمة المرور",
+    "passwordChanged": "تم تغيير كلمة المرور. تم تسجيل خروج أجهزتك الأخرى."
   },
   "Onboarding": {
     "title": "إنشاء استغلاليتك",
@@ -669,7 +676,7 @@
   },
   "Header": {
     "notifications": "{count, plural, =0 {الإشعارات} one {الإشعارات، # غير مقروء} other {الإشعارات، # غير مقروءة}}",
-    "yourName": "اسمك",
+    "personalInfo": "المعلومات الشخصية",
     "nameHint": "يظهر أعلى الشاشة، ولباقي أعضاء الضيعة.",
     "nameSaved": "تم حفظ الاسم.",
     "save": "حفظ",
@@ -1070,6 +1077,7 @@
     "PASSWORD_TOO_LONG": "يجب ألا تتجاوز كلمة المرور 128 حرفًا.",
     "WEAK_PASSWORD": "كلمة المرور هذه سهلة التخمين. اختر غيرها.",
     "PASSWORDS_DIFFER": "كلمتا المرور غير متطابقتين.",
+    "INVALID_CURRENT_PASSWORD": "كلمة المرور الحالية غير صحيحة.",
     "RESET_NOT_ALLOWED": "غير ممكن هنا: هذا العضو صاحب ضيعة أو لديه وصول إلى ضيعات أخرى. اتصل بالدعم."
   },
   "Weighing": {

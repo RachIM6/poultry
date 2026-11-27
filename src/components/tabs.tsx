@@ -22,14 +22,17 @@ export function Tabs({ label, current, tabs }: {
   tabs: readonly { key: string; label: ReactNode; href: Href; count?: number }[];
 }) {
   return (
-    <nav aria-label={label} className="flex gap-1 overflow-x-auto border-b border-line print:hidden">
+    // The rule under the tabs is an inset shadow, under the current tab's own border: a -1px margin over a border-b
+    // overflowed the bar by 1 px, and overflow-x makes it a vertical scroll (a scrollbar on Windows). The bar clips
+    // what passes its edges, so a tab's focus ring is drawn inside the tab (WCAG 2.4.7).
+    <nav aria-label={label} className="flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-line)] print:hidden">
       {tabs.map((tab) => (
         <Link
           key={tab.key}
           href={tab.href}
           scroll={false}
           aria-current={tab.key === current ? "page" : undefined}
-          className="-mb-px inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 text-sm font-medium text-ink-2 hover:text-ink aria-[current=page]:border-ink aria-[current=page]:font-semibold aria-[current=page]:text-ink"
+          className="inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 text-sm font-medium text-ink-2 hover:text-ink aria-[current=page]:border-ink aria-[current=page]:font-semibold aria-[current=page]:text-ink focus-visible:-outline-offset-3!"
         >
           {tab.label}
           {tab.count !== undefined && <span className="rounded-full bg-card px-2 text-xs" dir="ltr">{tab.count}</span>}

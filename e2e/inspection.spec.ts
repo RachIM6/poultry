@@ -52,8 +52,29 @@ test("the inspection pack opens offline, lists the missing pieces and prints", a
   await expect(page.locator("#rodents")).toBeFocused();
   expect(page.url()).toBe(url);
 
+  // Owner feedback: the pack is in the app's shell, offline too: the phone keeps its « Plus » tab; a wide screen has the
+  // header bar and the sidebar (the pack marked in its group), and nothing there leads to /more any more, nor a
+  // language switch of its own (the header's menu has it).
+  const sidebar = page.getByRole("navigation", { name: "Navigation principale" });
+  await expect(sidebar.getByRole("link", { name: "Plus", exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.getByRole("banner")).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "Dossier d’inspection" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "Imprimer ou enregistrer en PDF" })).toBeVisible(); // the header's action
+  expect(await page.evaluate(() => [...document.querySelectorAll('a[href$="/more"]')].filter((a) => a.checkVisibility()).length)).toBe(0);
+  await expect(page.getByRole("link", { name: "العربية" })).toBeHidden();
+  await expect(contents).toBeVisible(); // beside the document, in view while it scrolls
+  await page.locator("#rodents").scrollIntoViewIfNeeded();
+  await expect(contents).toBeInViewport();
+
   await page.emulateMedia({ media: "print" });
   await expect(contents).toBeHidden(); // paper: the document alone
+  await expect(page.getByRole("banner")).toBeHidden();
+  await expect(sidebar).toBeHidden();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("main")).toContainText(/Période : du .+Autorisation sanitaire : non renseignée/); // the header's subtitle prints
+  for (const part of ["checklist", "documents", "cleanouts", "visitors", "disposals", "manure", "rodents"]) await expect(page.locator(`#${part}`)).toBeVisible();
+  await expect(page.locator('[id^="register-"]')).toBeVisible(); // the open batch's register
   await page.setViewportSize({ width: 794, height: 1123 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.pdf({ format: "A4", preferCSSPageSize: true, path: test.info().outputPath("inspection-fr.pdf") });

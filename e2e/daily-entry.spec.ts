@@ -71,3 +71,31 @@ test("the day's entry in Arabic, right to left", async ({ page }) => {
     (await query<{ dead: number }>(`SELECT d.dead FROM "DailyEntry" d JOIN "Membership" m ON m."organizationId" = d."organizationId" JOIN "User" u ON u.id = m."userId" WHERE u."phoneNumber" = $1`, [e164]))[0]?.dead;
   await expect.poll(dead).toBe(2);
 });
+
+// Owner feedback: the stepper's focus ring goes round the whole − value + control, as on a field (WCAG 2.4.7); on the
+// input alone it cut through the − and + buttons. Each button keeps its own ring. Phone and wide screens.
+test("the stepper shows its focus ring round the whole control, and each button its own", async ({ page }) => {
+  test.setTimeout(60_000);
+  await ownerWithFarm(page, "Élevage du Focus");
+  await scopeRemembered(page);
+  await farmWithBatch(page);
+  await page.goto("/fr/batches");
+  await page.getByRole("link", { name: "Saisir le jour" }).click();
+  const dead = page.getByLabel("Morts", { exact: true });
+  const control = dead.locator("xpath=.."); // the − value + box
+  const ring = (el: Element) => {
+    const s = getComputedStyle(el);
+    return { style: s.outlineStyle, width: s.outlineWidth, border: s.borderTopColor };
+  };
+  for (const size of [{ width: 412, height: 915 }, { width: 1440, height: 900 }]) {
+    await page.setViewportSize(size);
+    await dead.click();
+    expect(await dead.evaluate(ring)).toMatchObject({ style: "none" });
+    expect(await control.evaluate(ring)).toEqual({ style: "solid", width: "3px", border: "rgb(36, 33, 28)" }); // ink
+    await page.keyboard.press("Tab"); // to « + »
+    const plus = page.getByRole("button", { name: "Plus 1 · Morts" });
+    await expect(plus).toBeFocused();
+    expect(await plus.evaluate(ring)).toMatchObject({ style: "solid", width: "3px" });
+    expect(await control.evaluate(ring)).toMatchObject({ style: "none" });
+  }
+});

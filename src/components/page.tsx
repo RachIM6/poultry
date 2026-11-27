@@ -9,6 +9,7 @@ const WIDTHS = {
   form: "max-w-xl", // a form or field entry
   wide: "max-w-xl lg:max-w-6xl", // lists, money, operations
   doc: "max-w-xl lg:max-w-5xl print:max-w-none print:p-0", // a printable document
+  docAside: "max-w-xl lg:max-w-6xl print:max-w-none print:p-0", // a printable document with its contents beside it (/inspection)
 } as const;
 
 /**

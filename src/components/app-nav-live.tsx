@@ -33,7 +33,6 @@ export function Refused({ spoken = false }: { spoken?: boolean }) {
 // icon opening its links in a 256 px side panel (one at a time; the same icon, « Fermer le panneau » or Escape closes it).
 // The fold is remembered on this browser and set on <html> before the first paint (nav-mode.ts), which sizes the sidebar.
 type Group = ReturnType<typeof moreGroups>[number];
-const PLUS = "M5 12h.01M12 12h.01M19 12h.01";
 const idOf = (title: string) => `nav-${title.split(".")[1]}`;
 const icon = (d: string, size: number, className = "shrink-0") => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
@@ -50,7 +49,8 @@ const current = "aria-[current=page]:bg-chick aria-[current=page]:font-semibold 
 
 export function WideGroups({ isIn }: { isIn: (href: string) => boolean }) {
   const t = useTranslations();
-  // null: no role on this phone yet (a first offline load), so a « Plus » link to /more instead; undefined: still reading.
+  // null: no one signed in on this phone (the screen itself offers to sign in): the tabs alone, never a link to /more,
+  // which nothing on wide screens leads to (owner feedback); undefined: still reading.
   const scope = useLiveQuery(async () => (await currentScope()) ?? null, []);
   // The language and the sign-out are in the header's menu (U20); the notifications and the sync, the header's bell and chip.
   const groups = (scope ? moreGroups(scope) : []).map((g) => ({ ...g, links: g.links.filter((l) => !l.phone) })).filter((g) => g.links.length > 0);
@@ -164,12 +164,6 @@ export function WideGroups({ isIn }: { isIn: (href: string) => boolean }) {
   return (
     <div className={`hidden w-full flex-1 flex-col lg:flex ${rail ? "items-center gap-1.5" : "gap-0.5"}`}>
       {rule}
-      {scope === null && (
-        <Link href="/more" className={rail ? `${railButton} hover:bg-shell/10` : `${item} px-2 text-[15px]`}>
-          {icon(PLUS, 22)}
-          <span data-tip>{t("Nav.more")}</span>
-        </Link>
-      )}
       {rail ? (
         <ul className="flex flex-col items-center gap-1.5">
           {others.map((g) => (

@@ -309,12 +309,12 @@
     "setPassword": "Enregistrer le mot de passe",
     "joinWithCode": "Rejoindre une exploitation avec un code",
     "passwordTitle": "Mot de passe",
-    "passwordIntro": "Vos autres appareils seront déconnectés ; celui-ci reste connecté.",
+    "passwordIntro": "Vos autres appareils seront déconnectés et ne recevront plus de notifications ; celui-ci reste connecté.",
     "currentPasswordLabel": "Mot de passe actuel",
     "newPasswordLabel": "Nouveau mot de passe",
     "confirmNewPasswordLabel": "Confirmer le nouveau mot de passe",
     "changePassword": "Changer le mot de passe",
-    "passwordChanged": "Mot de passe changé. Vos autres appareils sont déconnectés."
+    "passwordChanged": "Mot de passe changé. Vos autres appareils sont déconnectés et ne recevront plus de notifications."
   },
   "Onboarding": {
     "title": "Créer votre exploitation",

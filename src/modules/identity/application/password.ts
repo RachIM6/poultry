@@ -274,12 +274,14 @@ type ChangePasswordError = "UNAUTHENTICATED" | "TOO_MANY_REQUESTS" | "INVALID_CU
 /**
  * A signed-in user sets a new password, giving the current one. A wrong current password, or none set, is always
  * INVALID_CURRENT_PASSWORD. Every try counts per user and per IP (changePassword policy) until one succeeds; sign-in
- * is untouched, so the account never locks. On success every other session of the user ends and this one stays.
+ * is untouched, so the account never locks. On success every other session of the user ends and this one stays, and
+ * `forgetDevices` stops the pushes to every device (a lost or shared phone); the page then re-registers this one.
  * The new password follows sign-up's rules; it is checked first, so a weak one spends no try.
  */
 export async function changePassword(
   headers: Headers,
   input: { current: unknown; next: unknown; confirm: unknown },
+  forgetDevices: ForgetDevices,
 ): Promise<Result<void, ChangePasswordError>> {
   const session = await getSession(headers);
   if (!session) return fail("UNAUTHENTICATED");
@@ -316,7 +318,9 @@ export async function changePassword(
   const hash = await context.password.hash(password.value);
   const ended = await db.$transaction(async (tx) => {
     await tx.account.update({ where: { id: credential.id }, data: { password: hash } });
-    return (await tx.session.deleteMany({ where: { userId: session.userId, id: { not: session.sessionId } } })).count;
+    const { count } = await tx.session.deleteMany({ where: { userId: session.userId, id: { not: session.sessionId } } });
+    await forgetDevices(tx, session.userId);
+    return count;
   });
   await reset("changePassword", dims);
   await event("password_changed", `other_sessions_ended:${ended}`);

@@ -168,6 +168,16 @@ test("« Informations personnelles »: a signed-in user changes their password, 
   await login(other, "fr", phone);
   await other.waitForURL(/\/fr\/dashboard$/);
 
+  // This phone has pushes on: a subscription the browser already holds (a stand-in, headless Chromium has no push
+  // service). The change forgets every device's pushes; the form must send this one again, without prompting.
+  const ENDPOINT = `https://fcm.googleapis.com/fcm/send/e2e-change-${phone}`;
+  await page.addInitScript((endpoint) => {
+    const sub = { endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "k", auth: "a" } }), unsubscribe: async () => true };
+    Object.defineProperty(Notification, "permission", { get: () => "granted" });
+    navigator.serviceWorker.getRegistration = async () => ({ pushManager: { getSubscription: async () => sub } }) as unknown as ServiceWorkerRegistration;
+  }, ENDPOINT);
+  const resubscribed: string[] = [];
+  page.on("request", (r) => void (r.method() === "POST" && r.url().endsWith("/api/push/subscribe") && resubscribed.push(r.url())));
   await page.goto("/fr/organizations");
   const section = page.getByRole("region", { name: "Informations personnelles" });
   const fill = async (current: string) => {
@@ -185,9 +195,14 @@ test("« Informations personnelles »: a signed-in user changes their password, 
   await fill("not the password");
   await submit.click();
   await expect(section.getByRole("alert")).toHaveText("Mot de passe actuel incorrect.");
+  expect(resubscribed).toEqual([]); // a refusal forgets no device
+  await query(`INSERT INTO "PushSubscription" ("userId", endpoint, p256dh, auth) SELECT id, $2, 'k', 'a' FROM "User" WHERE "phoneNumber" = $1`, [e164, `https://fcm.googleapis.com/fcm/send/e2e-other-${phone}`]); // the other phone's
   await fill(PASSWORD);
   await submit.click();
-  await expect(section.getByRole("status")).toHaveText("Mot de passe changé. Vos autres appareils sont déconnectés.");
+  await expect(section.getByRole("status")).toHaveText("Mot de passe changé. Vos autres appareils sont déconnectés et ne recevront plus de notifications.");
+  expect(resubscribed).toHaveLength(1);
+  const pushes = () => query<{ endpoint: string }>(`SELECT p.endpoint FROM "PushSubscription" p JOIN "User" u ON u.id = p."userId" WHERE u."phoneNumber" = $1`, [e164]);
+  expect(await pushes()).toEqual([{ endpoint: ENDPOINT }]); // this phone's pushes, back after the change forgot them
 
   await other.goto("/fr/dashboard");
   await expect(other).toHaveURL(/\/fr\/login$/); // the other phone's session ended

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as signInRoute } from "@/app/api/auth/sign-in/route";
 import { POST as signUpRoute } from "@/app/api/auth/sign-up/route";
 import { db } from "@/lib/db";
-import { changePassword, getSession, hasPassword } from "@/modules/identity";
+import { changePassword, getSession, hasPassword, type ForgetDevices } from "@/modules/identity";
 
 // « Informations personnelles »: a signed-in user changes their own password. Real sign-up and sign-in requests make
 // the sessions; the captcha is disabled (vitest.config.ts).
@@ -26,7 +26,9 @@ const cookieOf = (res: Response, ip?: string) =>
   new Headers({ cookie: res.headers.getSetCookie().map((c) => c.split(";")[0]).join("; "), ...(ip ? { "x-forwarded-for": ip } : {}) });
 const signUp = async (phone: string) => cookieOf(await post(signUpRoute, "sign-up", { firstName: "Karim", lastName: "Ben Ahmed", phone, password: PASSWORD, locale: "fr" }));
 const signIn = async (identifier: string, password = PASSWORD) => post(signInRoute, "sign-in", { identifier, password, locale: "fr" });
-const change = (headers: Headers, current: string, next = NEW, confirm = next) => changePassword(headers, { current, next, confirm });
+// What the app passes (notifications forgetPushSubscriptions; identity can't import it, CAPABILITY-MAP). e2e/login.spec.ts covers the real one.
+const forgetPushes: ForgetDevices = (tx, userId) => tx.pushSubscription.deleteMany({ where: { userId } });
+const change = (headers: Headers, current: string, next = NEW, confirm = next) => changePassword(headers, { current, next, confirm }, forgetPushes);
 const events = (action: string) => db.authEvent.findMany({ where: { action }, orderBy: { id: "asc" } });
 const hashOf = async (phone: string) =>
   (await db.account.findFirstOrThrow({ where: { providerId: "credential", user: { phoneNumber: phone } } })).password;
@@ -34,15 +36,21 @@ const hashOf = async (phone: string) =>
 describe("changePassword", () => {
   beforeEach(() => db.rateLimitHit.deleteMany());
 
-  it("keeps this session, ends every other one, and only the new password signs in; audited without secrets", async () => {
+  it("keeps this session, ends every other one, forgets the pushes, and only the new password signs in; audited", async () => {
     const here = await signUp("0647000001");
     const others = [cookieOf(await signIn("0647000001")), cookieOf(await signIn("0647000001"))];
     const someoneElse = await signUp("0647000002");
+    const [me, them] = [(await getSession(here))!.userId, (await getSession(someoneElse))!.userId];
+    const pushes = (userId: string) => db.pushSubscription.count({ where: { userId } });
+    for (const [userId, n] of [[me, 1], [me, 2], [them, 3]] as const)
+      await db.pushSubscription.create({ data: { userId, endpoint: `https://fcm.googleapis.com/fcm/send/change-${n}`, p256dh: "k", auth: "a" } });
 
     expect(await change(here, PASSWORD)).toEqual({ ok: true, value: undefined });
     expect(await getSession(here)).toMatchObject({ phone: "+212647000001" });
     for (const other of others) expect(await getSession(other)).toBeNull();
     expect(await getSession(someoneElse)).not.toBeNull(); // nobody else's sessions
+    expect(await pushes(me)).toBe(0); // a lost or shared phone stops showing this user's notifications (the page re-registers this one)
+    expect(await pushes(them)).toBe(1); // someone else's stay
     expect((await signIn("0647000001")).status).toBe(401); // the old password
     expect((await signIn("0647000001", NEW)).status).toBe(200);
 
@@ -54,9 +62,12 @@ describe("changePassword", () => {
   it("a wrong current password is one uniform error, audited, and changes nothing", async () => {
     const here = await signUp("0647000010");
     const before = await hashOf("+212647000010");
+    const me = (await getSession(here))!.userId;
+    await db.pushSubscription.create({ data: { userId: me, endpoint: "https://fcm.googleapis.com/fcm/send/change-kept", p256dh: "k", auth: "a" } });
     for (const current of ["not the password", "", "x".repeat(200)])
       expect(await change(here, current)).toEqual({ ok: false, error: "INVALID_CURRENT_PASSWORD" });
     expect(await hashOf("+212647000010")).toBe(before);
+    expect(await db.pushSubscription.count({ where: { userId: me } })).toBe(1); // a refusal forgets no device
     expect((await events("password_change_failed")).map((e) => e.reason)).toEqual(["wrong_password", "wrong_password", "wrong_password"]);
     expect((await signIn("0647000010")).status).toBe(200);
   });

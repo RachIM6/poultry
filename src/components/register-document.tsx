@@ -1,11 +1,13 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { hasLocale, NextIntlClientProvider, useLocale, useTranslations, type AbstractIntlMessages } from "next-intl";
+import { useEffect, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
+import { Page } from "@/components/page";
 import { REGISTER_ENTITIES, wholeRegister } from "@/components/register-access";
-import { primary, warn } from "@/components/ui";
+import { ghost, secondarySm, warn } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
+import { dirOf, routing } from "@/i18n/routing";
 import { formatCount, formatDay, formatKgValue } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import type { DisposalDto } from "@/modules/biosecurity/shared";
@@ -21,46 +23,81 @@ import type { BuyerDto, SaleDto } from "@/modules/sales/shared";
 import { cachedReference, currentScope, localDb, scopeKey, type LocalRecord, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
 
-// SPEC-m2-compliance RP2 on the static /register shell: the "registre de suivi sanitaire" of one batch
-// (/register#<batch id>), built on the phone so it prints offline, in the page's language. Print CSS only, no PDF
+// SPEC-m2-compliance RP2 on the static /register shell (in the app's shell): the "registre de suivi sanitaire" of one
+// batch (/register#<batch id>/<fr|ar>), built on the phone so it prints offline, in French or Arabic. Print CSS only, no PDF
 // library (D1). Sections in the order of arrêté n° 2126-05 art. 2, on paper and paginated (art. 8); what the app
 // doesn't record is a blank line to fill by hand (CQ1).
 
 const onHashChange = (notify: () => void) => (window.addEventListener("hashchange", notify), () => window.removeEventListener("hashchange", notify));
 const useHash = () => useSyncExternalStore(onHashChange, () => decodeURIComponent(window.location.hash.slice(1)), () => "");
 
-export function RegisterScreen() {
-  const t = useTranslations("Sync");
+export function RegisterScreen({ documents }: { documents: Record<string, AbstractIntlMessages> }) {
+  const t = useTranslations();
   const scope = useLiveQuery(() => currentScope().then((s) => s ?? null), [], undefined);
-  if (scope === undefined) return null;
+  if (scope === undefined) return <Page width="docAside" back="/batches" />;
   if (scope === null) {
     return (
-      <p>
-        {t("signedOut")} <Link href="/login" className="underline underline-offset-4">{t("login")}</Link>
-      </p>
+      <Page width="docAside" back="/batches" title={t("Register.title")}>
+        <p>
+          {t("Sync.signedOut")} <Link href="/login" className="underline underline-offset-4">{t("Sync.login")}</Link>
+        </p>
+      </Page>
     );
   }
-  return <RegisterOf key={scopeKey(scope)} {...scope} />;
+  return <RegisterOf key={scopeKey(scope)} scope={scope} documents={documents} />;
 }
 
-function RegisterOf({ userId, organizationId, role }: Scope) {
-  const t = useTranslations("Register");
+// The register's parts, in its order: the contents on screen (each section's id).
+const PARTS = ["cover", "supervision", "daily", "treatments", "vaccinations", "birdsOut", "disposals", "labReports", "visas", "annexes"] as const;
+
+function RegisterOf({ scope: { userId, organizationId, role }, documents }: { scope: Scope; documents: Record<string, AbstractIntlMessages> }) {
+  const t = useTranslations();
   const locale = useLocale();
-  const batchId = useHash();
+  // #<batch id>/<language>: the document's language, French or Arabic whatever the app's (the batch's two links);
+  // without one, the app's.
+  const [batchId, asked = ""] = useHash().split("/");
+  const language = hasLocale(routing.locales, asked) ? asked : locale;
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf(REGISTER_ENTITIES).toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
-  if (!records || reference === undefined) return null;
+  const back = batchId ? `/batches#${batchId}` : "/batches"; // back to that batch
+  if (!records || reference === undefined) return <Page width="docAside" back={back} />;
 
-  const register = registerOf(batchId, records, reference?.data ?? null, locale);
-  if (!register) return <p>{t("notFound")}</p>;
+  const register = registerOf(batchId, records, reference?.data ?? null, language);
+  if (!register) return <Page width="docAside" back={back} title={t("Register.title")}><p>{t("Register.notFound")}</p></Page>;
+  const c = register.cover;
   return (
-    <>
+    <Page
+      width="docAside"
+      back={back}
+      screenOnly
+      title={c.house ? <>{t("Register.title")} · <bdi>{c.house}</bdi></> : t("Register.title")}
+      subtitle={<><bdi>{c.farmName}</bdi> · {t("Register.batchOf", { date: formatDay(c.placedOn as FarmDay, locale) })}</>}
+      actions={
+        <>
+          {/* The document's language, not the app's (that one is in the header's menu): each name in its own language. */}
+          <nav aria-label={t("Register.language")} className="flex gap-1">
+            {routing.locales.map((l) => (
+              <a key={l} href={`#${batchId}/${l}`} lang={l} aria-current={l === language || undefined} className={`${ghost} underline-offset-4 aria-[current=true]:font-semibold aria-[current=true]:text-ink aria-[current=true]:underline`}>
+                {t(`LocaleSwitcher.${l}`)}
+              </a>
+            ))}
+          </nav>
+          <button type="button" onClick={() => window.print()} className={secondarySm}>{t("Register.print")}</button>
+        </>
+      }
+    >
       {/* A role whose phone lacks some of the register's records (the link isn't offered; a typed address still opens it) */}
-      {!wholeRegister({ userId, organizationId, role }) && <p role="note" className={`${warn} print:hidden`}>{t("incomplete")}</p>}
-      <RegisterDocument register={register} />
-    </>
+      {!wholeRegister({ userId, organizationId, role }) && <p role="note" className={`${warn} print:hidden`}>{t("Register.incomplete")}</p>}
+      <WithContents label={t("Inspection.contents")} parts={PARTS.map((id) => ({ id, label: t(`Register.${id}`) }))}>
+        <div lang={language} dir={dirOf(language)} className="min-w-0">
+          <NextIntlClientProvider locale={language} messages={documents[language]}>
+            <RegisterDocument register={register} />
+          </NextIntlClientProvider>
+        </div>
+      </WithContents>
+    </Page>
   );
 }
 
@@ -102,6 +139,42 @@ export function Section({ title, children, heading: H = "h2", id }: { title: str
   );
 }
 
+/**
+ * A long document beside its contents (tasks/plan-ui-cleanup.md §4): wide screens, on the end side of the document, in
+ * view while it scrolls (the app's sidebar is on the other); the phone, a row of links above it. First in the DOM, so the
+ * keyboard reaches it first. Its links scroll without touching the hash, which names the record. Paper: the document alone.
+ */
+export function WithContents({ label, parts, children }: { label: string; parts: { id: string; label: string }[]; children: ReactNode }) {
+  const go = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({ block: "start" });
+    target.focus({ preventScroll: true });
+  };
+  return (
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_11rem] lg:items-start lg:gap-6 print:block">
+      <nav aria-label={label} className="print:hidden lg:sticky lg:top-4 lg:order-last">
+        <p className="mb-2 hidden text-sm font-semibold text-ink-2 lg:block" aria-hidden="true">{label}</p>
+        <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-0 lg:overflow-visible lg:border-s lg:border-line">
+          {parts.map((p) => (
+            <li key={p.id} className="shrink-0">
+              <a
+                href={`#${p.id}`}
+                onClick={(e) => go(e, p.id)}
+                className="inline-flex min-h-11 items-center whitespace-nowrap rounded-full border border-line bg-card px-3 text-sm hover:bg-shell lg:min-h-8 lg:w-full lg:whitespace-normal lg:rounded-none lg:border-0 lg:bg-transparent lg:py-1 lg:ps-3 lg:text-ink-2 lg:hover:text-ink"
+              >
+                {p.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+      {children}
+    </div>
+  );
+}
+
 /** A table that says "none" rather than print an empty grid. On screen a wide one scrolls (zoom, phone); on paper it fits the page.
  * Each cell keeps its own direction: a Latin name or legal reference stays whole in an Arabic table.
  * On screen the look of the app's `dataTable` (layout.ts) in its card, a little denser (a register runs to hundreds of
@@ -138,7 +211,7 @@ function Line({ label, children, lines = 1 }: { label: string; children?: ReactN
 // Art. 8: a paginated paper register. "n / N" needs no word, so it reads the same in both languages.
 const PAGINATION = '@page { @bottom-center { content: counter(page) " / " counter(pages); font-size: 9pt; } }';
 
-/** embedded: inside the inspection pack, under its h1 (an h2 title, h3 sections) and printed with it (no button). */
+/** embedded: inside the inspection pack, under its h1 (an h2 title, h3 sections) and printed with it. */
 export function RegisterDocument({ register: r, embedded = false }: { register: Register; embedded?: boolean }) {
   const t = useTranslations("Register");
   const tr = useTranslations();
@@ -149,6 +222,8 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
   const c = r.cover;
   const H = embedded ? "h2" : "h1";
   const sub = embedded ? "h3" : "h2";
+  const at = (id: string) => (embedded ? undefined : id); // the contents' targets, on the register's own page only
+  const paperOnly = embedded ? "" : " hidden print:block";
   const species = tr(`Types.${c.species}`);
   const vet = c.vet ? [c.vet.name, c.vet.address, c.vet.phone && code(c.vet.phone)].filter(Boolean).map((x, i) => <span key={i} className="block">{x}</span>) : undefined;
   const keepers = c.keepers.length > 0
@@ -159,12 +234,13 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
     <article className="flex flex-col gap-4">
       <style>{PAGINATION}</style>
       <header className="flex flex-col border-b-2 border-ink pb-2">
-        <H className="text-2xl font-semibold">{t("title")}</H>
+        {/* On its own page, the page's header says these on screen; paper has them here. */}
+        <H className={`text-2xl font-semibold${paperOnly}`}>{t("title")}</H>
         <p>{t("law")}</p>
-        <p className="text-ink-2">{t("batchOf", { date: day(c.placedOn) })}</p>
+        <p className={`text-ink-2${paperOnly}`}>{t("batchOf", { date: day(c.placedOn) })}</p>
       </header>
 
-      <Section heading={sub} title={t("cover")}>
+      <Section heading={sub} id={at("cover")} title={t("cover")}>
         <dl className="grid gap-x-6 text-sm sm:grid-cols-2 print:grid-cols-2">
           <Line label={t("onssaNumber")}>{c.onssa ? t.rich("onssaValue", { number: c.onssa.number, date: day(c.onssa.expiresOn), code: (x) => code(String(x)) }) : undefined}</Line>
           <Line label={t("farmName")}>{c.farmName}</Line>
@@ -182,7 +258,7 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
         </dl>
       </Section>
 
-      <Section heading={sub} title={t("supervision")}>
+      <Section heading={sub} id={at("supervision")} title={t("supervision")}>
         <dl className="grid gap-x-6 text-sm sm:grid-cols-2 print:grid-cols-2">
           <Line label={t("vetSanitary")} lines={2}>{vet}</Line>
           <Line label={t("vetContract")}>
@@ -194,7 +270,7 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
         </dl>
       </Section>
 
-      <Section heading={sub} title={t("daily")}>
+      <Section heading={sub} id={at("daily")} title={t("daily")}>
         <Table
           none={t("none")}
           head={[t("date"), t("age"), t("onHand"), t("dead"), t("culled"), t("cumulative"), ...r.feedTypes.map((name) => t("feedOf", { name })), t("waterL"), ...(r.laying ? [t("eggs")] : []), t("observations")]}
@@ -222,7 +298,7 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
         />
       </Section>
 
-      <Section heading={sub} title={t("treatments")}>
+      <Section heading={sub} id={at("treatments")} title={t("treatments")}>
         <Table
           none={t("none")}
           head={[t("commercialName"), t("lot"), t("dose"), t("method"), t("startOn"), t("endOn"), t("reason"), t("prescriber"), t("prescriptionRef"), t("withdrawalEnd")]}
@@ -241,7 +317,7 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
         />
       </Section>
 
-      <Section heading={sub} title={t("vaccinations")}>
+      <Section heading={sub} id={at("vaccinations")} title={t("vaccinations")}>
         <Table
           none={t("none")}
           head={[t("age"), t("vaccine"), t("commercialName"), t("lot"), t("method"), t("doneOn"), t("doses"), t("species")]}
@@ -258,7 +334,7 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
         />
       </Section>
 
-      <Section heading={sub} title={t("birdsOut")}>
+      <Section heading={sub} id={at("birdsOut")} title={t("birdsOut")}>
         <Table
           none={t("none")}
           head={[t("date"), t("birds"), t("recipient"), t("destination"), t("weightKg"), t("originDocument")]}
@@ -273,7 +349,7 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
         />
       </Section>
 
-      <Section heading={sub} title={t("disposals")}>
+      <Section heading={sub} id={at("disposals")} title={t("disposals")}>
         <Table
           none={t("none")}
           head={[t("date"), t("birds"), t("weightKg"), t("disposalMethod")]}
@@ -281,11 +357,11 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
         />
       </Section>
 
-      <Section heading={sub} title={t("labReports")}>
+      <Section heading={sub} id={at("labReports")} title={t("labReports")}>
         <Table none={t("none")} head={[t("date"), t("labReport")]} rows={r.labReports.map((l) => [day(l.issuedOn), l.title])} />
       </Section>
 
-      <Section heading={sub} title={t("visas")}>
+      <Section heading={sub} id={at("visas")} title={t("visas")}>
         <p className="text-sm text-ink-2 print:text-black">{t("visasHint")}</p>
         <Table
           none={t("none")}
@@ -294,7 +370,7 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
         />
       </Section>
 
-      <Section heading={sub} title={t("annexes")}>
+      <Section heading={sub} id={at("annexes")} title={t("annexes")}>
         <Table
           none={t("none")}
           head={[t("piece"), t("references"), tr("Inspection.state")]}
@@ -309,7 +385,6 @@ export function RegisterDocument({ register: r, embedded = false }: { register: 
         <p className="text-sm">{t("retention")}</p>
         <p className="text-center text-sm text-ink-2">{t("editedWith", { app: tr("App.name") })}</p>
       </footer>
-      {!embedded && <button type="button" onClick={() => window.print()} className={`${primary} print:hidden`}>{t("print")}</button>}
     </article>
   );
 }

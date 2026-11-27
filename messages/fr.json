@@ -2999,6 +2999,7 @@
     "none": "Rien d’enregistré.",
     "editedWith": "Édité avec {app}",
     "print": "Imprimer ou enregistrer en PDF",
+    "language": "Langue du registre",
     "batchOf": "Bande mise en place le {date}",
     "cover": "Page de garde (art. 3)",
     "onssaNumber": "Numéro d’autorisation de l’exercice de l’activité avicole",

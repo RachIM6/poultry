@@ -9,7 +9,7 @@ const WIDTHS = {
   form: "max-w-xl", // a form or field entry
   wide: "max-w-xl lg:max-w-6xl", // lists, money, operations
   doc: "max-w-xl lg:max-w-5xl print:max-w-none print:p-0", // a printable document
-  docAside: "max-w-xl lg:max-w-6xl print:max-w-none print:p-0", // a printable document with its contents beside it (/inspection)
+  docAside: "max-w-xl lg:max-w-6xl print:max-w-none print:p-0", // a printable document with its contents beside it (/inspection, /register)
 } as const;
 
 /**
@@ -22,20 +22,22 @@ const WIDTHS = {
  * hash, another label: the batch day, batches.tsx).
  * tasks/plan-ui-cleanup.md §2.1: `actions` are small buttons only (`primarySm`, `secondarySm`, `ghost`), one primary at
  * most; `nav` is the header's third row, full width: a `<PeriodNav>`, then `<Tabs>`. A back link stays for detail pages.
+ * `screenOnly`: the header doesn't print, the document has its own (/register).
  */
-export function Page({ width, back, title, subtitle, actions, nav, children }: {
+export function Page({ width, back, title, subtitle, actions, nav, screenOnly, children }: {
   width: keyof typeof WIDTHS;
   back?: ReactNode;
   title?: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
   nav?: ReactNode;
+  screenOnly?: boolean;
   children?: ReactNode;
 }) {
   return (
     <main className={`mx-auto flex w-full flex-1 flex-col gap-5 p-4 ${WIDTHS[width]}`}>
       {(back || title || nav) && (
-        <header className="flex flex-col gap-4">
+        <header className={`flex flex-col gap-4${screenOnly ? " print:hidden" : ""}`}>
           {typeof back === "string" ? <BackLink href={back} /> : back}
           {title && (
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

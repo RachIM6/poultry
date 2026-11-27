@@ -22,7 +22,7 @@ export function NameFields({ firstName, lastName }: { firstName?: string | null;
   );
 }
 
-/** « Votre nom »: an account made before names sets one; the header shows it once the phone has it (rememberSignedIn). */
+/** « Informations personnelles »: an account made before names sets one; the header shows it once the phone has it (rememberSignedIn). */
 export function NameForm({ firstName, lastName }: { firstName: string | null; lastName: string | null }) {
   const t = useTranslations();
   const router = useRouter();

@@ -75,7 +75,7 @@ test("wide screens: the same header on every screen, the menu by keyboard, the l
   await expect(menu(page)).toBeVisible();
   await expect(menu(page)).toHaveAttribute("id", (await profile(page).getAttribute("aria-controls"))!);
   await page.keyboard.press("Tab");
-  await expect(menu(page).getByRole("link", { name: "Votre nom" })).toBeFocused();
+  await expect(menu(page).getByRole("link", { name: "Informations personnelles" })).toBeFocused();
   for (const name of ["Mes exploitations", "العربية", "Français"]) await expect(menu(page).getByRole("link", { name })).toBeVisible();
   for (const name of ["Se déconnecter", "Déconnecter tous mes appareils"]) await expect(menu(page).getByRole("button", { name })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -189,7 +189,7 @@ test("an account from before names shows its phone and names itself from the men
   await expect.poll(async () => (await deviceSession(page))?.name).toBe(e164);
 
   await profile(page).click();
-  await menu(page).getByRole("link", { name: "Votre nom" }).click();
+  await menu(page).getByRole("link", { name: "Informations personnelles" }).click();
   await page.waitForURL(/\/fr\/organizations#name$/);
   await page.getByLabel("Prénom", { exact: true }).fill(" Hamid ");
   await page.getByLabel("Nom", { exact: true }).fill("Ouazzani");

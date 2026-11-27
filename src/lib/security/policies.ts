@@ -61,6 +61,14 @@ export const POLICIES = {
     { dim: "account", limit: 10, windowSec: HOUR },
     { dim: "global", limit: 500, windowSec: HOUR },
   ],
+  // A signed-in user changing their password: each try counts until one succeeds (reset()), so these cap guesses at
+  // the current password from a stolen session. No captcha: only a signed-in session gets this far.
+  // Sign-in is untouched, so the account never locks.
+  changePassword: [
+    { dim: "ip", limit: 20, windowSec: HOUR },
+    { dim: "user", limit: 5, windowSec: HOUR },
+    { dim: "user", limit: 20, windowSec: DAY },
+  ],
   // An invite code tried, at sign-up (ip, subnet) or signed in (user). ~40-bit codes: the global cap alone makes
   // guessing one hopeless, the others stop one source from spending it.
   inviteCode: [

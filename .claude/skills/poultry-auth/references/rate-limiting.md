@@ -38,6 +38,7 @@ Defaults, configurable. Policies live in config (`src/lib/security/policies.ts`)
 | `POST /api/auth/sign-in` (`signIn`) | 30 / 15 min | 150 / h | account 10 / h, 50 / day | global 3 000 / h (alerts) | after 3 failures (`signInFailures`: IP, account) |
 | `POST /api/auth/sign-up` (`signUp`) | 10 / h | 50 / h | — | global 300 / h (alerts), counted after the captcha | always |
 | `POST /api/auth/reset-password` (`resetPassword`) | 20 / 15 min | 100 / h | account 10 / h | global 500 / h (alerts) | after 3 failures (`signInFailures`) |
+| Password change, signed in (`changePassword`) | 20 / h | — | — | user 5 / h, 20 / day; every try counts until a success resets them | never (signed in; sign-in untouched, no lock) |
 | Invite code tried (`inviteCode`) | 20 / 15 min (sign-up) | 100 / h | — | user 10 / h (signed in); global 500 / h | with sign-up's |
 | `POST /api/auth/request-code` (dormant) | 20 / 15 min | 100 / h | **3 / 15 min, 10 / day** (SPEC I1) | prefix 30 / h; **global 300 codes / h** (cost cap, alert at 50 %) | always |
 | `POST /api/auth/verify-code` (dormant) | 60 / h | 200 / h | 10 / h | challenge: 5 attempts total | after 3 failures |

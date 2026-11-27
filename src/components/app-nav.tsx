@@ -9,12 +9,13 @@ import { Link, usePathname } from "@/i18n/navigation";
 // tasks/plan-ui.md U2: the phone's bottom tab bar (Today.dc.html) and, on wide screens, the dark sidebar, unfolded
 // (288 px, Menu4.dc.html) or folded to a 72 px rail (Menu4b.dc.html, U19), as <html data-nav> says before the first paint.
 // Static, so the offline shells stay static: what depends on the role comes after the page has loaded (below).
-const TABS = [
-  { href: "/dashboard", key: "today", icon: "M3 11l9-8 9 8M5 10v10h14V10" },
-  { href: "/batches", key: "batches", icon: "M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5" },
+// `routes`: a tab's pages outside its path, current with it (the worker's /today; a batch's register and report).
+const TABS: { href: string; key: "today" | "batches" | "stock" | "more"; icon: string; routes?: string[] }[] = [
+  { href: "/dashboard", key: "today", icon: "M3 11l9-8 9 8M5 10v10h14V10", routes: ["/today"] },
+  { href: "/batches", key: "batches", icon: "M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5", routes: ["/register", "/report"] },
   { href: "/stock", key: "stock", icon: "M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8" },
   { href: "/more", key: "more", icon: "M5 12h.01M12 12h.01M19 12h.01" },
-] as const;
+];
 
 // What the nav reads from the phone's database (the refused writes' count, the role's « Plus » groups, the wide sidebar's
 // fold) comes in its own chunk, once the page has loaded: Dexie stays off the first load of the online-only pages (books,
@@ -35,7 +36,7 @@ export function AppNav() {
   const loaded = useLoaded();
   const isIn = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   // Everything that isn't one of the first three tabs is reached from "Plus".
-  const current = pathname === "/today" ? "today" : (TABS.find((tab) => tab.key !== "more" && isIn(tab.href))?.key ?? (pathname === "/" ? undefined : "more"));
+  const current = TABS.find((tab) => tab.key !== "more" && [tab.href, ...(tab.routes ?? [])].some(isIn))?.key ?? (pathname === "/" ? undefined : "more");
   return (
     <nav
       aria-label={t("label")}

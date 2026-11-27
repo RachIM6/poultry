@@ -94,9 +94,12 @@ test("a batch's register prints offline, in French and in Arabic", async ({ page
   // nothing leads to /more, and no app language switch on the page (the header's menu has it): only the register's.
   const sidebar = page.getByRole("navigation", { name: "Navigation principale" });
   await expect(sidebar.getByRole("link", { name: "Plus", exact: true })).toBeVisible(); // the phone keeps its tab
+  await expect(sidebar.getByRole("link", { name: "Plus", exact: true })).not.toHaveAttribute("aria-current");
+  await expect(sidebar.getByRole("link", { name: "Bandes", exact: true })).toHaveAttribute("aria-current", "page"); // a batch's page
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.getByRole("banner")).toBeVisible();
   await expect(sidebar).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "Bandes", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("button", { name: "Imprimer ou enregistrer en PDF" })).toBeVisible();
   expect(await page.evaluate(() => [...document.querySelectorAll('a[href$="/more"]')].filter((a) => a.checkVisibility()).length)).toBe(0);
   await expect(page.getByRole("navigation", { name: "Langue", exact: true })).toBeHidden();

@@ -1,7 +1,8 @@
 "use server";
 
 import { cookies, headers } from "next/headers";
-import { acceptInvitation, chooseOrganization, ORG_COOKIE, redeemInvite, saveName } from "@/modules/identity";
+import { acceptInvitation, changePassword, chooseOrganization, ORG_COOKIE, redeemInvite, saveName } from "@/modules/identity";
+import { forgetPushSubscriptions } from "@/modules/notifications";
 
 // SPEC-m5 PA2. Server actions get Next's Origin check; identity checks the membership, the invite code (ADR-015) or,
 // with SMS login on, the invitation's verified phone.
@@ -34,8 +35,17 @@ export async function acceptAndOpen(form: FormData) {
   return true;
 }
 
-/** « Votre nom »: the user's own first and last name. */
+/** « Informations personnelles »: the user's own first and last name. */
 export async function saveMyName(form: FormData): Promise<{ messageKey: string; saved?: true }> {
   const saved = await saveName(await headers(), { firstName: form.get("firstName"), lastName: form.get("lastName") });
   return saved.ok ? { messageKey: "Header.nameSaved", saved: true } : { messageKey: `errors.${saved.error}` };
+}
+
+/**
+ * « Informations personnelles »: a new password, with the current one. The other devices are signed out and every
+ * device's pushes stop; this one stays signed in, and the form re-registers its pushes.
+ */
+export async function changeMyPassword(form: FormData): Promise<{ messageKey: string; saved?: true }> {
+  const changed = await changePassword(await headers(), { current: form.get("currentPassword"), next: form.get("newPassword"), confirm: form.get("confirmPassword") }, forgetPushSubscriptions);
+  return changed.ok ? { messageKey: "Account.passwordChanged", saved: true } : { messageKey: `errors.${changed.error}` };
 }

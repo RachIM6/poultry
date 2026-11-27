@@ -17,5 +17,5 @@ export const getSession = cache(async (headers: Headers, clock: Clock = systemCl
     return null;
   }
   // phoneVerified: only an SMS code login proves the number (ADR-015); a password account's phone is just typed.
-  return { userId: current.user.id, phone: current.user.phoneNumber, phoneVerified: current.user.phoneNumberVerified === true, locale: current.user.locale };
+  return { userId: current.user.id, sessionId: current.session.id, phone: current.user.phoneNumber, phoneVerified: current.user.phoneNumberVerified === true, locale: current.user.locale };
 });

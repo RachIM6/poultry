@@ -158,3 +158,66 @@ test("log out of all devices ends every session of the user", async ({ page, bro
   await expect(lost).toHaveURL(/\/fr\/login$/);
   await lost.close();
 });
+
+test("« Informations personnelles »: a signed-in user changes their password, signs out, and signs in with the new one", async ({ page, browser }) => {
+  test.setTimeout(120_000);
+  const NEW = "e2e brand new phrase";
+  const e164 = await ownerWithFarm(page, "Élevage du Nouveau Mot de Passe");
+  const phone = `0${e164.slice(4)}`;
+  const other = await browser.newPage(); // another phone of the same user
+  await login(other, "fr", phone);
+  await other.waitForURL(/\/fr\/dashboard$/);
+
+  // This phone has pushes on: a subscription the browser already holds (a stand-in, headless Chromium has no push
+  // service). The change forgets every device's pushes; the form must send this one again, without prompting.
+  const ENDPOINT = `https://fcm.googleapis.com/fcm/send/e2e-change-${phone}`;
+  await page.addInitScript((endpoint) => {
+    const sub = { endpoint, toJSON: () => ({ endpoint, keys: { p256dh: "k", auth: "a" } }), unsubscribe: async () => true };
+    Object.defineProperty(Notification, "permission", { get: () => "granted" });
+    navigator.serviceWorker.getRegistration = async () => ({ pushManager: { getSubscription: async () => sub } }) as unknown as ServiceWorkerRegistration;
+  }, ENDPOINT);
+  const resubscribed: string[] = [];
+  page.on("request", (r) => void (r.method() === "POST" && r.url().endsWith("/api/push/subscribe") && resubscribed.push(r.url())));
+  await page.goto("/fr/organizations");
+  const section = page.getByRole("region", { name: "Informations personnelles" });
+  const fill = async (current: string) => {
+    await section.getByLabel("Mot de passe actuel", { exact: true }).fill(current);
+    await section.getByLabel("Nouveau mot de passe", { exact: true }).fill(NEW);
+    await section.getByLabel("Confirmer le nouveau mot de passe", { exact: true }).fill(NEW);
+  };
+  const submit = section.getByRole("button", { name: "Changer le mot de passe" });
+
+  await page.context().setOffline(true); // online only: said, and nothing sent
+  await expect(section.getByText("Hors ligne : à faire une fois connecté.")).toBeVisible();
+  await expect(submit).toBeDisabled();
+  await page.context().setOffline(false);
+
+  await fill("not the password");
+  await submit.click();
+  await expect(section.getByRole("alert")).toHaveText("Mot de passe actuel incorrect.");
+  expect(resubscribed).toEqual([]); // a refusal forgets no device
+  await query(`INSERT INTO "PushSubscription" ("userId", endpoint, p256dh, auth) SELECT id, $2, 'k', 'a' FROM "User" WHERE "phoneNumber" = $1`, [e164, `https://fcm.googleapis.com/fcm/send/e2e-other-${phone}`]); // the other phone's
+  await fill(PASSWORD);
+  await submit.click();
+  await expect(section.getByRole("status")).toHaveText("Mot de passe changé. Vos autres appareils sont déconnectés et ne recevront plus de notifications.");
+  expect(resubscribed).toHaveLength(1);
+  const pushes = () => query<{ endpoint: string }>(`SELECT p.endpoint FROM "PushSubscription" p JOIN "User" u ON u.id = p."userId" WHERE u."phoneNumber" = $1`, [e164]);
+  expect(await pushes()).toEqual([{ endpoint: ENDPOINT }]); // this phone's pushes, back after the change forgot them
+
+  await other.goto("/fr/dashboard");
+  await expect(other).toHaveURL(/\/fr\/login$/); // the other phone's session ended
+  await other.close();
+  await page.goto("/fr/dashboard");
+  await expect(page).toHaveURL(/\/fr\/dashboard$/); // this one stayed
+
+  await page.getByRole("banner").getByRole("button", { name: "Nadia Testeur Propriétaire" }).click();
+  await page.getByRole("button", { name: "Se déconnecter", exact: true }).click();
+  await expect(page).toHaveURL(/\/fr\/login$/);
+  await page.getByLabel("Téléphone ou e-mail").fill(phone);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Se connecter", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Téléphone, e-mail ou mot de passe incorrect."); // the old one
+  await page.getByLabel("Mot de passe", { exact: true }).fill(NEW);
+  await page.getByRole("button", { name: "Se connecter", exact: true }).click();
+  await expect(page).toHaveURL(/\/fr\/dashboard$/);
+});

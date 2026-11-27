@@ -4,6 +4,9 @@ import type { TenantContext } from "@/lib/tenant";
 import { createOrganization } from "@/modules/farm-registry";
 import { addOwner, claimInvitation, inviteMember, setPassword } from "@/modules/identity";
 import { fillCompany } from "./company";
+import { SEED_FARMS, seedHistory } from "./history";
+import { COMPANY_NAME } from "./history/company";
+import { exportHistory, importHistory } from "./history/transplant";
 import { fillIndividual } from "./individual";
 import { addFarmDays } from "@/lib/kernel/farm-day";
 import { must, today } from "./kit";
@@ -16,9 +19,19 @@ import { must, today } from "./kit";
 //   one they own, or DEMO_ORGANIZATION_ID) is filled while it has no farm, and « SARL Démo Avicole » is added, owned by
 //   them. Their password and sessions are never read or changed.
 // Both are idempotent: a second run finds what it made and adds nothing. Partners and staff get free made-up numbers.
+// - the long history (DEMO_INTO_EXISTING=1 DEMO_HISTORY_FROM=2025-01-01, DEMO_RESET=1 to start clean): src/ops/demo/history.
 
 export const SARL_NAME = "SARL Démo Avicole";
-export type DemoOptions = { phone: string; password?: string; intoExisting?: boolean; organizationId?: string };
+export type DemoOptions = {
+  phone: string;
+  password?: string;
+  intoExisting?: boolean;
+  organizationId?: string;
+  history?: { from: string; reset: boolean; membersFile: string; rotate: boolean };
+  /** The history moved from a local copy to the hosted database (src/ops/demo/history/transplant.ts). */
+  exportTo?: string;
+  importFrom?: string;
+};
 export type DemoResult = { added: boolean; lines: string[] };
 
 const PREFIX = "+2126000"; // made-up numbers, never called: +212600000098 downwards, then +212600099999 downwards
@@ -61,6 +74,12 @@ async function createSarl(ownerId: string, associatePhone: string): Promise<Tena
 const farms = (organizationId: string) => db.farm.count({ where: { organizationId } });
 
 export async function seedDemo(o: DemoOptions): Promise<DemoResult> {
+  if (o.exportTo) return { added: false, ...(await exportHistory(o.phone, o.exportTo, SEED_FARMS, [SARL_NAME, COMPANY_NAME])) };
+  if (o.importFrom) return importHistory(o.phone, o.importFrom);
+  if (o.history) {
+    if (!o.intoExisting) throw new Error("demo: DEMO_HISTORY_FROM fills an existing account: set DEMO_INTO_EXISTING=1");
+    return seedHistory({ phone: o.phone, organizationId: o.organizationId, ...o.history, sarlName: SARL_NAME, freePhones });
+  }
   const lines: string[] = [];
   let user = await db.user.findUnique({ where: { phoneNumber: o.phone } });
   let individual: TenantContext | null = null;

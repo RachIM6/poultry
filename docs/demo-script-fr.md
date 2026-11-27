@@ -28,6 +28,15 @@ Ce que contient la démo :
 
 La saisie du jour de la bande en cours et le ramassage du jour des pondeuses sont laissés vides exprès : ce sont eux qu'on saisit devant le client.
 
+### Variante : deux ans d'historique (`DEMO_HISTORY_FROM`)
+
+Pour présenter depuis son propre compte avec des données qui ressemblent à une vraie exploitation (`docs/deploy-vercel-supabase.md`, section 2) : `DEMO_PHONE=<son numéro> DEMO_INTO_EXISTING=1 DEMO_RESET=1 DEMO_HISTORY_FROM=2025-01-01 pnpm db:seed:demo`, avec le même `BETTER_AUTH_SECRET` que sur Vercel. Aucun nom ne dit « démo » : on montre l'outil comme chez un éleveur. Les écrans du déroulé ci-dessus restent les mêmes ; ce qui change :
+
+- **L'exploitation du compte** (livre des recettes et des dépenses), deux fermes : Ferme Ennakhil (Ben Ahmed) avec deux bâtiments de chair en bandes successives (Ross 308 et Cobb 500, 39 à 44 jours, nettoyage et vide sanitaire de trois semaines et plus entre deux), un bâtiment de pondeuses (un premier lot réformé, le second transféré depuis la poussinière à 17 semaines) ; Ferme Aïn Sbit (Tiflet) avec la poussinière, les dindes BUT 6 et le parcours beldi. Une saisie chaque jour, pesées chaque semaine, vaccins par lot, traitements avec délai d'attente, visite du vétérinaire chaque mois, ventes à des abattoirs et des marchands (espèces, chèques, traites, crédit et leur encaissement), achats d'aliment au fournisseur réglés par relevé mensuel, œufs ramassés, calibrés et vendus, factures, prix du marché chaque semaine, coupures de courant, visiteurs, cadavres, fumier, dératisation, documents, équipe et paie de chaque mois, un emprunt, deux immobilisations et une subvention.
+- **Aujourd'hui** : la bande du bâtiment 1 au jour 24 (le jour 15 non saisi, un traitement en délai d'attente, le rappel Gumboro dans 2 jours, un budget, les poussins payés en partie), le bâtiment 2 en nettoyage (désinfection à faire aujourd'hui, la prochaine bande planifiée dans 12 jours), l'aliment croissance sous son seuil, un chèque post-daté de l'abattoir en portefeuille, quelques notifications non lues.
+- **SARL Avicole Al Amal** (société, partie double, TVA) : une ferme de deux bâtiments à Had Soualem, bâtiments et matériel amortis, un emprunt à échéances mensuelles, une subvention, un relevé bancaire importé et pointé chaque mois, la paie, l'exercice 2025 clôturé en mars 2026 (« Clôture de l'exercice », « États de synthèse ») et 2026 en cours.
+- **Membres** qui se connectent par e-mail (étape 9, sans code d'invitation) : `gerant@emsi.ma` (gérant), `ouvrier@emsi.ma` (ouvrier), `veterinaire@emsi.ma` (vétérinaire), `comptable@emsi.ma` (comptable, aussi sur la SARL). Leurs mots de passe sont dans le fichier `DEMO_MEMBERS_FILE`, jamais à l'écran.
+
 ## Déroulé
 
 | # | Écran | Quoi cliquer | Quoi dire | Min |

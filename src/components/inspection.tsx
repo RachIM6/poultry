@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useSyncExternalStore, type MouseEvent } from "react";
 import { REGISTER_ENTITIES } from "@/components/register-access";
 import { RegisterDocument, Section, Table, registerOf } from "@/components/register-document";
+import { Page } from "@/components/page";
 import { danger, done, field, secondarySm } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDateTime, formatDay } from "@/lib/format";
@@ -21,8 +22,8 @@ import { inPack, inspectionChecklist, inspectionSince, type Missing } from "@/mo
 import { cachedReference, currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { startSync } from "@/offline/sync";
 
-// SPEC-m2-compliance RP4 on the static /inspection shell: one farm's pack in one printable document, from the phone's
-// records, offline. Owners and managers (the vault is theirs). The checklist's lines come from the texts, each with its
+// SPEC-m2-compliance RP4 on the static /inspection shell (in the app's shell): one farm's pack in one printable document,
+// from the phone's records, offline. Owners and managers (the vault is theirs). The checklist's lines come from the texts, each with its
 // source (CQ2); registers are kept for their retention period (CQ5), the logs for 12 months.
 
 const ENTITIES = [...REGISTER_ENTITIES, "visit", "cleanout", "manureRemoval", "rodentCheck", "downtimeRule"];
@@ -31,14 +32,16 @@ const onHashChange = (notify: () => void) => (window.addEventListener("hashchang
 const useHash = () => useSyncExternalStore(onHashChange, () => decodeURIComponent(window.location.hash.slice(1)), () => "");
 
 export function InspectionScreen() {
-  const t = useTranslations("Sync");
+  const t = useTranslations();
   const scope = useLiveQuery(() => currentScope().then((s) => s ?? null), [], undefined);
-  if (scope === undefined) return null;
+  if (scope === undefined) return <Page width="docAside" back="/more" />;
   if (scope === null) {
     return (
-      <p>
-        {t("signedOut")} <Link href="/login" className="underline underline-offset-4">{t("login")}</Link>
-      </p>
+      <Page width="docAside" back="/more" title={t("Inspection.open")}>
+        <p>
+          {t("Sync.signedOut")} <Link href="/login" className="underline underline-offset-4">{t("Sync.login")}</Link>
+        </p>
+      </Page>
     );
   }
   return <Pack key={scopeKey(scope)} {...scope} />;
@@ -53,13 +56,13 @@ function Pack(scope: Scope) {
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").anyOf(ENTITIES).toArray(), [userId, organizationId]);
   const reference = useLiveQuery(() => cachedReference().then((r) => r ?? null), []);
-  if (!can(scope, "documents.manage")) return <p>{t("Inspection.forbidden")}</p>;
-  if (!records || reference === undefined) return null;
+  if (!can(scope, "documents.manage")) return <Page width="docAside" back="/more" title={t("Inspection.open")}><p>{t("Inspection.forbidden")}</p></Page>;
+  if (!records || reference === undefined) return <Page width="docAside" back="/more" />;
 
   const all = <T,>(entity: string) => records.filter((r) => r.entity === entity).map((r) => r.data as T);
   const farms = all<FarmDto>("farm").sort((x, y) => x.name.localeCompare(y.name));
   const farm = farms.find((f) => f.id === hash) ?? farms[0];
-  if (!farm) return <p>{t("Inspection.noFarm")}</p>;
+  if (!farm) return <Page width="docAside" back="/more" title={t("Inspection.open")}><p>{t("Inspection.noFarm")}</p></Page>;
   const today = farmDayOf(new Date());
   const since = inspectionSince(today);
   const day = (d: string) => formatDay(d as FarmDay, locale);
@@ -127,19 +130,33 @@ function Pack(scope: Scope) {
   };
 
   return (
-    <>
-      {farms.length > 1 && (
-        <label className="flex flex-col gap-1 print:hidden">
-          {t("Biosecurity.farm")}
-          {/* the farm goes in the hash: a reload or a language switch keeps it */}
-          <select value={farm.id} onChange={(e) => window.location.replace(`#${encodeURIComponent(e.target.value)}`)} className={`${field} lg:max-w-xs`}>
-            {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
-        </label>
-      )}
-      {/* Wide screens: the contents beside the document, in view while it scrolls; the phone: a row of links above it. */}
-      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-8 print:block">
-        <nav aria-label={t("Inspection.contents")} className="print:hidden lg:sticky lg:top-4">
+    <Page
+      width="docAside"
+      back="/more"
+      title={t("Inspection.title", { farm: farm.name })}
+      subtitle={
+        <>
+          {t("Inspection.period", { from: day(since), to: day(today) })}
+          <span className="block">{farm.onssa ? t("Inspection.authorization", { number: farm.onssa.number, date: day(farm.onssa.expiresOn) }) : t("Inspection.noAuthorization")}</span>
+        </>
+      }
+      actions={<button type="button" onClick={() => window.print()} className={`${secondarySm} print:hidden`}>{t("Register.print")}</button>}
+      nav={
+        farms.length > 1 && (
+          <label className="flex flex-col gap-1 print:hidden">
+            {t("Biosecurity.farm")}
+            {/* the farm goes in the hash: a reload or a language switch keeps it */}
+            <select value={farm.id} onChange={(e) => window.location.replace(`#${encodeURIComponent(e.target.value)}`)} className={`${field} lg:max-w-xs`}>
+              {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </label>
+        )
+      }
+    >
+      {/* Wide screens: the contents on the end side of the document, in view while it scrolls (the app's sidebar is on
+          the other); the phone: a row of links above it. First in the DOM, so the keyboard reaches it first. */}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_11rem] lg:items-start lg:gap-6 print:block">
+        <nav aria-label={t("Inspection.contents")} className="print:hidden lg:sticky lg:top-4 lg:order-last">
           <p className="mb-2 hidden text-sm font-semibold text-ink-2 lg:block" aria-hidden="true">{t("Inspection.contents")}</p>
           <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-0 lg:overflow-visible lg:border-s lg:border-line">
             {parts.map((p) => (
@@ -156,15 +173,6 @@ function Pack(scope: Scope) {
           </ol>
         </nav>
         <article className="flex min-w-0 flex-col gap-6">
-          <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b-2 border-ink pb-2">
-            <div>
-              <h1 className="text-2xl font-semibold">{t("Inspection.title", { farm: farm.name })}</h1>
-              <p>{t("Inspection.period", { from: day(since), to: day(today) })}</p>
-              <p>{farm.onssa ? t("Inspection.authorization", { number: farm.onssa.number, date: day(farm.onssa.expiresOn) }) : t("Inspection.noAuthorization")}</p>
-            </div>
-            <button type="button" onClick={() => window.print()} className={`${secondarySm} print:hidden`}>{t("Register.print")}</button>
-          </header>
-
           <Section id="checklist" title={t("Inspection.checklist")}>
             <Table
               none={t("Register.none")}
@@ -252,6 +260,6 @@ function Pack(scope: Scope) {
           ))}
         </article>
       </div>
-    </>
+    </Page>
   );
 }

@@ -17,6 +17,8 @@ export type AuthAction =
   | "invite_accepted"
   | "invite_failed"
   | "name_changed" // the user's own first and last name (never the name itself in the event)
+  | "password_changed" // signed in, with the current password: their other sessions ended
+  | "password_change_failed" // a wrong current password (or none set)
   // member_export, member_delete: written by the operator tools (src/ops/member-data.ts), not here.
   | "member_export"
   | "member_delete";

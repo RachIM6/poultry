@@ -5,7 +5,7 @@ export { recordAuthEvent } from "./infrastructure/auth-events";
 export { limitSignedIn } from "./application/limits";
 export { cancelInvitation, changeRole, claimInvitation, inviteMember, issueReset, listMembers, removeMember } from "./application/members";
 export { profileOf, saveName } from "./application/profile";
-export { issueResetFor, redeemInvite, resetPassword, setPassword, signIn, signUp } from "./application/password";
+export { changePassword, hasPassword, issueResetFor, redeemInvite, resetPassword, setPassword, signIn, signUp } from "./application/password";
 export { smsEnabled } from "./infrastructure/sms";
 export type { ForgetDevices, MembersDto } from "./application/members";
 export {

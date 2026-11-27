@@ -4,7 +4,7 @@ import { fail, ok, type Result } from "@/lib/kernel/result";
 import { verifyCaptcha } from "@/lib/security/captcha";
 import type { PolicyName } from "@/lib/security/policies";
 import { consume, reset } from "@/lib/security/rate-limit";
-import { checkPassword, maskIdentifier, parseEmail, parseIdentifier, type Identifier } from "@/modules/identity/domain/identifier";
+import { checkPassword, maskIdentifier, parseEmail, parseIdentifier, PASSWORD, type Identifier } from "@/modules/identity/domain/identifier";
 import { PhoneNumber } from "@/modules/identity/domain/phone-number";
 import { clientOf } from "@/modules/identity/application/login";
 import { claimInvitation, saveResetCode, type ForgetDevices } from "@/modules/identity/application/members";
@@ -262,6 +262,64 @@ export async function setPassword(userId: string, password: string): Promise<Res
   const credential = await db.account.findFirst({ where: { userId, providerId: "credential" } });
   if (credential) await db.account.update({ where: { id: credential.id }, data: { password: hash } });
   else await db.account.create({ data: { userId, providerId: "credential", accountId: userId, password: hash } });
+  return ok(undefined);
+}
+
+/** Whether the user has a password to change (an account from the SMS code login may have none). */
+export const hasPassword = async (userId: string) =>
+  (await db.account.count({ where: { userId, providerId: "credential", password: { not: null } } })) > 0;
+
+type ChangePasswordError = "UNAUTHENTICATED" | "TOO_MANY_REQUESTS" | "INVALID_CURRENT_PASSWORD" | "PASSWORDS_DIFFER" | PasswordError;
+
+/**
+ * A signed-in user sets a new password, giving the current one. A wrong current password, or none set, is always
+ * INVALID_CURRENT_PASSWORD. Every try counts per user and per IP (changePassword policy) until one succeeds; sign-in
+ * is untouched, so the account never locks. On success every other session of the user ends and this one stays.
+ * The new password follows sign-up's rules; it is checked first, so a weak one spends no try.
+ */
+export async function changePassword(
+  headers: Headers,
+  input: { current: unknown; next: unknown; confirm: unknown },
+): Promise<Result<void, ChangePasswordError>> {
+  const session = await getSession(headers);
+  if (!session) return fail("UNAUTHENTICATED");
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const [current, next] = [str(input.current), str(input.next)];
+  if (next !== str(input.confirm)) return fail("PASSWORDS_DIFFER");
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: session.userId },
+    select: { phoneNumber: true, email: true, accounts: { where: { providerId: "credential" }, select: { id: true, password: true } } },
+  });
+  const phone = user.phoneNumber ? PhoneNumber.create(user.phoneNumber) : null;
+  const own = phone?.ok ? phone.value : undefined;
+  const email = user.email.endsWith(".invalid") ? undefined : user.email; // a phone-only account's placeholder
+  const password = checkPassword(next, { phone: own, email });
+  if (!password.ok) return password;
+
+  const client = clientOf(headers);
+  const masked = own ? own.masked : email ? maskIdentifier({ kind: "email", email }) : undefined;
+  const event = (action: AuthAction, reason: string) => recordAuthEvent(action, client, { reason, userId: session.userId, phone: masked });
+  const dims = { ip: client.ip, user: session.userId };
+  const blocked = await consume("changePassword", dims);
+  if (blocked.length > 0) {
+    await event("rate_limited", blockedOn("changePassword", blocked));
+    return fail("TOO_MANY_REQUESTS");
+  }
+  const credential = user.accounts[0];
+  const context = await auth.$context;
+  const right = !!credential?.password && current.length <= PASSWORD.max && (await context.password.verify({ hash: credential.password, password: current }));
+  if (!right) {
+    await event("password_change_failed", credential?.password ? "wrong_password" : "no_password");
+    return fail("INVALID_CURRENT_PASSWORD");
+  }
+
+  const hash = await context.password.hash(password.value);
+  const ended = await db.$transaction(async (tx) => {
+    await tx.account.update({ where: { id: credential.id }, data: { password: hash } });
+    return (await tx.session.deleteMany({ where: { userId: session.userId, id: { not: session.sessionId } } })).count;
+  });
+  await reset("changePassword", dims);
+  await event("password_changed", `other_sessions_ended:${ended}`);
   return ok(undefined);
 }
 

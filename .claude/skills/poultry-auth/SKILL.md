@@ -59,7 +59,7 @@ Roles: `owner`, `manager`, `worker`, `vet`, `accountant`. The role → action ta
 ```
 src/modules/identity/
   domain/          PhoneNumber, identifier.ts (phone-or-email parsing, masking, checkPassword) (pure)
-  application/     password.ts (signIn, signUp, resetPassword, issueResetFor, redeemInvite),
+  application/     password.ts (signIn, signUp, resetPassword, changePassword, issueResetFor, redeemInvite),
                    members.ts (inviteMember → code, claimInvitation, issueReset, removeMember…),
                    login.ts (dormant SMS requestCode / verifyCode; logout, logoutEverywhere), session.ts, membership.ts
   infrastructure/  better-auth.ts (engine), codes.ts (invite / reset codes: generate, normalise, HMAC),
@@ -89,7 +89,7 @@ scripts/reset-password.ts   pnpm user:reset
 - Logout:
   - deletes the server row and clears the cookie;
   - **refuses while there are unsynced changes**, unless the user explicitly confirms losing them (`sync.pendingCount > 0`).
-- Required features: "log out all my devices" (user), "remove member → revoke sessions" (owner), and a used reset code revokes every session of that user.
+- Required features: "log out all my devices" (user), "remove member → revoke sessions" (owner), and a used reset code revokes every session of that user. A password change (« Informations personnelles », the current password first) ends every other session and keeps this one.
 
 ## 4. CSRF
 
@@ -126,6 +126,7 @@ Write an `AuthEvent` for:
 - sign-in ok (`login`, reason `password` / `sign_up` / `reset`) and failed (`sign_in_failed`, with the reason, server-side only);
 - `sign_up` (reason `owner`, `invite` or `account_exists`);
 - `reset_issued` (reason `owner` or `operator`), `reset_used`, `reset_failed`;
+- `password_changed` (signed in, with the current password; reason `other_sessions_ended:<n>`), `password_change_failed`;
 - `invite_issued`, `invite_accepted`, `invite_failed`;
 - logout;
 - rate-limit block, captcha failure;

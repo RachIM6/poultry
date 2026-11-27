@@ -97,8 +97,8 @@ export async function realisticOwner(page: Page) {
 
   // The forms that are server actions: a loan with its schedule, an asset, a budget and a bank statement.
   await page.goto("/fr/loans");
-  await page.getByText("Ajouter un emprunt", { exact: true }).click();
-  const loan = page.locator("details").first();
+  await page.getByRole("button", { name: "Ajouter un emprunt" }).click();
+  const loan = page.getByRole("dialog", { name: "Ajouter un emprunt" });
   await loan.getByLabel("Prêteur").fill("Crédit Agricole du Maroc");
   await loan.getByLabel("Compte bancaire du déblocage et des échéances").selectOption({ label: "Banque Populaire" });
   await loan.getByLabel("Capital emprunté").fill("100 000");
@@ -111,8 +111,8 @@ export async function realisticOwner(page: Page) {
   await expect(page.getByRole("table", { name: "Échéancier · Crédit Agricole du Maroc" })).toBeVisible();
 
   await page.goto("/fr/assets");
-  await page.getByText("Ajouter une immobilisation", { exact: true }).click();
-  const asset = page.locator("details").first();
+  await page.getByRole("button", { name: "Ajouter une immobilisation" }).click();
+  const asset = page.getByRole("dialog", { name: "Ajouter une immobilisation" });
   await asset.getByLabel("Désignation").fill("Groupe électrogène 60 kVA");
   await asset.getByLabel("Catégorie").selectOption("equipment");
   await asset.getByLabel("Date d’acquisition").fill("2026-09-18");
@@ -121,22 +121,23 @@ export async function realisticOwner(page: Page) {
   await asset.getByLabel("Durée d’utilisation, en mois").fill("84");
   await asset.getByLabel("Paiement").selectOption("cash");
   await asset.getByRole("button", { name: "Enregistrer l’immobilisation" }).click();
-  await expect(asset.getByText("Immobilisation enregistrée.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Groupe électrogène 60 kVA" })).toBeVisible();
 
   await expect.poll(async () => (await page.request.get("/fr/budget")).status()).toBe(200);
   await page.goto("/fr/budget");
   await page.getByLabel("Nom du budget").fill("Bande de janvier");
   await page.getByRole("button", { name: "Enregistrer le budget" }).click();
-  await expect(page.getByRole("list", { name: "Budgets enregistrés" }).getByRole("listitem")).toHaveCount(1);
+  await expect(page.getByRole("table", { name: "Budgets enregistrés" }).locator(":scope > tbody")).toHaveCount(1); // a row group per saved budget
 
   await page.goto("/fr/treasury/bank");
+  await page.getByRole("button", { name: "Ajouter un relevé" }).click();
   await page.getByLabel("Date de fin du relevé").fill(farmDaysAgo(0));
   await page.getByLabel("Solde final du relevé (DH)").fill("8 800,00");
   await page.getByRole("button", { name: "Enregistrer le relevé" }).click();
   await expect(page.getByRole("status").filter({ hasText: /rapproché/i })).toBeVisible();
 
   // The phone holds the pushed records before the screens that read them from its storage open.
-  await page.goto(`/fr/batches#${ids.closed}`);
+  await page.goto(`/fr/batches?tab=ventes#${ids.closed}`);
   await expect(page.getByText("Abattoir Doukkala Avicole").first()).toBeVisible();
 
   const screens = [
@@ -145,6 +146,11 @@ export async function realisticOwner(page: Page) {
     `/batches#${ids.open}`,
     `/batches#${ids.closed}`,
     `/batches#${ids.layers}`,
+    // tasks/plan-ui-cleanup.md batch 1: each tab of a batch's screen, and the closed batches' list
+    "/batches?tab=closed",
+    ...["sante", "ventes", "indicateurs", "gestion"].map((tab) => `/batches?tab=${tab}#${ids.open}`),
+    `/batches?tab=ventes#${ids.closed}`,
+    `/batches?tab=indicateurs#${ids.layers}`,
     "/eggs",
     "/stock",
     "/receivables",
@@ -165,6 +171,8 @@ export async function realisticOwner(page: Page) {
     "/planning",
     "/visitors",
     "/disposal",
+    "/disposal?tab=manure", // tasks/plan-ui-cleanup.md batch 6: each log of the page
+    "/disposal?tab=rodents",
     "/cleanout",
     "/tasks",
     "/staff",
@@ -172,6 +180,10 @@ export async function realisticOwner(page: Page) {
     "/farms",
     "/protocol",
     "/climate",
+    "/climate/targets", // tasks/plan-ui-cleanup.md batch 6: the Cibles tab, each tab of /staff and /inbox
+    ...["presence", "advances", "records", "pay"].map((tab) => `/staff?tab=${tab}`),
+    "/inbox?tab=all",
+    "/inbox?tab=settings",
     "/inbox",
     "/more",
     `/register#${ids.closed}`,
@@ -192,5 +204,5 @@ export async function openScreen(tab: Page, url: string) {
   await tab.goto(url); // "load": the server's streamed sections are in
   await tab.locator("h1").first().waitFor();
   // A batch's details render from the phone's storage after the list's heading.
-  if (url.includes("/batches#")) await tab.locator('a[href*="/register#"]').first().waitFor();
+  if (/\/batches(\?[^#]*)?#/.test(url)) await tab.locator('a[href*="/register#"]').first().waitFor();
 }

@@ -24,8 +24,12 @@ test("the dashboard warns from 90 % of the 5 M DH threshold, and the tracker sho
   await page.goto("/fr/dashboard");
   await expect(page.getByRole("alert").filter({ hasText: "Vos ventes agricoles atteignent 91 % du seuil d’exonération." })).toBeVisible();
   await page.getByRole("link", { name: "Plus", exact: true }).click(); // tasks/plan-ui.md U2: the "Plus" tab
-  await page.getByRole("link", { name: "Seuil d’exonération" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Seuil d’exonération : 5.000.000,00\sDH$/);
+  await page.getByRole("link", { name: "Résultats et budget" }).click();
+  // tasks/plan-ui-cleanup.md §3: the « Seuil d’exonération » tab of « Résultats et budget »
+  await page.getByRole("navigation", { name: "Résultats et budget" }).getByRole("link", { name: "Seuil d’exonération" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Résultats et budget");
+  await expect(page.getByRole("navigation", { name: "Résultats et budget" }).getByRole("link", { name: "Seuil d’exonération" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("main").getByRole("heading", { level: 2 }).first()).toHaveText(/^Seuil d’exonération : 5.000.000,00\sDH$/);
   await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "91");
   await expect(page.getByText(/^4.599.990,00\sDH · 91 %$/)).toBeVisible();
 });

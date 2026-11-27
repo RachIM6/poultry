@@ -18,9 +18,12 @@ import { startSync } from "@/offline/sync";
 import { FileUpload, useOnline } from "@/components/local-screen";
 import { addMonths, MonthSelect } from "@/components/month-select";
 import { useFieldError, useInline } from "@/components/focus";
-import { fields2, rowTable, splitAside, splitNarrow } from "@/components/layout";
+import { fields2, formActions, rowTable, sectionHead, sectionTitle, splitAside, splitNarrow } from "@/components/layout";
+import { Pager } from "@/components/pager";
+import { pageOf, TABLE_PAGE } from "@/components/paging";
+import { Sheet } from "@/components/sheet";
 import { cardRow, tightHead } from "@/components/layout-tight";
-import { card, danger, field, link, primary, secondary } from "@/components/ui";
+import { card, danger, field, ghost, link, primary, secondary, secondarySm } from "@/components/ui";
 
 // SPEC-finance FX4 on the static /expenses shell, offline: a quick expense (electricity, water, vet, insurance, catching
 // crew, bank fees) paid from a cash box, a bank account or on credit, and the organisation's cash boxes and bank accounts
@@ -86,7 +89,12 @@ function Expenses(scope: Scope) {
     .filter((b) => b.status === "open")
     .map((b) => ({ id: b.id, label: t("Expenses.batch", { house: houses.find((h) => h.id === b.houseId)?.name ?? "—", date: formatDay(b.placedOn as FarmDay, locale) }) }));
   const line = (e: ExpenseDto) => t("Expenses.line", { category: t(`Expenses.categories.${e.category}`), amount: formatMoney(BigInt(e.amountCentimes)), date: formatDay(e.day as FarmDay, locale) });
-  const recent = of<ExpenseDto>("expense").sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 20);
+  // Newest first, paged (?page=): never cut silently (tasks/plan-ui-cleanup.md §2.5)
+  const all = of<ExpenseDto>("expense").sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id));
+  const page = pageOf(prefill.get("page") ?? undefined, all.length, TABLE_PAGE);
+  const recent = all.slice((page - 1) * TABLE_PAGE, page * TABLE_PAGE);
+  // The form's prefill (FC9) without the page: turning a page keeps what is being typed
+  const formKey = [...prefill.entries()].filter(([k]) => k !== "page").join("&");
 
   // `local`: what the phone keeps (null: drops it)
   const write = async (mutation: { type: string; payload: unknown }, entity: string, data: { id: string }, local: unknown = data) => {
@@ -107,10 +115,10 @@ function Expenses(scope: Scope) {
           A 360 px form, not half the page: the table's five columns need the room. */}
       <div className={splitNarrow}>
         <div className={`lg:order-last ${splitAside}`}>
-          <ExpenseForm key={prefill.toString()} prefill={prefill} accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
+          <ExpenseForm key={formKey} prefill={prefill} accounts={accounts} batches={batches} onSave={(e) => write({ type: F.recordExpense, payload: e }, "expense", e)} />
         </div>
         <div className="flex flex-col gap-5">
-          <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.recent")}</h2>
+          <h2 className={sectionTitle}>{t("Expenses.recent")}</h2>
           {uploadError && <p role="alert" className={danger}>{t(uploadError)}</p>}
           {recent.length === 0 ? (
             <p>{t("Expenses.none")}</p>
@@ -171,21 +179,26 @@ function Expenses(scope: Scope) {
               ))}
             </ul>
           )}
+          <Pager page={page} size={TABLE_PAGE} total={all.length} href={(n) => ({ pathname: "/expenses", query: { page: n } })} />
 
-          <h2 className="text-[17px] font-semibold text-ink-2">{t("Expenses.accounts")}</h2>
-          <ul className="flex flex-col gap-1">
-            {accounts.map((a) => <li key={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</li>)}
-          </ul>
-          {adding ? (
+          <section className="flex flex-col gap-2" aria-labelledby="treasury-accounts">
+            <div className={sectionHead}>
+              <h2 id="treasury-accounts" className={sectionTitle}>{t("Expenses.accounts")}</h2>
+              <button type="button" aria-haspopup="dialog" {...opener("account")} className={secondarySm}>{t("Expenses.addAccount")}</button>
+            </div>
+            <ul className="flex flex-col gap-1">
+              {accounts.map((a) => <li key={a.id}>{t(`Expenses.kinds.${a.kind}`)} · {a.name}</li>)}
+            </ul>
+          </section>
+          {/* §2.7: an occasional form, in a sheet; the focus goes back to its button once closed */}
+          <Sheet open={adding === "account"} onClose={close} title={t("Expenses.addAccount")}>
             <AccountForm
               onSave={async (a) => {
                 if (await write({ type: F.createTreasuryAccount, payload: a }, "treasuryAccount", a)) close();
               }}
               onCancel={close}
             />
-          ) : (
-            <button type="button" {...opener("account")} className={`${secondary} lg:self-start`}>{t("Expenses.addAccount")}</button>
-          )}
+          </Sheet>
         </div>
       </div>
     </>
@@ -316,7 +329,7 @@ function AccountForm({ onSave, onCancel }: { onSave: (a: TreasuryAccountDto) => 
     await onSave({ id: uuidv7(), kind: String(data.get("kind")) as TreasuryAccountDto["kind"], name: String(data.get("name") ?? "").trim() });
   };
   return (
-    <form onSubmit={submit} className={card}>
+    <form onSubmit={submit} className="flex flex-col gap-3">
       <Field label={t("Expenses.kind")}>
         {(id) => (
           <select id={id} name="kind" autoFocus className={field}>
@@ -325,9 +338,9 @@ function AccountForm({ onSave, onCancel }: { onSave: (a: TreasuryAccountDto) => 
         )}
       </Field>
       <Field label={t("Expenses.accountName")}>{(id) => <input id={id} name="name" required maxLength={80} className={field} />}</Field>
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Expenses.saveAccount")}</button>
-        <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
+        <button type="button" onClick={onCancel} className={ghost}>{t("Receivables.cancel")}</button>
       </div>
     </form>
   );

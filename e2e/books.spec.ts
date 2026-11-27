@@ -41,8 +41,8 @@ test("an individual farmer's books are the receipts-and-expenses book", async ({
   expect(files.get(`recettes-depenses-${month}.csv`)).toMatch(/;5161;Caisses;[^;]+;;0,00;450,00\r\nTotal;;;;;;0,00;450,00\r\n$/); // no batch: a general expense
 
   // FN3, FCX3, FQ11: its manual entry carries the opening cash and bank balances, against 1117 Capital personnel.
-  await page.getByText("Écriture manuelle", { exact: true }).click();
-  const form = page.locator("details");
+  await page.getByRole("button", { name: "Écriture manuelle" }).click(); // a sheet (tasks/plan-ui-cleanup.md §2.7)
+  const form = page.getByRole("dialog", { name: "Écriture manuelle" });
   await expect(form.getByText(/^Soldes d’ouverture de la banque \(5141\) et de la caisse \(5161\)/)).toBeVisible();
   await form.getByLabel("Date").fill(`${month.slice(0, 4)}-01-01`);
   await form.getByLabel("Libellé").fill("Soldes d’ouverture");
@@ -101,9 +101,10 @@ test("a full-books entity sees its draft income statement and balance sheet", as
   // The accountant (read-only, SPEC-m5 PA5) reads the same balance sheet.
   const phone = randomMobile();
   await page.goto("/fr/settings/members");
+  await page.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
   await page.getByLabel("Numéro de téléphone").fill(phone);
   await page.getByLabel("Rôle", { exact: true }).selectOption("accountant");
-  await page.getByRole("button", { name: "Inviter" }).click();
+  await page.getByRole("button", { name: "Inviter", exact: true }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
   const code = await inviteCode(page);
   const accountantContext = await browser.newContext({ ...test.info().project.use });

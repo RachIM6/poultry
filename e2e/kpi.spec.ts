@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered, syntheticStrain } from "./auth";
+import { batchTab, controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered, syntheticStrain } from "./auth";
 
 // T18 acceptance (browser part): the batch dashboard offline, after 3 daily entries and a weighing, updated as soon as
 // each is saved. The formulas themselves are checked on a hand-computed batch in src/modules/flock/domain/kpi.test.ts.
@@ -20,6 +20,10 @@ test("the batch dashboard works offline and follows each entry", async ({ page, 
     await context.setOffline(true);
     await context.route("**", (route) => route.abort("internetdisconnected"));
     await page.getByRole("link", { name: "Saisir le jour" }).click();
+    // The figures and the day's entry are two tabs, switched offline in place.
+    const figures = () => batchTab(page, "Indicateurs");
+    const entry = () => batchTab(page, "Saisie du jour");
+    await figures();
     await expect(tile(page, "Mortalité")).toContainText("0,0 %");
     await expect(page.getByText("Pesez un échantillon pour voir le poids, l’IC, l’IEP et le GMQ.")).toBeVisible();
 
@@ -29,17 +33,23 @@ test("the batch dashboard works offline and follows each entry", async ({ page, 
       await page.getByLabel("Aliment consommé (kg)", { exact: true }).fill(feedKg);
       await page.getByRole("button", { name: "Enregistrer la journée" }).click();
     };
+    await entry();
     await enter(2, "10", "20");
+    await figures();
     await expect(tile(page, "Mortalité")).toContainText("1,0 %"); // right after the entry
+    await entry();
     await enter(1, "5", "25");
     await enter(0, "5", "30");
+    await figures();
     // 20 dead of 1 000 → 2,0 %; 75 kg / 980 birds = 76,5 g → 0,077 kg.
     await expect(tile(page, "Mortalité")).toContainText("2,0 %");
     await expect(tile(page, "Aliment par oiseau")).toContainText("0,077 kg");
     await expect(tile(page, "IC (indice de consommation)")).toContainText("—");
 
+    await entry();
     await page.getByLabel("Poids des oiseaux (kg), séparés par des espaces").fill("0,080 0,090 0,085");
     await page.getByRole("button", { name: "Enregistrer la pesée" }).click();
+    await figures();
     // Day 2, 85 g. Standard 40 + 160 × 2/7 = 86 g → −1,2 %. FCR 75 / (980 × 0,085) = 0,90.
     // EPEF 98 × 0,085 / (2 × 0,9004) × 100 = 463. Gain 85 g / 2 days (no day-old weight) = 42,5 g.
     await expect(tile(page, "Poids moyen (jour 2)")).toContainText("0,085 kg");

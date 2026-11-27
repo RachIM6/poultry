@@ -22,8 +22,8 @@ test("the owner registers an asset, reads its schedule by year and disposes of i
   await query(`UPDATE "LegalEntity" SET books = 'ledger' WHERE "organizationId" = ${orgOf}`, [e164]);
   await page.reload();
   await expect(page.getByText(/^Livre des recettes et dépenses : le registre/)).toHaveCount(0);
-  await page.getByText("Ajouter une immobilisation", { exact: true }).click();
-  const form = page.locator("details").first();
+  await page.getByRole("button", { name: "Ajouter une immobilisation" }).click(); // a sheet (tasks/plan-ui-cleanup.md §2.7)
+  const form = page.getByRole("dialog", { name: "Ajouter une immobilisation" });
   await form.getByLabel("Désignation").fill("Groupe électrogène");
   await form.getByLabel("Catégorie").selectOption("land");
   await expect(form.getByLabel("Durée d’utilisation, en mois")).toHaveCount(0); // land: no life
@@ -37,11 +37,13 @@ test("the owner registers an asset, reads its schedule by year and disposes of i
   await form.getByLabel("Facture (facultatif)").setInputFiles({ name: "facture.png", mimeType: "image/png", buffer: PNG });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // the form fits the phone
   await form.getByRole("button", { name: "Enregistrer l’immobilisation" }).click();
-  await expect(form.getByText("Immobilisation enregistrée.")).toBeVisible();
+  await expect(form).toBeHidden(); // saved, the sheet closes on the register
 
   // §7.1 A, by fiscal year (January–December by default).
   const asset = page.getByRole("region", { name: "Groupe électrogène" });
   await expect(asset).toContainText(/Coût\s*47\s350,00\sDH/);
+  const showSchedule = () => asset.getByText("Plan d’amortissement", { exact: true }).click(); // folded by default
+  await showSchedule();
   const schedule = asset.getByRole("table", { name: "Plan d’amortissement · Groupe électrogène" }).getByRole("row");
   await expect(schedule).toHaveCount(9);
   await expect(schedule.nth(1)).toContainText(/2026\s*4\s*2\s254,76\sDH\s*2\s254,76\sDH\s*45\s095,24\sDH/);
@@ -65,6 +67,7 @@ test("the owner registers an asset, reads its schedule by year and disposes of i
   await asset.getByLabel("Encaissé").selectOption("bank");
   await asset.getByRole("button", { name: "Enregistrer la cession" }).click();
   await expect(asset).toContainText(/Cédée le 15 novembre 2026 pour 30\s000,00\sDH/);
+  if (!(await asset.getByRole("table").isVisible())) await showSchedule(); // the page streams in again once saved
   await expect(schedule).toHaveCount(2);
   await expect(schedule.nth(1)).toContainText(/2026 · jusqu’à la cession\s*2\s*1\s127,38\sDH/);
   await expect(asset.getByText("Céder ou mettre au rebut", { exact: true })).toHaveCount(0);
@@ -77,6 +80,7 @@ test("the owner registers an asset, reads its schedule by year and disposes of i
   // The accountant reads the register without its forms; a worker gets nothing (FX2).
   await query(`UPDATE "Membership" SET role = 'accountant' WHERE "organizationId" = ${orgOf}`, [e164]);
   await page.goto("/fr/assets");
+  await showSchedule();
   await expect(schedule).toHaveCount(2);
   await expect(page.getByText("Ajouter une immobilisation", { exact: true })).toHaveCount(0);
   await query(`UPDATE "Membership" SET role = 'worker' WHERE "organizationId" = ${orgOf}`, [e164]);
@@ -89,6 +93,7 @@ test("the owner registers an asset, reads its schedule by year and disposes of i
   await page.goto("/ar/assets");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("الأصول الثابتة");
+  await page.getByText("جدول الاهتلاك", { exact: true }).click();
   await expect(page.getByRole("table", { name: "جدول الاهتلاك · Groupe électrogène" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true); // the tables scroll, not the page
 });

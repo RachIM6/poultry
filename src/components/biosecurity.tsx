@@ -1,13 +1,18 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { useFieldError, useInline } from "@/components/focus";
-import { split } from "@/components/layout";
+import { dataTable, dataTableWrap, empty, fields2, formActions, num, sectionHead, sectionTitle, split } from "@/components/layout";
 import { Field, FileUpload, Shell, of, useOnline, type Save, type Screen } from "@/components/local-screen";
-import { card, danger, field, primary, secondary, warn } from "@/components/ui";
+import { Pager } from "@/components/pager";
+import { pageOf, pickTab, TABLE_PAGE } from "@/components/paging";
+import { Sheet } from "@/components/sheet";
+import { Tabs } from "@/components/tabs";
+import { card, danger, field, ghost, primary, primarySm, secondarySm, warn } from "@/components/ui";
 import { formatCount, formatDateTime, formatDay, formatKg } from "@/lib/format";
 import { addFarmDays, farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import {
@@ -57,7 +62,7 @@ function FarmPicker({ farms, farm, setFarm }: ReturnType<typeof useFarm>) {
   return (
     <Field label={t("farm")}>
       {(id) => (
-        <select id={id} value={farm?.id} onChange={(e) => setFarm(e.target.value)} className={field}>
+        <select id={id} value={farm?.id} onChange={(e) => setFarm(e.target.value)} className={`${field} lg:max-w-xs`}>
           {farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
       )}
@@ -73,30 +78,58 @@ function correct<T extends { id: string }>(save: Save, type: string, entity: str
   return Object.keys(changes).length === 0 ? Promise.resolve(true) : save({ type, payload: { id: before.id, changes } }, entity, local);
 }
 
-/** A record of the log, and its "Modifier" button that opens `form` in its place (its first field autoFocus). Records are never deleted (D6). */
+/**
+ * A record of the log, one row of its list, and its "Modifier" button that opens `form` in a sheet (tasks/plan-ui-cleanup.md
+ * §2.7: a correction is occasional). Records are never deleted (D6).
+ */
 function Editable({ name, form, children }: { name: string; form: (close: () => void) => ReactNode; children: ReactNode }) {
   const t = useTranslations("Biosecurity");
   const { open, opener, close } = useInline<"edit">();
-  if (open) return form(close);
   return (
-    <>
-      {children}
-      <button type="button" {...opener("edit")} className={`${secondary} self-start`} aria-label={t("editNamed", { record: name })}>
+    <li className={logRow}>
+      <span className="min-w-0 flex-1">{children}</span>
+      <button type="button" aria-haspopup="dialog" {...opener("edit")} className={secondarySm} aria-label={t("editNamed", { record: name })}>
         {t("edit")}
       </button>
-    </>
+      <Sheet open={open === "edit"} onClose={close} title={t("editNamed", { record: name })}>{form(close)}</Sheet>
+    </li>
   );
 }
 
 /** The buttons of a form; a correction can be cancelled. */
-function Submit({ label, onCancel }: { label: string; onCancel?: () => void }) {
+function Submit({ label, onCancel, edit = !!onCancel }: { label: string; onCancel?: () => void; edit?: boolean }) {
   const t = useTranslations("Biosecurity");
   return (
-    <div className="flex flex-wrap gap-3">
-      <button type="submit" className={primary}>{onCancel ? t("saveEdit") : label}</button>
-      {onCancel && <button type="button" onClick={onCancel} className={secondary}>{t("cancel")}</button>}
+    <div className={formActions}>
+      <button type="submit" className={primary}>{edit ? t("saveEdit") : label}</button>
+      {onCancel && <button type="button" onClick={onCancel} className={ghost}>{t("cancel")}</button>}
     </div>
   );
+}
+
+// A log's records: dense rows in one card (tasks/plan-ui-cleanup.md §2.3), each with its "Modifier".
+const logList = `${card} gap-0 py-1`;
+const logRow = "flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-line py-2 first:border-t-0";
+
+/** A log's section: its h2, then its content. */
+function LogSection({ title, children }: { title: string; children: ReactNode }) {
+  const id = useId();
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-3">
+      <div className={sectionHead}><h2 id={id} className={sectionTitle}>{title}</h2></div>
+      {children}
+    </section>
+  );
+}
+
+/** A client list's `?page=` (§2.5): the page's rows and its pager, which keeps the page's other query. */
+function usePaged<T>(rows: T[], pathname: string, query: Record<string, string> = {}) {
+  const search = useSearchParams();
+  const page = pageOf(search.get("page") ?? undefined, rows.length, TABLE_PAGE);
+  return {
+    rows: rows.slice((page - 1) * TABLE_PAGE, page * TABLE_PAGE),
+    pager: <Pager page={page} size={TABLE_PAGE} total={rows.length} href={(n) => ({ pathname, query: { ...query, page: n } })} />,
+  };
 }
 
 // Wide screens (tasks/plan-ui.md "Desktop rules"): a log's form, under what tops it, beside its history, which starts at
@@ -123,9 +156,10 @@ function Visitors({ records, save }: Parameters<Screen>[0]) {
   const { farm } = picker;
   if (!farm) return <p>{t("noFarm")}</p>;
   const today = farmDayOf(new Date());
-  const visits = of<VisitDto>(records, "visit")
-    .filter((v) => v.farmId === farm.id && farmDayOf(new Date(v.enteredAt)) === today)
+  const all = of<VisitDto>(records, "visit")
+    .filter((v) => v.farmId === farm.id)
     .sort((x, y) => y.enteredAt.localeCompare(x.enteredAt));
+  const visits = all.filter((v) => farmDayOf(new Date(v.enteredAt)) === today);
   return (
     <div className={logGrid}>
       <Columns
@@ -137,27 +171,63 @@ function Visitors({ records, save }: Parameters<Screen>[0]) {
         }
         history={
           <>
-            <h2 className="text-lg font-semibold">{t("today")}</h2>
-            {visits.length === 0 ? (
-              <p>{t("none")}</p>
-            ) : (
-              <ul className="flex flex-col gap-2" aria-label={t("today")}>
-                {visits.map((v) => (
-                  <li key={v.id} className={card}>
+            <LogSection title={t("today")}>
+              {visits.length === 0 ? (
+                <p className={empty}>{t("none")}</p>
+              ) : (
+                <ul className={logList} aria-label={t("today")}>
+                  {visits.map((v) => (
                     <Editable
+                      key={v.id}
                       name={v.visitor}
                       form={(close) => <VisitForm farmId={farm.id} visit={v} onCancel={close} onSave={async (n) => (await correct(save, B.editVisit, "visit", v, n)) && (close(), true)} />}
                     >
                       <span>{t("line", { visitor: v.visitor, time: formatDateTime(v.enteredAt, locale), zone: t(`zones.${v.zone}`) })}</span>
                     </Editable>
-                  </li>
-                ))}
-              </ul>
-            )}
+                  ))}
+                </ul>
+              )}
+            </LogSection>
+            <EarlierVisits visits={all.filter((v) => farmDayOf(new Date(v.enteredAt)) !== today)} />
           </>
         }
       />
     </div>
+  );
+}
+
+/** §2.5: the earlier visits, paged, rather than out of reach. Read only: corrections stay with the day's own. */
+function EarlierVisits({ visits }: { visits: VisitDto[] }) {
+  const t = useTranslations("Visitors");
+  const locale = useLocale();
+  const { rows, pager } = usePaged(visits, "/visitors");
+  if (rows.length === 0) return null;
+  return (
+    <LogSection title={t("earlier")}>
+      <div className={dataTableWrap}>
+        <table className={dataTable} aria-label={t("earlier")}>
+          <thead>
+            <tr>
+              <th scope="col">{t("colWhen")}</th>
+              <th scope="col">{t("visitor")}</th>
+              <th scope="col">{t("purpose")}</th>
+              <th scope="col">{t("zone")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((v) => (
+              <tr key={v.id}>
+                <td className="whitespace-nowrap">{formatDateTime(v.enteredAt, locale)}</td>
+                <td>{v.visitor}</td>
+                <td>{t(`purposes.${v.purpose}`)}</td>
+                <td>{t(`zones.${v.zone}`)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {pager}
+    </LogSection>
   );
 }
 
@@ -196,7 +266,8 @@ function VisitForm({ farmId, visit, onSave, onCancel }: { farmId: string; visit?
   };
 
   return (
-    <form key={key} onSubmit={submit} className="flex flex-col gap-3" aria-label={visit && t("Biosecurity.editNamed", { record: visit.visitor })}>
+    // Inline, the page's job, two by two from lg; a correction, in its sheet, in one column.
+    <form key={key} onSubmit={submit} className={visit ? "flex flex-col gap-3" : `${card} gap-3 ${fields2}`} aria-label={visit && t("Biosecurity.editNamed", { record: visit.visitor })}>
       <Field label={t("Visitors.visitor")}>{(id) => <input id={id} name="visitor" required maxLength={120} defaultValue={visit?.visitor} autoFocus={!!visit} className={field} />}</Field>
       <Field label={t("Visitors.vehicle")}>{(id) => <input id={id} name="vehicle" maxLength={20} dir="ltr" defaultValue={visit?.vehicle ?? ""} className={field} />}</Field>
       <Field label={t("Visitors.purpose")}>
@@ -206,7 +277,7 @@ function VisitForm({ farmId, visit, onSave, onCancel }: { farmId: string; visit?
           </select>
         )}
       </Field>
-      <fieldset className="flex flex-col gap-1">
+      <fieldset className="flex flex-col gap-1 lg:col-span-full">
         <legend className="font-semibold">{t("Visitors.recentTitle", { hours: VISITOR_RECENT_FARM_HOURS })}</legend>
         <label className={check}>
           <input type="checkbox" checked={recentFarm} onChange={(e) => (setRecentFarm(e.target.checked), e.target.checked && setZone("dirty"))} className="size-6" />
@@ -229,39 +300,25 @@ function VisitForm({ farmId, visit, onSave, onCancel }: { farmId: string; visit?
           </label>
         ))}
       </fieldset>
-      {error && <p role="alert" className={danger}>{t(error)}</p>}
+      {error && <p role="alert" className={`${danger} lg:col-span-full`}>{t(error)}</p>}
       <Submit label={t("Visitors.save")} onCancel={onCancel} />
     </form>
   );
 }
 
-// BS6–BS7: what leaves the farm. One log at a time, chosen with toggle buttons (aria-pressed, not a half tablist).
+// BS6–BS7: what leaves the farm. One log at a time, chosen with query tabs (?tab=, links: tasks/plan-ui-cleanup.md §2.4).
 const TABS = ["dead", "manure", "rodents"] as const;
 const GAP_DAYS = 14; // how far back the dead/disposed comparison looks on the phone: a screen choice, not a rule
 
 export const DisposalScreen = () => <Shell {...log} entities={["farm", "house", "batch", "dailyEntry", "disposal", "manureRemoval", "rodentCheck"]} screen={Disposal} />;
 
 type Choice = { id: string; label: string };
-type Tab = (typeof TABS)[number];
-
-function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
-  const t = useTranslations("Disposal");
-  return (
-    <div role="group" aria-label={t("tabs")} className="grid grid-cols-3 gap-1 rounded-2xl bg-line/60 p-1">
-      {TABS.map((k) => (
-        <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)} className={`min-h-11 rounded-xl ${tab === k ? "bg-card font-semibold" : ""}`}>
-          {t(`tab.${k}`)}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function Disposal({ records, save, db }: Parameters<Screen>[0]) {
   const t = useTranslations("Disposal");
   const locale = useLocale();
   const picker = useFarm(records);
-  const [tab, setTab] = useState<Tab>("dead");
+  const tab = pickTab(TABS, useSearchParams().get("tab"));
   const { farm } = picker;
   if (!farm) return <p>{t("noFarm")}</p>;
   const day = (d: string) => formatDay(d as FarmDay, locale);
@@ -273,21 +330,21 @@ function Disposal({ records, save, db }: Parameters<Screen>[0]) {
   };
   const choices: Choice[] = batches.filter((b) => b.status === "open").map((b) => ({ id: b.id, label: batchLabel(b.id)! }));
 
-  // The farm and the tabs top the form's column; they stay mounted when the tab changes (the pressed button keeps focus).
+  // The farm, then the tabs over both columns: a tab changes the form and its history.
   return (
-    <div className={logGrid}>
-      <div className="flex flex-col gap-5">
-        <FarmPicker {...picker} />
-        <Tabs tab={tab} setTab={setTab} />
+    <>
+      <FarmPicker {...picker} />
+      <Tabs label={t("tabs")} current={tab} tabs={TABS.map((k) => ({ key: k, label: t(`tab.${k}`), href: { pathname: "/disposal", query: { tab: k } } }))} />
+      <div className={logGrid}>
+        {tab === "dead" ? (
+          <DeadBirds farmId={farm.id} records={records} batches={choices} batchLabel={batchLabel} day={day} save={save} />
+        ) : tab === "manure" ? (
+          <Manure farmId={farm.id} records={records} houses={houses} batches={choices} batchLabel={batchLabel} day={day} save={save} />
+        ) : (
+          <Rodents farmId={farm.id} records={records} houses={houses} day={day} save={save} db={db} />
+        )}
       </div>
-      {tab === "dead" ? (
-        <DeadBirds farmId={farm.id} records={records} batches={choices} batchLabel={batchLabel} day={day} save={save} />
-      ) : tab === "manure" ? (
-        <Manure farmId={farm.id} records={records} houses={houses} batches={choices} batchLabel={batchLabel} day={day} save={save} />
-      ) : (
-        <Rodents farmId={farm.id} records={records} houses={houses} day={day} save={save} db={db} />
-      )}
-    </div>
+    </>
   );
 }
 
@@ -307,62 +364,64 @@ function DeadBirds({ farmId, records, batches, batchLabel, day, save }: LogProps
     .filter((e) => farmBatches.has(e.batchId) && e.day >= since)
     .map((e) => ({ day: e.day, birds: e.dead + e.culled }));
   const gaps = disposalGaps(mortality, disposals.filter((d) => d.day >= since)).filter((g) => g.dead || g.disposed);
-  const recent = disposals.sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 20);
+  const recent = usePaged(disposals.sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)), "/disposal", { tab: "dead" });
 
   return (
     <Columns
-      form={
-        <>
-          <DisposalForm farmId={farmId} batches={batches} onSave={(d) => save({ type: B.recordDisposal, payload: d }, "disposal", d)} />
-        </>
-      }
+      form={<DisposalForm farmId={farmId} batches={batches} onSave={(d) => save({ type: B.recordDisposal, payload: d }, "disposal", d)} />}
       history={
         <>
-          <h2 className="text-lg font-semibold">{t("Disposal.gaps", { days: GAP_DAYS })}</h2>
-          {gaps.length === 0 ? (
-            <p>{t("Disposal.noGaps")}</p>
-          ) : (
-            <table className="w-full" aria-label={t("Disposal.gaps", { days: GAP_DAYS })}>
-              <thead>
-                <tr>
-                  <th className="text-start">{t("Disposal.day")}</th>
-                  <th className="text-end">{t("Disposal.dead")}</th>
-                  <th className="text-end">{t("Disposal.disposed")}</th>
-                  <th className="text-end">{t("Disposal.gap")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {gaps.map((g) => (
-                  <tr key={g.day} className={g.gap > 0 ? "font-semibold text-alert-fg" : ""}>
-                    <td>{day(g.day)}</td>
-                    <td className="text-end">{formatCount(g.dead)}</td>
-                    <td className="text-end">{formatCount(g.disposed)}</td>
-                    <td className="text-end">{formatCount(g.gap)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <LogSection title={t("Disposal.gaps", { days: GAP_DAYS })}>
+            {gaps.length === 0 ? (
+              <p className={empty}>{t("Disposal.noGaps")}</p>
+            ) : (
+              <div className={dataTableWrap}>
+                <table className={dataTable} aria-label={t("Disposal.gaps", { days: GAP_DAYS })}>
+                  <thead>
+                    <tr>
+                      <th scope="col">{t("Disposal.day")}</th>
+                      <th scope="col" className={num}>{t("Disposal.dead")}</th>
+                      <th scope="col" className={num}>{t("Disposal.disposed")}</th>
+                      <th scope="col" className={num}>{t("Disposal.gap")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gaps.map((g) => (
+                      <tr key={g.day} className={g.gap > 0 ? "font-semibold text-alert-fg" : ""}>
+                        <td>{day(g.day)}</td>
+                        <td className={num}>{formatCount(g.dead)}</td>
+                        <td className={num}>{formatCount(g.disposed)}</td>
+                        <td className={num}>{formatCount(g.gap)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </LogSection>
 
-          <h2 className="text-lg font-semibold">{t("Disposal.recent")}</h2>
-          <ul className="flex flex-col gap-2" aria-label={t("Disposal.recent")}>
-            {recent.map((d) => (
-              <li key={d.id} className={card}>
-                <Editable
-                  name={day(d.day)}
-                  form={(close) => (
-                    <DisposalForm farmId={farmId} batches={withBatch(batches, d.batchId, batchLabel)} disposal={d} onCancel={close} onSave={async (n) => (await correct(save, B.editDisposal, "disposal", d, n)) && (close(), true)} />
-                  )}
-                >
-                  <span>
-                    {t("Disposal.line", { date: day(d.day), birds: formatCount(d.birds), method: d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`) })}
-                    {d.weightGrams !== null && <> · <bdi dir="ltr">{formatKg(d.weightGrams)}</bdi></>}
-                    {d.batchId && ` · ${batchLabel(d.batchId) ?? ""}`}
-                  </span>
-                </Editable>
-              </li>
-            ))}
-          </ul>
+          {recent.rows.length > 0 && (
+            <LogSection title={t("Disposal.recent")}>
+              <ul className={logList} aria-label={t("Disposal.recent")}>
+                {recent.rows.map((d) => (
+                  <Editable
+                    key={d.id}
+                    name={day(d.day)}
+                    form={(close) => (
+                      <DisposalForm farmId={farmId} batches={withBatch(batches, d.batchId, batchLabel)} disposal={d} onCancel={close} onSave={async (n) => (await correct(save, B.editDisposal, "disposal", d, n)) && (close(), true)} />
+                    )}
+                  >
+                    <span>
+                      {t("Disposal.line", { date: day(d.day), birds: formatCount(d.birds), method: d.method === "other" ? (d.methodNote ?? "") : t(`Disposal.methods.${d.method}`) })}
+                      {d.weightGrams !== null && <> · <bdi dir="ltr">{formatKg(d.weightGrams)}</bdi></>}
+                      {d.batchId && ` · ${batchLabel(d.batchId) ?? ""}`}
+                    </span>
+                  </Editable>
+                ))}
+              </ul>
+              {recent.pager}
+            </LogSection>
+          )}
         </>
       }
     />
@@ -399,7 +458,7 @@ function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps
   };
 
   return (
-    <form key={key} onSubmit={submit} className="flex flex-col gap-3">
+    <form key={key} onSubmit={submit} className={disposal ? "flex flex-col gap-3" : `${card} gap-3`}>
       <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={disposal?.day ?? today} max={today} required autoFocus={!!disposal} {...bad("day")} className={field} />}</Field>
       <Field label={t("Disposal.batchField")}>
         {(id) => (
@@ -430,25 +489,26 @@ function DisposalForm({ farmId, batches, disposal, onSave, onCancel }: FormProps
 
 function Manure({ farmId, records, houses, batches, batchLabel, day, save }: LogProps & { houses: HouseDto[] }) {
   const t = useTranslations();
-  const recent = of<ManureRemovalDto>(records, "manureRemoval")
-    .filter((r) => r.farmId === farmId)
-    .sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id))
-    .slice(0, 20);
+  const recent = usePaged(
+    of<ManureRemovalDto>(records, "manureRemoval")
+      .filter((r) => r.farmId === farmId)
+      .sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)),
+    "/disposal",
+    { tab: "manure" },
+  );
 
   return (
     <Columns
-      form={
-        <>
-          <ManureForm farmId={farmId} houses={houses} batches={batches} onSave={(r) => save({ type: B.recordManure, payload: r }, "manureRemoval", r)} />
-        </>
-      }
+      form={<ManureForm farmId={farmId} houses={houses} batches={batches} onSave={(r) => save({ type: B.recordManure, payload: r }, "manureRemoval", r)} />}
       history={
-        <>
-          <h2 className="text-lg font-semibold">{t("Disposal.recentManure")}</h2>
-          <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentManure")}>
-            {recent.map((r) => (
-              <li key={r.id} className={card}>
+        <LogSection title={t("Disposal.recentManure")}>
+          {recent.rows.length === 0 ? (
+            <p className={empty}>{t("Disposal.noManure")}</p>
+          ) : (
+            <ul className={logList} aria-label={t("Disposal.recentManure")}>
+              {recent.rows.map((r) => (
                 <Editable
+                  key={r.id}
                   name={day(r.day)}
                   form={(close) => (
                     <ManureForm farmId={farmId} houses={houses} batches={withBatch(batches, r.batchId, batchLabel)} removal={r} onCancel={close} onSave={async (n) => (await correct(save, B.editManure, "manureRemoval", r, n)) && (close(), true)} />
@@ -459,10 +519,11 @@ function Manure({ farmId, records, houses, batches, batchLabel, day, save }: Log
                     {r.recipient && ` · ${r.recipient}`}
                   </span>
                 </Editable>
-              </li>
-            ))}
-          </ul>
-        </>
+              ))}
+            </ul>
+          )}
+          {recent.pager}
+        </LogSection>
       }
     />
   );
@@ -505,7 +566,7 @@ function ManureForm({ farmId, houses, batches, removal, onSave, onCancel }: Form
   };
 
   return (
-    <form key={key} onSubmit={submit} className="flex flex-col gap-3">
+    <form key={key} onSubmit={submit} className={removal ? "flex flex-col gap-3" : `${card} gap-3`}>
       <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={removal?.day ?? today} max={today} required autoFocus={!!removal} {...bad("day")} className={field} />}</Field>
       <Field label={t("Disposal.house")}>
         {(id) => (
@@ -571,7 +632,7 @@ function Cleanouts(props: Parameters<Screen>[0]) {
         const disinfectedOn = cleanout?.steps.find((s) => s.step === "disinfection")?.day ?? null;
         return (
           <section key={house.id} aria-label={house.name} className={card}>
-            <h2 className="text-lg font-semibold">{house.name}</h2>
+            <h2 className={sectionTitle}>{house.name}</h2>
             {last.status === "open" ? (
               <p>{t("busy", { date: day(last.placedOn) })}</p>
             ) : !cleanout ? (
@@ -579,7 +640,7 @@ function Cleanouts(props: Parameters<Screen>[0]) {
                 <p>{t("after", { date: day(last.placedOn) })}</p>
                 <button
                   type="button"
-                  className={`${primary} lg:self-start`}
+                  className={primarySm}
                   onClick={() => {
                     const payload = { id: uuidv7(), houseId: house.id, afterBatchId: last.id, startedOn: today };
                     const local: CleanoutDto = { ...payload, farmId: farm.id, steps: [] };
@@ -630,48 +691,49 @@ function Steps({ cleanout, day, save }: { cleanout: CleanoutDto; day: (d: string
     if (saved) close();
   };
 
+  const done = open && cleanout.steps.find((s) => s.step === open);
+  // §2.7: a step is noted in a sheet, opened from its row; the focus goes back to that row's button.
   return (
-    <ol className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
-      {CLEANOUT_STEPS.map((key, i) => {
-        const done = cleanout.steps.find((s) => s.step === key);
-        return (
-          <li key={key} className="flex flex-col gap-2 border-t border-line pt-2">
-            <div className="flex items-center justify-between gap-2">
+    <>
+      <ol className="flex flex-col lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
+        {CLEANOUT_STEPS.map((key, i) => {
+          const marked = cleanout.steps.find((s) => s.step === key);
+          return (
+            <li key={key} className="flex items-center justify-between gap-2 border-t border-line py-2">
               <span>
-                <span aria-hidden="true">{done ? "✓" : i + 1} </span>
-                <span className={done ? "font-semibold" : ""}>{t(`Cleanout.steps.${key}`)}</span>
-                {done && <span className="block text-sm text-muted">{[day(done.day), done.product, done.dose, done.productLot && t("Cleanout.lot", { lot: done.productLot }), done.note].filter(Boolean).join(" · ")}</span>}
+                <span aria-hidden="true">{marked ? "✓" : i + 1} </span>
+                <span className={marked ? "font-semibold" : ""}>{t(`Cleanout.steps.${key}`)}</span>
+                {marked && <span className="block text-sm text-muted">{[day(marked.day), marked.product, marked.dose, marked.productLot && t("Cleanout.lot", { lot: marked.productLot }), marked.note].filter(Boolean).join(" · ")}</span>}
               </span>
-              {open !== key && (
-                <button
-                  type="button"
-                  {...opener(key, () => setError(undefined))}
-                  className={secondary}
-                  aria-label={done ? t("Biosecurity.editNamed", { record: t(`Cleanout.steps.${key}`) }) : t("Cleanout.markNamed", { step: t(`Cleanout.steps.${key}`) })}
-                >
-                  {done ? t("Biosecurity.edit") : t("Cleanout.mark")}
-                </button>
-              )}
-            </div>
-            {open === key && (
-              <form onSubmit={submit} className="flex flex-col gap-3">
-                <Field label={t("Cleanout.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={done?.day ?? today} max={today} required autoFocus {...bad("day")} className={field} />}</Field>
-                {key === "disinfection" && (
-                  <>
-                    <Field label={t("Cleanout.product")}>{(id) => <input id={id} name="product" required maxLength={120} defaultValue={done?.product ?? ""} {...bad("product")} className={field} />}</Field>
-                    <Field label={t("Cleanout.dose")}>{(id) => <input id={id} name="dose" maxLength={60} defaultValue={done?.dose ?? ""} className={field} />}</Field>
-                    <Field label={t("Cleanout.productLot")}>{(id) => <input id={id} name="productLot" maxLength={60} dir="ltr" defaultValue={done?.productLot ?? ""} className={field} />}</Field>
-                  </>
-                )}
-                <Field label={t("Cleanout.note")}>{(id) => <input id={id} name="note" maxLength={200} defaultValue={done?.note ?? ""} className={field} />}</Field>
-                {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-                <Submit label={t("Cleanout.save")} onCancel={done ? close : undefined} />
-              </form>
-            )}
-          </li>
-        );
-      })}
-    </ol>
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                {...opener(key, () => setError(undefined))}
+                className={secondarySm}
+                aria-label={marked ? t("Biosecurity.editNamed", { record: t(`Cleanout.steps.${key}`) }) : t("Cleanout.markNamed", { step: t(`Cleanout.steps.${key}`) })}
+              >
+                {marked ? t("Biosecurity.edit") : t("Cleanout.mark")}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <Sheet open={!!open} onClose={close} title={open ? t(`Cleanout.steps.${open}`) : ""}>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <Field label={t("Cleanout.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={done?.day ?? today} max={today} required {...bad("day")} className={field} />}</Field>
+          {open === "disinfection" && (
+            <>
+              <Field label={t("Cleanout.product")}>{(id) => <input id={id} name="product" required maxLength={120} defaultValue={done?.product ?? ""} {...bad("product")} className={field} />}</Field>
+              <Field label={t("Cleanout.dose")}>{(id) => <input id={id} name="dose" maxLength={60} defaultValue={done?.dose ?? ""} className={field} />}</Field>
+              <Field label={t("Cleanout.productLot")}>{(id) => <input id={id} name="productLot" maxLength={60} dir="ltr" defaultValue={done?.productLot ?? ""} className={field} />}</Field>
+            </>
+          )}
+          <Field label={t("Cleanout.note")}>{(id) => <input id={id} name="note" maxLength={200} defaultValue={done?.note ?? ""} className={field} />}</Field>
+          {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
+          <Submit label={t("Cleanout.save")} edit={!!done} onCancel={close} />
+        </form>
+      </Sheet>
+    </>
   );
 }
 
@@ -682,69 +744,75 @@ function Rodents({ farmId, records, houses, day, save, db }: Omit<LogProps, "bat
   const [error, setError] = useState<string>();
   const online = useOnline();
   const queued = useLiveQuery(() => db.outbox.toArray(), [db]);
-  const checks = of<RodentCheckDto>(records, "rodentCheck")
-    .filter((r) => r.farmId === farmId)
-    .sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id))
-    .slice(0, 20);
+  const checks = usePaged(
+    of<RodentCheckDto>(records, "rodentCheck")
+      .filter((r) => r.farmId === farmId)
+      .sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)),
+    "/disposal",
+    { tab: "rodents" },
+  );
   const unsent = new Set((queued ?? []).flatMap((e) => e.recordKeys ?? []));
 
   return (
     <Columns
       form={
-        <>
-          <RodentForm
-            farmId={farmId}
-            houses={houses}
-            onError={setError}
-            onSave={(r) => save({ type: B.recordRodentCheck, payload: { ...r, proofFileId: undefined } }, "rodentCheck", r)} // the photo comes online, later
-          />
-          {error && <p role="alert" className={danger}>{t(error)}</p>}
-        </>
+        <RodentForm
+          farmId={farmId}
+          houses={houses}
+          onSave={(r) => save({ type: B.recordRodentCheck, payload: { ...r, proofFileId: undefined } }, "rodentCheck", r)} // the photo comes online, later
+        />
       }
       history={
-        <>
-          <h2 className="text-lg font-semibold">{t("Disposal.recentRodents")}</h2>
-          <ul className="flex flex-col gap-2" aria-label={t("Disposal.recentRodents")}>
-            {checks.map((r) => (
-              <li key={r.id} className={card}>
+        <LogSection title={t("Disposal.recentRodents")}>
+          {error && <p role="alert" className={danger}>{t(error)}</p>}
+          {checks.rows.length === 0 ? (
+            <p className={empty}>{t("Disposal.noRodents")}</p>
+          ) : (
+            <ul className={logList} aria-label={t("Disposal.recentRodents")}>
+              {checks.rows.map((r) => (
                 <Editable
+                  key={r.id}
                   name={day(r.day)}
-                  form={(close) => <RodentForm farmId={farmId} houses={houses} check={r} onError={setError} onCancel={close} onSave={async (n) => (await correct(save, B.editRodentCheck, "rodentCheck", r, n)) && (close(), true)} />}
+                  form={(close) => <RodentForm farmId={farmId} houses={houses} check={r} onCancel={close} onSave={async (n) => (await correct(save, B.editRodentCheck, "rodentCheck", r, n)) && (close(), true)} />}
                 >
-                  <span>
-                    {t("Disposal.rodentLine", { date: day(r.day), action: t(`Disposal.rodentActions.${r.action}`) })}
-                    {r.product && ` · ${r.product}`}
-                    {r.houseId && ` · ${houses.find((h) => h.id === r.houseId)?.name ?? ""}`}
+                  <span className="flex flex-col gap-1">
+                    <span>
+                      {t("Disposal.rodentLine", { date: day(r.day), action: t(`Disposal.rodentActions.${r.action}`) })}
+                      {r.product && ` · ${r.product}`}
+                      {r.houseId && ` · ${houses.find((h) => h.id === r.houseId)?.name ?? ""}`}
+                    </span>
+                    {r.proofFileId ? (
+                      <a href={`/api/files/${r.proofFileId}`} className="underline underline-offset-4 lg:w-fit">{t("Disposal.proof")}</a>
+                    ) : unsent.has(`rodentCheck:${r.id}`) || !online ? (
+                      <span className="text-sm text-brick-fg">{t("Disposal.proofMissing")}</span>
+                    ) : (
+                      <FileUpload url={`/api/files?purpose=proof&rodentCheck=${r.id}`} accept="image/jpeg,image/png,image/webp" camera label={t("Disposal.proofAdd")} look={secondarySm} onError={setError} />
+                    )}
                   </span>
-                  {r.proofFileId ? (
-                    <a href={`/api/files/${r.proofFileId}`} className="underline underline-offset-4">{t("Disposal.proof")}</a>
-                  ) : unsent.has(`rodentCheck:${r.id}`) || !online ? (
-                    <span className={warn}>{t("Disposal.proofMissing")}</span>
-                  ) : (
-                    <FileUpload url={`/api/files?purpose=proof&rodentCheck=${r.id}`} accept="image/jpeg,image/png,image/webp" camera label={t("Disposal.proofAdd")} onError={setError} />
-                  )}
                 </Editable>
-              </li>
-            ))}
-          </ul>
-        </>
+              ))}
+            </ul>
+          )}
+          {checks.pager}
+        </LogSection>
       }
     />
   );
 }
 
 /** BS8: records a rodent check, or corrects `check` (its photo stays: a proof is never replaced). */
-function RodentForm({ farmId, houses, check, onSave, onCancel, onError }: FormProps<RodentCheckDto> & { houses: HouseDto[]; check?: RodentCheckDto; onError: (key: string | undefined) => void }) {
+function RodentForm({ farmId, houses, check, onSave, onCancel }: FormProps<RodentCheckDto> & { houses: HouseDto[]; check?: RodentCheckDto }) {
   const t = useTranslations();
   const [key, setKey] = useState(0);
+  const [error, setError] = useState<string>(); // in the form: a correction's error shows in its sheet
   const today = farmDayOf(new Date());
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
     const get = (k: string) => String(data.get(k) ?? "").trim();
-    if (get("day") > today) return onError("errors.DAY_IN_FUTURE");
-    onError(undefined);
+    if (get("day") > today) return setError("errors.DAY_IN_FUTURE");
+    setError(undefined);
     const r: RodentCheckDto = {
       id: check?.id ?? uuidv7(),
       farmId,
@@ -758,7 +826,7 @@ function RodentForm({ farmId, houses, check, onSave, onCancel, onError }: FormPr
   };
 
   return (
-    <form key={key} onSubmit={submit} className="flex flex-col gap-3">
+    <form key={key} onSubmit={submit} className={check ? "flex flex-col gap-3" : `${card} gap-3`}>
       <Field label={t("Disposal.day")}>{(id) => <input id={id} name="day" type="date" defaultValue={check?.day ?? today} max={today} required autoFocus={!!check} className={field} />}</Field>
       <Field label={t("Disposal.house")}>
         {(id) => (
@@ -776,6 +844,7 @@ function RodentForm({ farmId, houses, check, onSave, onCancel, onError }: FormPr
         )}
       </Field>
       <Field label={t("Disposal.product")}>{(id) => <input id={id} name="product" maxLength={120} defaultValue={check?.product ?? ""} className={field} />}</Field>
+      {error && <p role="alert" className={danger}>{t(error)}</p>}
       <Submit label={t("Disposal.saveRodent")} onCancel={onCancel} />
     </form>
   );

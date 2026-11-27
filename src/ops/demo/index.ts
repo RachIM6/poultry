@@ -39,18 +39,20 @@ export async function freePhones(n: number, exclude: string): Promise<string[]> 
   return free;
 }
 
-const newUser = (phoneNumber: string, name: string) => db.user.create({ data: { phoneNumber, name, email: `${phoneNumber.slice(1)}@phone.invalid`, locale: "fr" } });
+// Made-up people, named as such (ADR-016): « Démo » in every name.
+const newUser = (phoneNumber: string, firstName: string, lastName: string) =>
+  db.user.create({ data: { phoneNumber, firstName, lastName, name: `${firstName} ${lastName}`, email: `${phoneNumber.slice(1)}@phone.invalid`, locale: "fr" } });
 
 /** A member who has joined: invited, then the code redeemed by a new user with that number (no password: never signs in). */
-async function joined(ctx: TenantContext, phone: string, name: string, role: "manager" | "worker") {
+async function joined(ctx: TenantContext, phone: string, firstName: string, role: "manager" | "worker") {
   const { code } = must(`${role} invitation`, await inviteMember(ctx, { phone, role, accessUntil: null })).value;
-  const user = await newUser(phone, name);
+  const user = await newUser(phone, firstName, "Démo");
   must(`${role} joined`, await db.$transaction((tx) => claimInvitation(tx, user.id, code)));
 }
 
 /** The SARL, created by its associate (a made-up user) and co-owned by the demo owner, so the switcher shows both. */
 async function createSarl(ownerId: string, associatePhone: string): Promise<TenantContext> {
-  const associate = await newUser(associatePhone, "Associé démo");
+  const associate = await newUser(associatePhone, "Associé", "Démo");
   const sarl = must("SARL onboarding", await createOrganization(associate.id, { name: SARL_NAME, form: "company", locale: "fr" })).value;
   await db.$transaction((tx) => addOwner(tx, { organizationId: sarl.organizationId, userId: ownerId, locale: "fr" }));
   return { userId: ownerId, organizationId: sarl.organizationId, role: "owner" };
@@ -87,7 +89,7 @@ export async function seedDemo(o: DemoOptions): Promise<DemoResult> {
       if (o.password) lines.push(await demoPassword(user.id, o));
       return { added: false, lines: [...lines, `demo: ${o.phone} already exists, no farm added`] };
     }
-    user = await newUser(o.phone, "Démo");
+    user = await newUser(o.phone, "Démo", "Ben Ahmed");
     signIn = await demoPassword(user.id, o);
     individual = must("onboarding", await createOrganization(user.id, { name: "Ferme Démo Ben Ahmed", form: "individual", locale: "fr" })).value;
     company = await createSarl(user.id, associate);
@@ -97,8 +99,8 @@ export async function seedDemo(o: DemoOptions): Promise<DemoResult> {
   let writes = 0;
   if (individual) {
     // First, so that Saïd's and Youssef's records link to the members who sign in with their phones (WF2).
-    await joined(individual, manager, "Saïd Démo", "manager");
-    await joined(individual, worker, "Youssef Démo", "worker"); // his own tasks and days
+    await joined(individual, manager, "Saïd", "manager");
+    await joined(individual, worker, "Youssef", "worker"); // his own tasks and days
     const filled = await fillIndividual(individual, { manager, worker });
     writes += filled.writes;
     const vetCode = must("vet invitation", await inviteMember(individual, { phone: vet, role: "vet", accessUntil: addFarmDays(today, 90) })).value.code;

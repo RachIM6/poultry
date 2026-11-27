@@ -1,6 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { Link } from "@/i18n/navigation";
@@ -11,11 +12,17 @@ import { NOTIFICATION_MUTATIONS as M, type NotificationDto } from "@/modules/not
 import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { requestSync, startSync } from "@/offline/sync";
-import { splitAside, splitNarrow } from "@/components/layout";
-import { field, primary, secondary } from "@/components/ui";
+import { empty, sectionTitle } from "@/components/layout";
+import { Pager } from "@/components/pager";
+import { pageOf, pickTab, TABLE_PAGE } from "@/components/paging";
+import { Tabs } from "@/components/tabs";
+import { card, field, primarySm, secondarySm } from "@/components/ui";
 
 // SPEC N1–N2 on the static /inbox shell: the list comes from the phone's database (synced like the farms);
-// push, the test and quiet hours need the network.
+// push, the test and quiet hours need the network. tasks/plan-ui-cleanup.md §3: « Non lues · Toutes · Réglages » as
+// query tabs (?tab=), the lists paged.
+
+const TABS = ["unread", "all", "settings"] as const;
 
 
 export function InboxScreen() {
@@ -38,41 +45,64 @@ function Inbox({ userId, organizationId, role }: Scope) {
   useEffect(() => startSync({ userId, organizationId, role }), [userId, organizationId, role]);
   const db = localDb({ userId, organizationId });
   const records = useLiveQuery(() => db.records.where("entity").equals("notification").toArray(), [userId, organizationId]);
+  const search = useSearchParams();
+  const [readHere, setReadHere] = useState<ReadonlySet<string>>(new Set()); // read on this visit: they stay under « Non lues » until it is left
   if (!records) return null;
+  const tab = pickTab(TABS, search.get("tab"));
   const items = records.map((r) => r.data as NotificationDto).sort((x, y) => y.createdAt.localeCompare(x.createdAt));
+  const unread = items.filter((n) => !n.readAt);
+  const list = tab === "unread" ? items.filter((n) => !n.readAt || readHere.has(n.id)) : items;
+  const page = pageOf(search.get("page") ?? undefined, list.length, TABLE_PAGE);
   const today = farmDayOf(new Date()); // "26 novembre à 01:25": the year only for last year's
 
-  const markRead = (n: NotificationDto) =>
-    n.readAt
-      ? undefined
-      : writeLocal(db, { type: M.markRead, payload: { id: n.id } }, { entity: "notification", id: n.id, data: { ...n, readAt: new Date().toISOString() } });
+  const markRead = (n: NotificationDto) => {
+    if (n.readAt) return;
+    setReadHere((s) => new Set(s).add(n.id));
+    void writeLocal(db, { type: M.markRead, payload: { id: n.id } }, { entity: "notification", id: n.id, data: { ...n, readAt: new Date().toISOString() } });
+  };
+  const href = (key: string) => ({ pathname: "/inbox", query: { tab: key } });
 
-  // Wide screens: the notifications, and the push and quiet-hours settings beside them.
   return (
-    <div className={splitNarrow}>
-      {items.length === 0 ? (
-        <p>{t("Inbox.empty")}</p>
+    <>
+      <Tabs
+        label={t("Inbox.title")}
+        current={tab}
+        tabs={[
+          { key: "unread", label: t("Inbox.tabUnread"), count: unread.length, href: href("unread") },
+          { key: "all", label: t("Inbox.tabAll"), href: href("all") },
+          { key: "settings", label: t("Inbox.tabSettings"), href: href("settings") },
+        ]}
+      />
+      {tab === "settings" ? (
+        <div className="flex flex-col gap-5 lg:max-w-xl">
+          <PushControls />
+          <QuietHours />
+        </div>
+      ) : list.length === 0 ? (
+        <p className={empty}>{t(items.length === 0 ? "Inbox.empty" : "Inbox.noUnread")}</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {items.map((n) => (
-            <li key={n.id}>
-              <button type="button" onClick={() => void markRead(n)} className="flex w-full flex-col gap-1 rounded-2xl border border-line bg-card p-3 text-start">
-                <span className={n.readAt ? "" : "font-semibold"}>
-                  {!n.readAt && <span className="sr-only">{t("Inbox.unread")} : </span>}
-                  {t(`Notifications.templates.${n.templateKey}.title`, n.params)}
-                </span>
-                <span>{t(`Notifications.templates.${n.templateKey}.body`, n.params)}</span>
-                <span className="text-sm text-muted">{formatMomentShort(n.createdAt, locale, today)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          {/* One dense row per notification; a tap marks it read. */}
+          <ul aria-label={t(tab === "unread" ? "Inbox.tabUnread" : "Inbox.tabAll")} className={`${card} gap-0 p-0`}>
+            {list.slice((page - 1) * TABLE_PAGE, page * TABLE_PAGE).map((n) => (
+              <li key={n.id} className="border-t border-line first:border-t-0">
+                <button type="button" onClick={() => markRead(n)} className="flex min-h-11 w-full flex-col gap-0.5 px-4 py-2.5 text-start hover:bg-shell lg:flex-row lg:items-baseline lg:gap-6">
+                  <span className="flex min-w-0 flex-col lg:flex-1">
+                    <span className={n.readAt ? "" : "font-semibold"}>
+                      {!n.readAt && <span className="sr-only">{t("Inbox.unread")} : </span>}
+                      {t(`Notifications.templates.${n.templateKey}.title`, n.params)}
+                    </span>
+                    <span className="text-sm text-ink-2">{t(`Notifications.templates.${n.templateKey}.body`, n.params)}</span>
+                  </span>
+                  <span className="text-sm whitespace-nowrap text-muted">{formatMomentShort(n.createdAt, locale, today)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <Pager page={page} size={TABLE_PAGE} total={list.length} href={(n) => ({ pathname: "/inbox", query: { tab, page: n } })} />
+        </>
       )}
-      <div className={`flex flex-col gap-5 ${splitAside}`}>
-        <PushControls />
-        <QuietHours />
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -126,13 +156,15 @@ function PushControls() {
   // Push not set up on this server ("off"): a plain fact for the farmer, not the operator's to-do (the inbox works)
   const status: Partial<Record<PushState, string>> = { unsupported: "pushUnsupported", off: "pushInboxOnly", denied: "pushDenied", on: "pushOn" };
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("push")}</h2>
+    <section className={`${card} gap-3`}>
+      <h2 className={sectionTitle}>{t("push")}</h2>
       {status[state] && <p>{t(status[state])}</p>}
-      {state === "available" && (
-        <button type="button" onClick={enable} disabled={busy} className={primary}>{t("enablePush")}</button>
-      )}
-      <button type="button" onClick={sendTest} disabled={busy} className={secondary}>{t("sendTest")}</button>
+      <div className="flex flex-wrap gap-2">
+        {state === "available" && (
+          <button type="button" onClick={enable} disabled={busy} className={primarySm}>{t("enablePush")}</button>
+        )}
+        <button type="button" onClick={sendTest} disabled={busy} className={secondarySm}>{t("sendTest")}</button>
+      </div>
       {message && <Message messageKey={message} />}
     </section>
   );
@@ -164,8 +196,8 @@ function QuietHours() {
   };
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("quietHours")}</h2>
+    <section className={`${card} gap-3`}>
+      <h2 className={sectionTitle}>{t("quietHours")}</h2>
       <p className="text-sm text-muted">{t("quietHint")}</p>
       {hours && (
         <form onSubmit={save} className="flex flex-col gap-3">
@@ -179,7 +211,7 @@ function QuietHours() {
               <input id={ids.end} name="end" type="time" defaultValue={hours.end} required dir="ltr" className={field} />
             </div>
           </div>
-          <button type="submit" className={secondary}>{t("save")}</button>
+          <button type="submit" className={secondarySm}>{t("save")}</button>
         </form>
       )}
       {message && <Message messageKey={message} />}

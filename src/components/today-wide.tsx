@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { BatchStrip, type StripDay } from "@/components/batch-strip";
 import { homeKpis, homeTasks, type HomeBatch, type HomeVaccine } from "@/components/today-cockpit";
+import { primarySm } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatCount } from "@/lib/format";
 
@@ -39,8 +40,11 @@ export function Figure({ label, value, note, href, busy, attention }: { label: s
   return href.startsWith("#") ? <a href={href} className={box}>{body}</a> : <Link href={href} className={box}>{body}</Link>;
 }
 
-/** The top row: yesterday's eggs, the live birds, the cash (streamed in by the server), the tasks left. */
-export function CockpitFigures({ kpis, cash }: { kpis: ReturnType<typeof homeKpis>; cash: ReactNode }) {
+/**
+ * The top row: yesterday's eggs, the live birds, the cash (streamed in by the server), the tasks left; that one opens
+ * « Tâches du jour » (`tasksHref`, tasks/plan-ui-cleanup.md §3), or the checklist below for a role without that page.
+ */
+export function CockpitFigures({ kpis, cash, tasksHref }: { kpis: ReturnType<typeof homeKpis>; cash: ReactNode; tasksHref?: string }) {
   const t = useTranslations("Today");
   if (!kpis.eggs && !kpis.birds && !cash && !kpis.tasks) return null;
   const { tasks } = kpis;
@@ -57,7 +61,7 @@ export function CockpitFigures({ kpis, cash }: { kpis: ReturnType<typeof homeKpi
       {cash}
       {tasks && (
         <Figure
-          href="#taches"
+          href={tasksHref ?? "#taches"}
           attention={tasks.remaining > 0}
           label={t("tasksLeft")}
           value={formatCount(tasks.remaining)}
@@ -152,14 +156,19 @@ const urgentRow = "flex min-h-[60px] items-center gap-3 py-2";
 const badge = "grid size-9 shrink-0 place-items-center rounded-[10px]";
 
 /** The right rail's checklist: the withdrawals and what is late first, then one « Saisir » per house. */
-export function CockpitTasks({ rows, recording, remaining }: { rows: readonly CockpitRow[]; recording: boolean; remaining: number }) {
+export function CockpitTasks({ rows, recording, remaining, tasksHref }: { rows: readonly CockpitRow[]; recording: boolean; remaining: number; tasksHref?: string }) {
   const t = useTranslations("Today");
   const { alerts, urgent, entries } = homeTasks(rows, recording);
   return (
     <section id="taches" aria-labelledby="home-tasks" className={`hidden px-4 pb-2.5 pt-1.5 lg:block ${panel}`}>
       <div className="flex min-h-[52px] items-center justify-between gap-3">
         <h2 id="home-tasks" className="text-[17px] font-semibold">{t("tasks")}</h2>
-        <span className="text-sm text-muted">{t("toDo", { n: formatCount(remaining) })}</span>
+        <span className="flex items-center gap-3">
+          <span className="text-sm text-muted">{t("toDo", { n: formatCount(remaining) })}</span>
+          {tasksHref && (
+            <Link href={tasksHref} className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">{t("seeAll")}</Link>
+          )}
+        </span>
       </div>
       {alerts.map((r) => (
         <p key={r.id} role="status" className="mb-2.5 rounded-[14px] bg-alert-soft px-3.5 py-3 text-sm leading-normal text-alert-fg">
@@ -202,10 +211,7 @@ export function CockpitTasks({ rows, recording, remaining }: { rows: readonly Co
                 <li key={r.id} className="flex min-h-[52px] items-center gap-3">
                   <span aria-hidden="true" className="size-[18px] shrink-0 rounded-full border-2 border-muted" />
                   <span className="flex-1 text-[15px]"><bdi>{r.house}</bdi></span>
-                  <Link
-                    href={{ pathname: "/batches", hash: r.id }}
-                    className="inline-flex min-h-11 items-center rounded-xl bg-chick px-3.5 text-sm font-semibold text-ink shadow-[0_2px_0_var(--color-chick-edge)]"
-                  >
+                  <Link href={{ pathname: "/batches", hash: r.id }} className={primarySm}>
                     {t("enter")}
                     <span className="sr-only"> · {r.house}</span>
                   </Link>

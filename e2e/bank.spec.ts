@@ -17,26 +17,33 @@ test("a bank statement is reconciled by ticking its lines", async ({ page }) => 
   ]);
 
   await page.goto("/fr/treasury");
-  await page.getByRole("link", { name: "Rapprochement bancaire" }).click();
+  await page.getByRole("navigation", { name: "Trésorerie" }).getByRole("link", { name: "Rapprochement" }).click(); // the section's tab
   await expect(page.getByText("Aucun relevé pour ce compte.")).toBeVisible();
 
-  // The statement as printed: the deposit and the electricity bill are on it, the water bill isn't yet.
+  // The statement as printed: the deposit and the electricity bill are on it, the water bill isn't yet. Its form opens
+  // in a sheet that closes once saved.
+  await page.getByRole("button", { name: "Ajouter un relevé" }).click();
   await page.getByLabel("Date de fin du relevé").fill(farmDaysAgo(0));
   await page.getByLabel("Solde final du relevé (DH)").fill("8 800,00");
   await page.getByRole("button", { name: "Enregistrer le relevé" }).click();
   const status = page.getByRole("status").filter({ hasText: /rapproché/i });
   await expect(status).toHaveText("Non rapproché");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   const figures = page.getByRole("definition");
   await expect(figures.nth(1)).toHaveText(/8.500,00\sDH/); // book balance: 10 000 − 1 200 − 300
   await expect(figures.nth(3)).toHaveText(/8.800,00\sDH/); // nothing ticked yet
 
   const row = (text: string | RegExp) => page.getByRole("row").filter({ hasText: text });
   const [deposit, power, water] = [row("Virement de fonds"), row(/1.200,00/), row(/300,00/)];
+  const filter = page.getByRole("navigation", { name: "Opérations à afficher" });
+  await expect(filter.getByRole("link", { name: "À pointer 3" })).toHaveAttribute("aria-current", "page"); // the default
   for (const line of [deposit, power]) {
     await line.getByRole("button", { name: /^Pointer : / }).click(); // WCAG 2.4.6: the line in the name
-    await expect(line.getByRole("button", { name: "Dépointer" })).toBeVisible();
+    await expect(line).toHaveCount(0); // ticked: no longer « À pointer »
   }
   await expect(status).toHaveText("Rapproché");
+  await filter.getByRole("link", { name: /^Toutes/ }).click();
+  for (const line of [deposit, power]) await expect(line.getByRole("button", { name: "Dépointer" })).toBeVisible();
   await expect(figures.nth(3)).toHaveText(/^0,00\sDH$/);
   await expect(water.getByRole("button", { name: "Pointer" })).toBeVisible(); // not at the bank yet
 
@@ -62,7 +69,8 @@ ${printed(inDay)};VIREMENT RECU;;500,00
 `;
 
   await page.goto("/fr/treasury/bank");
-  const upload = page.getByRole("region", { name: "Importer un relevé (fichier)" });
+  await page.getByRole("button", { name: "Importer un relevé (fichier)" }).click();
+  const upload = page.getByRole("dialog", { name: "Importer un relevé (fichier)" });
   await upload.getByLabel("CSV (tableur)").check();
   await upload.getByLabel("Fichier").setInputFiles({ name: "releve.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
   await upload.getByLabel("Date de fin du relevé").fill(farmDaysAgo(0));
@@ -80,7 +88,7 @@ ${printed(inDay)};VIREMENT RECU;;500,00
 
   await page.goBack();
   await row("VIREMENT RECU").getByRole("link", { name: "Passer une écriture manuelle" }).click();
-  const form = page.locator("details");
+  const form = page.getByRole("dialog", { name: "Écriture manuelle" }); // open at once on /books
   await expect(form.getByLabel("Date")).toHaveValue(inDay);
   await expect(form.getByLabel("Libellé")).toHaveValue("VIREMENT RECU");
   await expect(form.getByLabel("Compte, ligne 1")).toHaveValue("5141");

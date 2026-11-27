@@ -22,9 +22,10 @@ for (const locale of ["fr", "ar"] as const) {
 
     const phone = randomMobile();
     await page.goto("/fr/settings/members");
+    await page.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
     await page.getByLabel("Numéro de téléphone").fill(phone);
     await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
-    await page.getByRole("button", { name: "Inviter" }).click();
+    await page.getByRole("button", { name: "Inviter", exact: true }).click();
     await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
     const code = await inviteCode(page);
     const workerContext = await browser.newContext({ ...test.info().project.use });
@@ -66,6 +67,7 @@ for (const locale of ["fr", "ar"] as const) {
     }
     const startCut = worker.getByRole("button", { name: t("Climate", "cutStart"), exact: true });
     await startCut.click();
+    await worker.getByRole("button", { name: t("Climate", "cutEnd") }).click(); // the end of the cut is noted in a sheet
     const open = worker.getByRole("form", { name: t("Climate", "cutEnd") });
     await open.getByLabel(t("Climate", "generatorStarted")).check();
     await open.getByRole("button", { name: t("Climate", "cutEnd") }).click();

@@ -85,6 +85,7 @@ test("a cheque marked unpaid offline is owed again and blocks the buyer, until t
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
 
+  await cheque.getByLabel(/^Autres actions : Chèque n° 0099/).click(); // the next state is the button, the others in « ⋯ »
   await cheque.getByRole("button", { name: "Impayé" }).click();
   await expect(page.getByText("Aucun chèque ni traite en attente.")).toBeVisible();
   await expect(page.getByText(/^Hamid Volailles doit/)).toHaveText(/doit 3.000,00\sDH$/);

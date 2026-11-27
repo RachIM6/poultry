@@ -1,14 +1,18 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
 import { parseTenths, tenths } from "@/components/climate-targets";
-import { rowHead, split } from "@/components/layout";
+import { useInline } from "@/components/focus";
+import { formActions, rowHead, sectionTitle, split } from "@/components/layout";
+import { Pager } from "@/components/pager";
+import { pageOf, TABLE_PAGE } from "@/components/paging";
 import { Scoped } from "@/components/scoped";
-import { card, danger, done, field, link, primary } from "@/components/ui";
-import { Link } from "@/i18n/navigation";
+import { Sheet } from "@/components/sheet";
+import { card, danger, done, field, primary, secondarySm } from "@/components/ui";
 import { formatDay } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { farmDayOf, farmMinutesOf, type FarmDay } from "@/lib/kernel/farm-day";
@@ -77,20 +81,30 @@ function Climate(scope: Scope) {
   const savedVerdicts = saved && band && verdicts(saved, band);
   const off = savedVerdicts ? (["temperature", "humidity", "ammonia"] as const).filter((k) => savedVerdicts[k] === "below" || savedVerdicts[k] === "above") : [];
 
-  // Wide screens: the entry beside the history (tasks/plan-ui.md "Desktop rules"); the phone: one column, in this order.
+  // Wide screens: the house and the power cut on one row, then the entry beside the history (tasks/plan-ui.md "Desktop
+  // rules"); the phone: one column, in this order.
   return (
-    <div className={split}>
-      <div className="flex flex-col gap-5">
-        <select aria-label={t("Climate.house")} value={house.id} onChange={(e) => (setHouseId(e.target.value), setSaved(null))} className={field}>
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <select aria-label={t("Climate.house")} value={house.id} onChange={(e) => (setHouseId(e.target.value), setSaved(null))} className={`${field} w-full lg:max-w-xs`}>
           {houses.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
         </select>
-        <p className="text-sm text-ink-2">{age === null ? t("Climate.noBatch") : t("Climate.age", { day: String(age) })}</p>
-        {message && <p role="status" className={done}>{t(message)}</p>}
-        {savedVerdicts && outOfRange(savedVerdicts) && (
-          <p role="alert" className={danger}>{t("Climate.outOfRange", { values: off.map((k) => t(`Climate.offValue.${k}.${savedVerdicts[k]}`)).join(", ") })}</p>
-        )}
         {can(scope, "climate.record") && (
-          <>
+          <PowerCuts
+            farmId={house.farmId}
+            cuts={of<PowerCutDto>("powerCut")}
+            save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
+          />
+        )}
+      </div>
+      <div className={split}>
+        <div className="flex flex-col gap-5">
+          <p className="text-sm text-ink-2">{age === null ? t("Climate.noBatch") : t("Climate.age", { day: String(age) })}</p>
+          {message && <p role="status" className={done}>{t(message)}</p>}
+          {savedVerdicts && outOfRange(savedVerdicts) && (
+            <p role="alert" className={danger}>{t("Climate.outOfRange", { values: off.map((k) => t(`Climate.offValue.${k}.${savedVerdicts[k]}`)).join(", ") })}</p>
+          )}
+          {can(scope, "climate.record") && (
             <form onSubmit={submit} className={`${card} grid grid-cols-2 gap-3`} aria-label={t("Climate.reading")}>
               <label className="flex flex-col gap-1 text-sm font-medium text-ink-2">
                 {t("Climate.temperature")}
@@ -111,19 +125,11 @@ function Climate(scope: Scope) {
               <label className="flex flex-col gap-1 text-sm">{t("Climate.time")}<input name="time" type="time" required defaultValue={now()} className={field} /></label>
               <button type="submit" className={`${primary} col-span-2`}>{t("Climate.save")}</button>
             </form>
-            <PowerCuts
-              farmId={house.farmId}
-              cuts={of<PowerCutDto>("powerCut")}
-              save={(type, cut) => writeLocal(db, { type, payload: cut }, { entity: "powerCut", id: cut.id, data: cut }).then(() => setMessage("Farms.saved"), () => setMessage("Farms.saveFailed"))}
-            />
-          </>
-        )}
-      </div>
-      <div className="flex flex-col gap-5">
+          )}
+        </div>
         <History house={house} readings={of<ReadingDto>("climateReading")} cuts={of<PowerCutDto>("powerCut")} batches={of<BatchDto>("batch")} sets={sets} />
-        <Link href="/climate/targets" className={`${link} text-sm`}>{t("Climate.targetsOpen")}</Link>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -132,10 +138,14 @@ const clockOf = (iso: string) => {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 };
 
-/** CL5 (K-Climate footer, "Courant et groupe électrogène"): start a cut now; end it with the generator's details. */
+/**
+ * CL5 (K-Climate footer, "Courant et groupe électrogène"): start a cut now, in one tap; end it with the generator's
+ * details, in a sheet (tasks/plan-ui-cleanup.md §2.7).
+ */
 function PowerCuts({ farmId, cuts, save }: { farmId: string; cuts: PowerCutDto[]; save: (type: string, cut: PowerCutDto) => Promise<void> }) {
   const t = useTranslations();
   const [error, setError] = useState<string>();
+  const { open: ending, opener, close } = useInline<"end">();
   const open = cuts.find((c) => c.farmId === farmId && c.endedAt === null);
 
   const end = async (ev: FormEvent<HTMLFormElement>) => {
@@ -156,6 +166,7 @@ function PowerCuts({ farmId, cuts, save }: { farmId: string; cuts: PowerCutDto[]
       generatorSeconds: started && seconds ? Number(seconds) : null,
       dieselMl: started && litres ? Number(whole) * 1000 + Number(frac.padEnd(3, "0")) : null,
     });
+    close();
   };
 
   if (!open) {
@@ -163,46 +174,70 @@ function PowerCuts({ farmId, cuts, save }: { farmId: string; cuts: PowerCutDto[]
       <button
         type="button"
         onClick={() => save(C.startPowerCut, { id: uuidv7(), farmId, startedAt: new Date().toISOString(), endedAt: null, generatorStarted: null, generatorSeconds: null, dieselMl: null })}
-        className="inline-flex min-h-14 items-center justify-center rounded-2xl border-2 border-alert-fg px-5 text-[15px] font-semibold text-alert-fg"
+        className={`${secondarySm} border-alert-fg! font-semibold text-alert-fg!`}
       >
         {t("Climate.cutStart")}
       </button>
     );
   }
   return (
-    <form onSubmit={end} className={`${card} border-2 border-alert-fg`} aria-label={t("Climate.cutEnd")}>
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-alert-fg bg-card px-3 py-1.5">
       <p role="status" className="font-semibold text-alert-fg">{t("Climate.cutOpen", { time: clockOf(open.startedAt) })}</p>
-      <label className="flex min-h-11 items-center gap-3"><input type="checkbox" name="generator" className="size-5" />{t("Climate.generatorStarted")}</label>
-      <label className="flex flex-col gap-1">{t("Climate.generatorSeconds")}<input name="seconds" inputMode="numeric" dir="ltr" className={field} /></label>
-      <label className="flex flex-col gap-1">{t("Climate.diesel")}<input name="diesel" inputMode="decimal" dir="ltr" className={field} /></label>
-      {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <button type="submit" className={primary}>{t("Climate.cutEnd")}</button>
-    </form>
+      <button type="button" aria-haspopup="dialog" {...opener("end")} className={secondarySm}>{t("Climate.cutEnd")}</button>
+      <Sheet open={ending === "end"} onClose={close} title={t("Climate.cutEnd")}>
+        <form onSubmit={end} className="flex flex-col gap-3" aria-label={t("Climate.cutEnd")}>
+          <label className="flex min-h-11 items-center gap-3"><input type="checkbox" name="generator" className="size-5" />{t("Climate.generatorStarted")}</label>
+          <label className="flex flex-col gap-1">{t("Climate.generatorSeconds")}<input name="seconds" inputMode="numeric" dir="ltr" className={field} /></label>
+          <label className="flex flex-col gap-1">{t("Climate.diesel")}<input name="diesel" inputMode="decimal" dir="ltr" className={field} /></label>
+          {error && <p role="alert" className={danger}>{t(error)}</p>}
+          <div className={formActions}><button type="submit" className={primary}>{t("Climate.cutEnd")}</button></div>
+        </form>
+      </Sheet>
+    </div>
   );
 }
 
 // CL6 as a table from lg (tasks/plan-ui.md "Desktop rules"), one card of rows on the phone as before. The header row is
 // hidden there, so the first reading has no top border (nth-2). Each reading's cells sit in the list's columns (subgrid).
+const CUTS = 5; // the farm's last cuts in view; the others fold under them
 const readingsTable = `${card} lg:grid lg:grid-cols-[auto_auto_minmax(0,1fr)] lg:gap-0 lg:overflow-hidden lg:p-0`;
 const readingRow =
   "flex justify-between gap-3 border-t border-line py-2 nth-2:border-t-0 lg:col-span-full lg:grid lg:grid-cols-subgrid lg:items-center lg:gap-x-6 lg:px-4 lg:py-2.5";
 
-/** CL6: the house's last readings with their verdicts, and the farm's last power cuts with their duration. */
+/**
+ * CL6: the house's readings with their verdicts, newest first and paged (tasks/plan-ui-cleanup.md §2.5), and the farm's
+ * power cuts with their duration: the last ones, the others folded.
+ */
 function History({ house, readings, cuts, batches, sets }: { house: HouseDto; readings: ReadingDto[]; cuts: PowerCutDto[]; batches: BatchDto[]; sets: TargetSet[] }) {
   const t = useTranslations();
   const locale = useLocale();
+  const search = useSearchParams();
   const day = (d: string) => formatDay(d as FarmDay, locale);
-  const last = readings.filter((r) => r.houseId === house.id).sort((a, b) => b.day.localeCompare(a.day) || b.time.localeCompare(a.time)).slice(0, 10);
-  const lastCuts = cuts.filter((c) => c.farmId === house.farmId && c.endedAt !== null).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, 5);
+  const all = readings.filter((r) => r.houseId === house.id).sort((a, b) => b.day.localeCompare(a.day) || b.time.localeCompare(a.time));
+  const page = pageOf(search.get("page") ?? undefined, all.length, TABLE_PAGE);
+  const last = all.slice((page - 1) * TABLE_PAGE, page * TABLE_PAGE);
+  const ended = cuts.filter((c) => c.farmId === house.farmId && c.endedAt !== null).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   // The batch that was in the house on the reading's day: its age then picks the band, as on the server.
   const ageOn = (d: string) => {
     const b = batches.find((x) => x.houseId === house.id && x.placedOn <= d && (x.status === "open" || (x.closedOn ?? "") >= d));
     return b ? { age: ageOfBatch(b, d as FarmDay), type: b.species } : null;
   };
-  if (last.length === 0 && lastCuts.length === 0) return null;
+  if (last.length === 0 && ended.length === 0) return null;
+  const cutLine = (c: PowerCutDto) => {
+    const minutes = Math.round((Date.parse(c.endedAt!) - Date.parse(c.startedAt)) / 60_000);
+    return (
+      <li key={c.id} className="flex justify-between gap-3 border-t border-line py-2 first:border-t-0">
+        <span>{day(farmDayOf(new Date(c.startedAt)))} · {clockOf(c.startedAt)} → {clockOf(c.endedAt!)}</span>
+        <span className="text-sm text-ink-2">
+          {t("Climate.cutMinutes", { minutes: String(minutes) })}
+          {c.generatorStarted ? ` · ${t("Climate.generatorLine", { seconds: c.generatorSeconds ?? "—", litres: c.dieselMl === null ? "—" : (c.dieselMl / 1000).toLocaleString(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", maximumFractionDigits: 3 }) })}` : ""}
+        </span>
+      </li>
+    );
+  };
   return (
     <section aria-label={t("Climate.history")} className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Climate.history")}</h2>
+      <h2 className={sectionTitle}>{t("Climate.history")}</h2>
       {last.length > 0 && (
         <ul aria-label={t("Climate.lastReadings")} className={readingsTable}>
           <li aria-hidden="true" className={rowHead}>
@@ -228,21 +263,17 @@ function History({ house, readings, cuts, batches, sets }: { house: HouseDto; re
           })}
         </ul>
       )}
-      {lastCuts.length > 0 && (
-        <ul aria-label={t("Climate.lastCuts")} className={card}>
-          {lastCuts.map((c) => {
-            const minutes = Math.round((Date.parse(c.endedAt!) - Date.parse(c.startedAt)) / 60_000);
-            return (
-              <li key={c.id} className="flex justify-between gap-3 border-t border-line py-2 first:border-t-0">
-                <span>{day(farmDayOf(new Date(c.startedAt)))} · {clockOf(c.startedAt)} → {clockOf(c.endedAt!)}</span>
-                <span className="text-sm text-ink-2">
-                  {t("Climate.cutMinutes", { minutes: String(minutes) })}
-                  {c.generatorStarted ? ` · ${t("Climate.generatorLine", { seconds: c.generatorSeconds ?? "—", litres: c.dieselMl === null ? "—" : (c.dieselMl / 1000).toLocaleString(locale === "ar" ? "ar-MA" : "fr", { numberingSystem: "latn", maximumFractionDigits: 3 }) })}` : ""}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+      <Pager page={page} size={TABLE_PAGE} total={all.length} href={(n) => ({ pathname: "/climate", query: { page: n } })} />
+      {ended.length > 0 && (
+        <>
+          <ul aria-label={t("Climate.lastCuts")} className={card}>{ended.slice(0, CUTS).map(cutLine)}</ul>
+          {ended.length > CUTS && (
+            <details>
+              <summary className="disclosure text-sm font-medium text-ink-2">{t("Climate.olderCuts", { count: ended.length - CUTS })}</summary>
+              <ul aria-label={t("Climate.olderCuts", { count: ended.length - CUTS })} className={card}>{ended.slice(CUTS).map(cutLine)}</ul>
+            </details>
+          )}
+        </>
       )}
     </section>
   );

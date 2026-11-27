@@ -23,11 +23,12 @@ test("the owner enters climate targets from a source, offline, and they sync onc
   await form.getByLabel("Température max (°C)").fill("20");
   await form.getByRole("button", { name: "Enregistrer les cibles" }).click();
 
-  const bands = page.getByRole("list", { name: "Tranches d’âge" }).getByRole("listitem");
-  await expect(bands).toHaveText(["J0 à J7 : 10,5 à 20,0 °C · humidité — à — % · ammoniac max — ppm"]);
+  const bands = page.getByRole("table", { name: "Tranches d’âge" }).getByRole("row");
+  await expect(bands).toHaveText([/Âge/, /^J0 – J7\s*10,5 – 20,0\s*— – —\s*—$/]); // the header, then the band
+  await expect(form).toHaveCount(0); // the sheet closed once saved
   const reload = await page.reload();
   expect(reload?.fromServiceWorker()).toBe(true);
-  await expect(bands).toHaveCount(1);
+  await expect(bands).toHaveCount(2);
 
   // SPEC-m3: hens get their own set; the one above stays for every other production.
   await page.getByRole("button", { name: "Saisir les cibles" }).click();
@@ -37,8 +38,8 @@ test("the owner enters climate targets from a source, offline, and they sync onc
   await form.getByLabel("À J").fill("600");
   await form.getByLabel("Température max (°C)").fill("25");
   await form.getByRole("button", { name: "Enregistrer les cibles" }).click();
-  await expect(page.getByRole("region", { name: "Pondeuse" }).getByRole("listitem")).toHaveText(["J120 à J600 : — à 25,0 °C · humidité — à — % · ammoniac max — ppm"]);
-  await expect(bands.first()).toHaveText("J0 à J7 : 10,5 à 20,0 °C · humidité — à — % · ammoniac max — ppm");
+  await expect(page.getByRole("region", { name: "Pondeuse" }).getByRole("row").nth(1)).toHaveText(/^J120 – J600\s*— – 25,0\s*— – —\s*—$/);
+  await expect(bands.nth(1)).toHaveText(/^J0 – J7\s*10,5 – 20,0/);
 
   await context.unroute("**");
   await context.setOffline(false);

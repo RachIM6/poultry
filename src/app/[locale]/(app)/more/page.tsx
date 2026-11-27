@@ -2,28 +2,20 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { LocaleSwitcher } from "@/components/locale-switcher";
-import { LogoutButton } from "@/components/logout-button";
 import { moreGroups } from "@/components/more-groups";
 import { card } from "@/components/ui";
 import { Link, redirect } from "@/i18n/navigation";
 import { getTenantContext } from "@/modules/identity";
-import { ClientMessages } from "@/i18n/client-messages";
-import type { MessagePath } from "@/i18n/pick";
 
-// What this page's client components read (src/i18n/client-messages.tsx).
-const MESSAGES: MessagePath[] = ["Account", "LocaleSwitcher", "errors.NETWORK"];
-
-// The "Plus" tab (tasks/plan-ui.md U2): every screen that isn't a tab, by role. Online, like the dashboard.
+// The "Plus" tab (tasks/plan-ui.md U2): every screen that isn't a tab, by role. Online, like the dashboard. The language
+// and the sign-out are in the header's account menu (U20).
 export default function More() {
   return (
-    <ClientMessages paths={MESSAGES}>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-4">
-        <Suspense>
-          <Content />
-        </Suspense>
-      </main>
-    </ClientMessages>
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-6 p-4">
+      <Suspense>
+        <Content />
+      </Suspense>
+    </main>
   );
 }
 
@@ -51,11 +43,6 @@ async function Content() {
           </ul>
         </section>
       ))}
-      <section aria-label={t("More.account")} className={card}>
-        <LocaleSwitcher />
-        <LogoutButton />
-        <LogoutButton everywhere />
-      </section>
     </>
   );
 }

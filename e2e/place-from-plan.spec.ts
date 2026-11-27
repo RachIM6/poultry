@@ -17,7 +17,7 @@ test("a planned batch is placed offline from its plan, and the batch keeps the p
   await page.goto("/fr/planning");
   await controlled(page);
   await referenceCached(page);
-  const lines = page.getByRole("list", { name: "Bandes de Bâtiment 1" }).getByRole("listitem");
+  const lines = page.getByRole("rowgroup", { name: "Bandes de Bâtiment 1" }).getByRole("row");
   await expect(lines).toHaveCount(1);
   await expect(lines).toContainText("10000 poussins · Couvoir X");
 

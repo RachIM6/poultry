@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { saveCountAction } from "./actions";
 import { OfflineHint, useOnline } from "@/components/online";
-import { danger, primary, secondary } from "@/components/ui";
+import { danger, ghost, primary } from "@/components/ui";
 
 /** SPEC-finance FC3: the server-rendered sheet inside a form; the owner and managers save what was counted. */
 export function CountForm({ year, write, children }: { year: number; write: boolean; children: React.ReactNode }) {
@@ -17,12 +17,17 @@ export function CountForm({ year, write, children }: { year: number; write: bool
       {children}
       {state.messageKey && <p role={state.ok ? "status" : "alert"} className={`print:hidden ${state.ok ? "" : danger}`}>{t(state.messageKey)}</p>}
       {write && !online && <div className="print:hidden"><OfflineHint online={false} /></div>}
-      {write && <button type="submit" disabled={pending || !online} className={`${primary} print:hidden`}>{t("Count.save")}</button>}
+      {/* From lg the save stays in view at the bottom while a long sheet scrolls. */}
+      {write && (
+        <div className="print:hidden lg:sticky lg:bottom-0 lg:-mx-4 lg:bg-shell/95 lg:px-4 lg:py-3">
+          <button type="submit" disabled={pending || !online} className={primary}>{t("Count.save")}</button>
+        </div>
+      )}
     </form>
   );
 }
 
 export function PrintButton() {
   const t = useTranslations("Count");
-  return <button type="button" onClick={() => window.print()} className={`${secondary} print:hidden`}>{t("print")}</button>;
+  return <button type="button" onClick={() => window.print()} className={`${ghost} print:hidden`}>{t("print")}</button>;
 }

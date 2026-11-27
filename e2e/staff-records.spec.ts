@@ -19,17 +19,21 @@ for (const locale of ["fr", "ar"] as const) {
       { type: "workforce.createEmployee", payload: { id: crypto.randomUUID(), farmId: ids.farm, name: "Said A.", job: "worker", phone: null, housedOnFarm: true, startedOn: farmDaysAgo(30), leftOn: null, dailyWageCentimes: "13846", cnssNumber: null, houseIds: [] } },
     ]);
 
-    await page.goto(`/${locale}/staff`);
+    await page.goto(`/${locale}/staff?tab=records`);
     await controlled(page);
+    const add = page.getByRole("button", { name: t("Records.add") }); // the form opens in a sheet
     const form = page.getByRole("form", { name: t("Records.add") });
-    await expect(form).toBeVisible();
+    await expect(add).toBeVisible();
 
     await context.setOffline(true);
     await context.route("**", (route) => route.abort("internetdisconnected"));
+    await add.click();
     await form.getByLabel(t("Records.topic")).selectOption({ label: t("Records.topics.vaccination") });
     await form.getByRole("button", { name: t("Records.save"), exact: true }).click();
     const list = page.getByRole("list", { name: t("Records.list") }).getByRole("listitem");
-    await expect(list).toHaveCount(1); // saved and the form reset: filling it earlier loses what is typed
+    await expect(list).toHaveCount(1); // saved, and the sheet closed
+    await expect(form).toHaveCount(0);
+    await add.click();
     await form.getByLabel(t("Records.kind")).selectOption({ label: t("Records.kinds.accident") });
     await form.getByLabel(t("Records.what")).fill("Coupure à la main en réparant une mangeoire");
     await form.getByLabel(t("Records.daysOff")).fill("2");

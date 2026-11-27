@@ -24,7 +24,7 @@ test("a VAT-registered farm's purchase and quick expense book their VAT on 34552
   await page.getByLabel("Quantité (kg)").fill("1000");
   await page.getByLabel("Prix par kg (DH)").fill("1,20");
   await page.getByLabel("Dont TVA (DH, facultatif)").fill("200");
-  await page.getByRole("button", { name: "Enregistrer" }).click();
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click(); // the sheet's, not "Enregistrer un achat"
   await expect(page.getByText(/En stock : 1.000.kg/)).toBeVisible();
   await outboxEmpty(page);
 

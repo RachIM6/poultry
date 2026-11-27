@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
+import { batchTab, farmDaysAgo, farmWithBatch, ownerWithFarm, pushAs, query, scopeRemembered } from "./auth";
 import { orgOf } from "./screens";
 
 // tasks/plan-ui.md, the last mockup gaps: WebBatch and WebSales on a 1280 px screen, and the Batch mockup's live cost
@@ -24,7 +24,7 @@ test("WebBatch: the chart beside the tiles, the sections in two columns, and the
   await pushAs(page, [{ type: "flock.recordWeighing", payload: { id: uuidv7(), batchId: ids.batch, day: farmDaysAgo(1), sample: { totalGrams: 50_000, count: 100 } } }]);
 
   await page.setViewportSize(WIDE);
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=indicateurs#${ids.batch}`);
   // 4 500 DH so far ÷ (1 000 birds × 0,5 kg) = 9,00 DH per kg live
   const cost = tile(page, "Coût / kg vif");
   await expect(cost).toContainText(/9,00\sDH \/ kg/, { timeout: 30_000 }); // read from the server (FN13), slower under a parallel run
@@ -35,11 +35,15 @@ test("WebBatch: the chart beside the tiles, the sections in two columns, and the
   const day = page.getByRole("button", { name: "Enregistrer la journée" });
   const weighing = page.getByRole("button", { name: "Enregistrer la pesée" });
   await beside(chart, tiles);
-  await beside(day, weighing); // the daily entry and the weighings: two columns
   expect(await noSideScroll(page)).toBe(true);
-
   await page.setViewportSize(PHONE); // the phone: one column
   await below(chart, tiles);
+
+  await page.setViewportSize(WIDE);
+  await batchTab(page, "Saisie du jour");
+  await beside(day, weighing); // the daily entry and the weighings: two columns
+  expect(await noSideScroll(page)).toBe(true);
+  await page.setViewportSize(PHONE);
   await below(day, weighing);
 
   // Workers never see it (I5): the phone forgets the money with the role.
@@ -57,7 +61,7 @@ test("WebBatch: the chart beside the tiles, the sections in two columns, and the
         }),
     );
   await expect.poll(role).toBe("worker");
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=indicateurs#${ids.batch}`);
   await expect(tile(page, "Mortalité")).toBeVisible();
   await expect(tile(page, "Coût / kg vif")).toHaveCount(0);
 });
@@ -96,7 +100,7 @@ test("WebSales: receivables and a batch's sales read as tables on a wide screen,
   await expect(page.getByText("Acheteur et solde")).toBeHidden();
 
   await page.setViewportSize(WIDE);
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=ventes#${ids.batch}`);
   const sales = page.getByRole("list", { name: "Ventes" }).getByRole("listitem");
   await expect(sales).toHaveCount(2);
   const byCheque = sales.filter({ hasText: "Chèque" });
@@ -105,7 +109,7 @@ test("WebSales: receivables and a batch's sales read as tables on a wide screen,
 });
 
 // The same wide layouts in Arabic: the columns mirrored, still no sideways scroll (ADR-004).
-const ar = JSON.parse(readFileSync("messages/ar.json", "utf8")) as Record<string, Record<string, string> & { methods: Record<string, string>; states: Record<string, string> }>;
+const ar = JSON.parse(readFileSync("messages/ar.json", "utf8")) as Record<string, Record<string, string> & { methods: Record<string, string>; states: Record<string, string>; tabs: Record<string, string> }>;
 
 test("WebBatch and WebSales in Arabic: the same columns, right to left", async ({ page }) => {
   test.setTimeout(120_000);
@@ -122,12 +126,14 @@ test("WebBatch and WebSales in Arabic: the same columns, right to left", async (
   ]);
 
   await page.setViewportSize(WIDE);
-  await page.goto(`/ar/batches#${ids.batch}`);
+  await page.goto(`/ar/batches?tab=indicateurs#${ids.batch}`);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   const tiles = page.locator("dl").filter({ has: page.getByRole("term").filter({ hasText: ar.Kpi.costPerKg }) });
   await expect(tiles).toBeVisible({ timeout: 30_000 }); // the cost per kg is read from the server (FN13)
   await beside(page.getByRole("figure"), tiles, true);
+  await batchTab(page, ar.Batches.tabs.saisie);
   await beside(page.getByRole("button", { name: ar.Day.save }), page.getByRole("button", { name: ar.Weighing.save }), true);
+  await batchTab(page, ar.Batches.tabs.ventes);
   const byCheque = page.getByRole("list", { name: ar.Sale.title }).getByRole("listitem").filter({ hasText: ar.Sale.methods.cheque });
   await expect(byCheque).toHaveCount(1);
   await beside(byCheque.locator(":scope > span").nth(0), byCheque.locator(":scope > span").nth(1), true);
@@ -171,6 +177,13 @@ test("the wide home: figures on top, the batches beside the checklist, no money 
   // The cash is the top row's tile, not repeated in « Argent »: with no closed batch either, no card on a wide screen.
   await expect(page.getByRole("region", { name: "Argent" })).toBeHidden();
   await expect(tasks.getByRole("list", { name: /^Saisies du jour/ }).getByRole("listitem")).toHaveText([/^Bâtiment 1\s*Saisir/]); // the house alone
+  // tasks/plan-ui-cleanup.md §3: « Tout voir » and the tile open « Tâches du jour »; « Saisir » is the small primary;
+  // what waits to be sent is the header's chip, not the home's.
+  await expect(tasks.getByRole("link", { name: "Tout voir" })).toHaveAttribute("href", "/fr/tasks");
+  await expect(figures.getByRole("link", { name: /^Tâches restantes/ })).toHaveAttribute("href", "/fr/tasks");
+  expect((await box(tasks.getByRole("link", { name: "Saisir · Bâtiment 1" }))).height).toBe(32);
+  await expect(page.getByRole("banner").getByRole("link", { name: "Synchronisation : Tout est envoyé" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Tout est envoyé/ })).toHaveCount(1);
   expect(await noSideScroll(page)).toBe(true);
 
   await page.setViewportSize(PHONE); // the phone: as before

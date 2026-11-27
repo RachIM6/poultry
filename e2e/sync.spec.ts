@@ -5,7 +5,7 @@ import { controlled, ownerWithFarm, scopeRemembered } from "./auth";
 test("an offline write survives a reload, then syncs; a refused one waits in 'needs attention'", async ({ page, context }) => {
   test.setTimeout(60_000);
   await ownerWithFarm(page, "Ferme Hors-Ligne"); // the dashboard remembers who is signed in and starts syncing
-  await expect(page.getByRole("link", { name: "Tout est envoyé." })).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Synchronisation : Tout est envoyé" })).toBeVisible(); // the header's chip
   await scopeRemembered(page); // the badge renders before its effect has stored the scope
   await page.goto("/fr/sync");
   await controlled(page); // shells precached
@@ -59,7 +59,7 @@ test("an offline write survives a reload, then syncs; a refused one waits in 'ne
   await expect(day.getByRole("link", { name: "Saisir à nouveau" })).toHaveAttribute("href", `/fr/batches#${batchId}`);
   await expect(page.getByRole("link", { name: /2 écritures refusées à vérifier/ })).toBeVisible();
   await page.goto("/fr/dashboard");
-  await expect(page.getByRole("link", { name: "2 écritures refusées à vérifier", exact: true })).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Synchronisation : 2 refus à vérifier" })).toBeVisible();
 
   // Dismissing asks first: cancelled, the entry and what was typed stay.
   await page.goto("/fr/sync");
@@ -72,6 +72,7 @@ test("an offline write survives a reload, then syncs; a refused one waits in 'ne
   }
   await expect(page.getByRole("heading", { name: "À vérifier" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /écritures? refusées? à vérifier/ })).toHaveCount(0);
+  await expect(page.getByRole("banner").getByRole("link", { name: "Synchronisation : Tout est envoyé" })).toBeVisible();
 });
 
 test("signed-in pages and API responses are never kept by the service worker", async ({ page }) => {

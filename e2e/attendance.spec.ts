@@ -10,9 +10,10 @@ test("a worker checks in offline and the owner sees them present after sync", as
 
   const phone = randomMobile();
   await page.goto("/fr/settings/members");
+  await page.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
   await page.getByLabel("Numéro de téléphone").fill(phone);
   await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
-  await page.getByRole("button", { name: "Inviter" }).click();
+  await page.getByRole("button", { name: "Inviter", exact: true }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
   const code = await inviteCode(page);
   const workerContext = await browser.newContext({ ...test.info().project.use });
@@ -37,7 +38,7 @@ test("a worker checks in offline and the owner sees them present after sync", as
   await workerContext.unroute("**");
   await workerContext.setOffline(false);
 
-  await page.goto("/fr/staff");
+  await page.goto("/fr/staff?tab=presence");
   const today = Number(farmDaysAgo(0).slice(8));
   const row = page.getByRole("region", { name: "Présence" }).getByRole("row", { name: /Said A\./ });
   await expect(async () => {

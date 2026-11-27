@@ -28,9 +28,10 @@ import { currentScope, localDb, scopeKey, type Scope } from "@/offline/db";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useFieldError, useInline } from "@/components/focus";
-import { cell, row, rowHead, rowTable } from "@/components/layout";
+import { cell, formActions, row, rowHead, rowTable, sectionTitle } from "@/components/layout";
 import { cardRow, tightHead } from "@/components/layout-tight";
-import { danger, field, link, primary, secondary } from "@/components/ui";
+import { Sheet } from "@/components/sheet";
+import { danger, field, ghost, link, primary, secondarySm } from "@/components/ui";
 
 // SPEC V4 on the static /receivables shell, offline: what each buyer owes, their cheques and bills with due dates, and
 // later payments, checked with the same rule as the server. Owners and managers act, the accountant reads (SPEC-m5 PA5);
@@ -105,6 +106,7 @@ function Receivables(scope: Scope) {
     return write({ type: S.setInstrumentState, payload: status }, [{ entity: "instrumentStatus", id: status.id, data: status }, ...blocked]);
   };
   const unblock = (b: BuyerDto) => write({ type: S.unblockBuyer, payload: { buyerId: b.id } }, [{ entity: "buyer", id: b.id, data: { ...b, creditBlocked: false } }]);
+  const payingBuyer = owing.find((b) => b.id === paying);
   const pending = instruments.filter((i) => i.state === "in_portfolio" || i.state === "remitted").sort((x, y) => x.dueOn.localeCompare(y.dueOn));
   // FN12: each buyer's debts by age, as the server would compute them.
   const ageOf = (buyerId: string) =>
@@ -147,7 +149,7 @@ function Receivables(scope: Scope) {
           <b className="text-[22px] font-semibold">{formatMoney(owing.reduce((sum, b) => sum + balances.get(b.id)!, 0n))}</b>
         </p>
       )}
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Receivables.portfolio")}</h2>
+      <h2 className={sectionTitle}>{t("Receivables.portfolio")}</h2>
       {pending.length === 0 ? (
         <p>{t("Receivables.portfolioNone")}</p>
       ) : (
@@ -162,13 +164,11 @@ function Receivables(scope: Scope) {
                 {t("Receivables.instrument", { kind: i.kind, number: i.number ?? "none", buyer: isolated(nameOf(i.buyerId)), amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
               </span>
               <span className="text-muted">{t(`Receivables.states.${i.state}`)}</span>
-              <div className="flex flex-wrap gap-2 lg:justify-end">
-                {(["remitted", "cashed", "unpaid"] as const).filter((to) => seller && checkTransition(i.state, to).ok).map((to) => (
-                  <button key={to} type="button" onClick={() => move(i, to)} className={secondary}>
-                    {t(to === "remitted" ? "Receivables.remit" : to === "cashed" ? "Receivables.cash" : "Receivables.unpaid")}
-                  </button>
-                ))}
-              </div>
+              <ChequeActions
+                moves={(["remitted", "cashed", "unpaid"] as const).filter((to) => seller && checkTransition(i.state, to).ok)}
+                of={t("Receivables.instrument", { kind: i.kind, number: i.number ?? "none", buyer: nameOf(i.buyerId), amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
+                onMove={(to) => move(i, to)}
+              />
             </li>
           ))}
         </ul>
@@ -176,7 +176,7 @@ function Receivables(scope: Scope) {
       {buyers.filter((b) => b.creditBlocked).map((b) => (
         <p key={b.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-alert-soft p-3 text-alert-fg">
           {t("Receivables.blocked", { buyer: isolated(b.name) })}
-          {can(scope, "finance.manage") && <button type="button" onClick={() => unblock(b)} className={secondary}>{t("Receivables.unblock")}</button>}
+          {can(scope, "finance.manage") && <button type="button" onClick={() => unblock(b)} className={secondarySm}>{t("Receivables.unblock")}</button>}
         </p>
       ))}
       {awaiting.length > 0 && (
@@ -184,12 +184,12 @@ function Receivables(scope: Scope) {
           {awaiting.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-brick-soft p-3 text-brick-fg">
               {t("Receivables.awaitingLine", { buyer: isolated(nameOf(s.buyerId)), amount: formatMoney(BigInt(s.amountCentimes ?? 0) - BigInt(s.paidCentimes ?? 0)), date: formatDay(s.day as FarmDay, locale) })}
-              {owner && <button type="button" onClick={() => approve(s.id)} className={secondary}>{t("Receivables.approve")}</button>}
+              {owner && <button type="button" onClick={() => approve(s.id)} className={secondarySm}>{t("Receivables.approve")}</button>}
             </li>
           ))}
         </ul>
       )}
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Receivables.title")}</h2>
+      <h2 className={sectionTitle}>{t("Receivables.title")}</h2>
       {owing.length === 0 ? (
         <p>{t("Receivables.none")}</p>
       ) : (
@@ -223,21 +223,23 @@ function Receivables(scope: Scope) {
                     </span>
                   ))}
                 </span>
-                {!seller ? null : paying === b.id ? (
-                  <div className="contents lg:col-span-full lg:block lg:max-w-xl">
-                    <PaymentForm buyerId={b.id} balance={balance} onSave={save} onCancel={close} />
+                {seller && (
+                  <div className="flex lg:justify-end">
+                    <button type="button" aria-haspopup="dialog" {...opener(b.id)} aria-label={t("Receivables.payNamed", { buyer: b.name, amount: formatMoney(balance) })} className={secondarySm}>{t("Receivables.pay")}</button>
                   </div>
-                ) : (
-                  <button type="button" {...opener(b.id)} aria-label={t("Receivables.payNamed", { buyer: b.name, amount: formatMoney(balance) })} className={secondary}>{t("Receivables.pay")}</button>
                 )}
               </li>
             );
           })}
         </ul>
       )}
+      {/* §2.7: the payment form in a sheet; the focus goes back to its button once closed (useInline) */}
+      <Sheet open={!!payingBuyer} onClose={close} title={payingBuyer && t("Receivables.payNamed", { buyer: payingBuyer.name, amount: formatMoney(balances.get(payingBuyer.id)!) })}>
+        {payingBuyer && <PaymentForm buyerId={payingBuyer.id} balance={balances.get(payingBuyer.id)!} onSave={save} onCancel={close} />}
+      </Sheet>
       {owner && buyers.length > 0 && (
         <>
-          <h2 className="text-[17px] font-semibold text-ink-2">{t("Receivables.limits")}</h2>
+          <h2 className={sectionTitle}>{t("Receivables.limits")}</h2>
           {/* A table from lg: the buyer, the limit at the column's end, a "Modifier" link (no full-width buttons). */}
           <ul className={`${rowTable} lg:max-w-3xl lg:grid-cols-[minmax(0,1fr)_auto_auto]`} aria-label={t("Receivables.limits")}>
             <li aria-hidden="true" className={tightHead}>
@@ -274,19 +276,47 @@ function LimitRow({ buyer, onSave }: { buyer: BuyerDto; onSave: (limit: bigint |
       <span className="lg:whitespace-nowrap lg:text-end">
         {limit === null ? t("Receivables.noLimit") : t.rich("Receivables.limitCell", { amount: formatMoney(limit), l: (chunks) => <span className="lg:sr-only">{chunks}</span> })}
       </span>
-      {editing ? (
-        <form onSubmit={submit} className="flex basis-full flex-col gap-2 lg:col-span-full lg:max-w-md">
+      <button type="button" aria-haspopup="dialog" {...opener("limit")} aria-label={t("Receivables.editLimitNamed", { buyer: buyer.name })} className={`${link} lg:justify-self-end`}>{t("Receivables.edit")}</button>
+      <Sheet open={editing === "limit"} onClose={close} title={t("Receivables.editLimitNamed", { buyer: buyer.name })}>
+        <form onSubmit={submit} className="flex flex-col gap-3">
           <Field label={t("Receivables.limitLabel")}>{(id) => <input id={id} name="limit" inputMode="decimal" dir="ltr" defaultValue={shown} autoFocus {...bad("limit")} className={field} />}</Field>
           {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-          <div className="flex gap-3">
+          <div className={formActions}>
             <button type="submit" className={primary}>{t("Receivables.saveLimit")}</button>
-            <button type="button" onClick={close} className={secondary}>{t("Receivables.cancel")}</button>
+            <button type="button" onClick={close} className={ghost}>{t("Receivables.cancel")}</button>
           </div>
         </form>
-      ) : (
-        <button type="button" {...opener("limit")} aria-label={t("Receivables.editLimitNamed", { buyer: buyer.name })} className={`${link} lg:justify-self-end`}>{t("Receivables.edit")}</button>
-      )}
+      </Sheet>
     </li>
+  );
+}
+
+const MOVE_LABEL = { remitted: "Receivables.remit", cashed: "Receivables.cash", unpaid: "Receivables.unpaid" } as const;
+
+/**
+ * §2.6: a cheque's or bill's next state as a button, the others in a « ⋯ » menu (a <details>, no JS to open it). `of`:
+ * the instrument, in the menu's accessible name.
+ */
+function ChequeActions({ moves, of, onMove }: { moves: (keyof typeof MOVE_LABEL)[]; of: string; onMove: (to: keyof typeof MOVE_LABEL) => void }) {
+  const t = useTranslations();
+  if (moves.length === 0) return <span />;
+  const [first, ...more] = moves;
+  return (
+    <div className="flex items-center gap-2 lg:justify-end">
+      <button type="button" onClick={() => onMove(first)} className={secondarySm}>{t(MOVE_LABEL[first])}</button>
+      {more.length > 0 && (
+        <details className="relative">
+          <summary aria-label={t("Receivables.moreOf", { instrument: of })} className={`${secondarySm} min-w-11 cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+            <span aria-hidden="true">⋯</span>
+          </summary>
+          <div className="absolute end-0 top-full z-10 mt-1 flex min-w-48 flex-col rounded-xl border border-line bg-card p-1 shadow-[0_6px_18px_rgba(36,33,28,.12)]">
+            {more.map((to) => (
+              <button key={to} type="button" onClick={() => onMove(to)} className={`${ghost} justify-start text-ink lg:w-full`}>{t(MOVE_LABEL[to])}</button>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
   );
 }
 
@@ -338,9 +368,9 @@ function PaymentForm({ buyerId, balance, onSave, onCancel }: { buyerId: string; 
         </>
       )}
       {error && <p id={errorId} role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Receivables.save")}</button>
-        <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
+        <button type="button" onClick={onCancel} className={ghost}>{t("Receivables.cancel")}</button>
       </div>
     </form>
   );

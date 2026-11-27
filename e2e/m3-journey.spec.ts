@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { controlled, farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, login, pushAs, query, randomMobile, referenceCached, scopeRemembered } from "./auth";
 
 // T68, SPEC-m3 §6.1: the layer farm's journey, offline, in each language on a phone: pullets → transfer to the laying
 // house → a collection → grading → an egg sale by the tray → old hens sold by the head → reload → online → synced.
@@ -49,6 +49,7 @@ for (const locale of ["fr", "ar"] as const) {
 
     // 1. Transfer to the laying house.
     await page.getByRole("link", { name: t("Day", "open"), exact: true }).click();
+    await batchTab(page, t("Batches", "tabs.gestion"));
     await button("Transfer", "title").click();
     await label(page, "Transfer", "house").selectOption({ label: "Ferme Sidi Hajjaj · P1" });
     await label(page, "Transfer", "hens").fill("4700");
@@ -62,6 +63,7 @@ for (const locale of ["fr", "ar"] as const) {
     await expect(page.getByText(new RegExp(t("Eggs", "line", { n: "1", eggs: "1.713", down: "65" }).replace(/[()]/g, "\\$&")))).toBeVisible();
 
     // 3. Old hens sold by the head (P-Beldi's form on the layer batch).
+    await batchTab(page, t("Batches", "tabs.ventes"));
     await button("Sale", "add").click();
     await label(page, "Sale", "perHead").check();
     await label(page, "Sale", "heads.bird").fill("100");
@@ -72,17 +74,18 @@ for (const locale of ["fr", "ar"] as const) {
 
     // 4. Grading and an egg sale on /eggs.
     await page.goto(`/${locale}/eggs`);
-    const ungraded = page.getByRole("listitem").filter({ hasText: t("EggStock", "items.ungraded") });
+    const ungraded = page.getByRole("row").filter({ hasText: t("EggStock", "items.ungraded") });
     await ungraded.getByRole("button", { name: t("EggStock", "grade"), exact: true }).click();
-    await ungraded.getByLabel(t("EggStock", "gradeCount", { grade: "M" }), { exact: true }).fill("1500");
-    await ungraded.getByRole("button", { name: t("EggStock", "saveGrading"), exact: true }).click();
+    const sheet = page.getByRole("dialog"); // the grading opens in a sheet
+    await sheet.getByLabel(t("EggStock", "gradeCount", { grade: "M" }), { exact: true }).fill("1500");
+    await sheet.getByRole("button", { name: t("EggStock", "saveGrading"), exact: true }).click();
     await button("EggSale", "open").click();
     await page.getByRole("combobox", { name: t("EggSale", "item"), exact: true }).selectOption({ label: "M" });
     await label(page, "EggSale", "trays").fill("30");
     await label(page, "EggSale", "price").fill("33");
     await page.getByRole("combobox", { name: t("Sale", "method"), exact: true }).selectOption({ label: t("Sale", "methods.credit") });
     await button("EggSale", "save").click();
-    await expect(button("EggSale", "open")).toBeVisible(); // the form closed: saved
+    await expect(page.getByRole("dialog")).toHaveCount(0); // the sheet closed: saved
 
     const reload = await page.reload(); // still offline
     expect(reload?.fromServiceWorker()).toBe(true);

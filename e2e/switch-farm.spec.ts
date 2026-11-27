@@ -5,9 +5,10 @@ import { inviteCode, login, ownerWithFarm, randomMobile, scopeRemembered } from 
 // between them, and the phone keeps one database per farm.
 const invite = async (owner: Page, phone: string) => {
   await owner.goto("/fr/settings/members");
+  await owner.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
   await owner.getByLabel("Numéro de téléphone").fill(phone);
   await owner.getByLabel("Rôle", { exact: true }).selectOption("vet");
-  await owner.getByRole("button", { name: "Inviter" }).click();
+  await owner.getByRole("button", { name: "Inviter", exact: true }).click();
   await expect(owner.getByText("Invitation enregistrée.")).toBeVisible();
   return inviteCode(owner);
 };

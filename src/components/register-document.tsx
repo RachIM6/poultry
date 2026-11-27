@@ -92,9 +92,10 @@ export function registerOf(batchId: string, records: LocalRecord[], reference: R
   });
 }
 
-export function Section({ title, children, heading: H = "h2" }: { title: string; children: ReactNode; heading?: "h2" | "h3" }) {
+/** `id`: a target of the inspection pack's table of contents (it takes the focus when reached from there). */
+export function Section({ title, children, heading: H = "h2", id }: { title: string; children: ReactNode; heading?: "h2" | "h3"; id?: string }) {
   return (
-    <section className="flex flex-col gap-1">
+    <section id={id} tabIndex={id ? -1 : undefined} className="flex scroll-mt-4 flex-col gap-1 outline-none">
       <H className="text-base font-semibold">{title}</H>
       {children}
     </section>

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { v7 as uuidv7 } from "uuid";
-import { controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, outboxEmpty, ownerWithFarm, pushAs, query, referenceCached, scopeRemembered } from "./auth";
 
 // T59 acceptance (SPEC-m3 E1): collections recorded offline on a layer batch, one corrected, kept across a reload,
 // synced; the Arabic screen shows them too.
@@ -83,22 +83,25 @@ test("egg stock: grade a day's eggs, discard some, offline", async ({ page, cont
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
 
-  const ungraded = page.getByRole("listitem").filter({ hasText: "Non calibrés : 2" });
-  await ungraded.getByRole("button", { name: "Calibrer" }).click();
-  await ungraded.getByLabel("Calibre M").fill("2701");
-  await ungraded.getByRole("button", { name: "Enregistrer le calibrage" }).click();
-  await expect(ungraded.getByRole("alert")).toHaveText("Pas assez d’œufs dans ce ramassage.");
-  await ungraded.getByLabel("Calibre M").fill("2000");
-  await ungraded.getByLabel("Calibre L").fill("650");
-  await ungraded.getByRole("button", { name: "Enregistrer le calibrage" }).click();
-  await expect(page.getByText(/Non calibrés : 50 œufs/)).toBeVisible();
+  const lot = (item: string) => page.getByRole("table", { name: "Ramassages" }).getByRole("row").filter({ hasText: item });
+  const sheet = page.getByRole("dialog"); // grading and discarding open in a sheet
+  await expect(lot("Non calibrés")).toContainText(/Non calibrés\s*2.700/);
+  await lot("Non calibrés").getByRole("button", { name: "Calibrer" }).click();
+  await sheet.getByLabel("Calibre M").fill("2701");
+  await sheet.getByRole("button", { name: "Enregistrer le calibrage" }).click();
+  await expect(sheet.getByRole("alert")).toHaveText("Pas assez d’œufs dans ce ramassage.");
+  await sheet.getByLabel("Calibre M").fill("2000");
+  await sheet.getByLabel("Calibre L").fill("650");
+  await sheet.getByRole("button", { name: "Enregistrer le calibrage" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(lot("Non calibrés")).toContainText(/Non calibrés\s*50(?!\d)/);
 
-  const downgraded = page.getByRole("listitem").filter({ hasText: "Déclassés : 60" });
-  await downgraded.getByRole("button", { name: "Écarter" }).click();
-  await downgraded.getByLabel("Œufs écartés").fill("10");
-  await downgraded.getByLabel("Raison").fill("Cassés au transport");
-  await downgraded.getByRole("button", { name: "Écarter ces œufs" }).click();
-  await expect(page.getByText(/Déclassés : 50 œufs/)).toBeVisible();
+  await expect(lot("Déclassés")).toContainText(/Déclassés\s*60(?!\d)/);
+  await lot("Déclassés").getByRole("button", { name: "Écarter" }).click();
+  await sheet.getByLabel("Œufs écartés").fill("10");
+  await sheet.getByLabel("Raison").fill("Cassés au transport");
+  await sheet.getByRole("button", { name: "Écarter ces œufs" }).click();
+  await expect(lot("Déclassés")).toContainText(/Déclassés\s*50(?!\d)/);
   await expect(page.getByText(/2.750 œufs en stock/)).toBeVisible();
   await expect(page.getByText("Pondus il y a 3 à 5 jours")).toBeVisible();
 
@@ -139,6 +142,7 @@ test("layer KPIs: hens, laying rate, eggs per hen housed, downgraded, weekly tab
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.getByRole("link", { name: "Saisir le jour" }).click();
+  await batchTab(page, "Indicateurs");
 
   const tile = (label: string) => page.locator("dl > div").filter({ hasText: label });
   await expect(tile("Poules présentes")).toContainText("99");
@@ -149,7 +153,7 @@ test("layer KPIs: hens, laying rate, eggs per hen housed, downgraded, weekly tab
   await expect(tile("Œufs déclassés")).toContainText("2,2 %");
   await expect(page.getByRole("table", { name: "Dernières semaines" })).toContainText("20");
 
-  await page.goto(`/ar/batches#${ids.batch}`);
+  await page.goto(`/ar/batches?tab=indicateurs#${ids.batch}`);
   await expect(page.locator("dl > div").filter({ hasText: "نسبة الوضع" })).toContainText("92,9 %");
 });
 
@@ -177,6 +181,7 @@ test("a layer batch's treatment withholds its eggs until the egg withdrawal ends
   await context.setOffline(true);
   await context.route("**", (route) => route.abort("internetdisconnected"));
   await page.getByRole("link", { name: "Saisir le jour" }).click();
+  await batchTab(page, "Santé");
 
   await page.getByRole("button", { name: "Ajouter un traitement" }).click();
   await page.getByLabel("Quantité utilisée (ml)").fill("250");

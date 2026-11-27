@@ -4,7 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useActionState, useState, useTransition, type FormEvent } from "react";
 import { addStatementAction, importAction, matchAction, type ImportState } from "./actions";
 import { OfflineHint, unsent, useOnline } from "@/components/online";
-import { danger, field, primary, secondary, table } from "@/components/ui";
+import { danger, field, primary, secondary, secondarySm, table } from "@/components/ui";
+import { dataTable, dataTableWrap, num } from "@/components/layout";
 import { Num } from "@/components/num";
 import { Link } from "@/i18n/navigation";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -176,44 +177,46 @@ export function ImportedTable({ statementId, lines, canWrite }: { statementId: s
       <input type="hidden" name="statementId" value={statementId} />
       {state.messageKey && <p role="alert" className={danger}>{tAll(state.messageKey)}</p>}
       {canWrite && <OfflineHint online={online} />}
-      <table className={table}>
-        <thead>
-          <tr>
-            <th className="p-2 text-start">{tAll("Treasury.label")}</th>
-            <th className="p-2 text-end">{t("amount")}</th>
-            <th className="p-2 text-start">{t("state")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((l) => (
-            <tr key={l.id} className="border-t border-line">
-              <td className="p-2">
-                <span className="block">{l.label}</span>
-                <span className="block text-ink-2">{l.day}</span>
-              </td>
-              <Num className="whitespace-nowrap">{l.amount}</Num>
-              <td className="p-2">
-                {l.ticked ? (
-                  <span>
-                    <span aria-hidden="true">✓ </span>
-                    {t("importedTicked")}
-                  </span>
-                ) : l.lineId && canWrite ? (
-                  <button type="submit" name="tick" value={l.lineId} disabled={pending || !online} aria-label={t("tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>{t("tick")}</button>
-                ) : (
-                  <span className="flex flex-col gap-1">
-                    <span className="text-ink-2">{t(l.lineId ? "importedToTick" : "importedMissing")}</span>
-                    {l.book && (
-                      <Link href={l.book} className="underline underline-offset-4">{t(l.book.pathname === "/expenses" ? "bookFees" : "bookManual")}</Link>
-                    )}
-                    {l.byOwner && <span className="text-sm">{t("byOwner")}</span>}
-                  </span>
-                )}
-              </td>
+      <div className={dataTableWrap}>
+        <table className={dataTable}>
+          <thead>
+            <tr>
+              <th>{tAll("Treasury.label")}</th>
+              <th className={num}>{t("amount")}</th>
+              <th>{t("state")}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {lines.map((l) => (
+              <tr key={l.id}>
+                <td>
+                  <span className="block [overflow-wrap:anywhere]">{l.label}</span>
+                  <span className="block text-ink-2">{l.day}</span>
+                </td>
+                <Num className="whitespace-nowrap">{l.amount}</Num>
+                <td>
+                  {l.ticked ? (
+                    <span>
+                      <span aria-hidden="true">✓ </span>
+                      {t("importedTicked")}
+                    </span>
+                  ) : l.lineId && canWrite ? (
+                    <button type="submit" name="tick" value={l.lineId} disabled={pending || !online} aria-label={t("tickOf", { line: `${l.label} · ${l.amount}` })} className={secondarySm}>{t("tick")}</button>
+                  ) : (
+                    <span className="flex flex-col gap-1">
+                      <span className="text-ink-2">{t(l.lineId ? "importedToTick" : "importedMissing")}</span>
+                      {l.book && (
+                        <Link href={l.book} className="underline underline-offset-4">{t(l.book.pathname === "/expenses" ? "bookFees" : "bookManual")}</Link>
+                      )}
+                      {l.byOwner && <span className="text-sm">{t("byOwner")}</span>}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </form>
   );
 }
@@ -259,40 +262,42 @@ export function MatchTable({ statementId, lines, canWrite }: { statementId: stri
       <input type="hidden" name="statementId" value={statementId} />
       {state.messageKey && <p role="alert" className={danger}>{tAll(state.messageKey)}</p>}
       {canWrite && <OfflineHint online={online} />}
-      <table className={table}>
-        <thead>
-          <tr>
-            <th className="p-2 text-start">{tAll("Treasury.label")}</th>
-            <th className="p-2 text-end">{t("amount")}</th>
-            <th className="p-2 text-start">{t("state")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((l) => (
-            <tr key={l.id} className="border-t border-line">
-              <td className="p-2">
-                <span className="block">{l.label}</span>
-                <span className="block text-ink-2">{l.day} · {l.journal}</span>
-              </td>
-              <Num className="whitespace-nowrap">{l.amount}</Num>
-              <td className="p-2">
-                {l.tickedOn ? (
-                  <span className="text-ink-2">{t("tickedOn", { day: l.tickedOn })}</span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    {l.ticked && <span><span aria-hidden="true">✓</span><span className="sr-only">{t("ticked")}</span></span>}
-                    {canWrite && (
-                      <button type="submit" name={l.ticked ? "untick" : "tick"} value={l.id} disabled={pending || !online} aria-label={t(l.ticked ? "untickOf" : "tickOf", { line: `${l.label} · ${l.amount}` })} className={secondary}>
-                        {t(l.ticked ? "untick" : "tick")}
-                      </button>
-                    )}
-                  </span>
-                )}
-              </td>
+      <div className={dataTableWrap}>
+        <table className={dataTable}>
+          <thead>
+            <tr>
+              <th>{tAll("Treasury.label")}</th>
+              <th className={num}>{t("amount")}</th>
+              <th>{t("state")}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {lines.map((l) => (
+              <tr key={l.id}>
+                <td>
+                  <span className="block [overflow-wrap:anywhere]">{l.label}</span>
+                  <span className="block text-ink-2">{l.day} · {l.journal}</span>
+                </td>
+                <Num className="whitespace-nowrap">{l.amount}</Num>
+                <td>
+                  {l.tickedOn ? (
+                    <span className="text-ink-2">{t("tickedOn", { day: l.tickedOn })}</span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      {l.ticked && <span><span aria-hidden="true">✓</span><span className="sr-only">{t("ticked")}</span></span>}
+                      {canWrite && (
+                        <button type="submit" name={l.ticked ? "untick" : "tick"} value={l.id} disabled={pending || !online} aria-label={t(l.ticked ? "untickOf" : "tickOf", { line: `${l.label} · ${l.amount}` })} className={secondarySm}>
+                          {t(l.ticked ? "untick" : "tick")}
+                        </button>
+                      )}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </form>
   );
 }

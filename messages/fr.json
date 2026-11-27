@@ -5,6 +5,14 @@
     "description": "Gestion des élevages avicoles",
     "tagline": "L’élevage avicole, jour après jour."
   },
+  "Ui": {
+    "close": "Fermer",
+    "pagination": "Pagination",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "page": "Page {n}",
+    "range": "{from}–{to} sur {total}"
+  },
   "Landing": {
     "headline": "Le carnet de bord de votre élevage.",
     "subline": "Saisie du jour, santé, stock, ventes, paie et comptabilité dans une seule application, en arabe et en français, qui marche aussi sans réseau à la ferme.",
@@ -291,6 +299,8 @@
     "passwordLabel": "Mot de passe",
     "passwordHint": "Au moins 10 caractères. Une phrase facile à retenir convient très bien.",
     "confirmLabel": "Confirmer le mot de passe",
+    "firstNameLabel": "Prénom",
+    "lastNameLabel": "Nom",
     "codeLabel": "Code",
     "inviteCodeHint": "Le code à 8 caractères donné par le propriétaire, valable 7 jours.",
     "resetCodeHint": "Le code de réinitialisation donné par le propriétaire.",
@@ -353,7 +363,8 @@
     "resetConfirm": "Créer un code de réinitialisation pour {phone} ?",
     "resetCode": "Code de réinitialisation",
     "resetCodeHint": "Donnez ce code à la personne : elle choisit un nouveau mot de passe dans « Mot de passe oublié ». Il ne sera plus affiché.",
-    "expires": "Expire le {date}"
+    "expires": "Expire le {date}",
+    "moreOf": "Autres actions : {phone}"
   },
   "Sync": {
     "title": "Synchronisation",
@@ -498,7 +509,10 @@
         "createDocument": "Nouveau document",
         "updateDocument": "Modification d’un document"
       }
-    }
+    },
+    "colWhat": "Écriture",
+    "colWhy": "Motif",
+    "colWhen": "Date"
   },
   "Pwa": {
     "updateAvailable": "Une nouvelle version de l’application est prête.",
@@ -562,12 +576,10 @@
   "Protocol": {
     "title": "Programme de vaccination",
     "open": "Programme de vaccination",
-    "template": "Modèle de référence",
-    "notReviewed": "Pas encore vérifié par un vétérinaire : à faire valider avant utilisation.",
-    "emptyTemplate": "Ce modèle ne contient encore aucun vaccin.",
-    "copy": "Copier pour mon exploitation",
+    "notReviewed": "Non vérifié",
+    "copy": "Copier",
     "yours": "Vos programmes",
-    "none": "Aucun programme pour l’instant.",
+    "none": "Aucun programme pour l’instant : copiez un modèle de référence ci-dessous, puis ajoutez-y vos vaccins.",
     "noItems": "Aucun vaccin prévu.",
     "required": {
       "newcastle": "Aucune vaccination contre la maladie de Newcastle dans ce programme. Elle est obligatoire pour toutes les volailles ({source}) et suit le programme validé par l’ONSSA pour votre élevage. Les poussins peuvent avoir été vaccinés au couvoir."
@@ -586,7 +598,14 @@
     "remove": "Retirer",
     "add": "Ajouter",
     "noReference": "Les données de référence ne sont pas encore sur ce téléphone. Ouvrez l’application une fois avec du réseau.",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "templates": "Modèles de référence",
+    "notReviewedAll": "Pas encore vérifiés par un vétérinaire : à faire valider avant utilisation.",
+    "emptyTemplates": "Ces modèles ne contiennent encore aucun vaccin.",
+    "copyOf": "Copier pour mon exploitation : {name}",
+    "addItemTo": "Ajouter un vaccin : {name}",
+    "removeOf": "Retirer : {item}",
+    "colActions": "Actions"
   },
   "Notifications": {
     "templates": {
@@ -648,6 +667,22 @@
       }
     }
   },
+  "Header": {
+    "notifications": "{count, plural, =0 {Notifications} one {Notifications, # non lue} other {Notifications, # non lues}}",
+    "yourName": "Votre nom",
+    "nameHint": "Il s’affiche en haut de l’écran, et pour les autres membres de l’exploitation.",
+    "nameSaved": "Nom enregistré.",
+    "save": "Enregistrer",
+    "syncLabel": "Synchronisation",
+    "syncDone": "Tout est envoyé",
+    "syncPending": "{n} en attente",
+    "syncRefused": "{count, plural, one {1 refus à vérifier} other {{n} refus à vérifier}}",
+    "syncOffline": "Hors ligne",
+    "panelTitle": "Notifications",
+    "markAllRead": "Tout marquer lu",
+    "noUnread": "Aucune notification non lue.",
+    "allNotifications": "Toutes les notifications"
+  },
   "Inbox": {
     "title": "Notifications",
     "open": "Notifications",
@@ -668,7 +703,11 @@
     "save": "Enregistrer",
     "saved": "Enregistré.",
     "needsNetwork": "Disponible avec du réseau.",
-    "pushInboxOnly": "Les notifications s’affichent dans la liste de cette page."
+    "pushInboxOnly": "Les notifications s’affichent dans la liste de cette page.",
+    "tabUnread": "Non lues",
+    "tabAll": "Toutes",
+    "tabSettings": "Réglages",
+    "noUnread": "Aucune notification non lue."
   },
   "Stock": {
     "title": "Stock",
@@ -716,7 +755,7 @@
     "adjustQuantity": "Écart ({unit}), négatif pour une perte",
     "reason": "Motif",
     "suppliers": "Fournisseurs",
-    "owed": "Reste dû : {amount}",
+    "owed": "<l>Reste dû : </l>{amount}",
     "save": "Enregistrer",
     "cancel": "Annuler",
     "invalid": "Vérifiez les champs.",
@@ -751,7 +790,7 @@
     "debited": "Débité",
     "instrumentNumber": "N° du chèque ou de l’effet (facultatif)",
     "instrumentDueOn": "Date convenue",
-    "purchases": "Achats récents",
+    "purchases": "Achats",
     "purchaseLine": "{date} · {item} · {quantity} · {amount}",
     "void": "Annuler l’achat",
     "voidOf": "Annuler l’achat : {purchase}",
@@ -761,9 +800,32 @@
     "thresholdEditOf": "Modifier le seuil d’alerte de {item} : {quantity}",
     "thresholdSetOf": "Définir le seuil d’alerte de {item}",
     "colQuantity": "Quantité",
-    "colAmount": "Montant"
+    "colAmount": "Montant",
+    "tabs": {
+      "items": "Articles",
+      "purchases": "Achats",
+      "suppliers": "Fournisseurs"
+    },
+    "allItems": "Tous les articles",
+    "noPurchases": "Aucun achat pour l’instant. « Enregistrer un achat » les ajoute ici.",
+    "noSuppliers": "Aucun fournisseur pour l’instant : il s’ajoute avec un achat.",
+    "colOwed": "Reste dû",
+    "payOpen": "Payer"
   },
   "Batches": {
+    "tabs": {
+      "label": "Sections de la bande",
+      "listLabel": "Bandes par état",
+      "saisie": "Saisie du jour",
+      "sante": "Santé",
+      "ventes": "Ventes",
+      "indicateurs": "Indicateurs",
+      "gestion": "Gestion",
+      "bilan": "Bilan",
+      "open": "En cours",
+      "closed": "Clôturées"
+    },
+    "noneOpen": "Aucune bande en cours.",
     "noFarming": "Effectifs, saisies du jour et chiffres d’élevage : non transmis à votre rôle.",
     "title": "Bandes",
     "open": "Bandes",
@@ -999,6 +1061,7 @@
     "INVALID_CREDENTIALS": "Téléphone, e-mail ou mot de passe incorrect.",
     "INVALID_IDENTIFIER": "Saisissez un mobile marocain (06… ou 07…) ou un e-mail.",
     "IDENTIFIER_REQUIRED": "Saisissez un numéro de téléphone, un e-mail ou les deux.",
+    "INVALID_NAME": "Saisissez votre prénom et votre nom : des lettres seulement, 50 au plus chacun.",
     "INVALID_EMAIL": "Cet e-mail n’est pas valide.",
     "ACCOUNT_EXISTS": "Un compte existe déjà avec ce numéro ou cet e-mail. Connectez-vous.",
     "INVALID_INVITE_CODE": "Code d’invitation incorrect ou expiré.",
@@ -1268,7 +1331,8 @@
     "limitBuyer": "Acheteur",
     "limitCol": "Plafond",
     "limitCell": "<l>Plafond : </l>{amount}",
-    "edit": "Modifier"
+    "edit": "Modifier",
+    "moreOf": "Autres actions : {instrument}"
   },
   "Origin": {
     "title": "Document d’origine des volailles",
@@ -1397,11 +1461,9 @@
     "movements": "Mouvements du mois",
     "none": "Aucun mouvement ce mois-ci.",
     "day": "Date",
-    "journal": "Journal",
     "label": "Libellé",
     "account": "Caisse ou compte",
     "counterAccount": "Contrepartie",
-    "batch": "Bande",
     "in": "Entrée",
     "out": "Sortie",
     "untagged": "Non précisé",
@@ -1416,16 +1478,10 @@
     "receipt": "Reçu",
     "receiptView": "Voir",
     "receiptMissing": "Manquant",
-    "placements": "Poussins et poulettes à payer",
-    "placementsHint": "Ce qui reste dû pour chaque mise en place, avec le couvoir saisi à la mise en place.",
-    "placedOn": "Mise en place du {day}",
-    "owed": "Reste dû : {amount}",
     "pay": "Payer",
     "payOf": "Payer : {name}",
     "receiptViewOf": "Voir le reçu : {line}",
     "paid": "Paiement enregistré.",
-    "creditExpenses": "Dépenses à crédit à payer",
-    "creditExpensesHint": "Les dépenses rapides enregistrées « à payer plus tard », avec ce qui reste dû pour chacune.",
     "associate": "Apport ou retrait de l’associé",
     "exploitant": "Apport ou retrait de l’exploitant",
     "associateHint": "L’argent qu’un associé apporte à la ferme ou en retire, au compte {account}.",
@@ -1451,7 +1507,23 @@
     },
     "journalLegend": "Journaux : {journals}",
     "exploitantHintPlain": "L’argent que vous apportez à la ferme ou en retirez pour vous (capital personnel).",
-    "associateHintPlain": "L’argent qu’un associé apporte à la ferme ou en retire."
+    "associateHintPlain": "L’argent qu’un associé apporte à la ferme ou en retire.",
+    "tabOverview": "Vue d’ensemble",
+    "tabBank": "Rapprochement",
+    "toPay": "À payer",
+    "toPayHint": "Poussins et poulettes au jour de leur mise en place, dépenses à crédit à leur date, les plus anciens d’abord.",
+    "colDue": "Échéance",
+    "colType": "Type",
+    "colWhat": "Fournisseur · objet",
+    "colOwed": "Reste dû",
+    "types": {
+      "placement": "Mise en place",
+      "expense": "Dépense à crédit"
+    },
+    "associateOpen": "Apport ou retrait",
+    "month": "Mois",
+    "previousMonth": "Mois précédent",
+    "nextMonth": "Mois suivant"
   },
   "Bank": {
     "forbidden": "Le rapprochement bancaire est réservé au propriétaire, au gérant et au comptable.",
@@ -1521,12 +1593,20 @@
     "importedToTick": "Dans les livres",
     "importedMissing": "Absente des livres",
     "bookFees": "Enregistrer en frais bancaires",
-    "bookManual": "Passer une écriture manuelle"
+    "bookManual": "Passer une écriture manuelle",
+    "filter": "Opérations à afficher",
+    "toTick": "À pointer",
+    "all": "Toutes",
+    "allTicked": "Tout est pointé : rien à pointer ici."
   },
   "Results": {
     "forbidden": "Les résultats des bandes sont réservés au propriétaire, au gérant et au comptable.",
     "title": "Résultats des bandes",
     "open": "Résultats des bandes",
+    "section": "Résultats et budget",
+    "tabResults": "Résultats",
+    "tabBudget": "Budget",
+    "tabThreshold": "Seuil d’exonération",
     "none": "Aucune bande pour l’instant.",
     "batch": "Bande",
     "sales": "Ventes",
@@ -1558,7 +1638,6 @@
   },
   "Budget": {
     "forbidden": "Le budget d’une bande est réservé au propriétaire, au gérant et au comptable.",
-    "title": "Budget d’une bande",
     "open": "Budget d’une bande",
     "basedOn": "Copié de la bande",
     "blank": "Partir de zéro",
@@ -1759,6 +1838,15 @@
     "frozen": "Comptage figé : les écritures de clôture de cet exercice sont comptabilisées."
   },
   "Statements": {
+    "tabs": {
+      "label": "Parties des états",
+      "actif": "Bilan actif",
+      "passif": "Bilan passif",
+      "cpc": "Produits et charges",
+      "etic": "Informations complémentaires"
+    },
+    "showEmpty": "Afficher les lignes vides",
+    "hideEmpty": "Masquer les lignes vides",
     "open": "États de synthèse",
     "title": "États de synthèse (modèle simplifié)",
     "year": "Exercice",
@@ -1812,6 +1900,14 @@
     }
   },
   "Close": {
+    "steps": {
+      "label": "Clôture de l’exercice",
+      "count": "Inventaire",
+      "entries": "Écritures de clôture",
+      "statements": "États de synthèse"
+    },
+    "howCalculated": "Comment c’est calculé",
+    "closeYearFirst": "À faire d’abord : comptabiliser les écritures de clôture ci-dessus.",
     "forbidden": "La clôture est réservée au propriétaire, au gérant et au comptable.",
     "open": "Préparer la clôture",
     "title": "Préparer la clôture",
@@ -1904,6 +2000,7 @@
     "opened": "Exercice ouvert. Écritures d’ouverture passées : {count}."
   },
   "Assets": {
+    "scheduleShow": "Plan d’amortissement",
     "forbidden": "Les immobilisations sont réservées au propriétaire, au gérant et au comptable.",
     "open": "Immobilisations",
     "title": "Immobilisations",
@@ -1999,6 +2096,13 @@
     "cashBook": "Livre des recettes et dépenses : le registre et les plans d’amortissement seulement. Rien n’est comptabilisé, et la sortie de caisse ou de banque de l’achat n’apparaît pas dans le livre (question posée à l’expert-comptable)."
   },
   "Loans": {
+    "scheduleShow": "Échéancier",
+    "next": "Prochaine échéance : {day} · {amount}",
+    "tabs": {
+      "label": "Emprunts et subventions",
+      "loans": "Emprunts",
+      "subsidies": "Subventions"
+    },
     "forbidden": "Les emprunts et subventions sont réservés au propriétaire, au gérant et au comptable.",
     "open": "Emprunts et subventions",
     "title": "Emprunts et subventions",
@@ -2053,6 +2157,7 @@
     "discarded": "Brouillon supprimé."
   },
   "Subsidies": {
+    "releaseShow": "Reprise par exercice",
     "title": "Subventions d’investissement",
     "hint": "La subvention est comptabilisée à sa réception (5141 / 1311). À chaque clôture, la part de l’exercice est reprise en produit (1319 / 7577) : au rythme de l’amortissement des immobilisations amortissables qu’elle finance ; pour un terrain, sur ses années d’inaliénabilité, sinon un dixième par an. Une subvention sur plusieurs immobilisations est répartie selon leur coût.",
     "cashBook": "Livre des recettes et dépenses : la subvention apparaît à sa réception, sur le compte bancaire. Sa reprise par exercice est indiquée sans écriture : il n’y a pas de clôture.",
@@ -2098,7 +2203,6 @@
     "account": "Compte",
     "sync": "Synchronisation",
     "compliance": "Conformité",
-    "settings": "Langue et déconnexion",
     "accounting": "Comptabilité de l’exercice"
   },
   "Strip": {
@@ -2154,7 +2258,8 @@
     "withdrawalUntil": "Délai d’attente jusqu’au {date} inclus",
     "fcrShort": "IC",
     "fcrName": "Indice de consommation",
-    "entryDoneShort": "Faite"
+    "entryDoneShort": "Faite",
+    "seeAll": "Tout voir"
   },
   "Staff": {
     "title": "Personnel",
@@ -2187,7 +2292,16 @@
     "leftOn": "parti le {date}",
     "usesApp": "utilise l’application",
     "noApp": "sans compte",
-    "colDetail": "Affectation et salaire"
+    "colDetail": "Affectation et salaire",
+    "tabs": {
+      "team": "Équipe",
+      "presence": "Présence",
+      "advances": "Avances",
+      "records": "Formations et accidents",
+      "pay": "Paie"
+    },
+    "editShort": "Modifier",
+    "none": "Aucun ouvrier pour l’instant : ils s’ajoutent dans l’onglet Équipe."
   },
   "Tasks": {
     "title": "Tâches du jour",
@@ -2236,7 +2350,12 @@
     "doneOf": "{done} faites sur {total}",
     "tick": "Faite : {task}",
     "assign": "Confier « {task} » à",
-    "assignTo": "Confier à…"
+    "assignTo": "Confier à…",
+    "noPlanned": "Aucune tâche ponctuelle prévue.",
+    "noRoutines": "Aucune tâche régulière pour l’instant.",
+    "cancelShort": "Annuler",
+    "editShort": "Modifier",
+    "stopShort": "Arrêter"
   },
   "Attendance": {
     "title": "Présence",
@@ -2271,7 +2390,8 @@
     "amount": "Montant (DH)",
     "day": "Donnée le",
     "deductMonth": "Retenue sur la paie de",
-    "save": "Enregistrer l’avance"
+    "save": "Enregistrer l’avance",
+    "none": "Aucune avance en cours."
   },
   "Pay": {
     "notValidated": "Mois pas encore validé par le propriétaire.",
@@ -2309,12 +2429,9 @@
     }
   },
   "Climate": {
-    "targetsTitle": "Cibles de climat",
-    "targetsOpen": "Cibles de climat",
     "currentTargets": "Cibles en vigueur",
     "inForce": "En vigueur depuis le {date}. Source : {source}.",
     "bands": "Tranches d’âge",
-    "bandLine": "J{from} à J{to} : {tmin} à {tmax} °C · humidité {hmin} à {hmax} % · ammoniac max {nh3} ppm",
     "noTargets": "Aucune cible saisie : les relevés sont enregistrés sans verdict ni alerte. Le propriétaire saisit les cibles de sa source (guide de la souche, vétérinaire).",
     "enterTargets": "Saisir les cibles",
     "targetsHint": "Saisissez les cibles de votre source, par tranche d’âge de la bande ; laissez vide ce qu’elle ne donne pas. Températures en °C (une décimale).",
@@ -2379,7 +2496,12 @@
     "cutMinutes": "{minutes} min",
     "generatorLine": "groupe en {seconds} s · {litres} L de gasoil",
     "allTypes": "Toutes les productions sans cibles propres",
-    "productionType": "Production"
+    "productionType": "Production",
+    "tabReadings": "Relevés",
+    "tabTargets": "Cibles",
+    "colAge": "Âge",
+    "colAmmonia": "Ammoniac max (ppm)",
+    "olderCuts": "Coupures précédentes ({count})"
   },
   "Records": {
     "title": "Formations et accidents",
@@ -2403,7 +2525,8 @@
     "day": "Date",
     "what": "Ce qui s’est passé",
     "daysOff": "Jours d’arrêt (si connus)",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "none": "Aucune formation ni aucun accident enregistré."
   },
   "Organizations": {
     "title": "Mes exploitations",
@@ -2413,7 +2536,9 @@
     "invitations": "Invitations reçues",
     "invitedAs": "{name} vous invite comme {role}.",
     "accept": "Accepter l’invitation de {name}",
-    "link": "Mes exploitations"
+    "link": "Mes exploitations",
+    "openShort": "Ouvrir",
+    "acceptShort": "Accepter"
   },
   "Prices": {
     "title": "Prix du marché",
@@ -2447,7 +2572,9 @@
       "egg": "{amount} / œuf"
     },
     "up": "+{amount} depuis le précédent",
-    "down": "−{amount} depuis le précédent"
+    "down": "−{amount} depuis le précédent",
+    "filter": "Produits",
+    "all": "Tous"
   },
   "Planning": {
     "title": "Planning des bandes",
@@ -2478,7 +2605,14 @@
     "saveDowntime": "Enregistrer le minimum",
     "place": "Mettre en place la bande prévue le {date}",
     "placeSave": "Mettre en place",
-    "edit": "Modifier la bande prévue le {date}"
+    "edit": "Modifier la bande prévue le {date}",
+    "colBatch": "Bande",
+    "colSale": "Vente vers le",
+    "colActions": "Actions",
+    "stateBatch": "En place",
+    "statePlan": "Prévue",
+    "editShort": "Modifier",
+    "cancelShort": "Annuler"
   },
   "Types": {
     "broiler": "Poulet de chair",
@@ -2573,6 +2707,7 @@
     "colItem": "Article",
     "colEggs": "Œufs",
     "colWithheld": "Délai d’attente",
+    "colActions": "Actions",
     "folded": "Déclassés pondus il y a plus de {days} jours : {n} œufs"
   },
   "Layers": {
@@ -2682,7 +2817,9 @@
     "save": "Enregistrer l’entrée",
     "today": "Déjà venus aujourd’hui",
     "none": "Aucun visiteur aujourd’hui.",
-    "line": "{visitor} · {time} · {zone}"
+    "line": "{visitor} · {time} · {zone}",
+    "earlier": "Visites précédentes",
+    "colWhen": "Entrée"
   },
   "Disposal": {
     "title": "Cadavres, fumier et nuisibles",
@@ -2743,7 +2880,9 @@
     "rodentLine": "{date} : {action}",
     "proof": "Voir la photo",
     "proofMissing": "Preuve à ajouter (après envoi, avec du réseau)",
-    "proofAdd": "Ajouter la photo"
+    "proofAdd": "Ajouter la photo",
+    "noManure": "Aucune sortie de fumier notée. Elle s’enregistre avec le formulaire ci-contre.",
+    "noRodents": "Aucune dératisation notée. Elle s’enregistre avec le formulaire ci-contre."
   },
   "Cleanout": {
     "title": "Nettoyage et vide sanitaire",
@@ -2817,7 +2956,8 @@
     "edit": "Modifier « {title} »",
     "colDocument": "Document",
     "colExpires": "Échéance",
-    "colState": "État"
+    "editShort": "Modifier",
+    "colFile": "Fichier"
   },
   "Register": {
     "incomplete": "Registre incomplet sur ce téléphone : votre rôle ne reçoit pas toutes ses données.",
@@ -3036,11 +3176,16 @@
     },
     "threshold": "Loi n° 49-99, art. 1 : un élevage dont l’effectif par bande ne dépasse pas 500 volailles n’est pas soumis à autorisation.",
     "declaration": "Maladies à déclaration obligatoire (dahir n° 1-75-292, art. 1 et 3 ; arrêtés n° 3308-17, 2466-17 et 2836-17, art. 1) : un cas suspect se déclare immédiatement à l’autorité administrative locale ; Newcastle, peste aviaire et pullorose au service vétérinaire de l’ONSSA du lieu.",
-    "selfDeclared": "Points « à vérifier sur place » : déclaration du détenteur, à cocher et signer."
+    "selfDeclared": "Points « à vérifier sur place » : déclaration du détenteur, à cocher et signer.",
+    "contents": "Sommaire",
+    "registerOf": "Registre, {batch}"
   },
   "Accounting": {
     "open": "Paramètres comptables",
     "title": "Paramètres comptables",
+    "tabProfile": "Profil",
+    "tabChart": "Plan de comptes",
+    "tabOverrides": "Comptes remplacés",
     "none": "Aucune entité juridique.",
     "books": "Tenue des livres",
     "booksOptions": {
@@ -3132,6 +3277,14 @@
     "cgnc": "PCGE",
     "override": "Remplacé",
     "review": "Ces imputations sont celles proposées à l’expert-comptable, à valider avant la clôture.",
+    "groups": {
+      "charges": "Charges (classe 6)",
+      "revenue": "Produits (classe 7)",
+      "thirdParties": "Tiers (classes 3 et 4)",
+      "cash": "Trésorerie (classe 5)",
+      "capital": "Capitaux (classe 1)",
+      "other": "Autres comptes"
+    },
     "ops": {
       "chicks": "Achat de poussins",
       "feed": "Achat d’aliment",
@@ -3162,7 +3315,6 @@
     }
   },
   "Overrides": {
-    "open": "Remplacer un compte",
     "title": "Remplacer un compte",
     "intro": "Chaque opération est imputée à un compte par défaut. Vous pouvez choisir un autre compte de détail de la même classe, par exemple pour une catégorie de dépense. Le changement vaut pour les nouvelles écritures seulement : les écritures déjà passées, et leurs corrections, gardent leur compte.",
     "rule": "Opération",
@@ -3173,6 +3325,8 @@
     "reset": "Revenir au compte par défaut",
     "resetOf": "Revenir au compte par défaut : {rule}",
     "save": "Enregistrer",
-    "saved": "Compte enregistré pour les nouvelles écritures."
+    "saved": "Compte enregistré pour les nouvelles écritures.",
+    "replace": "Remplacer",
+    "replaceOf": "Remplacer : {rule}"
   }
 }

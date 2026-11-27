@@ -1,14 +1,16 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useId, useMemo, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { v7 as uuidv7 } from "uuid";
 import { Link } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatMoney } from "@/lib/format";
 import { formatDayShort } from "@/lib/format-day";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
-import { parseCentimes } from "@/lib/kernel/money";
+import { parseCentimes, typedCentimes } from "@/lib/kernel/money";
 import { can } from "@/lib/permissions";
 import type { FarmDto } from "@/modules/farm-registry/schema";
 import {
@@ -40,17 +42,29 @@ import { groupRecords } from "@/offline/group";
 import { writeLocal } from "@/offline/outbox";
 import { startSync } from "@/offline/sync";
 import { useFieldError, useInline } from "@/components/focus";
-import { cell, rowTable, splitAside, splitNarrow } from "@/components/layout";
+import { cell, empty, formActions, rowTable, sectionHead, sectionTitle } from "@/components/layout";
 import { cardRow, tightHead } from "@/components/layout-tight";
-import { danger, field, link, primary, secondary } from "@/components/ui";
+import { Pager } from "@/components/pager";
+import { pageOf, pickTab, TABLE_PAGE } from "@/components/paging";
+import { Sheet } from "@/components/sheet";
+import { Tabs } from "@/components/tabs";
+import { danger, field, ghost, link, primary, primarySm, secondarySm } from "@/components/ui";
 
 // SPEC S1–S3 on the static /stock shell: everything from and to the phone's database (ADR-003). Workers get no money
 // from the server at all (I5), so the money parts only render for those allowed to manage stock.
-// Wide screens (tasks/plan-ui.md "Desktop rules"): the items as a table with the forms beside it, then the purchases, then
-// the suppliers, each the page's width. The phone keeps its cards, in the same order.
+// tasks/plan-ui-cleanup.md: « Enregistrer un achat », « Corriger le stock » and « Ajouter un article » are the page
+// header's actions, their forms in a sheet; for those who manage stock, the items, the purchases (newest first, paged,
+// by item) and the suppliers (« Payer » in a sheet, §2.9) are query tabs (`?tab=`, `?page=`). The phone keeps its cards.
 
 const card = "flex flex-col gap-1 rounded-2xl border border-line bg-card p-3";
 const DEFAULT_UNIT: Record<ItemKind, Unit> = { feed: "kg", vaccine: "dose", medicine: "ml", litter: "kg", gas: "unit", other: "unit" };
+const TABS = ["items", "purchases", "suppliers"] as const;
+
+/** Into the page header's actions (the shell's `<span id="actions">`): these openers need the screen's data and state. */
+function HeaderActions({ children }: { children: ReactNode }) {
+  const slot = document.getElementById("actions");
+  return slot && createPortal(children, slot);
+}
 
 export function StockScreen() {
   const t = useTranslations("Sync");
@@ -81,6 +95,7 @@ function Stock(scope: Scope) {
   const [farmId, setFarmId] = useState<string>();
   const { open, opener, close } = useInline<"item" | "purchase" | "adjust">();
   const [message, setMessage] = useState<string>();
+  const search = useSearchParams();
   const { of } = useMemo(() => groupRecords(records ?? []), [records]); // once per read
   if (!records || reference === undefined) return null;
 
@@ -130,8 +145,11 @@ function Stock(scope: Scope) {
   };
 
   const list = (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("Stock.items")}</h2>
+    <section className="flex flex-col gap-3" aria-labelledby="items">
+      <div className={sectionHead}>
+        <h2 id="items" className={sectionTitle}>{t("Stock.items")}</h2>
+        {manage && items.length > 0 && <span className="text-sm text-ink-2">{t("Stock.total", { amount: formatMoney(items.reduce((sum, i) => sum + valueOf(i.id), 0n)) })}</span>}
+      </div>
       {items.length === 0 ? <p>{t("Stock.noItems")}</p> : (
         <ul className={`${rowTable} ${manage ? "lg:grid-cols-[minmax(0,1fr)_repeat(4,auto)]" : "lg:grid-cols-[minmax(0,1fr)_repeat(3,auto)]"}`} aria-label={t("Stock.items")}>
           <li aria-hidden="true" className={tightHead}>
@@ -155,8 +173,28 @@ function Stock(scope: Scope) {
     </section>
   );
 
+  const tab = pickTab(TABS, search.get("tab"));
+  const purchases = of<PurchaseDto>("purchase");
+  const sheetTitle = { item: t("Stock.addItem"), purchase: t("Stock.purchase"), adjust: t("Stock.adjust") };
+  const opens = (k: "item" | "purchase" | "adjust") => ({ type: "button" as const, "aria-haspopup": "dialog" as const, ...opener(k) });
   return (
     <>
+      {manage && (
+        <HeaderActions>
+          {items.length > 0 && <button {...opens("adjust")} className={secondarySm}>{t("Stock.adjust")}</button>}
+          <button {...opens("item")} className={secondarySm}>{t("Stock.addItem")}</button>
+          {items.length > 0 && <button {...opens("purchase")} className={primarySm}>{t("Stock.purchase")}</button>}
+        </HeaderActions>
+      )}
+      <Sheet open={manage && open !== undefined} onClose={close} title={open && sheetTitle[open]}>
+        {open === "item" ? (
+          <ItemForm farmId={farm.id} products={reference?.data.products ?? []} write={write} onCancel={close} />
+        ) : open === "purchase" ? (
+          <PurchaseForm items={items} suppliers={suppliers} write={write} onCancel={close} />
+        ) : open === "adjust" ? (
+          <AdjustForm items={items} write={write} onCancel={close} />
+        ) : null}
+      </Sheet>
       {farms.length > 1 && (
         <div className="lg:max-w-sm">
           <Select label={t("Stock.farm")} value={farm.id} onChange={setFarmId}>
@@ -165,38 +203,19 @@ function Stock(scope: Scope) {
         </div>
       )}
       {message && <p role="status" className="rounded-lg bg-olive-soft p-3 text-olive">{t(message)}</p>}
-      {manage && items.length > 0 && (
-        <p className="text-ink-2">{t("Stock.total", { amount: formatMoney(items.reduce((sum, i) => sum + valueOf(i.id), 0n)) })}</p>
+      {manage && (
+        <Tabs
+          label={t("Stock.title")}
+          current={tab}
+          tabs={TABS.map((key) => ({ key, label: t(`Stock.tabs.${key}`), href: { pathname: "/stock", query: { tab: key } } }))}
+        />
       )}
-      {!manage ? list : (
-        <>
-          {/* Wide screens: the forms open beside the items, not below them. */}
-          <div className={splitNarrow}>
-            {list}
-            <section className={`flex flex-col gap-3 ${splitAside}`}>
-              {open === "item" ? (
-                <ItemForm farmId={farm.id} products={reference?.data.products ?? []} write={write} onCancel={close} />
-              ) : open === "purchase" ? (
-                <PurchaseForm items={items} suppliers={suppliers} write={write} onCancel={close} />
-              ) : open === "adjust" ? (
-                <AdjustForm items={items} write={write} onCancel={close} />
-              ) : (
-                <>
-                  {items.length > 0 && <button type="button" {...opener("purchase")} className={primary}>{t("Stock.purchase")}</button>}
-                  <div className="flex flex-wrap gap-2">
-                    {items.length > 0 && <button type="button" {...opener("adjust")} className={secondary}>{t("Stock.adjust")}</button>}
-                    <button type="button" {...opener("item")} className={secondary}>{t("Stock.addItem")}</button>
-                  </div>
-                </>
-              )}
-            </section>
-          </div>
-          {/* The purchases' five columns need the page's width (B4): the suppliers below them, not beside */}
-          <div className="flex flex-col gap-5">
-            <Purchases items={items} purchases={of<PurchaseDto>("purchase")} movements={movements} onHand={onHand} write={write} />
-            <Suppliers suppliers={suppliers} purchases={of<PurchaseDto>("purchase")} payments={of<SupplierPaymentDto>("supplierPayment")} debits={of<IssuedDebitDto>("issuedDebit")} write={write} />
-          </div>
-        </>
+      {!manage || tab === "items" ? (
+        list
+      ) : tab === "purchases" ? (
+        <Purchases items={items} purchases={purchases} movements={movements} onHand={onHand} write={write} page={search.get("page")} />
+      ) : (
+        <Suppliers suppliers={suppliers} purchases={purchases} payments={of<SupplierPaymentDto>("supplierPayment")} debits={of<IssuedDebitDto>("issuedDebit")} write={write} />
       )}
     </>
   );
@@ -284,14 +303,16 @@ function ItemRow({ item, quantity, value, write }: { item: StockItemDto; quantit
  * SPEC-finance §9 "Cancelled records": the farm's recent purchases, each cancelled after a confirmation (then typed
  * again) while all the stock it brought is still there; the server also refuses one a payment covers.
  */
-function Purchases({ items, purchases, movements, onHand, write }: { items: StockItemDto[]; purchases: PurchaseDto[]; movements: MovementDto[]; onHand: Map<string, number>; write: Write }) {
+function Purchases({ items, purchases, movements, onHand, write, page: asked }: { items: StockItemDto[]; purchases: PurchaseDto[]; movements: MovementDto[]; onHand: Map<string, number>; write: Write; page: string | null }) {
   const t = useTranslations();
   const locale = useLocale();
   const show = useQuantityText();
   const [error, setError] = useState<string>();
+  const [only, setOnly] = useState(""); // one item's purchases; "" for all
   const itemOf = new Map(items.map((i) => [i.id, i]));
-  const recent = purchases.filter((p) => itemOf.has(p.stockItemId)).sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id)).slice(0, 10);
-  if (recent.length === 0) return null;
+  const all = purchases.filter((p) => itemOf.has(p.stockItemId) && (!only || p.stockItemId === only)).sort((x, y) => y.day.localeCompare(x.day) || y.id.localeCompare(x.id));
+  const page = pageOf(asked ?? undefined, all.length, TABLE_PAGE);
+  const recent = all.slice((page - 1) * TABLE_PAGE, page * TABLE_PAGE);
   const labelOf = (p: PurchaseDto) => {
     const item = itemOf.get(p.stockItemId)!;
     return t("Stock.purchaseLine", { date: formatDay(p.day as FarmDay, locale), item: item.name, quantity: show(p.quantity, item.unit), amount: formatMoney(BigInt(p.amountCentimes ?? 0)) });
@@ -304,9 +325,28 @@ function Purchases({ items, purchases, movements, onHand, write }: { items: Stoc
     await write({ type: M.cancelPurchase, payload: { purchaseId: p.id } }, [{ entity: "purchase", id: p.id, data: null }, ...own.map((m) => ({ entity: "movement", id: m.id, data: null }))]);
   };
   return (
-    <section className="flex flex-col gap-3">
-      <h2 id="purchases" className="text-[17px] font-semibold text-ink-2">{t("Stock.purchases")}</h2>
+    <section className="flex flex-col gap-3" aria-labelledby="purchases">
+      <div className={sectionHead}>
+        <h2 id="purchases" className={sectionTitle}>{t("Stock.purchases")}</h2>
+        {items.length > 1 && (
+          <label className="flex items-center gap-2 text-sm text-ink-2">
+            {t("Stock.item")}
+            <select
+              value={only}
+              onChange={(e) => {
+                setOnly(e.target.value);
+                window.history.replaceState(null, "", "?tab=purchases"); // back to the first page, without a navigation
+              }}
+              className={`${field} lg:max-w-xs`}
+            >
+              <option value="">{t("Stock.allItems")}</option>
+              {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+            </select>
+          </label>
+        )}
+      </div>
       {error && <p role="alert" className={danger}>{t(error)}</p>}
+      {recent.length === 0 ? <p className={empty}>{t("Stock.noPurchases")}</p> : (
       <ul className={`${rowTable} lg:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto]`} aria-labelledby="purchases">
         <li aria-hidden="true" className={tightHead}>
           <span>{t("Stock.day")}</span>
@@ -329,17 +369,21 @@ function Purchases({ items, purchases, movements, onHand, write }: { items: Stoc
           );
         })}
       </ul>
+      )}
+      <Pager page={page} size={TABLE_PAGE} total={all.length} href={(n) => ({ pathname: "/stock", query: { tab: "purchases", page: n } })} />
     </section>
   );
 }
 
+// §2.9: one row per supplier, the soonest due first: its dues, its cheques and bills not yet debited, what is still owed,
+// and « Payer », whose form opens in a sheet with what is owed filled in.
 function Suppliers({ suppliers, purchases, payments, debits, write }: { suppliers: SupplierDto[]; purchases: PurchaseDto[]; payments: SupplierPaymentDto[]; debits: IssuedDebitDto[]; write: Write }) {
   const t = useTranslations("Stock");
   const locale = useLocale();
   const { open: paying, opener, close } = useInline<string>();
   const [error, setError] = useState<string>();
   const tAll = useTranslations();
-  if (suppliers.length === 0) return null;
+  if (suppliers.length === 0) return <p className={empty}>{t("noSuppliers")}</p>;
   // FN11, issued side: cheques and bills given to suppliers that the bank hasn't debited yet
   const issued = issuedOf(
     purchases.map((p) => ({ id: p.id, supplierId: p.supplierId, day: p.day, paidCentimes: BigInt(p.paidCentimes ?? 0), paidMethod: p.paidMethod })),
@@ -366,29 +410,27 @@ function Suppliers({ suppliers, purchases, payments, debits, write }: { supplier
     purchases.map((p) => ({ supplierId: p.supplierId, amountCentimes: BigInt(p.amountCentimes ?? 0), paidCentimes: BigInt(p.paidCentimes ?? 0) })),
     payments.map((p) => ({ supplierId: p.supplierId, amountCentimes: BigInt(p.amountCentimes) })),
   );
+  const soonest = (id: string) => duesOf(id).reduce((min, d) => (d.dueOn < min ? d.dueOn : min), "~"); // "~": after every date
+  const rows = suppliers.map((s) => ({ s, dues: duesOf(s.id), owed: balances.get(s.id) ?? 0n, first: soonest(s.id) })).sort((x, y) => x.first.localeCompare(y.first) || x.s.name.localeCompare(y.s.name));
+  const supplier = suppliers.find((s) => s.id === paying);
+  const label = (chunks: ReactNode) => <span className="lg:sr-only">{chunks}</span>;
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-[17px] font-semibold text-ink-2">{t("suppliers")}</h2>
-      <ul className={`${rowTable} lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]`} aria-label={t("suppliers")}>
+    <section className="flex flex-col gap-3" aria-labelledby="suppliers">
+      <h2 id="suppliers" className={sectionTitle}>{t("suppliers")}</h2>
+      {error && <p role="alert" className={danger}>{tAll(error)}</p>}
+      <ul className={`${rowTable} lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_auto_auto]`} aria-labelledby="suppliers">
         <li aria-hidden="true" className={tightHead}>
           <span>{t("supplier")}</span>
           <span>{t("colDues")}</span>
+          <span className="text-end">{t("colOwed")}</span>
         </li>
-        {suppliers.map((s) => (
-          // Wide screens: the supplier, what is owed and the pay button, then the dues and the cheques beside them. On the
-          // phone, `order` keeps the button (or the form) last, as it was.
+        {rows.map(({ s, dues, owed }) => (
           <li key={s.id} className={`${card} ${cardRow}`}>
+            <span className="font-semibold">{s.name}</span>
             <div className={cell}>
-              <span className="font-semibold">{s.name}</span>
-              <span>{t("owed", { amount: formatMoney(balances.get(s.id) ?? 0n) })}</span>
-              {paying !== s.id && (balances.get(s.id) ?? 0n) > 0n && (
-                <button type="button" {...opener(s.id)} className={`${secondary} order-2 lg:self-start`}>{t("pay", { supplier: s.name })}</button>
-              )}
-            </div>
-            <div className={cell}>
-              {duesOf(s.id).length > 0 && (
+              {dues.length > 0 && (
                 <ul className="flex flex-col gap-1 text-sm" aria-label={t("dues", { supplier: s.name })}>
-                  {duesOf(s.id).map((d) => (
+                  {dues.map((d) => (
                     <li key={d.dueOn} className={d.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
                       {t(d.dueOn < today() ? "dueLateLine" : "dueLine", { amount: formatMoney(d.amountCentimes), date: formatDay(d.dueOn as FarmDay, locale) })}
                     </li>
@@ -404,21 +446,26 @@ function Suppliers({ suppliers, purchases, payments, debits, write }: { supplier
                         <span className={i.dueOn < today() ? "font-semibold text-brick-fg" : "text-ink-2"}>
                           {t("issuedLine", { kind: t(`payMethods.${i.kind}`), number: i.number ?? "—", amount: formatMoney(i.amountCentimes), date: formatDay(i.dueOn as FarmDay, locale) })}
                         </span>
-                        <button type="button" onClick={() => debit(i.id)} className={`${secondary} text-sm`}>{t("debited")}</button>
+                        <button type="button" onClick={() => debit(i.id)} className={secondarySm}>{t("debited")}</button>
                       </li>
                     ))}
                 </ul>
               )}
             </div>
-            {error && <p role="alert" className={`${danger} order-1 lg:col-span-full`}>{tAll(error)}</p>}
-            {paying === s.id && (
-              <div className="order-2 lg:col-span-full lg:max-w-md">
-                <SupplierPaymentForm supplier={s} balance={balances.get(s.id) ?? 0n} write={write} onDone={close} />
-              </div>
+            <span className="font-semibold lg:whitespace-nowrap lg:text-end">{t.rich("owed", { amount: formatMoney(owed), l: label })}</span>
+            {owed > 0n ? (
+              <button type="button" aria-haspopup="dialog" {...opener(s.id)} aria-label={t("pay", { supplier: s.name })} className={`${secondarySm} lg:justify-self-end`}>
+                {t("payOpen")}
+              </button>
+            ) : (
+              <span className="hidden lg:block" />
             )}
           </li>
         ))}
       </ul>
+      <Sheet open={!!supplier} onClose={close} title={supplier && t("pay", { supplier: supplier.name })}>
+        {supplier && <SupplierPaymentForm supplier={supplier} balance={balances.get(supplier.id) ?? 0n} write={write} onDone={close} />}
+      </Sheet>
     </section>
   );
 }
@@ -448,9 +495,9 @@ function Select({ label, children, value, defaultValue, onChange, name, autoFocu
 function Buttons({ onCancel }: { onCancel: () => void }) {
   const t = useTranslations("Stock");
   return (
-    <div className="flex gap-3">
+    <div className={formActions}>
       <button type="submit" className={primary}>{t("save")}</button>
-      <button type="button" onClick={onCancel} className={secondary}>{t("cancel")}</button>
+      <button type="button" onClick={onCancel} className={`${ghost} min-w-11`}>{t("cancel")}</button>
     </div>
   );
 }
@@ -482,7 +529,7 @@ function SupplierPaymentForm({ supplier, balance, write, onDone }: { supplier: S
   };
   return (
     <form onSubmit={submit} aria-label={t("Stock.pay", { supplier: supplier.name })} className="flex flex-col gap-3">
-      <Field name="amount" label={t("Stock.payAmount")} inputMode="decimal" required dir="ltr" autoFocus {...bad("amount")} />
+      <Field name="amount" label={t("Stock.payAmount")} defaultValue={typedCentimes(balance)} inputMode="decimal" required dir="ltr" autoFocus {...bad("amount")} />
       <Select name="method" label={t("Stock.payMethod")} value={method} onChange={(v) => setMethod(v as SupplierPaymentDto["method"])}>
         {SUPPLIER_PAYMENT_METHODS.map((m) => <option key={m} value={m}>{t(`Stock.payMethods.${m}`)}</option>)}
       </Select>
@@ -527,7 +574,7 @@ function ItemForm({ farmId, products, write, onCancel }: { farmId: string; produ
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3">
       <Select label={t("kind")} value={kind} onChange={(v) => setKind(v as ItemKind)} autoFocus>
         {ITEM_KINDS.map((k) => <option key={k} value={k}>{t(`kinds.${k}`)}</option>)}
       </Select>
@@ -604,7 +651,7 @@ function PurchaseForm({ items, suppliers, write, onCancel }: { items: StockItemD
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3">
       <Select label={t("Stock.supplier")} value={supplierId} onChange={setSupplierId} autoFocus>
         {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         <option value="new">{t("Stock.newSupplier")}</option>
@@ -652,7 +699,7 @@ function AdjustForm({ items, write, onCancel }: { items: StockItemDto[]; write: 
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 rounded-2xl border border-line bg-card p-3">
+    <form onSubmit={submit} className="flex flex-col gap-3">
       <Select label={t("Stock.item")} value={itemId} onChange={setItemId} autoFocus>
         {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
       </Select>

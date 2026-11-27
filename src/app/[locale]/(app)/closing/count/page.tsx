@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { locale } from "next/root-params";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { Page } from "@/components/page";
+import { Page, PeriodNav } from "@/components/page";
 import { Link, redirect } from "@/i18n/navigation";
 import { formatCount, formatDay, formatKg, formatKgValue } from "@/lib/format";
 import type { FarmDay } from "@/lib/kernel/farm-day";
@@ -10,6 +10,7 @@ import { can } from "@/lib/permissions";
 import { yearEndCount, type CountBatchLine, type CountEggsLine, type CountLine, type CountStockLine } from "@/modules/finance";
 import { getTenantContext } from "@/modules/identity";
 import { CountForm, PrintButton } from "./form";
+import { ClosingSteps } from "../steps";
 import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
@@ -37,7 +38,7 @@ export default function CountPage({ searchParams }: { searchParams: Search }) {
 // As the register's tables: ruled cells that print black (src/components/register-document.tsx).
 const sheet =
   "w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:p-2 [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:p-2 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black";
-const box = "min-h-11 w-28 rounded-lg border border-muted bg-card px-2 text-end";
+const box = "min-h-11 w-28 rounded-lg border border-muted bg-card px-2 text-end lg:min-h-9";
 
 async function CountView({ searchParams }: { searchParams: Search }) {
   const [ctx, lang, t, search] = await Promise.all([getTenantContext(await headers()), locale(), getTranslations(), searchParams]);
@@ -84,7 +85,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
   const head = (cells: string[]) => (
     <thead>
       <tr>
-        {cells.map((c) => <th key={c}>{t(c)}</th>)}
+        {cells.map((c) => <th key={c} className={c === "Count.book" ? "text-end!" : undefined}>{t(c)}</th>)}
         <th className="text-end! print:w-32">{t("Count.counted")}</th>
         <th className="text-end! print:hidden">{t("Count.gap")}</th>
         <th className="print:hidden"><span className="sr-only">{t("Count.fix")}</span></th>
@@ -93,14 +94,27 @@ async function CountView({ searchParams }: { searchParams: Search }) {
   );
 
   return (
-    <Page width="doc" back="/more" title={t("Count.title")}>
-      <nav className="flex flex-wrap items-center gap-3 print:hidden" aria-label={t("Count.year")}>
-        <Link href={{ pathname: "/closing/count", query: { year: year - 1 } }} aria-label={t("Count.previousYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">←</Link>
-        <span className="font-semibold" dir="ltr">{year}</span>
-        <Link href={{ pathname: "/closing/count", query: { year: year + 1 } }} aria-label={t("Count.nextYear")} className="inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rtl:-scale-x-100">→</Link>
-        {farms.length > 0 && <span className="ms-auto"><PrintButton /></span>}
-      </nav>
-      <p className="max-w-prose text-sm text-ink-2 print:hidden">{t("Count.hint")}</p>
+    <Page
+      width="doc"
+      back="/more"
+      title={t("Count.title")}
+      subtitle={<span className="block max-w-prose">{t("Count.hint")}</span>}
+      nav={
+        <ClosingSteps
+          current="count"
+          year={year}
+          period={
+            <PeriodNav
+              label={t("Count.year")}
+              period={<span dir="ltr">{year}</span>}
+              prev={{ href: { pathname: "/closing/count", query: { year: year - 1 } }, label: t("Count.previousYear") }}
+              next={{ href: { pathname: "/closing/count", query: { year: year + 1 } }, label: t("Count.nextYear") }}
+              end={farms.length > 0 && <PrintButton />}
+            />
+          }
+        />
+      }
+    >
       {frozen && <p className="text-sm font-semibold print:hidden">{t("Count.frozen")}</p>}
       {farms.length === 0 ? (
         <p>{t("Count.none")}</p>
@@ -123,7 +137,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
                           <tr key={l.id} className="break-inside-avoid">
                             <td>{l.houseName}</td>
                             <td>{t(`Types.${l.species}`)}</td>
-                            <td className="tabular-nums">{quantity(l.book, l)}</td>
+                            <td className="text-end tabular-nums whitespace-nowrap">{quantity(l.book, l)}</td>
                             {counted(l)}
                             {after(l)}
                           </tr>
@@ -146,7 +160,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
                               {l.expiresOn ? formatDay(l.expiresOn as FarmDay, lang) : ""}
                               {l.expired && <strong className="ms-2">{t("Count.expired")}</strong>}
                             </td>
-                            <td className="tabular-nums">{quantity(l.book, l)}</td>
+                            <td className="text-end tabular-nums whitespace-nowrap">{quantity(l.book, l)}</td>
                             {counted(l)}
                             {after(l)}
                           </tr>
@@ -164,7 +178,7 @@ async function CountView({ searchParams }: { searchParams: Search }) {
                         {eggs.map((l) => (
                           <tr key={l.id} className="break-inside-avoid">
                             <td>{label(l)}</td>
-                            <td className="tabular-nums">{quantity(l.book, l)}</td>
+                            <td className="text-end tabular-nums whitespace-nowrap">{quantity(l.book, l)}</td>
                             {counted(l)}
                             {after(l)}
                           </tr>

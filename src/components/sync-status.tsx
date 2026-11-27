@@ -10,14 +10,14 @@ import type { Role } from "@/lib/tenant";
 import { currentScope, localDb, metaValue, rememberScope, scopeKey, type RejectedEntry, type Scope } from "@/offline/db";
 import { payloadSummary, redoHref, refusalContext } from "@/offline/refused";
 import { requestSync, startSync } from "@/offline/sync";
-import { primary } from "@/components/ui";
+import { cell, row, rowHead, rowTable, sectionTitle } from "@/components/layout";
+import { card, secondarySm } from "@/components/ui";
 
 /**
- * On signed-in (online) pages: remembers who is signed in on this phone for the offline pages and the service worker,
- * keeps the sync loop running, and shows what is waiting to be sent.
+ * On the home (online, and its offline twin /today): remembers who is signed in on this phone for the offline pages and
+ * the service worker, and keeps the sync loop running. What waits to be sent is the header's chip (app-header-live.tsx).
  */
-export function SyncBadge({ userId, organizationId, role }: { userId: string; organizationId: string; role: Role }) {
-  const t = useTranslations("Sync");
+export function SyncStart({ userId, organizationId, role }: { userId: string; organizationId: string; role: Role }) {
   useEffect(() => {
     const scope = { userId, organizationId, role };
     // After rememberScope: a role change clears local records first, so no pull lands before the clear (T25 S5).
@@ -31,17 +31,7 @@ export function SyncBadge({ userId, organizationId, role }: { userId: string; or
       stop?.();
     };
   }, [userId, organizationId, role]);
-  const [pending, refused] = useLiveQuery(() => {
-    const db = localDb({ userId, organizationId });
-    return Promise.all([db.outbox.count(), db.needsAttention.count()]);
-  }, [userId, organizationId], [0, 0]);
-  return (
-    // aria-live, not a role="status" child: a status region would drop out of the link's accessible name.
-    // A refused write comes first: it waits on the user, a pending one only on the network (ADR-003 §7).
-    <Link href="/sync" aria-live="polite" className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-3 text-sm font-medium ${refused > 0 ? "bg-alert text-white" : pending > 0 ? "bg-brick-soft text-brick-fg" : "bg-olive-soft text-olive"}`}>
-      {refused > 0 ? t("refused", { count: refused, n: String(refused) }) : pending > 0 ? t("pending", { count: String(pending) }) : t("upToDate")}
-    </Link>
-  );
+  return null;
 }
 
 /** The /sync shell: works offline from IndexedDB alone (poultry-pwa §0.12). */
@@ -88,10 +78,12 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
   const label = (type: string) => (t.has(`Sync.types.${type}`) ? t(`Sync.types.${type}`) : t("Sync.unknownType"));
   const dismiss = (entry: RejectedEntry) => confirm(t("Sync.dismissConfirm")) && localDb({ userId, organizationId }).needsAttention.delete(entry.id);
 
+  // tasks/plan-ui-cleanup.md §4: the status card holds « Synchroniser maintenant » (a small button: the sync runs on its
+  // own); the refused writes read as a table from lg, one card each on the phone.
   return (
     <>
-      <p>{t("Sync.savedHere")}</p>
-      <div role="status" className="flex flex-col gap-1 rounded-2xl border border-line bg-card p-4">
+      <div role="status" className={`${card} lg:max-w-xl`}>
+        <p className="text-sm text-ink-2">{t("Sync.savedHere")}</p>
         <p className="text-lg font-semibold">{pending > 0 ? t("Sync.pending", { count: String(pending) }) : t("Sync.upToDate")}</p>
         <p className="text-sm text-muted">{lastSyncAt ? t("Sync.lastSync", { time: formatDateTime(lastSyncAt, locale) }) : t("Sync.never")}</p>
         {outcome === "offline" && <p>{t("Sync.offline")}</p>}
@@ -102,41 +94,43 @@ function ScopedPanel({ userId, organizationId, role }: Scope) {
             <Link href="/login" className="underline underline-offset-4">{t("Sync.login")}</Link>
           </p>
         )}
+        <button type="button" onClick={requestSync} className={`${secondarySm} mt-1`}>
+          {t("Sync.syncNow")}
+        </button>
       </div>
-      <button type="button" onClick={requestSync} className={primary}>
-        {t("Sync.syncNow")}
-      </button>
       {rejected.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-[17px] font-semibold text-ink-2">{t("Sync.attention")}</h2>
-          <p className="text-sm text-muted">{t("Sync.attentionHint")}</p>
-          <ul className="flex flex-col gap-3">
+          <h2 className={sectionTitle}>{t("Sync.attention")}</h2>
+          <p className="text-sm text-ink-2">{t("Sync.attentionHint")}</p>
+          <ul className={`${rowTable} lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_auto_auto]`}>
+            <li aria-hidden="true" className={rowHead}>
+              <span>{t("Sync.colWhat")}</span>
+              <span>{t("Sync.colWhy")}</span>
+              <span>{t("Sync.colWhen")}</span>
+            </li>
             {rejected.map((entry) => {
               const { place, day } = refusalContext(entry.payload, places);
               const values = payloadSummary(entry.payload, places, (key, v) => t(key, v), locale);
               const href = redoHref(entry.type, entry.payload);
               return (
-                <li key={entry.id} className="flex flex-col gap-2 rounded-2xl bg-alert-soft p-3 text-alert-fg">
-                  <h3 className="font-semibold">{label(entry.type)}</h3>
-                  {(place || day) && <p>{[place, day && formatDay(day as FarmDay, locale)].filter(Boolean).join(" · ")}</p>}
-                  <p>{message(entry)}</p>
-                  {values.length > 0 && (
-                    <div className="text-sm">
-                      <p className="font-medium">{t("Sync.values")}</p>
-                      <p className="break-words">{values.join(" · ")}</p>
-                    </div>
-                  )}
-                  <p className="text-sm text-muted">{formatDateTime(entry.createdAt, locale)}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {href && (
-                      <Link href={href} className="inline-flex min-h-11 items-center rounded-2xl bg-card px-3 py-2 underline underline-offset-4">
-                        {t("Sync.redo")}
-                      </Link>
-                    )}
-                    <button type="button" onClick={() => dismiss(entry)} className="min-h-11 rounded-2xl border border-line bg-card px-3 py-2">
-                      {t("Sync.dismiss")}
-                    </button>
+                <li key={entry.id} className={`${row} border-s-4 border-alert-fg lg:border-s-0`}>
+                  <div className={cell}>
+                    <h3 className="font-semibold">{label(entry.type)}</h3>
+                    {(place || day) && <span className="text-sm text-ink-2">{[place, day && formatDay(day as FarmDay, locale)].filter(Boolean).join(" · ")}</span>}
                   </div>
+                  <span className={cell}>
+                    <span className="text-alert-fg">{message(entry)}</span>
+                    {values.length > 0 && (
+                      <span className="text-sm">
+                        <span className="font-medium">{t("Sync.values")}</span> <span className="break-words">{values.join(" · ")}</span>
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-sm whitespace-nowrap text-muted">{formatDateTime(entry.createdAt, locale)}</span>
+                  <span className="flex flex-wrap gap-2 lg:justify-end">
+                    {href && <Link href={href} className={secondarySm}>{t("Sync.redo")}</Link>}
+                    <button type="button" onClick={() => dismiss(entry)} className={secondarySm}>{t("Sync.dismiss")}</button>
+                  </span>
                 </li>
               );
             })}

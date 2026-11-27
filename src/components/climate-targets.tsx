@@ -2,10 +2,13 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { v7 as uuidv7 } from "uuid";
+import { useInline } from "@/components/focus";
+import { dataTable, dataTableWrap, formActions, num, sectionHead, sectionTitle } from "@/components/layout";
 import { Scoped } from "@/components/scoped";
-import { card, danger, done, field, primary, secondary } from "@/components/ui";
+import { Sheet } from "@/components/sheet";
+import { danger, done, field, ghost, primary, primarySm, secondarySm } from "@/components/ui";
 import { formatDay } from "@/lib/format";
 import { farmDayOf, type FarmDay } from "@/lib/kernel/farm-day";
 import { can } from "@/lib/permissions";
@@ -33,8 +36,9 @@ function Targets(scope: Scope) {
   const locale = useLocale();
   const db = localDb(scope);
   const sets = useLiveQuery(() => db.records.where("entity").equals("climateTargets").toArray(), [scope.userId, scope.organizationId]);
-  const [adding, setAdding] = useState(false);
+  const { open, opener, close } = useInline<"targets">();
   const [message, setMessage] = useState<string>();
+  const headId = useId();
   if (!sets) return null;
   const all = sets.map((r) => r.data as TargetSet);
   const today = farmDayOf(new Date());
@@ -45,41 +49,55 @@ function Targets(scope: Scope) {
     try {
       await writeLocal(db, { type: C.saveTargets, payload: set }, { entity: "climateTargets", id: set.id, data: set });
       setMessage("Farms.saved");
-      setAdding(false);
+      close();
     } catch {
       setMessage("Farms.saveFailed");
     }
   };
 
+  // tasks/plan-ui-cleanup.md §4: each set as a table of its age bands; a new version is typed in a sheet.
+  const range = (min: string | number, max: string | number) => <bdi dir="ltr">{min} – {max}</bdi>;
   return (
-    <>
+    <section aria-labelledby={headId} className="flex flex-col gap-4">
+      <div className={sectionHead}>
+        <h2 id={headId} className={sectionTitle}>{t("Climate.currentTargets")}</h2>
+        {can(scope, "climate.manage") && <button type="button" aria-haspopup="dialog" {...opener("targets")} className={primarySm}>{t("Climate.enterTargets")}</button>}
+      </div>
       {message && <p role="status" className={done}>{t(message)}</p>}
       {groups.map(({ type, set: current }) => current ? (
-        <section key={type ?? "all"} aria-label={type ? t(`Types.${type}`) : t("Climate.currentTargets")} className={card}>
-          <h2 className="font-semibold">{type ? t(`Types.${type}`) : t("Climate.allTypes")}</h2>
+        <section key={type ?? "all"} aria-label={type ? t(`Types.${type}`) : t("Climate.currentTargets")} className="flex flex-col gap-2">
+          <h3 className="font-semibold">{type ? t(`Types.${type}`) : t("Climate.allTypes")}</h3>
           <p className="text-sm text-ink-2">{t("Climate.inForce", { date: formatDay(current.validFrom as FarmDay, locale), source: current.source })}</p>
-          <ul className="flex flex-col gap-1" aria-label={t("Climate.bands")}>
-            {current.bands.map((b) => (
-              <li key={b.fromAge}>
-                {t("Climate.bandLine", {
-                  from: String(b.fromAge),
-                  to: String(b.toAge),
-                  tmin: tenths(b.temperatureMinTenths),
-                  tmax: tenths(b.temperatureMaxTenths),
-                  hmin: b.humidityMin ?? "—",
-                  hmax: b.humidityMax ?? "—",
-                  nh3: b.ammoniaMax ?? "—",
-                })}
-              </li>
-            ))}
-          </ul>
+          <div className={dataTableWrap}>
+            <table className={dataTable} aria-label={t("Climate.bands")}>
+              <thead>
+                <tr>
+                  <th scope="col">{t("Climate.colAge")}</th>
+                  <th scope="col" className={num}>{t("Climate.temperature")}</th>
+                  <th scope="col" className={num}>{t("Climate.humidity")}</th>
+                  <th scope="col" className={num}>{t("Climate.colAmmonia")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {current.bands.map((b) => (
+                  <tr key={b.fromAge}>
+                    <td>{range(`J${b.fromAge}`, `J${b.toAge}`)}</td>
+                    <td className={num}>{range(tenths(b.temperatureMinTenths), tenths(b.temperatureMaxTenths))}</td>
+                    <td className={num}>{range(b.humidityMin ?? "—", b.humidityMax ?? "—")}</td>
+                    <td className={num}>{b.ammoniaMax ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : type === null ? (
         <p key="all" role="note" className="rounded-2xl bg-chick-soft p-3">{t("Climate.noTargets")}</p>
       ) : null)}
-      {can(scope, "climate.manage") &&
-        (adding ? <TargetsForm onSave={save} onCancel={() => setAdding(false)} /> : <button type="button" aria-expanded={false} onClick={() => setAdding(true)} className={primary}>{t("Climate.enterTargets")}</button>)}
-    </>
+      <Sheet open={open === "targets"} onClose={close} title={t("Climate.enterTargets")}>
+        <TargetsForm onSave={save} onCancel={close} />
+      </Sheet>
+    </section>
   );
 }
 
@@ -116,7 +134,7 @@ function TargetsForm({ onSave, onCancel }: { onSave: (s: TargetSet) => Promise<v
   };
 
   return (
-    <form onSubmit={submit} className={card} aria-label={t("Climate.enterTargets")}>
+    <form onSubmit={submit} className="flex flex-col gap-3" aria-label={t("Climate.enterTargets")}>
       <p className="text-sm text-ink-2">{t("Climate.targetsHint")}</p>
       <label className="flex flex-col gap-1">
         {t("Climate.productionType")}
@@ -138,11 +156,11 @@ function TargetsForm({ onSave, onCancel }: { onSave: (s: TargetSet) => Promise<v
           ))}
         </fieldset>
       ))}
-      <button type="button" onClick={() => setRows((x) => [...x, Math.max(...x) + 1])} className={secondary}>{t("Climate.addBand")}</button>
+      <button type="button" onClick={() => setRows((x) => [...x, Math.max(...x) + 1])} className={secondarySm}>{t("Climate.addBand")}</button>
       {error && <p role="alert" className={danger}>{t(error)}</p>}
-      <div className="flex gap-3">
+      <div className={formActions}>
         <button type="submit" className={primary}>{t("Climate.saveTargets")}</button>
-        <button type="button" onClick={onCancel} className={secondary}>{t("Receivables.cancel")}</button>
+        <button type="button" onClick={onCancel} className={ghost}>{t("Receivables.cancel")}</button>
       </div>
     </form>
   );

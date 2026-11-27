@@ -5,7 +5,7 @@ import { ClientMessages } from "@/i18n/client-messages";
 import type { MessagePath } from "@/i18n/pick";
 
 // What this page's client components read (src/i18n/client-messages.tsx).
-const MESSAGES: MessagePath[] = ["Attendance", "Farms.none", "Farms.saveFailed", "Farms.saved", "Nav", "Receivables.cancel", "Staff", "Sync.login", "Sync.signedOut", "Tasks", "errors.HOUSE_REQUIRED"];
+const MESSAGES: MessagePath[] = ["Attendance", "Farms.none", "Farms.saveFailed", "Farms.saved", "Nav", "Receivables.cancel", "Staff", "Sync.login", "Sync.signedOut", "Tasks", "Ui", "errors.HOUSE_REQUIRED"];
 
 // A static shell, precached by the service worker (src/app/serwist): the day's tasks are computed from IndexedDB (SPEC-m4 §7).
 export default function TasksPage() {

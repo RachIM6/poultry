@@ -24,7 +24,7 @@ test("an offline home consumption is refused during a withdrawal, then recorded 
     },
   ]);
 
-  await page.goto(`/fr/batches#${ids.batch}`);
+  await page.goto(`/fr/batches?tab=ventes#${ids.batch}`);
   await controlled(page);
   await referenceCached(page);
   await expect(page.getByText("Oiseaux présents : 900")).toBeVisible();
@@ -90,9 +90,10 @@ test("a worker records a consumption without seeing a price, an amount or the bu
   // The owner invites the worker, who signs in once (the invitation becomes a membership).
   const phone = randomMobile();
   await page.goto("/fr/settings/members");
+  await page.getByRole("button", { name: "Inviter un membre" }).click(); // the invite form is in a sheet
   await page.getByLabel("Numéro de téléphone").fill(phone);
   await page.getByLabel("Rôle", { exact: true }).selectOption("worker");
-  await page.getByRole("button", { name: "Inviter" }).click();
+  await page.getByRole("button", { name: "Inviter", exact: true }).click();
   await expect(page.getByText("Invitation enregistrée.")).toBeVisible();
   const code = await inviteCode(page);
   const workerContext = await browser.newContext({ ...test.info().project.use });
@@ -101,7 +102,7 @@ test("a worker records a consumption without seeing a price, an amount or the bu
   await expect(worker).toHaveURL(/\/fr\/dashboard$/);
   await scopeRemembered(worker);
 
-  await worker.goto(`/fr/batches#${ids.batch}`);
+  await worker.goto(`/fr/batches?tab=ventes#${ids.batch}`);
   await expect(worker.getByText("Oiseaux présents : 900")).toBeVisible();
   await expect(worker.getByText("Aucune vente.")).toBeVisible(); // the sale to Abattoir Atlas isn't the worker's
   await expect(worker.getByRole("button", { name: "Nouvelle vente" })).toHaveCount(0);

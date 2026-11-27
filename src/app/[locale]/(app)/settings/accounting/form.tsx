@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 import { saveAccountingAction } from "./actions";
 import { OfflineHint, useOnline } from "@/components/online";
+import { formActions, sectionTitle } from "@/components/layout";
 import { danger, field, primary } from "@/components/ui";
 
 type Props = {
@@ -37,50 +38,58 @@ export function AccountingForm(p: Props) {
   const online = useOnline();
   const off = p.locked || pending;
   return (
-    <form action={action} className="flex flex-col gap-5">
+    // Wide screens: the groups two by two (books · chart, fiscal year and VAT · hens), the shared costs' key on a row of
+    // its own, its three choices side by side.
+    <form action={action} className="flex flex-col gap-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:gap-y-6">
       <input type="hidden" name="legalEntityId" value={p.legalEntityId} />
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-2 text-lg font-semibold">{t("books")}</legend>
+        <legend className={`mb-2 ${sectionTitle}`}>{t("books")}</legend>
         {p.booksAllowed.map((b) => (
           <Choice key={b} name="books" value={b} checked={p.books === b} title={t(`booksOptions.${b}.title`)} desc={t(`booksOptions.${b}.desc`)} disabled={off} />
         ))}
         {p.booksAllowed.length === 1 && <p className="text-sm text-ink-2">{t("ledgerRequired")}</p>}
       </fieldset>
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-2 text-lg font-semibold">{t("chart")}</legend>
+        <legend className={`mb-2 ${sectionTitle}`}>{t("chart")}</legend>
         <Choice name="chart" value="pca" checked={p.pca} title={t("charts.pca.title")} desc={t("charts.pca.desc")} disabled={off} />
         <Choice name="chart" value="cgnc" checked={!p.pca} title={t("charts.cgnc.title")} desc={t("charts.cgnc.desc")} disabled={off} />
       </fieldset>
-      <label className="flex flex-col gap-1">
-        <span className="text-lg font-semibold">{t("yearStart")}</span>
-        <select name="month" defaultValue={p.month} disabled={off} className={field}>
-          {p.months.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-        </select>
-      </label>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-lg font-semibold">{t("vat")}</legend>
-        <label className="flex min-h-11 items-center gap-3">
-          <input type="checkbox" name="vatRegistered" defaultChecked={p.vatRegistered} disabled={off} className="size-5 accent-ink" />
-          {t("vatRegistered")}
+      <div className="flex flex-col gap-5">
+        <label className="flex flex-col gap-1">
+          <span className={sectionTitle}>{t("yearStart")}</span>
+          <select name="month" defaultValue={p.month} disabled={off} className={`${field} lg:max-w-xs`}>
+            {p.months.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+          </select>
         </label>
-        <p className="text-sm text-ink-2">{t("vatHint")}</p>
-      </fieldset>
+        <fieldset className="flex flex-col gap-2">
+          <legend className={`mb-2 ${sectionTitle}`}>{t("vat")}</legend>
+          <label className="flex min-h-11 items-center gap-3">
+            <input type="checkbox" name="vatRegistered" defaultChecked={p.vatRegistered} disabled={off} className="size-5 accent-ink" />
+            {t("vatRegistered")}
+          </label>
+          <p className="text-sm text-ink-2">{t("vatHint")}</p>
+        </fieldset>
+      </div>
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-2 text-lg font-semibold">{t("hens")}</legend>
+        <legend className={`mb-2 ${sectionTitle}`}>{t("hens")}</legend>
         {["classic", "simplified"].map((m) => (
           <Choice key={m} name="hensMethod" value={m} checked={p.hensMethod === m} title={t(`hensMethods.${m}.title`)} desc={t(`hensMethods.${m}.desc`)} disabled={off} />
         ))}
       </fieldset>
-      <fieldset className="flex flex-col gap-3">
-        <legend className="mb-2 text-lg font-semibold">{t("allocation")}</legend>
+      <fieldset className="flex flex-col gap-3 lg:col-span-full lg:grid lg:grid-cols-3 lg:gap-x-4">
+        <legend className={`mb-2 ${sectionTitle}`}>{t("allocation")}</legend>
         {["birdDays", "houseArea", "kgSold"].map((k) => (
           <Choice key={k} name="allocationKey" value={k} checked={p.allocationKey === k} title={t(`allocationKeys.${k}.title`)} desc={t(`allocationKeys.${k}.desc`)} disabled={off} />
         ))}
       </fieldset>
-      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={state.ok ? undefined : danger}>{tAll(state.messageKey)}</p>}
+      {state.messageKey && <p role={state.ok ? "status" : "alert"} className={`lg:col-span-full ${state.ok ? "" : danger}`}>{tAll(state.messageKey)}</p>}
       {/* Locked: nothing to save, and the page says why (no greyed-out primary) */}
-      {!p.locked && <OfflineHint online={online} />}
-      {!p.locked && <button type="submit" disabled={off || !online} className={primary}>{t("save")}</button>}
+      {!p.locked && (
+        <div className={formActions}>
+          <button type="submit" disabled={off || !online} className={primary}>{t("save")}</button>
+          <OfflineHint online={online} />
+        </div>
+      )}
     </form>
   );
 }

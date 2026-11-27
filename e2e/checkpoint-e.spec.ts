@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
+import { batchTab, controlled, farmDaysAgo, farmWithBatch, ownerWithFarm, query, referenceCached, scopeRemembered } from "./auth";
 
 // Checkpoint E (tasks/todo.md): 10 simulated days of a batch, entered offline, with the dashboard's KPIs equal to the
 // hand calculation below; then online, each day reaches the server once. The numbers are a made-up test batch.
@@ -28,10 +28,13 @@ test("checkpoint E: 10 days entered offline give the hand-computed KPIs and sync
     await page.getByLabel("Morts", { exact: true }).fill(String(dead));
     await page.getByLabel("Aliment consommé (kg)", { exact: true }).fill(String(FEED_KG[i]));
     await page.getByRole("button", { name: "Enregistrer la journée" }).click();
+    await batchTab(page, "Indicateurs"); // the figures' tab, offline in place
     await expect(tile(page, "Mortalité")).toContainText(`${(DEAD.slice(0, i + 1).reduce((a, b) => a + b, 0) / 10).toFixed(1).replace(".", ",")} %`);
+    await batchTab(page, "Saisie du jour");
   }
   await page.getByLabel("Poids des oiseaux (kg), séparés par des espaces").fill("0,280 0,300 0,290");
   await page.getByRole("button", { name: "Enregistrer la pesée" }).click();
+  await batchTab(page, "Indicateurs");
 
   // By hand: 24 dead of 1 000 → 2,4 %; 976 on hand; 255 kg / 976 = 261,3 g → 0,261 kg.
   // Day 10, 290 g. FCR 255 / (976 × 0,290 = 283,04) = 0,9009 → 0,90.

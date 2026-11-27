@@ -323,3 +323,26 @@ describe("a role change on this phone (T25 S5)", () => {
     expect((await currentScope())?.role).toBe("worker");
   });
 });
+
+describe("the name the header shows", () => {
+  it("is kept when the dashboard remembers the scope without it, and dropped for another user", async () => {
+    const me = scope();
+    await rememberScope({ ...me, name: "Karim Ben Ahmed" });
+    await rememberScope(me); // the dashboard's SyncBadge: no name
+    expect((await currentScope())?.name).toBe("Karim Ben Ahmed");
+    await rememberScope({ ...me, name: "Karim Alaoui" }); // changed on « Mes exploitations »
+    expect((await currentScope())?.name).toBe("Karim Alaoui");
+    await rememberScope({ ...me, userId: "someone-else" });
+    expect((await currentScope())?.name).toBeUndefined();
+  });
+
+  it("is never lost when the header stores it while the dashboard stores the scope without it", async () => {
+    const me = scope();
+    await rememberScope(me); // a phone signed in before names
+    // The header's rememberSignedIn and the dashboard's SyncBadge at the same time, in either order.
+    await Promise.all([rememberScope({ ...me, name: "Karim Ben Ahmed" }), rememberScope(me)]);
+    expect((await currentScope())?.name).toBe("Karim Ben Ahmed");
+    await Promise.all([rememberScope({ ...me, role: "worker" }), rememberScope({ ...me, role: "worker", name: "Karim Alaoui" })]); // a role change clears records first
+    expect(await currentScope()).toMatchObject({ role: "worker", name: "Karim Alaoui" });
+  });
+});

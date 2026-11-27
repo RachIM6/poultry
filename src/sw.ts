@@ -29,8 +29,10 @@ const serwist = new Serwist({
   // Next's static assets plus the public shells (src/app/serwist/[path]/route.ts): offline, sync and the screens that
   // open offline, per locale; not home, which redirects. Served before the rules below.
   precacheEntries: self.__SW_MANIFEST,
-  // Three downloads at a time (default 10), so the first install doesn't saturate a 3G link.
-  precacheOptions: { concurrency: 3 },
+  // Three downloads at a time (default 10), so the first install doesn't saturate a 3G link. A shell's tab and page
+  // (`?tab=`, `?page=`, tasks/plan-ui-cleanup.md §2.4) are read by the screen, so they open the same precached shell;
+  // utm_ and fbclid are Serwist's defaults, which this list replaces.
+  precacheOptions: { concurrency: 3, ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^tab$/, /^page$/] },
   // poultry-pwa §0.6: a new version waits until the user accepts it (PwaProvider's update banner sends SKIP_WAITING).
   skipWaiting: false,
   clientsClaim: true,

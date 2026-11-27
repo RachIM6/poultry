@@ -16,19 +16,28 @@ export async function query<T>(sql: string, params: unknown[]): Promise<T[]> {
 // A fresh number per run: rate limits persist in the database between runs.
 export const randomMobile = () => `06${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
 
+/**
+ * A section of a batch's screen (tasks/plan-ui-cleanup.md batch 1): its tab, by its visible name in either language
+ * (« Santé », « Ventes », « Indicateurs », « Gestion », « Bilan », « Saisie du jour »).
+ */
+export async function batchTab(page: Page, name: string) {
+  await page.getByRole("navigation", { name: /^(Sections de la bande|أقسام الدفعة)$/ }).getByRole("link", { name, exact: true }).click();
+}
+
 /** Every e2e account's password (ADR-015). */
 export const PASSWORD = "e2e long password 2026";
 
 const LABELS = {
-  fr: { identifier: "Téléphone ou e-mail", password: "Mot de passe", signIn: "Se connecter", phone: "Numéro de téléphone", confirm: "Confirmer le mot de passe", create: "Créer le compte", code: "Code", join: "Rejoindre" },
-  ar: { identifier: "الهاتف أو البريد الإلكتروني", password: "كلمة المرور", signIn: "دخول", phone: "رقم الهاتف", confirm: "تأكيد كلمة المرور", create: "إنشاء الحساب", code: "الرمز", join: "انضمام" },
+  fr: { firstName: "Prénom", lastName: "Nom", identifier: "Téléphone ou e-mail", password: "Mot de passe", signIn: "Se connecter", phone: "Numéro de téléphone", confirm: "Confirmer le mot de passe", create: "Créer le compte", code: "Code", join: "Rejoindre" },
+  ar: { firstName: "الاسم الشخصي", lastName: "الاسم العائلي", identifier: "الهاتف أو البريد الإلكتروني", password: "كلمة المرور", signIn: "دخول", phone: "رقم الهاتف", confirm: "تأكيد كلمة المرور", create: "إنشاء الحساب", code: "الرمز", join: "انضمام" },
 };
 
 /**
  * Through the real forms (ADR-015): a number with no account signs up (an owner who onboards next, or, with the
  * owner's `inviteCode`, a member who lands on the farm); a number with one signs in with PASSWORD. Returns its E.164.
+ * `names`: the first and last name a sign-up types.
  */
-export async function login(page: Page, locale: "ar" | "fr", phone = randomMobile(), inviteCode?: string) {
+export async function login(page: Page, locale: "ar" | "fr", phone = randomMobile(), inviteCode?: string, names = { first: "Nadia", last: "Testeur" }) {
   const l = LABELS[locale];
   const e164 = `+212${phone.replace(/\D/g, "").slice(-9)}`; // any spelling: 06…, +212 6…
   const [{ n }] = await query<{ n: number }>(`SELECT count(*)::int AS n FROM "User" WHERE "phoneNumber" = $1`, [e164]);
@@ -41,6 +50,8 @@ export async function login(page: Page, locale: "ar" | "fr", phone = randomMobil
   }
   await page.goto(`/${locale}/${inviteCode ? "join" : "signup"}`);
   if (inviteCode) await page.getByLabel(l.code, { exact: true }).fill(inviteCode);
+  await page.getByLabel(l.firstName, { exact: true }).fill(names.first);
+  await page.getByLabel(l.lastName, { exact: true }).fill(names.last);
   await page.getByLabel(l.phone, { exact: true }).fill(phone);
   await page.getByLabel(l.password, { exact: true }).fill(PASSWORD);
   await page.getByLabel(l.confirm, { exact: true }).fill(PASSWORD);
@@ -116,9 +127,9 @@ export async function outboxEmpty(page: Page) {
  */
 export const closeRun = { timeout: 30_000 };
 
-/** A new owner with an organisation, signed in on the French dashboard. */
-export async function ownerWithFarm(page: Page, farmName: string) {
-  const e164 = await login(page, "fr");
+/** A new owner with an organisation, signed in on the French dashboard. `names`: as `login`'s. */
+export async function ownerWithFarm(page: Page, farmName: string, names?: { first: string; last: string }) {
+  const e164 = await login(page, "fr", undefined, undefined, names);
   await page.getByLabel("Nom de l’exploitation ou raison sociale").fill(farmName);
   await page.getByLabel("Exploitant individuel").check();
   await page.getByRole("button", { name: "Créer" }).click();

@@ -202,3 +202,28 @@ test("the wide home: figures on top, the batches beside the checklist, no money 
   await expect(figures).not.toContainText("Trésorerie");
   await expect(page.getByRole("region", { name: "Argent" })).toHaveCount(0);
 });
+
+// Owner feedback: a tab bar scrolls sideways (the phone), never up and down: its current tab's border made it 1 px taller
+// than itself, so Windows showed a vertical scrollbar beside « En cours / Clôturées » (that bar needs a closed batch; the
+// batch page's is the same component).
+test("tab bars have no vertical scroll, wide or on the phone, and still scroll sideways", async ({ page }) => {
+  test.setTimeout(90_000);
+  await ownerWithFarm(page, "Élevage des Onglets");
+  await scopeRemembered(page);
+  const ids = await farmWithBatch(page);
+  const bars = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll("main nav")]
+        .filter((nav) => nav.querySelector('a[aria-current="page"]') && nav.checkVisibility())
+        .map((nav) => ({ name: nav.getAttribute("aria-label"), up: nav.scrollHeight - nav.clientHeight, sideways: getComputedStyle(nav).overflowX })),
+    );
+  for (const size of [WIDE, { width: 1440, height: 900 }, PHONE]) {
+    await page.setViewportSize(size);
+    for (const [url, name] of [[`/fr/batches#${ids.batch}`, "Sections de la bande"], ["/fr/disposal", "Registre"], ["/fr/climate", "Climat des bâtiments"]]) {
+      await page.goto(url);
+      await expect(page.getByRole("navigation", { name, exact: true }).getByRole("link").first()).toBeVisible();
+      expect(await bars(), `${url} at ${size.width}`).toContainEqual({ name, up: 0, sideways: "auto" });
+      expect((await bars()).every((b) => b.up <= 0), `${url} at ${size.width}`).toBe(true);
+    }
+  }
+});

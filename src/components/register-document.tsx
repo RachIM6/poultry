@@ -103,12 +103,15 @@ export function Section({ title, children, heading: H = "h2", id }: { title: str
 }
 
 /** A table that says "none" rather than print an empty grid. On screen a wide one scrolls (zoom, phone); on paper it fits the page.
- * Each cell keeps its own direction: a Latin name or legal reference stays whole in an Arabic table. */
+ * Each cell keeps its own direction: a Latin name or legal reference stays whole in an Arabic table.
+ * On screen the look of the app's `dataTable` (layout.ts) in its card, a little denser (a register runs to hundreds of
+ * rows); on paper a ruled grid, as before. Not `dataTableWrap`: it stops scrolling from lg, and a register's daily table
+ * is wider than the column. */
 export function Table({ head, rows, none }: { head: string[]; rows: ReactNode[][]; none: string }) {
   if (rows.length === 0) return <p className="text-sm">{none}</p>;
   return (
-    <div className="overflow-x-auto print:overflow-visible">
-      <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-line [&_td]:px-1.5 [&_td]:py-1 [&_td]:align-top [&_th]:border [&_th]:border-line [&_th]:bg-shell [&_th]:px-1.5 [&_th]:py-1 [&_th]:text-start [&_th]:font-semibold print:[&_td]:border-black print:[&_th]:border-black">
+    <div className="overflow-x-auto rounded-[18px] bg-card shadow-[0_1px_2px_rgba(36,33,28,.06),0_6px_18px_rgba(36,33,28,.05)] print:overflow-visible print:rounded-none print:shadow-none">
+      <table className="w-full text-sm [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top [&_th]:bg-shell [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-start [&_th]:font-medium [&_th]:text-ink-2 [&_tbody_tr]:border-t [&_tbody_tr]:border-line print:[&_td]:border print:[&_td]:border-black print:[&_td]:px-1.5 print:[&_td]:py-1 print:[&_th]:border print:[&_th]:border-black print:[&_th]:px-1.5 print:[&_th]:py-1 print:[&_th]:font-semibold print:[&_th]:text-black">
         <thead>
           <tr>{head.map((h) => <th key={h} scope="col">{h}</th>)}</tr>
         </thead>

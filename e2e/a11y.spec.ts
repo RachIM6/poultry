@@ -167,6 +167,9 @@ async function lowContrast(page: Page) {
       flag(over([fg[0], fg[1], fg[2], fg[3] * opacity(el)], bg), bg, large ? 3 : 4.5, "text", n.textContent!);
     }
 
+    // A bare field inside a box (a stepper's − field +): the box is what marks it, and shows its focus ring.
+    const bare = (e: Element) => parseFloat(getComputedStyle(e).borderBottomWidth) < 1 && rgba(getComputedStyle(e).backgroundColor)[3] === 0;
+
     // 1.4.3 and 1.4.11: what is typed or shown in a field, and the field's edge.
     for (const el of document.querySelectorAll<HTMLInputElement>('input:not([type=hidden], [type=checkbox], [type=radio], [type=file], [type=submit], [type=button], [type=range], [type=color]), select, textarea')) {
       if (!shown(el) || disabled(el)) continue;
@@ -176,8 +179,6 @@ async function lowContrast(page: Page) {
       const empty = !(el instanceof HTMLSelectElement) && !el.value;
       if (!empty) flag(rgba(style.color), fill, 4.5, "field text", el.value || el.name);
       else if (el.placeholder) flag(rgba(getComputedStyle(el, "::placeholder").color), fill, 4.5, "placeholder", el.placeholder);
-      // A bare field inside a box (a stepper's − field +): the box is what marks it.
-      const bare = (e: Element) => parseFloat(getComputedStyle(e).borderBottomWidth) < 1 && rgba(getComputedStyle(e).backgroundColor)[3] === 0;
       const box = bare(el) && el.parentElement ? el.parentElement : el;
       const [boxFill, boxAround] = [behind(box), behind(box.parentElement)];
       if (!boxFill || !boxAround || ratio(boxFill, boxAround) >= 3) continue; // the fill marks the field
@@ -189,16 +190,19 @@ async function lowContrast(page: Page) {
     // 2.4.7 and 1.4.11: the focus indicator.
     for (const el of document.querySelectorAll<HTMLElement>(selector)) {
       if (!shown(el) || disabled(el) || el.getClientRects().length === 0) continue;
-      const before = getComputedStyle(el);
-      const [border, shadow] = [before.borderColor, before.boxShadow];
+      const box = el.matches("input, select, textarea") && bare(el) ? el.parentElement : null;
+      const edges = (e: Element | null) => e && `${getComputedStyle(e).borderColor} ${getComputedStyle(e).boxShadow}`;
+      const before = [edges(el), edges(box)];
       el.focus({ preventScroll: true });
       if (document.activeElement !== el || !el.matches(":focus-visible")) continue; // not focusable, or no ring to see
-      const style = getComputedStyle(el);
+      // A bare field without a ring of its own: its box shows it (the stepper's has(input:focus-visible)).
+      const ringed = box && getComputedStyle(el).outlineStyle === "none" ? box : el;
+      const style = getComputedStyle(ringed);
       const what = `${el.tagName.toLowerCase()} "${(el.getAttribute("aria-label") ?? el.textContent ?? "").trim().slice(0, 30)}"`;
       // The ring lies outside the box (outline-offset): behind it is the first ancestor that holds the whole ring.
-      const r = el.getBoundingClientRect();
+      const r = ringed.getBoundingClientRect();
       const reach = parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth);
-      let holder = el.parentElement;
+      let holder = ringed.parentElement;
       for (; holder && holder !== document.body; holder = holder.parentElement) {
         const h = holder.getBoundingClientRect();
         if (h.left <= r.left - reach && h.top <= r.top - reach && h.right >= r.right + reach && h.bottom >= r.bottom + reach) break;
@@ -206,7 +210,7 @@ async function lowContrast(page: Page) {
       const around = behind(holder);
       if (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0) {
         if (around) flag(over(rgba(style.outlineColor), around), around, 3, "focus ring", what);
-      } else if (style.borderColor === border && style.boxShadow === shadow) found.push({ key: "no focus indicator", example: what });
+      } else if (edges(ringed) === before[ringed === el ? 0 : 1]) found.push({ key: "no focus indicator", example: what });
     }
     (document.activeElement as HTMLElement | null)?.blur();
     return found;
